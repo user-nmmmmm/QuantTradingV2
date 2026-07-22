@@ -1,0 +1,15 @@
+{
+  "timestamp": "2026-03-13 17:51:05",
+  "cash": 10000.0,
+  "equity": 60000.0,
+  "positions": {
+    "BTC/USDT": {
+      "qty": 1.0,
+      "avg_price": 45000.0
+    }
+  },
+  "symbols": [
+    "BTC/USDT"
+  ],
+  "last_update": "2026-03-13T17:51:05.871578"
+}

@@ -4,9 +4,32 @@ import matplotlib.pyplot as plt
 import os
 from typing import List, Dict, Any, Tuple
 
+from core.logger import get_logger
+
+logger = get_logger(__name__)
+
+"""
+回测报告（ReportGenerator）模块
+
+输出内容（写入 output_dir）：
+- equity.csv：权益曲线（timestamp,equity,cash）
+- benchmark.csv：基准曲线（可选）
+- trades.csv：成交明细（来自 Broker.trades）
+- report.txt：指标摘要与文件说明
+- equity.png：净值、回撤、日收益、资金占用四联图
+
+指标计算：
+- 权益曲线：CAGR、最大回撤、月均收益、夏普（按 252 日年化）
+- 交易明细：基于 FIFO 重建已平仓交易，计算胜率、盈亏比、期望值等
+"""
+
 
 class ReportGenerator:
     def __init__(self, output_dir: str):
+        """
+        参数：
+        - output_dir：报告输出目录（不存在则创建）
+        """
         self.output_dir = output_dir
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
@@ -18,6 +41,15 @@ class ReportGenerator:
         metadata: Dict[str, Any] = None,
         benchmark_curve: pd.Series = None,
     ):
+        """
+        生成报告并返回指标字典。
+
+        参数：
+        - trades：Broker 记录的成交列表（每条为 dict）
+        - equity_curve：以 timestamp 为索引的权益曲线 DataFrame
+        - metadata：回测配置元信息（写入 report.txt）
+        - benchmark_curve：基准曲线（Series，可选）
+        """
         # 1. Save CSVs
         equity_curve.to_csv(os.path.join(self.output_dir, "equity.csv"))
 
@@ -43,6 +75,13 @@ class ReportGenerator:
         return metrics
 
     def _calculate_equity_metrics(self, equity_curve: pd.DataFrame) -> Dict[str, Any]:
+        """
+        根据权益曲线计算绩效指标。
+
+        约定：
+        - equity_curve.index 为 DatetimeIndex
+        - 252 日年化用于夏普（适用于日线；若为其他周期需要自行调整）
+        """
         equity = equity_curve["equity"]
         if equity.empty:
             return {}
@@ -89,6 +128,14 @@ class ReportGenerator:
         }
 
     def _analyze_trades(self, trades_df: pd.DataFrame) -> Dict[str, Any]:
+        """
+        基于 trades.csv 重建已平仓交易并统计交易级指标。
+
+        方法：
+        - 按 symbol 分组
+        - 使用 FIFO 栈（long_stack/short_stack）配对开平仓，计算每一笔闭合交易的 PnL
+        - 统计全局指标与按策略归因指标（Strat_{name}_*）
+        """
         if trades_df.empty:
             return {
                 "TotalTrades": 0,
@@ -353,6 +400,9 @@ class ReportGenerator:
     def _save_report_text(
         self, metrics: Dict[str, Any], metadata: Dict[str, Any] = None
     ):
+        """
+        将指标与配置写入 report.txt，并追加输出文件说明。
+        """
         # Metrics Translation Map
         METRIC_NAMES = {
             "CAGR": "CAGR (年化收益率)",
@@ -427,6 +477,13 @@ class ReportGenerator:
     def _plot_equity(
         self, equity_curve: pd.DataFrame, benchmark_curve: pd.Series = None
     ):
+        """
+        生成 equity.png 四联图：
+        1) 策略净值与基准净值
+        2) 回撤曲线
+        3) 日收益柱状图
+        4) 现金/持仓市值堆叠图（若 equity_curve 含 cash 列）
+        """
         try:
             # Create a figure with 4 subplots
             fig = plt.figure(figsize=(16, 12))
@@ -514,7 +571,7 @@ class ReportGenerator:
             plt.tight_layout()
             output_path = os.path.join(self.output_dir, "equity.png")
             plt.savefig(output_path, dpi=300)
-            print(f"Plot saved to: {output_path}")
+            logger.info("Plot saved to: %s", output_path)
             plt.close()
         except Exception as e:
-            print(f"Error saving plot: {e}")
+            logger.error("Error saving plot: %s", e)

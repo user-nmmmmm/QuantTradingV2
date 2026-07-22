@@ -5,6 +5,19 @@ from core.state import MarketState
 from core.portfolio import Portfolio
 from strategies.base import Strategy
 
+"""
+趋势突破策略（Trend Breakout）模块
+
+该策略实现 Donchian Channel 风格的突破系统：
+- 入场：收盘价突破过去 N 根 bar 的最高价（前高）
+- 出场：收盘价跌破过去 M 根 bar 的最低价（退出通道）
+
+与路由/风控的集成：
+- allowed_states 允许 TREND_UP 与 VOLATILE（波动扩张时更容易出现突破）
+- 入场信号提供 stop_loss（使用 Donchian Exit Level），供 RiskManager 做风险定仓
+- 内置“健康度监控”（P5）：连续亏损与滚动收益为负时熄火（停止出信号）
+"""
+
 
 class TrendBreakoutStrategy(Strategy):
     """
@@ -25,6 +38,11 @@ class TrendBreakoutStrategy(Strategy):
     """
 
     def __init__(self, entry_window: int = 20, exit_window: int = 10):
+        """
+        参数：
+        - entry_window：突破窗口（过去 N 根的最高价）
+        - exit_window：退出窗口（过去 M 根的最低价）
+        """
         # We allow VOLATILE because breakout often happens during volatility expansion
         super().__init__("TrendBreakout", {MarketState.TREND_UP, MarketState.VOLATILE})
         self.entry_window = entry_window
@@ -44,7 +62,15 @@ class TrendBreakoutStrategy(Strategy):
 
     def check_health(self) -> bool:
         """
-        P5: Check if alpha should be disabled.
+        P5：策略健康度闸门（Alpha Death）。
+
+        返回：
+        - True：策略仍可交易
+        - False：策略被禁用（is_alive=False），后续不再产生信号
+
+        当前实现的判定：
+        - 连续亏损 > 5：直接熄火
+        - 最近 20 笔收益均值 < 0：认为 alpha 失效，熄火
         """
         if not self.health_stats["is_alive"]:
             return False
@@ -70,6 +96,11 @@ class TrendBreakoutStrategy(Strategy):
         return True
 
     def _ensure_indicators(self, df: pd.DataFrame):
+        """
+        计算 Donchian 通道所需滚动极值列，并 shift(1) 避免未来函数。
+        - HIGH_MAX_N：过去 N 根的最高价（不含当前 bar）
+        - LOW_MIN_M：过去 M 根的最低价（不含当前 bar）
+        """
         if self.col_high_max not in df.columns:
             # Shift 1 to avoid lookahead bias (Standard Donchian uses previous N days)
             df[self.col_high_max] = (
@@ -89,6 +120,12 @@ class TrendBreakoutStrategy(Strategy):
         state: MarketState,
         portfolio: Portfolio,
     ) -> Optional[Dict[str, Any]]:
+        """
+        入场逻辑（做多）：
+        - 先通过 check_health()；若 alpha 熄火则不交易
+        - close > HIGH_MAX_entry_window 视为有效突破，返回 buy 信号
+        - 初始止损使用 Donchian Exit Level（LOW_MIN_exit_window）
+        """
         # P5: Gate on health check before generating any signal
         if not self.check_health():
             return None
@@ -133,7 +170,13 @@ class TrendBreakoutStrategy(Strategy):
         return None
 
     def _record_trade_result(self, symbol: str, portfolio: Portfolio, exit_price: float):
-        """Update P5 health stats with realized PnL of the just-closed trade."""
+        """
+        将一次“即将平仓”的结果写入健康度统计（rolling_pnl、consecutive_losses）。
+
+        注意：
+        - 本方法依赖 context 中的 entry_price（由基类在入场成交后写入）
+        - qty 从 Portfolio 读取；若此时 qty 已为 0，则跳过（无法归因）
+        """
         ctx = self.get_context(symbol)
         entry_price = ctx.get("entry_price", exit_price)
         qty = portfolio.get_position(symbol).get("qty", 0)
@@ -155,6 +198,11 @@ class TrendBreakoutStrategy(Strategy):
         state: MarketState,
         portfolio: Portfolio,
     ) -> Optional[Dict[str, Any]]:
+        """
+        出场逻辑：
+        1) close < LOW_MIN_exit_window：突破失败/回撤，平多
+        2) 状态不再属于 allowed_states：由策略层做一次防守性平仓
+        """
         self._ensure_indicators(df)
 
         close = df["close"].iloc[i]
@@ -172,5 +220,125 @@ class TrendBreakoutStrategy(Strategy):
         if state not in self.allowed_states:
             self._record_trade_result(symbol, portfolio, close)
             return {"action": "sell", "reason": f"Regime {state.name} Not Allowed"}
+
+        return None
+
+
+class TrendBreakdownStrategy(Strategy):
+    """
+    Mirrored Donchian breakdown strategy for short-side trend participation.
+    """
+
+    def __init__(self, entry_window: int = 20, exit_window: int = 10):
+        super().__init__("TrendBreakdown", {MarketState.TREND_DOWN})
+        self.entry_window = entry_window
+        self.exit_window = exit_window
+
+        self.col_high_max = f"HIGH_MAX_{self.exit_window}"
+        self.col_low_min = f"LOW_MIN_{self.entry_window}"
+        self.health_stats = {
+            "total_trades": 0,
+            "consecutive_losses": 0,
+            "rolling_pnl": [],
+            "is_alive": True,
+            "death_reason": None,
+        }
+
+    def check_health(self) -> bool:
+        if not self.health_stats["is_alive"]:
+            return False
+
+        if self.health_stats["consecutive_losses"] > 5:
+            self.health_stats["is_alive"] = False
+            self.health_stats["death_reason"] = "Consecutive Losses > 5"
+            return False
+
+        pnl_history = self.health_stats["rolling_pnl"]
+        if len(pnl_history) >= 20 and np.mean(pnl_history[-20:]) < 0:
+            self.health_stats["is_alive"] = False
+            self.health_stats["death_reason"] = "Rolling Mean Return < 0 (20 trades)"
+            return False
+
+        return True
+
+    def _ensure_indicators(self, df: pd.DataFrame):
+        if self.col_high_max not in df.columns:
+            df[self.col_high_max] = (
+                df["high"].rolling(window=self.exit_window).max().shift(1)
+            )
+        if self.col_low_min not in df.columns:
+            df[self.col_low_min] = (
+                df["low"].rolling(window=self.entry_window).min().shift(1)
+            )
+
+    def should_enter(
+        self,
+        symbol: str,
+        i: int,
+        df: pd.DataFrame,
+        state: MarketState,
+        portfolio: Portfolio,
+    ) -> Optional[Dict[str, Any]]:
+        if not self.check_health():
+            return None
+
+        self._ensure_indicators(df)
+        if i < self.entry_window:
+            return None
+
+        close = df["close"].iloc[i]
+        low_min = df[self.col_low_min].iloc[i]
+        if pd.notna(low_min) and close < low_min:
+            stop_loss = df[self.col_high_max].iloc[i]
+            if pd.isna(stop_loss) or stop_loss <= close:
+                stop_loss = close * 1.05
+
+            return {
+                "action": "short",
+                "stop_loss": stop_loss,
+                "order_type": "market",
+                "price": close,
+            }
+
+        return None
+
+    def _record_trade_result(self, symbol: str, portfolio: Portfolio, exit_price: float):
+        ctx = self.get_context(symbol)
+        entry_price = ctx.get("entry_price", exit_price)
+        qty = portfolio.get_position(symbol).get("qty", 0)
+        if qty == 0:
+            return
+
+        pnl = (entry_price - exit_price) * abs(qty)
+        self.health_stats["total_trades"] += 1
+        self.health_stats["rolling_pnl"].append(pnl)
+        if pnl < 0:
+            self.health_stats["consecutive_losses"] += 1
+        else:
+            self.health_stats["consecutive_losses"] = 0
+
+    def should_exit(
+        self,
+        symbol: str,
+        i: int,
+        df: pd.DataFrame,
+        state: MarketState,
+        portfolio: Portfolio,
+    ) -> Optional[Dict[str, Any]]:
+        self._ensure_indicators(df)
+
+        close = df["close"].iloc[i]
+        high_max = df[self.col_high_max].iloc[i]
+
+        if pd.notna(high_max) and close > high_max:
+            self._record_trade_result(symbol, portfolio, close)
+            return {
+                "action": "cover",
+                "reason": f"Breakdown Exit (Above High{self.exit_window})",
+            }
+
+        if state not in self.allowed_states:
+            self._record_trade_result(symbol, portfolio, close)
+            return {"action": "cover", "reason": f"Regime {state.name} Not Allowed"}
 
         return None

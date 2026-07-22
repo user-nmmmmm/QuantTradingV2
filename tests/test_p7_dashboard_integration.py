@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 import json
 import os
 import sys
+import tempfile
 import pandas as pd
 
 # Add project root
@@ -15,6 +16,7 @@ from core.risk import RiskManager
 
 class TestDashboardIntegration(unittest.TestCase):
     def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
         self.portfolio = Portfolio()
         self.risk_manager = RiskManager()
         self.mock_broker = MagicMock()
@@ -31,12 +33,16 @@ class TestDashboardIntegration(unittest.TestCase):
             strategies={},
             broker=self.mock_broker,
             risk_manager=self.risk_manager,
+            state_file=os.path.join(self.temp_dir.name, "live_status.json"),
         )
 
         # Mock Data Map
         self.engine.data_map["BTC/USDT"] = pd.DataFrame(
             {"close": [50000.0]}, index=[pd.Timestamp.now()]
         )
+
+    def tearDown(self):
+        self.temp_dir.cleanup()
 
     def test_state_export(self):
         # Clean up

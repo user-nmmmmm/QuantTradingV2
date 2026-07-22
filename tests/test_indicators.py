@@ -1,10 +1,11 @@
 import unittest
 import pandas as pd
 import numpy as np
-from core.indicators import Indicator
+from core.indicators import Indicators
 
 class TestIndicators(unittest.TestCase):
     def setUp(self):
+        np.random.seed(42)
         # Create a sample DataFrame
         self.length = 100
         dates = pd.date_range(start='2023-01-01', periods=self.length, freq='D')
@@ -22,7 +23,7 @@ class TestIndicators(unittest.TestCase):
 
     def test_sma(self):
         n = 20
-        sma = Indicator.SMA(self.df['close'], n)
+        sma = Indicators.SMA(self.df['close'], n)
         
         # Check length
         self.assertEqual(len(sma), self.length)
@@ -33,7 +34,7 @@ class TestIndicators(unittest.TestCase):
 
     def test_atr(self):
         n = 14
-        atr = Indicator.ATR(self.df, n)
+        atr = Indicators.ATR(self.df, n)
         
         # Check length
         self.assertEqual(len(atr), self.length)
@@ -47,7 +48,7 @@ class TestIndicators(unittest.TestCase):
 
     def test_adx(self):
         n = 14
-        adx = Indicator.ADX(self.df, n)
+        adx = Indicators.ADX(self.df, n)
         
         # Check length
         self.assertEqual(len(adx), self.length)
@@ -71,7 +72,7 @@ class TestIndicators(unittest.TestCase):
     def test_bbands(self):
         n = 20
         k = 2.0
-        upper, mid, lower = Indicator.BBANDS(self.df['close'], n, k)
+        upper, mid, lower = Indicators.BBANDS(self.df['close'], n, k)
         
         # Check length
         self.assertEqual(len(upper), self.length)

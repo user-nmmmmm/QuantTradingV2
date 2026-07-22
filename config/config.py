@@ -32,13 +32,27 @@ class ConfigLoader:
                 "risk": {
                     "max_leverage": 3.0,
                     "risk_per_trade": 0.01,
-                    "max_drawdown_limit": 0.20
+                    "max_drawdown_limit": 0.20,
+                    "liquidity_limit_pct": 0.01,
+                    "max_pos_size_pct": 0.20,
+                },
+                "state": {
+                    "stability_period": 2,
+                    "ma_fast": 20,
+                    "ma_slow": 60,
+                    "adx_period": 14,
+                    "adx_threshold": 25,
+                    "atr_period": 14,
+                    "atr_pct_threshold": 0.05,
                 },
                 "routing": {
-                    "TREND_UP": "TrendUp",
-                    "TREND_DOWN": "TrendDown",
+                    "TREND_UP": "TrendBreakout",
+                    "TREND_DOWN": "TrendBreakdown",
                     "SIDEWAYS": "RangeMeanReversion",
-                    "VOLATILE": "Cash"
+                    "VOLATILE": "TrendBreakout"
+                },
+                "router": {
+                    "cooldown_bars": 2,
                 },
                 "data": {
                     "check_quality": True

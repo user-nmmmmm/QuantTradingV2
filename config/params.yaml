@@ -2,24 +2,36 @@
 
 # 1. Execution & Fees
 execution:
-  commission_rate_taker: 0.001  # 0.1%
-  commission_rate_maker: 0.0005 # 0.05% (Reserved for limit orders)
+  commission_rate_taker: 0.0005 # 0.05% (Binance Futures standard taker, was 0.1% spot rate)
+  commission_rate_maker: 0.0002 # 0.02% (Binance Futures standard maker)
   slippage_bps: 5               # 5 basis points (0.05%)
   use_impact_cost: false        # Enable volume-based impact cost
 
 # 2. Risk Management
 risk:
   max_leverage: 3.0
-  risk_per_trade: 0.01          # 1% of equity per trade
+  risk_per_trade: 0.02          # 2% of equity per trade (was 1% — doubled to improve capital use)
   max_drawdown_limit: 0.20      # Circuit breaker at 20% DD
+  liquidity_limit_pct: 0.01     # Max order size as % of bar volume
+  max_pos_size_pct: 0.30        # 30% max per position (was 20% — allows meaningful sizing)
+
+# 2b. Market State
+state:
+  stability_period: 1           # 1: immediate state confirmation; VOLATILE↔TREND_UP won't trigger StateSwitch (same strategy)
+  ma_fast: 20
+  ma_slow: 60
+  adx_period: 14
+  adx_threshold: 25
+  atr_period: 14
+  atr_pct_threshold: 0.025      # 2.5%: crypto typical ATR is 2-4%; was 5% which rarely triggers on OKX data
 
 # 3. Strategy Routing (Regime Map)
 # Map Market State to Strategy Class Name
 routing:
-  TREND_UP: "TrendBreakout"     # Issue1/2 fix: leverage best-performing module in moderate uptrends too
-  TREND_DOWN: "TrendDown"
+  TREND_UP: "TrendBreakout"
+  TREND_DOWN: "TrendBreakdown"  # Short side; overridden by VOLATILE in most volatile regimes
   SIDEWAYS: "RangeMeanReversion"
-  VOLATILE: "TrendBreakout"     # P3: Alpha Integration
+  VOLATILE: "TrendBreakout"
 
 # 3b. Router Parameters
 router:

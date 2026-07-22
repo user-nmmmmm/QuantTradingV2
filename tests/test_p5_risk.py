@@ -87,5 +87,12 @@ class TestRiskManager(unittest.TestCase):
         )
         self.assertFalse(allowed, "Should reject 4x leverage")
 
+    def test_reset_daily_breaker(self):
+        self.risk_manager.circuit_breaker_triggered = True
+
+        self.risk_manager.reset_daily_breaker()
+
+        self.assertFalse(self.risk_manager.circuit_breaker_triggered)
+
 if __name__ == '__main__':
     unittest.main()

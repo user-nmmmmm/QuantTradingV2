@@ -1,18 +1,39 @@
 import time
-import logging
-import pandas as pd
-import json
 import os
-from typing import List, Dict
+import json
 from datetime import datetime
-from core.data_fetcher import DataFetcher
+from typing import Callable, Dict, List, Optional
+
+import pandas as pd
+
 from core.portfolio import Portfolio
 from core.risk import RiskManager
+from core.data_fetcher import DataFetcher
+from core.logger import get_logger
 from core.live_broker import LiveBroker
-from router.router import Router
-from core.state import MarketStateMachine
+from core.system_factory import (
+    build_router,
+    build_state_machine,
+    market_type_supports_shorts,
+)
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
+
+"""
+实盘轮询引擎（LiveTradingEngine）模块
+
+设计目标：
+- 以固定间隔轮询获取最新 K 线（DataFetcher.fetch_ccxt）
+- 使用 MarketStateMachine 判定 regime，并通过 Router 调用策略
+- 通过 LiveBroker 与交易所同步账户/仓位，并提交订单
+
+执行模型：
+- 每次 tick 使用“最后一根已完成的 bar”（i = len(df)-1）做决策
+- 订单提交后由 LiveBroker 执行（具体成交时间/价格由交易所决定）
+
+监控输出：
+- 每次 tick 结束后导出 reports/live_status.json，便于外部面板/脚本读取
+"""
 
 
 class LiveTradingEngine:
@@ -25,7 +46,20 @@ class LiveTradingEngine:
         interval_seconds: int = 60,  # Check every minute
         lookback_days: int = 30,  # Data buffer
         timeframe: str = "1d",
+        data_fetcher: Optional[DataFetcher] = None,
+        clock: Optional[Callable[[], datetime]] = None,
+        state_file: str = "reports/live_status.json",
     ):
+        """
+        参数：
+        - symbols：交易标的列表（ccxt 格式，如 "BTC/USDT"）
+        - strategies：策略实例字典（供 Router 使用）
+        - broker：LiveBroker（封装 ccxt 下单与账户同步）
+        - risk_manager：RiskManager（定仓与风控）
+        - interval_seconds：轮询间隔（秒）
+        - lookback_days：数据缓冲期（当前实现主要通过 limit 控制）
+        - timeframe：K 线周期（当前 DataFetcher.fetch_ccxt 内部决定，参数保留作扩展）
+        """
         self.symbols = symbols
         self.strategies = strategies
         self.broker = broker
@@ -34,35 +68,55 @@ class LiveTradingEngine:
         self.lookback_days = lookback_days
         self.timeframe = timeframe
 
-        self.fetcher = DataFetcher()
-        self.state_machine = MarketStateMachine()
+        self.fetcher = data_fetcher or DataFetcher()
+        self._clock = clock or datetime.now
+        self.state_machine = build_state_machine()
+        self._current_trading_day = None
 
-        # Initialize Router
-        self.router = Router(strategies)
+        allow_short = market_type_supports_shorts(getattr(self.broker, "market_type", "spot"))
+        self.router = build_router(strategies, allow_short=allow_short)
+        if not allow_short:
+            logger.warning(
+                "Live broker market_type=%s does not support short routing; TREND_DOWN is mapped to Cash",
+                getattr(self.broker, "market_type", "spot"),
+            )
 
         # Data Buffer: symbol -> DataFrame
         self.data_map: Dict[str, pd.DataFrame] = {}
 
         # Ensure reports directory exists for state export
-        os.makedirs("reports", exist_ok=True)
-        self.state_file = "reports/live_status.json"
+        self.state_file = state_file
+        state_dir = os.path.dirname(self.state_file)
+        if state_dir:
+            os.makedirs(state_dir, exist_ok=True)
+
+    def _now(self) -> datetime:
+        return self._clock()
+
+    def _reset_daily_risk_if_needed(self, current_time: datetime) -> None:
+        trading_day = current_time.date()
+        if trading_day != self._current_trading_day:
+            self.risk_manager.reset_daily_breaker()
+            self._current_trading_day = trading_day
 
     def initialize(self):
-        """Warmup data"""
+        """
+        初始化与预热：
+        - broker.sync() 同步账户/仓位
+        - 为每个 symbol 拉取一段历史数据，填充 data_map，供指标与状态机使用
+        """
         logger.info("Initializing Live Trading Engine...")
         self.broker.sync()
+        self._reset_daily_risk_if_needed(self._now())
 
         # Fetch initial data
-        end_date = datetime.now().strftime("%Y-%m-%d")
-        # Calculate start date approx
-        # For simplicity, just fetch last N days
-
         for symbol in self.symbols:
             logger.info(f"Warming up data for {symbol}...")
-            # We use fetch_ccxt to get latest data from exchange directly
-            # Note: fetch_ccxt implementation in DataFetcher might need adjustment for 'since'
-            # But let's use it as is for now.
-            df = self.fetcher.fetch_ccxt(symbol, limit=1000)  # Fetch ample history
+            df = self.fetcher.fetch_ccxt(
+                symbol,
+                timeframe=self.timeframe,
+                limit=max(self.lookback_days, 100),
+            )
             if not df.empty:
                 self.data_map[symbol] = df
                 logger.info(f"Loaded {len(df)} bars for {symbol}")
@@ -70,7 +124,11 @@ class LiveTradingEngine:
                 logger.warning(f"Failed to load data for {symbol}")
 
     def run(self):
-        """Main Loop"""
+        """
+        主循环：
+        - 按 interval_seconds 周期调用 _tick()
+        - 捕获 KeyboardInterrupt 以优雅退出
+        """
         logger.info("Starting Main Loop...")
         try:
             while True:
@@ -81,8 +139,16 @@ class LiveTradingEngine:
             logger.info("Live Trading Stopped by User")
 
     def _tick(self):
-        """Single iteration"""
-        logger.info(f"Tick: {datetime.now()}")
+        """
+        单次轮询迭代：
+        1) 更新行情数据缓冲
+        2) 同步账户/仓位
+        3) 对每个 symbol：计算状态 -> 路由策略 -> 提交订单
+        4) 导出当前状态 JSON
+        """
+        now = self._now()
+        logger.info("Tick: %s", now.isoformat())
+        self._reset_daily_risk_if_needed(now)
 
         # 1. Update Data
         self._update_data()
@@ -129,12 +195,22 @@ class LiveTradingEngine:
         self._export_state()
 
     def _update_data(self):
-        """Fetch latest candles and append"""
+        """
+        更新行情缓冲（symbol -> DataFrame）。
+
+        当前策略：
+        - 每次拉取最近 100 根（覆盖最新已完成 bar 与潜在修正）
+        - concat 后按时间去重（保留最后一条），再排序
+        """
         for symbol in self.symbols:
             # In a real efficient engine, we fetch only new candles.
             # Here, we re-fetch the last 100 bars to ensure we have the latest closed bar
             # and potential updates.
-            new_df = self.fetcher.fetch_ccxt(symbol, limit=100)
+            new_df = self.fetcher.fetch_ccxt(
+                symbol,
+                timeframe=self.timeframe,
+                limit=max(self.lookback_days, 100),
+            )
 
             if new_df.empty:
                 continue
@@ -156,7 +232,10 @@ class LiveTradingEngine:
                 self.data_map[symbol] = updated
 
     def _export_state(self):
-        """Export current engine state to JSON for monitoring"""
+        """
+        导出引擎状态到 reports/live_status.json，便于外部监控：
+        - timestamp、cash、equity、positions、symbols
+        """
         try:
             # Calculate Equity
             # We need current prices for all symbols in portfolio
@@ -169,12 +248,12 @@ class LiveTradingEngine:
             equity = self.broker.portfolio.get_equity(current_prices)
 
             state_data = {
-                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "timestamp": self._now().strftime("%Y-%m-%d %H:%M:%S"),
                 "cash": self.broker.portfolio.cash,
                 "equity": equity,
                 "positions": self.broker.portfolio.positions,
                 "symbols": self.symbols,
-                "last_update": datetime.now().isoformat(),
+                "last_update": self._now().isoformat(),
             }
 
             with open(self.state_file, "w") as f:

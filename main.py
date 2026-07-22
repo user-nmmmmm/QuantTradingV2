@@ -15,10 +15,33 @@ from core.data import DataHandler
 from backtest.engine import BacktestEngine
 from backtest.reporting import ReportGenerator
 
+"""
+项目入口（回测 CLI）
+
+用途：
+- 通过命令行或交互模式配置数据源、标的、日期区间、滑点等参数
+- 拉取/生成数据后运行 BacktestEngine
+- 生成 reports/<timestamp>_* 目录下的回测报告
+
+数据源：
+- synthetic：内置情景数据（用于快速演示与本地验证）
+- yahoo：Yahoo Finance 日线
+- ccxt：交易所 K 线（需网络与交易所支持）
+"""
+
 
 def get_data(
     symbol: str, start: str, end: str, source: str = "synthetic", days: int = 365
 ) -> pd.DataFrame:
+    """
+    获取单标的数据（封装 DataFetcher 的多源实现）。
+
+    参数：
+    - symbol：标的代码（不同数据源格式不同）
+    - start/end：日期字符串（YYYY-MM-DD）
+    - source：synthetic/yahoo/ccxt
+    - days：回测天数（ccxt 作为 limit 的近似）
+    """
     fetcher = DataFetcher()
 
     if source == "ccxt":
@@ -31,6 +54,13 @@ def get_data(
 
 
 def main():
+    """
+    命令行入口：
+    1) 解析参数（无参数则进入交互模式）
+    2) 拉取数据并生成数据质量报告（DataHandler.generate_quality_report）
+    3) 运行回测（BacktestEngine.run）
+    4) 输出报告（ReportGenerator.generate），并整理 routing_log/data_quality_report
+    """
     parser = argparse.ArgumentParser(description="Quantitative Trading System Backtest")
     parser.add_argument(
         "--days",
@@ -65,8 +95,8 @@ def main():
     parser.add_argument(
         "--slippage",
         type=float,
-        default=0.0,
-        help="Slippage rate (e.g. 0.001 for 0.1%). If random_slip is True, this is max slippage.",
+        default=None,
+        help="Slippage rate (e.g. 0.001 for 0.1%). If omitted, uses config execution.slippage_bps.",
     )
     parser.add_argument(
         "--random_slip",
@@ -128,9 +158,9 @@ def main():
 
         # 5. Slippage
         slip_input = input(
-            "Enter Slippage (e.g. 0.001 for 0.1%) [Default: 0.0]: "
+            "Enter Slippage (e.g. 0.001 for 0.1%) [Default: config]: "
         ).strip()
-        slippage = slip_input if slip_input else "0.0"
+        slippage = slip_input if slip_input else None
 
         # 6. Random Slip
         rand_slip_input = (
@@ -144,10 +174,11 @@ def main():
             source,
             "--capital",
             capital,
-            "--slippage",
-            slippage,
             "--symbols",
         ] + symbols
+
+        if slippage is not None:
+            cmd_args.extend(["--slippage", slippage])
 
         if start_arg and end_arg:
             cmd_args.extend(["--start", start_arg, "--end", end_arg])
@@ -193,7 +224,7 @@ def main():
         )
 
     print(
-        f"Config: Capital={args.capital}, Symbols={args.symbols}, Source={args.source}, Slippage={args.slippage}, RandomSlip={args.random_slip}"
+        f"Config: Capital={args.capital}, Symbols={args.symbols}, Source={args.source}, Slippage={args.slippage if args.slippage is not None else 'config'}, RandomSlip={args.random_slip}"
     )
 
     # 1. Fetch Data

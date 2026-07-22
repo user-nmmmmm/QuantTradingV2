@@ -1,18 +1,41 @@
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, field
 from enum import Enum
-from core.portfolio import Portfolio
-import pandas as pd
 import random
+
+import pandas as pd
+
+from core.logger import get_logger
+from core.portfolio import Portfolio
+
+logger = get_logger(__name__)
+
+"""
+Broker（撮合/执行）模块
+
+本模块用于回测环境下的“虚拟交易所”模拟，核心目标是：
+- 将策略产生的订单（Order）在后续 bar 上按规则撮合成交
+- 模拟现实交易成本：滑点（slippage）、手续费（maker/taker）、冲击成本（impact cost，可选）
+- 将成交结果写入 Portfolio（现金与持仓）并记录 trade log
+
+执行模型（回测假设）：
+- 策略在 bar i 收盘基于历史数据产生信号，提交订单时记录 signal_time（order.timestamp）
+- 引擎在 bar i+1 使用该 bar 的 OHLC 数据处理订单：
+  - Market：在开盘价成交（再叠加滑点）
+  - Limit：若触及限价则成交；开盘价可成交则按开盘价（taker），否则按限价（maker）
+  - Stop：触发后视为市价单（taker），按触发价与开盘价之间的更不利价格成交
+"""
 
 
 class OrderType(Enum):
+    """订单类型：市价/限价/止损（简化版）。"""
     MARKET = "market"
     LIMIT = "limit"
     STOP = "stop"
 
 
 class OrderStatus(Enum):
+    """订单状态机（简化版），用于回测记录与调试。"""
     CREATED = "created"
     SUBMITTED = "submitted"
     PARTIALLY_FILLED = "partially_filled"
@@ -24,6 +47,18 @@ class OrderStatus(Enum):
 
 @dataclass
 class Order:
+    """
+    订单数据结构（回测用）。
+
+    字段说明（常用）：
+    - symbol：交易标的（与数据源保持一致，例如 BTC-USDT 或 BTC/USDT）
+    - side：buy/sell/short/cover（由策略决定；Broker 内转换为 qty_delta 更新持仓）
+    - qty：下单数量（正数，方向由 side 决定）
+    - order_type/price：限价/止损单需要 price
+    - timestamp：信号产生时间（signal_time），用于对齐与反向检查（防 lookahead）
+    - strategy_id：用于归因与报告拆分
+    - exit_reason：signal/stop/takeprofit/reverse 等，用于报告分析
+    """
     symbol: str
     side: str
     qty: float
@@ -80,12 +115,24 @@ class Broker:
         exit_reason: str = "signal",
     ) -> None:
         """
-        Submit an order to be executed.
-        order_type: 'market', 'limit', 'stop'
-        price: Required for limit/stop orders
+        提交订单（进入撮合队列）。
+
+        参数：
+        - order_type：'market' / 'limit' / 'stop'（为兼容旧接口，这里仍接受字符串并映射到 Enum）
+        - price：限价/止损单必填；市价单可为 None
+        - timestamp：信号产生时间（通常为 bar i 的收盘时间），用于日志与反向检查
+
+        行为：
+        - 仅做基本参数校验与结构化封装，加入 pending_orders
+        - 实际撮合发生在 process_orders（由引擎在每根 bar 调用）
         """
         if qty <= 0:
-            print(f"Order rejected: Quantity must be positive. {symbol} {side} {qty}")
+            logger.warning(
+                "Order rejected: quantity must be positive for %s %s %.8f",
+                symbol,
+                side,
+                qty,
+            )
             return
 
         # Map string to Enum
@@ -97,7 +144,11 @@ class Broker:
         otype = otype_map.get(order_type.lower(), OrderType.MARKET)
 
         if otype in [OrderType.LIMIT, OrderType.STOP] and price is None:
-            print(f"Order rejected: Price required for {order_type} order.")
+            logger.warning(
+                "Order rejected: price is required for %s order on %s",
+                order_type,
+                symbol,
+            )
             return
 
         order = Order(
@@ -116,7 +167,20 @@ class Broker:
 
     def process_orders(self, current_bar: Dict[str, pd.Series]) -> List[Dict]:
         """
-        Process pending and active orders using the current bar's data (OHLCV).
+        在“当前 bar”的 OHLCV 数据上处理订单（撮合与成交）。
+
+        输入：
+        - current_bar：symbol -> pd.Series（含 open/high/low/close/volume，Series.name 为时间戳）
+
+        订单生命周期：
+        - submit_order 进入 pending_orders
+        - 每根 bar 开始处理时：pending -> active（状态变为 SUBMITTED）
+        - 对 active_orders 执行撮合规则：
+          - 成交：记录 trade，订单置为 FILLED 并移出 active
+          - 未成交：保留到 next_active_orders（限价/止损会跨 bar 存活）
+
+        返回：
+        - executed_trades：本根 bar 成交的 trade record 列表（用于引擎汇总与报告）
         """
         executed_trades = []
         next_active_orders = []
@@ -253,7 +317,16 @@ class Broker:
         is_maker: bool = False,
     ) -> Optional[Dict]:
         """
-        Internal execution logic.
+        内部执行逻辑：将订单转换为一次“成交”，并写入 Portfolio 与 trade log。
+
+        主要步骤：
+        1) 计算滑点：固定/随机/冲击成本（可选）
+        2) 计算手续费：maker/taker 费率按名义价值（qty * fill_price）计提
+        3) 将 qty_delta 写入 Portfolio（现金与持仓变动）
+        4) 生成 trade_record（用于回测报告、逐笔日志、策略归因）
+
+        返回：
+        - trade_record（dict），或 None（例如卖出数量超过持仓且无法裁剪时）
         """
         # 1. Slippage Calculation
         # Fill Price = Open * (1 ± slip)
@@ -348,11 +421,20 @@ class Broker:
         }
         self.trades.append(trade_record)
 
-        # Log to console as requested
-        print(
-            f"[Trade] {timestamp} {order.symbol} {order.side} {order.qty} @ {fill_price:.2f} "
-            f"(Slip: {slip_val:.4f} {slip_dir}, Comm: {commission:.4f}, Maker: {is_maker}, "
-            f"Reason: {trade_record['exit_reason']}, Signal: {order.timestamp})"
+        logger.info(
+            "Trade filled symbol=%s side=%s qty=%.8f fill_price=%.8f commission=%.8f "
+            "slip=%.8f slip_dir=%s maker=%s exit_reason=%s signal_time=%s fill_time=%s",
+            order.symbol,
+            order.side,
+            order.qty,
+            fill_price,
+            commission,
+            slip_val,
+            slip_dir,
+            is_maker,
+            trade_record["exit_reason"],
+            order.timestamp,
+            timestamp,
         )
 
         return trade_record
@@ -375,7 +457,11 @@ class Broker:
 
         n = before - len(self.pending_orders) - len(self.active_orders)
         if n > 0:
-            print(f"[Broker] Cancelled {n} stale order(s) for {symbol} on state switch.")
+            logger.info(
+                "Cancelled %s stale order(s) for %s during state switch",
+                n,
+                symbol,
+            )
         return n
 
     # Keep compatibility if needed, or remove.

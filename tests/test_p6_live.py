@@ -1,12 +1,7 @@
 import unittest
 from unittest.mock import MagicMock, patch
-import pandas as pd
-import sys
-import os
-from datetime import datetime
 
-# Add project root
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import pandas as pd
 
 from core.live_broker import LiveBroker
 from live_trading.engine import LiveTradingEngine
@@ -19,31 +14,60 @@ class TestLiveTrading(unittest.TestCase):
         self.portfolio = Portfolio()
         self.risk_manager = RiskManager()
 
-        # Mock CCXT Exchange
         self.mock_exchange = MagicMock()
         self.mock_exchange.fetch_balance.return_value = {
-            "total": {"USDT": 10000.0, "BTC": 0.0},
-            "free": {"USDT": 10000.0, "BTC": 0.0},
+            "total": {"USDT": 10000.0, "BTC": 0.2},
+            "free": {"USDT": 9500.0, "BTC": 0.2},
         }
+        self.mock_exchange.fetch_positions.return_value = []
         self.mock_exchange.create_order.return_value = {
             "id": "12345",
             "status": "closed",
             "average": 50000.0,
         }
-        self.mock_exchange.fetch_ohlcv.return_value = [
-            [1609459200000, 50000, 51000, 49000, 50500, 100]  # Timestamp, O, H, L, C, V
-        ]
 
     @patch("core.live_broker.ccxt")
-    def test_broker_sync(self, mock_ccxt):
-        # Setup Mock Class
+    def test_broker_sync_spot_mode_uses_balances(self, mock_ccxt):
         mock_ccxt.binance.return_value = self.mock_exchange
 
-        broker = LiveBroker(self.portfolio, exchange_id="binance")
+        broker = LiveBroker(
+            self.portfolio,
+            exchange_id="binance",
+            market_type="spot",
+        )
         broker.sync()
 
-        self.assertEqual(self.portfolio.cash, 10000.0)
-        self.mock_exchange.fetch_balance.assert_called_once()
+        self.assertEqual(self.portfolio.cash, 9500.0)
+        self.assertEqual(self.portfolio.positions["BTC/USDT"]["qty"], 0.2)
+        self.assertEqual(self.portfolio.positions["BTC/USDT"]["avg_price"], 0.0)
+        self.mock_exchange.fetch_positions.assert_not_called()
+
+    @patch("core.live_broker.ccxt")
+    def test_broker_sync_futures_mode_prefers_fetch_positions(self, mock_ccxt):
+        self.mock_exchange.fetch_balance.return_value = {
+            "total": {"USDT": 15000.0},
+            "free": {"USDT": 12000.0},
+        }
+        self.mock_exchange.fetch_positions.return_value = [
+            {
+                "symbol": "BTC/USDT",
+                "contracts": "0.25",
+                "entryPrice": "50000",
+            }
+        ]
+        mock_ccxt.binance.return_value = self.mock_exchange
+
+        broker = LiveBroker(
+            self.portfolio,
+            exchange_id="binance",
+            market_type="future",
+        )
+        broker.sync()
+
+        self.assertEqual(self.portfolio.cash, 12000.0)
+        self.assertEqual(self.portfolio.positions["BTC/USDT"]["qty"], 0.25)
+        self.assertEqual(self.portfolio.positions["BTC/USDT"]["avg_price"], 50000.0)
+        self.mock_exchange.fetch_positions.assert_called_once()
 
     @patch("core.live_broker.ccxt")
     def test_broker_submit_order(self, mock_ccxt):
@@ -62,12 +86,19 @@ class TestLiveTrading(unittest.TestCase):
         )
         self.assertEqual(len(broker.trades), 1)
 
-    @patch("core.data_fetcher.DataFetcher.fetch_ccxt")
     @patch("core.live_broker.ccxt")
-    def test_engine_initialization(self, mock_ccxt, mock_fetch_ccxt):
+    def test_broker_rejects_spot_short_orders(self, mock_ccxt):
         mock_ccxt.binance.return_value = self.mock_exchange
 
-        # Mock Data Fetcher returning a DataFrame
+        broker = LiveBroker(self.portfolio, exchange_id="binance", market_type="spot")
+        broker.submit_order("BTC/USDT", "short", 0.1, 50000.0, "limit")
+
+        self.mock_exchange.create_order.assert_not_called()
+        self.assertEqual(len(broker.trades), 0)
+
+    @patch("core.live_broker.ccxt")
+    def test_engine_initialization_uses_injected_fetcher(self, mock_ccxt):
+        mock_ccxt.binance.return_value = self.mock_exchange
         df = pd.DataFrame(
             {
                 "open": [100, 101],
@@ -78,7 +109,8 @@ class TestLiveTrading(unittest.TestCase):
             },
             index=pd.to_datetime(["2021-01-01", "2021-01-02"]),
         )
-        mock_fetch_ccxt.return_value = df
+        mock_fetcher = MagicMock()
+        mock_fetcher.fetch_ccxt.return_value = df
 
         broker = LiveBroker(self.portfolio, exchange_id="binance")
         engine = LiveTradingEngine(
@@ -86,17 +118,34 @@ class TestLiveTrading(unittest.TestCase):
             strategies={},
             broker=broker,
             risk_manager=self.risk_manager,
+            data_fetcher=mock_fetcher,
+            lookback_days=2,
         )
-
-        # We assume fetcher is mocked inside engine or injected
-        # In implementation, engine instantiates DataFetcher internally.
-        # So we patch the method on the class (done via decorator)
 
         engine.initialize()
 
         self.assertIn("BTC/USDT", engine.data_map)
         self.assertEqual(len(engine.data_map["BTC/USDT"]), 2)
-        mock_fetch_ccxt.assert_called()
+        mock_fetcher.fetch_ccxt.assert_called_with(
+            "BTC/USDT",
+            timeframe="1d",
+            limit=100,
+        )
+
+    @patch("core.live_broker.ccxt")
+    def test_engine_maps_trend_down_to_cash_for_spot(self, mock_ccxt):
+        mock_ccxt.binance.return_value = self.mock_exchange
+        broker = LiveBroker(self.portfolio, exchange_id="binance", market_type="spot")
+
+        engine = LiveTradingEngine(
+            symbols=["BTC/USDT"],
+            strategies={},
+            broker=broker,
+            risk_manager=self.risk_manager,
+            data_fetcher=MagicMock(),
+        )
+
+        self.assertEqual(engine.router.regime_map["TREND_DOWN"], "Cash")
 
 
 if __name__ == "__main__":

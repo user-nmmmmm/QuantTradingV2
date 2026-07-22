@@ -1,6 +1,22 @@
 import pandas as pd
 import numpy as np
 
+"""
+Indicators（指标库）模块
+
+本模块提供回测系统用到的基础技术指标，并约定：
+- 输入：价格序列或含 OHLCV 的 DataFrame（列名小写 open/high/low/close/volume）
+- 输出：与输入索引等长的 pd.Series（或三元组），并在 DataFrame 上原地挂载列
+- NaN 处理：多数滚动指标在前 n-1 根会出现 NaN；为兼容测试与避免误用，
+  ATR/ADX 这里显式将前 n-1 根设为 NaN。
+
+指标清单（当前项目使用）：
+- 趋势：SMA/EMA
+- 波动：ATR
+- 强度：ADX
+- 区间：布林带 BBANDS
+"""
+
 class Indicators:
     """
     基础指标实现模块。
@@ -10,6 +26,10 @@ class Indicators:
     def calculate_all(df: pd.DataFrame):
         """
         Calculate all necessary indicators and add them to the DataFrame in-place.
+
+        说明：
+        - 该方法会直接修改传入的 df（in-place），便于下游（状态机、策略）直接读取列
+        - 若 df 缺失某些列（例如 close），上层应先通过 DataHandler.validate 标准化
         """
         # Trend Indicators
         df['SMA_10'] = Indicators.SMA(df['close'], 10)
@@ -30,12 +50,22 @@ class Indicators:
 
     @staticmethod
     def SMA(series: pd.Series, n: int) -> pd.Series:
-        """简单移动平均"""
+        """
+        简单移动平均（Simple Moving Average）。
+
+        返回：
+        - 与 series 等长的滚动均值序列；前 n-1 根为 NaN
+        """
         return series.rolling(window=n).mean()
 
     @staticmethod
     def EMA(series: pd.Series, n: int) -> pd.Series:
-        """指数移动平均"""
+        """
+        指数移动平均（Exponential Moving Average）。
+
+        说明：
+        - adjust=False 更符合交易软件常见实现（递推形式）
+        """
         return series.ewm(span=n, adjust=False).mean()
 
     @staticmethod
@@ -45,6 +75,11 @@ class Indicators:
         TR = Max(High-Low, Abs(High-PreClose), Abs(Low-PreClose))
         ATR = SMA(TR, n) (Usually Wilder's Smoothing is used, but SMA/EMA is requested/acceptable)
         这里使用 Wilder's Smoothing (alpha=1/n) 的 EMA 来逼近标准 ATR
+
+        实现细节：
+        - 先计算 TR（True Range）
+        - 再用 Wilder 平滑（ewm(alpha=1/n)）得到 ATR
+        - 为避免“第一根就有值”误导使用，这里将前 n-1 根置为 NaN
         """
         high = df['high']
         low = df['low']
@@ -76,6 +111,16 @@ class Indicators:
     def ADX(df: pd.DataFrame, n: int = 14) -> pd.Series:
         """
         平均趋向指标 (Average Directional Index)
+
+        实现步骤（简化版）：
+        1) 计算 TR、+DM、-DM
+        2) 对 TR/+DM/-DM 做 Wilder 平滑（ewm(alpha=1/n)）
+        3) 计算 +DI、-DI
+        4) 计算 DX 并平滑得到 ADX
+
+        说明：
+        - 标准 ADX 的初始化阶段通常更复杂（先 SMA 再 Wilder），这里采用一致的 EWM 近似
+        - 同样将前 n-1 根置为 NaN，避免早期不稳定值干扰策略
         """
         high = df['high']
         low = df['low']
@@ -126,6 +171,10 @@ class Indicators:
         """
         布林带 (Bollinger Bands)
         Returns: (upper, middle, lower)
+
+        计算：
+        - middle = SMA(series, n)
+        - upper/lower = middle ± k * rolling_std(series, n)
         """
         middle = series.rolling(window=n).mean()
         std = series.rolling(window=n).std()
@@ -134,3 +183,6 @@ class Indicators:
         lower = middle - k * std
         
         return upper, middle, lower
+
+
+Indicator = Indicators

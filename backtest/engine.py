@@ -1,27 +1,58 @@
 import os
-import pandas as pd
-import numpy as np
 from typing import Dict, List, Any, Optional
+
+import numpy as np
+import pandas as pd
+
 from core.indicators import Indicators
-from core.state import MarketStateMachine, MarketState
 from core.portfolio import Portfolio
 from core.broker import Broker
-from core.risk import RiskManager
-from strategies.trend_following import TrendUpStrategy, TrendDownStrategy
-from strategies.mean_reversion import RangeStrategy
-from strategies.trend_breakout import TrendBreakoutStrategy
-from router.router import Router
+from core.logger import get_logger
+from core.system_factory import (
+    build_risk_manager,
+    build_router,
+    build_state_machine,
+    build_strategy_registry,
+)
 from config.config import config
+
+logger = get_logger(__name__)
+
+"""
+回测引擎（BacktestEngine）模块
+
+功能：
+- 对多标的 OHLCV 数据进行时间对齐与指标预计算
+- 运行“Next-Bar Execution”回测循环：
+  - 在 bar i：策略基于 i 的数据产生信号并提交订单
+  - 在 bar i+1：Broker.process_orders(...) 按下一根 bar 的价格撮合成交（近似）
+- 集成风控与状态机：
+  - MarketStateMachine：根据行情判定 regime（TREND_UP/TREND_DOWN/SIDEWAYS/VOLATILE）
+  - Router：按 regime 选择策略，并处理状态切换互斥/冷却
+  - RiskManager：定仓、杠杆约束、回撤/日内熔断
+
+输出：
+- trades：来自 Broker 的成交记录（用于报告）
+- equity_curve：权益曲线（cash + 持仓市值）
+- benchmark：等权买入并持有基准（可选）
+"""
 
 
 class BacktestEngine:
     def __init__(
         self,
         initial_capital: float = 10000.0,
-        slippage: float = 0.0,
+        slippage: Optional[float] = None,
         random_slip: bool = False,
-        warmup_period: int = 50,
+        warmup_period: int = 30,
     ):
+        """
+        参数：
+        - initial_capital：初始资金（默认 10000）
+        - slippage：滑点比例或最大滑点（取决于 random_slip）
+        - random_slip：是否启用随机滑点（均匀分布 [0, slippage]）
+        - warmup_period：指标预热 bars（前 N 根 bar 只记录权益不交易）
+        """
         self.initial_capital = initial_capital
         # If config is present, use it to override or supplement
         # But command line args usually take precedence if passed explicitly?
@@ -30,26 +61,22 @@ class BacktestEngine:
         # Load params from config
         self.config_execution = config.get("execution") or {}
         self.config_risk = config.get("risk") or {}
-        self.config_routing = config.get("routing") or {}
-        self.config_router = config.get("router") or {}  # Issue2 fix: router-level params
 
-        # CLI overrides
-        self.slippage = slippage
+        if slippage is None:
+            self.slippage = self.config_execution.get("slippage_bps", 0.0) / 10000.0
+        else:
+            self.slippage = slippage
         self.random_slip = random_slip
         self.warmup_period = warmup_period
 
-        # Determine effective slippage (CLI vs Config)
-        # If CLI is 0.0 (default), check config.
-        # But if user explicitly wanted 0.0, this logic is flawed.
-        # Let's assume CLI takes precedence if provided (caller logic).
-        # Actually Main.py passes defaults.
-        # We'll use the passed values as they come from Main which handles CLI.
-
-        # However, Broker needs commission rates from config.
-
     @staticmethod
     def _prepare_dataframe(df: pd.DataFrame) -> pd.DataFrame:
-        """Normalize index type/tz and remove duplicated timestamps."""
+        """
+        规范化 DataFrame 的时间索引并去重：
+        - index 强制转换为 DatetimeIndex
+        - 若带时区，统一转为 UTC 后去 tz（回测内部使用 tz-naive）
+        - 删除重复时间戳（保留最后一条），并按时间排序
+        """
         if df is None or df.empty:
             return pd.DataFrame()
 
@@ -72,7 +99,11 @@ class BacktestEngine:
 
     @staticmethod
     def _looks_daily_or_slower(indices: List[pd.DatetimeIndex]) -> bool:
-        """Heuristic: detect daily/weekly-like bars to allow date-based alignment."""
+        """
+        启发式判断数据是否为日线/更慢周期：
+        - 若中位数 bar 间隔小于 23 小时，则认为是日内数据（不做按日期对齐）
+        - 否则允许在“无法精确时间戳交集”时，退化为按日历日期对齐
+        """
         for idx in indices:
             if len(idx) < 2:
                 continue
@@ -94,10 +125,22 @@ class BacktestEngine:
         routing_log_path: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        Run backtest on multiple symbols.
-        data_map: symbol -> DataFrame (OHLCV)
-        strategies: Optional dict of Strategy instances. If None, uses defaults.
-        routing_log_path: Optional path for routing log CSV.
+        运行多标的回测。
+
+        参数：
+        - data_map：symbol -> OHLCV DataFrame（索引为时间戳）
+        - strategies：策略实例字典；None 则使用默认策略集
+        - routing_log_path：路由日志输出路径；None 则写入 ./reports/routing_log.csv
+
+        关键步骤：
+        1) 初始化 Portfolio/Broker/RiskManager/MarketStateMachine/Router
+        2) 规范化数据、对齐时间轴、预计算指标（Indicators.calculate_all）
+        3) 主循环：
+           - 撮合：Broker.process_orders（执行上一根 bar 提交的订单）
+           - 估值：portfolio.get_total_value(current_prices)
+           - 风控：日内熔断触发则提交平仓订单并停止开仓
+           - 路由：state_machine.get_state -> router.route -> strategy.on_bar
+        4) 保存路由日志并计算基准曲线
         """
         # 1. Setup Core Components
         portfolio = Portfolio(self.initial_capital)
@@ -115,23 +158,14 @@ class BacktestEngine:
         )
 
         # Setup Risk Manager with Config
-        risk_manager = RiskManager(
-            risk_per_trade=self.config_risk.get("risk_per_trade", 0.01),
-            max_leverage=self.config_risk.get("max_leverage", 3.0),
-            max_drawdown_limit=self.config_risk.get("max_drawdown_limit", 0.20),
-        )
+        risk_manager = build_risk_manager()
 
         # Issue2 fix: stability_period=2 → 1 bar faster state-change detection (was 3)
-        state_machine = MarketStateMachine(stability_period=2)
+        state_machine = build_state_machine()
 
         # 2. Setup Strategies & Router
         if strategies is None:
-            strategies = {
-                "TrendUp": TrendUpStrategy(),
-                "TrendDown": TrendDownStrategy(),
-                "RangeMeanReversion": RangeStrategy(),
-                "TrendBreakout": TrendBreakoutStrategy(),
-            }
+            strategies = build_strategy_registry()
 
         # Setup Router logging path
         if routing_log_path is None:
@@ -145,12 +179,7 @@ class BacktestEngine:
             if log_dir and not os.path.exists(log_dir):
                 os.makedirs(log_dir)
 
-        router = Router(
-            strategies,
-            regime_map=self.config_routing,
-            cooldown_bars=self.config_router.get("cooldown_bars", 3),
-            log_path=routing_log_path,
-        )
+        router = build_router(strategies, log_path=routing_log_path)
 
         # 3. Prepare Data
         # Get intersection of indices to sync time axis
@@ -161,14 +190,15 @@ class BacktestEngine:
         for symbol, df in data_map.items():
             normalized_df = self._prepare_dataframe(df)
             if normalized_df.empty:
-                print(
-                    f"Skipping {symbol}: empty/invalid dataframe after normalization."
+                logger.warning(
+                    "Skipping %s: empty or invalid dataframe after normalization",
+                    symbol,
                 )
                 continue
             normalized_data_map[symbol] = normalized_df
 
         if not normalized_data_map:
-            print("No valid symbol data available after normalization.")
+            logger.warning("No valid symbol data available after normalization")
             return {"trades": [], "equity_curve": pd.DataFrame()}
 
         common_index = None
@@ -200,15 +230,19 @@ class BacktestEngine:
                         remapped_data_map[symbol] = daily_df
 
                     normalized_data_map = remapped_data_map
-                    print(
-                        "No exact timestamp overlap; aligned symbols by calendar date."
+                    logger.info(
+                        "No exact timestamp overlap; aligned symbols by calendar date"
                     )
 
         if common_index is None or len(common_index) == 0:
-            print("No common timeframe found for symbols.")
+            logger.warning("No common timeframe found for symbols")
             for symbol, df in normalized_data_map.items():
-                print(
-                    f"{symbol}: {df.index.min()} -> {df.index.max()} ({len(df)} bars)"
+                logger.warning(
+                    "%s: %s -> %s (%s bars)",
+                    symbol,
+                    df.index.min(),
+                    df.index.max(),
+                    len(df),
                 )
             return {"trades": [], "equity_curve": pd.DataFrame()}
 
@@ -240,7 +274,7 @@ class BacktestEngine:
         daily_start_equity = self.initial_capital
         current_day = None
 
-        print(f"Starting backtest on {len(timestamps)} bars...")
+        logger.info("Starting backtest on %s bars", len(timestamps))
 
         # Skip first N bars to allow indicators to warm up (SMA30, ATR14, etc.)
         start_idx = self.warmup_period
@@ -257,20 +291,7 @@ class BacktestEngine:
                 if i > 0 and len(equity_curve) > 0:
                     daily_start_equity = equity_curve[-1]["equity"]
                 current_day = this_day
-                # Reset circuit breaker (if we want it to reset daily? Usually yes for intraday limit)
-                # But if we hit max drawdown limit of total account, it shouldn't reset.
-                # RiskManager implements "max_drawdown_limit" which usually means Trailing Max Drawdown or Intraday?
-                # The requirement said "Intraday Max Loss Circuit Breaker".
-                # So we should reset the breaker flag in RiskManager if it's a new day?
-                # But RiskManager logic I wrote compares current vs daily_start.
-                # If triggered, it stays triggered. I should add a reset method or handle it here.
-                # For safety, let's assume if it triggers, we stop for the day.
-                # Next day we might resume? Or stop forever?
-                # "triggers flatten + stop opening". Usually means stop for the day.
-                if risk_manager.circuit_breaker_triggered:
-                    # Optional: Reset for new day?
-                    # risk_manager.reset_breaker()
-                    pass
+                risk_manager.reset_daily_breaker()
 
             if i < start_idx:
                 # Still record equity (cash only)
@@ -360,7 +381,7 @@ class BacktestEngine:
                 }
             )
 
-        print("Backtest completed.")
+        logger.info("Backtest completed")
 
         # Save Routing Log
         router.save_log()
@@ -396,7 +417,7 @@ class BacktestEngine:
                     benchmark_series = benchmark_idx * self.initial_capital  # Fallback
 
             except Exception as e:
-                print(f"Warning: Failed to calculate benchmark: {e}")
+                logger.warning("Failed to calculate benchmark: %s", e)
 
         return {
             "trades": broker.trades,

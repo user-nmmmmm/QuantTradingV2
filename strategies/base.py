@@ -7,9 +7,33 @@ from core.portfolio import Portfolio
 from core.broker import Broker
 from core.risk import RiskManager
 
+"""
+Strategy（策略基类）模块
+
+本模块定义策略插件的统一接口与“标准执行流程”（on_bar），用于在回测与实盘引擎中复用同一套调用方式。
+
+核心接口：
+- should_enter：在第 i 根 bar 收盘时判断是否产生入场信号
+- should_exit：在第 i 根 bar 收盘时判断是否产生出场信号
+- on_bar：通用编排（先出场、再入场），并与 Broker/RiskManager/Portfolio 协作完成下单与风控
+
+重要约定（时间与执行）：
+- 策略在 bar i 依据 df.iloc[:i]（含 i）产生信号，并通过 broker.submit_order(...) 提交订单
+- Broker 在下一根 bar（i+1）开盘/触发条件下撮合成交（回测模型：Next-Bar Execution）
+- 为避免“刚成交就立即又在同一根 bar 触发止损/出场”的抖动，on_bar 对新开仓做了 1 bar 的 exit 冷却
+
+上下文（context）：
+- 每个策略按 symbol 维护一个 context（字典），用于保存止损价、入场价、追踪止损等跨 bar 状态
+"""
+
 
 class Strategy(ABC):
     def __init__(self, name: str, allowed_states: Set[MarketState]):
+        """
+        参数：
+        - name：策略名（用于报告归因、交易日志 strategy_id）
+        - allowed_states：允许生效的市场状态集合（由 Router 决定是否调用策略）
+        """
         self.name = name
         self.allowed_states = allowed_states
 
@@ -18,6 +42,15 @@ class Strategy(ABC):
         self.context: Dict[str, Dict[str, Any]] = {}
 
     def get_context(self, symbol: str) -> Dict[str, Any]:
+        """
+        获取某标的的策略上下文（不存在则自动创建）。
+
+        context 典型字段：
+        - entry_price：入场参考价（通常为 signal bar 的 close）
+        - stop_loss：初始止损价
+        - trailing_stop：追踪止损价
+        - entry_bar：入场信号所在的 bar index（用于 exit 冷却）
+        """
         if symbol not in self.context:
             self.context[symbol] = {}
         return self.context[symbol]
@@ -32,8 +65,16 @@ class Strategy(ABC):
         portfolio: Portfolio,
     ) -> Optional[Dict[str, Any]]:
         """
-        Return entry signal.
-        e.g. {'action': 'buy'|'short', 'stop_loss': float}
+        判断是否入场（在 bar i 收盘时刻做决策）。
+
+        返回：
+        - None：不入场
+        - dict：入场信号，至少包含：
+          - action：'buy'（做多）或 'short'（做空）
+        可选字段：
+        - stop_loss：止损价（用于 RiskManager 按风险定仓）
+        - order_type：'market'/'limit'/'stop'（默认 market）
+        - price：限价/止损单价格（默认 close）
         """
         pass
 
@@ -47,8 +88,15 @@ class Strategy(ABC):
         portfolio: Portfolio,
     ) -> Optional[Dict[str, Any]]:
         """
-        Return exit signal.
-        e.g. {'action': 'sell'|'cover', 'reason': str}
+        判断是否出场（在 bar i 收盘时刻做决策）。
+
+        返回：
+        - None：不出场
+        - dict：出场信号，至少包含：
+          - action：'sell'（平多）或 'cover'（平空）
+        可选字段：
+        - reason：出场原因（用于报告与调试，如 'stop'/'takeprofit'/'State changed'）
+        - order_type/price：与入场类似
         """
         pass
 
@@ -64,7 +112,18 @@ class Strategy(ABC):
         current_prices: Optional[Dict[str, float]] = None,
     ):
         """
-        Standard execution flow.
+        标准执行流程（每根 bar 调用一次）。
+
+        执行顺序：
+        1) 若当前持仓非 0：优先检查 should_exit 并提交平仓订单
+        2) 若当前无持仓：在 allowed_states 内检查 should_enter，并通过 RiskManager 计算仓位后提交开仓订单
+
+        关键细节：
+        - exit 冷却：为避免“下根 bar 开盘成交后，同一根 bar 又触发 exit”的不合理抖动，
+          新入场的仓位会跳过 1 次 exit 检查（just_entered）
+        - 定仓逻辑：
+          - 若 entry_signal 提供 stop_loss：按 risk_per_trade 做风险定仓
+          - 否则：退化为按固定资金占比定仓（默认 10%）
         """
         current_pos = portfolio.get_position(symbol)
         qty = current_pos["qty"]
@@ -128,11 +187,6 @@ class Strategy(ABC):
                     )
                     equity = portfolio.get_equity(price_map)
 
-                    # Check Leverage Limit (Max 3x)
-                    total_exposure = portfolio.get_total_exposure(price_map)
-                    # We are about to add: size * current_price
-                    # But we don't know size yet.
-
                     if stop_loss > 0:
                         size = risk_manager.calculate_position_size(
                             equity, current_price, stop_loss
@@ -144,13 +198,14 @@ class Strategy(ABC):
                         )
 
                     if size > 0:
+                        current_volume = float(df["volume"].iloc[i]) if "volume" in df.columns else 0.0
                         # Pre-trade Risk Check
                         if risk_manager.check_entry_risk(
                             portfolio,
                             symbol,
                             size,
                             current_price,
-                            current_volume=0,
+                            current_volume=current_volume,
                             current_prices=price_map,
                         ):
                             broker.submit_order(

@@ -1,5 +1,25 @@
 import pandas as pd
 
+from core.logger import get_logger
+
+logger = get_logger(__name__)
+
+"""
+DataHandler（数据处理）模块
+
+本模块用于将原始行情数据标准化为回测引擎可消费的统一格式，并提供数据质量分析能力。
+
+数据契约（Data Contract）：
+- index 必须为 DatetimeIndex（或可转换为 DatetimeIndex）
+- 必须包含 OHLCV 五列：open/high/low/close/volume（大小写不敏感，内部统一为小写）
+- 列类型尽量转换为数值，无法转换的值会变为 NaN（后续由策略/引擎决定如何处理）
+
+工具能力：
+- validate：校验并标准化单个 DataFrame
+- resample_ohlcv：将低周期 K 线重采样到高周期（严格按收盘时间标记）
+- analyze_quality / generate_quality_report：统计缺失、重复、时间缺口、异常尖刺等
+"""
+
 class DataHandler:
     """
     负责数据的加载、验证和标准化。
@@ -13,6 +33,13 @@ class DataHandler:
         1. 必须包含 datetime index
         2. 必须包含 open, high, low, close, volume 列
         3. 列名统一转换为小写
+
+        返回：
+        - 标准化后的 df（原地修改并返回同一个对象）
+
+        常见失败原因：
+        - index 不是时间索引且无法转换（例如纯数字且缺乏日期语义）
+        - 缺失 OHLCV 关键列
         """
         if not isinstance(df.index, pd.DatetimeIndex):
             # 尝试将 index 转换为 datetime
@@ -40,7 +67,13 @@ class DataHandler:
 
     @staticmethod
     def load_csv(file_path: str) -> pd.DataFrame:
-        """从 CSV 加载并验证"""
+        """
+        从 CSV 加载并验证。
+
+        约定：
+        - CSV 第一列为时间索引（index_col=0）
+        - 自动 parse_dates=True
+        """
         df = pd.read_csv(file_path, index_col=0, parse_dates=True)
         return DataHandler.validate(df)
 
@@ -49,6 +82,10 @@ class DataHandler:
         """
         Resample OHLCV data to a higher timeframe.
         rule: "4H", "1D", etc.
+
+        重要的时间语义：
+        - closed='right', label='right'：让时间戳代表“该根 bar 的收盘时间”
+        - 该约定与“信号在 bar 收盘产生、下根 bar 开盘执行”的回测模型更一致
         """
         agg_dict = {
             'open': 'first',
@@ -74,6 +111,11 @@ class DataHandler:
     def analyze_quality(df: pd.DataFrame, symbol: str = "Unknown") -> dict:
         """
         Analyze data quality: gaps, duplicates, spikes.
+
+        指标说明：
+        - duplicates：时间索引重复的行数
+        - gaps：时间差 > 1.5 * 典型频率（median diff）的数量（用于发现缺口）
+        - spikes：单根收盘涨跌幅绝对值 > 20% 的次数（用于发现异常点/极端行情）
         """
         report = {
             "symbol": symbol,
@@ -109,6 +151,10 @@ class DataHandler:
     def generate_quality_report(data_map: dict, output_path: str = None) -> dict:
         """
         Generate comprehensive quality report for multiple symbols.
+
+        参数：
+        - data_map：symbol -> DataFrame
+        - output_path：若提供，则写入 JSON 文件（default=str 用于序列化 Timestamp）
         """
         full_report = {}
         for symbol, df in data_map.items():
@@ -119,8 +165,8 @@ class DataHandler:
             try:
                 with open(output_path, 'w') as f:
                     json.dump(full_report, f, indent=4, default=str)
-                print(f"Data quality report saved to {output_path}")
+                logger.info("Data quality report saved to %s", output_path)
             except Exception as e:
-                print(f"Failed to save data quality report: {e}")
+                logger.error("Failed to save data quality report: %s", e)
                 
         return full_report

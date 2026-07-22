@@ -32,7 +32,7 @@ export EXCHANGE_SECRET="your_api_secret"
 python main.py
 
 # 带参数运行 (命令行模式)
-python main.py --days 365 --capital 100000 --symbols BTC/USDT ETH/USDT
+python main.py --days 365 --capital 100000 --symbols BTC-USDT ETH-USDT --seed 42
 ```
 
 ## 4. 运行实盘交易
@@ -68,22 +68,14 @@ python run_live.py --sandbox --symbols BTC/USDT
 
 ## 5. 监控仪表盘
 
-系统包含一个 Streamlit 仪表盘，用于实时监控及回测分析。
+系统会导出可被外部监控读取的状态文件；你可以据此自建 Streamlit/Plotly 看板。
 
-### 启动仪表盘
-```bash
-streamlit run dashboard/app.py
-```
+### 状态文件
 
-- 浏览器访问: `http://localhost:8501`
-- 远程服务器访问 (SSH 隧道):
-  ```bash
-  ssh -L 8501:localhost:8501 user@server_ip
-  ```
+- **实时监控 (Live Monitor)**: 实盘引擎每次 tick 写入 `reports/live_status.json`，包含最新 `cash/equity/positions/symbols` 等信息。
+- **回测分析 (Backtest Analysis)**: 回测会在 `reports/<timestamp>_.../` 下输出 `equity.csv / trades.csv / report.txt / equity.png` 等文件，便于二次可视化。
 
-### 功能特性
-- **实时监控 (Live Monitor)**: 读取 `reports/live_status.json` (由实盘引擎生成)，展示权益与持仓。
-- **回测分析 (Backtest Analysis)**: 可视化 `reports/` 目录下的回测报告。
+如需快速搭建界面，可复用 `dashboard/utils.py` 的主题样式（该仓库当前不包含可直接运行的 dashboard 应用入口）。
 
 ## 6. 运维维护
 
