@@ -1,4 +1,5 @@
 import os
+import time
 from datetime import datetime
 from typing import Optional, Union
 
@@ -16,6 +17,9 @@ _UNSET = object()
 
 class DataFetcher:
     DEFAULT_CCXT_EXCHANGES = ("binance", "okx", "kraken", "coinbase")
+    # 每个交易所的瞬时网络抖动重试（指数退避：2s, 4s）
+    CCXT_MAX_RETRIES = 3
+    CCXT_RETRY_BACKOFF_S = 2.0
     """
     统一数据获取器（DataFetcher）。
 
@@ -191,85 +195,30 @@ class DataFetcher:
 
             for current_exchange_id in exchange_ids:
                 ccxt_symbol = self._normalize_ccxt_symbol(symbol, current_exchange_id)
-                try:
-                    logger.info(
-                        "Fetching %s via CCXT (%s)...",
-                        ccxt_symbol,
-                        current_exchange_id,
-                    )
-                    exchange_class = getattr(ccxt, current_exchange_id)
-                    exchange = exchange_class(
-                        {
-                            "enableRateLimit": True,
-                            "proxies": self._build_ccxt_proxies(),
-                            "timeout": self.request_timeout_ms,
-                        }
-                    )
-                    if hasattr(exchange, "session") and hasattr(exchange.session, "trust_env"):
-                        exchange.session.trust_env = True
-
-                    since = None
-                    if start_date:
-                        dt = datetime.strptime(start_date, "%Y-%m-%d")
-                        since = int(dt.timestamp() * 1000)
-
-                    all_ohlcv = []
-                    current_since = since
-                    while True:
-                        batch_limit = min(limit, 1000)
-                        ohlcv = exchange.fetch_ohlcv(
+                for attempt in range(1, self.CCXT_MAX_RETRIES + 1):
+                    try:
+                        df = self._fetch_ccxt_once(
+                            current_exchange_id,
                             ccxt_symbol,
-                            timeframe=timeframe,
-                            limit=batch_limit,
-                            since=current_since,
+                            timeframe,
+                            start_date,
+                            end_date,
+                            limit,
                         )
-                        if not ohlcv:
-                            break
-                        all_ohlcv.extend(ohlcv)
-                        last_timestamp = ohlcv[-1][0]
-                        current_since = last_timestamp + 1
-
-                        if end_date:
-                            end_dt = datetime.strptime(end_date, "%Y-%m-%d")
-                            end_ts = int(end_dt.timestamp() * 1000)
-                            if last_timestamp >= end_ts:
-                                break
-
-                        if len(ohlcv) < batch_limit:
-                            break
-
-                        if len(all_ohlcv) >= 10000:
-                            logger.warning(
-                                "Reached safety limit of 10000 candles for %s on %s",
-                                ccxt_symbol,
-                                current_exchange_id,
-                            )
-                            break
-
-                    if not all_ohlcv:
-                        logger.warning(
-                            "No data returned for %s on %s",
+                        if df is None:
+                            break  # 该交易所无此标的数据，换下一个交易所
+                        return df
+                    except Exception as exchange_error:
+                        logger.error(
+                            "Error fetching %s from CCXT exchange %s (attempt %d/%d): %s",
                             ccxt_symbol,
                             current_exchange_id,
+                            attempt,
+                            self.CCXT_MAX_RETRIES,
+                            exchange_error,
                         )
-                        continue
-
-                    df = pd.DataFrame(
-                        all_ohlcv,
-                        columns=["timestamp", "open", "high", "low", "close", "volume"],
-                    )
-                    df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
-                    df.set_index("timestamp", inplace=True)
-                    if end_date:
-                        df = df[df.index <= end_date]
-                    return self._normalize(df)
-                except Exception as exchange_error:
-                    logger.error(
-                        "Error fetching %s from CCXT exchange %s: %s",
-                        ccxt_symbol,
-                        current_exchange_id,
-                        exchange_error,
-                    )
+                        if attempt < self.CCXT_MAX_RETRIES:
+                            time.sleep(self.CCXT_RETRY_BACKOFF_S * attempt)
 
             fallback_df = self._fallback_to_yahoo_crypto(symbol, start_date, end_date)
             if not fallback_df.empty:
@@ -285,6 +234,87 @@ class DataFetcher:
             if not fallback_df.empty:
                 return fallback_df
             return pd.DataFrame()
+
+    def _fetch_ccxt_once(
+        self,
+        exchange_id: str,
+        ccxt_symbol: str,
+        timeframe: str,
+        start_date: Optional[str],
+        end_date: Optional[str],
+        limit: int,
+    ) -> Optional[pd.DataFrame]:
+        """
+        从单个交易所拉取一次 K 线（内部不做重试）。
+
+        返回：标准化后的 OHLCV DataFrame；该交易所无此标的数据时返回 None。
+        网络/解析异常向上抛出，由 fetch_ccxt 负责重试与切换交易所。
+        """
+        import ccxt
+
+        logger.info("Fetching %s via CCXT (%s)...", ccxt_symbol, exchange_id)
+        exchange_class = getattr(ccxt, exchange_id)
+        exchange = exchange_class(
+            {
+                "enableRateLimit": True,
+                "proxies": self._build_ccxt_proxies(),
+                "timeout": self.request_timeout_ms,
+            }
+        )
+        if hasattr(exchange, "session") and hasattr(exchange.session, "trust_env"):
+            exchange.session.trust_env = True
+
+        since = None
+        if start_date:
+            dt = datetime.strptime(start_date, "%Y-%m-%d")
+            since = int(dt.timestamp() * 1000)
+
+        all_ohlcv = []
+        current_since = since
+        while True:
+            batch_limit = min(limit, 1000)
+            ohlcv = exchange.fetch_ohlcv(
+                ccxt_symbol,
+                timeframe=timeframe,
+                limit=batch_limit,
+                since=current_since,
+            )
+            if not ohlcv:
+                break
+            all_ohlcv.extend(ohlcv)
+            last_timestamp = ohlcv[-1][0]
+            current_since = last_timestamp + 1
+
+            if end_date:
+                end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+                end_ts = int(end_dt.timestamp() * 1000)
+                if last_timestamp >= end_ts:
+                    break
+
+            if len(ohlcv) < batch_limit:
+                break
+
+            if len(all_ohlcv) >= 10000:
+                logger.warning(
+                    "Reached safety limit of 10000 candles for %s on %s",
+                    ccxt_symbol,
+                    exchange_id,
+                )
+                break
+
+        if not all_ohlcv:
+            logger.warning("No data returned for %s on %s", ccxt_symbol, exchange_id)
+            return None
+
+        df = pd.DataFrame(
+            all_ohlcv,
+            columns=["timestamp", "open", "high", "low", "close", "volume"],
+        )
+        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+        df.set_index("timestamp", inplace=True)
+        if end_date:
+            df = df[df.index <= end_date]
+        return self._normalize(df)
 
     def generate_scenario(
         self,

@@ -59,16 +59,15 @@ python main.py --source synthetic --start 2019-01-01 --end 2020-12-31 --capital 
 python main.py --days 365 --slippage 0.001 --random_slip
 ```
 
-### 3) 运行实盘（务必先 sandbox）
+### 3) 连接交易所 sandbox
 
 ```bash
 python run_live.py --exchange binance --symbols BTC/USDT ETH/USDT --interval 60 --sandbox
 ```
 
-- **API Key**（二选一）：
-  - 命令行：`--api_key ... --secret ...`
-  - 环境变量：`EXCHANGE_API_KEY` / `EXCHANGE_SECRET`（实现见 `core/live_broker.py`）
-- **状态导出**：每次 tick 写入 `reports/live_status.json`（实现见 `live_trading/engine.py`）
+- **API Key**：仅建议通过 `EXCHANGE_API_KEY` / `EXCHANGE_SECRET` 环境变量提供测试环境凭据；不要把密钥放入命令行、仓库或日志。
+- **安全范围**：当前只进行回测和 sandbox 验证；R7 完成前不使用真实资金，详见 `docs/deployment.md`。
+- **状态导出**：每次 tick 写入 `reports/live_status.json`（实现见 `live_trading/engine.py`）。该文件不能替代交易所订单/持仓对账。
 
 ---
 
@@ -170,8 +169,11 @@ QauntTrading/
 
 ## 文档
 
-- **`docs/backtest_assumptions.md`**：执行模型、费率/滑点、数据对齐与局限性
-- **`docs/deployment.md`**：部署与运维（含 API Key、sandbox 建议、监控导出）
+- **`docs/README.md`**：文档入口、权威层级和历史归档说明
+- **`docs/unified_roadmap.md`**：唯一项目总路线图、R0–R8 和放行门槛
+- **`docs/development_plan.md`**：当前开发批次、任务顺序和验收产物
+- **`docs/backtest_assumptions.md`**：当前执行模型、费率/滑点、数据对齐与局限性
+- **`docs/deployment.md`**：回测、sandbox 和运维安全边界
 
 ---
 

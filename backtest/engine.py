@@ -155,6 +155,9 @@ class BacktestEngine:
                 "commission_rate_maker", 0.0005
             ),
             use_impact_cost=self.config_execution.get("use_impact_cost", False),
+            max_participation_rate=self.config_execution.get(
+                "max_participation_rate", self.config_risk.get("liquidity_limit_pct", 0.01)
+            ),
         )
 
         # Setup Risk Manager with Config
@@ -201,71 +204,17 @@ class BacktestEngine:
             logger.warning("No valid symbol data available after normalization")
             return {"trades": [], "equity_curve": pd.DataFrame()}
 
-        common_index = None
-        for df in normalized_data_map.values():
-            if common_index is None:
-                common_index = df.index
-            else:
-                common_index = common_index.intersection(df.index)
-
-        # Fallback for daily bars from heterogeneous providers/timezones.
-        if common_index is None or len(common_index) == 0:
-            indices = [df.index for df in normalized_data_map.values()]
-            if self._looks_daily_or_slower(indices):
-                common_dates = None
-                for idx in indices:
-                    date_idx = pd.DatetimeIndex(idx.normalize().unique())
-                    if common_dates is None:
-                        common_dates = date_idx
-                    else:
-                        common_dates = common_dates.intersection(date_idx)
-
-                if common_dates is not None and len(common_dates) > 0:
-                    common_index = common_dates.sort_values()
-                    remapped_data_map: Dict[str, pd.DataFrame] = {}
-
-                    for symbol, df in normalized_data_map.items():
-                        daily_df = df.groupby(df.index.normalize()).last()
-                        daily_df.index = pd.DatetimeIndex(daily_df.index)
-                        remapped_data_map[symbol] = daily_df
-
-                    normalized_data_map = remapped_data_map
-                    logger.info(
-                        "No exact timestamp overlap; aligned symbols by calendar date"
-                    )
-
-        if common_index is None or len(common_index) == 0:
-            logger.warning("No common timeframe found for symbols")
-            for symbol, df in normalized_data_map.items():
-                logger.warning(
-                    "%s: %s -> %s (%s bars)",
-                    symbol,
-                    df.index.min(),
-                    df.index.max(),
-                    len(df),
-                )
-            return {"trades": [], "equity_curve": pd.DataFrame()}
-
-        common_index = common_index.sort_values()
-
-        # Reindex and Calculate Indicators
-        processed_data = {}
+        # Use the union of real bar events. Missing bars are never synthesized.
+        event_index = pd.DatetimeIndex([])
+        processed_data: Dict[str, pd.DataFrame] = {}
         for symbol, df in normalized_data_map.items():
-            # Reindex
-            df_aligned = df.reindex(common_index).copy()
-
-            # Forward fill price data (if gaps exist).
-            # bfill() is intentionally omitted: it would propagate future values
-            # backward into the warm-up period, introducing lookahead bias.
-            # Any leading NaNs are handled by the warmup_period skip in the main loop.
-            df_aligned = df_aligned.ffill()
-
-            # Calculate Indicators
-            # Indicators.calculate_all modifies the dataframe in-place
-            Indicators.calculate_all(df_aligned)
-
-            processed_data[symbol] = df_aligned
-
+            enriched = df.copy()
+            Indicators.calculate_all(enriched)
+            processed_data[symbol] = enriched
+            event_index = event_index.union(enriched.index)
+        common_index = event_index.sort_values()
+        if len(common_index) == 0:
+            return {"trades": [], "equity_curve": pd.DataFrame()}
         # 4. Main Loop
         equity_curve = []
         timestamps = common_index
@@ -279,108 +228,57 @@ class BacktestEngine:
         # Skip first N bars to allow indicators to warm up (SMA30, ATR14, etc.)
         start_idx = self.warmup_period
 
-        for i in range(len(timestamps)):
-            current_time = timestamps[i]
-
-            # Update Daily Start Equity
+        last_prices: Dict[str, float] = {}
+        for i, current_time in enumerate(timestamps):
             this_day = current_time.date()
             if current_day != this_day:
-                # New day, update reference equity
-                # Using yesterday's closing equity (or today's open if we tracked it)
-                # Here we use the equity at the START of processing this bar (before PnL update? No, from last step)
-                if i > 0 and len(equity_curve) > 0:
+                if equity_curve:
                     daily_start_equity = equity_curve[-1]["equity"]
                 current_day = this_day
                 risk_manager.reset_daily_breaker()
 
-            if i < start_idx:
-                # Still record equity (cash only)
-                equity_curve.append(
-                    {
-                        "timestamp": timestamps[i],
-                        "equity": self.initial_capital,
-                        "cash": self.initial_capital,
-                    }
-                )
-                continue
-
-            current_time = timestamps[i]
-
-            # 4.1 Process Pending Orders (Execute at Open)
-            current_bars_data = {}
-            for symbol, df in processed_data.items():
-                current_bars_data[symbol] = df.iloc[i]
-
+            current_bars_data = {
+                symbol: df.loc[current_time]
+                for symbol, df in processed_data.items()
+                if current_time in df.index
+            }
             broker.process_orders(current_bars_data)
 
-            # Update Portfolio Market Value (Mark to Market)
-            current_prices = {}
-            for symbol, df in processed_data.items():
-                current_prices[symbol] = df["close"].iloc[i]
+            for symbol, bar in current_bars_data.items():
+                close = float(bar["close"])
+                if pd.notna(close):
+                    last_prices[symbol] = close
 
-            # Circuit Breaker Check (Intraday)
-            total_value = portfolio.get_total_value(current_prices)
+            total_value = portfolio.get_total_value(last_prices)
             if risk_manager.check_circuit_breaker(total_value, daily_start_equity):
-                # Flatten positions if triggered
-                # We need to send market sell orders for all positions
-                for symbol, pos in portfolio.positions.items():
+                for symbol, pos in list(portfolio.positions.items()):
                     qty = pos["qty"]
-                    if qty != 0:
-                        # Close it
-                        # Assuming liquid market, close at current Close price (or next Open?)
-                        # Backtest logic usually queues for Next Open.
-                        # So we submit orders.
-                        if qty > 0:
-                            broker.submit_order(
-                                symbol,
-                                "sell",
-                                abs(qty),
-                                current_prices[symbol],
-                                timestamp=current_time,
-                                strategy_id="CircuitBreaker",
-                                exit_reason="MaxLoss",
-                            )
-                        else:
-                            broker.submit_order(
-                                symbol,
-                                "cover",
-                                abs(qty),
-                                current_prices[symbol],
-                                timestamp=current_time,
-                                strategy_id="CircuitBreaker",
-                                exit_reason="MaxLoss",
-                            )
-
-                # Skip Routing (Stop Opening)
-                # But we still need to record equity
+                    if qty == 0 or symbol not in current_bars_data:
+                        continue
+                    side = "sell" if qty > 0 else "cover"
+                    broker.submit_order(
+                        symbol, side, abs(qty), last_prices[symbol],
+                        timestamp=current_time, strategy_id="CircuitBreaker",
+                        exit_reason="MaxLoss",
+                    )
             else:
-                # Routing & Execution per symbol
-                for symbol, df in processed_data.items():
-                    # Get State
-                    state = state_machine.get_state(df, i)
-
-                    # Route
+                for symbol, bar in current_bars_data.items():
+                    df = processed_data[symbol]
+                    local_i = df.index.get_loc(current_time)
+                    if not isinstance(local_i, int) or local_i < self.warmup_period:
+                        continue
+                    state = state_machine.get_state(df, local_i)
                     router.route(
-                        symbol,
-                        i,
-                        df,
-                        state,
-                        portfolio,
-                        broker,
-                        risk_manager,
-                        current_prices,
+                        symbol, local_i, df, state, portfolio, broker,
+                        risk_manager, dict(last_prices),
                     )
 
-            # Record Equity
-            total_value = portfolio.get_total_value(current_prices)
-            equity_curve.append(
-                {
-                    "timestamp": current_time,
-                    "equity": total_value,
-                    "cash": portfolio.cash,
-                }
-            )
-
+            total_value = portfolio.get_total_value(last_prices)
+            equity_curve.append({
+                "timestamp": current_time,
+                "equity": total_value,
+                "cash": portfolio.cash,
+            })
         logger.info("Backtest completed")
 
         # Save Routing Log
@@ -395,7 +293,7 @@ class BacktestEngine:
                     {sym: df["close"] for sym, df in processed_data.items()}
                 )
                 # Calculate returns
-                returns = closes.pct_change().fillna(0)
+                returns = closes.pct_change(fill_method=None).fillna(0)
                 # Equal weight returns
                 portfolio_returns = returns.mean(axis=1)
                 # Cumulative return index (start at 1.0)

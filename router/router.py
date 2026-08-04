@@ -2,7 +2,7 @@ from typing import Dict, Optional
 
 import pandas as pd
 
-from core.broker import Broker
+from core.execution_port import ExecutionPort
 from core.portfolio import Portfolio
 from core.risk import RiskManager
 from core.state import MarketState
@@ -37,7 +37,7 @@ class Router:
         df: pd.DataFrame,
         state: MarketState,
         portfolio: Portfolio,
-        broker: Broker,
+        broker: ExecutionPort,
         risk_manager: RiskManager,
         current_prices: Optional[Dict[str, float]] = None,
     ):
@@ -160,7 +160,7 @@ class Router:
         df: pd.DataFrame,
         old_strategy_name: Optional[str],
         portfolio: Portfolio,
-        broker: Broker,
+        broker: ExecutionPort,
     ):
         broker.cancel_symbol_orders(symbol)
 

@@ -1,37 +1,36 @@
-import ccxt
-import os
-from datetime import datetime
-from typing import Any, Dict, Optional
+from __future__ import annotations
 
+import os
+from datetime import datetime, timezone
+from typing import Any, Callable, Dict, Optional
+
+import ccxt
+
+from core.domain import (
+    FillRecord,
+    OrderErrorCode,
+    OrderIntent,
+    OrderStatus,
+    OrderSubmissionResult,
+    SyncResult,
+)
 from core.logger import get_logger
+from core.order_store import OrderStore
+from core.orders import (
+    TERMINAL_STATUSES,
+    classify_order_exception,
+    is_ambiguous_error,
+    normalize_exchange_status,
+)
 from core.portfolio import Portfolio
 
+
 logger = get_logger(__name__)
-
-"""
-LiveBroker（实盘 Broker）模块
-
-本模块是回测 Broker 的“实盘版本”，通过 CCXT 直接与交易所交互：
-- 下单：create_order（market/limit 等）
-- 同步账户：fetch_balance（以及未来可扩展 fetch_positions）
-
-重要说明：
-- 实盘环境无法像回测一样使用“下一根 bar 的 OHLC”确定是否成交，成交由交易所撮合决定。
-- 本实现为了简化，主要聚焦：
-  1) 下单打通
-  2) 通过 sync() 将余额/持仓同步回 Portfolio，便于引擎计算权益与风控校验
-
-风险提示：
-- 默认 exchange options 中提到 futures/spot 的选择非常关键；不同交易所的字段含义也不同。
-- 若用于真实资金，请先在 sandbox 模式验证，并补齐异常处理、重试与风控保护。
-"""
+DERIVATIVE_TYPES = {"future", "futures", "swap", "margin"}
 
 
 class LiveBroker:
-    """
-    Broker implementation for Live Trading using CCXT.
-    Interacts directly with the exchange.
-    """
+    """CCXT adapter backed by an authoritative idempotent order ledger."""
 
     def __init__(
         self,
@@ -44,20 +43,23 @@ class LiveBroker:
         base_currency: str = "USDT",
         password: Optional[str] = None,
         exchange_options: Optional[Dict[str, Any]] = None,
-    ):
-        """
-        参数：
-        - portfolio：本地账户快照（用于引擎层统一计算权益/持仓）
-        - exchange_id：ccxt 交易所标识（默认 binance）
-        - api_key/secret：可通过参数传入，或从环境变量 EXCHANGE_API_KEY/EXCHANGE_SECRET 读取
-        - sandbox：是否启用测试网（强烈建议先 True）
-        """
+        order_store: Optional[OrderStore] = None,
+        account_id: Optional[str] = None,
+        position_mode: str = "one_way",
+        clock: Optional[Callable[[], datetime]] = None,
+    ) -> None:
         self.portfolio = portfolio
         self.exchange_id = exchange_id
         self.market_type = market_type
         self.base_currency = base_currency
+        self.account_id = account_id or market_type
+        self.position_mode = position_mode
+        self.order_store = order_store or OrderStore(":memory:")
+        self._clock = clock or (lambda: datetime.now(timezone.utc))
+        self._bar_timeframe = "unknown"
+        self._bar_time = "unknown"
+        self.trades = []  # Compatibility projection only; OrderStore is authoritative.
 
-        # Initialize Exchange
         exchange_class = getattr(ccxt, exchange_id)
         options = dict(exchange_options or {})
         options.setdefault("defaultType", market_type)
@@ -68,253 +70,432 @@ class LiveBroker:
             "enableRateLimit": True,
             "options": options,
         }
-
         self.exchange = exchange_class(config)
         if hasattr(self.exchange, "session") and hasattr(self.exchange.session, "trust_env"):
             self.exchange.session.trust_env = True
         if sandbox:
             self.exchange.set_sandbox_mode(True)
-            logger.info(
-                "Initialized %s in SANDBOX mode with market_type=%s",
-                exchange_id,
-                market_type,
-            )
-        else:
-            logger.info(
-                "Initialized %s in LIVE mode with market_type=%s",
-                exchange_id,
-                market_type,
-            )
+        logger.info(
+            "Initialized %s in %s mode with market_type=%s",
+            exchange_id, "SANDBOX" if sandbox else "LIVE", market_type,
+        )
 
-        self.trades = []
-
-    @staticmethod
-    def _as_float(value: Any, default: float = 0.0) -> float:
-        try:
-            if value in (None, ""):
-                return default
-            return float(value)
-        except (TypeError, ValueError):
-            return default
-
-    def _extract_avg_price(self, payload: Dict[str, Any]) -> float:
-        info = payload.get("info", {}) if isinstance(payload, dict) else {}
-        for candidate in (
-            payload.get("entryPrice"),
-            payload.get("avgPrice"),
-            payload.get("average"),
-            info.get("entryPrice"),
-            info.get("avgPrice"),
-        ):
-            price = self._as_float(candidate, default=0.0)
-            if price > 0:
-                return price
-        return 0.0
-
-    def _extract_qty(self, payload: Dict[str, Any]) -> float:
-        info = payload.get("info", {}) if isinstance(payload, dict) else {}
-        for candidate in (
-            payload.get("contracts"),
-            payload.get("positionAmt"),
-            payload.get("qty"),
-            payload.get("size"),
-            info.get("positionAmt"),
-            info.get("contracts"),
-            info.get("size"),
-        ):
-            qty = self._as_float(candidate, default=0.0)
-            if qty != 0:
-                return qty
-        return 0.0
-
-    def _sync_spot_positions(self, balance: Dict[str, Any]) -> Dict[str, Dict[str, float]]:
-        positions: Dict[str, Dict[str, float]] = {}
-        totals = balance.get("total", {}) if isinstance(balance, dict) else {}
-
-        for currency, amount in totals.items():
-            qty = self._as_float(amount, default=0.0)
-            if currency == self.base_currency or qty == 0:
-                continue
-            positions[f"{currency}/{self.base_currency}"] = {
-                "qty": qty,
-                "avg_price": 0.0,
-            }
-
-        return positions
-
-    def _sync_derivatives_positions(
-        self, balance: Dict[str, Any]
-    ) -> Dict[str, Dict[str, float]]:
-        fetch_positions = getattr(self.exchange, "fetch_positions", None)
-        raw_positions = []
-
-        if callable(fetch_positions):
-            try:
-                raw_positions = fetch_positions() or []
-            except Exception as exc:
-                logger.warning(
-                    "fetch_positions failed for %s; falling back to balance payload: %s",
-                    self.exchange_id,
-                    exc,
-                )
-
-        if not raw_positions and isinstance(balance, dict):
-            raw_positions = balance.get("positions", []) or balance.get("info", {}).get(
-                "positions", []
-            )
-
-        positions: Dict[str, Dict[str, float]] = {}
-        for raw_position in raw_positions:
-            symbol = raw_position.get("symbol") or raw_position.get("info", {}).get(
-                "symbol"
-            )
-            qty = self._extract_qty(raw_position)
-            if not symbol or qty == 0:
-                continue
-            positions[symbol] = {
-                "qty": qty,
-                "avg_price": self._extract_avg_price(raw_position),
-            }
-
-        return positions
-
-    def sync(self):
-        """
-        将交易所账户状态同步到本地 Portfolio（余额与持仓快照）。
-
-        当前实现策略：
-        - 余额：使用 USDT free 作为 cash
-        - 持仓：对 spot 场景，遍历 balance["total"] 中非 USDT 且 amount > 0 的币种作为持仓
-          avg_price 无法直接得到，这里置为 0.0（若要精确 PnL，需要自行记录成交回放）
-
-        备注：
-        - futures/杠杆账户的仓位获取通常需要 fetch_positions()，不同交易所差异较大
-        """
-        try:
-            balance = self.exchange.fetch_balance()
-            free_balances = balance.get("free", {}) if isinstance(balance, dict) else {}
-            total_balances = (
-                balance.get("total", {}) if isinstance(balance, dict) else {}
-            )
-
-            cash = self._as_float(
-                free_balances.get(self.base_currency),
-                default=self._as_float(total_balances.get(self.base_currency)),
-            )
-            self.portfolio.cash = cash
-
-            if self.market_type in {"future", "futures", "swap", "margin"}:
-                positions = self._sync_derivatives_positions(balance)
-                if not positions:
-                    logger.warning(
-                        "No derivative positions returned; falling back to spot-style balances"
-                    )
-                    positions = self._sync_spot_positions(balance)
-            else:
-                positions = self._sync_spot_positions(balance)
-
-            self.portfolio.positions = positions
-            logger.info(
-                "Synced portfolio cash=%.2f positions=%s market_type=%s",
-                self.portfolio.cash,
-                len(self.portfolio.positions),
-                self.market_type,
-            )
-
-        except Exception as e:
-            logger.error(f"Failed to sync portfolio: {e}")
+    def set_bar_context(self, timeframe: str, bar_time: Any) -> None:
+        self._bar_timeframe = str(timeframe)
+        self._bar_time = self._iso(bar_time)
 
     def submit_order(
         self,
         symbol: str,
-        side: str,  # 'buy', 'sell', 'short', 'cover'
+        side: str,
         qty: float,
         price: float = None,
         order_type: str = "market",
         timestamp: Any = None,
-        slippage: float = 0.0,  # Ignored in live
+        slippage: float = 0.0,
         strategy_id: str = "Manual",
         exit_reason: str = "signal",
-    ) -> None:
-        """
-        向交易所提交订单（实盘撮合）。
+        time_in_force: Optional[str] = None,
+        position_side: Optional[str] = None,
+        reduce_only: Optional[bool] = None,
+        sequence: int = 0,
+    ) -> OrderSubmissionResult:
+        del slippage, exit_reason
+        intent = self._build_intent(
+            symbol, side, qty, price, order_type, timestamp, strategy_id,
+            time_in_force, position_side, reduce_only, sequence,
+        )
 
-        方向映射：
-        - 本项目策略侧使用 buy/sell/short/cover 四种动作
-        - CCXT 标准 side 为 buy/sell：
-          - short -> sell（开空）
-          - cover -> buy（平空/回补）
-
-        注意：
-        - slippage 参数在实盘里不适用（成交价格由订单簿决定），这里忽略
-        - 若使用合约账户，平仓单可能需要 reduceOnly 等参数（此处留有扩展位）
-        """
-        if qty <= 0:
-            logger.warning(f"Order rejected: Qty {qty} <= 0")
-            return
-
-        if self.market_type not in {"future", "futures", "swap", "margin"} and side in {
-            "short",
-            "cover",
-        }:
-            logger.warning(
-                "Order rejected: %s is not supported for market_type=%s",
-                side,
-                self.market_type,
+        validation_error = self._validate_intent(intent)
+        if validation_error:
+            return self.record_local_rejection(intent, validation_error, OrderErrorCode.TRADING_RULE)
+        now = self._now_iso()
+        created = self.order_store.create_intent(intent, now)
+        existing = self.order_store.get(intent.client_order_id)
+        if not created and existing is not None:
+            if existing["status"] == OrderStatus.SUBMITTING.value and not existing["submission_attempted"]:
+                logger.info("Resuming pre-submit intent client_order_id=%s", intent.client_order_id)
+            else:
+                return self.reconcile_order(intent.client_order_id)
+        if side in {"buy", "short"} and self._has_other_unknown_same_direction(
+            symbol, side, intent.client_order_id
+        ):
+            return self.record_local_rejection(
+                intent,
+                "unresolved order blocks additional same-direction risk",
+                OrderErrorCode.SAFETY_POLICY,
             )
-            return
 
-        # Map side/type to CCXT
-        # CCXT sides: 'buy', 'sell'
-        # Our sides: 'buy', 'sell' (long close), 'short', 'cover' (short close)
+        params: Dict[str, Any] = {"clientOrderId": intent.client_order_id}
+        if intent.reduce_only:
+            params["reduceOnly"] = True
+        if intent.position_side:
+            params["positionSide"] = intent.position_side
+        if intent.time_in_force:
+            params["timeInForce"] = intent.time_in_force
 
-        ccxt_side = side
-        if side in ["short"]:
-            ccxt_side = "sell"
-        elif side in ["cover"]:
-            ccxt_side = "buy"
-
-        # If using Futures, we might need 'reduceOnly' for close orders
-        params = {}
-        if side in ["sell", "cover"]:
-            # This is a closing trade
-            # params['reduceOnly'] = True # Only for futures
-            pass
-
-        ccxt_type = order_type.lower()
-
+        self.order_store.mark_submission_attempted(intent.client_order_id, self._now_iso())
         try:
-            logger.info(
-                f"Submitting Order: {symbol} {ccxt_side} {qty} {ccxt_type} @ {price}"
-            )
-
-            order = self.exchange.create_order(
-                symbol=symbol,
-                type=ccxt_type,
-                side=ccxt_side,
-                amount=qty,
-                price=price,
+            payload = self.exchange.create_order(
+                symbol=intent.symbol,
+                type=intent.order_type,
+                side=self._ccxt_side(intent.action),
+                amount=intent.requested_qty,
+                price=intent.price,
                 params=params,
             )
-
-            logger.info(f"Order Executed: {order['id']} - Status: {order['status']}")
-
-            # Record trade locally
-            self.trades.append(
-                {
-                    "id": order["id"],
-                    "symbol": symbol,
-                    "side": side,
-                    "qty": qty,
-                    "price": order.get("average") or order.get("price") or price,
-                    "timestamp": datetime.now(),
-                    "strategy_id": strategy_id,
-                    "exit_reason": exit_reason,
-                }
+        except Exception as exc:
+            code = classify_order_exception(exc)
+            status = OrderStatus.UNKNOWN if is_ambiguous_error(code) else OrderStatus.REJECTED
+            self.order_store.transition(
+                intent.client_order_id,
+                status,
+                self._now_iso(),
+                error_code=code.value,
+                error_message=type(exc).__name__,
+                payload={},
             )
+            logger.error(
+                "Order submission failed client_order_id=%s category=%s status=%s",
+                intent.client_order_id, code.value, status.value,
+            )
+            return self._result(intent.client_order_id)
 
-            # Sync portfolio after trade
+        result = self._persist_exchange_payload(intent.client_order_id, payload)
+        logger.info(
+            "Order response persisted client_order_id=%s exchange_order_id=%s status=%s",
+            result.client_order_id, result.exchange_order_id, result.status.value,
+        )
+        if result.status in {OrderStatus.PARTIALLY_FILLED, OrderStatus.FILLED}:
             self.sync()
+        return result
 
-        except Exception as e:
-            logger.error(f"Order Failed: {e}")
+    def record_local_rejection(
+        self,
+        intent: OrderIntent,
+        message: str,
+        code: OrderErrorCode = OrderErrorCode.SAFETY_POLICY,
+    ) -> OrderSubmissionResult:
+        now = self._now_iso()
+        self.order_store.create_intent(intent, now)
+        current = self.order_store.get(intent.client_order_id)
+        if current and current["status"] not in {status.value for status in TERMINAL_STATUSES}:
+            self.order_store.transition(
+                intent.client_order_id, OrderStatus.REJECTED, now,
+                error_code=code.value, error_message=message,
+            )
+        return self._result(intent.client_order_id)
+
+    def reconcile_order(self, client_order_id: str) -> OrderSubmissionResult:
+        record = self.order_store.get(client_order_id)
+        if record is None:
+            raise KeyError(client_order_id)
+        if OrderStatus(record["status"]) in TERMINAL_STATUSES:
+            return self._result(client_order_id)
+        if not record["submission_attempted"]:
+            return self._result(client_order_id)
+
+        try:
+            payload = self._fetch_exchange_order(record)
+        except Exception as exc:
+            code = classify_order_exception(exc)
+            current = OrderStatus(record["status"])
+            if current is not OrderStatus.UNKNOWN:
+                self.order_store.transition(
+                    client_order_id, OrderStatus.UNKNOWN, self._now_iso(),
+                    error_code=code.value, error_message=type(exc).__name__,
+                )
+            return self._result(client_order_id)
+        if payload is None:
+            current = OrderStatus(record["status"])
+            if current is not OrderStatus.UNKNOWN:
+                self.order_store.transition(
+                    client_order_id, OrderStatus.UNKNOWN, self._now_iso(),
+                    error_code=OrderErrorCode.UNKNOWN.value,
+                    error_message="order_not_found_by_client_id",
+                )
+            return self._result(client_order_id)
+        result = self._persist_exchange_payload(client_order_id, payload)
+        if result.status in {OrderStatus.PARTIALLY_FILLED, OrderStatus.FILLED}:
+            self.sync()
+        return result
+
+    def recover_open_orders(self) -> Dict[str, OrderSubmissionResult]:
+        results: Dict[str, OrderSubmissionResult] = {}
+        for record in self.order_store.list_non_terminal():
+            client_id = record["client_order_id"]
+            if record["status"] == OrderStatus.SUBMITTING.value and not record["submission_attempted"]:
+                results[client_id] = self._result(client_id)
+            else:
+                results[client_id] = self.reconcile_order(client_id)
+        return results
+
+    def cancel_order(self, client_order_id: str) -> OrderSubmissionResult:
+        record = self.order_store.get(client_order_id)
+        if record is None:
+            raise KeyError(client_order_id)
+        current = OrderStatus(record["status"])
+        if current in TERMINAL_STATUSES:
+            return self._result(client_order_id)
+        self.order_store.transition(
+            client_order_id, OrderStatus.CANCEL_PENDING, self._now_iso()
+        )
+        try:
+            payload = self.exchange.cancel_order(record["exchange_order_id"], record["symbol"])
+        except Exception:
+            # Cancel rejection/race is resolved by querying the exchange fact.
+            return self.reconcile_order(client_order_id)
+        return self._persist_exchange_payload(client_order_id, payload)
+
+    def cancel_symbol_orders(self, symbol: str) -> None:
+        for record in self.order_store.list_non_terminal():
+            if record["symbol"] == symbol and record.get("exchange_order_id"):
+                self.cancel_order(record["client_order_id"])
+
+    def has_unresolved_unknown(self) -> bool:
+        return any(
+            record["status"] == OrderStatus.UNKNOWN.value
+            for record in self.order_store.list_non_terminal()
+        )
+
+    def _persist_exchange_payload(
+        self, client_order_id: str, payload: Dict[str, Any]
+    ) -> OrderSubmissionResult:
+        record = self.order_store.get(client_order_id)
+        if record is None:
+            raise KeyError(client_order_id)
+        status = normalize_exchange_status(payload)
+        requested = self._as_float(payload.get("amount"), record["requested_qty"])
+        filled = self._as_float(payload.get("filled"), 0.0)
+        if status is OrderStatus.FILLED and payload.get("filled") is None:
+            filled = requested
+        remaining = self._as_float(payload.get("remaining"), max(requested - filled, 0.0))
+        if status is OrderStatus.FILLED:
+            remaining = 0.0
+        average = self._as_optional_float(payload.get("average") or payload.get("price"))
+        exchange_order_id = str(payload.get("id")) if payload.get("id") is not None else record.get("exchange_order_id")
+
+        self._persist_fills(client_order_id, exchange_order_id, payload, filled, average)
+        current_status = OrderStatus(record["status"])
+        if current_status != status:
+            self.order_store.transition(
+                client_order_id, status, self._now_iso(),
+                exchange_order_id=exchange_order_id,
+                filled_qty=filled, remaining_qty=remaining,
+                average_fill_price=average, error_code=OrderErrorCode.NONE.value,
+                error_message=None, payload=payload,
+            )
+        else:
+            self.order_store.update(
+                client_order_id, exchange_order_id=exchange_order_id,
+                filled_qty=filled, remaining_qty=remaining,
+                average_fill_price=average, error_code=OrderErrorCode.NONE.value,
+                error_message=None, payload=payload, updated_at=self._now_iso(),
+            )
+        return self._result(client_order_id)
+
+    def _persist_fills(
+        self,
+        client_order_id: str,
+        exchange_order_id: Optional[str],
+        payload: Dict[str, Any],
+        cumulative_filled: float,
+        average: Optional[float],
+    ) -> None:
+        trades = payload.get("trades") or []
+        if trades:
+            for index, trade in enumerate(trades):
+                fee = trade.get("fee") or {}
+                fill_id = str(
+                    trade.get("id")
+                    or f"{exchange_order_id}:{trade.get('timestamp')}:{index}"
+                )
+                self.order_store.add_fill(
+                    FillRecord(
+                        fill_id=fill_id, client_order_id=client_order_id,
+                        exchange_order_id=exchange_order_id,
+                        qty=self._as_float(trade.get("amount")),
+                        price=self._as_float(trade.get("price")),
+                        fee=self._as_float(fee.get("cost")),
+                        fee_currency=fee.get("currency"),
+                        timestamp=self._iso(trade.get("datetime") or trade.get("timestamp")),
+                        payload=trade,
+                    )
+                )
+            return
+        existing_qty = sum(fill["qty"] for fill in self.order_store.fills_for(client_order_id))
+        delta = max(cumulative_filled - existing_qty, 0.0)
+        if delta > 0 and average:
+            fill_id = f"{exchange_order_id}:cumulative:{cumulative_filled:.12f}"
+            if self.order_store.add_fill(
+                FillRecord(
+                    fill_id=fill_id, client_order_id=client_order_id,
+                    exchange_order_id=exchange_order_id, qty=delta, price=average,
+                    timestamp=self._now_iso(), payload={"synthetic_from_order": True},
+                )
+            ):
+                self.trades.append(
+                    {"id": fill_id, "symbol": self.order_store.get(client_order_id)["symbol"],
+                     "qty": delta, "price": average, "timestamp": self._now_iso()}
+                )
+
+    def _fetch_exchange_order(self, record: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        if record.get("exchange_order_id"):
+            return self.exchange.fetch_order(record["exchange_order_id"], record["symbol"])
+        fetch_by_client = getattr(self.exchange, "fetch_order_by_client_order_id", None)
+        if callable(fetch_by_client):
+            return fetch_by_client(record["client_order_id"], record["symbol"])
+        fetch_orders = getattr(self.exchange, "fetch_orders", None)
+        if callable(fetch_orders):
+            orders = fetch_orders(record["symbol"], params={"clientOrderId": record["client_order_id"]}) or []
+            for payload in orders:
+                candidate = payload.get("clientOrderId") or payload.get("client_order_id")
+                if candidate == record["client_order_id"]:
+                    return payload
+        return None
+
+    def _build_intent(
+        self, symbol: str, side: str, qty: float, price: Optional[float],
+        order_type: str, timestamp: Any, strategy_id: str,
+        time_in_force: Optional[str], position_side: Optional[str],
+        reduce_only: Optional[bool], sequence: int,
+    ) -> OrderIntent:
+        held = self.portfolio.get_position(symbol)["qty"]
+        is_reduce = reduce_only if reduce_only is not None else side in {"sell", "cover"}
+        if self.market_type in DERIVATIVE_TYPES and is_reduce:
+            closable = max(held, 0.0) if side == "sell" else max(-held, 0.0)
+            qty = min(qty, closable)
+        bar_time = self._bar_time if self._bar_time != "unknown" else self._iso(timestamp or self._clock())
+        return OrderIntent(
+            exchange=self.exchange_id, account=self.account_id, symbol=symbol,
+            timeframe=self._bar_timeframe, bar_time=bar_time,
+            strategy_id=strategy_id, action=side, sequence=sequence,
+            requested_qty=qty, order_type=order_type.lower(), price=price,
+            time_in_force=time_in_force, reduce_only=bool(is_reduce),
+            position_side=position_side, position_mode=self.position_mode,
+        )
+
+    def _validate_intent(self, intent: OrderIntent) -> Optional[str]:
+        if intent.requested_qty <= 0:
+            return "quantity must be positive and reducible"
+        if self.market_type not in DERIVATIVE_TYPES and intent.action in {"short", "cover"}:
+            return f"{intent.action} is not supported for account type {self.market_type}"
+        if intent.action not in {"buy", "sell", "short", "cover"}:
+            return "unsupported order side"
+        return None
+
+    def _has_other_unknown_same_direction(
+        self, symbol: str, side: str, client_order_id: str
+    ) -> bool:
+        return any(
+            record["symbol"] == symbol
+            and record["side"] == side
+            and record["status"] == OrderStatus.UNKNOWN.value
+            and record["client_order_id"] != client_order_id
+            for record in self.order_store.list_non_terminal()
+        )
+
+    def _result(self, client_order_id: str) -> OrderSubmissionResult:
+        record = self.order_store.get(client_order_id)
+        if record is None:
+            raise KeyError(client_order_id)
+        return OrderSubmissionResult(
+            client_order_id=client_order_id,
+            exchange_order_id=record.get("exchange_order_id"),
+            status=OrderStatus(record["status"]),
+            requested_qty=record["requested_qty"],
+            filled_qty=record.get("filled_qty", 0.0),
+            remaining_qty=record.get("remaining_qty", 0.0),
+            average_fill_price=record.get("average_fill_price"),
+            error_code=OrderErrorCode(record.get("error_code") or "none"),
+            message=record.get("error_message"),
+            safely_persisted=True,
+            payload=record.get("payload", {}),
+        )
+
+    def sync(self) -> SyncResult:
+        try:
+            balance = self.exchange.fetch_balance()
+            free = balance.get("free", {}) if isinstance(balance, dict) else {}
+            total = balance.get("total", {}) if isinstance(balance, dict) else {}
+            self.portfolio.cash = self._as_float(
+                free.get(self.base_currency), self._as_float(total.get(self.base_currency))
+            )
+            if self.market_type in DERIVATIVE_TYPES:
+                positions = self._sync_derivatives_positions(balance)
+            else:
+                positions = self._sync_spot_positions(balance)
+            self.portfolio.positions = positions
+            return SyncResult(True, self._clock())
+        except Exception as exc:
+            logger.error("Failed to sync portfolio category=%s", type(exc).__name__)
+            return SyncResult(False, self._clock(), type(exc).__name__)
+
+    def _sync_spot_positions(self, balance: Dict[str, Any]) -> Dict[str, Dict[str, float]]:
+        positions: Dict[str, Dict[str, float]] = {}
+        for currency, amount in (balance.get("total", {}) or {}).items():
+            qty = self._as_float(amount)
+            if currency != self.base_currency and qty != 0:
+                positions[f"{currency}/{self.base_currency}"] = {"qty": qty, "avg_price": 0.0}
+        return positions
+
+    def _sync_derivatives_positions(self, balance: Dict[str, Any]) -> Dict[str, Dict[str, float]]:
+        raw_positions = []
+        fetch_positions = getattr(self.exchange, "fetch_positions", None)
+        if callable(fetch_positions):
+            raw_positions = fetch_positions() or []
+        if not raw_positions:
+            raw_positions = balance.get("positions", []) or balance.get("info", {}).get("positions", [])
+        positions: Dict[str, Dict[str, float]] = {}
+        for raw in raw_positions:
+            symbol = raw.get("symbol") or raw.get("info", {}).get("symbol")
+            qty = self._extract_qty(raw)
+            if symbol and qty != 0:
+                positions[symbol] = {"qty": qty, "avg_price": self._extract_avg_price(raw)}
+        return positions
+
+    def _extract_qty(self, payload: Dict[str, Any]) -> float:
+        info = payload.get("info", {}) if isinstance(payload, dict) else {}
+        for value in (payload.get("contracts"), payload.get("positionAmt"), payload.get("qty"), payload.get("size"), info.get("positionAmt"), info.get("contracts"), info.get("size")):
+            qty = self._as_float(value)
+            if qty != 0:
+                return qty
+        return 0.0
+
+    def _extract_avg_price(self, payload: Dict[str, Any]) -> float:
+        info = payload.get("info", {}) if isinstance(payload, dict) else {}
+        for value in (payload.get("entryPrice"), payload.get("avgPrice"), payload.get("average"), info.get("entryPrice"), info.get("avgPrice")):
+            price = self._as_float(value)
+            if price > 0:
+                return price
+        return 0.0
+
+    def close(self) -> None:
+        self.order_store.close()
+
+    @staticmethod
+    def _ccxt_side(side: str) -> str:
+        return "sell" if side == "short" else "buy" if side == "cover" else side
+
+    def _now_iso(self) -> str:
+        return self._iso(self._clock())
+
+    @staticmethod
+    def _iso(value: Any) -> str:
+        if value is None:
+            return ""
+        if hasattr(value, "isoformat"):
+            return value.isoformat()
+        return str(value)
+
+    @staticmethod
+    def _as_float(value: Any, default: float = 0.0) -> float:
+        try:
+            return default if value in (None, "") else float(value)
+        except (TypeError, ValueError):
+            return default
+
+    @staticmethod
+    def _as_optional_float(value: Any) -> Optional[float]:
+        parsed = LiveBroker._as_float(value, 0.0)
+        return parsed if parsed > 0 else None

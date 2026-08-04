@@ -1,0 +1,11 @@
+{
+  "schema_version": "backtest-baseline-v1",
+  "scenario": "no_trades",
+  "metadata": {"start":"2024-01-01T00:00:00Z","end":"2024-01-03T00:00:00Z","seed":7,"symbols":["FLAT/USDT"],"config":{"initial_capital":10000.0,"commission_rate":0.001,"slippage_bps":0,"random_slip":false,"timeframe":"1d","calendar":"24x7"},"data_summary":{"rows":3,"symbols":1,"missing_ohlcv":0,"duplicate_timestamps":0},"data_sha256":"83683e414bbce1462ca1834323440e3565206f1784a8e82af705a9416ce6ce4a"},
+  "data": [
+    {"timestamp":"2024-01-01T00:00:00Z","symbol":"FLAT/USDT","open":100.0,"high":101.0,"low":99.0,"close":100.0,"volume":1000.0,"source":"synthetic"},
+    {"timestamp":"2024-01-02T00:00:00Z","symbol":"FLAT/USDT","open":100.0,"high":102.0,"low":98.0,"close":100.0,"volume":1100.0,"source":"synthetic"},
+    {"timestamp":"2024-01-03T00:00:00Z","symbol":"FLAT/USDT","open":100.0,"high":101.0,"low":99.0,"close":100.0,"volume":900.0,"source":"synthetic"}
+  ],
+  "artifacts": {"orders":[],"fills":[],"closed_trades":[],"equity":[{"timestamp":"2024-01-01T00:00:00Z","cash":10000.0,"equity":10000.0},{"timestamp":"2024-01-02T00:00:00Z","cash":10000.0,"equity":10000.0},{"timestamp":"2024-01-03T00:00:00Z","cash":10000.0,"equity":10000.0}],"metrics":{"total_trades":0,"gross_pnl":0.0,"net_pnl":0.0,"total_return":0.0,"status":"ok"}}
+}

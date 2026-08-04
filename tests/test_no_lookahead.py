@@ -2,7 +2,7 @@ import os
 import sys
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pandas as pd
@@ -49,28 +49,30 @@ class TestNoLookahead(unittest.TestCase):
         strategy = MockStrategy()
 
         def mock_build_router(strategies, log_path=None):
-            return Router(
-                strategies,
-                regime_map={
-                    "TREND_UP": "Mock",
-                    "TREND_DOWN": "Mock",
-                    "SIDEWAYS": "Mock",
-                    "VOLATILE": "Mock",
-                },
-                cooldown_bars=0,
-                log_path=log_path,
+            router = MagicMock()
+            router.route.side_effect = (
+                lambda symbol, i, data, state, portfolio, broker, risk_manager, prices:
+                    strategies["Mock"].on_bar(
+                        symbol, i, data, MarketState.SIDEWAYS, portfolio, broker, risk_manager, prices
+                    )
             )
-
+            return router
         engine = BacktestEngine(initial_capital=10000.0, slippage=0.0, warmup_period=20)
 
-        with patch("backtest.engine.build_strategy_registry", return_value={"Mock": strategy}):
-            with patch("backtest.engine.build_router", side_effect=mock_build_router):
-                with tempfile.TemporaryDirectory() as temp_dir:
-                    results = engine.run(
-                        {"TEST": df},
-                        routing_log_path=os.path.join(temp_dir, "routing_log.csv"),
-                    )
+        risk_manager = MagicMock()
+        risk_manager.circuit_breaker_triggered = False
+        risk_manager.check_circuit_breaker.return_value = False
+        risk_manager.calculate_position_size.return_value = 1.0
+        risk_manager.check_entry_risk.return_value = True
 
+        with patch("backtest.engine.build_risk_manager", return_value=risk_manager), \
+             patch("backtest.engine.build_strategy_registry", return_value={"Mock": strategy}), \
+             patch("backtest.engine.build_router", side_effect=mock_build_router):
+            with tempfile.TemporaryDirectory() as temp_dir:
+                results = engine.run(
+                    {"TEST": df},
+                    routing_log_path=os.path.join(temp_dir, "routing_log.csv"),
+                )
         trades = results["trades"]
         self.assertTrue(len(trades) > 0, "No trades generated")
 

@@ -5,6 +5,7 @@ import os
 from typing import List, Dict, Any, Tuple
 
 from core.logger import get_logger
+from core.metrics import calculate_equity_metrics, calculate_profit_factor
 
 logger = get_logger(__name__)
 
@@ -80,52 +81,9 @@ class ReportGenerator:
 
         约定：
         - equity_curve.index 为 DatetimeIndex
-        - 252 日年化用于夏普（适用于日线；若为其他周期需要自行调整）
+        - 根据 DatetimeIndex 的中位正间隔自动推断年化因子
         """
-        equity = equity_curve["equity"]
-        if equity.empty:
-            return {}
-
-        returns = equity.pct_change().dropna()
-
-        start_val = equity.iloc[0]
-        end_val = equity.iloc[-1]
-
-        days = (equity.index[-1] - equity.index[0]).days
-        years = max(days / 365.25, 0.01)
-
-        cagr = (end_val / start_val) ** (1 / years) - 1
-
-        # Max Drawdown
-        rolling_max = equity.cummax()
-        drawdown_pct = (equity - rolling_max) / rolling_max
-        max_dd_pct = drawdown_pct.min()
-
-        drawdown_amount = equity - rolling_max
-        max_dd_amount = drawdown_amount.min()
-
-        # Monthly Returns
-        equity_curve["month"] = equity_curve.index.to_period("M")
-        monthly_returns = equity_curve.groupby("month")["equity"].apply(
-            lambda x: (x.iloc[-1] / x.iloc[0]) - 1
-        )
-        avg_monthly_return = monthly_returns.mean()
-
-        # Sharpe
-        if len(returns) < 2 or returns.std() == 0:
-            sharpe = 0.0
-        else:
-            sharpe = returns.mean() / returns.std() * np.sqrt(252)
-
-        return {
-            "CAGR": cagr,
-            "MaxDrawdownPct": max_dd_pct,
-            "MaxDrawdownAmount": max_dd_amount,
-            "AvgMonthlyReturn": avg_monthly_return,
-            "SharpeRatio": sharpe,
-            "EndEquity": end_val,
-            "TotalReturn": (end_val - start_val) / start_val,
-        }
+        return calculate_equity_metrics(equity_curve)
 
     def _analyze_trades(self, trades_df: pd.DataFrame) -> Dict[str, Any]:
         """
@@ -140,7 +98,10 @@ class ReportGenerator:
             return {
                 "TotalTrades": 0,
                 "WinRate": 0.0,
-                "ProfitFactor": 0.0,
+                "ProfitFactor": None,
+                "ProfitFactorStatus": "insufficient",
+                "ProfitFactorSamples": 0,
+                "ProfitFactorLosses": 0,
                 "AvgTrade": 0.0,
                 "GrossPnL": 0.0,
                 "TotalCommission": 0.0,
@@ -314,7 +275,10 @@ class ReportGenerator:
             return {
                 "TotalTrades": 0,
                 "WinRate": 0.0,
-                "ProfitFactor": 0.0,
+                "ProfitFactor": None,
+                "ProfitFactorStatus": "insufficient",
+                "ProfitFactorSamples": 0,
+                "ProfitFactorLosses": 0,
                 "GrossPnL": 0.0,
                 "TotalCommission": 0.0,
                 "TotalSlippage": 0.0,
@@ -331,7 +295,10 @@ class ReportGenerator:
             return {
                 "TotalTrades": 0,
                 "WinRate": 0.0,
-                "ProfitFactor": 0.0,
+                "ProfitFactor": None,
+                "ProfitFactorStatus": "insufficient",
+                "ProfitFactorSamples": 0,
+                "ProfitFactorLosses": 0,
                 "Expectancy": 0.0,
                 "AvgWin": 0.0,
                 "AvgLoss": 0.0,
@@ -342,12 +309,10 @@ class ReportGenerator:
             }
 
         wins = [p for p in all_net_pnls if p > 0]
-        losses = [p for p in all_net_pnls if p <= 0]
+        losses = [p for p in all_net_pnls if p < 0]
 
         win_rate = len(wins) / len(all_net_pnls)
-        gross_profit = sum(wins)
-        gross_loss = abs(sum(losses))
-        profit_factor = gross_profit / gross_loss if gross_loss != 0 else float("inf")
+        pf = calculate_profit_factor(all_net_pnls)
 
         avg_win = sum(wins) / len(wins) if wins else 0
         avg_loss = sum(losses) / len(losses) if losses else 0
@@ -358,7 +323,12 @@ class ReportGenerator:
         metrics = {
             "TotalTrades": len(all_net_pnls),
             "WinRate": win_rate,
-            "ProfitFactor": profit_factor,
+            "ProfitFactor": pf["value"],
+            "ProfitFactorStatus": pf["status"],
+            "ProfitFactorSamples": pf["sample_size"],
+            "ProfitFactorLosses": pf["loss_count"],
+            "ProfitFactorLower95": pf["lower"],
+            "ProfitFactorUpper95": pf["upper"],
             "Expectancy": expectancy,
             "AvgWin": avg_win,
             "AvgLoss": avg_loss,
@@ -379,18 +349,19 @@ class ReportGenerator:
         for s, trades in strat_map.items():
             pnls = [t["net_pnl"] for t in trades]
             s_wins = [p for p in pnls if p > 0]
-            s_losses = [p for p in pnls if p <= 0]
+            s_losses = [p for p in pnls if p < 0]
             s_wr = len(s_wins) / len(pnls)
-            s_pf = (
-                sum(s_wins) / abs(sum(s_losses)) if sum(s_losses) != 0 else float("inf")
-            )
+            s_pf = calculate_profit_factor(pnls)
             s_total = sum(pnls)
             s_comm = sum(t["commission"] for t in trades)
             s_slip = sum(t["slippage"] for t in trades)
 
             metrics[f"Strat_{s}_Trades"] = len(pnls)
             metrics[f"Strat_{s}_WinRate"] = s_wr
-            metrics[f"Strat_{s}_ProfitFactor"] = s_pf
+            metrics[f"Strat_{s}_ProfitFactor"] = s_pf["value"]
+            metrics[f"Strat_{s}_ProfitFactorStatus"] = s_pf["status"]
+            metrics[f"Strat_{s}_ProfitFactorSamples"] = s_pf["sample_size"]
+            metrics[f"Strat_{s}_ProfitFactorLosses"] = s_pf["loss_count"]
             metrics[f"Strat_{s}_NetPnL"] = s_total
             metrics[f"Strat_{s}_Comm"] = s_comm
             metrics[f"Strat_{s}_Slip"] = s_slip

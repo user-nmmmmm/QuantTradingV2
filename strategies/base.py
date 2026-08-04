@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 from core.state import MarketState
 from core.portfolio import Portfolio
-from core.broker import Broker
+from core.execution_port import ExecutionPort
 from core.risk import RiskManager
 
 """
@@ -107,7 +107,7 @@ class Strategy(ABC):
         df: pd.DataFrame,
         state: MarketState,
         portfolio: Portfolio,
-        broker: Broker,
+        broker: ExecutionPort,
         risk_manager: RiskManager,
         current_prices: Optional[Dict[str, float]] = None,
     ):
@@ -153,7 +153,7 @@ class Strategy(ABC):
                 # If action matches position direction (sell for long, cover for short)
                 if (qty > 0 and action == "sell") or (qty < 0 and action == "cover"):
                     timestamp = df.index[i]
-                    broker.submit_order(
+                    submission = broker.submit_order(
                         symbol,
                         action,
                         close_qty,
@@ -164,8 +164,8 @@ class Strategy(ABC):
                         exit_reason=reason,
                     )
 
-                    # Clear context (Optimistic)
-                    self.context[symbol] = {}
+                    if submission.accepted:
+                        self.context[symbol] = {}
 
         # 2. Check Entry if we don't have a position (or if strategy allows pyramiding, but let's assume 1 pos for now)
         if qty == 0:
@@ -208,7 +208,7 @@ class Strategy(ABC):
                             current_volume=current_volume,
                             current_prices=price_map,
                         ):
-                            broker.submit_order(
+                            submission = broker.submit_order(
                                 symbol,
                                 action,
                                 size,
@@ -222,8 +222,10 @@ class Strategy(ABC):
                                 # But we can store it in context.
                                 exit_reason="signal",
                             )
+                            if not submission.accepted:
+                                return submission
 
-                            # Initialize Context
+                            # Initialize Context only after explicit acceptance
                             self.context[symbol] = {
                                 "stop_loss": stop_loss,
                                 "entry_price": current_price,  # Approx

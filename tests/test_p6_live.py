@@ -76,14 +76,13 @@ class TestLiveTrading(unittest.TestCase):
         broker = LiveBroker(self.portfolio, exchange_id="binance")
         broker.submit_order("BTC/USDT", "buy", 0.1, 50000.0, "limit")
 
-        self.mock_exchange.create_order.assert_called_with(
-            symbol="BTC/USDT",
-            type="limit",
-            side="buy",
-            amount=0.1,
-            price=50000.0,
-            params={},
-        )
+        call = self.mock_exchange.create_order.call_args
+        self.assertEqual(call.kwargs["symbol"], "BTC/USDT")
+        self.assertEqual(call.kwargs["type"], "limit")
+        self.assertEqual(call.kwargs["side"], "buy")
+        self.assertEqual(call.kwargs["amount"], 0.1)
+        self.assertEqual(call.kwargs["price"], 50000.0)
+        self.assertTrue(call.kwargs["params"]["clientOrderId"].startswith("qt_"))
         self.assertEqual(len(broker.trades), 1)
 
     @patch("core.live_broker.ccxt")

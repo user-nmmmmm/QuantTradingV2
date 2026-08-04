@@ -1,0 +1,17 @@
+{
+  "schema_version": "backtest-baseline-v1",
+  "scenario": "hand_calculable",
+  "metadata": {"start":"2024-02-01T00:00:00Z","end":"2024-02-03T00:00:00Z","seed":11,"symbols":["TEST/USDT"],"config":{"initial_capital":10000.0,"commission_rate":0.001,"slippage_bps":0,"random_slip":false,"timeframe":"1d","calendar":"24x7","execution":"next_bar_open"},"data_summary":{"rows":3,"symbols":1,"missing_ohlcv":0,"duplicate_timestamps":0},"data_sha256":"8bec8707b44f922f93fdab7e460504ec2499f899443f4f99fd83a1ab1963351a"},
+  "data": [
+    {"timestamp":"2024-02-01T00:00:00Z","symbol":"TEST/USDT","open":100.0,"high":101.0,"low":99.0,"close":100.0,"volume":1000.0,"source":"synthetic"},
+    {"timestamp":"2024-02-02T00:00:00Z","symbol":"TEST/USDT","open":100.0,"high":111.0,"low":99.0,"close":110.0,"volume":1000.0,"source":"synthetic"},
+    {"timestamp":"2024-02-03T00:00:00Z","symbol":"TEST/USDT","open":110.0,"high":112.0,"low":109.0,"close":110.0,"volume":1000.0,"source":"synthetic"}
+  ],
+  "artifacts": {
+    "orders":[{"order_id":"ord-001","timestamp":"2024-02-01T00:00:00Z","symbol":"TEST/USDT","side":"buy","qty":10.0,"type":"market","status":"filled"},{"order_id":"ord-002","timestamp":"2024-02-02T00:00:00Z","symbol":"TEST/USDT","side":"sell","qty":10.0,"type":"market","status":"filled"}],
+    "fills":[{"fill_id":"fill-001","order_id":"ord-001","timestamp":"2024-02-02T00:00:00Z","symbol":"TEST/USDT","side":"buy","qty":10.0,"price":100.0,"commission":1.0,"slippage_cost":0.0},{"fill_id":"fill-002","order_id":"ord-002","timestamp":"2024-02-03T00:00:00Z","symbol":"TEST/USDT","side":"sell","qty":10.0,"price":110.0,"commission":1.1,"slippage_cost":0.0}],
+    "closed_trades":[{"trade_id":"trade-001","symbol":"TEST/USDT","side":"long","qty":10.0,"entry_time":"2024-02-02T00:00:00Z","exit_time":"2024-02-03T00:00:00Z","entry_price":100.0,"exit_price":110.0,"gross_pnl":100.0,"commission":2.1,"slippage_cost":0.0,"net_pnl":97.9}],
+    "equity":[{"timestamp":"2024-02-01T00:00:00Z","cash":10000.0,"equity":10000.0},{"timestamp":"2024-02-02T00:00:00Z","cash":8999.0,"equity":10099.0},{"timestamp":"2024-02-03T00:00:00Z","cash":10097.9,"equity":10097.9}],
+    "metrics":{"total_trades":1,"winning_trades":1,"gross_pnl":100.0,"commission":2.1,"slippage_cost":0.0,"net_pnl":97.9,"total_return":0.00979,"status":"ok"}
+  }
+}

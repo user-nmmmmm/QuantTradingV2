@@ -9,3 +9,20 @@ venv/
 
 # VS Code
 .vscode/
+# Runtime state and generated reports
+reports/live_status.json
+reports/live_status_state.db
+reports/routing_log.csv
+
+# Batch 0 regression harness output (fixtures themselves are versioned)
+tests/.generated/
+docs/baselines/generated/
+
+# Python caches and generated artifacts
+**pycache**/
+*.py[cod]
+outputs/
+reports/*.db
+reports/*/
+.codex_patch_probe
+.claude/settings.local.json

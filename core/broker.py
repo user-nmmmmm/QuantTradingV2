@@ -27,6 +27,13 @@ Broker（撮合/执行）模块
 """
 
 
+class TimeInForce(Enum):
+    GTC = "GTC"
+    DAY = "DAY"
+    IOC = "IOC"
+    FOK = "FOK"
+
+
 class OrderType(Enum):
     """订单类型：市价/限价/止损（简化版）。"""
     MARKET = "market"
@@ -34,7 +41,7 @@ class OrderType(Enum):
     STOP = "stop"
 
 
-class OrderStatus(Enum):
+class BacktestOrderStatus(Enum):
     """订单状态机（简化版），用于回测记录与调试。"""
     CREATED = "created"
     SUBMITTED = "submitted"
@@ -72,13 +79,28 @@ class Order:
     exit_reason: str = "signal"  # signal, stop, takeprofit, reverse
 
     # State tracking
-    status: OrderStatus = OrderStatus.CREATED
+    status: BacktestOrderStatus = BacktestOrderStatus.CREATED
     filled_qty: float = 0.0
+    remaining_qty: float = 0.0
     avg_fill_price: float = 0.0
+    time_in_force: TimeInForce = TimeInForce.GTC
+    expire_time: Any = None
     id: str = field(
         default_factory=lambda: str(random.randint(100000, 999999))
     )  # Simple ID
 
+    @property
+    def accepted(self) -> bool:
+        """Whether the backtest venue accepted this order into its queue.
+
+        Acceptance does not mean the order filled; live acceptance similarly means
+        the exchange accepted the request, while fills remain a later state.
+        """
+        return self.status not in {
+            BacktestOrderStatus.REJECTED,
+            BacktestOrderStatus.EXPIRED,
+            BacktestOrderStatus.CANCELED,
+        }
 
 class Broker:
     def __init__(
@@ -89,6 +111,7 @@ class Broker:
         slippage: float = 0.0,
         random_slip: bool = False,
         use_impact_cost: bool = False,
+        max_participation_rate: float = 1.0,
     ):
         self.portfolio = portfolio
         self.commission_rate = commission_rate  # Taker
@@ -96,6 +119,9 @@ class Broker:
         self.slippage = slippage
         self.random_slip = random_slip
         self.use_impact_cost = use_impact_cost
+        if not 0 < max_participation_rate <= 1:
+            raise ValueError("max_participation_rate must be in (0, 1]")
+        self.max_participation_rate = max_participation_rate
         self.trades = []  # List to store executed trades
         self.pending_orders: List[Order] = []
         self.active_orders: List[
@@ -113,7 +139,9 @@ class Broker:
         slippage: float = 0.0,
         strategy_id: str = "Manual",
         exit_reason: str = "signal",
-    ) -> None:
+        time_in_force: str = "GTC",
+        expire_time: Any = None,
+    ) -> Order:
         """
         提交订单（进入撮合队列）。
 
@@ -126,15 +154,6 @@ class Broker:
         - 仅做基本参数校验与结构化封装，加入 pending_orders
         - 实际撮合发生在 process_orders（由引擎在每根 bar 调用）
         """
-        if qty <= 0:
-            logger.warning(
-                "Order rejected: quantity must be positive for %s %s %.8f",
-                symbol,
-                side,
-                qty,
-            )
-            return
-
         # Map string to Enum
         otype_map = {
             "market": OrderType.MARKET,
@@ -142,14 +161,6 @@ class Broker:
             "stop": OrderType.STOP,
         }
         otype = otype_map.get(order_type.lower(), OrderType.MARKET)
-
-        if otype in [OrderType.LIMIT, OrderType.STOP] and price is None:
-            logger.warning(
-                "Order rejected: price is required for %s order on %s",
-                order_type,
-                symbol,
-            )
-            return
 
         order = Order(
             symbol=symbol,
@@ -161,284 +172,196 @@ class Broker:
             slippage=slippage,
             strategy_id=strategy_id,
             exit_reason=exit_reason,
-            status=OrderStatus.CREATED,
+            status=BacktestOrderStatus.CREATED,
+            remaining_qty=max(qty, 0.0),
+            time_in_force=TimeInForce(time_in_force.upper()),
+            expire_time=expire_time,
         )
+        if qty <= 0:
+            logger.warning(
+                "Order rejected: quantity must be positive for %s %s %.8f",
+                symbol,
+                side,
+                qty,
+            )
+            order.status = BacktestOrderStatus.REJECTED
+            return order
+
+        if otype in [OrderType.LIMIT, OrderType.STOP] and price is None:
+            logger.warning(
+                "Order rejected: price is required for %s order on %s",
+                order_type,
+                symbol,
+            )
+            order.status = BacktestOrderStatus.REJECTED
+            return order
+
         self.pending_orders.append(order)
+        return order
 
     def process_orders(self, current_bar: Dict[str, pd.Series]) -> List[Dict]:
-        """
-        在“当前 bar”的 OHLCV 数据上处理订单（撮合与成交）。
-
-        输入：
-        - current_bar：symbol -> pd.Series（含 open/high/low/close/volume，Series.name 为时间戳）
-
-        订单生命周期：
-        - submit_order 进入 pending_orders
-        - 每根 bar 开始处理时：pending -> active（状态变为 SUBMITTED）
-        - 对 active_orders 执行撮合规则：
-          - 成交：记录 trade，订单置为 FILLED 并移出 active
-          - 未成交：保留到 next_active_orders（限价/止损会跨 bar 存活）
-
-        返回：
-        - executed_trades：本根 bar 成交的 trade record 列表（用于引擎汇总与报告）
-        """
-        executed_trades = []
-        next_active_orders = []
-
-        # Move pending to active
+        """Match eligible orders against real bars with a shared volume budget."""
+        executed_trades: List[Dict] = []
+        next_active_orders: List[Order] = []
         for order in self.pending_orders:
-            order.status = OrderStatus.SUBMITTED
+            order.status = BacktestOrderStatus.SUBMITTED
             self.active_orders.append(order)
         self.pending_orders = []
 
+        volume_budget = {
+            symbol: max(float(bar.get("volume", 0.0)), 0.0) * self.max_participation_rate
+            for symbol, bar in current_bar.items()
+        }
+
         for order in self.active_orders:
-            if order.symbol not in current_bar:
+            bar_data = current_bar.get(order.symbol)
+            if bar_data is None:
                 next_active_orders.append(order)
                 continue
-
-            bar_data = current_bar[order.symbol]
-
-            # OHLC Data
-            open_price = bar_data["open"]
-            high_price = bar_data["high"]
-            low_price = bar_data["low"]
-            close_price = bar_data[
-                "close"
-            ]  # Not strictly needed for execution check usually
             current_time = bar_data.name
+            if order.timestamp is not None and current_time <= order.timestamp:
+                next_active_orders.append(order)
+                continue
+            if order.expire_time is not None and current_time > order.expire_time:
+                order.status = BacktestOrderStatus.EXPIRED
+                continue
+            if (
+                order.time_in_force == TimeInForce.DAY
+                and order.timestamp is not None
+                and pd.Timestamp(current_time).date() > pd.Timestamp(order.timestamp).date()
+            ):
+                order.status = BacktestOrderStatus.EXPIRED
+                continue
 
-            # Determine Execution Logic
+            open_price = float(bar_data["open"])
+            high_price = float(bar_data["high"])
+            low_price = float(bar_data["low"])
             exec_price = None
-            should_execute = False
             is_maker = False
-
             if order.order_type == OrderType.MARKET:
                 exec_price = open_price
-                should_execute = True
-
             elif order.order_type == OrderType.LIMIT:
-                limit_price = order.price
-                if order.side in ["buy", "cover"]:
-                    # Buy Limit: Execute if Low <= Limit
-                    if low_price <= limit_price:
-                        should_execute = True
-                        if open_price <= limit_price:
-                            # Marketable at Open (Gap Down or opened below limit)
-                            exec_price = open_price
-                            is_maker = False
-                        else:
-                            # Intraday fill (touched limit)
-                            exec_price = limit_price
-                            is_maker = True
-                else:  # sell, short
-                    # Sell Limit: Execute if High >= Limit
-                    if high_price >= limit_price:
-                        should_execute = True
-                        if open_price >= limit_price:
-                            # Marketable at Open (Gap Up)
-                            exec_price = open_price
-                            is_maker = False
-                        else:
-                            # Intraday fill
-                            exec_price = limit_price
-                            is_maker = True
-
+                if order.side in {"buy", "cover"} and low_price <= order.price:
+                    exec_price = open_price if open_price <= order.price else order.price
+                    is_maker = open_price > order.price
+                elif order.side in {"sell", "short"} and high_price >= order.price:
+                    exec_price = open_price if open_price >= order.price else order.price
+                    is_maker = open_price < order.price
             elif order.order_type == OrderType.STOP:
-                stop_price = order.price
-                if order.side in ["buy", "cover"]:
-                    # Buy Stop: Trigger if High >= Stop
-                    if high_price >= stop_price:
-                        should_execute = True
-                        # Stop becomes Market -> Taker
-                        exec_price = (
-                            max(open_price, stop_price)
-                            if open_price >= stop_price
-                            else stop_price
-                        )
-                else:  # sell, short
-                    # Sell Stop: Trigger if Low <= Stop
-                    if low_price <= stop_price:
-                        should_execute = True
-                        # Stop becomes Market -> Taker
-                        exec_price = (
-                            min(open_price, stop_price)
-                            if open_price <= stop_price
-                            else stop_price
-                        )
+                if order.side in {"buy", "cover"} and high_price >= order.price:
+                    exec_price = max(open_price, order.price)
+                elif order.side in {"sell", "short"} and low_price <= order.price:
+                    exec_price = min(open_price, order.price)
 
-            if should_execute and exec_price is not None:
-                # Anti-Lookahead Check
-                if order.timestamp is not None and current_time <= order.timestamp:
-                    # This logic assumes 'order.timestamp' is when signal was generated.
-                    # 'current_time' is the bar we are executing on.
-                    # Typically current_time (Bar i) > order.timestamp (Bar i-1).
-                    # If they are equal, it implies signal generated at Close of Bar i, and we trying to exec at Bar i.
-                    # Which is physically impossible unless we have intraday data or execute on Close.
-                    # But we stick to Next-Bar execution.
-                    # If Market order, keep it.
-                    pass
-
-                trade = self._execute_trade(
-                    order,
-                    exec_price,
-                    current_time,
-                    bar_data.get("volume", 0),
-                    is_maker=is_maker,
-                )
-
-                if trade:
-                    executed_trades.append(trade)
-                    # For now, assume full fill
-                    order.status = OrderStatus.FILLED
-                    order.filled_qty = order.qty
-                    order.avg_fill_price = exec_price
-                    # Don't add to next_active_orders
+            if exec_price is None:
+                if order.time_in_force in {TimeInForce.IOC, TimeInForce.FOK}:
+                    order.status = BacktestOrderStatus.CANCELED
                 else:
-                    # Execution failed (e.g. invalid move)
-                    if order.order_type == OrderType.MARKET:
-                        order.status = OrderStatus.REJECTED
-                    else:
-                        # Keep Limit/Stop orders active?
-                        # If failed due to insufficient funds, maybe cancel?
-                        # For simplicity, keep trying or cancel. Let's keep trying.
-                        next_active_orders.append(order)
+                    next_active_orders.append(order)
+                continue
+
+            available = volume_budget.get(order.symbol, 0.0)
+            requested = order.remaining_qty
+            if order.time_in_force == TimeInForce.FOK and available < requested:
+                order.status = BacktestOrderStatus.CANCELED
+                continue
+            fill_qty = min(requested, available)
+            if fill_qty <= 0:
+                if order.time_in_force in {TimeInForce.IOC, TimeInForce.FOK}:
+                    order.status = BacktestOrderStatus.CANCELED
+                else:
+                    next_active_orders.append(order)
+                continue
+
+            trade = self._execute_trade(
+                order, exec_price, current_time, fill_qty,
+                float(bar_data.get("volume", 0.0)), is_maker=is_maker,
+            )
+            if trade is None:
+                order.status = BacktestOrderStatus.REJECTED
+                continue
+            executed_trades.append(trade)
+            volume_budget[order.symbol] = max(available - trade["qty"], 0.0)
+            previous_filled = order.filled_qty
+            order.filled_qty += trade["qty"]
+            order.remaining_qty = max(order.qty - order.filled_qty, 0.0)
+            order.avg_fill_price = (
+                (order.avg_fill_price * previous_filled + trade["fill_price"] * trade["qty"])
+                / order.filled_qty
+            )
+            if order.remaining_qty <= 1e-12:
+                order.status = BacktestOrderStatus.FILLED
+            elif order.time_in_force == TimeInForce.IOC:
+                order.status = BacktestOrderStatus.CANCELED
             else:
+                order.status = BacktestOrderStatus.PARTIALLY_FILLED
                 next_active_orders.append(order)
 
         self.active_orders = next_active_orders
         return executed_trades
-
     def _execute_trade(
         self,
         order: Order,
         price: float,
         timestamp: Any,
+        fill_qty: float,
         volume: float = 0,
         is_maker: bool = False,
     ) -> Optional[Dict]:
-        """
-        内部执行逻辑：将订单转换为一次“成交”，并写入 Portfolio 与 trade log。
-
-        主要步骤：
-        1) 计算滑点：固定/随机/冲击成本（可选）
-        2) 计算手续费：maker/taker 费率按名义价值（qty * fill_price）计提
-        3) 将 qty_delta 写入 Portfolio（现金与持仓变动）
-        4) 生成 trade_record（用于回测报告、逐笔日志、策略归因）
-
-        返回：
-        - trade_record（dict），或 None（例如卖出数量超过持仓且无法裁剪时）
-        """
-        # 1. Slippage Calculation
-        # Fill Price = Open * (1 ± slip)
-        # Check global slippage config if order doesn't specify it
         base_slip = order.slippage if order.slippage > 0 else self.slippage
-
-        if self.random_slip and base_slip > 0:
-            # Random slippage between 0 and base_slip
-            slip_rate = random.uniform(0, base_slip)
-        else:
-            # Fixed slippage (worst case)
-            slip_rate = base_slip
-
-        # Impact Cost (Simple Model: Sqrt Law or Linear)
-        # Cost = c * sigma * sqrt(OrderSize / Volume)
-        # Here we use a simplified penalty if enabled
+        slip_rate = random.uniform(0, base_slip) if self.random_slip and base_slip > 0 else base_slip
         impact_slip = 0.0
         if self.use_impact_cost and volume > 0:
-            # Participation rate
-            participation = order.qty / volume
-            if participation > 0.01:  # Penalty if > 1% of bar volume
-                impact_slip = participation * 0.1  # Arbitrary coefficient
-
+            participation = fill_qty / volume
+            if participation > 0.01:
+                impact_slip = participation * 0.1
         total_slip_rate = slip_rate + impact_slip
-
-        if order.side in ["buy", "cover"]:
+        if order.side in {"buy", "cover"}:
             fill_price = price * (1 + total_slip_rate)
-            slip_val = price * total_slip_rate
-            slip_dir = "positive"  # Costlier
-        else:  # sell, short
+            qty_delta = fill_qty
+            slip_dir = "positive"
+        elif order.side in {"sell", "short"}:
             fill_price = price * (1 - total_slip_rate)
-            slip_val = price * total_slip_rate
-            slip_dir = "negative"  # Cheaper (less profit)
-
-        # 2. Commission Calculation
-        # Commission is typically on Notional Value
-        value = order.qty * fill_price
-
-        fee_rate = self.commission_rate_maker if is_maker else self.commission_rate
-        commission = value * fee_rate
-
-        # Determine qty_delta for portfolio
-        if order.side == "buy":
-            qty_delta = order.qty
-        elif order.side == "sell":
-            qty_delta = -order.qty
-        elif order.side == "short":
-            qty_delta = -order.qty
-        elif order.side == "cover":
-            qty_delta = order.qty
+            qty_delta = -fill_qty
+            slip_dir = "negative"
         else:
             return None
 
-        # Portfolio Check (Simplified)
         current_pos = self.portfolio.get_position(order.symbol)
-
-        # Validation for Sell/Cover
         if order.side == "sell":
-            if current_pos["qty"] < order.qty:
-                # In a real system we might partial fill. Here we reject or clip.
-                # Given it's a backtest, we might want to just close what we have?
-                # Let's clip it to available qty to avoid errors.
-                actual_qty = max(0, current_pos["qty"])
-                if actual_qty == 0:
-                    return None
+            fill_qty = min(fill_qty, max(current_pos["qty"], 0.0))
+            qty_delta = -fill_qty
+        elif order.side == "cover":
+            fill_qty = min(fill_qty, max(-current_pos["qty"], 0.0))
+            qty_delta = fill_qty
+        if fill_qty <= 0:
+            return None
 
-                # Recalculate if clipped
-                if actual_qty != order.qty:
-                    qty_delta = -actual_qty
-                    value = actual_qty * fill_price
-                    commission = value * fee_rate
-                    order.qty = actual_qty
-
-        # Update Portfolio
+        value = fill_qty * fill_price
+        fee_rate = self.commission_rate_maker if is_maker else self.commission_rate
+        commission = value * fee_rate
         self.portfolio.update_position(order.symbol, qty_delta, fill_price, commission)
-
         trade_record = {
-            "signal_time": order.timestamp,  # When it was submitted
-            "fill_time": timestamp,  # When it was filled
+            "order_id": order.id,
+            "signal_time": order.timestamp,
+            "fill_time": timestamp,
             "symbol": order.symbol,
             "side": order.side,
-            "qty": order.qty,
+            "qty": fill_qty,
             "fill_price": fill_price,
             "commission": commission,
-            "slip": slip_val,  # Absolute value of slip
+            "slip": price * total_slip_rate,
             "slip_dir": slip_dir,
             "strategy_id": order.strategy_id,
-            "exit_reason": getattr(
-                order, "exit_reason", "signal"
-            ),  # We might need to pass this
+            "exit_reason": order.exit_reason,
             "is_maker": is_maker,
         }
         self.trades.append(trade_record)
-
         logger.info(
-            "Trade filled symbol=%s side=%s qty=%.8f fill_price=%.8f commission=%.8f "
-            "slip=%.8f slip_dir=%s maker=%s exit_reason=%s signal_time=%s fill_time=%s",
-            order.symbol,
-            order.side,
-            order.qty,
-            fill_price,
-            commission,
-            slip_val,
-            slip_dir,
-            is_maker,
-            trade_record["exit_reason"],
-            order.timestamp,
-            timestamp,
+            "Trade filled symbol=%s side=%s qty=%.8f fill_price=%.8f signal_time=%s fill_time=%s",
+            order.symbol, order.side, fill_qty, fill_price, order.timestamp, timestamp,
         )
-
         return trade_record
-
     def cancel_symbol_orders(self, symbol: str) -> int:
         """
         Cancel all pending and active orders for a given symbol.
@@ -453,7 +376,7 @@ class Broker:
         self.active_orders = [o for o in self.active_orders if o.symbol != symbol]
 
         for o in cancelled:
-            o.status = OrderStatus.CANCELED
+            o.status = BacktestOrderStatus.CANCELED
 
         n = before - len(self.pending_orders) - len(self.active_orders)
         if n > 0:

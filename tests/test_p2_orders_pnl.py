@@ -1,7 +1,7 @@
 import unittest
 import pandas as pd
 from datetime import datetime
-from core.broker import Broker, OrderType, OrderStatus
+from core.broker import BacktestOrderStatus, Broker, OrderType
 from core.portfolio import Portfolio
 from backtest.reporting import ReportGenerator
 
@@ -23,7 +23,7 @@ class TestP2OrderExecution(unittest.TestCase):
         trades = self.broker.process_orders({self.symbol: bar1})
         self.assertEqual(len(trades), 0)
         self.assertEqual(len(self.broker.active_orders), 1)
-        self.assertEqual(self.broker.active_orders[0].status, OrderStatus.SUBMITTED)
+        self.assertEqual(self.broker.active_orders[0].status, BacktestOrderStatus.SUBMITTED)
         
         # 3. Bar 2: Low is 9400 (Should execute)
         bar2 = pd.Series({

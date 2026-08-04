@@ -2,7 +2,7 @@ import unittest
 
 import pandas as pd
 
-from core.broker import Broker, OrderStatus
+from core.broker import BacktestOrderStatus, Broker
 from core.portfolio import Portfolio
 from core.risk import RiskManager
 from core.state import MarketState
@@ -75,7 +75,7 @@ class TestRouterSwitchCleanup(unittest.TestCase):
             {"BTC/USDT": 101.0},
         )
 
-        self.assertEqual(stale_order.status, OrderStatus.CANCELED)
+        self.assertEqual(stale_order.status, BacktestOrderStatus.CANCELED)
         self.assertEqual(trend_strategy.context["BTC/USDT"], {})
         self.assertIn("BTC/USDT", router.cooldowns)
         self.assertEqual(len(broker.active_orders), 0)
@@ -149,7 +149,7 @@ class TestRouterSwitchCleanup(unittest.TestCase):
             {"BTC/USDT": 101.0},
         )
 
-        self.assertEqual(stale_order.status, OrderStatus.SUBMITTED)
+        self.assertEqual(stale_order.status, BacktestOrderStatus.SUBMITTED)
         self.assertEqual(breakout_strategy.context["BTC/USDT"]["stop_loss"], 95.0)
         self.assertNotIn("BTC/USDT", router.cooldowns)
         self.assertEqual(len(broker.pending_orders), 0)

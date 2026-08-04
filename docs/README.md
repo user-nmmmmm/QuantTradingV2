@@ -1,0 +1,32 @@
+# QuantTrading 文档导航
+
+本文档目录区分“当前有效文档”和“历史审计资料”。开发、验收和运行决策应以当前有效文档为准；归档文件只用于追溯旧任务编号、历史判断和迁移来源。
+
+## 从哪里开始
+
+1. [`unified_roadmap.md`](unified_roadmap.md)：唯一项目总路线图，维护 R0–R8、优先级、依赖和放行门槛。
+2. [`development_plan.md`](development_plan.md)：当前开发批次、任务顺序、交付物和验收清单。
+3. [`backtest_metrics_detailed_development_plan.md`](backtest_metrics_detailed_development_plan.md)：回测指标公式、输入、边界、测试和专项完成标准。
+4. [`backtest_assumptions.md`](backtest_assumptions.md)：当前回测引擎已经实现的执行、成本、数据和统计口径。
+5. [`deployment.md`](deployment.md)：当前允许的安装、回测、sandbox 和运维方式。
+6. [`baselines/batch0_fixed_baseline.md`](baselines/batch0_fixed_baseline.md)：固定回归基线及其验收证据。
+
+## 权威顺序
+
+发生冲突时，按以下顺序处理：
+
+```text
+unified_roadmap.md
+  → development_plan.md
+  → 领域详细计划
+  → 当前行为/运维文档
+  → 历史归档
+```
+
+项目阶段状态只在 `unified_roadmap.md` 维护；当前批次勾选只在 `development_plan.md` 维护；指标公式和边界只在回测详细计划维护。`backtest_assumptions.md` 和 `deployment.md` 只描述当前代码已经支持的行为，不把未来计划写成现有能力。
+
+## 历史资料
+
+已停止独立排期的旧路线图、架构审计和旧基线位于 [`archive/2026-08-roadmap-consolidation/`](archive/2026-08-roadmap-consolidation/README.md)。历史文件不得继续维护项目完成状态。
+
+旧任务编号到 R0–R8、新 BM0–BM8 的映射暂见 [`roadmap_migration.md`](roadmap_migration.md)。迁移稳定后，该索引可以并入归档说明。

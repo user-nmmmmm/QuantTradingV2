@@ -1,74 +1,80 @@
-import yaml
+"""Fail-closed YAML configuration loader."""
+
+from __future__ import annotations
+
 import os
-from typing import Dict, Any
+from typing import Any, Optional
+
+import yaml
+
+from core.logger import get_logger
+
+
+logger = get_logger(__name__)
+
+
+class ConfigLoadError(RuntimeError):
+    """Raised when the authoritative YAML configuration cannot be loaded."""
+
 
 class ConfigLoader:
-    _instance = None
-    _config = None
+    """Load the authoritative params.yaml, with isolated paths available to tests."""
 
-    def __new__(cls):
+    _instance = None
+
+    def __new__(cls, config_path: Optional[str] = None):
+        if config_path is not None:
+            return super().__new__(cls)
         if cls._instance is None:
-            cls._instance = super(ConfigLoader, cls).__new__(cls)
-            cls._instance._load_config()
+            cls._instance = super().__new__(cls)
         return cls._instance
 
-    def _load_config(self):
-        # Default path relative to this file
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        config_path = os.path.join(base_dir, "params.yaml")
-        
-        if os.path.exists(config_path):
-            with open(config_path, "r", encoding="utf-8") as f:
-                self._config = yaml.safe_load(f)
-        else:
-            # Fallback defaults if file missing
-            self._config = {
-                "execution": {
-                    "commission_rate_taker": 0.001,
-                    "commission_rate_maker": 0.0005,
-                    "slippage_bps": 5,
-                    "use_impact_cost": False
-                },
-                "risk": {
-                    "max_leverage": 3.0,
-                    "risk_per_trade": 0.01,
-                    "max_drawdown_limit": 0.20,
-                    "liquidity_limit_pct": 0.01,
-                    "max_pos_size_pct": 0.20,
-                },
-                "state": {
-                    "stability_period": 2,
-                    "ma_fast": 20,
-                    "ma_slow": 60,
-                    "adx_period": 14,
-                    "adx_threshold": 25,
-                    "atr_period": 14,
-                    "atr_pct_threshold": 0.05,
-                },
-                "routing": {
-                    "TREND_UP": "TrendBreakout",
-                    "TREND_DOWN": "TrendBreakdown",
-                    "SIDEWAYS": "RangeMeanReversion",
-                    "VOLATILE": "TrendBreakout"
-                },
-                "router": {
-                    "cooldown_bars": 2,
-                },
-                "data": {
-                    "check_quality": True
-                }
-            }
+    def __init__(self, config_path: Optional[str] = None) -> None:
+        requested_path = config_path or os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "params.yaml"
+        )
+        if getattr(self, "_initialized", False) and self.config_path == requested_path:
+            return
+        self.config_path = requested_path
+        self._config = None
+        self._load_config()
+        self._initialized = True
 
-    def get(self, section: str, key: str = None) -> Any:
-        if self._config is None:
-            self._load_config()
-            
+    def _load_config(self) -> None:
+        if not os.path.exists(self.config_path):
+            raise ConfigLoadError(f"params.yaml not found at {self.config_path}")
+        try:
+            with open(self.config_path, "r", encoding="utf-8") as handle:
+                loaded = yaml.safe_load(handle)
+        except (OSError, yaml.YAMLError) as exc:
+            raise ConfigLoadError(
+                f"failed to load params.yaml at {self.config_path}: {type(exc).__name__}"
+            ) from exc
+        if not isinstance(loaded, dict):
+            raise ConfigLoadError("params.yaml is empty or not a valid mapping")
+        self._config = loaded
+
+        execution = loaded.get("execution") or {}
+        risk = loaded.get("risk") or {}
+        routing = loaded.get("routing") or {}
+        logger.info(
+            "Config loaded from %s: taker=%.4f maker=%.4f max_leverage=%.1f "
+            "max_dd=%.2f routing=%s",
+            self.config_path,
+            float(execution.get("commission_rate_taker", 0.0)),
+            float(execution.get("commission_rate_maker", 0.0)),
+            float(risk.get("max_leverage", 0.0)),
+            float(risk.get("max_drawdown_limit", 0.0)),
+            routing,
+        )
+
+    def get(self, section: str, key: Optional[str] = None) -> Any:
         if section not in self._config:
             return None
-            
-        if key:
-            return self._config[section].get(key)
+        if key is not None:
+            values = self._config[section]
+            return values.get(key) if isinstance(values, dict) else None
         return self._config[section]
 
-# Global instance for easy access
+
 config = ConfigLoader()
