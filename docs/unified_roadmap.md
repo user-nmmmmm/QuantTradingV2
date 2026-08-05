@@ -3,12 +3,13 @@
 > 文档状态：Active v2.0  
 > 生效日期：2026-08-02  
 > 权威范围：项目级优先级、阶段顺序、放行门槛和跨领域依赖  
-> 执行计划：[`development_plan.md`](development_plan.md)  
+> 回测执行计划：[`development_plan.md`](development_plan.md)  
+> 实盘执行计划：[`live_trading_remediation_plan.md`](live_trading_remediation_plan.md)  
 > 回测指标计划：[`backtest_metrics_detailed_development_plan.md`](backtest_metrics_detailed_development_plan.md)
 
 ## 1. 文档治理
 
-本文件是项目唯一总路线图。`development_plan.md` 负责批次、文件和验收；回测指标详细计划负责公式、字段和边界。发生冲突时按“统一 Roadmap → 统一开发计划 → 领域详细计划”处理。
+本文件是项目唯一总路线图。`development_plan.md` 负责回测领域（R0/R1）批次、文件和验收；`live_trading_remediation_plan.md` 负责实盘领域（R4–R6）的 G0–G10 任务分解；回测指标详细计划负责公式、字段和边界。发生冲突时按“统一 Roadmap → 领域执行计划 → 领域详细计划”处理。
 
 以下旧 roadmap 已移入 [`archive/2026-08-roadmap-consolidation/`](archive/2026-08-roadmap-consolidation/README.md)，停止独立排期，只保留需求、旧任务 ID 和审计记录：`roadmap.md`、`roadmap_detailed.md`、`current_system_remediation_roadmap.md`、`backtest_metrics_development_roadmap.md`、`formula_monitoring_roadmap.md`。
 
