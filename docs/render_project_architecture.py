@@ -79,12 +79,12 @@ box(2140, 550, 560, 250, "风险与组合", ["RiskManager：仓位、集中度�
 # Runtime split
 box(100, 970, 780, 300, "回测运行时", ["BacktestEngine：多标的联合时间线", "Next-Bar Execution，防前视", "Broker：Market/Limit/Stop、TIF、部分成交", "手续费、滑点、冲击成本与交易归因"], BLUE, "SIMULATION")
 box(1010, 970, 780, 300, "实盘运行时", ["LiveTradingEngine：初始化、轮询、每标的幂等 bar", "LiveBroker：CCXT 同步账户/持仓并下单", "StateStore v2（SQLite）：日初权益、熔断、bar claim", "现货模式将做空路由映射为 Cash"], RED, "LIVE")
-box(1920, 970, 780, 300, "报告、状态与可视化", ["ReportGenerator + core.metrics", "equity/trades/benchmark/routing CSV", "report.txt / equity.png / data_quality_report.json", "live_status.json；dashboard/utils.py 仅主题工具"], GREEN, "OUTPUT")
+box(1920, 970, 780, 300, "报告、状态与可视化", ["ReportGenerator + core.metrics", "equity/trades/benchmark/routing CSV", "report.txt / equity.png / data_quality_report.json", "live_status.json"], GREEN, "OUTPUT")
 
 # Supporting / incomplete
-box(100, 1440, 780, 260, "测试与质量门", ["tests/：单元、回归基线、无前视、实盘 mock", "当前项目虚拟环境：60/60 通过", "系统 Python 未安装依赖时：13 个模块导入失败"], GREEN, "VERIFIED")
+box(100, 1440, 780, 260, "测试与质量门", ["tests/：单元、回归基线、无前视、实盘 mock", "当前项目虚拟环境：98/98 通过", "系统 Python 未安装依赖时部分模块导入失败"], GREEN, "VERIFIED")
 box(1010, 1440, 780, 260, "研究与分析旁路", ["analysis/optimize.py：网格搜索", "plot_performance.py：报告再绘图", "research/：独立 alpha / reality check 原型"], PURPLE, "OFFLINE")
-box(1920, 1440, 780, 260, "未完成/遗留区域", ["models/*：4 个空壳类（pass）", "Trading_V1_Model.py 与 archive/：旧实现并存", "state_store.py 与 state_store_v2.py 重复", "dashboard 尚无完整应用入口"], RED, "DEBT")
+box(1920, 1440, 780, 260, "未完成/遗留区域", ["实盘对账闭环未完整", "缺统一重试/熔断与告警", "state_store_v2（SQLite）无备份/迁移方案", "无 CI 门禁"], RED, "DEBT")
 
 # Arrows top
 arrow([(600,315),(760,315)], CYAN, label="数据源/凭据", label_xy=(680,292))

@@ -1,4 +1,0 @@
-# 回测时间段设置
-START_DATE = '2026-01-01'
-END_DATE = '2026-01-31'
-TIMEFRAME = '1h'  # 1d, 1h, 15m
