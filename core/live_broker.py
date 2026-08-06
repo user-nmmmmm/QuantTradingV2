@@ -117,12 +117,12 @@ class LiveBroker:
                 logger.info("Resuming pre-submit intent client_order_id=%s", intent.client_order_id)
             else:
                 return self.reconcile_order(intent.client_order_id)
-        if side in {"buy", "short"} and self._has_other_unknown_same_direction(
-            symbol, side, intent.client_order_id
+        if side in {"buy", "short"} and self._has_other_active_open_order(
+            symbol, intent.client_order_id
         ):
             return self.record_local_rejection(
                 intent,
-                "unresolved order blocks additional same-direction risk",
+                "active opening order blocks additional risk for this symbol",
                 OrderErrorCode.SAFETY_POLICY,
             )
 
@@ -384,16 +384,45 @@ class LiveBroker:
             return "unsupported order side"
         return None
 
-    def _has_other_unknown_same_direction(
-        self, symbol: str, side: str, client_order_id: str
+    @staticmethod
+    def _is_opening_record(record: Dict[str, Any]) -> bool:
+        intent = record.get("intent") or {}
+        return (
+            record.get("side") in {"buy", "short"}
+            and not bool(intent.get("reduce_only", False))
+            and float(record.get("remaining_qty") or 0.0) > 0
+        )
+
+    def _has_other_active_open_order(
+        self, symbol: str, client_order_id: Optional[str] = None
     ) -> bool:
         return any(
             record["symbol"] == symbol
-            and record["side"] == side
-            and record["status"] == OrderStatus.UNKNOWN.value
             and record["client_order_id"] != client_order_id
+            and self._is_opening_record(record)
             for record in self.order_store.list_non_terminal()
         )
+
+    def has_active_open_order(self, symbol: str) -> bool:
+        return self._has_other_active_open_order(symbol)
+
+    def pending_open_notional(
+        self, current_prices: Optional[Dict[str, float]] = None
+    ) -> Dict[str, float]:
+        prices = current_prices or {}
+        reserved: Dict[str, float] = {}
+        for record in self.order_store.list_non_terminal():
+            if not self._is_opening_record(record):
+                continue
+            symbol = record["symbol"]
+            order_price = self._as_float(record.get("price"))
+            market_price = self._as_float(prices.get(symbol))
+            reference_price = max(order_price, market_price)
+            if reference_price <= 0:
+                continue
+            remaining = self._as_float(record.get("remaining_qty"))
+            reserved[symbol] = reserved.get(symbol, 0.0) + remaining * reference_price
+        return reserved
 
     def _result(self, client_order_id: str) -> OrderSubmissionResult:
         record = self.order_store.get(client_order_id)
@@ -418,13 +447,14 @@ class LiveBroker:
             balance = self.exchange.fetch_balance()
             free = balance.get("free", {}) if isinstance(balance, dict) else {}
             total = balance.get("total", {}) if isinstance(balance, dict) else {}
-            self.portfolio.cash = self._as_float(
+            next_cash = self._as_float(
                 free.get(self.base_currency), self._as_float(total.get(self.base_currency))
             )
             if self.market_type in DERIVATIVE_TYPES:
                 positions = self._sync_derivatives_positions(balance)
             else:
                 positions = self._sync_spot_positions(balance)
+            self.portfolio.cash = next_cash
             self.portfolio.positions = positions
             return SyncResult(True, self._clock())
         except Exception as exc:
@@ -450,17 +480,60 @@ class LiveBroker:
         for raw in raw_positions:
             symbol = raw.get("symbol") or raw.get("info", {}).get("symbol")
             qty = self._extract_qty(raw)
-            if symbol and qty != 0:
-                positions[symbol] = {"qty": qty, "avg_price": self._extract_avg_price(raw)}
+            if not symbol or qty == 0:
+                continue
+            if symbol in positions:
+                raise ValueError(f"multiple derivative position legs are unsupported for {symbol}")
+            positions[symbol] = {
+                "qty": qty,
+                "avg_price": self._extract_avg_price(raw),
+            }
         return positions
 
     def _extract_qty(self, payload: Dict[str, Any]) -> float:
         info = payload.get("info", {}) if isinstance(payload, dict) else {}
-        for value in (payload.get("contracts"), payload.get("positionAmt"), payload.get("qty"), payload.get("size"), info.get("positionAmt"), info.get("contracts"), info.get("size")):
+        direction = self._position_direction(payload, info)
+
+        for value in (payload.get("positionAmt"), info.get("positionAmt")):
             qty = self._as_float(value)
-            if qty != 0:
-                return qty
+            if qty == 0:
+                continue
+            if direction is not None and (qty > 0) != (direction > 0):
+                raise ValueError("derivative position side conflicts with signed quantity")
+            return qty
+
+        for value in (
+            payload.get("contracts"),
+            payload.get("qty"),
+            payload.get("size"),
+            info.get("contracts"),
+            info.get("qty"),
+            info.get("size"),
+        ):
+            magnitude = abs(self._as_float(value))
+            if magnitude == 0:
+                continue
+            if direction is None:
+                raise ValueError("derivative position direction is unavailable")
+            return magnitude * direction
         return 0.0
+
+    @staticmethod
+    def _position_direction(
+        payload: Dict[str, Any], info: Dict[str, Any]
+    ) -> Optional[float]:
+        for value in (
+            payload.get("side"),
+            payload.get("positionSide"),
+            info.get("side"),
+            info.get("positionSide"),
+        ):
+            normalized = str(value or "").strip().lower()
+            if normalized in {"long", "buy"}:
+                return 1.0
+            if normalized in {"short", "sell"}:
+                return -1.0
+        return None
 
     def _extract_avg_price(self, payload: Dict[str, Any]) -> float:
         info = payload.get("info", {}) if isinstance(payload, dict) else {}

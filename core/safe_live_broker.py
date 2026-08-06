@@ -65,7 +65,16 @@ class SafeLiveBroker(LiveBroker):
             time_in_force, position_side, reduce_only, sequence,
         )
         # Idempotent replay must not reserve the daily risk limit a second time.
-        if self.order_store.get(intent.client_order_id) is None:
+        existing = self.order_store.get(intent.client_order_id)
+        if existing is None:
+            if side in {"buy", "short"} and self._has_other_active_open_order(
+                symbol, intent.client_order_id
+            ):
+                return self.record_local_rejection(
+                    intent,
+                    "active opening order blocks additional risk for this symbol",
+                    OrderErrorCode.SAFETY_POLICY,
+                )
             try:
                 self.safety_guard.assert_order_allowed(symbol, side, intent.requested_qty, price)
             except ValueError as exc:

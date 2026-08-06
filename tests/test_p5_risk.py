@@ -87,6 +87,20 @@ class TestRiskManager(unittest.TestCase):
         )
         self.assertFalse(allowed, "Should reject 4x leverage")
 
+    def test_pending_open_orders_count_toward_concentration_and_leverage(self):
+        current_prices = {"BTC": 100.0}
+
+        allowed = self.risk_manager.check_entry_risk(
+            self.portfolio,
+            "BTC",
+            qty=10.0,
+            price=100.0,
+            current_prices=current_prices,
+            pending_open_notional={"BTC": 1500.0},
+        )
+
+        self.assertFalse(allowed, "Pending entry exposure must be reserved")
+
     def test_reset_daily_breaker(self):
         self.risk_manager.circuit_breaker_triggered = True
 

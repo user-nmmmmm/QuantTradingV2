@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "Bash(awk -F, 'NR>1 && $2!=prev {print} {prev=$2}' \"D:/QauntTradingV1/reports/20260803_162555_3864d_23Syms_Ret27.2pct/equity.csv\")",
+      "Bash(awk -F, '$1 > \"2019-09-25\"' routing_log.csv)",
+      "Bash(awk -F, '{print $4}')"
     ]
   }
 }

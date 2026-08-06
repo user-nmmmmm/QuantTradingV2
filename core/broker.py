@@ -362,6 +362,34 @@ class Broker:
             order.symbol, order.side, fill_qty, fill_price, order.timestamp, timestamp,
         )
         return trade_record
+
+    def has_active_open_order(self, symbol: str) -> bool:
+        return any(
+            order.symbol == symbol
+            and order.side in {"buy", "short"}
+            and order.remaining_qty > 0
+            for order in self.pending_orders + self.active_orders
+        )
+
+    def pending_open_notional(
+        self, current_prices: Optional[Dict[str, float]] = None
+    ) -> Dict[str, float]:
+        prices = current_prices or {}
+        reserved: Dict[str, float] = {}
+        for order in self.pending_orders + self.active_orders:
+            if order.side not in {"buy", "short"} or order.remaining_qty <= 0:
+                continue
+            order_price = float(order.price or 0.0)
+            market_price = float(prices.get(order.symbol, 0.0))
+            reference_price = max(order_price, market_price)
+            if reference_price <= 0:
+                continue
+            reserved[order.symbol] = (
+                reserved.get(order.symbol, 0.0)
+                + order.remaining_qty * reference_price
+            )
+        return reserved
+
     def cancel_symbol_orders(self, symbol: str) -> int:
         """
         Cancel all pending and active orders for a given symbol.

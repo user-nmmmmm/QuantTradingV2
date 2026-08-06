@@ -52,6 +52,7 @@ class TestLiveTrading(unittest.TestCase):
             {
                 "symbol": "BTC/USDT",
                 "contracts": "0.25",
+                "side": "long",
                 "entryPrice": "50000",
             }
         ]
@@ -68,6 +69,60 @@ class TestLiveTrading(unittest.TestCase):
         self.assertEqual(self.portfolio.positions["BTC/USDT"]["qty"], 0.25)
         self.assertEqual(self.portfolio.positions["BTC/USDT"]["avg_price"], 50000.0)
         self.mock_exchange.fetch_positions.assert_called_once()
+        broker.close()
+
+    @patch("core.live_broker.ccxt")
+    def test_broker_sync_futures_applies_short_side_to_unsigned_contracts(self, mock_ccxt):
+        self.mock_exchange.fetch_balance.return_value = {
+            "total": {"USDT": 15000.0}, "free": {"USDT": 12000.0}
+        }
+        self.mock_exchange.fetch_positions.return_value = [{
+            "symbol": "BTC/USDT", "contracts": "0.25", "side": "short",
+            "entryPrice": "50000",
+        }]
+        mock_ccxt.binance.return_value = self.mock_exchange
+        broker = LiveBroker(self.portfolio, exchange_id="binance", market_type="future")
+
+        result = broker.sync()
+
+        self.assertTrue(result.ok)
+        self.assertEqual(self.portfolio.positions["BTC/USDT"]["qty"], -0.25)
+        broker.close()
+
+    @patch("core.live_broker.ccxt")
+    def test_broker_sync_futures_fails_closed_when_contract_direction_is_unknown(self, mock_ccxt):
+        self.mock_exchange.fetch_balance.return_value = {
+            "total": {"USDT": 15000.0}, "free": {"USDT": 12000.0}
+        }
+        self.mock_exchange.fetch_positions.return_value = [
+            {"symbol": "BTC/USDT", "contracts": "0.25", "entryPrice": "50000"}
+        ]
+        mock_ccxt.binance.return_value = self.mock_exchange
+        broker = LiveBroker(self.portfolio, exchange_id="binance", market_type="future")
+
+        result = broker.sync()
+
+        self.assertFalse(result.ok)
+        self.assertNotIn("BTC/USDT", self.portfolio.positions)
+        broker.close()
+
+    @patch("core.live_broker.ccxt")
+    def test_broker_sync_futures_fails_closed_for_two_position_legs(self, mock_ccxt):
+        self.mock_exchange.fetch_balance.return_value = {
+            "total": {"USDT": 15000.0}, "free": {"USDT": 12000.0}
+        }
+        self.mock_exchange.fetch_positions.return_value = [
+            {"symbol": "BTC/USDT", "contracts": "0.25", "side": "long"},
+            {"symbol": "BTC/USDT", "contracts": "0.10", "side": "short"},
+        ]
+        mock_ccxt.binance.return_value = self.mock_exchange
+        broker = LiveBroker(self.portfolio, exchange_id="binance", market_type="future")
+
+        result = broker.sync()
+
+        self.assertFalse(result.ok)
+        self.assertNotIn("BTC/USDT", self.portfolio.positions)
+        broker.close()
 
     @patch("core.live_broker.ccxt")
     def test_broker_submit_order(self, mock_ccxt):

@@ -4,7 +4,7 @@ import unittest
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
-from core.domain import OrderIntent, OrderStatus
+from core.domain import OrderErrorCode, OrderIntent, OrderStatus
 from core.live_broker import LiveBroker
 from core.order_store import OrderStore
 from core.portfolio import Portfolio
@@ -69,6 +69,40 @@ class TestG2LiveOrders(unittest.TestCase):
         self.assertEqual(len(ids), 1)
         self.exchange.create_order.assert_called_once()
         broker.close()
+
+    @patch("core.live_broker.ccxt")
+    def test_open_order_blocks_same_direction_entry_on_later_bar(self, ccxt_mock):
+        ccxt_mock.binance.return_value = self.exchange
+        self.exchange.create_order.return_value = {
+            "id": "e1", "status": "open", "amount": 1, "filled": 0, "remaining": 1
+        }
+        broker = self.broker()
+        first = broker.submit_order("BTC/USDT", "buy", 1, 100, strategy_id="S")
+        broker.set_bar_context("1m", datetime(2026, 8, 2, 12, 1, tzinfo=timezone.utc))
+
+        second = broker.submit_order("BTC/USDT", "buy", 1, 101, strategy_id="S")
+
+        self.assertEqual(first.status, OrderStatus.ACCEPTED)
+        self.assertEqual(second.status, OrderStatus.REJECTED)
+        self.assertEqual(second.error_code, OrderErrorCode.SAFETY_POLICY)
+        self.exchange.create_order.assert_called_once()
+        broker.close()
+
+    @patch("core.live_broker.ccxt")
+    def test_partial_order_remaining_notional_is_reserved(self, ccxt_mock):
+        ccxt_mock.binance.return_value = self.exchange
+        self.exchange.create_order.return_value = {
+            "id": "e1", "status": "open", "amount": 2, "filled": 0.5,
+            "remaining": 1.5, "average": 100,
+        }
+        broker = self.broker()
+
+        result = broker.submit_order("BTC/USDT", "buy", 2, 100, strategy_id="S")
+        reserved = broker.pending_open_notional({"BTC/USDT": 110})
+        broker.close()
+
+        self.assertEqual(result.status, OrderStatus.PARTIALLY_FILLED)
+        self.assertEqual(reserved, {"BTC/USDT": 165.0})
 
     @patch("core.live_broker.ccxt")
     def test_exchange_accepts_but_client_times_out_then_queries_without_retry(self, ccxt_mock):

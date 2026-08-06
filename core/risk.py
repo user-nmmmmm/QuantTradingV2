@@ -107,7 +107,8 @@ class RiskManager:
         qty: float, 
         price: float,
         current_volume: float = 0,
-        current_prices: Optional[Dict[str, float]] = None
+        current_prices: Optional[Dict[str, float]] = None,
+        pending_open_notional: Optional[Dict[str, float]] = None,
     ) -> bool:
         """
         校验一笔“拟进入的交易”是否违反风控规则。
@@ -152,7 +153,11 @@ class RiskManager:
         if current_equity <= 0:
             return False
             
-        new_exposure = current_exposure + trade_value
+        reserved_by_symbol = pending_open_notional or {}
+        reserved_exposure = sum(
+            max(float(value), 0.0) for value in reserved_by_symbol.values()
+        )
+        new_exposure = current_exposure + reserved_exposure + trade_value
         projected_leverage = new_exposure / current_equity
         
         if projected_leverage > self.max_leverage:
@@ -163,7 +168,8 @@ class RiskManager:
         # Check if adding this trade makes this single position too large
         current_pos = portfolio.get_position(symbol)
         current_pos_value = abs(current_pos['qty']) * price # Approximate current value
-        new_pos_value = current_pos_value + trade_value
+        reserved_symbol_value = max(float(reserved_by_symbol.get(symbol, 0.0)), 0.0)
+        new_pos_value = current_pos_value + reserved_symbol_value + trade_value
         
         if new_pos_value > (current_equity * self.max_pos_size_pct):
             logger.warning(f"Trade Rejected: Concentration Limit. Symbol {symbol} would be {new_pos_value/current_equity:.1%} > Max {self.max_pos_size_pct:.1%}")

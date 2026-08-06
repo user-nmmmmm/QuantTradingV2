@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional, Protocol
+from typing import Any, Dict, Optional, Protocol
 
 
 class ExecutionResult(Protocol):
@@ -29,4 +29,12 @@ class ExecutionPort(Protocol):
         ...
 
     def cancel_symbol_orders(self, symbol: str) -> Optional[int]:
+        ...
+
+    def has_active_open_order(self, symbol: str) -> bool:
+        ...
+
+    def pending_open_notional(
+        self, current_prices: Optional[Dict[str, float]] = None
+    ) -> Dict[str, float]:
         ...

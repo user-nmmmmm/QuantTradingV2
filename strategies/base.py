@@ -199,6 +199,13 @@ class Strategy(ABC):
 
                     if size > 0:
                         current_volume = float(df["volume"].iloc[i]) if "volume" in df.columns else 0.0
+                        pending_provider = getattr(broker, "pending_open_notional", None)
+                        pending_open_notional = (
+                            pending_provider(price_map)
+                            if callable(pending_provider) else {}
+                        )
+                        if not isinstance(pending_open_notional, dict):
+                            pending_open_notional = {}
                         # Pre-trade Risk Check
                         if risk_manager.check_entry_risk(
                             portfolio,
@@ -207,6 +214,7 @@ class Strategy(ABC):
                             current_price,
                             current_volume=current_volume,
                             current_prices=price_map,
+                            pending_open_notional=pending_open_notional,
                         ):
                             submission = broker.submit_order(
                                 symbol,
