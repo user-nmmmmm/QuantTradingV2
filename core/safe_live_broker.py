@@ -30,6 +30,7 @@ class SafeLiveBroker(LiveBroker):
         order_store_path: str = "reports/live_orders.db",
         account_id: Optional[str] = None,
         position_mode: str = "one_way",
+        require_market_metadata: bool = False,
     ) -> None:
         self.safety_guard = safety_guard
         super().__init__(
@@ -42,6 +43,7 @@ class SafeLiveBroker(LiveBroker):
             order_store=order_store or OrderStore(order_store_path),
             account_id=account_id,
             position_mode=position_mode,
+            require_market_metadata=require_market_metadata,
         )
 
     def submit_order(

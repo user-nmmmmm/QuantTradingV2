@@ -75,6 +75,7 @@ def main() -> None:
         market_type=args.market_type,
         base_currency=args.base_currency,
         safety_guard=safety_guard,
+        require_market_metadata=True,
     )
     if args.live:
         try:

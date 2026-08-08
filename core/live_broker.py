@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, Mapping, Optional
 
 import ccxt
 
@@ -16,13 +16,19 @@ from core.domain import (
     SyncResult,
 )
 from core.events import FillEvent, OrderEvent, TradingEventPipeline
+from core.exchange_boundary import (
+    ExchangeBoundary,
+    ExchangeBoundaryError,
+    ExchangeCapabilities,
+    MarketMetadataLoader,
+    MetadataChangeHaltPolicy,
+)
 from core.logger import get_logger
 from core.order_store import OrderStore
 from core.orders import (
     TERMINAL_STATUSES,
     classify_order_exception,
     is_ambiguous_error,
-    normalize_exchange_status,
 )
 from core.portfolio import Portfolio
 from core.risk_reservation import (
@@ -54,6 +60,10 @@ class LiveBroker:
         position_mode: str = "one_way",
         clock: Optional[ClockLike] = None,
         event_pipeline: Optional[TradingEventPipeline] = None,
+        exchange_boundary: Optional[ExchangeBoundary] = None,
+        require_market_metadata: bool = False,
+        metadata_ttl: timedelta = timedelta(hours=1),
+        metadata_change_policy: Optional[MetadataChangeHaltPolicy] = None,
     ) -> None:
         self.portfolio = portfolio
         self.exchange_id = exchange_id
@@ -89,6 +99,19 @@ class LiveBroker:
             self.exchange.session.trust_env = True
         if sandbox:
             self.exchange.set_sandbox_mode(True)
+        self.exchange_boundary = exchange_boundary or ExchangeBoundary(
+            ExchangeCapabilities.from_ccxt(self.exchange, exchange_id),
+            MarketMetadataLoader(
+                self.exchange,
+                exchange_id,
+                ttl=metadata_ttl,
+                clock=self._clock,
+                change_policy=metadata_change_policy,
+            ),
+            # Minimal test doubles may intentionally omit metadata. Live
+            # deployments can enable strict fail-closed metadata explicitly.
+            require_metadata=require_market_metadata,
+        )
         logger.info(
             "Initialized %s in %s mode with market_type=%s",
             exchange_id, "SANDBOX" if sandbox else "LIVE", market_type,
@@ -150,6 +173,14 @@ class LiveBroker:
         """Submit the exact canonical command used by every execution venue."""
         if not isinstance(intent, OrderIntent):
             raise TypeError("intent must be OrderIntent")
+        existing = self.order_store.get(intent.client_order_id)
+        if existing is not None and not (
+            existing["status"] == OrderStatus.SUBMITTING.value
+            and not existing["submission_attempted"]
+        ):
+            # A replay reconciles the prior venue fact. Boundary changes must
+            # never cause a duplicate request for an existing intent.
+            return self.reconcile_order(intent.client_order_id)
         if (
             intent.action in {"buy", "short"}
             and not intent.reduce_only
@@ -161,6 +192,22 @@ class LiveBroker:
                 intent, f"health fail-closed: {codes or 'UNHEALTHY'}",
                 OrderErrorCode.SAFETY_POLICY,
             )
+        # Account-type constraints are canonical broker configuration and are
+        # therefore available even before (or without) venue metadata.
+        validation_error = self._validate_intent(intent)
+        if validation_error:
+            return self.record_local_rejection(
+                intent, validation_error, OrderErrorCode.TRADING_RULE
+            )
+        try:
+            prepared = self.exchange_boundary.prepare(
+                intent, reference_price=intent.price
+            )
+            intent = prepared.intent
+        except ExchangeBoundaryError as exc:
+            return self.record_local_rejection(
+                intent, str(exc), OrderErrorCode.TRADING_RULE
+            )
         intent, _ = ensure_opening_reservation(
             self.event_pipeline,
             intent,
@@ -168,10 +215,6 @@ class LiveBroker:
             occurred_at=self._event_time(intent.created_at or intent.bar_time),
             source="live",
         )
-
-        validation_error = self._validate_intent(intent)
-        if validation_error:
-            return self.record_local_rejection(intent, validation_error, OrderErrorCode.TRADING_RULE)
         now = self._now_iso()
         created = self.order_store.create_intent(intent, now)
         existing = self.order_store.get(intent.client_order_id)
@@ -192,24 +235,9 @@ class LiveBroker:
                 OrderErrorCode.SAFETY_POLICY,
             )
 
-        params: Dict[str, Any] = {"clientOrderId": intent.client_order_id}
-        if intent.reduce_only:
-            params["reduceOnly"] = True
-        if intent.position_side:
-            params["positionSide"] = intent.position_side
-        if intent.time_in_force:
-            params["timeInForce"] = intent.time_in_force
-
         self.order_store.mark_submission_attempted(intent.client_order_id, self._now_iso())
         try:
-            payload = self.exchange.create_order(
-                symbol=intent.symbol,
-                type=intent.order_type,
-                side=self._ccxt_side(intent.action),
-                amount=intent.requested_qty,
-                price=intent.price,
-                params=params,
-            )
+            payload = self.exchange.create_order(**prepared.request.as_kwargs())
         except Exception as exc:
             code = classify_order_exception(exc)
             status = OrderStatus.UNKNOWN if is_ambiguous_error(code) else OrderStatus.REJECTED
@@ -272,6 +300,8 @@ class LiveBroker:
                     error_code=code.value, error_message=type(exc).__name__,
                 )
             return self._result(client_order_id)
+        if not isinstance(payload, Mapping):
+            payload = None
         if payload is None:
             current = OrderStatus(record["status"])
             if current is not OrderStatus.UNKNOWN:
@@ -335,16 +365,23 @@ class LiveBroker:
         record = self.order_store.get(client_order_id)
         if record is None:
             raise KeyError(client_order_id)
-        status = normalize_exchange_status(payload)
-        requested = self._as_float(payload.get("amount"), record["requested_qty"])
-        filled = self._as_float(payload.get("filled"), 0.0)
+        parsed = self.exchange_boundary.order_parser.parse(
+            payload, requested_qty=record["requested_qty"]
+        )
+        status = parsed.status
+        requested = float(parsed.requested_qty)
+        filled = float(parsed.filled_qty)
         if status is OrderStatus.FILLED and payload.get("filled") is None:
             filled = requested
-        remaining = self._as_float(payload.get("remaining"), max(requested - filled, 0.0))
-        if status is OrderStatus.FILLED:
-            remaining = 0.0
-        average = self._as_optional_float(payload.get("average") or payload.get("price"))
-        exchange_order_id = str(payload.get("id")) if payload.get("id") is not None else record.get("exchange_order_id")
+        remaining = float(parsed.remaining_qty)
+        average = (
+            None
+            if parsed.average_fill_price is None
+            else float(parsed.average_fill_price)
+        )
+        exchange_order_id = (
+            parsed.exchange_order_id or record.get("exchange_order_id")
+        )
 
         self._persist_fills(client_order_id, exchange_order_id, payload, filled, average)
         current_status = OrderStatus(record["status"])
@@ -627,15 +664,15 @@ class LiveBroker:
             raw_positions = balance.get("positions", []) or balance.get("info", {}).get("positions", [])
         positions: Dict[str, Dict[str, float]] = {}
         for raw in raw_positions:
-            symbol = raw.get("symbol") or raw.get("info", {}).get("symbol")
-            qty = self._extract_qty(raw)
-            if not symbol or qty == 0:
+            parsed = self.exchange_boundary.position_parser.parse(raw)
+            if parsed is None:
                 continue
+            symbol = parsed.symbol
             if symbol in positions:
                 raise ValueError(f"multiple derivative position legs are unsupported for {symbol}")
             positions[symbol] = {
-                "qty": qty,
-                "avg_price": self._extract_avg_price(raw),
+                "qty": float(parsed.qty),
+                "avg_price": float(parsed.average_entry_price),
             }
         return positions
 
