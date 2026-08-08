@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
-from core.domain import OrderErrorCode, OrderSubmissionResult
+from core.domain import OrderErrorCode, OrderIntent, OrderSubmissionResult
 from core.live_broker import LiveBroker
 from core.logger import get_logger
 from core.order_store import OrderStore
@@ -60,15 +60,22 @@ class SafeLiveBroker(LiveBroker):
         reduce_only: Optional[bool] = None,
         sequence: int = 0,
     ) -> OrderSubmissionResult:
+        del slippage, exit_reason
         intent = self._build_intent(
             symbol, side, qty, price, order_type, timestamp, strategy_id,
             time_in_force, position_side, reduce_only, sequence,
         )
+        return self.submit_intent(intent)
+
+    def submit_intent(self, intent: OrderIntent) -> OrderSubmissionResult:
+        """Apply the same safety gate to canonical and legacy submissions."""
+        if not isinstance(intent, OrderIntent):
+            raise TypeError("intent must be OrderIntent")
         # Idempotent replay must not reserve the daily risk limit a second time.
         existing = self.order_store.get(intent.client_order_id)
         if existing is None:
-            if side in {"buy", "short"} and self._has_other_active_open_order(
-                symbol, intent.client_order_id
+            if intent.action in {"buy", "short"} and self._has_other_active_open_order(
+                intent.symbol, intent.client_order_id
             ):
                 return self.record_local_rejection(
                     intent,
@@ -76,7 +83,12 @@ class SafeLiveBroker(LiveBroker):
                     OrderErrorCode.SAFETY_POLICY,
                 )
             try:
-                self.safety_guard.assert_order_allowed(symbol, side, intent.requested_qty, price)
+                self.safety_guard.assert_order_allowed(
+                    intent.symbol,
+                    intent.action,
+                    intent.requested_qty,
+                    intent.price,
+                )
             except ValueError as exc:
                 logger.critical(
                     "Order blocked by safety policy client_order_id=%s reason=%s",
@@ -85,10 +97,4 @@ class SafeLiveBroker(LiveBroker):
                 return self.record_local_rejection(
                     intent, str(exc), OrderErrorCode.SAFETY_POLICY
                 )
-        return super().submit_order(
-            symbol=symbol, side=side, qty=qty, price=price,
-            order_type=order_type, timestamp=timestamp, slippage=slippage,
-            strategy_id=strategy_id, exit_reason=exit_reason,
-            time_in_force=time_in_force, position_side=position_side,
-            reduce_only=reduce_only, sequence=sequence,
-        )
+        return super().submit_intent(intent)

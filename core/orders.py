@@ -6,36 +6,45 @@ from core.domain import OrderErrorCode, OrderStatus
 
 
 _ALLOWED = {
-    OrderStatus.CREATED: {OrderStatus.SUBMITTING, OrderStatus.REJECTED},
+    OrderStatus.CREATED: {
+        OrderStatus.SUBMITTING, OrderStatus.REJECTED, OrderStatus.EXPIRED,
+    },
     OrderStatus.SUBMITTING: {
         OrderStatus.ACCEPTED, OrderStatus.PARTIALLY_FILLED, OrderStatus.FILLED,
-        OrderStatus.CANCELED, OrderStatus.REJECTED, OrderStatus.UNKNOWN,
+        OrderStatus.CANCELED, OrderStatus.REJECTED, OrderStatus.EXPIRED,
+        OrderStatus.UNKNOWN,
     },
     OrderStatus.UNKNOWN: {
         OrderStatus.ACCEPTED, OrderStatus.PARTIALLY_FILLED, OrderStatus.FILLED,
-        OrderStatus.CANCELED, OrderStatus.REJECTED,
+        OrderStatus.CANCELED, OrderStatus.REJECTED, OrderStatus.EXPIRED,
     },
     OrderStatus.ACCEPTED: {
         OrderStatus.PARTIALLY_FILLED, OrderStatus.FILLED,
         OrderStatus.CANCEL_PENDING, OrderStatus.CANCELED,
-        OrderStatus.REJECTED, OrderStatus.UNKNOWN,
+        OrderStatus.REJECTED, OrderStatus.EXPIRED, OrderStatus.UNKNOWN,
     },
     OrderStatus.PARTIALLY_FILLED: {
         OrderStatus.PARTIALLY_FILLED, OrderStatus.FILLED,
-        OrderStatus.CANCEL_PENDING, OrderStatus.CANCELED, OrderStatus.UNKNOWN,
+        OrderStatus.CANCEL_PENDING, OrderStatus.CANCELED, OrderStatus.EXPIRED,
+        OrderStatus.UNKNOWN,
     },
     OrderStatus.CANCEL_PENDING: {
         OrderStatus.CANCELED, OrderStatus.ACCEPTED,
-        OrderStatus.PARTIALLY_FILLED, OrderStatus.FILLED, OrderStatus.UNKNOWN,
+        OrderStatus.PARTIALLY_FILLED, OrderStatus.FILLED, OrderStatus.EXPIRED,
+        OrderStatus.UNKNOWN,
     },
     # A late fill may race with cancel acknowledgement.
     OrderStatus.CANCELED: {OrderStatus.PARTIALLY_FILLED, OrderStatus.FILLED},
+    # Expiry is terminal for the order lifecycle, but exchange truth wins if
+    # a late fill arrives after the expiry acknowledgement.
+    OrderStatus.EXPIRED: {OrderStatus.PARTIALLY_FILLED, OrderStatus.FILLED},
 }
 
 TERMINAL_STATUSES = {
     OrderStatus.FILLED,
     OrderStatus.CANCELED,
     OrderStatus.REJECTED,
+    OrderStatus.EXPIRED,
 }
 
 
@@ -46,11 +55,16 @@ def normalize_exchange_status(payload: Dict[str, Any]) -> OrderStatus:
     remaining = payload.get("remaining")
     if raw in {"closed", "filled"} or (amount > 0 and filled >= amount):
         return OrderStatus.FILLED
+    # Expired orders remain terminal even when the exchange also reports a
+    # partial fill. The persisted fills carry the executed quantity; treating
+    # this response as PARTIALLY_FILLED would keep it in reconciliation forever.
+    if raw == "expired":
+        return OrderStatus.EXPIRED
     if filled > 0:
         return OrderStatus.PARTIALLY_FILLED
     if raw in {"open", "new", "accepted", "pending"}:
         return OrderStatus.ACCEPTED
-    if raw in {"canceled", "cancelled", "expired"}:
+    if raw in {"canceled", "cancelled"}:
         return OrderStatus.CANCELED
     if raw in {"rejected", "failed"}:
         return OrderStatus.REJECTED

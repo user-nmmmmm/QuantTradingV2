@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional, Protocol
 
+from core.domain import OrderIntent
+
 
 class ExecutionResult(Protocol):
     @property
@@ -13,6 +15,10 @@ class ExecutionResult(Protocol):
 
 class ExecutionPort(Protocol):
     """Smallest order interface consumed by strategies and the router."""
+
+    def submit_intent(self, intent: OrderIntent) -> ExecutionResult:
+        """Submit the canonical order command without rebuilding its identity."""
+        ...
 
     def submit_order(
         self,

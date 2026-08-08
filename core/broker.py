@@ -1,12 +1,18 @@
 from typing import Dict, Any, List, Optional
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from datetime import datetime, timezone
 from enum import Enum
-import random
 
 import pandas as pd
 
+from core.domain import OrderIntent, OrderStatus
+from core.events import FillEvent, OrderEvent, TradingEventPipeline
 from core.logger import get_logger
 from core.portfolio import Portfolio
+from core.risk_reservation import (
+    RiskReservationProjection,
+    ensure_opening_reservation,
+)
 
 logger = get_logger(__name__)
 
@@ -41,15 +47,8 @@ class OrderType(Enum):
     STOP = "stop"
 
 
-class BacktestOrderStatus(Enum):
-    """订单状态机（简化版），用于回测记录与调试。"""
-    CREATED = "created"
-    SUBMITTED = "submitted"
-    PARTIALLY_FILLED = "partially_filled"
-    FILLED = "filled"
-    CANCELED = "canceled"
-    REJECTED = "rejected"
-    EXPIRED = "expired"
+# Compatibility name retained for callers; there is one canonical status enum.
+BacktestOrderStatus = OrderStatus
 
 
 @dataclass
@@ -85,9 +84,9 @@ class Order:
     avg_fill_price: float = 0.0
     time_in_force: TimeInForce = TimeInForce.GTC
     expire_time: Any = None
-    id: str = field(
-        default_factory=lambda: str(random.randint(100000, 999999))
-    )  # Simple ID
+    id: str = ""
+    intent: Optional[OrderIntent] = None
+    last_event_id: Optional[str] = None
 
     @property
     def accepted(self) -> bool:
@@ -112,8 +111,18 @@ class Broker:
         random_slip: bool = False,
         use_impact_cost: bool = False,
         max_participation_rate: float = 1.0,
+        event_pipeline: Optional[TradingEventPipeline] = None,
+        exchange_id: str = "backtest",
+        account_id: str = "backtest",
+        timeframe: str = "unknown",
     ):
         self.portfolio = portfolio
+        self.event_pipeline = event_pipeline or TradingEventPipeline()
+        self.reservation_projection = RiskReservationProjection(self.event_pipeline)
+        self.exchange_id = exchange_id
+        self.account_id = account_id
+        self.timeframe = timeframe
+        self._intent_sequence = 0
         self.commission_rate = commission_rate  # Taker
         self.commission_rate_maker = commission_rate_maker  # Maker
         self.slippage = slippage
@@ -141,6 +150,8 @@ class Broker:
         exit_reason: str = "signal",
         time_in_force: str = "GTC",
         expire_time: Any = None,
+        sequence: Optional[int] = None,
+        _intent: Optional[OrderIntent] = None,
     ) -> Order:
         """
         提交订单（进入撮合队列）。
@@ -161,6 +172,23 @@ class Broker:
             "stop": OrderType.STOP,
         }
         otype = otype_map.get(order_type.lower(), OrderType.MARKET)
+        resolved_sequence = self._intent_sequence if sequence is None else sequence
+        if sequence is None and _intent is None:
+            self._intent_sequence += 1
+        intent = _intent or OrderIntent(
+            exchange=self.exchange_id, account=self.account_id, symbol=symbol,
+            timeframe=self.timeframe, bar_time=self._iso_time(timestamp),
+            strategy_id=strategy_id, action=side, sequence=resolved_sequence,
+            requested_qty=qty, order_type=order_type.lower(), price=price,
+            time_in_force=time_in_force,
+        )
+        intent, intent_envelope = ensure_opening_reservation(
+            self.event_pipeline,
+            intent,
+            reference_price=price or 0,
+            occurred_at=self._event_time(timestamp),
+            source="backtest",
+        )
 
         order = Order(
             symbol=symbol,
@@ -176,6 +204,9 @@ class Broker:
             remaining_qty=max(qty, 0.0),
             time_in_force=TimeInForce(time_in_force.upper()),
             expire_time=expire_time,
+            id=intent.client_order_id,
+            intent=intent,
+            last_event_id=str(intent_envelope.event_id),
         )
         if qty <= 0:
             logger.warning(
@@ -184,7 +215,7 @@ class Broker:
                 side,
                 qty,
             )
-            order.status = BacktestOrderStatus.REJECTED
+            self._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
             return order
 
         if otype in [OrderType.LIMIT, OrderType.STOP] and price is None:
@@ -193,18 +224,84 @@ class Broker:
                 order_type,
                 symbol,
             )
-            order.status = BacktestOrderStatus.REJECTED
+            self._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
             return order
 
         self.pending_orders.append(order)
+        self._publish_order_event(order, timestamp)
         return order
+
+    def submit_intent(self, intent: OrderIntent) -> Order:
+        """Submit the exact canonical command without rebuilding its identity."""
+        if not isinstance(intent, OrderIntent):
+            raise TypeError("intent must be OrderIntent")
+        return self.submit_order(
+            symbol=intent.symbol,
+            side=intent.action,
+            qty=intent.requested_qty,
+            price=intent.price,
+            order_type=intent.order_type,
+            timestamp=pd.Timestamp(intent.bar_time),
+            strategy_id=intent.strategy_id,
+            time_in_force=intent.time_in_force or "GTC",
+            sequence=intent.sequence,
+            _intent=intent,
+        )
+
+    @staticmethod
+    def _event_time(value: Any) -> datetime:
+        if value is None or value == "unknown":
+            return datetime.now(timezone.utc)
+        timestamp = pd.Timestamp(value)
+        if timestamp.tzinfo is None:
+            timestamp = timestamp.tz_localize("UTC")
+        else:
+            timestamp = timestamp.tz_convert("UTC")
+        return timestamp.to_pydatetime()
+
+    @classmethod
+    def _iso_time(cls, value: Any) -> str:
+        return cls._event_time(value).isoformat().replace("+00:00", "Z")
+
+    def _publish_order_event(self, order: Order, occurred_at: Any) -> None:
+        if order.intent is None:
+            return
+        payload = OrderEvent(
+            client_order_id=order.id,
+            status=order.status,
+            requested_qty=order.qty,
+            filled_qty=order.filled_qty,
+            remaining_qty=order.remaining_qty,
+            average_fill_price=order.avg_fill_price or None,
+        )
+        envelope = self.event_pipeline.publish(
+            payload,
+            occurred_at=self._event_time(occurred_at),
+            correlation_id=order.intent.correlation_id,
+            causation_id=order.last_event_id,
+            idempotency_key=(
+                f"{order.id}:{order.status.value}:"
+                f"{order.filled_qty:.12f}:{order.remaining_qty:.12f}"
+            ),
+            account_id=order.intent.account,
+            symbol=order.symbol,
+            timeframe=order.intent.timeframe,
+            source="backtest",
+        )
+        order.last_event_id = str(envelope.event_id)
+
+    def _set_status(
+        self, order: Order, status: OrderStatus, occurred_at: Any = None
+    ) -> None:
+        order.status = status
+        self._publish_order_event(order, occurred_at)
 
     def process_orders(self, current_bar: Dict[str, pd.Series]) -> List[Dict]:
         """Match eligible orders against real bars with a shared volume budget."""
         executed_trades: List[Dict] = []
         next_active_orders: List[Order] = []
         for order in self.pending_orders:
-            order.status = BacktestOrderStatus.SUBMITTED
+            self._set_status(order, BacktestOrderStatus.SUBMITTED, order.timestamp)
             self.active_orders.append(order)
         self.pending_orders = []
 
@@ -223,14 +320,14 @@ class Broker:
                 next_active_orders.append(order)
                 continue
             if order.expire_time is not None and current_time > order.expire_time:
-                order.status = BacktestOrderStatus.EXPIRED
+                self._set_status(order, BacktestOrderStatus.EXPIRED, current_time)
                 continue
             if (
                 order.time_in_force == TimeInForce.DAY
                 and order.timestamp is not None
                 and pd.Timestamp(current_time).date() > pd.Timestamp(order.timestamp).date()
             ):
-                order.status = BacktestOrderStatus.EXPIRED
+                self._set_status(order, BacktestOrderStatus.EXPIRED, current_time)
                 continue
 
             open_price = float(bar_data["open"])
@@ -255,7 +352,7 @@ class Broker:
 
             if exec_price is None:
                 if order.time_in_force in {TimeInForce.IOC, TimeInForce.FOK}:
-                    order.status = BacktestOrderStatus.CANCELED
+                    self._set_status(order, BacktestOrderStatus.CANCELED, current_time)
                 else:
                     next_active_orders.append(order)
                 continue
@@ -263,12 +360,12 @@ class Broker:
             available = volume_budget.get(order.symbol, 0.0)
             requested = order.remaining_qty
             if order.time_in_force == TimeInForce.FOK and available < requested:
-                order.status = BacktestOrderStatus.CANCELED
+                self._set_status(order, BacktestOrderStatus.CANCELED, current_time)
                 continue
             fill_qty = min(requested, available)
             if fill_qty <= 0:
                 if order.time_in_force in {TimeInForce.IOC, TimeInForce.FOK}:
-                    order.status = BacktestOrderStatus.CANCELED
+                    self._set_status(order, BacktestOrderStatus.CANCELED, current_time)
                 else:
                     next_active_orders.append(order)
                 continue
@@ -278,7 +375,7 @@ class Broker:
                 float(bar_data.get("volume", 0.0)), is_maker=is_maker,
             )
             if trade is None:
-                order.status = BacktestOrderStatus.REJECTED
+                self._set_status(order, BacktestOrderStatus.REJECTED, current_time)
                 continue
             executed_trades.append(trade)
             volume_budget[order.symbol] = max(available - trade["qty"], 0.0)
@@ -290,11 +387,11 @@ class Broker:
                 / order.filled_qty
             )
             if order.remaining_qty <= 1e-12:
-                order.status = BacktestOrderStatus.FILLED
+                self._set_status(order, BacktestOrderStatus.FILLED, current_time)
             elif order.time_in_force == TimeInForce.IOC:
-                order.status = BacktestOrderStatus.CANCELED
+                self._set_status(order, BacktestOrderStatus.CANCELED, current_time)
             else:
-                order.status = BacktestOrderStatus.PARTIALLY_FILLED
+                self._set_status(order, BacktestOrderStatus.PARTIALLY_FILLED, current_time)
                 next_active_orders.append(order)
 
         self.active_orders = next_active_orders
@@ -357,6 +454,29 @@ class Broker:
             "is_maker": is_maker,
         }
         self.trades.append(trade_record)
+        if order.intent is not None:
+            fill_id = f"{order.id}:{order.filled_qty + fill_qty:.12f}"
+            fill = self.event_pipeline.publish(
+                FillEvent(
+                    fill_id=fill_id,
+                    client_order_id=order.id,
+                    symbol=order.symbol,
+                    side=order.side,
+                    qty=fill_qty,
+                    price=fill_price,
+                    fee=commission,
+                    liquidity="maker" if is_maker else "taker",
+                ),
+                occurred_at=self._event_time(timestamp),
+                correlation_id=order.intent.correlation_id,
+                causation_id=order.last_event_id,
+                idempotency_key=fill_id,
+                account_id=order.intent.account,
+                symbol=order.symbol,
+                timeframe=order.intent.timeframe,
+                source="backtest",
+            )
+            order.last_event_id = str(fill.event_id)
         logger.info(
             "Trade filled symbol=%s side=%s qty=%.8f fill_price=%.8f signal_time=%s fill_time=%s",
             order.symbol, order.side, fill_qty, fill_price, order.timestamp, timestamp,
@@ -374,21 +494,7 @@ class Broker:
     def pending_open_notional(
         self, current_prices: Optional[Dict[str, float]] = None
     ) -> Dict[str, float]:
-        prices = current_prices or {}
-        reserved: Dict[str, float] = {}
-        for order in self.pending_orders + self.active_orders:
-            if order.side not in {"buy", "short"} or order.remaining_qty <= 0:
-                continue
-            order_price = float(order.price or 0.0)
-            market_price = float(prices.get(order.symbol, 0.0))
-            reference_price = max(order_price, market_price)
-            if reference_price <= 0:
-                continue
-            reserved[order.symbol] = (
-                reserved.get(order.symbol, 0.0)
-                + order.remaining_qty * reference_price
-            )
-        return reserved
+        return self.reservation_projection.pending_notional(current_prices)
 
     def cancel_symbol_orders(self, symbol: str) -> int:
         """
@@ -399,12 +505,13 @@ class Broker:
         """
         before = len(self.pending_orders) + len(self.active_orders)
 
+        cancelled = [o for o in self.pending_orders if o.symbol == symbol]
         self.pending_orders = [o for o in self.pending_orders if o.symbol != symbol]
-        cancelled = [o for o in self.active_orders if o.symbol == symbol]
+        cancelled.extend(o for o in self.active_orders if o.symbol == symbol)
         self.active_orders = [o for o in self.active_orders if o.symbol != symbol]
 
         for o in cancelled:
-            o.status = BacktestOrderStatus.CANCELED
+            self._set_status(o, BacktestOrderStatus.CANCELED)
 
         n = before - len(self.pending_orders) - len(self.active_orders)
         if n > 0:

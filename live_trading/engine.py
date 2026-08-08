@@ -1,3 +1,7 @@
+"""Live scheduler composed around the shared EventProcessor."""
+
+from __future__ import annotations
+
 import json
 import os
 import time
@@ -9,17 +13,21 @@ import pandas as pd
 from core.data_fetcher import DataFetcher
 from core.live_broker import LiveBroker
 from core.logger import get_logger
+from core.market_data import LiveMarketDataAdapter
 from core.risk import RiskManager
+from core.runtime import EventProcessor, MarketDataSlice
 from core.state_store_v2 import StateStore, default_state_db_path
 from core.system_factory import build_router, build_state_machine, market_type_supports_shorts
 from core.timeframes import as_utc_timestamp, closed_bars, timeframe_delta
 from core.valuation import build_portfolio_snapshot
-
+from live_trading.execution_adapter import RecordedExecutionAdapter
 
 logger = get_logger(__name__)
 
 
 class LiveTradingEngine:
+    """Live durability/scheduling shell with mode-independent event processing."""
+
     def __init__(
         self,
         symbols: List[str],
@@ -35,7 +43,7 @@ class LiveTradingEngine:
         state_store: Optional[StateStore] = None,
         close_grace_seconds: float = 2.0,
         bar_claim_lease_seconds: float = 300.0,
-    ):
+    ) -> None:
         self.symbols = symbols
         self.strategies = strategies
         self.broker = broker
@@ -57,16 +65,34 @@ class LiveTradingEngine:
         self._operational_state = "STARTING"
         self._snapshot = None
 
-        allow_short = market_type_supports_shorts(getattr(self.broker, "market_type", "spot"))
+        allow_short = market_type_supports_shorts(getattr(broker, "market_type", "spot"))
         self.router = build_router(strategies, allow_short=allow_short)
         if not allow_short:
             logger.warning(
                 "Live broker market_type=%s does not support short routing; TREND_DOWN is mapped to Cash",
-                getattr(self.broker, "market_type", "spot"),
+                getattr(broker, "market_type", "spot"),
             )
-        state_dir = os.path.dirname(self.state_file)
+        state_dir = os.path.dirname(state_file)
         if state_dir:
             os.makedirs(state_dir, exist_ok=True)
+
+        self.market_data_adapter = LiveMarketDataAdapter(
+            symbols,
+            self.fetcher,
+            timeframe=timeframe,
+            lookback=max(lookback_days, 100),
+            close_grace_seconds=close_grace_seconds,
+        )
+        self.execution_adapter = RecordedExecutionAdapter(broker)
+        self.event_processor = EventProcessor(
+            portfolio=broker.portfolio,
+            execution=self.execution_adapter,
+            risk_manager=risk_manager,
+            state_machine=self.state_machine,
+            router=self.router,
+            warmup_period=0,
+            initial_equity=broker.portfolio.cash,
+        )
 
     def _now(self) -> datetime:
         return self._clock()
@@ -95,14 +121,15 @@ class LiveTradingEngine:
         self._reset_daily_risk_if_needed(self._now())
         for symbol in self.symbols:
             logger.info("Warming up data for %s...", symbol)
-            df = self.fetcher.fetch_ccxt(
+            frame = self.fetcher.fetch_ccxt(
                 symbol, timeframe=self.timeframe, limit=max(self.lookback_days, 100)
             )
-            if not df.empty:
-                self.data_map[symbol] = df
-                logger.info("Loaded %s bars for %s", len(df), symbol)
+            if not frame.empty:
+                self.data_map[symbol] = frame
+                logger.info("Loaded %s bars for %s", len(frame), symbol)
             else:
                 logger.warning("Failed to load data for %s", symbol)
+        self.market_data_adapter.data_map = dict(self.data_map)
 
     def run(self):
         logger.info("Starting Main Loop...")
@@ -121,11 +148,14 @@ class LiveTradingEngine:
         checker = getattr(self.broker, "has_unresolved_unknown", None)
         return bool(checker()) if callable(checker) else False
 
+    def _update_data(self):
+        self.market_data_adapter.data_map = dict(self.data_map)
+        self.data_map = self.market_data_adapter.refresh()
+
     def _tick(self):
         now = self._now()
         state_store = self._ensure_state_store()
         self._reset_daily_risk_if_needed(now)
-
         self._recover_orders()
         if self._has_unresolved_unknown():
             self._healthy = False
@@ -143,7 +173,7 @@ class LiveTradingEngine:
             return
 
         prices: Dict[str, float] = {}
-        price_times: Dict[str, datetime] = {}
+        price_times = {}
         closed_map: Dict[str, pd.DataFrame] = {}
         for symbol, data in self.data_map.items():
             eligible = closed_bars(data, self.timeframe, now, self.close_grace_seconds)
@@ -166,6 +196,7 @@ class LiveTradingEngine:
             self._export_state()
             return
 
+        self.event_processor.last_prices.update(self._snapshot.prices)
         day_key = f"daily_start_equity:{now.date().isoformat()}"
         daily_start = state_store.get(day_key)
         if daily_start is None:
@@ -181,11 +212,11 @@ class LiveTradingEngine:
             return
 
         for symbol in self.symbols:
-            df = closed_map.get(symbol)
-            if df is None or df.empty:
+            frame = closed_map.get(symbol)
+            if frame is None or frame.empty:
                 continue
-            i = len(df) - 1
-            close_time = as_utc_timestamp(df.index[i]) + timeframe_delta(self.timeframe)
+            timestamp = frame.index[-1]
+            close_time = as_utc_timestamp(timestamp) + timeframe_delta(self.timeframe)
             bar_key = (
                 f"{getattr(self.broker, 'exchange_id', 'exchange')}|"
                 f"{getattr(self.broker, 'account_id', getattr(self.broker, 'market_type', 'spot'))}|"
@@ -198,12 +229,15 @@ class LiveTradingEngine:
             set_context = getattr(self.broker, "set_bar_context", None)
             if callable(set_context):
                 set_context(self.timeframe, close_time)
+            event = MarketDataSlice(
+                timestamp=timestamp,
+                bars={symbol: frame.iloc[-1]},
+                histories={symbol: frame},
+                timeframe=self.timeframe,
+                source="live",
+            )
             try:
-                state = self.state_machine.get_state(df, i)
-                self.router.route(
-                    symbol, i, df, state, self.broker.portfolio,
-                    self.broker, self.risk_manager, self._snapshot.prices,
-                )
+                self.event_processor.process_symbol(event, symbol)
                 if self._has_unresolved_unknown():
                     state_store.release_bar(bar_key)
                     self._healthy = False
@@ -216,26 +250,12 @@ class LiveTradingEngine:
                 logger.exception("Failed processing bar %s", bar_key)
         self._export_state()
 
-    def _update_data(self):
-        for symbol in self.symbols:
-            new_df = self.fetcher.fetch_ccxt(
-                symbol, timeframe=self.timeframe, limit=max(self.lookback_days, 100)
-            )
-            if new_df.empty:
-                continue
-            current_df = self.data_map.get(symbol, pd.DataFrame())
-            if current_df.empty:
-                self.data_map[symbol] = new_df
-            else:
-                updated = pd.concat([current_df, new_df])
-                updated = updated[~updated.index.duplicated(keep="last")]
-                self.data_map[symbol] = updated.sort_index()
-
     def _export_state(self):
         try:
             current_prices = {
-                symbol: df["close"].iloc[-1]
-                for symbol, df in self.data_map.items() if not df.empty
+                symbol: frame["close"].iloc[-1]
+                for symbol, frame in self.data_map.items()
+                if not frame.empty
             }
             state_data = {
                 "timestamp": self._now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -252,3 +272,4 @@ class LiveTradingEngine:
                 json.dump(state_data, handle, indent=2)
         except Exception as exc:
             logger.error("Failed to export state: %s", type(exc).__name__)
+

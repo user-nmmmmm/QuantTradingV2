@@ -65,6 +65,14 @@ class Portfolio:
         # 现金流：买入消耗现金，卖出/开空回笼现金
         cost = qty_delta * price
         self.cash -= cost
+        # A fill that crosses through zero closes the old lot and opens the
+        # residual in the opposite direction at the current fill price.
+        # Keeping the old average here corrupts short/long reversal cost basis.
+        if old_qty != 0 and new_qty != 0 and ((old_qty > 0) != (new_qty > 0)):
+            self.positions[symbol] = {
+                "qty": new_qty, "avg_price": price
+            }
+            return
 
         # 判断是否为“开仓/加仓”（绝对持仓增加）：
         # - 从 0 变为非 0：开仓

@@ -1,7 +1,11 @@
-from typing import Optional, Dict
+from dataclasses import replace
+from typing import Dict, Optional, Tuple
 
+from core.domain import OrderIntent, RiskDecision, RiskReservation
+from core.events import TradingEventPipeline, stable_uuid5
 from core.portfolio import Portfolio
 from core.logger import get_logger
+from core.risk_reservation import RiskReservationProjection
 
 logger = get_logger(__name__)
 
@@ -109,6 +113,7 @@ class RiskManager:
         current_volume: float = 0,
         current_prices: Optional[Dict[str, float]] = None,
         pending_open_notional: Optional[Dict[str, float]] = None,
+        reservation_projection: Optional[RiskReservationProjection] = None,
     ) -> bool:
         """
         校验一笔“拟进入的交易”是否违反风控规则。
@@ -153,7 +158,10 @@ class RiskManager:
         if current_equity <= 0:
             return False
             
-        reserved_by_symbol = pending_open_notional or {}
+        reserved_by_symbol = (
+            reservation_projection.pending_notional(current_prices)
+            if reservation_projection is not None else pending_open_notional or {}
+        )
         reserved_exposure = sum(
             max(float(value), 0.0) for value in reserved_by_symbol.values()
         )
@@ -176,6 +184,90 @@ class RiskManager:
             return False
             
         return True
+
+
+    def approve_and_create_intent(
+        self,
+        portfolio: Portfolio,
+        intent: OrderIntent,
+        *,
+        reference_price: float,
+        event_pipeline: TradingEventPipeline,
+        reservation_projection: RiskReservationProjection,
+        occurred_at,
+        source: str = "risk",
+        current_volume: float = 0,
+        current_prices: Optional[Dict[str, float]] = None,
+    ) -> Tuple[RiskDecision, Optional[OrderIntent]]:
+        """Evaluate and atomically create an approved intent and reservation."""
+        if not isinstance(intent, OrderIntent):
+            raise TypeError("intent must be OrderIntent")
+        if intent.action not in {"buy", "short"} or intent.reduce_only:
+            raise ValueError("risk reservations are only created for opening intents")
+        decision_id = intent.risk_decision_id or str(
+            stable_uuid5("risk-decision", intent.account, intent.intent_id)
+        )
+        reservation_id = intent.reservation_id or str(
+            stable_uuid5("risk-reservation", intent.account, intent.intent_id)
+        )
+        with reservation_projection.transaction():
+            reserved = reservation_projection.pending_notional(current_prices)
+            approved = self.check_entry_risk(
+                portfolio,
+                intent.symbol,
+                intent.requested_qty,
+                reference_price,
+                current_volume=current_volume,
+                current_prices=current_prices,
+                pending_open_notional=reserved,
+            )
+            decision = RiskDecision(
+                decision_id=decision_id,
+                account=intent.account,
+                symbol=intent.symbol,
+                action=intent.action,
+                requested_qty=intent.requested_qty,
+                approved_qty=intent.requested_qty if approved else 0,
+                reference_price=reference_price,
+                approved=approved,
+                reason="approved" if approved else "risk_limit",
+                intent_id=intent.intent_id,
+            )
+            if not approved:
+                event_pipeline.publish(
+                    decision,
+                    occurred_at=occurred_at,
+                    correlation_id=intent.correlation_id,
+                    idempotency_key=decision_id,
+                    account_id=intent.account,
+                    symbol=intent.symbol,
+                    timeframe=intent.timeframe,
+                    source=source,
+                )
+                return decision, None
+            enriched = replace(
+                intent,
+                risk_decision_id=decision_id,
+                reservation_id=reservation_id,
+            )
+            reservation = RiskReservation(
+                reservation_id=reservation_id,
+                risk_decision_id=decision_id,
+                intent_id=enriched.intent_id,
+                account=enriched.account,
+                symbol=enriched.symbol,
+                action=enriched.action,
+                reserved_qty=enriched.requested_qty,
+                reference_price=reference_price,
+            )
+            event_pipeline.publish_approved_intent(
+                decision,
+                reservation,
+                enriched,
+                occurred_at=occurred_at,
+                source=source,
+            )
+            return decision, enriched
 
     def check_circuit_breaker(self, current_equity: float, daily_start_equity: float) -> bool:
         """

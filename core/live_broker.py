@@ -14,6 +14,7 @@ from core.domain import (
     OrderSubmissionResult,
     SyncResult,
 )
+from core.events import FillEvent, OrderEvent, TradingEventPipeline
 from core.logger import get_logger
 from core.order_store import OrderStore
 from core.orders import (
@@ -23,6 +24,10 @@ from core.orders import (
     normalize_exchange_status,
 )
 from core.portfolio import Portfolio
+from core.risk_reservation import (
+    RiskReservationProjection,
+    ensure_opening_reservation,
+)
 
 
 logger = get_logger(__name__)
@@ -47,6 +52,7 @@ class LiveBroker:
         account_id: Optional[str] = None,
         position_mode: str = "one_way",
         clock: Optional[Callable[[], datetime]] = None,
+        event_pipeline: Optional[TradingEventPipeline] = None,
     ) -> None:
         self.portfolio = portfolio
         self.exchange_id = exchange_id
@@ -56,6 +62,10 @@ class LiveBroker:
         self.position_mode = position_mode
         self.order_store = order_store or OrderStore(":memory:")
         self._clock = clock or (lambda: datetime.now(timezone.utc))
+        self.event_pipeline = event_pipeline or TradingEventPipeline(clock=self._clock)
+        self.reservation_projection = RiskReservationProjection(self.event_pipeline)
+        self._restore_reservations()
+        self._last_event_by_order: Dict[str, str] = {}
         self._bar_timeframe = "unknown"
         self._bar_time = "unknown"
         self.trades = []  # Compatibility projection only; OrderStore is authoritative.
@@ -79,6 +89,31 @@ class LiveBroker:
             "Initialized %s in %s mode with market_type=%s",
             exchange_id, "SANDBOX" if sandbox else "LIVE", market_type,
         )
+
+
+    def _restore_reservations(self) -> None:
+        """Rehydrate non-terminal reservations from the durable intent ledger."""
+        for record in self.order_store.list_non_terminal():
+            if not self._is_opening_record(record):
+                continue
+            intent_data = record.get("intent") or {}
+            try:
+                intent = OrderIntent(**intent_data)
+            except (TypeError, ValueError):
+                logger.error(
+                    "Cannot restore reservation client_order_id=%s",
+                    record.get("client_order_id"),
+                )
+                continue
+            reference_price = intent.price or record.get("price") or 0
+            ensure_opening_reservation(
+                self.event_pipeline,
+                intent,
+                reference_price=reference_price,
+                occurred_at=self._event_time(intent.created_at or intent.bar_time),
+                source="live",
+                reason="restored_from_durable_intent",
+            )
 
     def set_bar_context(self, timeframe: str, bar_time: Any) -> None:
         self._bar_timeframe = str(timeframe)
@@ -105,6 +140,19 @@ class LiveBroker:
             symbol, side, qty, price, order_type, timestamp, strategy_id,
             time_in_force, position_side, reduce_only, sequence,
         )
+        return self.submit_intent(intent)
+
+    def submit_intent(self, intent: OrderIntent) -> OrderSubmissionResult:
+        """Submit the exact canonical command used by every execution venue."""
+        if not isinstance(intent, OrderIntent):
+            raise TypeError("intent must be OrderIntent")
+        intent, _ = ensure_opening_reservation(
+            self.event_pipeline,
+            intent,
+            reference_price=intent.price or 0,
+            occurred_at=self._event_time(intent.created_at or intent.bar_time),
+            source="live",
+        )
 
         validation_error = self._validate_intent(intent)
         if validation_error:
@@ -117,8 +165,11 @@ class LiveBroker:
                 logger.info("Resuming pre-submit intent client_order_id=%s", intent.client_order_id)
             else:
                 return self.reconcile_order(intent.client_order_id)
-        if side in {"buy", "short"} and self._has_other_active_open_order(
-            symbol, intent.client_order_id
+        if created:
+            # Persisted intent is now a canonical SUBMITTING order fact.
+            self._result(intent.client_order_id)
+        if intent.action in {"buy", "short"} and self._has_other_active_open_order(
+            intent.symbol, intent.client_order_id
         ):
             return self.record_local_rejection(
                 intent,
@@ -310,32 +361,37 @@ class LiveBroker:
                     trade.get("id")
                     or f"{exchange_order_id}:{trade.get('timestamp')}:{index}"
                 )
-                self.order_store.add_fill(
-                    FillRecord(
-                        fill_id=fill_id, client_order_id=client_order_id,
-                        exchange_order_id=exchange_order_id,
-                        qty=self._as_float(trade.get("amount")),
-                        price=self._as_float(trade.get("price")),
-                        fee=self._as_float(fee.get("cost")),
-                        fee_currency=fee.get("currency"),
-                        timestamp=self._iso(trade.get("datetime") or trade.get("timestamp")),
-                        payload=trade,
-                    )
+                record = self.order_store.get(client_order_id) or {}
+                fill_record = FillRecord(
+                    fill_id=fill_id, client_order_id=client_order_id,
+                    exchange_order_id=exchange_order_id,
+                    qty=self._as_float(trade.get("amount")),
+                    price=self._as_float(trade.get("price")),
+                    fee=self._as_float(fee.get("cost")),
+                    fee_currency=fee.get("currency"),
+                    timestamp=self._iso(trade.get("datetime") or trade.get("timestamp")),
+                    payload=trade,
+                    symbol=record.get("symbol"),
+                    side=record.get("side"),
                 )
+                if self.order_store.add_fill(fill_record):
+                    self._publish_fill_event(fill_record, record)
             return
         existing_qty = sum(fill["qty"] for fill in self.order_store.fills_for(client_order_id))
         delta = max(cumulative_filled - existing_qty, 0.0)
         if delta > 0 and average:
             fill_id = f"{exchange_order_id}:cumulative:{cumulative_filled:.12f}"
-            if self.order_store.add_fill(
-                FillRecord(
-                    fill_id=fill_id, client_order_id=client_order_id,
-                    exchange_order_id=exchange_order_id, qty=delta, price=average,
-                    timestamp=self._now_iso(), payload={"synthetic_from_order": True},
-                )
-            ):
+            record = self.order_store.get(client_order_id) or {}
+            fill_record = FillRecord(
+                fill_id=fill_id, client_order_id=client_order_id,
+                exchange_order_id=exchange_order_id, qty=delta, price=average,
+                timestamp=self._now_iso(), payload={"synthetic_from_order": True},
+                symbol=record.get("symbol"), side=record.get("side"),
+            )
+            if self.order_store.add_fill(fill_record):
+                self._publish_fill_event(fill_record, record)
                 self.trades.append(
-                    {"id": fill_id, "symbol": self.order_store.get(client_order_id)["symbol"],
+                    {"id": fill_id, "symbol": record["symbol"],
                      "qty": delta, "price": average, "timestamp": self._now_iso()}
                 )
 
@@ -409,26 +465,96 @@ class LiveBroker:
     def pending_open_notional(
         self, current_prices: Optional[Dict[str, float]] = None
     ) -> Dict[str, float]:
-        prices = current_prices or {}
-        reserved: Dict[str, float] = {}
-        for record in self.order_store.list_non_terminal():
-            if not self._is_opening_record(record):
-                continue
-            symbol = record["symbol"]
-            order_price = self._as_float(record.get("price"))
-            market_price = self._as_float(prices.get(symbol))
-            reference_price = max(order_price, market_price)
-            if reference_price <= 0:
-                continue
-            remaining = self._as_float(record.get("remaining_qty"))
-            reserved[symbol] = reserved.get(symbol, 0.0) + remaining * reference_price
-        return reserved
+        return self.reservation_projection.pending_notional(current_prices)
+
+    def _publish_fill_event(
+        self, fill: FillRecord, record: Dict[str, Any]
+    ) -> None:
+        intent_data = record.get("intent") or {}
+        intent = OrderIntent(**intent_data)
+        envelope = self.event_pipeline.publish(
+            FillEvent(
+                fill_id=fill.fill_id,
+                client_order_id=fill.client_order_id,
+                exchange_order_id=fill.exchange_order_id,
+                symbol=fill.symbol or record["symbol"],
+                side=fill.side or record["side"],
+                qty=fill.qty,
+                price=fill.price,
+                fee=fill.fee,
+                fee_currency=fill.fee_currency,
+            ),
+            occurred_at=self._event_time(fill.timestamp),
+            correlation_id=intent.correlation_id,
+            causation_id=(
+                self._last_event_by_order.get(fill.client_order_id)
+                or intent.causation_id
+            ),
+            idempotency_key=fill.fill_id,
+            account_id=intent.account,
+            symbol=intent.symbol,
+            timeframe=intent.timeframe,
+            source="live",
+        )
+        self._last_event_by_order[fill.client_order_id] = str(envelope.event_id)
+
+    def _publish_order_event(
+        self, result: OrderSubmissionResult, record: Dict[str, Any]
+    ) -> None:
+        idempotency_key = (
+            f"{result.client_order_id}:{result.status.value}:"
+            f"{result.filled_qty:.12f}:{result.remaining_qty:.12f}"
+        )
+        if any(
+            event.source == "live" and event.idempotency_key == idempotency_key
+            for event in self.event_pipeline.events
+        ):
+            return
+        intent = OrderIntent(**(record.get("intent") or {}))
+        intent_event = next(
+            (
+                event for event in self.event_pipeline.events
+                if event.source == "live"
+                and event.event_type == "order_intent"
+                and event.idempotency_key == intent.client_order_id
+            ),
+            None,
+        )
+        if intent_event is None:
+            intent_event = self.event_pipeline.publish_intent(
+                intent, occurred_at=self._event_time(intent.created_at or intent.bar_time), source="live"
+            )
+        envelope = self.event_pipeline.publish(
+            OrderEvent(
+                client_order_id=result.client_order_id,
+                exchange_order_id=result.exchange_order_id,
+                status=result.status,
+                requested_qty=result.requested_qty,
+                filled_qty=result.filled_qty,
+                remaining_qty=result.remaining_qty,
+                average_fill_price=result.average_fill_price,
+                error_code=result.error_code.value,
+                message=result.message,
+            ),
+            occurred_at=self._event_time(record.get("updated_at")),
+            correlation_id=intent.correlation_id,
+            causation_id=(
+                self._last_event_by_order.get(result.client_order_id)
+                or intent_event
+            ),
+            idempotency_key=idempotency_key,
+            account_id=intent.account,
+            symbol=intent.symbol,
+            timeframe=intent.timeframe,
+            source="live",
+        )
+        self._last_event_by_order[result.client_order_id] = str(envelope.event_id)
 
     def _result(self, client_order_id: str) -> OrderSubmissionResult:
         record = self.order_store.get(client_order_id)
         if record is None:
             raise KeyError(client_order_id)
-        return OrderSubmissionResult(
+        result = OrderSubmissionResult(
             client_order_id=client_order_id,
             exchange_order_id=record.get("exchange_order_id"),
             status=OrderStatus(record["status"]),
@@ -441,6 +567,8 @@ class LiveBroker:
             safely_persisted=True,
             payload=record.get("payload", {}),
         )
+        self._publish_order_event(result, record)
+        return result
 
     def sync(self) -> SyncResult:
         try:
@@ -549,6 +677,23 @@ class LiveBroker:
     @staticmethod
     def _ccxt_side(side: str) -> str:
         return "sell" if side == "short" else "buy" if side == "cover" else side
+
+    @staticmethod
+    def _event_time(value: Any) -> datetime:
+        if value in (None, "", "unknown"):
+            return datetime.now(timezone.utc)
+        if isinstance(value, (int, float)) or (
+            isinstance(value, str) and value.strip().replace(".", "", 1).isdigit()
+        ):
+            # CCXT numeric timestamps are milliseconds since Unix epoch.
+            return datetime.fromtimestamp(float(value) / 1000.0, tz=timezone.utc)
+        if isinstance(value, datetime):
+            parsed = value
+        else:
+            parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
 
     def _now_iso(self) -> str:
         return self._iso(self._clock())
