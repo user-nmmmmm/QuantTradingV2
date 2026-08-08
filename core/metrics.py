@@ -1,6 +1,6 @@
 """Pure, side-effect-free backtest metric calculations."""
 from __future__ import annotations
-from typing import Any, Dict, Iterable, Optional
+from typing import Any, Dict, Iterable, Mapping, Optional
 import numpy as np
 import pandas as pd
 
@@ -197,6 +197,99 @@ def calculate_profit_factor(pnls: Iterable[float], minimum_samples: int = 30,
             **base, "lower": lower, "upper": upper}
 
 
+def calculate_trade_quality(
+    trades: Iterable[Mapping[str, Any]],
+    minimum_samples: int = 30,
+    confidence: float = 0.95,
+) -> Dict[str, Any]:
+    """Per-closed-trade win/loss, holding-duration, and PF statistics (BM2).
+
+    Each record must provide ``net_pnl``. ``entry_time``/``exit_time`` (any
+    value ``pd.Timestamp`` can parse) enable holding-duration stats;
+    ``strategy``/``symbol`` enable the grouped breakdowns. Missing optional
+    fields degrade that specific section to "insufficient" rather than
+    raising, so this tolerates the partial records different execution
+    venues happen to have on hand.
+    """
+    records = list(trades)
+    if not records:
+        return {
+            "sample_size": 0, "status": "insufficient", "win_count": 0,
+            "loss_count": 0, "breakeven_count": 0, "win_rate": None,
+            "avg_win": None, "avg_loss": None, "expectancy": None,
+            "profit_factor": None, "profit_factor_status": "insufficient",
+            "holding_duration_hours": _EMPTY_DURATION, "by_strategy": {}, "by_symbol": {},
+        }
+
+    pnls = np.array([float(t["net_pnl"]) for t in records], dtype=float)
+    wins, losses = pnls[pnls > 0], pnls[pnls < 0]
+    win_rate = float(len(wins) / len(pnls))
+    loss_rate = float(len(losses) / len(pnls))
+    avg_win = float(wins.mean()) if len(wins) else None
+    avg_loss = float(losses.mean()) if len(losses) else None
+    expectancy = win_rate * (avg_win or 0.0) + loss_rate * (avg_loss or 0.0)
+    pf = calculate_profit_factor(pnls, minimum_samples=minimum_samples, confidence=confidence)
+
+    return {
+        "sample_size": len(records),
+        "status": "ok" if len(records) >= minimum_samples else "insufficient",
+        "win_count": int(len(wins)), "loss_count": int(len(losses)),
+        "breakeven_count": int(len(pnls) - len(wins) - len(losses)),
+        "win_rate": win_rate, "avg_win": avg_win, "avg_loss": avg_loss,
+        "expectancy": float(expectancy),
+        "profit_factor": pf["value"], "profit_factor_status": pf["status"],
+        "holding_duration_hours": _holding_duration_hours(records),
+        "by_strategy": _trade_quality_breakdown(records, "strategy", minimum_samples, confidence),
+        "by_symbol": _trade_quality_breakdown(records, "symbol", minimum_samples, confidence),
+    }
+
+
+_EMPTY_DURATION: Dict[str, Any] = {
+    "status": "insufficient", "sample_size": 0,
+    "mean": None, "median": None, "min": None, "max": None,
+}
+
+
+def _holding_duration_hours(records: list[Mapping[str, Any]]) -> Dict[str, Any]:
+    hours = []
+    for trade in records:
+        entry, exit_ = trade.get("entry_time"), trade.get("exit_time")
+        if entry is None or exit_ is None:
+            continue
+        entry_ts, exit_ts = pd.Timestamp(entry), pd.Timestamp(exit_)
+        if pd.isna(entry_ts) or pd.isna(exit_ts):
+            continue
+        hours.append((exit_ts - entry_ts).total_seconds() / 3600.0)
+    if not hours:
+        return dict(_EMPTY_DURATION)
+    values = np.array(hours, dtype=float)
+    return {"status": "ok", "sample_size": int(len(values)),
+            "mean": float(values.mean()), "median": float(np.median(values)),
+            "min": float(values.min()), "max": float(values.max())}
+
+
+def _trade_quality_breakdown(
+    records: list[Mapping[str, Any]], key: str, minimum_samples: int, confidence: float,
+) -> Dict[str, Any]:
+    groups: Dict[Any, list] = {}
+    for trade in records:
+        label = trade.get(key)
+        if label is None:
+            continue
+        groups.setdefault(label, []).append(float(trade["net_pnl"]))
+    breakdown = {}
+    for label, pnls in groups.items():
+        wins = [pnl for pnl in pnls if pnl > 0]
+        pf = calculate_profit_factor(pnls, minimum_samples=minimum_samples, confidence=confidence)
+        breakdown[str(label)] = {
+            "sample_size": len(pnls),
+            "win_rate": float(len(wins) / len(pnls)),
+            "net_pnl": float(sum(pnls)),
+            "profit_factor": pf["value"], "profit_factor_status": pf["status"],
+        }
+    return breakdown
+
+
 class Metrics:
     infer_periods_per_year = staticmethod(infer_periods_per_year)
     monthly_returns = staticmethod(monthly_returns)
@@ -205,6 +298,7 @@ class Metrics:
     calculate_drawdown_events = staticmethod(calculate_drawdown_events)
     calculate_equity_metrics = staticmethod(calculate_equity_metrics)
     calculate_profit_factor = staticmethod(calculate_profit_factor)
+    calculate_trade_quality = staticmethod(calculate_trade_quality)
 
 
 def _clean_equity(equity: pd.Series) -> pd.Series:

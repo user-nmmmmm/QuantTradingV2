@@ -10,6 +10,7 @@ from core.metrics import (
     calculate_equity_metrics,
     calculate_profit_factor,
     calculate_sharpe,
+    calculate_trade_quality,
     infer_periods_per_year,
     monthly_returns,
 )
@@ -121,6 +122,62 @@ class TestP0Metrics(unittest.TestCase):
         self.assertEqual(worst["trough"], summary["trough"])
         self.assertEqual(worst["recovery"], summary["recovery"])
         self.assertAlmostEqual(worst["depth_pct"], summary["max_pct"])
+
+    def test_trade_quality_returns_insufficient_for_no_trades(self):
+        result = calculate_trade_quality([])
+        self.assertEqual(result["status"], "insufficient")
+        self.assertEqual(result["sample_size"], 0)
+        self.assertIsNone(result["win_rate"])
+        self.assertEqual(result["holding_duration_hours"]["status"], "insufficient")
+        self.assertEqual(result["by_strategy"], {})
+
+    def _sample_trades(self):
+        return [
+            {"net_pnl": 100, "strategy": "A", "symbol": "BTC/USDT",
+             "entry_time": "2024-01-01T00:00:00Z", "exit_time": "2024-01-01T06:00:00Z"},
+            {"net_pnl": -40, "strategy": "A", "symbol": "BTC/USDT",
+             "entry_time": "2024-01-02T00:00:00Z", "exit_time": "2024-01-02T12:00:00Z"},
+            {"net_pnl": 50, "strategy": "B", "symbol": "ETH/USDT",
+             "entry_time": "2024-01-03T00:00:00Z", "exit_time": "2024-01-03T03:00:00Z"},
+            {"net_pnl": -20, "strategy": "B", "symbol": "ETH/USDT"},
+        ]
+
+    def test_trade_quality_win_loss_and_expectancy(self):
+        result = calculate_trade_quality(self._sample_trades(), minimum_samples=4)
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["win_count"], 2)
+        self.assertEqual(result["loss_count"], 2)
+        self.assertAlmostEqual(result["win_rate"], 0.5)
+        self.assertAlmostEqual(result["avg_win"], 75.0)
+        self.assertAlmostEqual(result["avg_loss"], -30.0)
+        self.assertAlmostEqual(result["expectancy"], 22.5)
+        self.assertAlmostEqual(result["profit_factor"], 150 / 60)
+
+    def test_trade_quality_matches_calculate_profit_factor_directly(self):
+        trades = self._sample_trades()
+        result = calculate_trade_quality(trades, minimum_samples=4)
+        direct = calculate_profit_factor(
+            [t["net_pnl"] for t in trades], minimum_samples=4,
+        )
+        self.assertEqual(result["profit_factor"], direct["value"])
+
+    def test_trade_quality_holding_duration_skips_missing_timestamps(self):
+        result = calculate_trade_quality(self._sample_trades())
+        duration = result["holding_duration_hours"]
+        self.assertEqual(duration["status"], "ok")
+        # Only 3 of the 4 sample trades carry entry/exit timestamps.
+        self.assertEqual(duration["sample_size"], 3)
+        self.assertAlmostEqual(duration["mean"], (6 + 12 + 3) / 3)
+        self.assertAlmostEqual(duration["min"], 3.0)
+        self.assertAlmostEqual(duration["max"], 12.0)
+
+    def test_trade_quality_breaks_down_by_strategy_and_symbol(self):
+        result = calculate_trade_quality(self._sample_trades())
+        self.assertEqual(set(result["by_strategy"]), {"A", "B"})
+        self.assertEqual(result["by_strategy"]["A"]["sample_size"], 2)
+        self.assertAlmostEqual(result["by_strategy"]["A"]["net_pnl"], 60.0)
+        self.assertEqual(set(result["by_symbol"]), {"BTC/USDT", "ETH/USDT"})
+        self.assertAlmostEqual(result["by_symbol"]["ETH/USDT"]["net_pnl"], 30.0)
 
 
 if __name__ == "__main__":
