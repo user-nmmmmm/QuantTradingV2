@@ -423,6 +423,12 @@ class Broker:
             slip_dir = "negative"
         else:
             return None
+        if order.order_type is OrderType.LIMIT and order.price is not None:
+            if order.side in {"buy", "cover"}:
+                fill_price = min(fill_price, order.price)
+            else:
+                fill_price = max(fill_price, order.price)
+
 
         current_pos = self.portfolio.get_position(order.symbol)
         if order.side == "sell":

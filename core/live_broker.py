@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import os
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Mapping, Optional
+from typing import Any, Callable, Dict, Mapping, Optional
 
 import ccxt
 
+from core.alerting import AlertSink, build_default_alert_sink
 from core.clock import ClockLike, coerce_clock
 from core.domain import (
     FillRecord,
@@ -25,6 +26,7 @@ from core.exchange_boundary import (
 )
 from core.logger import get_logger
 from core.order_store import OrderStore
+from core.retry import with_retry
 from core.orders import (
     TERMINAL_STATUSES,
     classify_order_exception,
@@ -64,6 +66,11 @@ class LiveBroker:
         require_market_metadata: bool = False,
         metadata_ttl: timedelta = timedelta(hours=1),
         metadata_change_policy: Optional[MetadataChangeHaltPolicy] = None,
+        alert_sink: Optional[AlertSink] = None,
+        retry_max_attempts: int = 3,
+        retry_base_delay: float = 0.5,
+        retry_max_delay: float = 8.0,
+        retry_sleep_fn: Optional[Callable[[float], None]] = None,
     ) -> None:
         self.portfolio = portfolio
         self.exchange_id = exchange_id
@@ -84,6 +91,12 @@ class LiveBroker:
         self.last_account_sync_at: Optional[datetime] = None
         self.last_order_sync_at: Optional[datetime] = None
 
+        self.alert_sink = alert_sink or build_default_alert_sink(logger)
+        self.retry_max_attempts = retry_max_attempts
+        self.retry_base_delay = retry_base_delay
+        self.retry_max_delay = retry_max_delay
+        self.retry_sleep_fn = retry_sleep_fn
+        self._unknown_reconcile_attempts: Dict[str, int] = {}
         exchange_class = getattr(ccxt, exchange_id)
         options = dict(exchange_options or {})
         options.setdefault("defaultType", market_type)
@@ -237,7 +250,9 @@ class LiveBroker:
 
         self.order_store.mark_submission_attempted(intent.client_order_id, self._now_iso())
         try:
-            payload = self.exchange.create_order(**prepared.request.as_kwargs())
+            payload = self._retry_exchange_call(
+                lambda: self.exchange.create_order(**prepared.request.as_kwargs())
+            )
         except Exception as exc:
             code = classify_order_exception(exc)
             status = OrderStatus.UNKNOWN if is_ambiguous_error(code) else OrderStatus.REJECTED
@@ -253,6 +268,12 @@ class LiveBroker:
                 "Order submission failed client_order_id=%s category=%s status=%s",
                 intent.client_order_id, code.value, status.value,
             )
+            if status is OrderStatus.UNKNOWN:
+                self._alert("critical", "order_state_unknown", {
+                    "client_order_id": intent.client_order_id,
+                    "operation": "submit_order", "error_code": code.value,
+                    "retry_attempts": self.retry_max_attempts,
+                })
             return self._result(intent.client_order_id)
 
         result = self._persist_exchange_payload(intent.client_order_id, payload)
@@ -289,8 +310,9 @@ class LiveBroker:
         if not record["submission_attempted"]:
             return self._result(client_order_id)
 
+        previous_status = OrderStatus(record["status"])
         try:
-            payload = self._fetch_exchange_order(record)
+            payload = self._retry_exchange_call(lambda: self._fetch_exchange_order(record))
         except Exception as exc:
             code = classify_order_exception(exc)
             current = OrderStatus(record["status"])
@@ -299,10 +321,24 @@ class LiveBroker:
                     client_order_id, OrderStatus.UNKNOWN, self._now_iso(),
                     error_code=code.value, error_message=type(exc).__name__,
                 )
+            self._unknown_reconcile_attempts[client_order_id] = (
+                self._unknown_reconcile_attempts.get(client_order_id, 0) + 1
+            )
+            self._alert("error", "reconcile_discrepancy", {
+                "client_order_id": client_order_id, "error_code": code.value,
+                "poll": self._unknown_reconcile_attempts[client_order_id],
+            })
             return self._result(client_order_id)
         if not isinstance(payload, Mapping):
             payload = None
         if payload is None:
+            self._unknown_reconcile_attempts[client_order_id] = (
+                self._unknown_reconcile_attempts.get(client_order_id, 0) + 1
+            )
+            self._alert("error", "reconcile_discrepancy", {
+                "client_order_id": client_order_id, "reason": "order_not_found",
+                "poll": self._unknown_reconcile_attempts[client_order_id],
+            })
             current = OrderStatus(record["status"])
             if current is not OrderStatus.UNKNOWN:
                 self.order_store.transition(
@@ -312,6 +348,11 @@ class LiveBroker:
                 )
             return self._result(client_order_id)
         result = self._persist_exchange_payload(client_order_id, payload)
+        if previous_status is OrderStatus.UNKNOWN and result.status is not OrderStatus.UNKNOWN:
+            self._unknown_reconcile_attempts.pop(client_order_id, None)
+            self._alert("info", "order_state_reconciled", {
+                "client_order_id": client_order_id, "status": result.status.value,
+            })
         if result.status in {OrderStatus.PARTIALLY_FILLED, OrderStatus.FILLED}:
             self.sync()
         return result
@@ -627,24 +668,58 @@ class LiveBroker:
         self._publish_order_event(result, record)
         return result
 
+    def _retry_exchange_call(self, fn: Callable[[], Any]) -> Any:
+        options = {
+            "max_attempts": self.retry_max_attempts,
+            "base_delay": self.retry_base_delay,
+            "max_delay": self.retry_max_delay,
+            "retryable": lambda code: code in {
+                OrderErrorCode.NETWORK,
+                OrderErrorCode.TIMEOUT,
+                OrderErrorCode.RATE_LIMIT,
+                OrderErrorCode.EXCHANGE_UNAVAILABLE,
+            },
+        }
+        if self.retry_sleep_fn is not None:
+            options["sleep_fn"] = self.retry_sleep_fn
+        return with_retry(fn, **options)
+
+    def _alert(self, level: str, event: str, context: Dict[str, Any]) -> None:
+        try:
+            self.alert_sink.notify(level, event, context)
+        except Exception as exc:
+            logger.error(
+                "alert_delivery_failed event=%s category=%s",
+                event, type(exc).__name__,
+            )
+
+    def _load_portfolio_fact(self):
+        balance = self.exchange.fetch_balance()
+        free = balance.get("free", {}) if isinstance(balance, dict) else {}
+        total = balance.get("total", {}) if isinstance(balance, dict) else {}
+        next_cash = self._as_float(
+            free.get(self.base_currency), self._as_float(total.get(self.base_currency))
+        )
+        positions = (
+            self._sync_derivatives_positions(balance)
+            if self.market_type in DERIVATIVE_TYPES
+            else self._sync_spot_positions(balance)
+        )
+        return next_cash, positions
+
     def sync(self) -> SyncResult:
         try:
-            balance = self.exchange.fetch_balance()
-            free = balance.get("free", {}) if isinstance(balance, dict) else {}
-            total = balance.get("total", {}) if isinstance(balance, dict) else {}
-            next_cash = self._as_float(
-                free.get(self.base_currency), self._as_float(total.get(self.base_currency))
-            )
-            if self.market_type in DERIVATIVE_TYPES:
-                positions = self._sync_derivatives_positions(balance)
-            else:
-                positions = self._sync_spot_positions(balance)
+            next_cash, positions = self._retry_exchange_call(self._load_portfolio_fact)
             self.portfolio.cash = next_cash
             self.portfolio.positions = positions
             self.last_account_sync_at = self._clock()
             return SyncResult(True, self.last_account_sync_at)
         except Exception as exc:
             logger.error("Failed to sync portfolio category=%s", type(exc).__name__)
+            self._alert("error", "account_sync_failed", {
+                "error": type(exc).__name__,
+                "retry_attempts": self.retry_max_attempts,
+            })
             return SyncResult(False, self._clock(), type(exc).__name__)
 
     def _sync_spot_positions(self, balance: Dict[str, Any]) -> Dict[str, Dict[str, float]]:

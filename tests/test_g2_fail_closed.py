@@ -32,7 +32,7 @@ class TestG2FailClosed(unittest.TestCase):
             self.assertEqual(first.status, OrderStatus.UNKNOWN)
             self.assertEqual(second.status, OrderStatus.REJECTED)
             self.assertEqual(second.error_code, OrderErrorCode.SAFETY_POLICY)
-            exchange.create_order.assert_called_once()
+            self.assertEqual(exchange.create_order.call_count, 3)
             broker.close()
 
     @patch("core.live_broker.ccxt")

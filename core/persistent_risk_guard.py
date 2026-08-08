@@ -9,6 +9,7 @@ from threading import RLock
 from typing import Callable, Optional
 
 from core.live_safety import SafetyConfigurationError, StartupSafetyPolicy
+from core.sqlite_utils import open_durable_connection
 
 
 class PersistentOrderSafetyGuard:
@@ -25,7 +26,7 @@ class PersistentOrderSafetyGuard:
         self._clock = clock
         self._lock = RLock()
         os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
-        self._connection = sqlite3.connect(path, check_same_thread=False)
+        self._connection = open_durable_connection(path)
         with self._connection:
             self._connection.execute(
                 "CREATE TABLE IF NOT EXISTS daily_risk "

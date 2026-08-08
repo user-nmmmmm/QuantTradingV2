@@ -10,6 +10,7 @@ from typing import Dict, List, Optional
 
 import pandas as pd
 
+from core.alerting import AlertSink, build_default_alert_sink
 from core.clock import ClockLike, coerce_clock
 from core.data_fetcher import DataFetcher
 from core.health import DataHealthMonitor, DataHealthPolicy, HealthAssessment, HealthReason
@@ -19,6 +20,7 @@ from core.market_data import LiveMarketDataAdapter
 from core.risk import RiskManager
 from core.runtime import EventProcessor, MarketDataSlice
 from core.state_store_v2 import StateStore, default_state_db_path
+from core.sqlite_backup import SQLiteSnapshotManager
 from core.system_factory import build_router, build_state_machine, market_type_supports_shorts
 from core.timeframes import as_utc_timestamp, closed_bars, timeframe_delta
 from core.valuation import build_portfolio_snapshot
@@ -46,6 +48,11 @@ class LiveTradingEngine:
         state_store: Optional[StateStore] = None,
         close_grace_seconds: float = 2.0,
         bar_claim_lease_seconds: float = 300.0,
+        alert_sink: Optional[AlertSink] = None,
+        snapshot_interval_seconds: float = 3600,
+        snapshot_retention: int = 24,
+        snapshot_dir: Optional[str] = None,
+        snapshot_manager: Optional[SQLiteSnapshotManager] = None,
     ) -> None:
         self.symbols = symbols
         self.strategies = strategies
@@ -67,11 +74,19 @@ class LiveTradingEngine:
         self.state_store = state_store
         self._state_db_path = default_state_db_path(state_file)
         self._healthy = False
+        self.snapshot_interval_seconds = snapshot_interval_seconds
+        self.snapshot_retention = snapshot_retention
+        self.snapshot_dir = snapshot_dir
+        self.snapshot_manager = snapshot_manager
         self._operational_state = "STARTING"
         self._snapshot = None
         self._last_account_sync_at: Optional[datetime] = None
         self._last_order_sync_at: Optional[datetime] = None
 
+        alert_path = os.path.join(
+            os.path.dirname(os.path.abspath(state_file)), "live_alerts.jsonl"
+        )
+        self.alert_sink = alert_sink or build_default_alert_sink(logger, record_path=alert_path)
         allow_short = market_type_supports_shorts(getattr(broker, "market_type", "spot"))
         self.router = build_router(strategies, allow_short=allow_short)
         if not allow_short:
@@ -115,6 +130,15 @@ class LiveTradingEngine:
         if callable(broker_setter):
             broker_setter(assessment)
 
+    def _alert(self, level: str, event: str, context: Dict) -> None:
+        try:
+            self.alert_sink.notify(level, event, context)
+        except Exception as exc:
+            logger.error(
+                "alert_delivery_failed event=%s category=%s",
+                event, type(exc).__name__,
+            )
+
     def _assess_health(self, now: datetime, *extra: HealthReason) -> HealthAssessment:
         assessment = self.health_monitor.assess(
             now=now,
@@ -137,11 +161,39 @@ class LiveTradingEngine:
                 "New risk halted by health assessment: %s",
                 ",".join(assessment.reason_codes),
             )
+            self._alert("critical", "risk_halt", {
+                "reason_codes": assessment.reason_codes,
+                "assessed_at": assessment.assessed_at,
+            })
+        else:
+            acknowledge = getattr(self.alert_sink, "ack", None)
+            if callable(acknowledge):
+                acknowledge("risk_halt")
+                acknowledge("tick_unhealthy")
         return assessment
 
     def _ensure_state_store(self) -> StateStore:
         if self.state_store is None:
             self.state_store = StateStore(self._state_db_path)
+        if self.snapshot_manager is None:
+            source_path = getattr(self.state_store, "path", self._state_db_path)
+            if source_path != ":memory:":
+                self.snapshot_manager = SQLiteSnapshotManager(
+                    source_path,
+                    snapshot_dir=self.snapshot_dir,
+                    retention=self.snapshot_retention,
+                    interval_seconds=self.snapshot_interval_seconds,
+                )
+        if self.snapshot_manager is not None:
+            try:
+                self.snapshot_manager.run_if_due()
+            except Exception as exc:
+                logger.error(
+                    "state_snapshot_failed category=%s", type(exc).__name__,
+                )
+                self._alert("error", "state_snapshot_failed", {
+                    "error": type(exc).__name__,
+                })
         return self.state_store
 
     def _reset_daily_risk_if_needed(self, current_time: datetime) -> None:
@@ -226,8 +278,30 @@ class LiveTradingEngine:
             self._export_state()
             return
 
-        self._update_data()
-        sync_result = self.broker.sync()
+        try:
+            self._update_data()
+        except Exception as exc:
+            self._assess_health(now, HealthReason(
+                "MARKET_DATA_UPDATE_FAILED", "market_data", "data",
+                f"market data update failed: {type(exc).__name__}",
+            ))
+            self._alert("error", "tick_unhealthy", {
+                "operation": "update_data", "error": type(exc).__name__,
+            })
+            self._export_state()
+            return
+        try:
+            sync_result = self.broker.sync()
+        except Exception as exc:
+            self._assess_health(now, HealthReason(
+                "ACCOUNT_SYNC_FAILED", "account_sync", "account",
+                f"account synchronization raised: {type(exc).__name__}",
+            ))
+            self._alert("error", "tick_unhealthy", {
+                "operation": "broker_sync", "error": type(exc).__name__,
+            })
+            self._export_state()
+            return
         self._healthy = bool(getattr(sync_result, "ok", sync_result is None))
         if not self._healthy:
             self._assess_health(now, HealthReason(
@@ -282,6 +356,10 @@ class LiveTradingEngine:
         state_store.set("circuit_breaker", bool(breaker))
         if breaker:
             logger.critical("Trading disabled: daily circuit breaker active")
+            self._alert("critical", "circuit_breaker_triggered", {
+                "equity": self._snapshot.equity,
+                "daily_start_equity": float(daily_start),
+            })
             self._export_state()
             return
 
@@ -327,6 +405,7 @@ class LiveTradingEngine:
         self._export_state()
 
     def _export_state(self):
+        tmp_path = f"{self.state_file}.{os.getpid()}.tmp"
         try:
             current_prices = {
                 symbol: frame["close"].iloc[-1]
@@ -334,6 +413,7 @@ class LiveTradingEngine:
                 if not frame.empty
             }
             state_data = {
+                "schema_version": 1,
                 "timestamp": self._now().strftime("%Y-%m-%d %H:%M:%S"),
                 "cash": self.broker.portfolio.cash,
                 "equity": self.broker.portfolio.get_equity(current_prices),
@@ -352,8 +432,15 @@ class LiveTradingEngine:
                     if self.health_assessment else None
                 ),
             }
-            with open(self.state_file, "w") as handle:
+            with open(tmp_path, "w", encoding="utf-8") as handle:
                 json.dump(state_data, handle, indent=2)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(tmp_path, self.state_file)
         except Exception as exc:
             logger.error("Failed to export state: %s", type(exc).__name__)
-
+            try:
+                if os.path.exists(tmp_path):
+                    os.remove(tmp_path)
+            except OSError:
+                logger.warning("Failed to remove incomplete state file: %s", tmp_path)

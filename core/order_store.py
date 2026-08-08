@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional
 
 from core.domain import FillRecord, OrderIntent, OrderStatus
 from core.orders import TERMINAL_STATUSES, validate_transition
+from core.sqlite_utils import open_durable_connection
 
 
 class OrderStore:
@@ -18,7 +19,7 @@ class OrderStore:
         parent = os.path.dirname(os.path.abspath(path))
         os.makedirs(parent, exist_ok=True)
         self._lock = RLock()
-        self._connection = sqlite3.connect(path, check_same_thread=False)
+        self._connection = open_durable_connection(path)
         self._connection.row_factory = sqlite3.Row
         with self._connection:
             self._connection.execute(
