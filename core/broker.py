@@ -424,6 +424,14 @@ class Broker:
         else:
             return None
 
+        if order.order_type == OrderType.LIMIT:
+            # Slippage must never push a limit fill past the limit price:
+            # the exchange guarantees the limit as a worst-case bound.
+            if order.side in {"buy", "cover"}:
+                fill_price = min(fill_price, order.price)
+            elif order.side in {"sell", "short"}:
+                fill_price = max(fill_price, order.price)
+
         current_pos = self.portfolio.get_position(order.symbol)
         if order.side == "sell":
             fill_qty = min(fill_qty, max(current_pos["qty"], 0.0))

@@ -8,6 +8,7 @@ from datetime import date
 from threading import RLock
 from typing import Callable, Optional
 
+from core.db_utils import ensure_sqlite_integrity
 from core.live_safety import SafetyConfigurationError, StartupSafetyPolicy
 
 
@@ -27,6 +28,10 @@ class PersistentOrderSafetyGuard:
         os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
         self._connection = sqlite3.connect(path, check_same_thread=False)
         with self._connection:
+            self._connection.execute("PRAGMA busy_timeout=5000")
+            if path != ":memory:":
+                self._connection.execute("PRAGMA journal_mode=WAL")
+                ensure_sqlite_integrity(self._connection, path)
             self._connection.execute(
                 "CREATE TABLE IF NOT EXISTS daily_risk "
                 "(risk_day TEXT PRIMARY KEY, notional REAL NOT NULL)"

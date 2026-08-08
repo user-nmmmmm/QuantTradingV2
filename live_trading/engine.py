@@ -10,6 +10,7 @@ from typing import Dict, List, Optional
 
 import pandas as pd
 
+from core.alerting import AlertSink, LoggingAlertSink
 from core.clock import ClockLike, coerce_clock
 from core.data_fetcher import DataFetcher
 from core.health import DataHealthMonitor, DataHealthPolicy, HealthAssessment, HealthReason
@@ -46,6 +47,7 @@ class LiveTradingEngine:
         state_store: Optional[StateStore] = None,
         close_grace_seconds: float = 2.0,
         bar_claim_lease_seconds: float = 300.0,
+        alert_sink: Optional[AlertSink] = None,
     ) -> None:
         self.symbols = symbols
         self.strategies = strategies
@@ -57,6 +59,8 @@ class LiveTradingEngine:
         self.close_grace_seconds = close_grace_seconds
         self.bar_claim_lease_seconds = bar_claim_lease_seconds
         self.fetcher = data_fetcher or DataFetcher()
+        self.alert_sink = alert_sink or LoggingAlertSink(logger)
+        self._last_alerted_reason_codes: Optional[frozenset] = None
         self.clock = coerce_clock(clock)
         self.health_monitor = DataHealthMonitor(health_policy)
         self.health_assessment: Optional[HealthAssessment] = None
@@ -132,11 +136,24 @@ class LiveTradingEngine:
                 assessment.assessed_at, tuple(assessment.reasons) + tuple(extra)
             )
         self._set_health_assessment(assessment)
+        current_codes = frozenset(assessment.reason_codes)
         if not assessment.healthy:
             logger.critical(
                 "New risk halted by health assessment: %s",
                 ",".join(assessment.reason_codes),
             )
+            if current_codes != self._last_alerted_reason_codes:
+                self.alert_sink.notify(
+                    "critical", "health_unhealthy",
+                    {"reason_codes": sorted(current_codes),
+                     "assessed_at": assessment.assessed_at.isoformat()},
+                )
+        elif self._last_alerted_reason_codes:
+            self.alert_sink.notify(
+                "info", "health_recovered",
+                {"assessed_at": assessment.assessed_at.isoformat()},
+            )
+        self._last_alerted_reason_codes = current_codes if not assessment.healthy else None
         return assessment
 
     def _ensure_state_store(self) -> StateStore:
@@ -226,8 +243,17 @@ class LiveTradingEngine:
             self._export_state()
             return
 
-        self._update_data()
-        sync_result = self.broker.sync()
+        try:
+            self._update_data()
+            sync_result = self.broker.sync()
+        except Exception as exc:
+            self._assess_health(now, HealthReason(
+                "MARKET_DATA_REFRESH_FAILED", "market_data", "data",
+                f"market data refresh failed: {type(exc).__name__}",
+            ))
+            logger.exception("Trading disabled: market data refresh failed")
+            self._export_state()
+            return
         self._healthy = bool(getattr(sync_result, "ok", sync_result is None))
         if not self._healthy:
             self._assess_health(now, HealthReason(
@@ -279,9 +305,15 @@ class LiveTradingEngine:
         breaker = self.risk_manager.check_circuit_breaker(
             self._snapshot.equity, float(daily_start)
         )
+        was_breaker_active = bool(state_store.get("circuit_breaker"))
         state_store.set("circuit_breaker", bool(breaker))
         if breaker:
             logger.critical("Trading disabled: daily circuit breaker active")
+            if not was_breaker_active:
+                self.alert_sink.notify(
+                    "critical", "circuit_breaker_tripped",
+                    {"equity": self._snapshot.equity, "daily_start_equity": float(daily_start)},
+                )
             self._export_state()
             return
 
@@ -334,6 +366,7 @@ class LiveTradingEngine:
                 if not frame.empty
             }
             state_data = {
+                "schema_version": 1,
                 "timestamp": self._now().strftime("%Y-%m-%d %H:%M:%S"),
                 "cash": self.broker.portfolio.cash,
                 "equity": self.broker.portfolio.get_equity(current_prices),
@@ -352,8 +385,10 @@ class LiveTradingEngine:
                     if self.health_assessment else None
                 ),
             }
-            with open(self.state_file, "w") as handle:
+            tmp_path = f"{self.state_file}.tmp"
+            with open(tmp_path, "w") as handle:
                 json.dump(state_data, handle, indent=2)
+            os.replace(tmp_path, self.state_file)
         except Exception as exc:
             logger.error("Failed to export state: %s", type(exc).__name__)
 

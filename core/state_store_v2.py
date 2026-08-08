@@ -9,6 +9,8 @@ from datetime import datetime, timezone
 from threading import RLock
 from typing import Any
 
+from core.db_utils import ensure_sqlite_integrity
+
 
 class StateStore:
     def __init__(self, path: str):
@@ -17,6 +19,10 @@ class StateStore:
         self._lock = RLock()
         self._connection = sqlite3.connect(path, check_same_thread=False)
         with self._connection:
+            self._connection.execute("PRAGMA busy_timeout=5000")
+            if path != ":memory:":
+                self._connection.execute("PRAGMA journal_mode=WAL")
+                ensure_sqlite_integrity(self._connection, path)
             self._connection.execute(
                 "CREATE TABLE IF NOT EXISTS state (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
             )

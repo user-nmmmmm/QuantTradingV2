@@ -51,6 +51,29 @@ class TestP2OrderExecution(unittest.TestCase):
         # Expected Fill: Open (9400) is better than Limit (9500). Fill at Open.
         self.assertEqual(trades[0]["fill_price"], 9400.0)
 
+    def test_limit_buy_fill_never_exceeds_limit_with_slippage(self):
+        # Slippage must never push a limit fill past the limit price: the
+        # exchange guarantees the limit as a worst-case bound.
+        broker = Broker(Portfolio(initial_capital=10000.0), slippage=0.05)
+        broker.submit_order(self.symbol, "buy", 1.0, price=9500.0, order_type="limit")
+        bar = pd.Series({
+            "open": 9490, "high": 9550, "low": 9480, "close": 9500, "volume": 1000
+        }, name=pd.Timestamp("2023-01-01 00:00"))
+        trades = broker.process_orders({self.symbol: bar})
+        self.assertEqual(len(trades), 1)
+        self.assertLessEqual(trades[0]["fill_price"], 9500.0)
+
+    def test_limit_sell_fill_never_undercuts_limit_with_slippage(self):
+        broker = Broker(Portfolio(initial_capital=10000.0), slippage=0.05)
+        broker.portfolio.update_position(self.symbol, 1.0, 9000.0, 0.0)
+        broker.submit_order(self.symbol, "sell", 1.0, price=9500.0, order_type="limit")
+        bar = pd.Series({
+            "open": 9510, "high": 9550, "low": 9480, "close": 9500, "volume": 1000
+        }, name=pd.Timestamp("2023-01-01 00:00"))
+        trades = broker.process_orders({self.symbol: bar})
+        self.assertEqual(len(trades), 1)
+        self.assertGreaterEqual(trades[0]["fill_price"], 9500.0)
+
     def test_stop_buy_execution(self):
         # 1. Submit Stop Buy at 10100
         self.broker.submit_order(self.symbol, "buy", 1.0, price=10100.0, order_type="stop")

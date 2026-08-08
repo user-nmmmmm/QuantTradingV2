@@ -8,6 +8,7 @@ from threading import RLock
 from typing import Iterable, Optional, Tuple
 from uuid import UUID
 
+from core.db_utils import ensure_sqlite_integrity
 from core.events import EventCodec, EventEnvelope
 
 
@@ -33,9 +34,11 @@ class SQLiteEventStore:
         self._connection.row_factory = sqlite3.Row
         with self._connection:
             self._connection.execute("PRAGMA foreign_keys=ON")
+            self._connection.execute("PRAGMA busy_timeout=5000")
             if path != ":memory:":
                 self._connection.execute("PRAGMA journal_mode=WAL")
                 self._connection.execute("PRAGMA synchronous=FULL")
+                ensure_sqlite_integrity(self._connection, path)
             self._connection.execute(
                 """CREATE TABLE IF NOT EXISTS events (
                     sequence INTEGER PRIMARY KEY AUTOINCREMENT,

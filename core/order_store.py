@@ -6,6 +6,7 @@ import sqlite3
 from threading import RLock
 from typing import Any, Dict, List, Optional
 
+from core.db_utils import ensure_sqlite_integrity
 from core.domain import FillRecord, OrderIntent, OrderStatus
 from core.orders import TERMINAL_STATUSES, validate_transition
 
@@ -21,6 +22,10 @@ class OrderStore:
         self._connection = sqlite3.connect(path, check_same_thread=False)
         self._connection.row_factory = sqlite3.Row
         with self._connection:
+            self._connection.execute("PRAGMA busy_timeout=5000")
+            if path != ":memory:":
+                self._connection.execute("PRAGMA journal_mode=WAL")
+                ensure_sqlite_integrity(self._connection, path)
             self._connection.execute(
                 """CREATE TABLE IF NOT EXISTS orders (
                     client_order_id TEXT PRIMARY KEY,
