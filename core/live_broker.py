@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import os
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Dict, Optional
 
 import ccxt
 
+from core.clock import ClockLike, coerce_clock
 from core.domain import (
     FillRecord,
     OrderErrorCode,
@@ -51,7 +52,7 @@ class LiveBroker:
         order_store: Optional[OrderStore] = None,
         account_id: Optional[str] = None,
         position_mode: str = "one_way",
-        clock: Optional[Callable[[], datetime]] = None,
+        clock: Optional[ClockLike] = None,
         event_pipeline: Optional[TradingEventPipeline] = None,
     ) -> None:
         self.portfolio = portfolio
@@ -61,7 +62,7 @@ class LiveBroker:
         self.account_id = account_id or market_type
         self.position_mode = position_mode
         self.order_store = order_store or OrderStore(":memory:")
-        self._clock = clock or (lambda: datetime.now(timezone.utc))
+        self._clock = coerce_clock(clock).now
         self.event_pipeline = event_pipeline or TradingEventPipeline(clock=self._clock)
         self.reservation_projection = RiskReservationProjection(self.event_pipeline)
         self._restore_reservations()
@@ -69,6 +70,9 @@ class LiveBroker:
         self._bar_timeframe = "unknown"
         self._bar_time = "unknown"
         self.trades = []  # Compatibility projection only; OrderStore is authoritative.
+        self.health_assessment = None
+        self.last_account_sync_at: Optional[datetime] = None
+        self.last_order_sync_at: Optional[datetime] = None
 
         exchange_class = getattr(ccxt, exchange_id)
         options = dict(exchange_options or {})
@@ -146,6 +150,17 @@ class LiveBroker:
         """Submit the exact canonical command used by every execution venue."""
         if not isinstance(intent, OrderIntent):
             raise TypeError("intent must be OrderIntent")
+        if (
+            intent.action in {"buy", "short"}
+            and not intent.reduce_only
+            and self.health_assessment is not None
+            and not bool(getattr(self.health_assessment, "allows_new_risk", False))
+        ):
+            codes = ",".join(getattr(self.health_assessment, "reason_codes", []))
+            return self.record_local_rejection(
+                intent, f"health fail-closed: {codes or 'UNHEALTHY'}",
+                OrderErrorCode.SAFETY_POLICY,
+            )
         intent, _ = ensure_opening_reservation(
             self.event_pipeline,
             intent,
@@ -279,7 +294,12 @@ class LiveBroker:
                 results[client_id] = self._result(client_id)
             else:
                 results[client_id] = self.reconcile_order(client_id)
+        if not self.has_unresolved_unknown():
+            self.last_order_sync_at = self._clock()
         return results
+
+    def set_health_assessment(self, assessment) -> None:
+        self.health_assessment = assessment
 
     def cancel_order(self, client_order_id: str) -> OrderSubmissionResult:
         record = self.order_store.get(client_order_id)
@@ -584,7 +604,8 @@ class LiveBroker:
                 positions = self._sync_spot_positions(balance)
             self.portfolio.cash = next_cash
             self.portfolio.positions = positions
-            return SyncResult(True, self._clock())
+            self.last_account_sync_at = self._clock()
+            return SyncResult(True, self.last_account_sync_at)
         except Exception as exc:
             logger.error("Failed to sync portfolio category=%s", type(exc).__name__)
             return SyncResult(False, self._clock(), type(exc).__name__)

@@ -89,8 +89,11 @@ class LiveMarketDataAdapter:
         self.close_grace_seconds = close_grace_seconds
         self.data_map: Dict[str, pd.DataFrame] = {}
         self._watermarks: Dict[str, pd.Timestamp] = {}
+        self._last_fetched_latest: Dict[str, pd.Timestamp] = {}
+        self.regressed_symbols: set[str] = set()
 
     def refresh(self) -> Dict[str, pd.DataFrame]:
+        self.regressed_symbols = set()
         for symbol in self.symbols:
             fetched = normalize_market_frame(
                 self.fetcher.fetch_ccxt(
@@ -99,6 +102,11 @@ class LiveMarketDataAdapter:
             )
             if fetched.empty:
                 continue
+            fetched_latest = pd.Timestamp(fetched.index[-1])
+            previous_latest = self._last_fetched_latest.get(symbol)
+            if previous_latest is not None and fetched_latest < previous_latest:
+                self.regressed_symbols.add(symbol)
+            self._last_fetched_latest[symbol] = fetched_latest
             current = normalize_market_frame(self.data_map.get(symbol, pd.DataFrame()))
             combined = fetched if current.empty else pd.concat([current, fetched])
             combined = normalize_market_frame(combined)

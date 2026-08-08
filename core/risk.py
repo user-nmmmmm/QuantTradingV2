@@ -50,6 +50,23 @@ class RiskManager:
         self.max_pos_size_pct = max_pos_size_pct
         
         self.circuit_breaker_triggered = False
+        self.health_assessment = None
+
+    def set_health_assessment(self, assessment) -> None:
+        """Install the latest live health fact used by opening-risk checks."""
+        self.health_assessment = assessment
+
+    def _health_allows_new_risk(self) -> bool:
+        assessment = self.health_assessment
+        allowed = assessment is None or bool(
+            getattr(assessment, "allows_new_risk", False)
+        )
+        if not allowed:
+            logger.critical(
+                "New risk rejected by data/system health: %s",
+                ",".join(getattr(assessment, "reason_codes", [])) or "UNHEALTHY",
+            )
+        return allowed
 
     def reset_daily_breaker(self) -> None:
         if self.circuit_breaker_triggered:
@@ -69,6 +86,8 @@ class RiskManager:
         - qty：建议下单数量；若参数不合法或熔断器触发，则返回 0。
         """
         if self.circuit_breaker_triggered:
+            return 0.0
+        if not self._health_allows_new_risk():
             return 0.0
 
         if entry_price <= 0 or stop_loss_price <= 0:
@@ -96,6 +115,8 @@ class RiskManager:
         - 快速原型/简化回测
         """
         if self.circuit_breaker_triggered:
+            return 0.0
+        if not self._health_allows_new_risk():
             return 0.0
             
         if entry_price <= 0:
@@ -130,6 +151,8 @@ class RiskManager:
         """
         if self.circuit_breaker_triggered:
             logger.warning("Trade Rejected: Circuit Breaker Active")
+            return False
+        if not self._health_allows_new_risk():
             return False
 
         if qty <= 0 or price <= 0:

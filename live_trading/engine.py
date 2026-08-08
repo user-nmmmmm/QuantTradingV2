@@ -6,11 +6,13 @@ import json
 import os
 import time
 from datetime import datetime, timezone
-from typing import Callable, Dict, List, Optional
+from typing import Dict, List, Optional
 
 import pandas as pd
 
+from core.clock import ClockLike, coerce_clock
 from core.data_fetcher import DataFetcher
+from core.health import DataHealthMonitor, DataHealthPolicy, HealthAssessment, HealthReason
 from core.live_broker import LiveBroker
 from core.logger import get_logger
 from core.market_data import LiveMarketDataAdapter
@@ -38,7 +40,8 @@ class LiveTradingEngine:
         lookback_days: int = 30,
         timeframe: str = "1d",
         data_fetcher: Optional[DataFetcher] = None,
-        clock: Optional[Callable[[], datetime]] = None,
+        clock: Optional[ClockLike] = None,
+        health_policy: Optional[DataHealthPolicy] = None,
         state_file: str = "reports/live_status.json",
         state_store: Optional[StateStore] = None,
         close_grace_seconds: float = 2.0,
@@ -54,7 +57,9 @@ class LiveTradingEngine:
         self.close_grace_seconds = close_grace_seconds
         self.bar_claim_lease_seconds = bar_claim_lease_seconds
         self.fetcher = data_fetcher or DataFetcher()
-        self._clock = clock or datetime.now
+        self.clock = coerce_clock(clock)
+        self.health_monitor = DataHealthMonitor(health_policy)
+        self.health_assessment: Optional[HealthAssessment] = None
         self.state_machine = build_state_machine()
         self._current_trading_day = None
         self.data_map: Dict[str, pd.DataFrame] = {}
@@ -64,6 +69,8 @@ class LiveTradingEngine:
         self._healthy = False
         self._operational_state = "STARTING"
         self._snapshot = None
+        self._last_account_sync_at: Optional[datetime] = None
+        self._last_order_sync_at: Optional[datetime] = None
 
         allow_short = market_type_supports_shorts(getattr(broker, "market_type", "spot"))
         self.router = build_router(strategies, allow_short=allow_short)
@@ -95,7 +102,42 @@ class LiveTradingEngine:
         )
 
     def _now(self) -> datetime:
-        return self._clock()
+        return self.clock.now()
+
+    def _set_health_assessment(self, assessment: HealthAssessment) -> None:
+        self.health_assessment = assessment
+        self._healthy = assessment.healthy
+        self._operational_state = "HEALTHY" if assessment.healthy else "RISK_HALTED"
+        setter = getattr(self.risk_manager, "set_health_assessment", None)
+        if callable(setter):
+            setter(assessment)
+        broker_setter = getattr(self.broker, "set_health_assessment", None)
+        if callable(broker_setter):
+            broker_setter(assessment)
+
+    def _assess_health(self, now: datetime, *extra: HealthReason) -> HealthAssessment:
+        assessment = self.health_monitor.assess(
+            now=now,
+            symbols=self.symbols,
+            timeframe=self.timeframe,
+            data_map=self.data_map,
+            account_synced_at=self._last_account_sync_at,
+            order_synced_at=self._last_order_sync_at,
+            regressed_symbols=getattr(
+                self.market_data_adapter, "regressed_symbols", set()
+            ),
+        )
+        if extra:
+            assessment = HealthAssessment(
+                assessment.assessed_at, tuple(assessment.reasons) + tuple(extra)
+            )
+        self._set_health_assessment(assessment)
+        if not assessment.healthy:
+            logger.critical(
+                "New risk halted by health assessment: %s",
+                ",".join(assessment.reason_codes),
+            )
+        return assessment
 
     def _ensure_state_store(self) -> StateStore:
         if self.state_store is None:
@@ -112,11 +154,18 @@ class LiveTradingEngine:
         logger.info("Initializing Live Trading Engine...")
         self._ensure_state_store()
         recovery = self._recover_orders()
+        if not self._has_unresolved_unknown():
+            self._last_order_sync_at = self._now()
         if recovery:
             self._operational_state = "RECONCILING"
             logger.info("Recovered %s non-terminal order(s) during startup", len(recovery))
         sync_result = self.broker.sync()
         self._healthy = bool(getattr(sync_result, "ok", sync_result is None))
+        if self._healthy:
+            synced_at = getattr(sync_result, "synced_at", None)
+            self._last_account_sync_at = (
+                synced_at if isinstance(synced_at, datetime) else self._now()
+            )
         self._operational_state = "HEALTHY" if self._healthy else "HALTED"
         self._reset_daily_risk_if_needed(self._now())
         for symbol in self.symbols:
@@ -130,6 +179,7 @@ class LiveTradingEngine:
             else:
                 logger.warning("Failed to load data for %s", symbol)
         self.market_data_adapter.data_map = dict(self.data_map)
+        self._assess_health(self._now())
 
     def run(self):
         logger.info("Starting Main Loop...")
@@ -156,10 +206,22 @@ class LiveTradingEngine:
         now = self._now()
         state_store = self._ensure_state_store()
         self._reset_daily_risk_if_needed(now)
-        self._recover_orders()
+        try:
+            self._recover_orders()
+            if not self._has_unresolved_unknown():
+                self._last_order_sync_at = now
+        except Exception as exc:
+            self._assess_health(now, HealthReason(
+                "ORDER_SYNC_FAILED", "order_sync", "order",
+                f"order synchronization failed: {type(exc).__name__}",
+            ))
+            self._export_state()
+            return
         if self._has_unresolved_unknown():
-            self._healthy = False
-            self._operational_state = "HALTED"
+            self._assess_health(now, HealthReason(
+                "ORDER_STATE_UNKNOWN", "order_sync", "order",
+                "an order has unresolved exchange state",
+            ))
             logger.critical("Trading halted: unresolved unknown order")
             self._export_state()
             return
@@ -168,9 +230,17 @@ class LiveTradingEngine:
         sync_result = self.broker.sync()
         self._healthy = bool(getattr(sync_result, "ok", sync_result is None))
         if not self._healthy:
+            self._assess_health(now, HealthReason(
+                "ACCOUNT_SYNC_FAILED", "account_sync", "account",
+                f"account synchronization failed: {getattr(sync_result, 'error', 'unknown')}",
+            ))
             logger.error("Trading disabled: portfolio synchronization failed")
             self._export_state()
             return
+        synced_at = getattr(sync_result, "synced_at", None)
+        self._last_account_sync_at = (
+            synced_at if isinstance(synced_at, datetime) else now
+        )
 
         prices: Dict[str, float] = {}
         price_times = {}
@@ -182,6 +252,8 @@ class LiveTradingEngine:
                 prices[symbol] = float(eligible["close"].iloc[-1])
                 price_times[symbol] = as_utc_timestamp(eligible.index[-1]).to_pydatetime()
 
+        self._assess_health(now)
+
         try:
             self._snapshot = build_portfolio_snapshot(
                 self.broker.portfolio,
@@ -190,8 +262,10 @@ class LiveTradingEngine:
                 now if now.tzinfo else now.replace(tzinfo=timezone.utc),
             )
         except ValueError as exc:
-            self._healthy = False
-            self._operational_state = "HALTED"
+            self._assess_health(now, HealthReason(
+                "VALUATION_FACT_MISSING", "valuation", "portfolio",
+                f"portfolio valuation is unavailable: {exc}",
+            ))
             logger.error("Trading disabled: %s", exc)
             self._export_state()
             return
@@ -240,8 +314,10 @@ class LiveTradingEngine:
                 self.event_processor.process_symbol(event, symbol)
                 if self._has_unresolved_unknown():
                     state_store.release_bar(bar_key)
-                    self._healthy = False
-                    self._operational_state = "HALTED"
+                    self._assess_health(now, HealthReason(
+                        "ORDER_STATE_UNKNOWN", "order_sync", "order",
+                        "an order has unresolved exchange state",
+                    ))
                     logger.critical("Bar released because order fact is unknown: %s", bar_key)
                     break
                 state_store.complete_bar(bar_key, now.isoformat())
@@ -267,6 +343,14 @@ class LiveTradingEngine:
                 "healthy": self._healthy,
                 "operational_state": self._operational_state,
                 "unresolved_unknown_order": self._has_unresolved_unknown(),
+                "health_reason_codes": (
+                    self.health_assessment.reason_codes
+                    if self.health_assessment else []
+                ),
+                "health_assessment": (
+                    self.health_assessment.to_dict()
+                    if self.health_assessment else None
+                ),
             }
             with open(self.state_file, "w") as handle:
                 json.dump(state_data, handle, indent=2)
