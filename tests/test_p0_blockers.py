@@ -35,19 +35,28 @@ class TestP0Blockers(unittest.TestCase):
         return broker
 
     @patch("core.live_broker.ccxt")
-    def test_submit_network_blip_retries_and_self_heals(self, ccxt_mock):
+    def test_submit_network_blip_marks_unknown_then_self_heals_via_reconcile(self, ccxt_mock):
+        # create_order is a non-idempotent write: a lost response after a
+        # successful submission is indistinguishable from a lost request, so
+        # a timeout there must never trigger an automatic resubmission (that
+        # could place a duplicate live order). It self-heals only through
+        # the idempotent fetch/reconcile path, on a later poll.
         ccxt_mock.binance.return_value = MagicMock()
         exchange = ccxt_mock.binance.return_value
-        exchange.create_order.side_effect = [
-            TimeoutError("network timeout"),
-            {"id": "e1", "status": "open", "amount": 1, "filled": 0, "remaining": 1},
-        ]
+        exchange.create_order.side_effect = TimeoutError("network timeout")
+        exchange.fetch_order_by_client_order_id.return_value = {
+            "id": "e1", "status": "open", "amount": 1, "filled": 0, "remaining": 1,
+        }
         with tempfile.TemporaryDirectory() as directory:
             broker = self.make_live_broker(directory, exchange)
             result = broker.submit_order("BTC/USDT", "buy", 1, 100)
-            self.assertEqual(result.status, OrderStatus.ACCEPTED)
-            self.assertEqual(exchange.create_order.call_count, 2)
+            self.assertEqual(result.status, OrderStatus.UNKNOWN)
+            exchange.create_order.assert_called_once()
+
+            recovered = broker.recover_open_orders()[result.client_order_id]
+            self.assertEqual(recovered.status, OrderStatus.ACCEPTED)
             self.assertFalse(broker.has_unresolved_unknown())
+            exchange.create_order.assert_called_once()
             broker.close()
 
     @patch("core.live_broker.ccxt")

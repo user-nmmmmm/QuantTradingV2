@@ -150,6 +150,30 @@ class CircuitBreakerRecoveryFaultInjectionTests(unittest.TestCase):
             )
             restarted_store.close()
 
+    def test_breaker_trip_alerts_once_not_every_tick(self):
+        # Equity moves every tick, which would defeat HysteresisAlertSink's
+        # dedup key if it were included in every circuit_breaker_triggered
+        # alert context. Only the trip itself (state transition) should
+        # page; staying halted must not re-alert on each subsequent tick.
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "live_state.db")
+            store = StateStore(path)
+            store.set("daily_start_equity:2026-08-08", 10000.0)
+            risk = RiskManager(max_drawdown_limit=0.20)
+            engine = self._engine(store, risk)
+
+            engine._tick()
+            engine._tick()
+            engine._tick()
+
+            self.assertTrue(risk.circuit_breaker_triggered)
+            trip_calls = [
+                call for call in engine.alert_sink.notify.call_args_list
+                if call.args[1] == "circuit_breaker_triggered"
+            ]
+            self.assertEqual(len(trip_calls), 1)
+            store.close()
+
 
 if __name__ == "__main__":
     unittest.main()
