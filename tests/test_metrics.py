@@ -6,6 +6,7 @@ from pandas.testing import assert_frame_equal
 
 from core.metrics import (
     calculate_drawdown,
+    calculate_drawdown_events,
     calculate_equity_metrics,
     calculate_profit_factor,
     calculate_sharpe,
@@ -69,6 +70,57 @@ class TestP0Metrics(unittest.TestCase):
         opened = calculate_drawdown(pd.Series([100, 120, 90, 80], index=index[:4]))
         self.assertTrue(opened["is_open"])
         self.assertIsNone(opened["recovery"])
+
+    def test_drawdown_events_returns_empty_for_monotonic_equity(self):
+        index = pd.date_range("2024-01-01", periods=4, freq="D")
+        events = calculate_drawdown_events(pd.Series([100, 110, 120, 130], index=index))
+        self.assertEqual(events, [])
+
+    def test_drawdown_events_enumerates_every_separate_episode(self):
+        index = pd.date_range("2024-01-01", periods=8, freq="D")
+        equity = pd.Series([100, 120, 90, 100, 130, 80, 140, 140], index=index)
+        events = calculate_drawdown_events(equity)
+        self.assertEqual(len(events), 2)
+
+        first, second = events
+        self.assertEqual(first["peak"], index[1])
+        self.assertEqual(first["trough"], index[2])
+        self.assertEqual(first["recovery"], index[4])
+        self.assertAlmostEqual(first["depth_pct"], -0.25)
+        self.assertFalse(first["is_open"])
+
+        self.assertEqual(second["peak"], index[4])
+        self.assertEqual(second["trough"], index[5])
+        self.assertEqual(second["recovery"], index[6])
+        self.assertAlmostEqual(second["depth_pct"], (80 - 130) / 130)
+        self.assertFalse(second["is_open"])
+
+    def test_drawdown_events_last_episode_can_stay_open(self):
+        index = pd.date_range("2024-01-01", periods=4, freq="D")
+        events = calculate_drawdown_events(pd.Series([100, 120, 90, 80], index=index))
+        self.assertEqual(len(events), 1)
+        self.assertTrue(events[0]["is_open"])
+        self.assertIsNone(events[0]["recovery"])
+        self.assertEqual(events[0]["trough"], index[3])
+        self.assertAlmostEqual(events[0]["depth_pct"], -1 / 3)
+
+    def test_drawdown_events_min_depth_filters_shallow_episodes(self):
+        index = pd.date_range("2024-01-01", periods=8, freq="D")
+        equity = pd.Series([100, 120, 90, 100, 130, 80, 140, 140], index=index)
+        deep_only = calculate_drawdown_events(equity, min_depth_pct=0.30)
+        self.assertEqual(len(deep_only), 1)
+        self.assertEqual(deep_only[0]["peak"], index[4])
+
+    def test_drawdown_events_worst_episode_matches_calculate_drawdown(self):
+        index = pd.date_range("2024-01-01", periods=8, freq="D")
+        equity = pd.Series([100, 120, 90, 100, 130, 80, 140, 140], index=index)
+        summary = calculate_drawdown(equity)
+        events = calculate_drawdown_events(equity)
+        worst = min(events, key=lambda event: event["depth_pct"])
+        self.assertEqual(worst["peak"], summary["peak"])
+        self.assertEqual(worst["trough"], summary["trough"])
+        self.assertEqual(worst["recovery"], summary["recovery"])
+        self.assertAlmostEqual(worst["depth_pct"], summary["max_pct"])
 
 
 if __name__ == "__main__":

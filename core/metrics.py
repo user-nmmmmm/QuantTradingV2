@@ -78,6 +78,70 @@ def calculate_drawdown(equity: pd.Series) -> Dict[str, Any]:
             "is_open": recovery is None and float(valid.loc[trough]) < 0}
 
 
+def calculate_drawdown_events(
+    equity: pd.Series, min_depth_pct: float = 0.0
+) -> list[Dict[str, Any]]:
+    """Enumerate every peak-to-recovery drawdown episode (BM1).
+
+    ``calculate_drawdown`` reports only the single worst episode; this
+    enumerates all of them so each can be located and reasoned about
+    independently. An episode starts the instant equity first falls below a
+    prior peak and ends when equity recovers back to that peak (or remains
+    open at the series end). ``min_depth_pct`` filters out episodes shallower
+    than the given fraction (e.g. 0.01 drops sub-1% noise); it compares
+    against the unsigned depth.
+    """
+    clean = _clean_equity(equity)
+    if len(clean) < 2:
+        return []
+    values = clean.to_numpy()
+    rolling_peak = clean.cummax().to_numpy()
+    underwater = values < rolling_peak
+    index = clean.index
+    n = len(clean)
+    events: list[Dict[str, Any]] = []
+    i = 0
+    while i < n:
+        if not underwater[i]:
+            i += 1
+            continue
+        peak_pos = i - 1  # underwater[0] is always False (nothing precedes it).
+        peak_value = float(values[peak_pos])
+        trough_pos = i
+        j = i
+        while j < n and values[j] < peak_value:
+            if values[j] < values[trough_pos]:
+                trough_pos = j
+            j += 1
+        recovery_pos = j if j < n else None
+        end_pos = recovery_pos if recovery_pos is not None else n - 1
+        depth_amount = float(values[trough_pos] - peak_value)
+        depth_pct = depth_amount / peak_value if peak_value else None
+        events.append({
+            "peak": index[peak_pos], "peak_value": peak_value,
+            "trough": index[trough_pos], "trough_value": float(values[trough_pos]),
+            "recovery": index[recovery_pos] if recovery_pos is not None else None,
+            "depth_pct": depth_pct, "depth_amount": depth_amount,
+            "duration_periods": end_pos - peak_pos,
+            "duration_days": _elapsed_days(index[peak_pos], index[end_pos]),
+            "recovery_periods": (
+                recovery_pos - trough_pos if recovery_pos is not None else None
+            ),
+            "recovery_days": (
+                _elapsed_days(index[trough_pos], index[recovery_pos])
+                if recovery_pos is not None else None
+            ),
+            "is_open": recovery_pos is None,
+        })
+        i = recovery_pos if recovery_pos is not None else n
+    if min_depth_pct > 0:
+        events = [
+            event for event in events
+            if event["depth_pct"] is not None and abs(event["depth_pct"]) >= min_depth_pct
+        ]
+    return events
+
+
 def calculate_equity_metrics(equity_curve: pd.DataFrame) -> Dict[str, Any]:
     """Calculate P0 equity metrics without changing the input DataFrame."""
     if "equity" not in equity_curve.columns:
@@ -138,6 +202,7 @@ class Metrics:
     monthly_returns = staticmethod(monthly_returns)
     calculate_sharpe = staticmethod(calculate_sharpe)
     calculate_drawdown = staticmethod(calculate_drawdown)
+    calculate_drawdown_events = staticmethod(calculate_drawdown_events)
     calculate_equity_metrics = staticmethod(calculate_equity_metrics)
     calculate_profit_factor = staticmethod(calculate_profit_factor)
 
