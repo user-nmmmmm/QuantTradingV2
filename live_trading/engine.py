@@ -122,7 +122,12 @@ class LiveTradingEngine:
     def _set_health_assessment(self, assessment: HealthAssessment) -> None:
         self.health_assessment = assessment
         self._healthy = assessment.healthy
-        self._operational_state = "HEALTHY" if assessment.healthy else "RISK_HALTED"
+        breaker_active = bool(
+            getattr(self.risk_manager, "circuit_breaker_triggered", False)
+        )
+        self._operational_state = (
+            "HEALTHY" if assessment.healthy and not breaker_active else "RISK_HALTED"
+        )
         setter = getattr(self.risk_manager, "set_health_assessment", None)
         if callable(setter):
             setter(assessment)
@@ -199,7 +204,26 @@ class LiveTradingEngine:
     def _reset_daily_risk_if_needed(self, current_time: datetime) -> None:
         trading_day = current_time.date()
         if trading_day != self._current_trading_day:
-            self.risk_manager.reset_daily_breaker()
+            state_store = self._ensure_state_store()
+            persisted_day = state_store.get("circuit_breaker_day")
+            persisted_breaker = state_store.get("circuit_breaker", False)
+            if persisted_day == trading_day.isoformat() and bool(persisted_breaker):
+                # A process restart must not clear an intraday halt. The
+                # operator-visible JSON file is deliberately not authoritative;
+                # only the integrity-checked transactional store is restored.
+                self.risk_manager.circuit_breaker_triggered = True
+                self._operational_state = "RISK_HALTED"
+                logger.critical(
+                    "Restored active circuit breaker for trading_day=%s",
+                    trading_day.isoformat(),
+                )
+                self._alert("critical", "circuit_breaker_restored", {
+                    "trading_day": trading_day.isoformat(),
+                })
+            else:
+                self.risk_manager.reset_daily_breaker()
+                state_store.set("circuit_breaker", False)
+                state_store.set("circuit_breaker_day", trading_day.isoformat())
             self._current_trading_day = trading_day
 
     def initialize(self):
@@ -354,7 +378,9 @@ class LiveTradingEngine:
             self._snapshot.equity, float(daily_start)
         )
         state_store.set("circuit_breaker", bool(breaker))
+        state_store.set("circuit_breaker_day", now.date().isoformat())
         if breaker:
+            self._operational_state = "RISK_HALTED"
             logger.critical("Trading disabled: daily circuit breaker active")
             self._alert("critical", "circuit_breaker_triggered", {
                 "equity": self._snapshot.equity,

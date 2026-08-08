@@ -13,6 +13,7 @@ from core.live_safety import (
     verify_live_permissions,
 )
 from core.persistent_risk_guard import PersistentOrderSafetyGuard
+from core.startup_preflight import build_startup_report, write_startup_report
 from core.safe_live_broker import SafeLiveBroker
 from core.system_factory import build_risk_manager, build_strategy_registry
 from live_trading.engine import LiveTradingEngine
@@ -41,10 +42,17 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["spot", "future", "futures", "swap", "margin"],
     )
     parser.add_argument("--base-currency", default="USDT")
+    parser.add_argument(
+        "--preflight-only", action="store_true",
+        help="Connect, write the startup report, and exit before the main loop",
+    )
+    parser.add_argument(
+        "--preflight-report", default="reports/startup_preflight.json",
+    )
     return parser
 
 
-def main() -> None:
+def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
 
@@ -85,7 +93,7 @@ def main() -> None:
             parser.error(str(exc))
 
     logger.info(
-        "Startup checks passed: mode=%s exchange=%s account_type=%s symbols=%s base_currency=%s",
+        "Startup policy configured: mode=%s exchange=%s account_type=%s symbols=%s base_currency=%s",
         "LIVE" if args.live else "SANDBOX",
         args.exchange,
         args.market_type,
@@ -101,11 +109,25 @@ def main() -> None:
     )
     try:
         engine.initialize()
+        report = build_startup_report(policy, credentials, engine)
+        report_path = write_startup_report(report, args.preflight_report)
+        if not report["ok"]:
+            logger.critical(
+                "Startup health baseline failed; report=%s reason_codes=%s",
+                report_path,
+                ",".join(report["health_reason_codes"]) or "STARTUP_CHECK_FAILED",
+            )
+            return 2
+        logger.info("Startup health baseline passed; report=%s", report_path)
+        if args.preflight_only:
+            logger.info("Preflight-only run completed; main loop was not started")
+            return 0
         engine.run()
+        return 0
     finally:
         broker.close()
         safety_guard.close()
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

@@ -17,19 +17,49 @@ def recent_alerts(path: str, limit: int = 10) -> list[dict[str, Any]]:
     with alert_path.open("r", encoding="utf-8") as handle:
         for line in handle:
             try:
-                alerts.append(json.loads(line))
+                record = json.loads(line)
+                if isinstance(record, dict):
+                    alerts.append(record)
             except (json.JSONDecodeError, TypeError):
                 continue
     return list(alerts)
 
 
+def _invalid_dashboard(alerts_path: str, alert_limit: int) -> dict[str, Any]:
+    """Return no financial facts when the status snapshot is untrustworthy."""
+    return {
+        "status_valid": False,
+        "timestamp": None,
+        "equity": None,
+        "cash": None,
+        "positions": {},
+        "healthy": False,
+        "operational_state": "RISK_HALTED",
+        "health_reason_codes": ["STATUS_FILE_INVALID"],
+        "health_reasons": [{
+            "code": "STATUS_FILE_INVALID",
+            "subject": "live_status.json",
+            "message": "status snapshot is missing, malformed, or has an invalid schema",
+        }],
+        "recent_alerts": recent_alerts(alerts_path, alert_limit),
+    }
+
+
 def load_dashboard(
     status_path: str, alerts_path: str, *, alert_limit: int = 10,
 ) -> dict[str, Any]:
-    with open(status_path, "r", encoding="utf-8") as handle:
-        status = json.load(handle)
+    try:
+        with open(status_path, "r", encoding="utf-8") as handle:
+            status = json.load(handle)
+    except (OSError, UnicodeError, json.JSONDecodeError, TypeError):
+        return _invalid_dashboard(alerts_path, alert_limit)
+    if not isinstance(status, dict) or not isinstance(status.get("healthy"), bool):
+        return _invalid_dashboard(alerts_path, alert_limit)
     health = status.get("health_assessment") or {}
+    if not isinstance(health, dict):
+        return _invalid_dashboard(alerts_path, alert_limit)
     return {
+        "status_valid": True,
         "timestamp": status.get("last_update") or status.get("timestamp"),
         "equity": status.get("equity"),
         "cash": status.get("cash"),
@@ -97,7 +127,7 @@ def main() -> int:
         args.status, args.alerts, alert_limit=args.alert_limit,
     )
     print(json.dumps(data, indent=2, sort_keys=True) if args.json else render_text(data))
-    return 0
+    return 0 if data["status_valid"] else 2
 
 
 if __name__ == "__main__":
