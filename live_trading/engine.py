@@ -168,6 +168,9 @@ class LiveTradingEngine:
             )
             self._alert("critical", "risk_halt", {
                 "reason_codes": assessment.reason_codes,
+                "reasons": sorted(
+                    {(r.code, r.subject) for r in assessment.reasons}
+                ),
                 "assessed_at": assessment.assessed_at,
             })
         else:

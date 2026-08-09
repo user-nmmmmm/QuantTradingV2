@@ -453,7 +453,7 @@ class Broker:
             "qty": fill_qty,
             "fill_price": fill_price,
             "commission": commission,
-            "slip": price * total_slip_rate,
+            "slip": abs(fill_price - price),
             "slip_dir": slip_dir,
             "strategy_id": order.strategy_id,
             "exit_reason": order.exit_reason,
