@@ -403,6 +403,374 @@ def calculate_signal_funnel(events: Iterable[Any]) -> Dict[str, Any]:
     return {"total_correlation_chains": total, "stages": stages}
 
 
+def calculate_cost_sensitivity(
+    trades: Iterable[Mapping[str, Any]],
+    commission_multipliers: Iterable[float] = (0.5, 1.0, 1.5, 2.0),
+    slippage_multipliers: Iterable[float] = (0.5, 1.0, 1.5, 2.0),
+) -> Dict[str, Any]:
+    """Net-PnL sensitivity to commission/slippage assumptions (BM4).
+
+    Each trade must provide ``gross_pnl``, ``commission``, ``slippage``
+    (missing ones default to 0.0). The realized order flow — fill prices
+    and quantities — is held fixed; this rescales the recorded cost
+    components by each multiplier rather than re-simulating execution, so
+    it is a first-order sensitivity, not a new backtest. Net PnL under a
+    multiplier is ``gross_pnl - commission*commission_multiplier -
+    slippage*slippage_multiplier``: by construction this is monotonically
+    non-increasing as either multiplier grows, so a grid point with higher
+    net PnL than a lower-multiplier point indicates bad input data, not a
+    real cost benefit.
+
+    Costs such as funding/borrow fees or market impact beyond the recorded
+    slippage are not modeled here — this only scales the two cost fields
+    it is given.
+    """
+    records = list(trades)
+    if not records:
+        return {"status": "insufficient", "sample_size": 0, "grid": []}
+
+    gross = float(sum(float(t.get("gross_pnl", 0.0)) for t in records))
+    total_commission = float(sum(float(t.get("commission", 0.0)) for t in records))
+    total_slippage = float(sum(float(t.get("slippage", 0.0)) for t in records))
+
+    grid = []
+    for c_mult in commission_multipliers:
+        for s_mult in slippage_multipliers:
+            net = gross - total_commission * c_mult - total_slippage * s_mult
+            grid.append({
+                "commission_multiplier": float(c_mult),
+                "slippage_multiplier": float(s_mult),
+                "net_pnl": float(net),
+            })
+    return {
+        "status": "ok", "sample_size": len(records), "gross_pnl": gross,
+        "baseline_commission": total_commission, "baseline_slippage": total_slippage,
+        "baseline_net_pnl": gross - total_commission - total_slippage,
+        "grid": grid,
+        "unmodeled_note": (
+            "commission and slippage only; funding/borrow fees and market "
+            "impact beyond recorded slippage are not modeled"
+        ),
+    }
+
+
+def calculate_attribution(trades: Iterable[Mapping[str, Any]]) -> Dict[str, Any]:
+    """Return-contribution breakdown by strategy, symbol, and month (BM5).
+
+    Requires ``net_pnl`` on every trade; ``strategy``/``symbol`` missing on
+    a trade group it under ``"UNKNOWN"`` rather than dropping it, and month
+    is derived from ``exit_time`` (``"UNKNOWN"`` if absent/unparseable). A
+    partition never loses or double-counts a trade, so each breakdown's
+    values always sum back to ``total_net_pnl`` exactly.
+    """
+    records = list(trades)
+    total = float(sum(float(t.get("net_pnl", 0.0)) for t in records))
+
+    def _group_by(key_fn) -> Dict[str, float]:
+        groups: Dict[str, float] = {}
+        for trade in records:
+            key = key_fn(trade)
+            groups[key] = groups.get(key, 0.0) + float(trade.get("net_pnl", 0.0))
+        return groups
+
+    def _month_key(trade: Mapping[str, Any]) -> str:
+        exit_time = trade.get("exit_time")
+        if exit_time is None:
+            return "UNKNOWN"
+        timestamp = pd.Timestamp(exit_time)
+        return "UNKNOWN" if pd.isna(timestamp) else timestamp.strftime("%Y-%m")
+
+    return {
+        "sample_size": len(records),
+        "total_net_pnl": total,
+        "by_strategy": _group_by(lambda t: str(t.get("strategy") or "UNKNOWN")),
+        "by_symbol": _group_by(lambda t: str(t.get("symbol") or "UNKNOWN")),
+        "by_month": _group_by(_month_key),
+    }
+
+
+def calculate_benchmark_comparison(equity: pd.Series, benchmark: pd.Series) -> Dict[str, Any]:
+    """Strategy vs. benchmark total return over their overlapping index (BM6).
+
+    Aligns on the intersection of both indices (inner join); periods where
+    either series is missing are dropped rather than filled, since filling
+    would fabricate a return that never happened.
+    """
+    strategy = _clean_equity(equity)
+    bench = _clean_equity(benchmark)
+    common_index = strategy.index.intersection(bench.index).sort_values()
+    if len(common_index) < 2:
+        return {"status": "insufficient", "sample_size": int(len(common_index)),
+                "strategy_return": None, "benchmark_return": None,
+                "excess_return": None, "correlation": None}
+    strategy = strategy.loc[common_index]
+    bench = bench.loc[common_index]
+    strategy_returns = strategy.pct_change(fill_method=None).dropna()
+    bench_returns = bench.pct_change(fill_method=None).dropna()
+    return_index = strategy_returns.index.intersection(bench_returns.index)
+    strategy_return = float(strategy.iloc[-1] / strategy.iloc[0] - 1)
+    benchmark_return = float(bench.iloc[-1] / bench.iloc[0] - 1)
+    correlation = (
+        float(strategy_returns.loc[return_index].corr(bench_returns.loc[return_index]))
+        if len(return_index) >= 2 else None
+    )
+    return {
+        "status": "ok", "sample_size": int(len(common_index)),
+        "strategy_return": strategy_return, "benchmark_return": benchmark_return,
+        "excess_return": strategy_return - benchmark_return, "correlation": correlation,
+    }
+
+
+def calculate_rolling_returns(equity: pd.Series, window: int) -> pd.Series:
+    """Trailing (never forward-looking) rolling total return over ``window`` periods (BM6)."""
+    if window < 1:
+        raise ValueError("window must be at least 1")
+    clean = _clean_equity(equity)
+    if len(clean) <= window:
+        return pd.Series(dtype=float, name="rolling_return")
+    result = (clean / clean.shift(window) - 1).dropna()
+    result.name = "rolling_return"
+    return result
+
+
+def calculate_segment_returns(equity: pd.Series, segments: int) -> list[Dict[str, Any]]:
+    """Split the equity curve into ``segments`` contiguous, non-overlapping chunks (BM6).
+
+    Boundaries are index positions, not calendar-aware, so this is a coarse
+    "did performance hold up across equal-sized chunks of the sample"
+    check, not a calendar-period breakdown (use resampling for that).
+    """
+    if segments < 1:
+        raise ValueError("segments must be at least 1")
+    clean = _clean_equity(equity)
+    n = len(clean)
+    if n < segments + 1:
+        return []
+    boundaries = np.linspace(0, n - 1, segments + 1).astype(int)
+    results = []
+    for i in range(segments):
+        start_pos, end_pos = int(boundaries[i]), int(boundaries[i + 1])
+        if start_pos == end_pos:
+            continue
+        start_value, end_value = float(clean.iloc[start_pos]), float(clean.iloc[end_pos])
+        results.append({
+            "segment": i + 1, "start": clean.index[start_pos], "end": clean.index[end_pos],
+            "return": (end_value / start_value - 1) if start_value else None,
+            "sample_size": end_pos - start_pos + 1,
+        })
+    return results
+
+
+def calculate_r_multiple_stats(trades: Iterable[Mapping[str, Any]]) -> Dict[str, Any]:
+    """R-Multiple distribution, System Quality Number, and MAE/MFE summary (BM7).
+
+    A trade's R-multiple is ``net_pnl / initial_risk``, where
+    ``initial_risk`` is the caller-supplied $ amount risked at entry (e.g.
+    qty * |entry_price - stop_price|). Trades missing ``initial_risk`` (or
+    with a non-positive one) cannot have an R-multiple and are excluded
+    from that statistic — reported via ``excluded_no_initial_risk`` rather
+    than silently dropped or coerced to R=0. ``mae``/``mfe`` (maximum
+    adverse/favorable excursion) are optional per-trade fields this only
+    summarizes; it does not derive them from a price path, since that needs
+    bar-by-bar prices during the holding period that closed-trade records
+    don't carry here.
+    """
+    records = list(trades)
+    r_multiples = []
+    excluded = 0
+    for trade in records:
+        risk = trade.get("initial_risk")
+        if risk is None or float(risk) <= 0:
+            excluded += 1
+            continue
+        r_multiples.append(float(trade["net_pnl"]) / float(risk))
+    r_values = np.array(r_multiples, dtype=float)
+
+    if len(r_values) < 2:
+        r_stats: Dict[str, Any] = {
+            "status": "insufficient", "sample_size": int(len(r_values)),
+            "mean_r": float(r_values.mean()) if len(r_values) else None,
+            "std_r": None, "sqn": None,
+        }
+    else:
+        std_r = float(r_values.std(ddof=1))
+        mean_r = float(r_values.mean())
+        sqn = None if np.isclose(std_r, 0.0) else float(np.sqrt(len(r_values)) * mean_r / std_r)
+        r_stats = {"status": "ok", "sample_size": int(len(r_values)),
+                   "mean_r": mean_r, "std_r": std_r, "sqn": sqn}
+
+    def _summary(values: list[float]) -> Dict[str, Any]:
+        if not values:
+            return {"status": "insufficient", "sample_size": 0, "mean": None, "median": None}
+        arr = np.array(values, dtype=float)
+        return {"status": "ok", "sample_size": int(len(arr)),
+                "mean": float(arr.mean()), "median": float(np.median(arr))}
+
+    return {
+        "sample_size": len(records), "excluded_no_initial_risk": excluded,
+        "r_multiple": r_stats,
+        "mae": _summary([float(t["mae"]) for t in records if t.get("mae") is not None]),
+        "mfe": _summary([float(t["mfe"]) for t in records if t.get("mfe") is not None]),
+    }
+
+
+def train_test_split_returns(returns: pd.Series, train_fraction: float = 0.7) -> Dict[str, pd.Series]:
+    """Chronological (never shuffled) split of a return series into train/test (BM8).
+
+    ``train_fraction`` is applied by position, not by calendar date. A
+    random/shuffled split would leak future information into "train" and
+    defeat the point of an out-of-sample test.
+    """
+    if not 0 < train_fraction < 1:
+        raise ValueError("train_fraction must be between 0 and 1 exclusive")
+    clean = pd.Series(returns).dropna()
+    split_pos = int(len(clean) * train_fraction)
+    return {"train": clean.iloc[:split_pos], "test": clean.iloc[split_pos:]}
+
+
+def walk_forward_windows(
+    n_periods: int, train_size: int, test_size: int, step: Optional[int] = None,
+) -> list[Dict[str, int]]:
+    """Chronological, non-anticipating walk-forward window boundaries (BM8).
+
+    Returns index-position boundaries only (train_start/train_end/
+    test_start/test_end); the caller applies them to whatever series it is
+    validating. Every test window starts exactly where its train window
+    ends — there is no gap and no overlap between a window's train and
+    test portions — and ``step`` (default ``test_size``, i.e. non-
+    overlapping test windows) controls how far the next window slides.
+    """
+    if train_size < 1 or test_size < 1:
+        raise ValueError("train_size and test_size must be at least 1")
+    step = test_size if step is None else step
+    if step < 1:
+        raise ValueError("step must be at least 1")
+    windows = []
+    train_start = 0
+    while train_start + train_size + test_size <= n_periods:
+        train_end = train_start + train_size
+        test_end = train_end + test_size
+        windows.append({
+            "train_start": train_start, "train_end": train_end,
+            "test_start": train_end, "test_end": test_end,
+        })
+        train_start += step
+    return windows
+
+
+def bootstrap_return_distribution(
+    returns: Iterable[float], statistic: str = "mean",
+    n_samples: int = 2000, confidence: float = 0.95, seed: int = 42,
+) -> Dict[str, Any]:
+    """Bootstrap confidence interval for a return-series statistic (BM8).
+
+    i.i.d. resampling with replacement — this does not model serial
+    correlation, so treat the interval as a lower bound on true uncertainty
+    for autocorrelated return series, not an exact one. ``statistic`` is
+    ``"mean"`` or ``"sharpe"`` (per-resample mean/std, unannualized —
+    annualize the bounds yourself with the correct periods_per_year if
+    comparing to an annualized Sharpe elsewhere). ``seed`` is fixed for
+    reproducibility, matching this module's existing profit-factor
+    bootstrap.
+    """
+    if statistic not in {"mean", "sharpe"}:
+        raise ValueError("statistic must be 'mean' or 'sharpe'")
+    values = np.asarray(list(returns), dtype=float)
+    values = values[np.isfinite(values)]
+    if len(values) < 2 or not 0 < confidence < 1:
+        return {"status": "insufficient", "sample_size": int(len(values)),
+                "value": None, "lower": None, "upper": None}
+    rng = np.random.default_rng(seed)
+    samples = rng.choice(values, size=(n_samples, len(values)), replace=True)
+    if statistic == "mean":
+        stat_values = samples.mean(axis=1)
+        point: Optional[float] = float(values.mean())
+    else:
+        means = samples.mean(axis=1)
+        stds = samples.std(axis=1, ddof=1)
+        stat_values = np.divide(
+            means, stds, out=np.full_like(means, np.nan), where=stds > 0,
+        )
+        stat_values = stat_values[np.isfinite(stat_values)]
+        point_std = float(values.std(ddof=1))
+        point = float(values.mean() / point_std) if point_std > 0 else None
+    if len(stat_values) == 0:
+        return {"status": "undefined", "sample_size": int(len(values)),
+                "value": point, "lower": None, "upper": None}
+    alpha = (1 - confidence) / 2
+    return {"status": "ok", "sample_size": int(len(values)), "value": point,
+            "lower": float(np.quantile(stat_values, alpha)),
+            "upper": float(np.quantile(stat_values, 1 - alpha))}
+
+
+def monte_carlo_trade_sequence(
+    trade_pnls: Iterable[float], n_simulations: int = 2000, seed: int = 42,
+) -> Dict[str, Any]:
+    """Monte Carlo reordering of realized trade PnLs to estimate sequence risk (BM8).
+
+    Shuffles the SAME realized trade outcomes (sampling without
+    replacement, i.e. permutation) to build a distribution of cumulative-
+    PnL paths, then reports the distribution of final PnL and of maximum
+    drawdown across simulated orderings. This tests sequence risk given
+    trades that already happened — it invents no new trade outcomes, so it
+    says nothing about whether these trades would repeat.
+    """
+    values = np.asarray(list(trade_pnls), dtype=float)
+    values = values[np.isfinite(values)]
+    if len(values) < 2:
+        return {"status": "insufficient", "sample_size": int(len(values))}
+    rng = np.random.default_rng(seed)
+    final_pnls = np.empty(n_simulations)
+    max_drawdowns = np.empty(n_simulations)
+    for i in range(n_simulations):
+        cumulative = np.cumsum(rng.permutation(values))
+        final_pnls[i] = cumulative[-1]
+        running_peak = np.maximum.accumulate(np.concatenate(([0.0], cumulative)))[1:]
+        max_drawdowns[i] = (cumulative - running_peak).min()
+    return {
+        "status": "ok", "sample_size": int(len(values)), "n_simulations": n_simulations,
+        "realized_final_pnl": float(values.sum()),
+        "final_pnl_mean": float(final_pnls.mean()),
+        "final_pnl_p05": float(np.quantile(final_pnls, 0.05)),
+        "final_pnl_p95": float(np.quantile(final_pnls, 0.95)),
+        "max_drawdown_mean": float(max_drawdowns.mean()),
+        "max_drawdown_p05": float(np.quantile(max_drawdowns, 0.05)),
+    }
+
+
+def benjamini_hochberg(p_values: Iterable[float], fdr: float = 0.05) -> Dict[str, Any]:
+    """Benjamini-Hochberg FDR correction across multiple hypothesis tests (BM8).
+
+    Given raw p-values from independently tested hypotheses (e.g. one per
+    strategy variant tried), returns each hypothesis's FDR-adjusted p-value
+    and whether it survives the threshold. This is what makes "we tried N
+    variants and picked the best" defensible: without a multiple-testing
+    correction, the best of N random strategies looks significant purely
+    from search breadth, not genuine edge.
+    """
+    if not 0 < fdr < 1:
+        raise ValueError("fdr must be between 0 and 1 exclusive")
+    values = np.asarray(list(p_values), dtype=float)
+    n = len(values)
+    if n == 0:
+        return {"status": "insufficient", "sample_size": 0,
+                "adjusted_p_values": [], "rejected": [], "rejected_count": 0}
+    order = np.argsort(values)
+    ranked = values[order]
+    adjusted_ranked = ranked * n / (np.arange(n) + 1)
+    # Standard BH step-up: enforce monotonicity from the largest p-value down.
+    adjusted_ranked = np.minimum.accumulate(adjusted_ranked[::-1])[::-1]
+    adjusted_ranked = np.clip(adjusted_ranked, 0.0, 1.0)
+    adjusted = np.empty(n)
+    adjusted[order] = adjusted_ranked
+    rejected = [bool(p <= fdr) for p in adjusted]
+    return {
+        "status": "ok", "sample_size": n, "fdr": fdr,
+        "adjusted_p_values": [float(p) for p in adjusted],
+        "rejected": rejected, "rejected_count": int(sum(rejected)),
+    }
+
+
 class Metrics:
     infer_periods_per_year = staticmethod(infer_periods_per_year)
     monthly_returns = staticmethod(monthly_returns)
@@ -414,6 +782,17 @@ class Metrics:
     calculate_signal_funnel = staticmethod(calculate_signal_funnel)
     calculate_profit_factor = staticmethod(calculate_profit_factor)
     calculate_trade_quality = staticmethod(calculate_trade_quality)
+    calculate_cost_sensitivity = staticmethod(calculate_cost_sensitivity)
+    calculate_attribution = staticmethod(calculate_attribution)
+    calculate_benchmark_comparison = staticmethod(calculate_benchmark_comparison)
+    calculate_rolling_returns = staticmethod(calculate_rolling_returns)
+    calculate_segment_returns = staticmethod(calculate_segment_returns)
+    calculate_r_multiple_stats = staticmethod(calculate_r_multiple_stats)
+    train_test_split_returns = staticmethod(train_test_split_returns)
+    walk_forward_windows = staticmethod(walk_forward_windows)
+    bootstrap_return_distribution = staticmethod(bootstrap_return_distribution)
+    monte_carlo_trade_sequence = staticmethod(monte_carlo_trade_sequence)
+    benjamini_hochberg = staticmethod(benjamini_hochberg)
 
 
 def _clean_equity(equity: pd.Series) -> pd.Series:
