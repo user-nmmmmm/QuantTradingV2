@@ -49,3 +49,34 @@ python -m core.sqlite_backup restore reports/live_status_state.db.snapshots/live
 Stop the live engine before manual rollback. Backup and restore use SQLite's
 online backup API, validate `PRAGMA integrity_check`, and atomically replace the
 target during restore.
+
+## Telegram notifications
+
+Two independent channels, both driven by the same bot credentials:
+
+1. **Real-time critical alerts.** Set `TELEGRAM_BOT_TOKEN` and
+   `TELEGRAM_CHAT_ID` in the environment before starting the live engine.
+   `build_default_alert_sink()` (`core/alerting.py`) picks them up
+   automatically and adds a `TelegramAlertSink` alongside the existing
+   logging/JSONL/webhook sinks — halts, circuit-breaker trips, and
+   reconciliation discrepancies are pushed the moment they happen, subject
+   to the same `HysteresisAlertSink` de-duplication as every other channel.
+   No code change or extra flag is needed; omitting the two env vars just
+   skips this sink.
+
+2. **Periodic heartbeat**, independent of whether anything happened:
+
+   ~~~powershell
+   $env:TELEGRAM_BOT_TOKEN = "<bot token from @BotFather>"
+   $env:TELEGRAM_CHAT_ID = "<chat id — message the bot once, then check
+     https://api.telegram.org/bot<token>/getUpdates for the numeric id>"
+   python -m core.telegram_heartbeat --status reports/live_status.json --alerts reports/live_alerts.jsonl
+   ~~~
+
+   Schedule this on a timer (every 1-4 hours is typical for a sandbox soak
+   run) — Windows Task Scheduler, or `crontab`/`systemd timer` on Linux. It
+   reads the same `live_status.json`/`live_alerts.jsonl` the CLI dashboard
+   reads (never opens the state database) and posts equity, health state,
+   positions, and the last few alerts. Exit code 2 means the status
+   snapshot itself was invalid — a heartbeat still gets sent in that case,
+   saying exactly that, rather than silently going quiet.

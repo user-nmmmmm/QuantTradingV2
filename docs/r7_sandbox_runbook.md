@@ -1,13 +1,13 @@
 # R7 sandbox 长跑 runbook
 
-本文是 Windows PowerShell 下从零启动、监控、告警处置和安全停止的唯一操作步骤。R7 只允许交易所 sandbox/testnet；不要使用真实资金。所有命令都从仓库根目录 `D:\QauntTradingV1` 执行。
+本文是 Windows PowerShell 下从零启动、监控、告警处置和安全停止的唯一操作步骤。R7 只允许交易所 sandbox/testnet；不要使用真实资金。所有命令都从仓库根目录（本地克隆 `QuantTradingV2` 的路径，下文用 `<REPO_ROOT>` 表示）执行。
 
 ## 1. 一次性准备
 
-1. 安装 Python 3.9+，打开 PowerShell，并进入仓库：
+1. 安装 Python 3.9+，打开 PowerShell，并进入仓库（把 `<REPO_ROOT>` 换成你本地实际克隆路径）：
 
    ~~~powershell
-   Set-Location D:\QauntTradingV1
+   Set-Location <REPO_ROOT>
    py -m venv .venv
    .\.venv\Scripts\Activate.ps1
    python -m pip install -r requirements.txt
@@ -59,7 +59,7 @@ python run_live.py --sandbox --exchange binance --market-type spot --base-curren
 另开一个 PowerShell 窗口监控：
 
 ~~~powershell
-Set-Location D:\QauntTradingV1
+Set-Location <REPO_ROOT>
 .\.venv\Scripts\Activate.ps1
 python -m dashboard
 Get-Content reports/live_alerts.jsonl -Tail 20 -Wait

@@ -250,9 +250,12 @@ class LiveBroker:
 
         self.order_store.mark_submission_attempted(intent.client_order_id, self._now_iso())
         try:
-            payload = self._retry_exchange_call(
-                lambda: self.exchange.create_order(**prepared.request.as_kwargs())
-            )
+            # create_order is a non-idempotent write: a lost response after a
+            # successful submission is indistinguishable from a lost request.
+            # Retrying here could place a second live order, so an ambiguous
+            # failure is classified UNKNOWN once and resolved out-of-band by
+            # reconcile_order()'s idempotent fetch, never by resubmitting.
+            payload = self.exchange.create_order(**prepared.request.as_kwargs())
         except Exception as exc:
             code = classify_order_exception(exc)
             status = OrderStatus.UNKNOWN if is_ambiguous_error(code) else OrderStatus.REJECTED

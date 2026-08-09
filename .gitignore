@@ -24,6 +24,7 @@ docs/baselines/generated/
 *.py[cod]
 outputs/
 reports/*.db
+reports/*.jsonl
 reports/*/
 .codex_patch_probe
 .claude/settings.local.json

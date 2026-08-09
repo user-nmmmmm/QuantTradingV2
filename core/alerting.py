@@ -83,6 +83,52 @@ class WebhookAlertSink:
             response.read()
 
 
+class TelegramAlertSink:
+    """Telegram Bot API sink for real-time critical-event notifications."""
+
+    def __init__(
+        self, bot_token: str, chat_id: str, *, timeout_seconds: float = 5.0,
+    ) -> None:
+        if not bot_token:
+            raise ValueError("bot_token is required")
+        if not chat_id:
+            raise ValueError("chat_id is required")
+        self.bot_token = bot_token
+        self.chat_id = chat_id
+        self.timeout_seconds = timeout_seconds
+
+    def notify(self, level: str, event: str, context: Dict[str, Any]) -> None:
+        send_telegram_message(
+            self.bot_token, self.chat_id, format_telegram_alert(level, event, context),
+            timeout_seconds=self.timeout_seconds,
+        )
+
+
+def format_telegram_alert(level: str, event: str, context: Dict[str, Any]) -> str:
+    lines = [f"[{level.upper()}] {event}"]
+    for key, value in sorted(context.items()):
+        lines.append(f"{key}: {value}")
+    return "\n".join(lines)
+
+
+def send_telegram_message(
+    bot_token: str, chat_id: str, text: str, *, timeout_seconds: float = 5.0,
+) -> None:
+    """POST a plain-text message to a Telegram chat via the Bot API.
+
+    No parse_mode is set: the message is sent as literal text, so alert
+    context containing Markdown/HTML-special characters (e.g. "_", "<")
+    cannot break formatting or be misinterpreted as markup.
+    """
+    payload = json.dumps({"chat_id": chat_id, "text": text}).encode("utf-8")
+    request = urllib.request.Request(
+        f"https://api.telegram.org/bot{bot_token}/sendMessage",
+        data=payload, headers={"Content-Type": "application/json"}, method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
+        response.read()
+
+
 class CompositeAlertSink:
     """Fan out alerts without allowing one failed destination to block others."""
 
@@ -230,9 +276,13 @@ class HysteresisAlertSink:
 def build_default_alert_sink(
     logger: logging.Logger, *, record_path: str = "reports/live_alerts.jsonl",
 ) -> AlertSink:
-    """Build a durable local sink plus an optional external webhook sink."""
+    """Build a durable local sink plus optional external webhook/Telegram sinks."""
     sinks = [LoggingAlertSink(logger), JsonlAlertSink(record_path)]
     webhook_url = os.getenv("LIVE_ALERT_WEBHOOK_URL", "").strip()
     if webhook_url:
         sinks.append(WebhookAlertSink(webhook_url))
+    bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+    chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
+    if bot_token and chat_id:
+        sinks.append(TelegramAlertSink(bot_token, chat_id))
     return HysteresisAlertSink(CompositeAlertSink(sinks, logger))

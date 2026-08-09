@@ -374,6 +374,7 @@ class LiveTradingEngine:
         if daily_start is None:
             daily_start = self._snapshot.equity
             state_store.set(day_key, daily_start)
+        was_already_triggered = bool(self.risk_manager.circuit_breaker_triggered)
         breaker = self.risk_manager.check_circuit_breaker(
             self._snapshot.equity, float(daily_start)
         )
@@ -382,10 +383,14 @@ class LiveTradingEngine:
         if breaker:
             self._operational_state = "RISK_HALTED"
             logger.critical("Trading disabled: daily circuit breaker active")
-            self._alert("critical", "circuit_breaker_triggered", {
-                "equity": self._snapshot.equity,
-                "daily_start_equity": float(daily_start),
-            })
+            # Alert only on the trip itself, not every tick the halt stays
+            # active: equity moves every tick, which would otherwise defeat
+            # HysteresisAlertSink's dedup key and page on every interval.
+            if not was_already_triggered:
+                self._alert("critical", "circuit_breaker_triggered", {
+                    "equity": self._snapshot.equity,
+                    "daily_start_equity": float(daily_start),
+                })
             self._export_state()
             return
 

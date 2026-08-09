@@ -105,12 +105,17 @@ class TestG2LiveOrders(unittest.TestCase):
         self.assertEqual(reserved, {"BTC/USDT": 165.0})
 
     @patch("core.live_broker.ccxt")
-    def test_exchange_timeout_retries_then_queries_without_duplicate_intent(self, ccxt_mock):
+    def test_exchange_accepts_but_client_times_out_then_queries_without_retry(self, ccxt_mock):
+        # create_order is a non-idempotent write: a lost timeout response is
+        # indistinguishable from a lost request, so a second create_order
+        # call here could place a duplicate live order. The only safe path
+        # is a single attempt -> UNKNOWN -> resolve via an idempotent fetch.
         ccxt_mock.binance.return_value = self.exchange
         self.exchange.create_order.side_effect = TimeoutError("response lost")
         broker = self.broker()
         first = broker.submit_order("BTC/USDT", "buy", 1, 100, strategy_id="S")
         self.assertEqual(first.status, OrderStatus.UNKNOWN)
+        self.exchange.create_order.assert_called_once()
 
         self.exchange.fetch_order_by_client_order_id.return_value = {
             "id": "e1", "clientOrderId": first.client_order_id,
@@ -119,7 +124,7 @@ class TestG2LiveOrders(unittest.TestCase):
         recovered = broker.submit_order("BTC/USDT", "buy", 1, 100, strategy_id="S")
 
         self.assertEqual(recovered.status, OrderStatus.ACCEPTED)
-        self.assertEqual(self.exchange.create_order.call_count, 3)
+        self.exchange.create_order.assert_called_once()
         broker.close()
 
     @patch("core.live_broker.ccxt")
