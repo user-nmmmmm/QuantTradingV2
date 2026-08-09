@@ -1,5 +1,6 @@
 import math
 import unittest
+from types import SimpleNamespace
 
 import pandas as pd
 from pandas.testing import assert_frame_equal
@@ -8,8 +9,10 @@ from core.metrics import (
     calculate_drawdown,
     calculate_drawdown_events,
     calculate_equity_metrics,
+    calculate_exposure,
     calculate_profit_factor,
     calculate_sharpe,
+    calculate_signal_funnel,
     calculate_trade_quality,
     infer_periods_per_year,
     monthly_returns,
@@ -178,6 +181,88 @@ class TestP0Metrics(unittest.TestCase):
         self.assertAlmostEqual(result["by_strategy"]["A"]["net_pnl"], 60.0)
         self.assertEqual(set(result["by_symbol"]), {"BTC/USDT", "ETH/USDT"})
         self.assertAlmostEqual(result["by_symbol"]["ETH/USDT"]["net_pnl"], 30.0)
+
+    def test_exposure_computes_gross_net_and_equity_pct(self):
+        t1, t2, t3 = "2024-01-01", "2024-01-02", "2024-01-03"
+        positions = {
+            t1: {"BTC/USDT": 1.0, "ETH/USDT": -2.0},
+            t2: {"BTC/USDT": 0.0, "ETH/USDT": -1.0},
+            t3: {"BTC/USDT": 2.0},  # no matching price at t3
+        }
+        prices = {
+            t1: {"BTC/USDT": 100.0, "ETH/USDT": 50.0},
+            t2: {"ETH/USDT": 60.0},
+        }
+        equity = {t1: 1000.0, t2: 900.0, t3: 800.0}
+
+        frame = calculate_exposure(positions, prices, equity)
+
+        self.assertAlmostEqual(frame.loc[t1, "gross_exposure"], 200.0)
+        self.assertAlmostEqual(frame.loc[t1, "net_exposure"], 0.0)
+        self.assertEqual(frame.loc[t1, "priced_symbols"], 2)
+        self.assertAlmostEqual(frame.loc[t1, "gross_exposure_pct_equity"], 0.2)
+
+        self.assertAlmostEqual(frame.loc[t2, "gross_exposure"], 60.0)
+        self.assertAlmostEqual(frame.loc[t2, "net_exposure"], -60.0)
+        self.assertEqual(frame.loc[t2, "priced_symbols"], 1)
+
+        # Flat/unpriced positions contribute nothing but don't raise or
+        # silently mismeasure a book that actually holds risk.
+        self.assertAlmostEqual(frame.loc[t3, "gross_exposure"], 0.0)
+        self.assertEqual(frame.loc[t3, "priced_symbols"], 0)
+
+    def test_exposure_without_equity_leaves_pct_columns_none(self):
+        frame = calculate_exposure(
+            {"t1": {"BTC/USDT": 1.0}}, {"t1": {"BTC/USDT": 100.0}},
+        )
+        self.assertIsNone(frame.loc["t1", "gross_exposure_pct_equity"])
+
+    def test_exposure_handles_empty_input(self):
+        frame = calculate_exposure({}, {})
+        self.assertTrue(frame.empty)
+
+    def _funnel_event(self, correlation_id, event_type, **payload):
+        return SimpleNamespace(
+            correlation_id=correlation_id, event_type=event_type, payload=payload,
+        )
+
+    def test_signal_funnel_counts_each_stage_independently(self):
+        events = [
+            # Chain A: reaches every stage.
+            self._funnel_event("A", "risk_decision", approved=True),
+            self._funnel_event("A", "order_intent"),
+            self._funnel_event("A", "order", status="accepted"),
+            self._funnel_event("A", "fill"),
+            # Chain B: risk-rejected, goes no further.
+            self._funnel_event("B", "risk_decision", approved=False),
+            # Chain C: approved and an order was created, but never accepted
+            # by the venue (e.g. rejected on submission) or filled.
+            self._funnel_event("C", "risk_decision", approved=True),
+            self._funnel_event("C", "order_intent"),
+            self._funnel_event("C", "order", status="rejected"),
+        ]
+        result = calculate_signal_funnel(events)
+
+        self.assertEqual(result["total_correlation_chains"], 3)
+        stages = result["stages"]
+        self.assertEqual(stages["risk_evaluated"]["count"], 3)
+        self.assertEqual(stages["risk_approved"]["count"], 2)
+        self.assertEqual(stages["order_created"]["count"], 2)
+        self.assertEqual(stages["order_accepted"]["count"], 1)
+        self.assertEqual(stages["filled"]["count"], 1)
+
+        self.assertAlmostEqual(stages["risk_evaluated"]["pct_of_total"], 1.0)
+        self.assertAlmostEqual(stages["filled"]["pct_of_total"], 1 / 3)
+        self.assertIsNone(stages["risk_evaluated"]["pct_of_previous_stage"])
+        self.assertAlmostEqual(stages["risk_approved"]["pct_of_previous_stage"], 2 / 3)
+        self.assertAlmostEqual(stages["order_created"]["pct_of_previous_stage"], 1.0)
+        self.assertAlmostEqual(stages["filled"]["pct_of_previous_stage"], 1.0)
+
+    def test_signal_funnel_handles_empty_and_keyless_events(self):
+        self.assertEqual(calculate_signal_funnel([])["total_correlation_chains"], 0)
+        keyless = SimpleNamespace(correlation_id=None, event_type="fill", payload={})
+        result = calculate_signal_funnel([keyless])
+        self.assertEqual(result["total_correlation_chains"], 0)
 
 
 if __name__ == "__main__":

@@ -290,6 +290,119 @@ def _trade_quality_breakdown(
     return breakdown
 
 
+def calculate_exposure(
+    positions_by_time: Mapping[Any, Mapping[str, float]],
+    prices_by_time: Mapping[Any, Mapping[str, float]],
+    equity_by_time: Optional[Mapping[Any, float]] = None,
+) -> pd.DataFrame:
+    """Gross/net notional exposure per timestamp across symbols (BM3).
+
+    ``positions_by_time`` and ``prices_by_time`` are aligned by timestamp key
+    (e.g. a portfolio's position snapshot and the matching close prices at
+    each bar). Flat positions (qty == 0) never contribute. A symbol with a
+    position but no matching price at that timestamp is excluded from that
+    timestamp's totals rather than raising or being treated as zero-value —
+    a stale/missing price is common in live data and must not silently
+    understate exposure or crash the whole calculation; ``priced_symbols``
+    reports how many symbols actually contributed so a caller can tell an
+    empty book apart from an unpriced one.
+    """
+    rows = []
+    for timestamp, positions in positions_by_time.items():
+        prices = prices_by_time.get(timestamp, {})
+        gross = 0.0
+        net = 0.0
+        priced_symbols = 0
+        for symbol, qty in positions.items():
+            if not qty:
+                continue
+            price = prices.get(symbol)
+            if price is None:
+                continue
+            notional = float(qty) * float(price)
+            gross += abs(notional)
+            net += notional
+            priced_symbols += 1
+        equity = None if equity_by_time is None else equity_by_time.get(timestamp)
+        rows.append({
+            "timestamp": timestamp, "gross_exposure": gross, "net_exposure": net,
+            "priced_symbols": priced_symbols,
+            "gross_exposure_pct_equity": gross / equity if equity else None,
+            "net_exposure_pct_equity": net / equity if equity else None,
+        })
+    frame = pd.DataFrame(
+        rows, columns=["timestamp", "gross_exposure", "net_exposure",
+                       "priced_symbols", "gross_exposure_pct_equity", "net_exposure_pct_equity"],
+    )
+    if not frame.empty:
+        frame = frame.set_index("timestamp").sort_index()
+    return frame
+
+
+_FUNNEL_STAGES = ("risk_evaluated", "risk_approved", "order_created", "order_accepted", "filled")
+_ORDER_ACCEPTED_STATUSES = {"accepted", "partially_filled", "filled"}
+
+
+def calculate_signal_funnel(events: Iterable[Any]) -> Dict[str, Any]:
+    """Stage-by-stage conversion counts across the signal-to-fill chain (BM3).
+
+    Groups events by ``correlation_id`` — the deterministic ID every
+    downstream event in a signal's chain shares (P1.1.5) — and classifies
+    the stages each correlation group reached: risk evaluated -> risk
+    approved -> order created -> order accepted by the venue -> filled. Each
+    stage is counted independently (a group counts at every stage it
+    reached), so this is a true funnel where every count is <= the one
+    before it.
+
+    Events are duck-typed (``correlation_id``/``event_type``/``payload``
+    attributes), so this accepts ``EventEnvelope`` instances or any
+    equivalent lightweight record without importing the events module.
+
+    Note: as of this writing, ``RiskDecision`` is a domain object but is not
+    yet published as a ``risk_decision`` event by the live/backtest
+    pipelines, so ``risk_evaluated``/``risk_approved`` will read 0 against a
+    real run's event log until that publishing is wired up. This function
+    only counts what it is given; it does not assume unpublished events.
+    """
+    groups: Dict[Any, Dict[str, bool]] = {}
+    for event in events:
+        key = getattr(event, "correlation_id", None)
+        if key is None:
+            continue
+        group = groups.setdefault(key, {stage: False for stage in _FUNNEL_STAGES})
+        event_type = getattr(event, "event_type", None)
+        payload = getattr(event, "payload", None) or {}
+        if event_type == "risk_decision":
+            group["risk_evaluated"] = True
+            if bool(payload.get("approved")):
+                group["risk_approved"] = True
+        elif event_type == "order_intent":
+            group["order_created"] = True
+        elif event_type == "order":
+            if str(payload.get("status", "")).lower() in _ORDER_ACCEPTED_STATUSES:
+                group["order_accepted"] = True
+        elif event_type == "fill":
+            group["filled"] = True
+
+    total = len(groups)
+    counts = {
+        stage: sum(1 for group in groups.values() if group[stage])
+        for stage in _FUNNEL_STAGES
+    }
+    stages: Dict[str, Any] = {}
+    prior_count = None
+    for stage in _FUNNEL_STAGES:
+        stages[stage] = {
+            "count": counts[stage],
+            "pct_of_total": counts[stage] / total if total else None,
+            "pct_of_previous_stage": (
+                counts[stage] / prior_count if prior_count else None
+            ),
+        }
+        prior_count = counts[stage]
+    return {"total_correlation_chains": total, "stages": stages}
+
+
 class Metrics:
     infer_periods_per_year = staticmethod(infer_periods_per_year)
     monthly_returns = staticmethod(monthly_returns)
@@ -297,6 +410,8 @@ class Metrics:
     calculate_drawdown = staticmethod(calculate_drawdown)
     calculate_drawdown_events = staticmethod(calculate_drawdown_events)
     calculate_equity_metrics = staticmethod(calculate_equity_metrics)
+    calculate_exposure = staticmethod(calculate_exposure)
+    calculate_signal_funnel = staticmethod(calculate_signal_funnel)
     calculate_profit_factor = staticmethod(calculate_profit_factor)
     calculate_trade_quality = staticmethod(calculate_trade_quality)
 
