@@ -433,16 +433,25 @@ class LiveTradingEngine:
     def _export_state(self):
         tmp_path = f"{self.state_file}.{os.getpid()}.tmp"
         try:
-            current_prices = {
-                symbol: frame["close"].iloc[-1]
-                for symbol, frame in self.data_map.items()
-                if not frame.empty
-            }
+            if self._snapshot is not None:
+                # Reuse the authoritative valuation already produced this
+                # tick instead of re-deriving equity from raw bar closes,
+                # which can disagree with the price rule risk decisions used.
+                cash = self._snapshot.cash
+                equity = self._snapshot.equity
+            else:
+                current_prices = {
+                    symbol: frame["close"].iloc[-1]
+                    for symbol, frame in self.data_map.items()
+                    if not frame.empty
+                }
+                cash = self.broker.portfolio.cash
+                equity = self.broker.portfolio.get_equity(current_prices)
             state_data = {
                 "schema_version": 1,
                 "timestamp": self._now().strftime("%Y-%m-%d %H:%M:%S"),
-                "cash": self.broker.portfolio.cash,
-                "equity": self.broker.portfolio.get_equity(current_prices),
+                "cash": cash,
+                "equity": equity,
                 "positions": self.broker.portfolio.positions,
                 "symbols": self.symbols,
                 "last_update": self._now().isoformat(),

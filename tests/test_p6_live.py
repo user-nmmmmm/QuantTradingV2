@@ -125,6 +125,21 @@ class TestLiveTrading(unittest.TestCase):
         broker.close()
 
     @patch("core.live_broker.ccxt")
+    def test_broker_sync_futures_fails_closed_when_no_position_source_exists(self, mock_ccxt):
+        self.mock_exchange.fetch_balance.return_value = {
+            "total": {"USDT": 15000.0}, "free": {"USDT": 12000.0}
+        }
+        del self.mock_exchange.fetch_positions
+        mock_ccxt.binance.return_value = self.mock_exchange
+        broker = LiveBroker(self.portfolio, exchange_id="binance", market_type="future")
+
+        result = broker.sync()
+
+        self.assertFalse(result.ok)
+        self.assertNotIn("BTC/USDT", self.portfolio.positions)
+        broker.close()
+
+    @patch("core.live_broker.ccxt")
     def test_broker_submit_order(self, mock_ccxt):
         mock_ccxt.binance.return_value = self.mock_exchange
 

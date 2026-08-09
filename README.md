@@ -36,6 +36,8 @@ python -m venv .venv
 source .venv/bin/activate
 
 pip install -r requirements.txt
+# 运行测试套件（pytest）额外需要开发依赖：
+pip install -r requirements-dev.txt
 ```
 
 ### 2) 运行回测（推荐从 Synthetic 开始）
@@ -180,7 +182,8 @@ QauntTrading/
 ## 测试
 
 ```bash
-python -m unittest discover -s tests -p "test_*.py"
+pip install -r requirements-dev.txt
+python -m pytest -q
 ```
 
 ---

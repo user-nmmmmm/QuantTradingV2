@@ -731,12 +731,24 @@ class LiveBroker:
         return positions
 
     def _sync_derivatives_positions(self, balance: Dict[str, Any]) -> Dict[str, Dict[str, float]]:
-        raw_positions = []
         fetch_positions = getattr(self.exchange, "fetch_positions", None)
+        info = balance.get("info", {}) if isinstance(balance, dict) else {}
         if callable(fetch_positions):
+            # An explicit, even empty, response from the dedicated endpoint is
+            # an authoritative fact: genuinely flat.
             raw_positions = fetch_positions() or []
-        if not raw_positions:
-            raw_positions = balance.get("positions", []) or balance.get("info", {}).get("positions", [])
+        elif isinstance(balance, dict) and "positions" in balance:
+            raw_positions = balance.get("positions") or []
+        elif isinstance(info, dict) and "positions" in info:
+            raw_positions = info.get("positions") or []
+        else:
+            # No source at all exposes derivative positions; treating this as
+            # "flat" would let trading continue on an unverified fake empty
+            # snapshot. Fail closed instead.
+            raise ValueError(
+                "exchange does not expose derivative positions via fetch_positions "
+                "or balance payload; cannot verify account fact"
+            )
         positions: Dict[str, Dict[str, float]] = {}
         for raw in raw_positions:
             parsed = self.exchange_boundary.position_parser.parse(raw)

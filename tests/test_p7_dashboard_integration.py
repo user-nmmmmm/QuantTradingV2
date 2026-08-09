@@ -1,4 +1,5 @@
 import unittest
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 import json
 import os
@@ -10,6 +11,7 @@ import pandas as pd
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from live_trading.engine import LiveTradingEngine
+from core.domain import PortfolioSnapshot
 from core.portfolio import Portfolio
 from core.risk import RiskManager
 
@@ -65,6 +67,33 @@ class TestDashboardIntegration(unittest.TestCase):
         self.assertEqual(data["positions"]["BTC/USDT"]["qty"], 1.0)
         # Equity = 10000 + 1.0 * 50000 = 60000
         self.assertEqual(data["equity"], 60000.0)
+
+    def test_state_export_reuses_authoritative_snapshot(self):
+        # Once a tick has produced a valuation snapshot, the exported
+        # status must match it rather than re-deriving equity from raw
+        # bar closes under a different price rule.
+        if os.path.exists(self.engine.state_file):
+            os.remove(self.engine.state_file)
+
+        self.engine._snapshot = PortfolioSnapshot(
+            cash=10000.0,
+            equity=51000.0,
+            gross_exposure=51000.0,
+            net_exposure=51000.0,
+            prices={"BTC/USDT": 41000.0},
+            price_times={"BTC/USDT": datetime.now(timezone.utc)},
+            synced_at=datetime.now(timezone.utc),
+        )
+
+        self.engine._export_state()
+
+        with open(self.engine.state_file, "r") as f:
+            data = json.load(f)
+
+        # Not 60000.0 (the data_map-derived value from setUp) — the
+        # snapshot's own cash/equity must win.
+        self.assertEqual(data["cash"], 10000.0)
+        self.assertEqual(data["equity"], 51000.0)
 
 
 if __name__ == "__main__":

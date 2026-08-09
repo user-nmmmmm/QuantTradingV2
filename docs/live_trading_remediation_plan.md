@@ -367,7 +367,8 @@ G6 + G7 + G8 + G9 全部达标后，才允许进入 G10 小额真实资金灰度
 - [√] 移除未接入主链路的 `archive/` 旧实现和根目录 `all.txt`；
 - [ ] 标记 production、research、generated 和 deprecated 目录；
 - [ ] 研究脚本复用正式回测执行与成本模型；
-- [√] `models/`、`dashboard/` 空壳包已删除（无代码引用，未来若需 ML/Dashboard 能力再重新设计）。
+- [√] `models/` 空壳包已删除（无代码引用，未来若需 ML 能力再重新设计）；
+- [√] `dashboard/` 已从空壳包重建为只读运维 CLI（`dashboard/__main__.py`，消费 `live_status.json` 与 `live_alerts.jsonl`，不作为权威账本）。
 
 ### 退出条件
 

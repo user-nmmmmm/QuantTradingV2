@@ -13,6 +13,7 @@ venv/
 reports/live_status.json
 reports/live_status_state.db
 reports/routing_log.csv
+reports/live_alerts.jsonl
 
 # Batch 0 regression harness output (fixtures themselves are versioned)
 tests/.generated/

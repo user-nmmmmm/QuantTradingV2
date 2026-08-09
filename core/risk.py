@@ -171,9 +171,16 @@ class RiskManager:
         
         # Current exposure
         if current_prices is None:
-            # 若缺少市价，Portfolio 内部会用 avg_price 回退估值（较粗略）
-            current_exposure = portfolio.get_total_exposure({}) 
-            current_equity = portfolio.get_total_value({})
+            if portfolio.positions:
+                # No price map means existing positions can only be valued
+                # via stale avg_price, which would understate/overstate real
+                # exposure. Fail closed instead of risking a silent misread.
+                logger.warning(
+                    "Trade Rejected: no current prices supplied to value existing positions"
+                )
+                return False
+            current_exposure = 0.0
+            current_equity = portfolio.cash
         else:
             current_exposure = portfolio.get_total_exposure(current_prices)
             current_equity = portfolio.get_total_value(current_prices)

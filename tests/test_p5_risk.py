@@ -101,6 +101,25 @@ class TestRiskManager(unittest.TestCase):
 
         self.assertFalse(allowed, "Pending entry exposure must be reserved")
 
+    def test_no_price_map_rejects_when_positions_are_open(self):
+        self.portfolio.positions = {"BTC": {"qty": 1.0, "avg_price": 100.0}}
+
+        allowed = self.risk_manager.check_entry_risk(
+            self.portfolio, "BTC", qty=1.0, price=100.0,
+        )
+
+        self.assertFalse(
+            allowed,
+            "Cannot verify exposure of existing positions without current prices",
+        )
+
+    def test_no_price_map_allows_flat_portfolio(self):
+        allowed = self.risk_manager.check_entry_risk(
+            self.portfolio, "BTC", qty=1.0, price=100.0,
+        )
+
+        self.assertTrue(allowed)
+
     def test_reset_daily_breaker(self):
         self.risk_manager.circuit_breaker_triggered = True
 
