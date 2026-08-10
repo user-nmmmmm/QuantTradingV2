@@ -14,6 +14,9 @@ from core.data_fetcher import DataFetcher
 from core.data import DataHandler
 from backtest.engine import BacktestEngine
 from backtest.reporting import ReportGenerator
+from core.logger import get_logger
+
+logger = get_logger(__name__)
 
 """
 项目入口（回测 CLI）
@@ -285,8 +288,8 @@ def main():
         if os.path.exists(temp_routing_log):
             try:
                 os.remove(temp_routing_log)
-            except:
-                pass
+            except OSError as e:
+                logger.warning("Failed to remove temp routing log %s: %s", temp_routing_log, e)
         return
 
     # 3. Generate Report

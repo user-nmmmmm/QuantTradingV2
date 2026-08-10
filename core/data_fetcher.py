@@ -2,6 +2,7 @@ import os
 import time
 from datetime import datetime
 from typing import Optional, Union
+from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
@@ -40,19 +41,29 @@ class DataFetcher:
         self,
         proxy_url: Optional[str] = _UNSET,
         request_timeout_ms: int = 10000,
+        data_timezone: str = "Asia/Shanghai",
     ):
         """
         参数：
         - proxy_url：代理地址（默认指向本机常见代理端口）；若为 None，则不设置代理
+        - data_timezone：解析 start_date/end_date 字符串所用的时区（默认北京时间）。
+          交易所 K 线本身以 UTC 存储；这里只影响"日期字符串"的边界换算，
+          不再依赖运行机器的系统本地时区。
         """
         if proxy_url is _UNSET:
             proxy_url = os.getenv("QUANT_PROXY_URL")
 
         self.proxy_url = proxy_url
         self.request_timeout_ms = request_timeout_ms
+        self._tz = ZoneInfo(data_timezone)
 
         if self.proxy_url:
             logger.info("Using outbound proxy for data fetches: %s", self.proxy_url)
+
+    def _local_date_to_utc_ms(self, date_str: str) -> int:
+        """将 'YYYY-MM-DD' 按 self._tz 解释为当天 00:00:00，返回对应 UTC 毫秒时间戳。"""
+        local_ts = pd.Timestamp(date_str, tz=self._tz)
+        return int(local_ts.timestamp() * 1000)
 
     def _build_ccxt_proxies(self) -> Optional[dict]:
         """
@@ -266,8 +277,13 @@ class DataFetcher:
 
         since = None
         if start_date:
-            dt = datetime.strptime(start_date, "%Y-%m-%d")
-            since = int(dt.timestamp() * 1000)
+            since = self._local_date_to_utc_ms(start_date)
+
+        # 半开区间 [start, end_boundary)：end_boundary 是 end_date 次日 00:00（self._tz 下）
+        # 对应的 UTC 毫秒，避免用 "23:59:59.999" 拼凑终点导致精度/口径问题。
+        end_boundary_ms = None
+        if end_date:
+            end_boundary_ms = self._local_date_to_utc_ms(end_date) + 86_400_000
 
         all_ohlcv = []
         current_since = since
@@ -285,11 +301,8 @@ class DataFetcher:
             last_timestamp = ohlcv[-1][0]
             current_since = last_timestamp + 1
 
-            if end_date:
-                end_dt = datetime.strptime(end_date, "%Y-%m-%d")
-                end_ts = int(end_dt.timestamp() * 1000)
-                if last_timestamp >= end_ts:
-                    break
+            if end_boundary_ms is not None and last_timestamp >= end_boundary_ms:
+                break
 
             if len(ohlcv) < batch_limit:
                 break
@@ -312,8 +325,8 @@ class DataFetcher:
         )
         df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
         df.set_index("timestamp", inplace=True)
-        if end_date:
-            df = df[df.index <= end_date]
+        if end_boundary_ms is not None:
+            df = df[df.index < pd.Timestamp(end_boundary_ms, unit="ms")]
         return self._normalize(df)
 
     def generate_scenario(
@@ -398,11 +411,10 @@ class DataFetcher:
         df.columns = [c.lower() for c in df.columns]
         # Ensure required columns exist
         required = ["open", "high", "low", "close", "volume"]
+        missing = [col for col in required if col not in df.columns]
+        if missing:
+            raise ValueError(f"Missing required OHLCV column(s): {missing}")
         for col in required:
-            if col not in df.columns:
-                # Try to map similar names? For now just return as is
-                pass
-            else:
-                df[col] = pd.to_numeric(df[col], errors="coerce")
+            df[col] = pd.to_numeric(df[col], errors="coerce")
 
         return df
