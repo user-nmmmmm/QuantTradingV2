@@ -67,6 +67,23 @@ class OrderStore:
                 "CREATE INDEX IF NOT EXISTS idx_fills_client ON fills(client_order_id)"
             )
 
+            self._connection.execute(
+                '''CREATE TABLE IF NOT EXISTS operator_order_resolutions (
+                    resolution_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    client_order_id TEXT NOT NULL,
+                    previous_status TEXT NOT NULL,
+                    resolution TEXT NOT NULL,
+                    confirmed_by TEXT NOT NULL,
+                    reason TEXT NOT NULL,
+                    resolved_at TEXT NOT NULL,
+                    FOREIGN KEY(client_order_id) REFERENCES orders(client_order_id)
+                )'''
+            )
+            self._connection.execute(
+                '''CREATE INDEX IF NOT EXISTS idx_order_resolutions_client
+                   ON operator_order_resolutions(client_order_id, resolved_at)'''
+            )
+
     def _migrate_orders(self) -> None:
         existing = {
             row[1] for row in self._connection.execute("PRAGMA table_info(orders)").fetchall()
@@ -169,6 +186,88 @@ class OrderStore:
                 "UPDATE orders SET submission_attempted=1, updated_at=? WHERE client_order_id=?",
                 (now, client_order_id),
             )
+
+    def resolve_as_unsubmitted(
+        self,
+        client_order_id: str,
+        *,
+        confirmed_by: str,
+        reason: str,
+        now: str,
+    ) -> Dict[str, Any]:
+        '''Durably terminalize an order confirmed never to have reached venue.'''
+        confirmed_by = str(confirmed_by).strip()
+        reason = str(reason).strip()
+        if not confirmed_by:
+            raise ValueError('confirmed_by is required')
+        if not reason:
+            raise ValueError('reason is required')
+
+        with self._lock, self._connection:
+            row = self._connection.execute(
+                'SELECT * FROM orders WHERE client_order_id=?', (client_order_id,)
+            ).fetchone()
+            if row is None:
+                raise KeyError(client_order_id)
+            current = self._decode_order(row)
+            current_status = OrderStatus(current['status'])
+            if current_status not in {OrderStatus.SUBMITTING, OrderStatus.UNKNOWN}:
+                raise ValueError(
+                    'only SUBMITTING or UNKNOWN orders can be resolved as unsubmitted'
+                )
+            if current.get('exchange_order_id'):
+                raise ValueError(
+                    'order has an exchange_order_id and cannot be resolved as unsubmitted'
+                )
+            has_fills = self._connection.execute(
+                'SELECT 1 FROM fills WHERE client_order_id=? LIMIT 1',
+                (client_order_id,),
+            ).fetchone() is not None
+            if float(current.get('filled_qty') or 0.0) > 0 or has_fills:
+                raise ValueError('order has fills and cannot be resolved as unsubmitted')
+
+            validate_transition(current['status'], OrderStatus.EXPIRED_UNSUBMITTED)
+            message = f'confirmed unsubmitted by {confirmed_by}: {reason}'
+            self._connection.execute(
+                '''INSERT INTO operator_order_resolutions
+                   (client_order_id, previous_status, resolution, confirmed_by,
+                    reason, resolved_at)
+                   VALUES (?, ?, ?, ?, ?, ?)''',
+                (
+                    client_order_id,
+                    current['status'],
+                    OrderStatus.EXPIRED_UNSUBMITTED.value,
+                    confirmed_by,
+                    reason,
+                    now,
+                ),
+            )
+            self._connection.execute(
+                '''UPDATE orders
+                   SET status=?, error_code=?, error_message=?, updated_at=?
+                   WHERE client_order_id=?''',
+                (
+                    OrderStatus.EXPIRED_UNSUBMITTED.value,
+                    'safety_policy',
+                    message,
+                    now,
+                    client_order_id,
+                ),
+            )
+
+        resolved = self.get(client_order_id)
+        if resolved is None:
+            raise RuntimeError('resolved order disappeared from durable store')
+        return resolved
+
+    def resolutions_for(self, client_order_id: str) -> List[Dict[str, Any]]:
+        with self._lock:
+            rows = self._connection.execute(
+                '''SELECT * FROM operator_order_resolutions
+                   WHERE client_order_id=? ORDER BY resolved_at, resolution_id''',
+                (client_order_id,),
+            ).fetchall()
+        return [dict(row) for row in rows]
 
     def transition(
         self, client_order_id: str, status: OrderStatus, now: str, **changes: Any

@@ -10,6 +10,7 @@ from typing import Any, Dict, Optional, Tuple
 
 
 class OrderStatus(str, Enum):
+    EXPIRED_UNSUBMITTED = 'expired_unsubmitted'
     CREATED = "created"
     SUBMITTING = "submitting"
     SUBMITTED = "submitting"

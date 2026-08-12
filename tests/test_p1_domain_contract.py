@@ -18,6 +18,7 @@ class TestCanonicalOrderStatus(unittest.TestCase):
         self.assertEqual(
             canonical,
             {
+                'expired_unsubmitted',
                 "created",
                 "submitting",
                 "accepted",
@@ -32,6 +33,7 @@ class TestCanonicalOrderStatus(unittest.TestCase):
         )
 
     def test_expired_is_terminal_but_late_exchange_fills_win(self):
+        self.assertIn(OrderStatus.EXPIRED_UNSUBMITTED, TERMINAL_STATUSES)
         self.assertIn(OrderStatus.EXPIRED, TERMINAL_STATUSES)
         validate_transition("expired", OrderStatus.PARTIALLY_FILLED)
         validate_transition("expired", OrderStatus.FILLED)

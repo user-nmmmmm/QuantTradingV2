@@ -12,11 +12,12 @@ _ALLOWED = {
     OrderStatus.SUBMITTING: {
         OrderStatus.ACCEPTED, OrderStatus.PARTIALLY_FILLED, OrderStatus.FILLED,
         OrderStatus.CANCELED, OrderStatus.REJECTED, OrderStatus.EXPIRED,
-        OrderStatus.UNKNOWN,
+        OrderStatus.EXPIRED_UNSUBMITTED, OrderStatus.UNKNOWN,
     },
     OrderStatus.UNKNOWN: {
         OrderStatus.ACCEPTED, OrderStatus.PARTIALLY_FILLED, OrderStatus.FILLED,
         OrderStatus.CANCELED, OrderStatus.REJECTED, OrderStatus.EXPIRED,
+        OrderStatus.EXPIRED_UNSUBMITTED,
     },
     OrderStatus.ACCEPTED: {
         OrderStatus.PARTIALLY_FILLED, OrderStatus.FILLED,
@@ -38,6 +39,10 @@ _ALLOWED = {
     # Expiry is terminal for the order lifecycle, but exchange truth wins if
     # a late fill arrives after the expiry acknowledgement.
     OrderStatus.EXPIRED: {OrderStatus.PARTIALLY_FILLED, OrderStatus.FILLED},
+    # An operator can be wrong. A later authoritative fill must still win.
+    OrderStatus.EXPIRED_UNSUBMITTED: {
+        OrderStatus.PARTIALLY_FILLED, OrderStatus.FILLED,
+    },
 }
 
 TERMINAL_STATUSES = {
@@ -45,6 +50,7 @@ TERMINAL_STATUSES = {
     OrderStatus.CANCELED,
     OrderStatus.REJECTED,
     OrderStatus.EXPIRED,
+    OrderStatus.EXPIRED_UNSUBMITTED,
 }
 
 

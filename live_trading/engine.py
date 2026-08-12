@@ -53,6 +53,8 @@ class LiveTradingEngine:
         snapshot_retention: int = 24,
         snapshot_dir: Optional[str] = None,
         snapshot_manager: Optional[SQLiteSnapshotManager] = None,
+        failure_backoff_base_seconds: float = 1.0,
+        failure_backoff_max_seconds: float = 60.0,
     ) -> None:
         self.symbols = symbols
         self.strategies = strategies
@@ -85,6 +87,12 @@ class LiveTradingEngine:
         self._last_written_breaker: Optional[bool] = None
         self._last_written_breaker_day: Optional[str] = None
         self._last_exported_critical_state = None
+        if failure_backoff_base_seconds < 0 or failure_backoff_max_seconds < 0:
+            raise ValueError('failure backoff cannot be negative')
+        self.failure_backoff_base_seconds = failure_backoff_base_seconds
+        self.failure_backoff_max_seconds = failure_backoff_max_seconds
+        self._consecutive_tick_crashes = 0
+        self._next_retry_delay = 0.0
 
         alert_path = os.path.join(
             os.path.dirname(os.path.abspath(state_file)), "live_alerts.jsonl"
@@ -267,8 +275,9 @@ class LiveTradingEngine:
         logger.info("Starting Main Loop...")
         try:
             while True:
-                self._tick()
-                time.sleep(self.interval)
+                healthy_tick = self._tick()
+                delay = self.interval if healthy_tick else self._next_retry_delay
+                time.sleep(delay)
         except KeyboardInterrupt:
             logger.info("Live Trading Stopped by User")
 
@@ -284,7 +293,46 @@ class LiveTradingEngine:
         self.market_data_adapter.data_map = dict(self.data_map)
         self.data_map = self.market_data_adapter.refresh()
 
-    def _tick(self):
+    def _tick(self) -> bool:
+        '''Contain unexpected failures so one bad tick cannot kill the process.'''
+        try:
+            self._tick_once()
+        except Exception as exc:
+            self._consecutive_tick_crashes += 1
+            if self._consecutive_tick_crashes == 1:
+                self._next_retry_delay = min(
+                    self.failure_backoff_base_seconds,
+                    self.failure_backoff_max_seconds,
+                )
+            else:
+                self._next_retry_delay = min(
+                    self.failure_backoff_max_seconds,
+                    max(
+                        self.failure_backoff_base_seconds,
+                        self._next_retry_delay * 2,
+                    ),
+                )
+            self._healthy = False
+            self._operational_state = 'HALTED'
+            logger.exception(
+                'Unexpected live tick failure; retrying in %.3fs',
+                self._next_retry_delay,
+            )
+            self._alert('critical', 'tick_crashed', {
+                'error': type(exc).__name__,
+                'consecutive_failures': self._consecutive_tick_crashes,
+                'retry_delay_seconds': self._next_retry_delay,
+            })
+            try:
+                self._export_state()
+            except Exception:
+                logger.exception('Failed to export state after live tick crash')
+            return False
+        self._consecutive_tick_crashes = 0
+        self._next_retry_delay = 0.0
+        return True
+
+    def _tick_once(self):
         now = self._now()
         state_store = self._ensure_state_store()
         self._reset_daily_risk_if_needed(now)

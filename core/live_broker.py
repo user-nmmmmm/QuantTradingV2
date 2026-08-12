@@ -71,6 +71,7 @@ class LiveBroker:
         retry_base_delay: float = 0.5,
         retry_max_delay: float = 8.0,
         retry_sleep_fn: Optional[Callable[[float], None]] = None,
+        submitting_ttl: timedelta = timedelta(minutes=5),
     ) -> None:
         self.portfolio = portfolio
         self.exchange_id = exchange_id
@@ -96,6 +97,9 @@ class LiveBroker:
         self.retry_base_delay = retry_base_delay
         self.retry_max_delay = retry_max_delay
         self.retry_sleep_fn = retry_sleep_fn
+        if submitting_ttl.total_seconds() <= 0:
+            raise ValueError('submitting_ttl must be positive')
+        self.submitting_ttl = submitting_ttl
         self._unknown_reconcile_attempts: Dict[str, int] = {}
         exchange_class = getattr(ccxt, exchange_id)
         options = dict(exchange_options or {})
@@ -213,14 +217,24 @@ class LiveBroker:
                 intent, validation_error, OrderErrorCode.TRADING_RULE
             )
         try:
-            prepared = self.exchange_boundary.prepare(
-                intent, reference_price=intent.price
+            prepared = self._retry_exchange_call(
+                lambda: self.exchange_boundary.prepare(
+                    intent, reference_price=intent.price
+                )
             )
             intent = prepared.intent
         except ExchangeBoundaryError as exc:
             return self.record_local_rejection(
                 intent, str(exc), OrderErrorCode.TRADING_RULE
             )
+        except Exception as exc:
+            code = classify_order_exception(exc)
+            self._alert('error', 'order_preparation_failed', {
+                'client_order_id': intent.client_order_id,
+                'error_code': code.value,
+                'retry_attempts': self.retry_max_attempts,
+            })
+            return self.record_local_rejection(intent, type(exc).__name__, code)
         intent, _ = ensure_opening_reservation(
             self.event_pipeline,
             intent,
@@ -363,6 +377,25 @@ class LiveBroker:
     def recover_open_orders(self) -> Dict[str, OrderSubmissionResult]:
         results: Dict[str, OrderSubmissionResult] = {}
         for record in self.order_store.list_non_terminal():
+            if (
+                record['status'] == OrderStatus.SUBMITTING.value
+                and not record['submission_attempted']
+                and self._unattempted_submission_expired(record)
+            ):
+                self.order_store.resolve_as_unsubmitted(
+                    record['client_order_id'],
+                    confirmed_by='system:submitting_ttl',
+                    reason=(
+                        'persisted intent exceeded submitting TTL before '
+                        'submission was marked attempted'
+                    ),
+                    now=self._now_iso(),
+                )
+                self._alert('critical', 'stale_submitting_expired', {
+                    'client_order_id': record['client_order_id'],
+                    'ttl_seconds': self.submitting_ttl.total_seconds(),
+                })
+                record = self.order_store.get(record['client_order_id']) or record
             client_id = record["client_order_id"]
             if record["status"] == OrderStatus.SUBMITTING.value and not record["submission_attempted"]:
                 results[client_id] = self._result(client_id)
@@ -371,6 +404,46 @@ class LiveBroker:
         if not self.has_unresolved_unknown():
             self.last_order_sync_at = self._clock()
         return results
+
+    def confirm_order_not_submitted(
+        self,
+        client_order_id: str,
+        *,
+        confirmed_by: str,
+        reason: str,
+    ) -> OrderSubmissionResult:
+        '''Operator recovery path for an order independently verified absent.'''
+        self.order_store.resolve_as_unsubmitted(
+            client_order_id,
+            confirmed_by=confirmed_by,
+            reason=reason,
+            now=self._now_iso(),
+        )
+        self._unknown_reconcile_attempts.pop(client_order_id, None)
+        result = self._result(client_order_id)
+        self._alert('critical', 'unknown_order_manually_resolved', {
+            'client_order_id': client_order_id,
+            'confirmed_by': confirmed_by,
+            'reason': reason,
+            'status': result.status.value,
+        })
+        return result
+
+    def _unattempted_submission_expired(self, record: Dict[str, Any]) -> bool:
+        try:
+            updated_at = datetime.fromisoformat(str(record['updated_at']))
+        except (KeyError, TypeError, ValueError):
+            logger.error(
+                'Invalid persisted order timestamp client_order_id=%s',
+                record.get('client_order_id'),
+            )
+            return False
+        if updated_at.tzinfo is None:
+            updated_at = updated_at.replace(tzinfo=timezone.utc)
+        now = self._clock()
+        if now.tzinfo is None:
+            now = now.replace(tzinfo=timezone.utc)
+        return now - updated_at >= self.submitting_ttl
 
     def set_health_assessment(self, assessment) -> None:
         self.health_assessment = assessment

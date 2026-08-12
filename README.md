@@ -67,6 +67,20 @@ python main.py --days 365 --slippage 0.001 --random_slip
 python run_live.py --exchange binance --symbols BTC/USDT ETH/USDT --interval 60 --sandbox
 ```
 
+If a live order remains `UNKNOWN`, stop trading and independently verify in the
+exchange order history that no order exists before using the recovery command:
+
+```bash
+python resolve_live_order.py CLIENT_ORDER_ID --order-store reports/live_orders.db \
+  --operator YOUR_ID --reason 'verified absent at exchange' \
+  --confirm-not-submitted
+```
+
+The command refuses orders with an exchange order ID or any fill, moves an
+eligible order to `EXPIRED_UNSUBMITTED`, and writes the operator identity,
+reason, previous status, and timestamp to the SQLite audit ledger. Never use it
+only because one exchange query timed out or temporarily returned no result.
+
 - **API Key**：仅建议通过 `EXCHANGE_API_KEY` / `EXCHANGE_SECRET` 环境变量提供测试环境凭据；不要把密钥放入命令行、仓库或日志。
 - **安全范围**：当前只进行回测和 sandbox 验证；R7 完成前不使用真实资金，详见 `docs/deployment.md`。
 - **状态导出**：每次 tick 写入 `reports/live_status.json`（实现见 `live_trading/engine.py`）。该文件不能替代交易所订单/持仓对账。
