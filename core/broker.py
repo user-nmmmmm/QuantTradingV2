@@ -1,3 +1,4 @@
+import random
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -325,7 +326,7 @@ class Broker:
             if (
                 order.time_in_force == TimeInForce.DAY
                 and order.timestamp is not None
-                and pd.Timestamp(current_time).date() > pd.Timestamp(order.timestamp).date()
+                and current_time.date() > order.timestamp.date()
             ):
                 self._set_status(order, BacktestOrderStatus.EXPIRED, current_time)
                 continue

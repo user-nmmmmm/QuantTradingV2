@@ -3,8 +3,19 @@ import tempfile
 import unittest
 from pathlib import Path
 from tests.baseline_harness import ARTIFACTS, load_bundle, materialize
+from tests.engine_baseline_harness import (
+    DEFAULT_BARS,
+    DEFAULT_SEED,
+    DEFAULT_SYMBOLS,
+    DEFAULT_WARMUP_PERIOD,
+    SCHEMA_VERSION,
+    build_synthetic_data_map,
+    canonical_json,
+    run_engine,
+)
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures" / "backtest"
+ENGINE_BASELINE_PATH = FIXTURE_DIR / "engine" / "engine_baseline_v1.json"
 
 class TestBacktestFixedBaselines(unittest.TestCase):
     def bundles(self):
@@ -47,6 +58,47 @@ class TestBacktestFixedBaselines(unittest.TestCase):
         for artifact in ("orders", "fills", "closed_trades"):
             self.assertEqual(bundle["artifacts"][artifact], [])
         self.assertEqual(bundle["artifacts"]["metrics"]["total_trades"], 0)
+
+class TestBacktestEngineEquivalenceBaseline(unittest.TestCase):
+    """Drives the real BacktestEngine end-to-end and compares it against a
+    recorded golden run. Unlike TestBacktestFixedBaselines above, this
+    actually exercises HistoricalMarketDataAdapter -> EventProcessor ->
+    Router -> strategies -> Broker, so it's the regression guard for
+    architecture-level changes (positional-index threading, incremental
+    indicators, event-pipeline memory bounds, ...).
+
+    Regenerate the fixture with `python -m tests.generate_engine_baseline`
+    only after a reviewed, intentional behavior change.
+    """
+
+    def _load_baseline(self):
+        with ENGINE_BASELINE_PATH.open(encoding="utf-8") as stream:
+            return json.load(stream)
+
+    def test_matches_recorded_baseline(self):
+        bundle = self._load_baseline()
+        self.assertEqual(bundle["schema_version"], SCHEMA_VERSION)
+        self.assertEqual(bundle["metadata"]["seed"], DEFAULT_SEED)
+        self.assertEqual(bundle["metadata"]["symbols"], list(DEFAULT_SYMBOLS))
+        self.assertEqual(bundle["metadata"]["bars_per_symbol"], DEFAULT_BARS)
+        self.assertEqual(bundle["metadata"]["warmup_period"], DEFAULT_WARMUP_PERIOD)
+        self.assertGreater(bundle["artifacts"]["metrics"]["TotalTrades"], 0)
+
+        data_map = build_synthetic_data_map(
+            seed=bundle["metadata"]["seed"],
+            symbols=bundle["metadata"]["symbols"],
+            bars=bundle["metadata"]["bars_per_symbol"],
+        )
+        artifacts = run_engine(data_map, warmup_period=bundle["metadata"]["warmup_period"])
+
+        self.assertEqual(canonical_json(artifacts), canonical_json(bundle["artifacts"]))
+
+    def test_two_runs_in_same_process_are_identical(self):
+        data_map = build_synthetic_data_map()
+        first = run_engine(data_map, warmup_period=DEFAULT_WARMUP_PERIOD)
+        second = run_engine(data_map, warmup_period=DEFAULT_WARMUP_PERIOD)
+        self.assertEqual(canonical_json(first), canonical_json(second))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 import pandas as pd
 
@@ -51,16 +51,6 @@ class BacktestEngine:
     @staticmethod
     def _prepare_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         return normalize_market_frame(df)
-
-    @staticmethod
-    def _looks_daily_or_slower(indices: List[pd.DatetimeIndex]) -> bool:
-        for index in indices:
-            if len(index) < 2:
-                continue
-            gaps = index.to_series().diff().dropna()
-            if not gaps.empty and gaps.dt.total_seconds().median() < 23 * 3600:
-                return False
-        return True
 
     def run(
         self,

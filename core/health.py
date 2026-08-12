@@ -9,7 +9,7 @@ from typing import Any, Dict, Iterable, Mapping, Optional, Sequence
 import pandas as pd
 
 from core.clock import as_utc
-from core.timeframes import as_utc_timestamp, timeframe_delta
+from core.timeframes import timeframe_delta
 
 
 @dataclass(frozen=True)
@@ -125,7 +125,7 @@ class DataHealthMonitor:
                 reasons.append(self._reason("MARKET_DATA_MISSING", "market_data", subject,
                                             f"market data for {subject} has no valid timestamps"))
                 continue
-            index = pd.DatetimeIndex([as_utc_timestamp(value) for value in valid])
+            index = valid.tz_localize("UTC") if valid.tz is None else valid.tz_convert("UTC")
             future = index[index > pd.Timestamp(now + self.policy.future_tolerance)]
             if len(future):
                 reasons.append(self._reason("MARKET_DATA_FUTURE", "market_data", subject,

@@ -26,12 +26,14 @@ class MarketDataSlice:
     histories: Mapping[str, pd.DataFrame]
     timeframe: str = "unknown"
     source: str = "market_data"
+    positions: Mapping[str, int] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         timestamp = pd.Timestamp(self.timestamp)
         object.__setattr__(self, "timestamp", timestamp)
         object.__setattr__(self, "bars", dict(self.bars))
         object.__setattr__(self, "histories", dict(self.histories))
+        object.__setattr__(self, "positions", dict(self.positions))
 
 
 class MarketDataAdapter(Protocol):
@@ -142,8 +144,8 @@ class EventProcessor:
                     continue
                 if self.process_symbol(event, symbol):
                     routed.append(symbol)
+            equity = self.portfolio.get_total_value(self.last_prices)
 
-        equity = self.portfolio.get_total_value(self.last_prices)
         return RuntimeResult(
             equity=equity,
             cash=float(self.portfolio.cash),
@@ -158,10 +160,12 @@ class EventProcessor:
         df = event.histories.get(symbol)
         if df is None or df.empty or symbol not in event.bars:
             return False
-        try:
-            location = df.index.get_loc(event.timestamp)
-        except KeyError:
-            return False
+        location = event.positions.get(symbol)
+        if location is None:
+            try:
+                location = df.index.get_loc(event.timestamp)
+            except KeyError:
+                return False
         if not isinstance(location, int) or location < self.warmup_period:
             return False
         state = self.state_machine.get_state(df, location)
@@ -173,7 +177,7 @@ class EventProcessor:
             self.portfolio,
             self.execution,
             self.risk_manager,
-            dict(self.last_prices),
+            self.last_prices,
         )
         return True
 

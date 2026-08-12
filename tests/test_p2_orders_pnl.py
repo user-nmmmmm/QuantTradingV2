@@ -51,6 +51,21 @@ class TestP2OrderExecution(unittest.TestCase):
         # Expected Fill: Open (9400) is better than Limit (9500). Fill at Open.
         self.assertEqual(trades[0]["fill_price"], 9400.0)
 
+    def test_random_slip_market_order_does_not_raise(self):
+        # Regression test: Broker._execute_trade calls random.uniform(...) when
+        # random_slip=True, which previously raised NameError because core/broker.py
+        # never imported the `random` module.
+        broker = Broker(self.portfolio, slippage=0.01, random_slip=True)
+        broker.submit_order(self.symbol, "buy", 1.0, order_type="market")
+
+        bar = pd.Series({
+            "open": 9800, "high": 9900, "low": 9700, "close": 9850, "volume": 100
+        }, name=pd.Timestamp("2023-01-01 00:00"))
+
+        trades = broker.process_orders({self.symbol: bar})
+        self.assertEqual(len(trades), 1)
+        self.assertGreaterEqual(trades[0]["slip"], 0.0)
+
     def test_stop_buy_execution(self):
         # 1. Submit Stop Buy at 10100
         self.broker.submit_order(self.symbol, "buy", 1.0, price=10100.0, order_type="stop")

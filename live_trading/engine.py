@@ -82,6 +82,9 @@ class LiveTradingEngine:
         self._snapshot = None
         self._last_account_sync_at: Optional[datetime] = None
         self._last_order_sync_at: Optional[datetime] = None
+        self._last_written_breaker: Optional[bool] = None
+        self._last_written_breaker_day: Optional[str] = None
+        self._last_exported_critical_state = None
 
         alert_path = os.path.join(
             os.path.dirname(os.path.abspath(state_file)), "live_alerts.jsonl"
@@ -287,7 +290,8 @@ class LiveTradingEngine:
         self._reset_daily_risk_if_needed(now)
         try:
             self._recover_orders()
-            if not self._has_unresolved_unknown():
+            unresolved_unknown = self._has_unresolved_unknown()
+            if not unresolved_unknown:
                 self._last_order_sync_at = now
         except Exception as exc:
             self._assess_health(now, HealthReason(
@@ -296,7 +300,7 @@ class LiveTradingEngine:
             ))
             self._export_state()
             return
-        if self._has_unresolved_unknown():
+        if unresolved_unknown:
             self._assess_health(now, HealthReason(
                 "ORDER_STATE_UNKNOWN", "order_sync", "order",
                 "an order has unresolved exchange state",
@@ -381,8 +385,13 @@ class LiveTradingEngine:
         breaker = self.risk_manager.check_circuit_breaker(
             self._snapshot.equity, float(daily_start)
         )
-        state_store.set("circuit_breaker", bool(breaker))
-        state_store.set("circuit_breaker_day", now.date().isoformat())
+        breaker_day = now.date().isoformat()
+        if bool(breaker) != self._last_written_breaker:
+            state_store.set("circuit_breaker", bool(breaker))
+            self._last_written_breaker = bool(breaker)
+        if breaker_day != self._last_written_breaker_day:
+            state_store.set("circuit_breaker_day", breaker_day)
+            self._last_written_breaker_day = breaker_day
         if breaker:
             self._operational_state = "RISK_HALTED"
             logger.critical("Trading disabled: daily circuit breaker active")
@@ -475,11 +484,20 @@ class LiveTradingEngine:
                     if self.health_assessment else None
                 ),
             }
+            critical_state = (
+                state_data["healthy"],
+                state_data["operational_state"],
+                state_data["unresolved_unknown_order"],
+                tuple(state_data["health_reason_codes"]),
+            )
+            needs_fsync = critical_state != self._last_exported_critical_state
             with open(tmp_path, "w", encoding="utf-8") as handle:
                 json.dump(state_data, handle, indent=2)
                 handle.flush()
-                os.fsync(handle.fileno())
+                if needs_fsync:
+                    os.fsync(handle.fileno())
             os.replace(tmp_path, self.state_file)
+            self._last_exported_critical_state = critical_state
         except Exception as exc:
             logger.error("Failed to export state: %s", type(exc).__name__)
             try:

@@ -144,7 +144,7 @@ class Strategy(ABC):
                 # Execute Exit
                 # Calculate qty to close (all)
                 close_qty = abs(qty)
-                current_price = df["close"].iloc[i]
+                current_price = df["close"].iat[i]
 
                 # Extract optional order parameters
                 order_type = exit_signal.get("order_type", "market")
@@ -174,7 +174,7 @@ class Strategy(ABC):
                 if entry_signal:
                     action = entry_signal["action"]  # 'buy' or 'short'
                     stop_loss = entry_signal.get("stop_loss", 0.0)
-                    current_price = df["close"].iloc[i]
+                    current_price = df["close"].iat[i]
 
                     # Extract optional order parameters
                     order_type = entry_signal.get("order_type", "market")
@@ -198,7 +198,7 @@ class Strategy(ABC):
                         )
 
                     if size > 0:
-                        current_volume = float(df["volume"].iloc[i]) if "volume" in df.columns else 0.0
+                        current_volume = float(df["volume"].iat[i]) if "volume" in df.columns else 0.0
                         pending_provider = getattr(broker, "pending_open_notional", None)
                         pending_open_notional = (
                             pending_provider(price_map)

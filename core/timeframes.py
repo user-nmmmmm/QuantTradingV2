@@ -42,6 +42,8 @@ def closed_bars(
         return dataframe
     delta = timeframe_delta(timeframe) + timedelta(seconds=max(grace_seconds, 0.0))
     now_utc = pd.Timestamp(as_utc_datetime(now))
-    close_times = pd.DatetimeIndex([as_utc_timestamp(value) + delta for value in dataframe.index])
+    index = pd.DatetimeIndex(dataframe.index)
+    index = index.tz_localize("UTC") if index.tz is None else index.tz_convert("UTC")
+    close_times = index + delta
     return dataframe.loc[close_times <= now_utc]
 

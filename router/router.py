@@ -16,6 +16,7 @@ class Router:
         regime_map: Dict[str, str] = None,
         cooldown_bars: int = 3,
         log_path: str = None,
+        log_flush_every: int = 5000,
     ):
         self.strategies = strategies
         self.cooldown_bars = cooldown_bars
@@ -26,9 +27,11 @@ class Router:
             "VOLATILE": "Cash",
         }
         self.log_path = log_path
+        self.log_flush_every = log_flush_every
         self.symbol_states: Dict[str, MarketState] = {}
         self.cooldowns: Dict[str, int] = {}
         self.log_buffer = []
+        self._log_header_written = False
 
     def route(
         self,
@@ -148,10 +151,23 @@ class Router:
                     "strategy_changed": strategy_changed,
                 }
             )
+            if len(self.log_buffer) >= self.log_flush_every:
+                self._flush_log_buffer()
+
+    def _flush_log_buffer(self):
+        if not (self.log_path and self.log_buffer):
+            return
+        pd.DataFrame(self.log_buffer).to_csv(
+            self.log_path,
+            mode="a" if self._log_header_written else "w",
+            header=not self._log_header_written,
+            index=False,
+        )
+        self._log_header_written = True
+        self.log_buffer = []
 
     def save_log(self):
-        if self.log_path and self.log_buffer:
-            pd.DataFrame(self.log_buffer).to_csv(self.log_path, index=False)
+        self._flush_log_buffer()
 
     def _handle_switch(
         self,
@@ -172,7 +188,7 @@ class Router:
         if qty == 0:
             return
 
-        current_price = df["close"].iloc[i]
+        current_price = df["close"].iat[i]
         timestamp = df.index[i]
         if qty > 0:
             broker.submit_order(

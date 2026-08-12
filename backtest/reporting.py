@@ -2,7 +2,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import os
-from typing import List, Dict, Any, Tuple
+from collections import deque
+from typing import Deque, List, Dict, Any, Tuple
 
 from core.logger import get_logger
 from core.metrics import calculate_equity_metrics, calculate_profit_factor
@@ -41,6 +42,7 @@ class ReportGenerator:
         equity_curve: pd.DataFrame,
         metadata: Dict[str, Any] = None,
         benchmark_curve: pd.Series = None,
+        metrics_only: bool = False,
     ):
         """
         生成报告并返回指标字典。
@@ -50,16 +52,20 @@ class ReportGenerator:
         - equity_curve：以 timestamp 为索引的权益曲线 DataFrame
         - metadata：回测配置元信息（写入 report.txt）
         - benchmark_curve：基准曲线（Series，可选）
+        - metrics_only：为 True 时跳过 CSV/报告文本/图表落盘，只返回指标字典
+          （用于网格搜索等只关心指标、丢弃产物的场景）
         """
-        # 1. Save CSVs
-        equity_curve.to_csv(os.path.join(self.output_dir, "equity.csv"))
-
-        if benchmark_curve is not None:
-            benchmark_curve.to_csv(os.path.join(self.output_dir, "benchmark.csv"))
-
         trades_df = pd.DataFrame(trades)
-        if not trades_df.empty:
-            trades_df.to_csv(os.path.join(self.output_dir, "trades.csv"), index=False)
+
+        if not metrics_only:
+            # 1. Save CSVs
+            equity_curve.to_csv(os.path.join(self.output_dir, "equity.csv"))
+
+            if benchmark_curve is not None:
+                benchmark_curve.to_csv(os.path.join(self.output_dir, "benchmark.csv"))
+
+            if not trades_df.empty:
+                trades_df.to_csv(os.path.join(self.output_dir, "trades.csv"), index=False)
 
         # 2. Calculate Metrics
         trade_metrics = self._analyze_trades(trades_df)
@@ -67,11 +73,12 @@ class ReportGenerator:
 
         metrics = {**equity_metrics, **trade_metrics}
 
-        # 3. Save Report Text
-        self._save_report_text(metrics, metadata)
+        if not metrics_only:
+            # 3. Save Report Text
+            self._save_report_text(metrics, metadata)
 
-        # 4. Generate Plots
-        self._plot_equity(equity_curve, benchmark_curve)
+            # 4. Generate Plots
+            self._plot_equity(equity_curve, benchmark_curve)
 
         return metrics
 
@@ -114,12 +121,12 @@ class ReportGenerator:
 
         # Group by symbol
         for symbol, group in trades_df.groupby("symbol"):
-            long_stack: List[
+            long_stack: Deque[
                 Tuple[float, float, str, float, float]
-            ] = []  # (qty, price, strategy_id, unit_comm, unit_slip)
-            short_stack: List[
+            ] = deque()  # (qty, price, strategy_id, unit_comm, unit_slip)
+            short_stack: Deque[
                 Tuple[float, float, str, float, float]
-            ] = []  # (qty, price, strategy_id, unit_comm, unit_slip)
+            ] = deque()  # (qty, price, strategy_id, unit_comm, unit_slip)
 
             for _, row in group.iterrows():
                 side = row["side"]
@@ -138,7 +145,7 @@ class ReportGenerator:
                     remaining = qty
                     while remaining > 0 and short_stack:
                         s_qty, s_price, s_strat, s_unit_comm, s_unit_slip = (
-                            short_stack.pop(0)
+                            short_stack.popleft()
                         )
                         matched = min(remaining, s_qty)
 
@@ -166,8 +173,7 @@ class ReportGenerator:
 
                         remaining -= matched
                         if s_qty > matched:
-                            short_stack.insert(
-                                0,
+                            short_stack.appendleft(
                                 (
                                     s_qty - matched,
                                     s_price,
@@ -187,7 +193,7 @@ class ReportGenerator:
                     remaining = qty
                     while remaining > 0 and long_stack:
                         l_qty, l_price, l_strat, l_unit_comm, l_unit_slip = (
-                            long_stack.pop(0)
+                            long_stack.popleft()
                         )
                         matched = min(remaining, l_qty)
 
@@ -209,8 +215,7 @@ class ReportGenerator:
 
                         remaining -= matched
                         if l_qty > matched:
-                            long_stack.insert(
-                                0,
+                            long_stack.appendleft(
                                 (
                                     l_qty - matched,
                                     l_price,
@@ -234,7 +239,7 @@ class ReportGenerator:
                     remaining = qty
                     while remaining > 0 and short_stack:
                         s_qty, s_price, s_strat, s_unit_comm, s_unit_slip = (
-                            short_stack.pop(0)
+                            short_stack.popleft()
                         )
                         matched = min(remaining, s_qty)
 
@@ -255,8 +260,7 @@ class ReportGenerator:
 
                         remaining -= matched
                         if s_qty > matched:
-                            short_stack.insert(
-                                0,
+                            short_stack.appendleft(
                                 (
                                     s_qty - matched,
                                     s_price,

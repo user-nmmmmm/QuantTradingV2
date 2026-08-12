@@ -77,12 +77,12 @@ class RangeStrategy(Strategy):
             return None
             
         if i < 1: return None
-        if pd.isna(df['BB_UPPER'].iloc[i]) or pd.isna(df['ATR_14'].iloc[i]): return None
+        if pd.isna(df['BB_UPPER'].iat[i]) or pd.isna(df['ATR_14'].iat[i]): return None
         
-        close = df['close'].iloc[i]
-        bb_upper = df['BB_UPPER'].iloc[i]
-        bb_lower = df['BB_LOWER'].iloc[i]
-        atr = df['ATR_14'].iloc[i]
+        close = df['close'].iat[i]
+        bb_upper = df['BB_UPPER'].iat[i]
+        bb_lower = df['BB_LOWER'].iat[i]
+        atr = df['ATR_14'].iat[i]
         
         # Filter: ATR/Price too high
         if (atr / close) > self.atr_threshold_pct:
@@ -99,8 +99,8 @@ class RangeStrategy(Strategy):
         # Assuming we run at Close of bar i.
         # If Low[i] <= Lower[i], we signal Buy.
         
-        low = df['low'].iloc[i]
-        high = df['high'].iloc[i]
+        low = df['low'].iat[i]
+        high = df['high'].iat[i]
         
         entry_signal = None
         
@@ -120,8 +120,8 @@ class RangeStrategy(Strategy):
         self._ensure_indicators(df)
         ctx = self.get_context(symbol)
         
-        close = df['close'].iloc[i]
-        bb_mid = df['BB_MIDDLE'].iloc[i]
+        close = df['close'].iat[i]
+        bb_mid = df['BB_MIDDLE'].iat[i]
         
         # Exit Conditions
         # 1. Return to Mid Band
@@ -140,8 +140,8 @@ class RangeStrategy(Strategy):
         # 2. Stop Loss — use bar LOW/HIGH to detect intrabar breaches
         stop_loss = ctx.get('stop_loss')
         if stop_loss is not None:
-            bar_low = df['low'].iloc[i]
-            bar_high = df['high'].iloc[i]
+            bar_low = df['low'].iat[i]
+            bar_high = df['high'].iat[i]
             if qty > 0 and bar_low < stop_loss:
                 reason = 'Stop Loss'
             elif qty < 0 and bar_high > stop_loss:
@@ -221,7 +221,7 @@ class RangeStrategy(Strategy):
             # Portfolio avg_price is reliable for PnL calculation of the closed position.
             
             entry_price = current_pos['avg_price']
-            exit_price = df['close'].iloc[i] # Approximation. Real exec price is in Broker.
+            exit_price = df['close'].iat[i] # Approximation. Real exec price is in Broker.
             # But Broker executed at current_price (close).
             
             pnl = 0

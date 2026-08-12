@@ -95,7 +95,8 @@ def run_grid_search(
         metrics = report_gen.generate(
             trades=backtest_result["trades"],
             equity_curve=backtest_result["equity_curve"],
-            benchmark_curve=backtest_result["benchmark"]
+            benchmark_curve=backtest_result["benchmark"],
+            metrics_only=True,
         )
         
         # Store result

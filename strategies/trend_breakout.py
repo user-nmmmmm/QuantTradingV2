@@ -135,8 +135,8 @@ class TrendBreakoutStrategy(Strategy):
         if i < self.entry_window:
             return None
 
-        close = df["close"].iloc[i]
-        high_max = df[self.col_high_max].iloc[i]
+        close = df["close"].iat[i]
+        high_max = df[self.col_high_max].iat[i]
 
         # Check Entry Signal
         if pd.notna(high_max) and close > high_max:
@@ -146,7 +146,7 @@ class TrendBreakoutStrategy(Strategy):
             # We provide a stop_loss for the RiskManager to size the position.
             # For breakout, maybe Low of breakout candle or recent low?
             # Let's use the Exit Level (Donchian Low) as the initial stop.
-            stop_loss = df[self.col_low_min].iloc[i]
+            stop_loss = df[self.col_low_min].iat[i]
             if pd.isna(stop_loss) or stop_loss >= close:
                 # Fallback if stop is invalid (e.g. too close): use ATR-based or %?
                 # Let's assume RiskManager handles sizing if we provide 'stop_loss'.
@@ -205,8 +205,8 @@ class TrendBreakoutStrategy(Strategy):
         """
         self._ensure_indicators(df)
 
-        close = df["close"].iloc[i]
-        low_min = df[self.col_low_min].iloc[i]
+        close = df["close"].iat[i]
+        low_min = df[self.col_low_min].iat[i]
 
         # 1. Exit Signal
         if pd.notna(low_min) and close < low_min:
@@ -286,10 +286,10 @@ class TrendBreakdownStrategy(Strategy):
         if i < self.entry_window:
             return None
 
-        close = df["close"].iloc[i]
-        low_min = df[self.col_low_min].iloc[i]
+        close = df["close"].iat[i]
+        low_min = df[self.col_low_min].iat[i]
         if pd.notna(low_min) and close < low_min:
-            stop_loss = df[self.col_high_max].iloc[i]
+            stop_loss = df[self.col_high_max].iat[i]
             if pd.isna(stop_loss) or stop_loss <= close:
                 stop_loss = close * 1.05
 
@@ -327,8 +327,8 @@ class TrendBreakdownStrategy(Strategy):
     ) -> Optional[Dict[str, Any]]:
         self._ensure_indicators(df)
 
-        close = df["close"].iloc[i]
-        high_max = df[self.col_high_max].iloc[i]
+        close = df["close"].iat[i]
+        high_max = df[self.col_high_max].iat[i]
 
         if pd.notna(high_max) and close > high_max:
             self._record_trade_result(symbol, portfolio, close)

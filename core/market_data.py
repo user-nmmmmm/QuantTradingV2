@@ -46,6 +46,10 @@ class HistoricalMarketDataAdapter:
             if calculate_indicators:
                 Indicators.calculate_all(prepared)
             self.data_map[symbol] = prepared
+        self._positions: Dict[str, Dict[pd.Timestamp, int]] = {
+            symbol: {ts: i for i, ts in enumerate(frame.index)}
+            for symbol, frame in self.data_map.items()
+        }
 
     @property
     def timestamps(self) -> pd.DatetimeIndex:
@@ -56,15 +60,18 @@ class HistoricalMarketDataAdapter:
 
     def stream(self) -> Iterable[MarketDataSlice]:
         for timestamp in self.timestamps:
-            bars = {
-                symbol: frame.loc[timestamp]
-                for symbol, frame in self.data_map.items()
-                if timestamp in frame.index
-            }
+            bars: Dict[str, pd.Series] = {}
+            positions: Dict[str, int] = {}
+            for symbol, frame in self.data_map.items():
+                pos = self._positions[symbol].get(timestamp)
+                if pos is not None:
+                    bars[symbol] = frame.iloc[pos]
+                    positions[symbol] = pos
             yield MarketDataSlice(
                 timestamp=timestamp,
                 bars=bars,
                 histories=self.data_map,
+                positions=positions,
                 timeframe=self.timeframe,
                 source="historical",
             )
@@ -110,6 +117,7 @@ class LiveMarketDataAdapter:
             current = normalize_market_frame(self.data_map.get(symbol, pd.DataFrame()))
             combined = fetched if current.empty else pd.concat([current, fetched])
             combined = normalize_market_frame(combined)
+            combined = combined.iloc[-self.lookback:]
             Indicators.calculate_all(combined)
             self.data_map[symbol] = combined
         return self.data_map

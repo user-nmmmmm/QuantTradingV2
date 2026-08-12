@@ -79,13 +79,13 @@ class TrendUpStrategy(Strategy):
         if i < 1:
             return None
 
-        if pd.isna(df[self.col_sma].iloc[i]) or pd.isna(df[self.col_atr].iloc[i]):
+        if pd.isna(df[self.col_sma].iat[i]) or pd.isna(df[self.col_atr].iat[i]):
             return None
 
-        close = df["close"].iloc[i]
-        close_prev = df["close"].iloc[i - 1]
-        sma = df[self.col_sma].iloc[i]
-        sma_prev = df[self.col_sma].iloc[i - 1]
+        close = df["close"].iat[i]
+        close_prev = df["close"].iat[i - 1]
+        sma = df[self.col_sma].iat[i]
+        sma_prev = df[self.col_sma].iat[i - 1]
 
         # Conditions
         # 1. Close pull back to SMA (Issue3 fix: ≤2% above SMA, was ≤0.5% — wider zone)
@@ -96,7 +96,7 @@ class TrendUpStrategy(Strategy):
         cond_slope = slope > 0
 
         # 3. SMA_Fast > SMA (Optional)
-        sma_fast_val = df[self.col_sma_fast].iloc[i]
+        sma_fast_val = df[self.col_sma_fast].iat[i]
         cond_alignment = sma_fast_val > sma
 
         # 4. Issue3 fix: Bounce confirmation — current close is already recovering,
@@ -104,7 +104,7 @@ class TrendUpStrategy(Strategy):
         cond_bounce = close > close_prev
 
         if cond_pullback and cond_slope and cond_alignment and cond_bounce:
-            atr = df[self.col_atr].iloc[i]
+            atr = df[self.col_atr].iat[i]
             stop_loss = close - self.atr_multiplier * atr
 
             return {
@@ -136,9 +136,9 @@ class TrendUpStrategy(Strategy):
         self._ensure_indicators(df)
         ctx = self.get_context(symbol)
 
-        close = df["close"].iloc[i]
-        sma = df[self.col_sma].iloc[i]
-        atr = df[self.col_atr].iloc[i]
+        close = df["close"].iat[i]
+        sma = df[self.col_sma].iat[i]
+        atr = df[self.col_atr].iat[i]
 
         # 1. close < SMA − 0.5×ATR  (Issue4 fix: ATR buffer prevents getting swept by noise,
         #    was plain close < SMA which fired too easily in high-volatility crypto)
@@ -154,7 +154,7 @@ class TrendUpStrategy(Strategy):
         trailing_stop = ctx.get("trailing_stop", -np.inf)
         effective_stop = max(stop_loss, trailing_stop)
 
-        bar_low = df["low"].iloc[i]
+        bar_low = df["low"].iat[i]
         if bar_low < effective_stop:
             return {"action": "sell", "reason": "Stop/Trail hit"}
 
@@ -211,13 +211,13 @@ class TrendDownStrategy(Strategy):
         if i < 1:
             return None
 
-        if pd.isna(df[self.col_sma].iloc[i]) or pd.isna(df[self.col_atr].iloc[i]):
+        if pd.isna(df[self.col_sma].iat[i]) or pd.isna(df[self.col_atr].iat[i]):
             return None
 
-        close = df["close"].iloc[i]
-        close_prev = df["close"].iloc[i - 1]
-        sma = df[self.col_sma].iloc[i]
-        sma_prev = df[self.col_sma].iloc[i - 1]
+        close = df["close"].iat[i]
+        close_prev = df["close"].iat[i - 1]
+        sma = df[self.col_sma].iat[i]
+        sma_prev = df[self.col_sma].iat[i - 1]
 
         # Conditions
         # 1. Close has rallied to the SMA area (±3% band).
@@ -234,7 +234,7 @@ class TrendDownStrategy(Strategy):
         cond_rollover = close <= close_prev
 
         if cond_rally and cond_slope and cond_rollover:
-            atr = df[self.col_atr].iloc[i]
+            atr = df[self.col_atr].iat[i]
             stop_loss = close + self.atr_multiplier * atr
 
             return {
@@ -266,9 +266,9 @@ class TrendDownStrategy(Strategy):
         self._ensure_indicators(df)
         ctx = self.get_context(symbol)
 
-        close = df["close"].iloc[i]
-        sma = df[self.col_sma].iloc[i]
-        atr = df[self.col_atr].iloc[i]
+        close = df["close"].iat[i]
+        sma = df[self.col_sma].iat[i]
+        atr = df[self.col_atr].iat[i]
 
         # 1. Close breaks above SMA + 0.5×ATR — price has bounced enough to invalidate the short.
         #    The original 0.5% fixed threshold (sma * 1.005) is far too tight for daily crypto
@@ -285,7 +285,7 @@ class TrendDownStrategy(Strategy):
         trailing_stop = ctx.get("trailing_stop", np.inf)
         effective_stop = min(stop_loss, trailing_stop)
 
-        bar_high = df["high"].iloc[i]
+        bar_high = df["high"].iat[i]
         if bar_high > effective_stop:
             return {"action": "cover", "reason": "Stop/Trail hit"}
 
