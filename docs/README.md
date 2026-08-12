@@ -11,6 +11,7 @@
 5. [`backtest_assumptions.md`](backtest_assumptions.md)：当前回测引擎已经实现的执行、成本、数据和统计口径。
 6. [`deployment.md`](deployment.md)：当前允许的安装、回测、sandbox 和运维方式。
 7. [`baselines/batch0_fixed_baseline.md`](baselines/batch0_fixed_baseline.md)：固定回归基线及其验收证据。
+8. [`modules/README.md`](modules/README.md)：逐包代码说明（core/backtest/live_trading/router/strategies/其余小包），回答"这段代码是做什么的"，不涉及项目阶段状态。
 
 ## 权威顺序
 

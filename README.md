@@ -140,6 +140,13 @@ python run_live.py --exchange binance --symbols BTC/USDT ETH/USDT --interval 60 
 
 ---
 
+## 当前能力边界
+
+- **现货 vs 衍生品**：所有入口（`run_live.py`、安全配置默认值）目前都以 **现货（spot）** 为默认交易模式。底层 `core/exchange_boundary.py` 已经定义了衍生品相关的能力检测（`future/futures/swap/margin`），`run_live.py --market-type` 也接受这些取值，但要在生产中真正启用合约/杠杆交易，还需要额外验证保证金、强平、`core/live_safety.py` 账户类型白名单等相关行为是否已经打通。
+- **多标的并发交易**：实盘引擎（`live_trading/engine.py`）和回测引擎均原生支持**同时**处理多个标的（如 `--symbols BTC/USDT ETH/USDT SOL/USDT ...`），并非依次轮询触发。仓位状态按标的独立记录（`core/portfolio.py`），仓位计算基于组合整体权益（会自动为已占用资金让路），风控（`core/risk.py`）在组合层面统一管控总杠杆和单标的集中度上限（默认 `max_pos_size_pct=20%`）——也就是说资金可以同时分散到多个币种、一起捕捉行情，而不是被锁定为单一持仓。详见 [`docs/modules/core.md`](docs/modules/core.md) 中风控与组合相关章节。
+
+---
+
 ## 项目结构
 
 ```
@@ -172,6 +179,7 @@ QauntTrading/
 ## 文档
 
 - **`docs/README.md`**：文档入口、权威层级和历史归档说明
+- **`docs/modules/README.md`**：逐包代码说明（各模块职责、关键类、模块间关系），面向"这段代码是做什么的"这类问题
 - **`docs/unified_roadmap.md`**：唯一项目总路线图、R0–R8 和放行门槛
 - **`docs/development_plan.md`**：当前开发批次、任务顺序和验收产物
 - **`docs/backtest_assumptions.md`**：当前执行模型、费率/滑点、数据对齐与局限性
@@ -190,7 +198,7 @@ python -m pytest -q
 
 ## 常见问题（FAQ）
 
-- **CCXT/Yahoo 拉数失败**：`core/data_fetcher.py` 的 `DataFetcher` 默认会将 `HTTP_PROXY/HTTPS_PROXY` 设置为 `127.0.0.1:7897`。如果你本机没有代理，需要在代码里禁用代理（例如将默认 `proxy_url` 改为 `None`，或在创建 `DataFetcher(...)` 时显式传入 `proxy_url=None`）。
+- **CCXT/Yahoo 拉数失败**：`core/data_fetcher.py` 的 `DataFetcher` 会从环境变量 `QUANT_PROXY_URL` 读取代理地址并设置 `HTTP_PROXY`/`HTTPS_PROXY`；未设置该环境变量时不使用代理。如果你需要代理但拉数仍失败，检查 `QUANT_PROXY_URL` 是否正确指向本机代理端口；也可以在创建 `DataFetcher(...)` 时显式传入 `proxy_url=None` 或具体地址覆盖。
 - **多标的无公共时间轴**：回测会优先按“时间戳交集”对齐；若检测为日线或更慢周期，会尝试按“日历日期”退化对齐（见 `backtest/engine.py`）。
 
 ---
