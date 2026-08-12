@@ -43,7 +43,8 @@
       "Bash(D:/QauntTradingV1/.venv/Scripts/python.exe -c \"import ast; ast.parse\\(open\\('main.py', encoding='utf-8'\\).read\\(\\)\\)\")",
       "Bash(xargs grep -lE \"class \\(PortfolioManager|PositionManager|RiskManager\\)\")",
       "Bash(python -m pytest tests/ -q)",
-      "Bash(python3 -m pytest --version)"
+      "Bash(python3 -m pytest --version)",
+      "Bash(D:/QauntTradingV1/.venv/Scripts/python.exe -m pytest tests/ -q)"
     ]
   }
 }
