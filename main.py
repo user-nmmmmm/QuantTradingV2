@@ -56,7 +56,7 @@ def get_data(
         return fetcher.generate_scenario(symbol, start, end)
 
 
-def main():
+def main(argv=None) -> int:
     """
     命令行入口：
     1) 解析参数（无参数则进入交互模式）
@@ -99,7 +99,7 @@ def main():
         "--slippage",
         type=float,
         default=None,
-        help="Slippage rate (e.g. 0.001 for 0.1%). If omitted, uses config execution.slippage_bps.",
+        help="Slippage rate (e.g. 0.001 for 0.1%%). If omitted, uses config execution.slippage_bps.",
     )
     parser.add_argument(
         "--random_slip",
@@ -107,96 +107,16 @@ def main():
         help="Enable random slippage (uniform distribution from 0 to --slippage)",
     )
 
-    # Check for interactive mode (no args provided)
-    if len(sys.argv) == 1:
-        print("\n" + "=" * 40)
-        print("   QuantTrading Interactive Mode")
-        print("=" * 40)
-        print("No arguments provided. Please select options:\n")
-
-        # 1. Source
-        print("Select Data Source:")
-        print("1. synthetic (Default)")
-        print("2. yahoo")
-        print("3. ccxt")
-        source_choice = input("Enter choice [1-3] or name: ").strip().lower()
-
-        source_map = {"1": "synthetic", "2": "yahoo", "3": "ccxt", "": "synthetic"}
-        source = source_map.get(source_choice, source_choice)
-        if source not in ["synthetic", "yahoo", "ccxt"]:
-            print(f"Invalid source '{source}', defaulting to synthetic.")
-            source = "synthetic"
-
-        # 2. Symbols
-        default_syms = "BTC-USDT ETH-USDT"
-        syms_input = input(
-            f"Enter symbols (space separated) [Default: {default_syms}]: "
-        ).strip()
-        if not syms_input:
-            symbols = default_syms.split()
-        else:
-            symbols = syms_input.split()
-
-        # 3. Capital
-        cap_input = input("Enter Initial Capital (USDT) [Default: 1000]: ").strip()
-        capital = cap_input if cap_input else "1000"
-
-        # 4. Date Range or Days
-        print("\nTime Period Configuration:")
-        print("1. Last N Days (Default)")
-        print("2. Specific Date Range")
-        time_choice = input("Enter choice [1-2]: ").strip()
-
-        start_arg = None
-        end_arg = None
-        days_arg = "365"
-
-        if time_choice == "2":
-            start_arg = input("Enter Start Date (YYYY-MM-DD): ").strip()
-            end_arg = input("Enter End Date (YYYY-MM-DD): ").strip()
-        else:
-            d_input = input("Enter Days to Backtest [Default: 365]: ").strip()
-            if d_input:
-                days_arg = d_input
-
-        # 5. Slippage
-        slip_input = input(
-            "Enter Slippage (e.g. 0.001 for 0.1%) [Default: config]: "
-        ).strip()
-        slippage = slip_input if slip_input else None
-
-        # 6. Random Slip
-        rand_slip_input = (
-            input("Enable Random Slippage? (y/n) [Default: n]: ").strip().lower()
+    cli_args = list(sys.argv[1:] if argv is None else argv)
+    if not cli_args:
+        parser.print_help(sys.stderr)
+        print(
+            "\nError: no arguments supplied; use explicit CLI options "
+            "(for example: --source synthetic --days 365).",
+            file=sys.stderr,
         )
-        random_slip = rand_slip_input.startswith("y")
-
-        # Construct args list
-        cmd_args = [
-            "--source",
-            source,
-            "--capital",
-            capital,
-            "--symbols",
-        ] + symbols
-
-        if slippage is not None:
-            cmd_args.extend(["--slippage", slippage])
-
-        if start_arg and end_arg:
-            cmd_args.extend(["--start", start_arg, "--end", end_arg])
-        else:
-            cmd_args.extend(["--days", days_arg])
-
-        if random_slip:
-            cmd_args.append("--random_slip")
-
-        print(f"\nRunning with: {' '.join(cmd_args)}")
-        print("-" * 40 + "\n")
-
-        args = parser.parse_args(cmd_args)
-    else:
-        args = parser.parse_args()
+        return 2
+    args = parser.parse_args(cli_args)
 
     if args.seed is not None:
         np.random.seed(args.seed)
@@ -212,13 +132,13 @@ def main():
             start_date = datetime.strptime(args.start, "%Y-%m-%d")
             end_date = datetime.strptime(args.end, "%Y-%m-%d")
             if start_date >= end_date:
-                print("Error: Start date must be before end date.")
-                return
+                print("Error: Start date must be before end date.", file=sys.stderr)
+                return 2
             args.days = (end_date - start_date).days
             print(f"Config: Date Range={args.start} to {args.end} ({args.days} days)")
         except ValueError:
-            print("Error: Invalid date format. Please use YYYY-MM-DD.")
-            return
+            print("Error: Invalid date format. Please use YYYY-MM-DD.", file=sys.stderr)
+            return 2
     else:
         end_date = datetime.now()
         start_date = end_date - timedelta(days=args.days)
@@ -253,8 +173,8 @@ def main():
             print(f"Failed to load sufficient data for {sym}")
 
     if not data_map:
-        print("No data available. Exiting.")
-        return
+        print("No data available. Exiting.", file=sys.stderr)
+        return 3
 
     # 1.1 Generate Data Quality Report
     print("Generating Data Quality Report...")
@@ -290,7 +210,7 @@ def main():
                 os.remove(temp_routing_log)
             except OSError as e:
                 logger.warning("Failed to remove temp routing log %s: %s", temp_routing_log, e)
-        return
+        return 4
 
     # 3. Generate Report
     print("\nGenerating Report...")
@@ -327,6 +247,8 @@ def main():
         benchmark_curve=results.get("benchmark"),
     )
 
+    artifact_failures = []
+
     # Save Data Quality Report
     dq_report_path = os.path.join(output_dir, "data_quality_report.json")
     try:
@@ -336,7 +258,8 @@ def main():
             json.dump(quality_report, f, indent=4, default=str)
         print(f"Data quality report saved to {dq_report_path}")
     except Exception as e:
-        print(f"Failed to save data quality report: {e}")
+        artifact_failures.append("data_quality_report")
+        logger.exception("Failed to save data quality report: %s", e)
 
     # Move Routing Log
     final_routing_log = os.path.join(output_dir, "routing_log.csv")
@@ -345,7 +268,8 @@ def main():
             shutil.move(temp_routing_log, final_routing_log)
             print(f"Routing log moved to {final_routing_log}")
         except Exception as e:
-            print(f"Failed to move routing log: {e}")
+            artifact_failures.append("routing_log")
+            logger.exception("Failed to move routing log: %s", e)
 
     print("\n" + "=" * 30)
     print("BACKTEST RESULTS")
@@ -358,7 +282,15 @@ def main():
     print("=" * 30)
 
     print(f"\nReport saved to: {output_dir}")
+    if artifact_failures:
+        print(
+            "Report completed with artifact failures: "
+            + ", ".join(artifact_failures),
+            file=sys.stderr,
+        )
+        return 5
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

@@ -16,7 +16,7 @@ from core.portfolio import Portfolio
 from core.risk import RiskManager
 
 
-class TestDashboardIntegration(unittest.TestCase):
+class TestLiveStatusExport(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.portfolio = Portfolio()

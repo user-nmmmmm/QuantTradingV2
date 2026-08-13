@@ -41,9 +41,15 @@ def closed_bars(
     if dataframe.empty:
         return dataframe
     delta = timeframe_delta(timeframe) + timedelta(seconds=max(grace_seconds, 0.0))
-    now_utc = pd.Timestamp(as_utc_datetime(now))
+    cutoff = pd.Timestamp(as_utc_datetime(now)) - delta
     index = pd.DatetimeIndex(dataframe.index)
-    index = index.tz_localize("UTC") if index.tz is None else index.tz_convert("UTC")
-    close_times = index + delta
-    return dataframe.loc[close_times <= now_utc]
+    if index.is_monotonic_increasing:
+        comparable_cutoff = (
+            cutoff.tz_localize(None) if index.tz is None else cutoff.tz_convert(index.tz)
+        )
+        stop = int(index.searchsorted(comparable_cutoff, side="right"))
+        return dataframe.iloc[:stop]
+
+    normalized = index.tz_localize("UTC") if index.tz is None else index.tz_convert("UTC")
+    return dataframe.loc[normalized <= cutoff]
 

@@ -12,6 +12,24 @@ from core.sqlite_backup import SQLiteSnapshotManager
 from core.sqlite_utils import ensure_schema_version, open_durable_connection
 
 
+class OrderStoreClosedError(RuntimeError):
+    """Raised when an operation is attempted after the ledger is closed."""
+
+
+class _ClosedConnection:
+    def execute(self, *_args, **_kwargs):
+        raise OrderStoreClosedError("OrderStore connection is closed")
+
+    def close(self) -> None:
+        return None
+
+    def __enter__(self):
+        raise OrderStoreClosedError("OrderStore connection is closed")
+
+    def __exit__(self, *_args):
+        return False
+
+
 class OrderStore:
     """Authoritative, restart-safe order and fill ledger."""
 
@@ -339,9 +357,9 @@ class OrderStore:
     def close(self) -> None:
         with self._lock:
             connection = getattr(self, "_connection", None)
-            if connection is not None:
+            if connection is not None and not isinstance(connection, _ClosedConnection):
                 connection.close()
-                self._connection = None
+                self._connection = _ClosedConnection()
 
     def __del__(self) -> None:
         try:

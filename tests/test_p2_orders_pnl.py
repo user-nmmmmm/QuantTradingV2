@@ -1,4 +1,5 @@
 import unittest
+import tempfile
 import pandas as pd
 from datetime import datetime
 from core.broker import BacktestOrderStatus, Broker, OrderType
@@ -129,8 +130,9 @@ class TestP2PnLDecomposition(unittest.TestCase):
         ]
         
         trades_df = pd.DataFrame(trades)
-        report_gen = ReportGenerator("dummy_output")
-        metrics = report_gen._analyze_trades(trades_df)
+        with tempfile.TemporaryDirectory() as directory:
+            report_gen = ReportGenerator(directory)
+            metrics = report_gen._analyze_trades(trades_df)
         
         self.assertEqual(metrics["GrossPnL"], 1000.0)
         self.assertEqual(metrics["TotalCommission"], 21.0)

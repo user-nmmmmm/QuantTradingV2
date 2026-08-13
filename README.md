@@ -1,5 +1,14 @@
 # Still Water QuantTrading
 
+> Canonical repository directory: `QuantTradingV1`. The former
+> `QauntTradingV1` spelling is deprecated and should not be used by deployment
+> scripts or documentation.
+>
+> Capability boundary: no machine-learning training or prediction subsystem is
+> implemented. The former placeholder `models/` package was removed so the
+> repository does not advertise non-existent ML capabilities.
+
+
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
 [![Status: Alpha](https://img.shields.io/badge/Status-Alpha-orange.svg)]()
 
@@ -119,6 +128,27 @@ only because one exchange query timed out or temporarily returned no result.
 
 ---
 
+## Read-only operations dashboard
+
+The dashboard is a minimal runnable CLI that consumes `live_status.json` and
+recent alert records; it is not a web UI and never controls trading:
+
+```bash
+python -m dashboard --status reports/live_status.json --alerts reports/live_alerts.jsonl
+```
+
+It exits with status 2 when the status snapshot is missing or invalid.
+
+## Command-line automation
+
+Backtests require explicit arguments. Running `python main.py` without
+arguments prints usage and exits with a non-zero status instead of blocking on
+interactive input. Example:
+
+```bash
+python main.py --source synthetic --days 365 --symbols BTC-USDT ETH-USDT
+```
+
 ## 输出与报告（`reports/`）
 
 每次回测会在 `reports/` 下生成独立文件夹（命名规则见 `main.py`），典型包含：
@@ -164,7 +194,7 @@ only because one exchange query timed out or temporarily returned no result.
 ## 项目结构
 
 ```
-QauntTrading/
+QuantTradingV1/
 ├── main.py                    # 回测入口（CLI / 交互式）
 ├── run_live.py                # 实盘入口（轮询式）
 ├── config/

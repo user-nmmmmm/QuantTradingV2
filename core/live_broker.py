@@ -819,7 +819,7 @@ class LiveBroker:
             self.last_account_sync_at = self._clock()
             return SyncResult(True, self.last_account_sync_at)
         except Exception as exc:
-            logger.error("Failed to sync portfolio category=%s", type(exc).__name__)
+            logger.exception("Failed to sync portfolio category=%s", type(exc).__name__)
             self._alert("error", "account_sync_failed", {
                 "error": type(exc).__name__,
                 "retry_attempts": self.retry_max_attempts,

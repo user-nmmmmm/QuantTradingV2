@@ -26,5 +26,6 @@ outputs/
 reports/*.db
 reports/*.jsonl
 reports/*/
+dummy_output/
 .codex_patch_probe
 .claude/settings.local.json

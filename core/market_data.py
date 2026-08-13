@@ -114,10 +114,27 @@ class LiveMarketDataAdapter:
             if previous_latest is not None and fetched_latest < previous_latest:
                 self.regressed_symbols.add(symbol)
             self._last_fetched_latest[symbol] = fetched_latest
-            current = normalize_market_frame(self.data_map.get(symbol, pd.DataFrame()))
-            combined = fetched if current.empty else pd.concat([current, fetched])
-            combined = normalize_market_frame(combined)
-            combined = combined.iloc[-self.lookback:]
+            current = self.data_map.get(symbol)
+            if current is not None and not current.empty:
+                current_index = current.index
+                if (
+                    not isinstance(current_index, pd.DatetimeIndex)
+                    or current_index.tz is not None
+                    or current_index.hasnans
+                    or not current_index.is_unique
+                    or not current_index.is_monotonic_increasing
+                ):
+                    current = normalize_market_frame(current)
+            if current is None or current.empty:
+                combined = fetched.iloc[-self.lookback:].copy()
+            else:
+                combined = pd.concat([current, fetched], copy=False)
+                combined = combined.loc[
+                    ~combined.index.duplicated(keep="last")
+                ]
+                if not combined.index.is_monotonic_increasing:
+                    combined = combined.sort_index()
+                combined = combined.iloc[-self.lookback:].copy()
             Indicators.calculate_all(combined)
             self.data_map[symbol] = combined
         return self.data_map
