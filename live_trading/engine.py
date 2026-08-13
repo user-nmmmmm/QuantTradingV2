@@ -128,7 +128,10 @@ class LiveTradingEngine:
         )
 
     def _now(self) -> datetime:
-        return self.clock.now()
+        now = self.clock.now()
+        if now.tzinfo is None or now.utcoffset() is None:
+            raise ValueError("live trading clock must return a timezone-aware datetime")
+        return now.astimezone(timezone.utc)
 
     def _set_health_assessment(self, assessment: HealthAssessment) -> None:
         self.health_assessment = assessment

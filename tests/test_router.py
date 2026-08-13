@@ -34,6 +34,12 @@ class TestRouterSwitchCleanup(unittest.TestCase):
                 "TrendUp": trend_strategy,
                 "RangeMeanReversion": range_strategy,
             },
+            regime_map={
+                "TREND_UP": "TrendUp",
+                "TREND_DOWN": "Cash",
+                "SIDEWAYS": "RangeMeanReversion",
+                "VOLATILE": "Cash",
+            },
             cooldown_bars=2,
             log_path="routing.csv",
         )

@@ -168,7 +168,7 @@ class TestSharedBacktestAndLiveContract(unittest.TestCase):
             run_id="backtest-run", clock=lambda: UTC_NOW
         )
         backtest = Broker(
-            Portfolio(),
+            Portfolio(100000),
             event_pipeline=backtest_events,
             exchange_id="binance",
             account_id="sandbox",

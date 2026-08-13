@@ -27,6 +27,7 @@ class TestCanonicalOrderStatus(unittest.TestCase):
                 "cancel_pending",
                 "canceled",
                 "rejected",
+                "no_position",
                 "expired",
                 "unknown",
             },
@@ -67,7 +68,7 @@ class TestCanonicalOrderStatus(unittest.TestCase):
         )
         self.assertIs(status, OrderStatus.FILLED)
 
-    def test_canceled_partial_fill_keeps_existing_late_fill_semantics(self):
+    def test_canceled_partial_fill_remains_terminal(self):
         status = normalize_exchange_status(
             {
                 "status": "canceled",
@@ -76,7 +77,7 @@ class TestCanonicalOrderStatus(unittest.TestCase):
                 "remaining": 7,
             }
         )
-        self.assertIs(status, OrderStatus.PARTIALLY_FILLED)
+        self.assertIs(status, OrderStatus.CANCELED)
 
 
 class TestOrderIntentIdentity(unittest.TestCase):

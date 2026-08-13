@@ -23,22 +23,24 @@ from core.system_factory import (
 
 logger = get_logger(__name__)
 
+DEFAULT_INITIAL_CAPITAL = 10000.0
+
 
 class BacktestEngine:
     """Historical scheduler; trading decisions live in :class:`EventProcessor`."""
 
     def __init__(
         self,
-        initial_capital: float = 10000.0,
+        initial_capital: float = DEFAULT_INITIAL_CAPITAL,
         slippage: Optional[float] = None,
         random_slip: bool = False,
         warmup_period: int = 30,
     ) -> None:
         self.initial_capital = initial_capital
-        self.config_execution = config.get("execution") or {}
-        self.config_risk = config.get("risk") or {}
+        self.config_execution = config.require("execution")
+        self.config_risk = config.require("risk")
         self.slippage = (
-            self.config_execution.get("slippage_bps", 0.0) / 10000.0
+            self.config_execution["slippage_bps"] / 10000.0
             if slippage is None
             else slippage
         )
@@ -66,12 +68,12 @@ class BacktestEngine:
             portfolio,
             slippage=self.slippage,
             random_slip=self.random_slip,
-            commission_rate=self.config_execution.get("commission_rate_taker", 0.001),
-            commission_rate_maker=self.config_execution.get("commission_rate_maker", 0.0005),
-            use_impact_cost=self.config_execution.get("use_impact_cost", False),
+            commission_rate=self.config_execution["commission_rate_taker"],
+            commission_rate_maker=self.config_execution["commission_rate_maker"],
+            use_impact_cost=self.config_execution["use_impact_cost"],
             max_participation_rate=self.config_execution.get(
                 "max_participation_rate",
-                self.config_risk.get("liquidity_limit_pct", 0.01),
+                self.config_risk["liquidity_limit_pct"],
             ),
         )
         risk_manager = build_risk_manager()

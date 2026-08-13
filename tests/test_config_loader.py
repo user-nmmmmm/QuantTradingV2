@@ -3,6 +3,8 @@ import os
 import tempfile
 import unittest
 
+import yaml
+
 from config.config import ConfigLoadError, ConfigLoader
 
 
@@ -20,6 +22,20 @@ class TestConfigLoader(unittest.TestCase):
                 pass
             with self.assertRaisesRegex(ConfigLoadError, "empty or not a valid mapping"):
                 ConfigLoader(config_path=empty)
+
+    def test_missing_required_key_raises_with_exact_path(self):
+        source = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)), "config", "params.yaml"
+        )
+        with open(source, "r", encoding="utf-8") as handle:
+            payload = yaml.safe_load(handle)
+        del payload["risk"]["risk_per_trade"]
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "params.yaml")
+            with open(path, "w", encoding="utf-8") as handle:
+                yaml.safe_dump(payload, handle)
+            with self.assertRaisesRegex(ConfigLoadError, "risk.risk_per_trade"):
+                ConfigLoader(config_path=path)
 
     def test_normal_yaml_loads_correctly_and_logs_source(self):
         path = os.path.join(

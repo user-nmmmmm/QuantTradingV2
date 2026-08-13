@@ -44,7 +44,21 @@
       "Bash(xargs grep -lE \"class \\(PortfolioManager|PositionManager|RiskManager\\)\")",
       "Bash(python -m pytest tests/ -q)",
       "Bash(python3 -m pytest --version)",
-      "Bash(D:/QauntTradingV1/.venv/Scripts/python.exe -m pytest tests/ -q)"
+      "Bash(D:/QauntTradingV1/.venv/Scripts/python.exe -m pytest tests/ -q)",
+      "Bash(py -3 -c \"import openpyxl; print\\('ok'\\)\")",
+      "Bash(py -3 -m pip install --quiet openpyxl)",
+      "Read(//d//**)",
+      "Bash(where.exe python *)",
+      "Bash(\"D:\\\\QauntTradingV1\\\\.venv\\\\Scripts\\\\python.exe\" -c \"import openpyxl; print\\('ok'\\)\")",
+      "Bash(\"D:\\\\QauntTradingV1\\\\.venv\\\\Scripts\\\\python.exe\" -m pip install --quiet openpyxl)",
+      "Bash(\"D:\\\\QauntTradingV1\\\\.venv\\\\Scripts\\\\python.exe\" -c \"import openpyxl; print\\('venv-ok'\\)\")",
+      "Bash(py -3 -c \"import openpyxl; print\\('py3-ok'\\)\")",
+      "Bash('D:\\\\QauntTradingV1\\\\.venv\\\\Scripts\\\\python.exe' -c ' *)",
+      "Bash(export PYTHONIOENCODING=utf-8)",
+      "Bash(python -m pytest tests/test_p0_blockers.py -v)",
+      "Bash(py -3 -m pytest tests/test_p0_blockers.py -v)",
+      "Bash(./.venv/Scripts/python.exe -m pytest tests/test_p0_blockers.py -v)",
+      "Bash(\"D:\\\\QauntTradingV1\\\\.venv\\\\Scripts\\\\python.exe\" -m pytest tests/test_p0_blockers.py -q)"
     ]
   }
 }

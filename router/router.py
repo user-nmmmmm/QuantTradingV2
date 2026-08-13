@@ -13,19 +13,16 @@ class Router:
     def __init__(
         self,
         strategies: Dict[str, Strategy],
-        regime_map: Dict[str, str] = None,
+        regime_map: Optional[Dict[str, str]] = None,
         cooldown_bars: int = 3,
         log_path: str = None,
         log_flush_every: int = 5000,
     ):
         self.strategies = strategies
         self.cooldown_bars = cooldown_bars
-        self.regime_map = regime_map or {
-            "TREND_UP": "TrendUp",
-            "TREND_DOWN": "TrendDown",
-            "SIDEWAYS": "RangeMeanReversion",
-            "VOLATILE": "Cash",
-        }
+        if not regime_map:
+            raise ValueError("regime_map is required and cannot be empty")
+        self.regime_map = dict(regime_map)
         self.log_path = log_path
         self.log_flush_every = log_flush_every
         self.symbol_states: Dict[str, MarketState] = {}

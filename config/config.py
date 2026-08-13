@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Optional
+from typing import Any, Dict, Optional, Tuple
 
 import yaml
 
@@ -11,6 +11,14 @@ from core.logger import get_logger
 
 
 logger = get_logger(__name__)
+
+REQUIRED_CONFIG: Dict[str, Tuple[str, ...]] = {
+    "execution": ("commission_rate_taker", "commission_rate_maker", "slippage_bps", "use_impact_cost"),
+    "risk": ("max_leverage", "risk_per_trade", "max_drawdown_limit", "liquidity_limit_pct", "max_pos_size_pct"),
+    "state": ("stability_period", "ma_fast", "ma_slow", "adx_period", "adx_threshold", "atr_period", "atr_pct_threshold"),
+    "routing": ("TREND_UP", "TREND_DOWN", "SIDEWAYS", "VOLATILE"),
+    "router": ("cooldown_bars",),
+}
 
 
 class ConfigLoadError(RuntimeError):
@@ -52,21 +60,41 @@ class ConfigLoader:
             ) from exc
         if not isinstance(loaded, dict):
             raise ConfigLoadError("params.yaml is empty or not a valid mapping")
+        self._validate_required(loaded)
         self._config = loaded
 
-        execution = loaded.get("execution") or {}
+        execution = loaded["execution"]
         risk = loaded.get("risk") or {}
         routing = loaded.get("routing") or {}
         logger.info(
-            "Config loaded from %s: taker=%.4f maker=%.4f max_leverage=%.1f "
-            "max_dd=%.2f routing=%s",
+            "Config loaded from %s: taker=%.4f maker=%.4f slippage_bps=%.2f "
+            "risk_per_trade=%.4f max_leverage=%.1f max_dd=%.2f "
+            "liquidity_limit_pct=%.4f max_pos_size_pct=%.4f routing=%s",
             self.config_path,
-            float(execution.get("commission_rate_taker", 0.0)),
-            float(execution.get("commission_rate_maker", 0.0)),
-            float(risk.get("max_leverage", 0.0)),
-            float(risk.get("max_drawdown_limit", 0.0)),
+            float(execution["commission_rate_taker"]),
+            float(execution["commission_rate_maker"]),
+            float(execution["slippage_bps"]),
+            float(risk["risk_per_trade"]),
+            float(risk["max_leverage"]),
+            float(risk["max_drawdown_limit"]),
+            float(risk["liquidity_limit_pct"]),
+            float(risk["max_pos_size_pct"]),
             routing,
         )
+
+    @staticmethod
+    def _validate_required(loaded: Dict[str, Any]) -> None:
+        missing = []
+        for section, keys in REQUIRED_CONFIG.items():
+            values = loaded.get(section)
+            if not isinstance(values, dict):
+                missing.append(section)
+                continue
+            missing.extend(f"{section}.{key}" for key in keys if key not in values)
+        if missing:
+            raise ConfigLoadError(
+                "params.yaml is missing required configuration: " + ", ".join(missing)
+            )
 
     def get(self, section: str, key: Optional[str] = None) -> Any:
         if section not in self._config:
@@ -75,6 +103,16 @@ class ConfigLoader:
             values = self._config[section]
             return values.get(key) if isinstance(values, dict) else None
         return self._config[section]
+
+    def require(self, section: str, key: Optional[str] = None) -> Any:
+        if section not in self._config:
+            raise ConfigLoadError(f"required configuration section is missing: {section}")
+        values = self._config[section]
+        if key is None:
+            return values
+        if not isinstance(values, dict) or key not in values:
+            raise ConfigLoadError(f"required configuration key is missing: {section}.{key}")
+        return values[key]
 
 
 config = ConfigLoader()

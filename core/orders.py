@@ -7,12 +7,13 @@ from core.domain import OrderErrorCode, OrderStatus
 
 _ALLOWED = {
     OrderStatus.CREATED: {
-        OrderStatus.SUBMITTING, OrderStatus.REJECTED, OrderStatus.EXPIRED,
+        OrderStatus.SUBMITTING, OrderStatus.REJECTED,
+        OrderStatus.NO_POSITION, OrderStatus.EXPIRED,
     },
     OrderStatus.SUBMITTING: {
         OrderStatus.ACCEPTED, OrderStatus.PARTIALLY_FILLED, OrderStatus.FILLED,
-        OrderStatus.CANCELED, OrderStatus.REJECTED, OrderStatus.EXPIRED,
-        OrderStatus.EXPIRED_UNSUBMITTED, OrderStatus.UNKNOWN,
+        OrderStatus.CANCELED, OrderStatus.REJECTED, OrderStatus.NO_POSITION,
+        OrderStatus.EXPIRED, OrderStatus.EXPIRED_UNSUBMITTED, OrderStatus.UNKNOWN,
     },
     OrderStatus.UNKNOWN: {
         OrderStatus.ACCEPTED, OrderStatus.PARTIALLY_FILLED, OrderStatus.FILLED,
@@ -49,6 +50,7 @@ TERMINAL_STATUSES = {
     OrderStatus.FILLED,
     OrderStatus.CANCELED,
     OrderStatus.REJECTED,
+    OrderStatus.NO_POSITION,
     OrderStatus.EXPIRED,
     OrderStatus.EXPIRED_UNSUBMITTED,
 }
@@ -66,14 +68,14 @@ def normalize_exchange_status(payload: Dict[str, Any]) -> OrderStatus:
     # this response as PARTIALLY_FILLED would keep it in reconciliation forever.
     if raw == "expired":
         return OrderStatus.EXPIRED
-    if filled > 0:
-        return OrderStatus.PARTIALLY_FILLED
-    if raw in {"open", "new", "accepted", "pending"}:
-        return OrderStatus.ACCEPTED
     if raw in {"canceled", "cancelled"}:
         return OrderStatus.CANCELED
     if raw in {"rejected", "failed"}:
         return OrderStatus.REJECTED
+    if filled > 0:
+        return OrderStatus.PARTIALLY_FILLED
+    if raw in {"open", "new", "accepted", "pending"}:
+        return OrderStatus.ACCEPTED
     if remaining == 0 and amount > 0:
         return OrderStatus.FILLED
     return OrderStatus.UNKNOWN

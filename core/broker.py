@@ -98,6 +98,7 @@ class Order:
         """
         return self.status not in {
             BacktestOrderStatus.REJECTED,
+            BacktestOrderStatus.NO_POSITION,
             BacktestOrderStatus.EXPIRED,
             BacktestOrderStatus.CANCELED,
         }
@@ -376,7 +377,8 @@ class Broker:
                 float(bar_data.get("volume", 0.0)), is_maker=is_maker,
             )
             if trade is None:
-                self._set_status(order, BacktestOrderStatus.REJECTED, current_time)
+                if order.status is BacktestOrderStatus.SUBMITTING:
+                    self._set_status(order, BacktestOrderStatus.REJECTED, current_time)
                 continue
             executed_trades.append(trade)
             volume_budget[order.symbol] = max(available - trade["qty"], 0.0)
@@ -439,11 +441,19 @@ class Broker:
             fill_qty = min(fill_qty, max(-current_pos["qty"], 0.0))
             qty_delta = fill_qty
         if fill_qty <= 0:
+            self._set_status(order, BacktestOrderStatus.NO_POSITION, timestamp)
             return None
 
         value = fill_qty * fill_price
         fee_rate = self.commission_rate_maker if is_maker else self.commission_rate
         commission = value * fee_rate
+        if order.side in {"buy", "short"} and value + commission > self.portfolio.cash + 1e-12:
+            logger.warning(
+                "Order rejected: insufficient cash for %s %s; required=%.8f available=%.8f",
+                order.side, order.symbol, value + commission, self.portfolio.cash,
+            )
+            self._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
+            return None
         self.portfolio.update_position(order.symbol, qty_delta, fill_price, commission)
         trade_record = {
             "order_id": order.id,

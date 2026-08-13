@@ -138,6 +138,27 @@ class TestPartialFillsAndTIF(unittest.TestCase):
         )
         self.assertEqual(self.broker.process_orders({"A": self.bar(self.t1)}), [])
         self.assertEqual(order.status, BacktestOrderStatus.EXPIRED)
+    def test_buy_and_short_require_sufficient_cash(self):
+        for side in ("buy", "short"):
+            with self.subTest(side=side):
+                portfolio = Portfolio(50)
+                broker = Broker(
+                    portfolio,
+                    commission_rate=0,
+                    commission_rate_maker=0,
+                )
+                order = broker.submit_order("A", side, 1, timestamp=self.t0)
+                self.assertEqual(broker.process_orders({"A": self.bar(self.t1, volume=100)}), [])
+                self.assertEqual(order.status, BacktestOrderStatus.REJECTED)
+                self.assertEqual(portfolio.cash, 50)
+                self.assertEqual(portfolio.get_position("A")["qty"], 0)
+
+    def test_no_position_to_close_is_not_a_rejection(self):
+        order = self.broker.submit_order("A", "sell", 1, timestamp=self.t0)
+        self.assertEqual(self.broker.process_orders({"A": self.bar(self.t1)}), [])
+        self.assertEqual(order.status, BacktestOrderStatus.NO_POSITION)
+        self.assertNotEqual(order.status, BacktestOrderStatus.REJECTED)
+
     def test_fok_rejects_partial_execution(self):
         order = self.broker.submit_order("A", "buy", 2, timestamp=self.t0, time_in_force="FOK")
         self.assertEqual(self.broker.process_orders({"A": self.bar(self.t1)}), [])

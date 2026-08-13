@@ -198,7 +198,10 @@ class Strategy(ABC):
                         )
 
                     if size > 0:
-                        current_volume = float(df["volume"].iat[i]) if "volume" in df.columns else 0.0
+                        # Liquidity is enforced by the execution venue against the
+                        # actual fill bar. The signal bar is only an estimate and
+                        # must not drive a second, inconsistent volume limit.
+                        current_volume = 0.0
                         pending_provider = getattr(broker, "pending_open_notional", None)
                         pending_open_notional = (
                             pending_provider(price_map)

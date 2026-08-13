@@ -12,7 +12,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from core.data_fetcher import DataFetcher
 from core.data import DataHandler
-from backtest.engine import BacktestEngine
+from backtest.engine import BacktestEngine, DEFAULT_INITIAL_CAPITAL
 from backtest.reporting import ReportGenerator
 from core.logger import get_logger
 
@@ -74,7 +74,7 @@ def main():
     parser.add_argument("--start", type=str, help="Start date (YYYY-MM-DD)")
     parser.add_argument("--end", type=str, help="End date (YYYY-MM-DD)")
     parser.add_argument(
-        "--capital", type=float, default=1000.0, help="Initial capital (USDT)"
+        "--capital", type=float, default=DEFAULT_INITIAL_CAPITAL, help="Initial capital (USDT)"
     )
     parser.add_argument(
         "--symbols",

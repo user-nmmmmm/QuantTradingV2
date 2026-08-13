@@ -21,6 +21,7 @@ class OrderStatus(str, Enum):
     CANCEL_PENDING = "cancel_pending"
     CANCELED = "canceled"
     REJECTED = "rejected"
+    NO_POSITION = "no_position"
     EXPIRED = "expired"
     UNKNOWN = "unknown"
 

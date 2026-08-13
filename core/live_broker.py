@@ -774,7 +774,7 @@ class LiveBroker:
         free = balance.get("free", {}) if isinstance(balance, dict) else {}
         total = balance.get("total", {}) if isinstance(balance, dict) else {}
         next_cash = self._as_float(
-            free.get(self.base_currency), self._as_float(total.get(self.base_currency))
+            total.get(self.base_currency), self._as_float(free.get(self.base_currency))
         )
         positions = (
             self._sync_derivatives_positions(balance)

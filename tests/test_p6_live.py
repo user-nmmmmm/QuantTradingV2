@@ -37,7 +37,7 @@ class TestLiveTrading(unittest.TestCase):
         )
         broker.sync()
 
-        self.assertEqual(self.portfolio.cash, 9500.0)
+        self.assertEqual(self.portfolio.cash, 10000.0)
         self.assertEqual(self.portfolio.positions["BTC/USDT"]["qty"], 0.2)
         self.assertEqual(self.portfolio.positions["BTC/USDT"]["avg_price"], 0.0)
         self.mock_exchange.fetch_positions.assert_not_called()
@@ -65,7 +65,7 @@ class TestLiveTrading(unittest.TestCase):
         )
         broker.sync()
 
-        self.assertEqual(self.portfolio.cash, 12000.0)
+        self.assertEqual(self.portfolio.cash, 15000.0)
         self.assertEqual(self.portfolio.positions["BTC/USDT"]["qty"], 0.25)
         self.assertEqual(self.portfolio.positions["BTC/USDT"]["avg_price"], 50000.0)
         self.mock_exchange.fetch_positions.assert_called_once()

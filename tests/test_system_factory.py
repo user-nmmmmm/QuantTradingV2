@@ -1,5 +1,6 @@
 import copy
 import unittest
+from datetime import datetime
 from unittest.mock import MagicMock
 
 from config.config import config
@@ -31,6 +32,18 @@ class TestSystemFactory(unittest.TestCase):
     def test_build_router_maps_short_to_cash_when_shorting_disabled(self):
         router = build_router(build_strategy_registry(), allow_short=False)
         self.assertEqual(router.regime_map["TREND_DOWN"], "Cash")
+
+    def test_missing_routing_section_fails_closed(self):
+        del config._config["routing"]
+        with self.assertRaisesRegex(Exception, "routing"):
+            build_router(build_strategy_registry())
+
+    def test_live_engine_rejects_naive_clock_values(self):
+        engine = object.__new__(LiveTradingEngine)
+        engine.clock = MagicMock()
+        engine.clock.now.return_value = datetime(2026, 8, 13, 12, 0, 0)
+        with self.assertRaisesRegex(ValueError, "timezone-aware"):
+            engine._now()
 
     def test_live_engine_uses_shared_router_and_state_machine_config(self):
         config._config["state"]["stability_period"] = 5

@@ -67,6 +67,8 @@ class TestP2OrderExecution(unittest.TestCase):
         self.assertGreaterEqual(trades[0]["slip"], 0.0)
 
     def test_stop_buy_execution(self):
+        # This test targets stop triggering, so fund the order including fees.
+        self.portfolio.cash = 20000.0
         # 1. Submit Stop Buy at 10100
         self.broker.submit_order(self.symbol, "buy", 1.0, price=10100.0, order_type="stop")
         
@@ -90,6 +92,8 @@ class TestP2OrderExecution(unittest.TestCase):
         self.assertEqual(trades[0]["fill_price"], 10100.0)
 
     def test_stop_buy_gap_execution(self):
+        # This test targets gap execution, so fund the order including fees.
+        self.portfolio.cash = 20000.0
         # 1. Submit Stop Buy at 10100
         self.broker.submit_order(self.symbol, "buy", 1.0, price=10100.0, order_type="stop")
         

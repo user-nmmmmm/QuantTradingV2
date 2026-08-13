@@ -61,7 +61,7 @@ class TestBacktestEngine(unittest.TestCase):
         finally:
             config._config = original_config
 
-    def test_strategy_entry_risk_receives_bar_volume(self):
+    def test_strategy_entry_risk_defers_liquidity_to_execution_bar(self):
         strategy = EntryProbeStrategy()
         portfolio = Portfolio(initial_capital=10000.0)
         broker = MagicMock()
@@ -91,7 +91,7 @@ class TestBacktestEngine(unittest.TestCase):
             {"TEST": 100.0},
         )
 
-        self.assertEqual(risk_manager.check_entry_risk.call_args.kwargs["current_volume"], 4321.0)
+        self.assertEqual(risk_manager.check_entry_risk.call_args.kwargs["current_volume"], 0.0)
 
     def test_uses_shared_factories_for_default_components(self):
         df = pd.DataFrame(
