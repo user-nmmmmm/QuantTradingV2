@@ -106,6 +106,11 @@ def main(argv=None) -> int:
         action="store_true",
         help="Enable random slippage (uniform distribution from 0 to --slippage)",
     )
+    parser.add_argument(
+        "--disable-routing-log",
+        action="store_true",
+        help="Disable per-bar routing CSV output for optimization runs.",
+    )
 
     cli_args = list(sys.argv[1:] if argv is None else argv)
     if not cli_args:
@@ -194,7 +199,11 @@ def main(argv=None) -> int:
     if not os.path.exists(os.path.join(os.getcwd(), "reports")):
         os.makedirs(os.path.join(os.getcwd(), "reports"))
     temp_routing_log = os.path.join(os.getcwd(), "reports", "temp_routing_log.csv")
-    results = engine.run(data_map, routing_log_path=temp_routing_log)
+    results = engine.run(
+        data_map,
+        routing_log_path=temp_routing_log,
+        routing_log_enabled=not args.disable_routing_log,
+    )
 
     if not results or results["equity_curve"].empty:
         print("\n" + "!" * 50)

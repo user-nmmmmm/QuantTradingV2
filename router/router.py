@@ -16,7 +16,7 @@ class Router:
         regime_map: Optional[Dict[str, str]] = None,
         cooldown_bars: int = 3,
         log_path: str = None,
-        log_flush_every: int = 5000,
+        log_flush_every: int = 256,
     ):
         self.strategies = strategies
         self.cooldown_bars = cooldown_bars

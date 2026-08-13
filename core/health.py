@@ -119,28 +119,52 @@ class DataHealthMonitor:
                 reasons.append(self._reason("MARKET_DATA_MISSING", "market_data", subject,
                                             f"no market data is available for {subject}"))
                 continue
-            valid = pd.DatetimeIndex(pd.to_datetime(frame.index, errors="coerce"))
-            valid = valid[~pd.isna(valid)]
-            if valid.empty:
-                reasons.append(self._reason("MARKET_DATA_MISSING", "market_data", subject,
-                                            f"market data for {subject} has no valid timestamps"))
-                continue
-            index = valid.tz_localize("UTC") if valid.tz is None else valid.tz_convert("UTC")
-            future = index[index > pd.Timestamp(now + self.policy.future_tolerance)]
-            if len(future):
-                reasons.append(self._reason("MARKET_DATA_FUTURE", "market_data", subject,
-                                            f"market data for {subject} is timestamped in the future",
-                                            observed_at=future.max().to_pydatetime()))
-            closed = index[
-                index + interval <= pd.Timestamp(now + self.policy.future_tolerance)
-            ]
-            if closed.empty:
+            raw_index = frame.index
+            fast_index = (
+                isinstance(raw_index, pd.DatetimeIndex)
+                and raw_index.is_monotonic_increasing
+                and raw_index.is_unique
+                and not raw_index.hasnans
+            )
+            if fast_index:
+                index = (
+                    raw_index.tz_localize("UTC")
+                    if raw_index.tz is None
+                    else raw_index.tz_convert("UTC")
+                )
+            else:
+                valid = pd.DatetimeIndex(
+                    pd.to_datetime(raw_index, errors="coerce")
+                )
+                valid = valid[~pd.isna(valid)]
+                if valid.empty:
+                    reasons.append(self._reason(
+                        "MARKET_DATA_MISSING", "market_data", subject,
+                        f"market data for {subject} has no valid timestamps",
+                    ))
+                    continue
+                index = (
+                    valid.tz_localize("UTC")
+                    if valid.tz is None
+                    else valid.tz_convert("UTC")
+                )
+                index = index.sort_values().unique()
+            future_limit = pd.Timestamp(now + self.policy.future_tolerance)
+            if index[-1] > future_limit:
+                reasons.append(self._reason(
+                    "MARKET_DATA_FUTURE", "market_data", subject,
+                    f"market data for {subject} is timestamped in the future",
+                    observed_at=index[-1].to_pydatetime(),
+                ))
+            closed_cutoff = future_limit - interval
+            closed_stop = int(index.searchsorted(closed_cutoff, side="right"))
+            if closed_stop == 0:
                 reasons.append(self._reason(
                     "MARKET_DATA_NO_CLOSED_BAR", "market_data", subject,
                     f"market data for {subject} has no closed bar",
                 ))
                 continue
-            latest_open = closed.max().to_pydatetime()
+            latest_open = index[closed_stop - 1].to_pydatetime()
             latest_fact = latest_open + interval
             previous = self._latest_market_time.get(subject)
             if symbol in explicit_regressions or (previous is not None and latest_open < previous):
@@ -148,7 +172,7 @@ class DataHealthMonitor:
                                             f"latest timestamp for {subject} moved backwards",
                                             observed_at=latest_open))
             self._latest_market_time[subject] = max(previous, latest_open) if previous else latest_open
-            ordered = index.sort_values().unique()[-self.policy.gap_lookback_bars:]
+            ordered = index[-self.policy.gap_lookback_bars:]
             if len(ordered) >= 2:
                 largest = max(ordered[1:] - ordered[:-1])
                 gap_limit = interval * self.policy.gap_tolerance_intervals

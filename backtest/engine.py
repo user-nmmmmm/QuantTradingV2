@@ -59,6 +59,7 @@ class BacktestEngine:
         data_map: Dict[str, pd.DataFrame],
         strategies: Optional[Dict[str, Any]] = None,
         routing_log_path: Optional[str] = None,
+        routing_log_enabled: bool = True,
     ) -> Dict[str, Any]:
         if not data_map:
             return {}
@@ -84,11 +85,16 @@ class BacktestEngine:
             if callable(reset):
                 reset()
 
-        if routing_log_path is None:
-            routing_log_path = os.path.join(os.getcwd(), "reports", "routing_log.csv")
-        log_dir = os.path.dirname(routing_log_path)
-        if log_dir:
-            os.makedirs(log_dir, exist_ok=True)
+        if routing_log_enabled:
+            if routing_log_path is None:
+                routing_log_path = os.path.join(
+                    os.getcwd(), "reports", "routing_log.csv"
+                )
+            log_dir = os.path.dirname(routing_log_path)
+            if log_dir:
+                os.makedirs(log_dir, exist_ok=True)
+        else:
+            routing_log_path = None
         router = build_router(strategies, log_path=routing_log_path)
 
         market_data = HistoricalMarketDataAdapter(data_map)

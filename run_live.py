@@ -113,6 +113,9 @@ def main() -> int:
         strategy_failure_threshold=config.require(
             "execution", "strategy_failure_threshold"
         ),
+        state_export_interval_ticks=config.require(
+            "execution", "state_export_interval_ticks"
+        ),
     )
     try:
         engine.initialize()

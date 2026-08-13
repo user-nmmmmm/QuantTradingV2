@@ -8,6 +8,7 @@ execution:
   use_impact_cost: false        # Enable volume-based impact cost
   reconciliation_interval_seconds: 300  # Independent order reconciliation cadence
   strategy_failure_threshold: 3         # Consecutive strategy failures before HALTED
+  state_export_interval_ticks: 5          # Export live_status periodically or on state change
 
 # 2. Risk Management
 risk:

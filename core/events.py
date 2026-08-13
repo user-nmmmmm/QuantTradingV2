@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib
 import json
 import math
+from collections import deque
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, fields, is_dataclass
 from datetime import datetime, timezone
@@ -533,13 +534,17 @@ class TradingEventPipeline:
         clock: Optional[Callable[[], datetime]] = None,
         store: Optional[EventStore] = None,
         schema_version: str = EVENT_SCHEMA_VERSION,
+        retention_limit: int = 10000,
     ) -> None:
         self.run_id = str(run_id or uuid4())
         self._clock = clock or (lambda: datetime.now(timezone.utc))
         self.store = store
         self.schema_version = schema_version
+        if retention_limit <= 0:
+            raise ValueError("retention_limit must be positive")
+        self.retention_limit = int(retention_limit)
         self._subscribers: Dict[str, List[Handler]] = {}
-        self._events: List[EventEnvelope] = []
+        self._events = deque(maxlen=self.retention_limit)
         self._by_id: Dict[UUID, EventEnvelope] = {}
 
         self._transaction_lock = RLock()
@@ -598,19 +603,40 @@ class TradingEventPipeline:
         resolved_timeframe = timeframe or self._payload_field(normalized_payload, "timeframe")
         if idempotency_key is not None and (not isinstance(idempotency_key, str) or not idempotency_key):
             raise ValueError("idempotency_key must be a non-empty string or None")
-        identity = (
-            (source, resolved_type, resolved_account, idempotency_key)
-            if idempotency_key is not None
-            else (
-                source, self.run_id, resolved_type, occurred, resolved_account,
-                resolved_symbol, resolved_timeframe, normalized_payload,
-            )
+        has_consumers = self.store is not None or any(
+            self._subscribers.values()
         )
-        event_id = event_id_for(*identity)
+        if idempotency_key is not None:
+            # An explicit key already defines business identity. Avoid
+            # canonicalizing the complete payload only to derive the UUID.
+            event_id = uuid5(
+                EVENT_NAMESPACE,
+                repr((
+                    "idempotent", source, resolved_type,
+                    resolved_account, idempotency_key,
+                )),
+            )
+        elif not has_consumers:
+            # Ephemeral pipelines without persistence or subscribers need a
+            # unique causal handle, not an expensive payload hash.
+            event_id = uuid4()
+        else:
+            event_id = event_id_for(
+                source, self.run_id, resolved_type, occurred,
+                resolved_account, resolved_symbol, resolved_timeframe,
+                normalized_payload,
+            )
         correlation = (
             _coerce_uuid(correlation_id, "correlation")
             if correlation_id is not None
-            else correlation_id_for(self.run_id, event_id)
+            else (
+                uuid5(
+                    EVENT_NAMESPACE,
+                    f"correlation:{self.run_id}:{event_id}",
+                )
+                if not has_consumers
+                else correlation_id_for(self.run_id, event_id)
+            )
         )
         if isinstance(causation_id, EventEnvelope):
             causation: Optional[UUID] = causation_id.event_id
@@ -736,8 +762,15 @@ class TradingEventPipeline:
             return existing
         if self.store is not None:
             self.store.append(event)
+        evicted_id = (
+            self._events[0].event_id
+            if len(self._events) == self.retention_limit
+            else None
+        )
         self._by_id[event.event_id] = event
         self._events.append(event)
+        if evicted_id is not None and evicted_id != event.event_id:
+            self._by_id.pop(evicted_id, None)
         self._dispatch(event)
         return event
 

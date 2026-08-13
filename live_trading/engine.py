@@ -57,6 +57,7 @@ class LiveTradingEngine:
         failure_backoff_max_seconds: float = 60.0,
         reconciliation_interval_seconds: float = 300.0,
         strategy_failure_threshold: int = 3,
+        state_export_interval_ticks: int = 5,
     ) -> None:
         self.symbols = symbols
         self.strategies = strategies
@@ -99,8 +100,13 @@ class LiveTradingEngine:
             raise ValueError("reconciliation_interval_seconds must be positive")
         if strategy_failure_threshold <= 0:
             raise ValueError("strategy_failure_threshold must be positive")
+        if state_export_interval_ticks <= 0:
+            raise ValueError("state_export_interval_ticks must be positive")
         self.reconciliation_interval_seconds = reconciliation_interval_seconds
         self.strategy_failure_threshold = strategy_failure_threshold
+        self.state_export_interval_ticks = int(state_export_interval_ticks)
+        self._tick_count = 0
+        self._last_export_tick: Optional[int] = None
         self._last_reconciliation_at: Optional[datetime] = None
         self._reconciliation_status = {
             "last_run_at": None,
@@ -395,6 +401,7 @@ class LiveTradingEngine:
         return dict(self._reconciliation_status)
 
     def _tick_once(self):
+        self._tick_count += 1
         now = self._now()
         state_store = self._ensure_state_store()
         self._reset_daily_risk_if_needed(now)
@@ -408,7 +415,7 @@ class LiveTradingEngine:
             self._alert("error", "tick_unhealthy", {
                 "operation": "update_data", "error": type(exc).__name__,
             })
-            self._export_state()
+            self._maybe_export_state()
             return
         try:
             sync_result = self.broker.sync()
@@ -420,7 +427,7 @@ class LiveTradingEngine:
             self._alert("error", "tick_unhealthy", {
                 "operation": "broker_sync", "error": type(exc).__name__,
             })
-            self._export_state()
+            self._maybe_export_state()
             return
         self._healthy = bool(getattr(sync_result, "ok", sync_result is None))
         if not self._healthy:
@@ -429,7 +436,7 @@ class LiveTradingEngine:
                 f"account synchronization failed: {getattr(sync_result, 'error', 'unknown')}",
             ))
             logger.error("Trading disabled: portfolio synchronization failed")
-            self._export_state()
+            self._maybe_export_state()
             return
         synced_at = getattr(sync_result, "synced_at", None)
         self._last_account_sync_at = (
@@ -455,7 +462,7 @@ class LiveTradingEngine:
             self._alert("error", "reconcile_discrepancy", {
                 "error": type(exc).__name__,
             })
-            self._export_state()
+            self._maybe_export_state()
             return
         if self._has_unresolved_unknown():
             self._assess_health(now, HealthReason(
@@ -463,7 +470,7 @@ class LiveTradingEngine:
                 "an order has unresolved exchange state",
             ))
             logger.critical("Trading halted: unresolved unknown order")
-            self._export_state()
+            self._maybe_export_state()
             return
 
         prices: Dict[str, float] = {}
@@ -491,7 +498,7 @@ class LiveTradingEngine:
                 f"portfolio valuation is unavailable: {exc}",
             ))
             logger.error("Trading disabled: %s", exc)
-            self._export_state()
+            self._maybe_export_state()
             return
 
         self.event_processor.last_prices.update(self._snapshot.prices)
@@ -522,7 +529,7 @@ class LiveTradingEngine:
                     "equity": self._snapshot.equity,
                     "daily_start_equity": float(daily_start),
                 })
-            self._export_state()
+            self._maybe_export_state()
             return
 
         strategy_failures = []
@@ -585,7 +592,34 @@ class LiveTradingEngine:
         else:
             self._consecutive_strategy_failures = 0
             self._last_strategy_error = None
-        self._export_state()
+        self._maybe_export_state()
+
+    def _critical_state_signature(self):
+        return (
+            self._healthy,
+            self._operational_state,
+            self._has_unresolved_unknown(),
+            tuple(
+                self.health_assessment.reason_codes
+                if self.health_assessment else ()
+            ),
+        )
+
+    def _maybe_export_state(self, *, force: bool = False) -> bool:
+        critical_state = self._critical_state_signature()
+        transition = critical_state != self._last_exported_critical_state
+        due = (
+            self._last_export_tick is None
+            or self._tick_count - self._last_export_tick
+            >= self.state_export_interval_ticks
+        )
+        if not (force or transition or due):
+            return False
+        if self._export_state():
+            self._last_export_tick = self._tick_count
+            self._last_exported_critical_state = critical_state
+            return True
+        return False
 
     def _export_state(self):
         tmp_path = f"{self.state_file}.{os.getpid()}.tmp"
@@ -641,6 +675,7 @@ class LiveTradingEngine:
                     os.fsync(handle.fileno())
             os.replace(tmp_path, self.state_file)
             self._last_exported_critical_state = critical_state
+            return True
         except Exception as exc:
             logger.exception("Failed to export state")
             try:
@@ -648,3 +683,4 @@ class LiveTradingEngine:
                     os.remove(tmp_path)
             except OSError:
                 logger.warning("Failed to remove incomplete state file: %s", tmp_path)
+            return False
