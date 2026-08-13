@@ -181,60 +181,19 @@ class RangeStrategy(Strategy):
             
         return None
 
-    def on_bar(self, symbol: str, i: int, df: pd.DataFrame, state: MarketState, portfolio: Portfolio, broker: Broker, risk_manager: RiskManager, current_prices: Optional[Dict[str, float]] = None):
-        """
-        扩展标准 on_bar：
-        - 先执行基类 on_bar（负责出入场与下单）
-        - 若检测到本 bar 结束后仓位从非 0 变为 0，则估算该次交易盈亏并更新 trade_state
-
-        注意：
-        - 这里的盈亏是基于 Portfolio.avg_price 与 df['close'] 的近似估算，用于“连亏冷却”逻辑，
-          并不等同于 Broker 的精确成交价记录（trades.csv 中的 fill_price/commission 更准确）。
-        """
-        # Override on_bar to handle PnL tracking for Circuit Breaker
-        # We need to intercept the Exit Execution to calculate PnL.
-        
-        current_pos = portfolio.get_position(symbol)
-        qty_before = current_pos['qty']
-        
-        # Call Base on_bar logic
-        # But Base on_bar executes the order. We need to know if it did.
-        # And Base on_bar doesn't return anything.
-        
-        # Alternative: We can check portfolio before and after.
-        # If qty changed from !=0 to 0, we closed a position.
-        
-        super().on_bar(symbol, i, df, state, portfolio, broker, risk_manager, current_prices)
-        
-        qty_after = portfolio.get_position(symbol)['qty']
-        
-        if qty_before != 0 and qty_after == 0:
-            # Position Closed. Calculate PnL.
-            # We need Entry Price.
-            # Base Strategy updates context. But clears it on Exit.
-            # Wait, Base Strategy:
-            # if result['status'] == 'filled': self.context[symbol] = {}
-            # So we lost the entry price?
-            # Yes, Base Strategy clears context.
-            
-            # Solution: Store entry price in a local var before calling super, or rely on Portfolio avg_price.
-            # Portfolio avg_price is reliable for PnL calculation of the closed position.
-            
-            entry_price = current_pos['avg_price']
-            exit_price = df['close'].iat[i] # Approximation. Real exec price is in Broker.
-            # But Broker executed at current_price (close).
-            
-            pnl = 0
-            if qty_before > 0: # Long
-                pnl = (exit_price - entry_price) * abs(qty_before)
-            else: # Short
-                pnl = (entry_price - exit_price) * abs(qty_before)
-                
-            ts = self.get_trade_state(symbol)
-            if pnl < 0:
-                ts['consecutive_losses'] += 1
-                if ts['consecutive_losses'] >= 3:
-                    ts['cooldown_until'] = i + 24
-                    ts['consecutive_losses'] = 0 # Reset or keep? "连亏 3 次 → 冷却". After cooldown, reset? Usually yes.
-            else:
-                ts['consecutive_losses'] = 0
+    def on_trade_closed(
+        self,
+        symbol: str,
+        realized_pnl: float,
+        trade: Dict[str, Any],
+        bar_index: int,
+    ) -> None:
+        del trade
+        state = self.get_trade_state(symbol)
+        if realized_pnl < 0:
+            state["consecutive_losses"] += 1
+            if state["consecutive_losses"] >= 3:
+                state["cooldown_until"] = bar_index + 24
+                state["consecutive_losses"] = 0
+        else:
+            state["consecutive_losses"] = 0

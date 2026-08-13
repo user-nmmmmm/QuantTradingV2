@@ -535,14 +535,14 @@ class OrderParser:
             remaining = Decimal("0")
         elif raw_status == "expired":
             status = OrderStatus.EXPIRED
-        elif filled > 0:
-            status = OrderStatus.PARTIALLY_FILLED
-        elif raw_status in {"open", "new", "accepted", "pending"}:
-            status = OrderStatus.ACCEPTED
         elif raw_status in {"canceled", "cancelled"}:
             status = OrderStatus.CANCELED
         elif raw_status in {"rejected", "failed"}:
             status = OrderStatus.REJECTED
+        elif filled > 0:
+            status = OrderStatus.PARTIALLY_FILLED
+        elif raw_status in {"open", "new", "accepted", "pending"}:
+            status = OrderStatus.ACCEPTED
         elif remaining == 0 and requested > 0:
             status = OrderStatus.FILLED
         else:

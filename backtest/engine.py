@@ -79,6 +79,10 @@ class BacktestEngine:
         risk_manager = build_risk_manager()
         state_machine = build_state_machine()
         strategies = strategies or build_strategy_registry()
+        for strategy in strategies.values():
+            reset = getattr(strategy, "reset_runtime_state", None)
+            if callable(reset):
+                reset()
 
         if routing_log_path is None:
             routing_log_path = os.path.join(os.getcwd(), "reports", "routing_log.csv")

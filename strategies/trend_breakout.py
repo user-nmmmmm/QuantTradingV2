@@ -19,7 +19,55 @@ from strategies.base import Strategy
 """
 
 
-class TrendBreakoutStrategy(Strategy):
+class _PersistentHealthMixin:
+    @staticmethod
+    def _new_health_stats() -> Dict[str, Any]:
+        return {
+            "total_trades": 0,
+            "consecutive_losses": 0,
+            "rolling_pnl": [],
+            "is_alive": True,
+            "death_reason": None,
+        }
+
+    def _initialize_health_state(self) -> None:
+        self._health_state_store = None
+        self.health_stats = self._new_health_stats()
+
+    def bind_state_store(self, state_store) -> None:
+        self._health_state_store = state_store
+        loaded = state_store.get(f"strategy_health:{self.name}")
+        if isinstance(loaded, dict):
+            restored = self._new_health_stats()
+            restored.update(loaded)
+            restored["rolling_pnl"] = list(restored.get("rolling_pnl") or [])
+            self.health_stats = restored
+
+    def _persist_health(self) -> None:
+        if self._health_state_store is not None:
+            self._health_state_store.set(
+                f"strategy_health:{self.name}", self.health_stats
+            )
+
+    def reset_runtime_state(self) -> None:
+        super().reset_runtime_state()
+        self.health_stats = self._new_health_stats()
+
+    def on_trade_closed(
+        self, symbol: str, realized_pnl: float, trade: Dict[str, Any],
+        bar_index: int,
+    ) -> None:
+        del symbol, trade, bar_index
+        self.health_stats["total_trades"] += 1
+        self.health_stats["rolling_pnl"].append(float(realized_pnl))
+        if realized_pnl < 0:
+            self.health_stats["consecutive_losses"] += 1
+        else:
+            self.health_stats["consecutive_losses"] = 0
+        self._persist_health()
+
+
+class TrendBreakoutStrategy(_PersistentHealthMixin, Strategy):
     """
     P3: Production Implementation of Trend Breakout Alpha.
 
@@ -52,13 +100,7 @@ class TrendBreakoutStrategy(Strategy):
         self.col_low_min = f"LOW_MIN_{self.exit_window}"
 
         # P5: Health Monitoring
-        self.health_stats = {
-            "total_trades": 0,
-            "consecutive_losses": 0,
-            "rolling_pnl": [],
-            "is_alive": True,
-            "death_reason": None,
-        }
+        self._initialize_health_state()
 
     def check_health(self) -> bool:
         """
@@ -79,6 +121,7 @@ class TrendBreakoutStrategy(Strategy):
         if self.health_stats["consecutive_losses"] > 5:
             self.health_stats["is_alive"] = False
             self.health_stats["death_reason"] = "Consecutive Losses > 5"
+            self._persist_health()
             return False
 
         # 2. Rolling Sharpe (Simplified check on last 20 PnL entries)
@@ -91,6 +134,7 @@ class TrendBreakoutStrategy(Strategy):
                 self.health_stats["death_reason"] = (
                     "Rolling Mean Return < 0 (20 trades)"
                 )
+                self._persist_health()
                 return False
 
         return True
@@ -169,27 +213,6 @@ class TrendBreakoutStrategy(Strategy):
 
         return None
 
-    def _record_trade_result(self, symbol: str, portfolio: Portfolio, exit_price: float):
-        """
-        将一次“即将平仓”的结果写入健康度统计（rolling_pnl、consecutive_losses）。
-
-        注意：
-        - 本方法依赖 context 中的 entry_price（由基类在入场成交后写入）
-        - qty 从 Portfolio 读取；若此时 qty 已为 0，则跳过（无法归因）
-        """
-        ctx = self.get_context(symbol)
-        entry_price = ctx.get("entry_price", exit_price)
-        qty = portfolio.get_position(symbol).get("qty", 0)
-        if qty == 0:
-            return  # Position already closed before we could read it; skip.
-        pnl = (exit_price - entry_price) * abs(qty)
-        self.health_stats["total_trades"] += 1
-        self.health_stats["rolling_pnl"].append(pnl)
-        if pnl < 0:
-            self.health_stats["consecutive_losses"] += 1
-        else:
-            self.health_stats["consecutive_losses"] = 0
-
     def should_exit(
         self,
         symbol: str,
@@ -210,7 +233,6 @@ class TrendBreakoutStrategy(Strategy):
 
         # 1. Exit Signal
         if pd.notna(low_min) and close < low_min:
-            self._record_trade_result(symbol, portfolio, close)
             return {
                 "action": "sell",
                 "reason": f"Breakout Exit (Below Low{self.exit_window})",
@@ -218,13 +240,12 @@ class TrendBreakoutStrategy(Strategy):
 
         # 2. Regime Check (System Rule)
         if state not in self.allowed_states:
-            self._record_trade_result(symbol, portfolio, close)
             return {"action": "sell", "reason": f"Regime {state.name} Not Allowed"}
 
         return None
 
 
-class TrendBreakdownStrategy(Strategy):
+class TrendBreakdownStrategy(_PersistentHealthMixin, Strategy):
     """
     Mirrored Donchian breakdown strategy for short-side trend participation.
     """
@@ -236,13 +257,7 @@ class TrendBreakdownStrategy(Strategy):
 
         self.col_high_max = f"HIGH_MAX_{self.exit_window}"
         self.col_low_min = f"LOW_MIN_{self.entry_window}"
-        self.health_stats = {
-            "total_trades": 0,
-            "consecutive_losses": 0,
-            "rolling_pnl": [],
-            "is_alive": True,
-            "death_reason": None,
-        }
+        self._initialize_health_state()
 
     def check_health(self) -> bool:
         if not self.health_stats["is_alive"]:
@@ -251,12 +266,14 @@ class TrendBreakdownStrategy(Strategy):
         if self.health_stats["consecutive_losses"] > 5:
             self.health_stats["is_alive"] = False
             self.health_stats["death_reason"] = "Consecutive Losses > 5"
+            self._persist_health()
             return False
 
         pnl_history = self.health_stats["rolling_pnl"]
         if len(pnl_history) >= 20 and np.mean(pnl_history[-20:]) < 0:
             self.health_stats["is_alive"] = False
             self.health_stats["death_reason"] = "Rolling Mean Return < 0 (20 trades)"
+            self._persist_health()
             return False
 
         return True
@@ -302,21 +319,6 @@ class TrendBreakdownStrategy(Strategy):
 
         return None
 
-    def _record_trade_result(self, symbol: str, portfolio: Portfolio, exit_price: float):
-        ctx = self.get_context(symbol)
-        entry_price = ctx.get("entry_price", exit_price)
-        qty = portfolio.get_position(symbol).get("qty", 0)
-        if qty == 0:
-            return
-
-        pnl = (entry_price - exit_price) * abs(qty)
-        self.health_stats["total_trades"] += 1
-        self.health_stats["rolling_pnl"].append(pnl)
-        if pnl < 0:
-            self.health_stats["consecutive_losses"] += 1
-        else:
-            self.health_stats["consecutive_losses"] = 0
-
     def should_exit(
         self,
         symbol: str,
@@ -331,14 +333,12 @@ class TrendBreakdownStrategy(Strategy):
         high_max = df[self.col_high_max].iat[i]
 
         if pd.notna(high_max) and close > high_max:
-            self._record_trade_result(symbol, portfolio, close)
             return {
                 "action": "cover",
                 "reason": f"Breakdown Exit (Above High{self.exit_window})",
             }
 
         if state not in self.allowed_states:
-            self._record_trade_result(symbol, portfolio, close)
             return {"action": "cover", "reason": f"Regime {state.name} Not Allowed"}
 
         return None

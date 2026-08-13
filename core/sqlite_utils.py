@@ -9,6 +9,35 @@ class DatabaseIntegrityError(RuntimeError):
     """Raised when a live-state database fails SQLite integrity validation."""
 
 
+class DatabaseSchemaError(RuntimeError):
+    """Raised when a live-state database schema is newer than this runtime."""
+
+
+def ensure_schema_version(
+    connection: sqlite3.Connection, component: str, version: int,
+) -> None:
+    if version <= 0:
+        raise ValueError("schema version must be positive")
+    connection.execute(
+        """CREATE TABLE IF NOT EXISTS schema_metadata (
+            component TEXT PRIMARY KEY,
+            version INTEGER NOT NULL
+        )"""
+    )
+    row = connection.execute(
+        "SELECT version FROM schema_metadata WHERE component=?", (component,)
+    ).fetchone()
+    if row is not None and int(row[0]) > version:
+        raise DatabaseSchemaError(
+            f"{component} schema version {row[0]} is newer than supported {version}"
+        )
+    connection.execute(
+        "INSERT INTO schema_metadata(component, version) VALUES(?, ?) "
+        "ON CONFLICT(component) DO UPDATE SET version=excluded.version",
+        (component, version),
+    )
+
+
 def open_durable_connection(
     path: str, *, busy_timeout_ms: int = 5000, check_same_thread: bool = False,
 ) -> sqlite3.Connection:

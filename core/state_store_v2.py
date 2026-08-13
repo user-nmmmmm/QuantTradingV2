@@ -8,7 +8,7 @@ import sqlite3
 from datetime import datetime, timezone
 from threading import RLock
 from typing import Any
-from core.sqlite_utils import open_durable_connection
+from core.sqlite_utils import ensure_schema_version, open_durable_connection
 
 
 class StateStore:
@@ -18,6 +18,7 @@ class StateStore:
         self._lock = RLock()
         self._connection = open_durable_connection(path)
         with self._connection:
+            ensure_schema_version(self._connection, "state_store", 1)
             self._connection.execute(
                 "CREATE TABLE IF NOT EXISTS state (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
             )

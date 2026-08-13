@@ -40,6 +40,7 @@ class Strategy(ABC):
         # State tracking for the strategy per symbol
         # symbol -> { 'entry_price': float, 'stop_loss': float, 'trailing_stop': float }
         self.context: Dict[str, Dict[str, Any]] = {}
+        self._processed_trade_keys = set()
 
     def get_context(self, symbol: str) -> Dict[str, Any]:
         """
@@ -54,6 +55,69 @@ class Strategy(ABC):
         if symbol not in self.context:
             self.context[symbol] = {}
         return self.context[symbol]
+
+    def reset_runtime_state(self) -> None:
+        self.context = {}
+        self._processed_trade_keys = set()
+
+    def bind_state_store(self, _state_store) -> None:
+        """Optional live-state binding for strategies with durable health state."""
+
+    def on_trade_closed(
+        self, symbol: str, realized_pnl: float, trade: Dict[str, Any],
+        bar_index: int,
+    ) -> None:
+        """Hook invoked only after authoritative closing fills make a position flat."""
+
+    def _consume_execution_trades(
+        self, symbol: str, bar_index: int,
+        portfolio: Portfolio, broker: ExecutionPort,
+    ) -> None:
+        trades = list(getattr(broker, "trades", []) or [])
+        for trade in trades:
+            if trade.get("symbol") != symbol or trade.get("strategy_id") != self.name:
+                continue
+            price = float(trade.get("fill_price", trade.get("price", 0.0)) or 0.0)
+            qty = float(trade.get("qty", 0.0) or 0.0)
+            if price <= 0 or qty <= 0:
+                continue
+            key = (
+                trade.get("id") or trade.get("fill_id") or trade.get("order_id"),
+                str(trade.get("fill_time") or trade.get("timestamp")),
+                qty,
+                price,
+            )
+            if key in self._processed_trade_keys:
+                continue
+            self._processed_trade_keys.add(key)
+            side = str(trade.get("side") or "").lower()
+            ctx = self.get_context(symbol)
+            if side in {"buy", "short"}:
+                prior_qty = float(ctx.get("_entry_fill_qty", 0.0))
+                prior_price = float(ctx.get("entry_price", price))
+                total_qty = prior_qty + qty
+                ctx["entry_price"] = (
+                    (prior_price * prior_qty + price * qty) / total_qty
+                )
+                ctx["_entry_fill_qty"] = total_qty
+                ctx.pop("entry_pending", None)
+                continue
+            if side not in {"sell", "cover"}:
+                continue
+            entry_price = float(ctx.get("entry_price", price))
+            fee = float(trade.get("commission", trade.get("fee", 0.0)) or 0.0)
+            pnl = (
+                (price - entry_price) * qty
+                if side == "sell"
+                else (entry_price - price) * qty
+            ) - fee
+            ctx["_realized_exit_pnl"] = float(
+                ctx.get("_realized_exit_pnl", 0.0)
+            ) + pnl
+            if portfolio.get_position(symbol).get("qty", 0.0) == 0:
+                realized = float(ctx["_realized_exit_pnl"])
+                self.on_trade_closed(symbol, realized, trade, bar_index)
+                self.context[symbol] = {}
 
     @abstractmethod
     def should_enter(
@@ -125,6 +189,7 @@ class Strategy(ABC):
           - 若 entry_signal 提供 stop_loss：按 risk_per_trade 做风险定仓
           - 否则：退化为按固定资金占比定仓（默认 10%）
         """
+        self._consume_execution_trades(symbol, i, portfolio, broker)
         current_pos = portfolio.get_position(symbol)
         qty = current_pos["qty"]
 
@@ -135,7 +200,7 @@ class Strategy(ABC):
         ctx_pre = self.get_context(symbol)
         just_entered = i <= ctx_pre.get("entry_bar", -2) + 1
 
-        if qty != 0 and not just_entered:
+        if qty != 0 and not just_entered and not ctx_pre.get("exit_pending"):
             exit_signal = self.should_exit(symbol, i, df, state, portfolio)
             if exit_signal:
                 action = exit_signal["action"]  # 'sell' or 'cover'
@@ -165,10 +230,10 @@ class Strategy(ABC):
                     )
 
                     if submission.accepted:
-                        self.context[symbol] = {}
+                        self.context[symbol]["exit_pending"] = True
 
         # 2. Check Entry if we don't have a position (or if strategy allows pyramiding, but let's assume 1 pos for now)
-        if qty == 0:
+        if qty == 0 and not self.get_context(symbol).get("entry_pending"):
             if state in self.allowed_states:
                 entry_signal = self.should_enter(symbol, i, df, state, portfolio)
                 if entry_signal:
@@ -238,6 +303,7 @@ class Strategy(ABC):
 
                             # Initialize Context only after explicit acceptance
                             self.context[symbol] = {
+                                "entry_pending": True,
                                 "stop_loss": stop_loss,
                                 "entry_price": current_price,  # Approx
                                 "trailing_stop": -np.inf

@@ -13,7 +13,11 @@ from core.logger import get_logger
 logger = get_logger(__name__)
 
 REQUIRED_CONFIG: Dict[str, Tuple[str, ...]] = {
-    "execution": ("commission_rate_taker", "commission_rate_maker", "slippage_bps", "use_impact_cost"),
+    "execution": (
+        "commission_rate_taker", "commission_rate_maker", "slippage_bps",
+        "use_impact_cost", "reconciliation_interval_seconds",
+        "strategy_failure_threshold",
+    ),
     "risk": ("max_leverage", "risk_per_trade", "max_drawdown_limit", "liquidity_limit_pct", "max_pos_size_pct"),
     "state": ("stability_period", "ma_fast", "ma_slow", "adx_period", "adx_threshold", "atr_period", "atr_pct_threshold"),
     "routing": ("TREND_UP", "TREND_DOWN", "SIDEWAYS", "VOLATILE"),

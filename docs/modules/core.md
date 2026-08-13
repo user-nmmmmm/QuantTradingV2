@@ -208,7 +208,7 @@
 `build_startup_report(policy, credentials, engine)` 生成不含密钥明文的 JSON"证据"报告（凭据是否存在、sandbox/live 模式、一键停机是否未激活、账户/订单同步基线、健康基线、熔断状态）。`write_startup_report(...)` 原子写入（临时文件 + `os.replace` + fsync）。
 
 ### `core/system_factory.py` — 组件装配工厂
-`build_strategy_registry()`（组装 TrendUp/TrendDown/TrendBreakout/TrendBreakdown/RangeMeanReversion 策略）、`build_risk_manager()`、`build_state_machine()`、`build_router(strategies, log_path, allow_short)`、`market_type_supports_shorts(market_type)`（future/futures/swap/margin 返回真）。**注意**：`build_router` 在 `allow_short=False` 时会把 `regime_map["TREND_DOWN"]` 强制改成 `"Cash"`，在路由层面彻底禁用做空策略，与策略对象本身是否存在无关。
+`build_strategy_registry()`（组装 TrendBreakout/TrendBreakdown/RangeMeanReversion 策略）、`build_risk_manager()`、`build_state_machine()`、`build_router(strategies, log_path, allow_short)`、`market_type_supports_shorts(market_type)`（future/futures/swap/margin 返回真）。**注意**：`build_router` 在 `allow_short=False` 时会把 `regime_map["TREND_DOWN"]` 强制改成 `"Cash"`，在路由层面彻底禁用做空策略，与策略对象本身是否存在无关。
 
 ### `core/live_safety.py` — 实盘安全闸门
 `StartupSafetyPolicy.from_environment(...)` 从 `QUANT_ALLOWED_EXCHANGES/ACCOUNT_TYPES/SYMBOLS` 和 `QUANT_{SANDBOX,LIVE}_MAX_ORDER_NOTIONAL/MAX_DAILY_NEW_RISK` 读取配置（sandbox 有默认值 1000/5000；**live 模式没有默认值，必须显式配置**，否则大声报错而不是静默套用 sandbox 的宽松限制）。账户类型白名单默认只含 `"spot"`。`OrderSafetyGuard.assert_order_allowed(...)` 强制一键停机、标的白名单、正价格、单笔名义上限、按自身 clock 每日重置的新增风险预算。`verify_live_permissions(exchange, account_type)` 要求交易所暴露权限查询接口，并断言提现权限已关闭、交易权限已开启。

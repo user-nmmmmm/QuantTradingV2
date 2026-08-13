@@ -9,7 +9,8 @@ from threading import RLock
 from typing import Callable, Optional
 
 from core.live_safety import SafetyConfigurationError, StartupSafetyPolicy
-from core.sqlite_utils import open_durable_connection
+from core.sqlite_backup import SQLiteSnapshotManager
+from core.sqlite_utils import ensure_schema_version, open_durable_connection
 
 
 class PersistentOrderSafetyGuard:
@@ -28,10 +29,14 @@ class PersistentOrderSafetyGuard:
         os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
         self._connection = open_durable_connection(path)
         with self._connection:
+            ensure_schema_version(self._connection, "persistent_risk_guard", 1)
             self._connection.execute(
                 "CREATE TABLE IF NOT EXISTS daily_risk "
                 "(risk_day TEXT PRIMARY KEY, notional REAL NOT NULL)"
             )
+        self._snapshot_manager = (
+            None if path == ":memory:" else SQLiteSnapshotManager(path)
+        )
 
     def assert_order_allowed(
         self,
@@ -51,6 +56,7 @@ class PersistentOrderSafetyGuard:
             raise SafetyConfigurationError("order exceeds maximum notional")
         if side.lower() not in {"buy", "short"}:
             return
+        self.snapshot_if_due()
 
         risk_day = self._clock().isoformat()
         with self._lock, self._connection:
@@ -65,6 +71,11 @@ class PersistentOrderSafetyGuard:
                 "ON CONFLICT(risk_day) DO UPDATE SET notional=excluded.notional",
                 (risk_day, used + notional),
             )
+
+    def snapshot_if_due(self):
+        if self._snapshot_manager is None:
+            return None
+        return self._snapshot_manager.run_if_due()
 
     def close(self) -> None:
         with self._lock:

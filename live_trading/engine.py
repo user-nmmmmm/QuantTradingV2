@@ -55,6 +55,8 @@ class LiveTradingEngine:
         snapshot_manager: Optional[SQLiteSnapshotManager] = None,
         failure_backoff_base_seconds: float = 1.0,
         failure_backoff_max_seconds: float = 60.0,
+        reconciliation_interval_seconds: float = 300.0,
+        strategy_failure_threshold: int = 3,
     ) -> None:
         self.symbols = symbols
         self.strategies = strategies
@@ -93,6 +95,22 @@ class LiveTradingEngine:
         self.failure_backoff_max_seconds = failure_backoff_max_seconds
         self._consecutive_tick_crashes = 0
         self._next_retry_delay = 0.0
+        if reconciliation_interval_seconds <= 0:
+            raise ValueError("reconciliation_interval_seconds must be positive")
+        if strategy_failure_threshold <= 0:
+            raise ValueError("strategy_failure_threshold must be positive")
+        self.reconciliation_interval_seconds = reconciliation_interval_seconds
+        self.strategy_failure_threshold = strategy_failure_threshold
+        self._last_reconciliation_at: Optional[datetime] = None
+        self._reconciliation_status = {
+            "last_run_at": None,
+            "checked_count": 0,
+            "discrepancy_count": 0,
+            "ok": None,
+        }
+        self._consecutive_strategy_failures = 0
+        self._last_strategy_error: Optional[str] = None
+        self._strategies_state_bound = False
 
         alert_path = os.path.join(
             os.path.dirname(os.path.abspath(state_file)), "live_alerts.jsonl"
@@ -197,6 +215,12 @@ class LiveTradingEngine:
     def _ensure_state_store(self) -> StateStore:
         if self.state_store is None:
             self.state_store = StateStore(self._state_db_path)
+        if not self._strategies_state_bound:
+            for strategy in self.strategies.values():
+                binder = getattr(strategy, "bind_state_store", None)
+                if callable(binder):
+                    binder(self.state_store)
+            self._strategies_state_bound = True
         if self.snapshot_manager is None:
             source_path = getattr(self.state_store, "path", self._state_db_path)
             if source_path != ":memory:":
@@ -335,31 +359,45 @@ class LiveTradingEngine:
         self._next_retry_delay = 0.0
         return True
 
+    def _run_reconciliation_if_due(
+        self, now: datetime, *, force: bool = False,
+    ) -> Dict:
+        due = (
+            force
+            or self._last_reconciliation_at is None
+            or (now - self._last_reconciliation_at).total_seconds()
+            >= self.reconciliation_interval_seconds
+        )
+        if not due:
+            return dict(self._reconciliation_status)
+
+        recovered = dict(self._recover_orders() or {})
+        unresolved = [
+            client_order_id
+            for client_order_id, result in recovered.items()
+            if str(getattr(getattr(result, "status", None), "value", ""))
+            == "unknown"
+        ]
+        self._last_reconciliation_at = now
+        self._reconciliation_status = {
+            "last_run_at": now.isoformat(),
+            "checked_count": len(recovered),
+            "discrepancy_count": len(unresolved),
+            "ok": not unresolved,
+        }
+        if not self._has_unresolved_unknown():
+            self._last_order_sync_at = now
+        if unresolved:
+            self._alert("error", "reconcile_discrepancy", {
+                "discrepancy_count": len(unresolved),
+                "client_order_ids": unresolved,
+            })
+        return dict(self._reconciliation_status)
+
     def _tick_once(self):
         now = self._now()
         state_store = self._ensure_state_store()
         self._reset_daily_risk_if_needed(now)
-        try:
-            self._recover_orders()
-            unresolved_unknown = self._has_unresolved_unknown()
-            if not unresolved_unknown:
-                self._last_order_sync_at = now
-        except Exception as exc:
-            self._assess_health(now, HealthReason(
-                "ORDER_SYNC_FAILED", "order_sync", "order",
-                f"order synchronization failed: {type(exc).__name__}",
-            ))
-            self._export_state()
-            return
-        if unresolved_unknown:
-            self._assess_health(now, HealthReason(
-                "ORDER_STATE_UNKNOWN", "order_sync", "order",
-                "an order has unresolved exchange state",
-            ))
-            logger.critical("Trading halted: unresolved unknown order")
-            self._export_state()
-            return
-
         try:
             self._update_data()
         except Exception as exc:
@@ -397,6 +435,36 @@ class LiveTradingEngine:
         self._last_account_sync_at = (
             synced_at if isinstance(synced_at, datetime) else now
         )
+
+        try:
+            self._run_reconciliation_if_due(
+                now, force=self._has_unresolved_unknown()
+            )
+        except Exception as exc:
+            self._reconciliation_status = {
+                "last_run_at": now.isoformat(),
+                "checked_count": 0,
+                "discrepancy_count": 1,
+                "ok": False,
+                "error": type(exc).__name__,
+            }
+            self._assess_health(now, HealthReason(
+                "ORDER_SYNC_FAILED", "order_sync", "order",
+                f"order synchronization failed: {type(exc).__name__}",
+            ))
+            self._alert("error", "reconcile_discrepancy", {
+                "error": type(exc).__name__,
+            })
+            self._export_state()
+            return
+        if self._has_unresolved_unknown():
+            self._assess_health(now, HealthReason(
+                "ORDER_STATE_UNKNOWN", "order_sync", "order",
+                "an order has unresolved exchange state",
+            ))
+            logger.critical("Trading halted: unresolved unknown order")
+            self._export_state()
+            return
 
         prices: Dict[str, float] = {}
         price_times = {}
@@ -457,6 +525,7 @@ class LiveTradingEngine:
             self._export_state()
             return
 
+        strategy_failures = []
         for symbol in self.symbols:
             frame = closed_map.get(symbol)
             if frame is None or frame.empty:
@@ -493,9 +562,29 @@ class LiveTradingEngine:
                     logger.critical("Bar released because order fact is unknown: %s", bar_key)
                     break
                 state_store.complete_bar(bar_key, now.isoformat())
-            except Exception:
+            except Exception as exc:
                 state_store.release_bar(bar_key)
+                strategy_failures.append((symbol, type(exc).__name__))
                 logger.exception("Failed processing bar %s", bar_key)
+
+        if strategy_failures:
+            self._consecutive_strategy_failures += len(strategy_failures)
+            self._last_strategy_error = strategy_failures[-1][1]
+            halted = (
+                self._consecutive_strategy_failures
+                >= self.strategy_failure_threshold
+            )
+            self._healthy = False
+            self._operational_state = "HALTED" if halted else "DEGRADED"
+            self._alert("critical" if halted else "error", "strategy_processing_failed", {
+                "failures": strategy_failures,
+                "consecutive_failures": self._consecutive_strategy_failures,
+                "threshold": self.strategy_failure_threshold,
+                "operational_state": self._operational_state,
+            })
+        else:
+            self._consecutive_strategy_failures = 0
+            self._last_strategy_error = None
         self._export_state()
 
     def _export_state(self):
@@ -526,6 +615,9 @@ class LiveTradingEngine:
                 "healthy": self._healthy,
                 "operational_state": self._operational_state,
                 "unresolved_unknown_order": self._has_unresolved_unknown(),
+                "reconciliation": dict(self._reconciliation_status),
+                "consecutive_strategy_failures": self._consecutive_strategy_failures,
+                "last_strategy_error": self._last_strategy_error,
                 "health_reason_codes": (
                     self.health_assessment.reason_codes
                     if self.health_assessment else []
@@ -550,7 +642,7 @@ class LiveTradingEngine:
             os.replace(tmp_path, self.state_file)
             self._last_exported_critical_state = critical_state
         except Exception as exc:
-            logger.error("Failed to export state: %s", type(exc).__name__)
+            logger.exception("Failed to export state")
             try:
                 if os.path.exists(tmp_path):
                     os.remove(tmp_path)

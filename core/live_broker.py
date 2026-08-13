@@ -403,6 +403,9 @@ class LiveBroker:
                 results[client_id] = self.reconcile_order(client_id)
         if not self.has_unresolved_unknown():
             self.last_order_sync_at = self._clock()
+        snapshot = getattr(self.order_store, "snapshot_if_due", None)
+        if callable(snapshot):
+            snapshot()
         return results
 
     def confirm_order_not_submitted(
@@ -550,6 +553,18 @@ class LiveBroker:
                 )
                 if self.order_store.add_fill(fill_record):
                     self._publish_fill_event(fill_record, record)
+                    intent = record.get("intent") or {}
+                    self.trades.append({
+                        "id": fill_id,
+                        "fill_id": fill_id,
+                        "symbol": record.get("symbol"),
+                        "side": record.get("side"),
+                        "qty": fill_record.qty,
+                        "fill_price": fill_record.price,
+                        "commission": fill_record.fee,
+                        "timestamp": fill_record.timestamp,
+                        "strategy_id": intent.get("strategy_id"),
+                    })
             return
         existing_qty = sum(fill["qty"] for fill in self.order_store.fills_for(client_order_id))
         delta = max(cumulative_filled - existing_qty, 0.0)
@@ -564,10 +579,18 @@ class LiveBroker:
             )
             if self.order_store.add_fill(fill_record):
                 self._publish_fill_event(fill_record, record)
-                self.trades.append(
-                    {"id": fill_id, "symbol": record["symbol"],
-                     "qty": delta, "price": average, "timestamp": self._now_iso()}
-                )
+                intent = record.get("intent") or {}
+                self.trades.append({
+                    "id": fill_id,
+                    "fill_id": fill_id,
+                    "symbol": record.get("symbol"),
+                    "side": record.get("side"),
+                    "qty": delta,
+                    "fill_price": average,
+                    "commission": 0.0,
+                    "timestamp": self._now_iso(),
+                    "strategy_id": intent.get("strategy_id"),
+                })
 
     def _fetch_exchange_order(self, record: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         if record.get("exchange_order_id"):
@@ -591,10 +614,15 @@ class LiveBroker:
         reduce_only: Optional[bool], sequence: int,
     ) -> OrderIntent:
         held = self.portfolio.get_position(symbol)["qty"]
-        is_reduce = reduce_only if reduce_only is not None else side in {"sell", "cover"}
-        if self.market_type in DERIVATIVE_TYPES and is_reduce:
-            closable = max(held, 0.0) if side == "sell" else max(-held, 0.0)
-            qty = min(qty, closable)
+        derivative = self.market_type in DERIVATIVE_TYPES
+        requested_reduce = reduce_only if reduce_only is not None else side in {"sell", "cover"}
+        # reduceOnly is a derivatives-only exchange parameter. Spot sells still
+        # clamp to owned inventory, but their canonical intent must not encode it.
+        is_reduce = bool(derivative and requested_reduce)
+        if side == "sell":
+            qty = min(qty, max(held, 0.0))
+        elif derivative and side == "cover":
+            qty = min(qty, max(-held, 0.0))
         bar_time = self._bar_time if self._bar_time != "unknown" else self._iso(timestamp or self._clock())
         return OrderIntent(
             exchange=self.exchange_id, account=self.account_id, symbol=symbol,

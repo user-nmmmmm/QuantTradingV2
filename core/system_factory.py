@@ -6,7 +6,6 @@ from core.state import MarketStateMachine
 from router.router import Router
 from strategies.mean_reversion import RangeStrategy
 from strategies.trend_breakout import TrendBreakdownStrategy, TrendBreakoutStrategy
-from strategies.trend_following import TrendDownStrategy, TrendUpStrategy
 
 
 DERIVATIVE_MARKET_TYPES = {"future", "futures", "swap", "margin"}
@@ -14,8 +13,6 @@ DERIVATIVE_MARKET_TYPES = {"future", "futures", "swap", "margin"}
 
 def build_strategy_registry() -> Dict[str, object]:
     return {
-        "TrendUp": TrendUpStrategy(),
-        "TrendDown": TrendDownStrategy(),
         "TrendBreakout": TrendBreakoutStrategy(),
         "TrendBreakdown": TrendBreakdownStrategy(),
         "RangeMeanReversion": RangeStrategy(),

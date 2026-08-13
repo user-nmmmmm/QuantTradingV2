@@ -8,7 +8,8 @@ from typing import Any, Dict, List, Optional
 
 from core.domain import FillRecord, OrderIntent, OrderStatus
 from core.orders import TERMINAL_STATUSES, validate_transition
-from core.sqlite_utils import open_durable_connection
+from core.sqlite_backup import SQLiteSnapshotManager
+from core.sqlite_utils import ensure_schema_version, open_durable_connection
 
 
 class OrderStore:
@@ -22,6 +23,7 @@ class OrderStore:
         self._connection = open_durable_connection(path)
         self._connection.row_factory = sqlite3.Row
         with self._connection:
+            ensure_schema_version(self._connection, "order_store", 1)
             self._connection.execute(
                 """CREATE TABLE IF NOT EXISTS orders (
                     client_order_id TEXT PRIMARY KEY,
@@ -83,6 +85,9 @@ class OrderStore:
                 '''CREATE INDEX IF NOT EXISTS idx_order_resolutions_client
                    ON operator_order_resolutions(client_order_id, resolved_at)'''
             )
+        self._snapshot_manager = (
+            None if path == ":memory:" else SQLiteSnapshotManager(path)
+        )
 
     def _migrate_orders(self) -> None:
         existing = {
@@ -325,6 +330,11 @@ class OrderStore:
                 (client_order_id,),
             ).fetchall()
         return [self._decode_fill(row) for row in rows]
+
+    def snapshot_if_due(self):
+        if self._snapshot_manager is None:
+            return None
+        return self._snapshot_manager.run_if_due()
 
     def close(self) -> None:
         with self._lock:

@@ -4,6 +4,7 @@ import sys
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+from config.config import config
 from core.portfolio import Portfolio
 from core.logger import configure_logging, get_logger
 from core.live_safety import (
@@ -106,6 +107,12 @@ def main() -> int:
         broker=broker,
         risk_manager=risk_manager,
         interval_seconds=args.interval,
+        reconciliation_interval_seconds=config.require(
+            "execution", "reconciliation_interval_seconds"
+        ),
+        strategy_failure_threshold=config.require(
+            "execution", "strategy_failure_threshold"
+        ),
     )
     try:
         engine.initialize()

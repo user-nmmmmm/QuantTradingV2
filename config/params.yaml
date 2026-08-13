@@ -6,6 +6,8 @@ execution:
   commission_rate_maker: 0.0002 # 0.02% (Binance Futures standard maker)
   slippage_bps: 5               # 5 basis points (0.05%)
   use_impact_cost: false        # Enable volume-based impact cost
+  reconciliation_interval_seconds: 300  # Independent order reconciliation cadence
+  strategy_failure_threshold: 3         # Consecutive strategy failures before HALTED
 
 # 2. Risk Management
 risk:
