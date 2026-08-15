@@ -1,3 +1,4 @@
+import math
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -6,7 +7,17 @@ from collections import deque
 from typing import Deque, List, Dict, Any, Tuple
 
 from core.logger import get_logger
-from core.metrics import calculate_equity_metrics, calculate_profit_factor
+from core.metric_result import MetricResult
+from core.metrics import (
+    calculate_attribution,
+    calculate_benchmark_comparison,
+    calculate_cost_sensitivity,
+    calculate_drawdown_events,
+    calculate_equity_metrics,
+    calculate_profit_factor,
+    calculate_r_multiple_stats,
+    calculate_trade_quality,
+)
 
 logger = get_logger(__name__)
 
@@ -73,6 +84,15 @@ class ReportGenerator:
 
         metrics = {**equity_metrics, **trade_metrics}
 
+        extended = dict(metrics.get("ExtendedAnalytics") or {})
+        extended["drawdown_events"] = calculate_drawdown_events(equity_curve["equity"])
+        if benchmark_curve is not None:
+            extended["benchmark_comparison"] = calculate_benchmark_comparison(
+                equity_curve["equity"], benchmark_curve
+            )
+        metrics["ExtendedAnalytics"] = extended
+        metrics["MetricResults"] = self._headline_metric_results(metrics)
+
         if not metrics_only:
             # 3. Save Report Text
             self._save_report_text(metrics, metadata)
@@ -91,6 +111,84 @@ class ReportGenerator:
         - 根据 DatetimeIndex 的中位正间隔自动推断年化因子
         """
         return calculate_equity_metrics(equity_curve)
+
+    def _headline_metric_results(self, metrics: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Wrap the report's headline scalar metrics as MetricResult entries (M-02).
+
+        core.metric_result.MetricResult defines a typed, JSON-schema-validated
+        contract that distinguishes a real zero from "not computable" — but it
+        had zero production callers; core/metrics.py's ten functions each
+        return their own ad hoc dict shape instead. Rewriting those functions
+        to return MetricResult would touch every call site across the repo for
+        uncertain benefit. Adopting the contract at the report boundary instead
+        gives the schema real, tested production output without that blast
+        radius.
+        """
+        extended = metrics.get("ExtendedAnalytics") or {}
+        trade_quality = extended.get("trade_quality") or {}
+        r_multiple = (extended.get("r_multiple") or {}).get("r_multiple") or {}
+
+        candidates = (
+            ("SharpeRatio", metrics.get("SharpeRatio"), metrics.get("SharpeStatus"),
+             metrics.get("SharpeSamples"), None),
+            ("CAGR", metrics.get("CAGR"), metrics.get("CAGRStatus"),
+             metrics.get("MonthlyReturnSamples"), "ratio"),
+            ("MaxDrawdownPct", metrics.get("MaxDrawdownPct"), metrics.get("DrawdownStatus"),
+             None, "ratio"),
+            ("ProfitFactor", metrics.get("ProfitFactor"), metrics.get("ProfitFactorStatus"),
+             metrics.get("ProfitFactorSamples"), None),
+            ("WinRate", trade_quality.get("win_rate"), trade_quality.get("status"),
+             trade_quality.get("sample_size"), "ratio"),
+            ("SQN", r_multiple.get("sqn"), r_multiple.get("status"),
+             r_multiple.get("sample_size"), None),
+        )
+
+        results = []
+        for name, value, status, sample_size, unit in candidates:
+            status = status or ("ok" if value is not None else "undefined")
+            if status == "ok":
+                try:
+                    value = float(value)
+                except (TypeError, ValueError):
+                    value = None
+                if value is None or not math.isfinite(value):
+                    status, value = "undefined", None
+            else:
+                value = None
+            results.append(
+                MetricResult(
+                    name=name, value=value, status=status,
+                    sample_size=int(sample_size or 0), unit=unit,
+                ).to_dict()
+            )
+        return results
+
+    def _extended_trade_analytics(
+        self, closed_trades: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """Trade-level analytics beyond the headline PF/win-rate summary (BM2/BM5/BM7).
+
+        These call core.metrics functions that were previously computed
+        nowhere in the production report path (core/metrics.py had them
+        implemented and tested, but backtest/reporting.py never invoked
+        them). Every one of these degrades to an "insufficient"/"excluded"
+        status on empty or partial input rather than raising, so this is
+        safe to call unconditionally, including on an empty closed_trades
+        list.
+
+        calculate_exposure/calculate_signal_funnel are deliberately not
+        included here: they need per-timestamp position/price snapshots and
+        the event pipeline's correlation-id stream respectively, neither of
+        which is currently passed to ReportGenerator. Wiring those in would
+        require threading extra state through backtest/engine.py and is out
+        of scope for this pass.
+        """
+        return {
+            "trade_quality": calculate_trade_quality(closed_trades),
+            "attribution": calculate_attribution(closed_trades),
+            "r_multiple": calculate_r_multiple_stats(closed_trades),
+            "cost_sensitivity": calculate_cost_sensitivity(closed_trades),
+        }
 
     def _analyze_trades(self, trades_df: pd.DataFrame) -> Dict[str, Any]:
         """
@@ -114,6 +212,7 @@ class ReportGenerator:
                 "TotalCommission": 0.0,
                 "TotalSlippage": 0.0,
                 "NetPnL": 0.0,
+                "ExtendedAnalytics": self._extended_trade_analytics([]),
             }
 
         # Reconstruct PnL using FIFO
@@ -132,6 +231,7 @@ class ReportGenerator:
             column_index = {name: index for index, name in enumerate(columns)}
             slip_index = column_index.get("slip")
             strategy_index = column_index.get("strategy_id")
+            fill_time_index = column_index.get("fill_time")
             for row in group.itertuples(index=False, name=None):
                 side = row[column_index["side"]]
                 qty = row[column_index["qty"]]
@@ -139,6 +239,7 @@ class ReportGenerator:
                 comm = row[column_index["commission"]]
                 # Broker stores 'slip' as unit price difference (absolute)
                 unit_slip = row[slip_index] if slip_index is not None else 0.0
+                exit_time = row[fill_time_index] if fill_time_index is not None else None
 
                 unit_comm = comm / qty if qty > 0 else 0.0
 
@@ -174,6 +275,8 @@ class ReportGenerator:
                                 "commission": trade_comm,
                                 "slippage": trade_slip,
                                 "strategy": s_strat,
+                                "symbol": symbol,
+                                "exit_time": exit_time,
                             }
                         )
 
@@ -216,6 +319,8 @@ class ReportGenerator:
                                 "commission": trade_comm,
                                 "slippage": trade_slip,
                                 "strategy": l_strat,
+                                "symbol": symbol,
+                                "exit_time": exit_time,
                             }
                         )
 
@@ -261,6 +366,8 @@ class ReportGenerator:
                                 "commission": trade_comm,
                                 "slippage": trade_slip,
                                 "strategy": s_strat,
+                                "symbol": symbol,
+                                "exit_time": exit_time,
                             }
                         )
 
@@ -293,6 +400,7 @@ class ReportGenerator:
                 "TotalCommission": 0.0,
                 "TotalSlippage": 0.0,
                 "NetPnL": 0.0,
+                "ExtendedAnalytics": self._extended_trade_analytics([]),
             }
 
         # 1. Global Metrics
@@ -316,6 +424,7 @@ class ReportGenerator:
                 "TotalCommission": 0.0,
                 "TotalSlippage": 0.0,
                 "NetPnL": 0.0,
+                "ExtendedAnalytics": self._extended_trade_analytics([]),
             }
 
         wins = [p for p in all_net_pnls if p > 0]
@@ -346,6 +455,7 @@ class ReportGenerator:
             "TotalCommission": sum(all_comms),
             "TotalSlippage": sum(all_slips),
             "NetPnL": sum(all_net_pnls),
+            "ExtendedAnalytics": self._extended_trade_analytics(closed_trades),
         }
 
         # 2. Per Strategy Metrics
