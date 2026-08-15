@@ -6,6 +6,7 @@ from core.state import MarketStateMachine
 from router.router import Router
 from strategies.mean_reversion import RangeStrategy
 from strategies.trend_breakout import TrendBreakdownStrategy, TrendBreakoutStrategy
+from strategies.volatility import VolatilityReversionStrategy
 
 
 DERIVATIVE_MARKET_TYPES = {"future", "futures", "swap", "margin"}
@@ -16,8 +17,8 @@ def build_strategy_registry() -> Dict[str, object]:
         "TrendBreakout": TrendBreakoutStrategy(),
         "TrendBreakdown": TrendBreakdownStrategy(),
         "RangeMeanReversion": RangeStrategy(),
+        "VolatilityReversion": VolatilityReversionStrategy(),
     }
-
 
 def build_risk_manager() -> RiskManager:
     return RiskManager(

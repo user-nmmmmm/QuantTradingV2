@@ -34,7 +34,7 @@ routing:
   TREND_UP: "TrendBreakout"
   TREND_DOWN: "TrendBreakdown"  # Short side; overridden by VOLATILE in most volatile regimes
   SIDEWAYS: "RangeMeanReversion"
-  VOLATILE: "TrendBreakout"
+  VOLATILE: "VolatilityReversion"
 
 # 3b. Router Parameters
 router:

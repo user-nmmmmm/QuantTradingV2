@@ -7,6 +7,7 @@ from enum import Enum
 import pandas as pd
 
 from core.domain import OrderIntent, OrderStatus
+from core.cost_model import CostBreakdown
 from core.events import FillEvent, OrderEvent, TradingEventPipeline
 from core.logger import get_logger
 from core.portfolio import Portfolio
@@ -459,6 +460,15 @@ class Broker:
             self._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
             return None
         self.portfolio.update_position(order.symbol, qty_delta, fill_price, commission)
+        costs = CostBreakdown(
+            commission=commission,
+            slippage=abs(fill_price - price) * fill_qty,
+            impact=abs(price * impact_slip) * fill_qty,
+            funding=None,
+            borrow=None,
+            funding_status="not_modeled",
+            borrow_status="not_modeled",
+        )
         trade_record = {
             "order_id": order.id,
             "signal_time": order.timestamp,
@@ -470,6 +480,7 @@ class Broker:
             "commission": commission,
             "slip": abs(fill_price - price),
             "slip_dir": slip_dir,
+            "costs": costs.to_dict(),
             "strategy_id": order.strategy_id,
             "exit_reason": order.exit_reason,
             "is_maker": is_maker,

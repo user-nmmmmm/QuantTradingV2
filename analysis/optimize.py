@@ -3,6 +3,7 @@ import os
 import argparse
 import itertools
 import pandas as pd
+import json
 from datetime import datetime, timedelta
 from typing import List, Dict, Any
 from tabulate import tabulate
@@ -16,6 +17,7 @@ from backtest.reporting import ReportGenerator
 from strategies.trend_following import TrendUpStrategy, TrendDownStrategy
 from strategies.mean_reversion import RangeStrategy
 
+from analysis.validation import ValidationConfig, validate_parameter_candidates
 
 def run_grid_search(
     symbols: List[str],
@@ -28,6 +30,7 @@ def run_grid_search(
     print(f"\nStarting Grid Search Optimization...")
     print(f"Symbols: {symbols}")
     print(f"Data Source: {data_source}")
+    oos: bool = False,
 
     # Calculate dates if not provided
     if not end_date:
@@ -74,6 +77,7 @@ def run_grid_search(
     results = []
 
     print(f"\nTesting {len(param_grid)} combinations...")
+    returns_by_candidate = {}
     print("-" * 60)
 
     for sma, atr_mult in param_grid:
@@ -97,6 +101,9 @@ def run_grid_search(
             equity_curve=backtest_result["equity_curve"],
             benchmark_curve=backtest_result["benchmark"],
             metrics_only=True,
+        )
+        returns_by_candidate[f"sma={sma},atr={atr_mult}"] = (
+            backtest_result["equity_curve"]["equity"].pct_change().dropna()
         )
         
         # Store result
@@ -134,6 +141,15 @@ def run_grid_search(
     filename = f"reports/optimization_{timestamp}.csv"
     results_df.to_csv(filename, index=False)
     print(f"\nResults saved to {filename}")
+    if oos:
+        validation = validate_parameter_candidates(
+            returns_by_candidate, p_values=[], config=ValidationConfig()
+        )
+        validation_path = filename.replace(".csv", "_oos.json")
+        with open(validation_path, "w", encoding="utf-8") as handle:
+            json.dump(validation, handle, ensure_ascii=False, indent=2, default=str)
+        print(f"OOS selection (train only): {validation['selected_candidate']}")
+        print(f"OOS evidence saved to {validation_path}")
 
 
 def main():
@@ -151,6 +167,7 @@ def main():
         choices=["synthetic", "yahoo", "ccxt"],
     )
     parser.add_argument("--capital", type=float, default=10000.0)
+    parser.add_argument("--oos", action="store_true", help="emit untouched OOS evidence")
 
     args = parser.parse_args()
 
@@ -161,6 +178,7 @@ def main():
         start_date=args.start,
         end_date=args.end,
         initial_capital=args.capital,
+        oos=args.oos,
     )
 
 

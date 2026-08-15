@@ -14,6 +14,7 @@ from core.live_safety import (
     verify_live_permissions,
 )
 from core.persistent_risk_guard import PersistentOrderSafetyGuard
+from core.gray_release import GrayReleasePolicy, write_release_record
 from core.startup_preflight import build_startup_report, write_startup_report
 from core.safe_live_broker import SafeLiveBroker
 from core.system_factory import build_risk_manager, build_strategy_registry
@@ -51,6 +52,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--preflight-report", default="reports/startup_preflight.json",
     )
     return parser
+    parser.add_argument("--r8-evidence", help="passed R7 acceptance JSON (required for --live)")
+    parser.add_argument("--rollback-snapshot", help="validated state snapshot (required for --live)")
+    parser.add_argument("--r8-max-order-notional", type=float)
+    parser.add_argument("--r8-max-daily-risk", type=float)
 
 
 def main() -> int:
@@ -88,7 +93,25 @@ def main() -> int:
     )
     if args.live:
         try:
-            verify_live_permissions(broker.exchange, args.market_type)
+            if not all((args.r8_evidence, args.rollback_snapshot, args.r8_max_order_notional, args.r8_max_daily_risk)):
+                raise SafetyConfigurationError("--live requires R8 evidence, rollback snapshot, and explicit risk caps")
+            gray_policy = GrayReleasePolicy(
+                args.exchange,
+                args.symbols[0] if len(args.symbols) == 1 else "",
+                args.r8_max_order_notional,
+                args.r8_max_daily_risk,
+                args.r8_evidence,
+                args.rollback_snapshot,
+            )
+            gray_policy.validate(policy, broker.exchange)
+            write_release_record(
+                "reports/r8_release.json",
+                gray_policy,
+                {
+                    "r7_evidence": args.r8_evidence,
+                    "rollback_snapshot": args.rollback_snapshot,
+                },
+            )
         except SafetyConfigurationError as exc:
             safety_guard.close()
             parser.error(str(exc))

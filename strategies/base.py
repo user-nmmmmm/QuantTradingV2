@@ -63,6 +63,23 @@ class Strategy(ABC):
     def bind_state_store(self, _state_store) -> None:
         """Optional live-state binding for strategies with durable health state."""
 
+    def hard_stop_exit(
+        self, symbol: str, i: int, df: pd.DataFrame, portfolio: Portfolio,
+    ) -> Optional[Dict[str, Any]]:
+        """Apply one shared intrabar hard-stop rule before strategy-specific exits."""
+        qty = float(portfolio.get_position(symbol).get("qty", 0.0))
+        stop = self.get_context(symbol).get("stop_loss")
+        if not qty or stop in (None, 0):
+            return None
+        stop = float(stop)
+        low = float(df["low"].iat[i]) if "low" in df else float(df["close"].iat[i])
+        high = float(df["high"].iat[i]) if "high" in df else float(df["close"].iat[i])
+        if qty > 0 and low <= stop:
+            return {"action": "sell", "reason": "hard_stop", "order_type": "market"}
+        if qty < 0 and high >= stop:
+            return {"action": "cover", "reason": "hard_stop", "order_type": "market"}
+        return None
+
     def on_trade_closed(
         self, symbol: str, realized_pnl: float, trade: Dict[str, Any],
         bar_index: int,
@@ -200,8 +217,10 @@ class Strategy(ABC):
         ctx_pre = self.get_context(symbol)
         just_entered = i <= ctx_pre.get("entry_bar", -2) + 1
 
-        if qty != 0 and not just_entered and not ctx_pre.get("exit_pending"):
-            exit_signal = self.should_exit(symbol, i, df, state, portfolio)
+        if qty != 0 and not ctx_pre.get("exit_pending"):
+            exit_signal = self.hard_stop_exit(symbol, i, df, portfolio)
+            if exit_signal is None and not just_entered:
+                exit_signal = self.should_exit(symbol, i, df, state, portfolio)
             if exit_signal:
                 action = exit_signal["action"]  # 'sell' or 'cover'
                 reason = exit_signal.get("reason", "signal")
