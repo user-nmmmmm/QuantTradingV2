@@ -41,6 +41,7 @@ from core.risk_reservation import (
 
 logger = get_logger(__name__)
 DERIVATIVE_TYPES = {"future", "futures", "swap", "margin"}
+CONFIRMED_ABSENT_ERROR_MESSAGE = "order_not_found_by_client_id"
 
 
 class LiveBroker:
@@ -361,7 +362,22 @@ class LiveBroker:
                 self.order_store.transition(
                     client_order_id, OrderStatus.UNKNOWN, self._now_iso(),
                     error_code=OrderErrorCode.UNKNOWN.value,
-                    error_message="order_not_found_by_client_id",
+                    error_message=CONFIRMED_ABSENT_ERROR_MESSAGE,
+                )
+            elif record.get("error_message") != CONFIRMED_ABSENT_ERROR_MESSAGE:
+                # Already UNKNOWN from an earlier ambiguous failure (e.g. a
+                # submission timeout). This poll independently confirmed the
+                # exchange has no record of the order, which is strictly
+                # more informative than the original transient-error label,
+                # so record it. updated_at is deliberately left untouched:
+                # the auto-expiry TTL below measures time since the order
+                # first went UNKNOWN, not time since its last reconfirmation
+                # poll, or a tight poll interval would keep resetting the
+                # clock and the order would never expire.
+                self.order_store.update(
+                    client_order_id,
+                    error_code=OrderErrorCode.UNKNOWN.value,
+                    error_message=CONFIRMED_ABSENT_ERROR_MESSAGE,
                 )
             return self._result(client_order_id)
         result = self._persist_exchange_payload(client_order_id, payload)
@@ -392,6 +408,33 @@ class LiveBroker:
                     now=self._now_iso(),
                 )
                 self._alert('critical', 'stale_submitting_expired', {
+                    'client_order_id': record['client_order_id'],
+                    'ttl_seconds': self.submitting_ttl.total_seconds(),
+                })
+                record = self.order_store.get(record['client_order_id']) or record
+            elif (
+                record['status'] == OrderStatus.UNKNOWN.value
+                and record.get('error_message') == CONFIRMED_ABSENT_ERROR_MESSAGE
+                and not record.get('exchange_order_id')
+                and float(record.get('filled_qty') or 0.0) <= 0
+                and self._unattempted_submission_expired(record)
+            ):
+                # Reconciliation independently confirmed the exchange has no
+                # record of this order under its client id (not merely a
+                # transient lookup failure). Other UNKNOWN causes are left
+                # alone and require the manual confirm_order_not_submitted
+                # path, since the exchange may genuinely have accepted them.
+                self.order_store.resolve_as_unsubmitted(
+                    record['client_order_id'],
+                    confirmed_by='system:unknown_ttl',
+                    reason=(
+                        'reconciliation repeatedly confirmed the order absent '
+                        'from the exchange and the submitting TTL elapsed'
+                    ),
+                    now=self._now_iso(),
+                )
+                self._unknown_reconcile_attempts.pop(record['client_order_id'], None)
+                self._alert('critical', 'stale_unknown_confirmed_absent_expired', {
                     'client_order_id': record['client_order_id'],
                     'ttl_seconds': self.submitting_ttl.total_seconds(),
                 })

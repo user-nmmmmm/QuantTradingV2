@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 
 from core.alerting import JsonlAlertSink
 from core.broker import Broker, Order, OrderType
-from core.domain import OrderStatus, SyncResult
+from core.domain import OrderErrorCode, OrderStatus, SyncResult
 from core.live_broker import LiveBroker
 from core.persistent_risk_guard import PersistentOrderSafetyGuard
 from core.order_store import OrderStore
@@ -181,6 +181,100 @@ class TestP0Blockers(unittest.TestCase):
             self.assertEqual(audit[0]['confirmed_by'], 'system:submitting_ttl')
             events = [call.args[1] for call in alerts.notify.call_args_list]
             self.assertIn('stale_submitting_expired', events)
+            broker.close()
+
+    @patch('core.live_broker.ccxt')
+    def test_confirmed_absent_unknown_expires_after_ttl(self, ccxt_mock):
+        ccxt_mock.binance.return_value = MagicMock()
+        exchange = ccxt_mock.binance.return_value
+        exchange.create_order.side_effect = TimeoutError('lost response')
+        alerts = MagicMock()
+        with tempfile.TemporaryDirectory() as directory:
+            broker = self.make_live_broker(
+                directory, exchange,
+                submitting_ttl=timedelta(minutes=5), alert_sink=alerts,
+            )
+            unknown = broker.submit_order('BTC/USDT', 'buy', 1, 100)
+            self.assertEqual(unknown.status, OrderStatus.UNKNOWN)
+
+            # Simulate a prior poll that independently confirmed the
+            # exchange has no record of this order, over 5 minutes ago.
+            # updated_at is deliberately backdated (not "now") to model the
+            # TTL clock starting when the order first went UNKNOWN, not
+            # resetting on every reconfirmation poll.
+            broker.order_store.update(
+                unknown.client_order_id,
+                error_code=OrderErrorCode.UNKNOWN.value,
+                error_message='order_not_found_by_client_id',
+                updated_at=(NOW - timedelta(minutes=6)).isoformat(),
+            )
+
+            recovered = broker.recover_open_orders()[unknown.client_order_id]
+
+            self.assertEqual(recovered.status, OrderStatus.EXPIRED_UNSUBMITTED)
+            self.assertFalse(broker.has_unresolved_unknown())
+            audit = broker.order_store.resolutions_for(unknown.client_order_id)
+            self.assertEqual(audit[-1]['confirmed_by'], 'system:unknown_ttl')
+            events = [call.args[1] for call in alerts.notify.call_args_list]
+            self.assertIn('stale_unknown_confirmed_absent_expired', events)
+            broker.close()
+
+    @patch('core.live_broker.ccxt')
+    def test_confirmed_absent_unknown_within_ttl_does_not_expire(self, ccxt_mock):
+        ccxt_mock.binance.return_value = MagicMock()
+        exchange = ccxt_mock.binance.return_value
+        exchange.create_order.side_effect = TimeoutError('lost response')
+        exchange.fetch_order_by_client_order_id.return_value = None
+        alerts = MagicMock()
+        with tempfile.TemporaryDirectory() as directory:
+            broker = self.make_live_broker(
+                directory, exchange,
+                submitting_ttl=timedelta(minutes=5), alert_sink=alerts,
+            )
+            unknown = broker.submit_order('BTC/USDT', 'buy', 1, 100)
+            self.assertEqual(unknown.status, OrderStatus.UNKNOWN)
+
+            # A poll within the TTL window confirms the order absent but
+            # must not auto-expire it yet.
+            recovered = broker.recover_open_orders()[unknown.client_order_id]
+
+            self.assertEqual(recovered.status, OrderStatus.UNKNOWN)
+            self.assertTrue(broker.has_unresolved_unknown())
+            record = broker.order_store.get(unknown.client_order_id)
+            self.assertEqual(record['error_message'], 'order_not_found_by_client_id')
+            events = [call.args[1] for call in alerts.notify.call_args_list]
+            self.assertNotIn('stale_unknown_confirmed_absent_expired', events)
+            broker.close()
+
+    @patch('core.live_broker.ccxt')
+    def test_transient_error_unknown_never_auto_expires(self, ccxt_mock):
+        ccxt_mock.binance.return_value = MagicMock()
+        exchange = ccxt_mock.binance.return_value
+        exchange.create_order.side_effect = TimeoutError('lost response')
+        alerts = MagicMock()
+        with tempfile.TemporaryDirectory() as directory:
+            broker = self.make_live_broker(
+                directory, exchange,
+                submitting_ttl=timedelta(minutes=5), alert_sink=alerts,
+            )
+            unknown = broker.submit_order('BTC/USDT', 'buy', 1, 100)
+            self.assertEqual(unknown.status, OrderStatus.UNKNOWN)
+
+            # error_message is still the original transient-error label
+            # (never independently confirmed absent), even though it is
+            # long past the TTL — this must require manual resolution.
+            broker.order_store.update(
+                unknown.client_order_id,
+                updated_at=(NOW - timedelta(minutes=6)).isoformat(),
+            )
+            exchange.fetch_order_by_client_order_id.side_effect = TimeoutError('still down')
+
+            recovered = broker.recover_open_orders()[unknown.client_order_id]
+
+            self.assertEqual(recovered.status, OrderStatus.UNKNOWN)
+            self.assertTrue(broker.has_unresolved_unknown())
+            events = [call.args[1] for call in alerts.notify.call_args_list]
+            self.assertNotIn('stale_unknown_confirmed_absent_expired', events)
             broker.close()
 
     def test_outer_tick_guard_alerts_and_applies_bounded_exponential_backoff(self):
