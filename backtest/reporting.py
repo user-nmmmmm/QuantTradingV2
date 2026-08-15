@@ -128,17 +128,23 @@ class ReportGenerator:
                 Tuple[float, float, str, float, float]
             ] = deque()  # (qty, price, strategy_id, unit_comm, unit_slip)
 
-            for _, row in group.iterrows():
-                side = row["side"]
-                qty = row["qty"]
-                price = row["fill_price"]
-                comm = row["commission"]
+            columns = list(group.columns)
+            column_index = {name: index for index, name in enumerate(columns)}
+            slip_index = column_index.get("slip")
+            strategy_index = column_index.get("strategy_id")
+            for row in group.itertuples(index=False, name=None):
+                side = row[column_index["side"]]
+                qty = row[column_index["qty"]]
+                price = row[column_index["fill_price"]]
+                comm = row[column_index["commission"]]
                 # Broker stores 'slip' as unit price difference (absolute)
-                unit_slip = row.get("slip", 0.0)
+                unit_slip = row[slip_index] if slip_index is not None else 0.0
 
                 unit_comm = comm / qty if qty > 0 else 0.0
 
-                strategy_id = row.get("strategy_id", "Unknown")
+                strategy_id = (
+                    row[strategy_index] if strategy_index is not None else "Unknown"
+                )
 
                 if side == "buy":
                     # Check if covering short

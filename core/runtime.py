@@ -144,12 +144,11 @@ class EventProcessor:
                     continue
                 if self.process_symbol(event, symbol):
                     routed.append(symbol)
-            equity = self.portfolio.get_total_value(self.last_prices)
 
         return RuntimeResult(
             equity=equity,
             cash=float(self.portfolio.cash),
-            prices=dict(self.last_prices),
+            prices=self.last_prices,
             routed_symbols=routed,
             circuit_breaker=breaker,
         )

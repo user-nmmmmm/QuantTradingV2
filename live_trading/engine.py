@@ -117,6 +117,7 @@ class LiveTradingEngine:
         self._consecutive_strategy_failures = 0
         self._last_strategy_error: Optional[str] = None
         self._strategies_state_bound = False
+        self._unresolved_unknown_cache: Optional[bool] = None
 
         alert_path = os.path.join(
             os.path.dirname(os.path.abspath(state_file)), "live_alerts.jsonl"
@@ -277,7 +278,7 @@ class LiveTradingEngine:
         logger.info("Initializing Live Trading Engine...")
         self._ensure_state_store()
         recovery = self._recover_orders()
-        if not self._has_unresolved_unknown():
+        if not self._has_unresolved_unknown(refresh=True):
             self._last_order_sync_at = self._now()
         if recovery:
             self._operational_state = "RECONCILING"
@@ -318,9 +319,13 @@ class LiveTradingEngine:
         recover = getattr(self.broker, "recover_open_orders", None)
         return recover() if callable(recover) else {}
 
-    def _has_unresolved_unknown(self) -> bool:
-        checker = getattr(self.broker, "has_unresolved_unknown", None)
-        return bool(checker()) if callable(checker) else False
+    def _has_unresolved_unknown(self, *, refresh: bool = False) -> bool:
+        if refresh or self._unresolved_unknown_cache is None:
+            checker = getattr(self.broker, "has_unresolved_unknown", None)
+            self._unresolved_unknown_cache = (
+                bool(checker()) if callable(checker) else False
+            )
+        return self._unresolved_unknown_cache
 
     def _update_data(self):
         self.market_data_adapter.data_map = dict(self.data_map)
@@ -391,7 +396,7 @@ class LiveTradingEngine:
             "discrepancy_count": len(unresolved),
             "ok": not unresolved,
         }
-        if not self._has_unresolved_unknown():
+        if not self._has_unresolved_unknown(refresh=True):
             self._last_order_sync_at = now
         if unresolved:
             self._alert("error", "reconcile_discrepancy", {
@@ -402,6 +407,7 @@ class LiveTradingEngine:
 
     def _tick_once(self):
         self._tick_count += 1
+        self._unresolved_unknown_cache = None
         now = self._now()
         state_store = self._ensure_state_store()
         self._reset_daily_risk_if_needed(now)
@@ -560,7 +566,7 @@ class LiveTradingEngine:
             )
             try:
                 self.event_processor.process_symbol(event, symbol)
-                if self._has_unresolved_unknown():
+                if self._has_unresolved_unknown(refresh=True):
                     state_store.release_bar(bar_key)
                     self._assess_health(now, HealthReason(
                         "ORDER_STATE_UNKNOWN", "order_sync", "order",

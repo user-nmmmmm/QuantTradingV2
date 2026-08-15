@@ -58,7 +58,28 @@
       "Bash(python -m pytest tests/test_p0_blockers.py -v)",
       "Bash(py -3 -m pytest tests/test_p0_blockers.py -v)",
       "Bash(./.venv/Scripts/python.exe -m pytest tests/test_p0_blockers.py -v)",
-      "Bash(\"D:\\\\QauntTradingV1\\\\.venv\\\\Scripts\\\\python.exe\" -m pytest tests/test_p0_blockers.py -q)"
+      "Bash(\"D:\\\\QauntTradingV1\\\\.venv\\\\Scripts\\\\python.exe\" -m pytest tests/test_p0_blockers.py -q)",
+      "Bash(git log *)",
+      "Bash(grep -v -E \"^\\\\.venv$|^\\\\.git$\")",
+      "Bash(\"D:\\\\QauntTradingV1\\\\.venv\\\\Scripts\\\\python.exe\" -m pytest -q)",
+      "Bash(ls -d \"D:\\\\QuantTradingV1\" 2>&1; ls -d \"D:\\\\QauntTradingV1\" 2>&1)",
+      "Bash(gh auth *)",
+      "Bash(\"D:\\\\QuantTradingV1\\\\.venv\\\\Scripts\\\\python.exe\" -m pytest tests/test_backtest_regression.py -q)",
+      "Bash(\"D:\\\\QuantTradingV1\\\\.venv\\\\Scripts\\\\python.exe\" -c \"import numpy, pandas, sys; print\\(sys.version\\); print\\('numpy', numpy.__version__\\); print\\('pandas', pandas.__version__\\)\")",
+      "Bash(wsl -l -v)",
+      "Bash(wsl -d Debian -- bash -c \"python3 --version; which python3\")",
+      "Bash(wsl -d Debian -- bash -c \"cd /mnt/d/QuantTradingV1 && python3 -m venv /tmp/citest 2>&1 | tail -5 && /tmp/citest/bin/pip install -q -r requirements.txt 2>&1 | tail -20\")",
+      "Bash(wsl -d Debian -- bash -c \"sudo apt-get install -y python3-venv python3-pip 2>&1 | tail -20\")",
+      "Bash(wsl -d Debian -- bash -c \"python3 -m pip --version 2>&1; apt list --installed 2>/dev/null | grep -i python3-pip; whoami\")",
+      "Bash(wsl -d Debian -- bash -c \"sudo -n true 2>&1; echo EXIT:\\\\$?\")",
+      "Bash(wsl -d Debian -- bash -c \"python3 -m ensurepip --user 2>&1 | tail -20\")",
+      "Bash(\"D:\\\\QuantTradingV1\\\\.venv\\\\Scripts\\\\python.exe\" diff_baseline_debug.py)",
+      "Bash(wsl -d Debian -- bash -c \"ps aux | grep -i pip | grep -v grep\")",
+      "Bash(wsl -d Debian -- bash -c 'cd /mnt/d/QuantTradingV1 && source .venv-linux/bin/activate && python -c \" *)",
+      "Bash(wsl -d Debian -- bash -c \"cd /mnt/d/QuantTradingV1 && source .venv-linux/bin/activate && OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1 MKL_NUM_THREADS=1 python diff_baseline_debug.py 2>/dev/null\")",
+      "Bash(wsl -d Debian -- bash -c \"cd /mnt/d/QuantTradingV1 && source .venv-linux/bin/activate && OPENBLAS_CORETYPE=PRESCOTT python diff_baseline_debug.py 2>/dev/null\")",
+      "Bash(wsl -d Debian -- bash -c \"cd /mnt/d/QuantTradingV1 && source .venv-linux/bin/activate && OPENBLAS_CORETYPE=NEHALEM python diff_baseline_debug.py 2>/dev/null\")",
+      "Bash(wsl -d Debian -- bash -c \"cd /mnt/d/QuantTradingV1 && grep -rnE '\\\\.std\\\\\\(|\\\\.corr\\\\\\(|np\\\\.log|np\\\\.exp|np\\\\.sqrt|np\\\\.power|\\\\*\\\\* *0\\\\.5|math\\\\.sqrt|math\\\\.log|math\\\\.exp|\\\\.ewm\\\\\\(' core strategies backtest --include='*.py' | grep -v test\")"
     ]
   }
 }

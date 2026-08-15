@@ -80,6 +80,7 @@ class Order:
 
     # State tracking
     status: BacktestOrderStatus = BacktestOrderStatus.CREATED
+    submitted_date: Any = None
     filled_qty: float = 0.0
     remaining_qty: float = 0.0
     avg_fill_price: float = 0.0
@@ -201,6 +202,9 @@ class Broker:
             timestamp=timestamp,
             slippage=slippage,
             strategy_id=strategy_id,
+            submitted_date=(
+                pd.Timestamp(timestamp).date() if timestamp is not None else None
+            ),
             exit_reason=exit_reason,
             status=BacktestOrderStatus.CREATED,
             remaining_qty=max(qty, 0.0),
@@ -326,8 +330,8 @@ class Broker:
                 continue
             if (
                 order.time_in_force == TimeInForce.DAY
-                and order.timestamp is not None
-                and current_time.date() > order.timestamp.date()
+                and order.submitted_date is not None
+                and current_time.date() > order.submitted_date
             ):
                 self._set_status(order, BacktestOrderStatus.EXPIRED, current_time)
                 continue

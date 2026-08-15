@@ -27,8 +27,11 @@ class RecordedExecutionAdapter:
     ) -> None:
         if broker is None and portfolio is None:
             portfolio = Portfolio(0)
+        resolved_portfolio = broker.portfolio if broker is not None else portfolio
+        if resolved_portfolio is None:
+            raise ValueError("recorded execution requires a portfolio")
         self.broker = broker
-        self.portfolio = broker.portfolio if broker is not None else portfolio
+        self.portfolio: Portfolio = resolved_portfolio
         self.pipeline = (
             pipeline
             or (getattr(broker, "event_pipeline", None) if broker is not None else None)
