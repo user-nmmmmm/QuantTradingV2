@@ -13,7 +13,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from core.data_fetcher import DataFetcher
 from core.data import DataHandler
 from backtest.engine import BacktestEngine, DEFAULT_INITIAL_CAPITAL
-from backtest.reporting import ReportGenerator
+from backtest.reporting import ReportGenerator, format_primary_metrics
 from core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -281,14 +281,14 @@ def main(argv=None) -> int:
             logger.exception("Failed to move routing log: %s", e)
 
     print("\n" + "=" * 30)
-    print("BACKTEST RESULTS")
+    print("BACKTEST RESULTS (core metrics)")
     print("=" * 30)
-    for k, v in metrics.items():
-        if isinstance(v, float):
-            print(f"{k:<35}: {v:.4f}")
-        else:
-            print(f"{k:<35}: {v}")
+    # English-only on stdout: Windows consoles commonly default to the GBK
+    # codepage, which garbles Chinese text; report.txt is written with an
+    # explicit utf-8 encoding and carries the bilingual labels instead.
+    print(format_primary_metrics(metrics, bilingual=False))
     print("=" * 30)
+    print("Full metrics (drawdown events, trade quality, attribution, benchmark) written to report.txt")
 
     print(f"\nReport saved to: {output_dir}")
     if artifact_failures:

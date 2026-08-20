@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 from collections import deque
-from typing import Deque, List, Dict, Any, Tuple
+from typing import Deque, List, Dict, Any, Optional, Tuple
 
 from core.logger import get_logger
 from core.metric_result import MetricResult
@@ -35,6 +35,92 @@ logger = get_logger(__name__)
 - 权益曲线：CAGR、最大回撤、月均收益、夏普（按 252 日年化）
 - 交易明细：基于 FIFO 重建已平仓交易，计算胜率、盈亏比、期望值等
 """
+
+
+# 控制台只展示这些核心指标；完整明细（含回撤事件、交易质量、归因、基准对比）
+# 一律写入 report.txt，不在控制台重复输出。
+PRIMARY_METRIC_KEYS = [
+    "TotalReturn",
+    "CAGR",
+    "MaxDrawdownPct",
+    "SharpeRatio",
+    "TotalTrades",
+    "WinRate",
+    "ProfitFactor",
+    "NetPnL",
+    "EndEquity",
+]
+
+
+def format_primary_metrics(metrics: Dict[str, Any], bilingual: bool = True) -> str:
+    """把 ``metrics`` 中的核心指标子集格式化为文本块。
+
+    ``bilingual=False``（用于终端 stdout）只保留英文标签：Windows 控制台的默认
+    代码页通常是 GBK（非 UTF-8），直接打印中文标签会花屏；``report.txt`` 用
+    ``encoding="utf-8"`` 显式写文件，不受控制台代码页影响，可以放心用双语标签。
+    """
+    lines = []
+    for key in PRIMARY_METRIC_KEYS:
+        if key not in metrics:
+            continue
+        label = METRIC_NAMES.get(key, key)
+        if not bilingual:
+            label = label.split(" (")[0]
+        value = metrics[key]
+        lines.append(f"{label:<24}: {_format_metric_value(value)}")
+    return "\n".join(lines)
+
+
+def _format_metric_value(value: Any) -> str:
+    if isinstance(value, float):
+        return f"{value:.4f}"
+    return str(value)
+
+
+# Metrics Translation Map（覆盖 core/metrics.py 与本模块产出的全部指标键，
+# 保证 report.txt 里不出现未翻译的裸 camelCase 键名）。
+METRIC_NAMES = {
+    "CAGR": "CAGR (年化收益率)",
+    "CAGRStatus": "CAGR Status (年化收益率状态)",
+    "MaxDrawdownPct": "Max Drawdown % (最大回撤率)",
+    "MaxDrawdownAmount": "Max Drawdown $ (最大回撤金额)",
+    "CurrentDrawdownPct": "Current Drawdown % (当前回撤率)",
+    "DrawdownStatus": "Drawdown Status (回撤计算状态)",
+    "MaxDrawdownPeak": "Max Drawdown Peak Time (最大回撤峰值时间)",
+    "MaxDrawdownTrough": "Max Drawdown Trough Time (最大回撤谷底时间)",
+    "MaxDrawdownRecovery": "Max Drawdown Recovery Time (最大回撤恢复时间)",
+    "MaxDrawdownDurationPeriods": "Max Drawdown Duration (periods) (最大回撤持续周期数)",
+    "MaxDrawdownDurationDays": "Max Drawdown Duration (days) (最大回撤持续天数)",
+    "MaxDrawdownRecoveryPeriods": "Max Drawdown Recovery (periods) (最大回撤恢复周期数)",
+    "MaxDrawdownRecoveryDays": "Max Drawdown Recovery (days) (最大回撤恢复天数)",
+    "MaxDrawdownOpen": "Max Drawdown Still Open (最大回撤是否尚未恢复)",
+    "UnderwaterRatio": "Underwater Ratio (水下时间占比)",
+    "AvgMonthlyReturn": "Avg Monthly Return (月均收益率)",
+    "MonthlyReturnStatus": "Monthly Return Status (月收益计算状态)",
+    "MonthlyReturnSamples": "Monthly Return Samples (月收益样本数)",
+    "SharpeRatio": "Sharpe Ratio (夏普比率)",
+    "SharpeStatus": "Sharpe Status (夏普比率计算状态)",
+    "SharpeSamples": "Sharpe Samples (夏普比率样本数)",
+    "PeriodsPerYear": "Periods Per Year (年化周期数)",
+    "EndEquity": "End Equity (最终净值)",
+    "TotalReturn": "Total Return (总收益率)",
+    "MetricsFormulaVersion": "Metrics Formula Version (指标公式版本)",
+    "TotalTrades": "Total Trades (总交易次数)",
+    "WinRate": "Win Rate (胜率)",
+    "ProfitFactor": "Profit Factor (盈亏比)",
+    "ProfitFactorStatus": "Profit Factor Status (盈亏比计算状态)",
+    "ProfitFactorSamples": "Profit Factor Samples (盈亏比样本数)",
+    "ProfitFactorLosses": "Profit Factor Loss Count (盈亏比亏损笔数)",
+    "ProfitFactorLower95": "Profit Factor 95% CI Lower (盈亏比 95% 置信区间下限)",
+    "ProfitFactorUpper95": "Profit Factor 95% CI Upper (盈亏比 95% 置信区间上限)",
+    "Expectancy": "Expectancy (期望值)",
+    "AvgWin": "Avg Win (平均盈利)",
+    "AvgLoss": "Avg Loss (平均亏损)",
+    "GrossPnL": "Gross PnL (毛利润)",
+    "TotalCommission": "Total Commission (总手续费)",
+    "TotalSlippage": "Total Slippage (总滑点成本)",
+    "NetPnL": "Net PnL (净利润)",
+}
 
 
 class ReportGenerator:
@@ -79,13 +165,16 @@ class ReportGenerator:
                 trades_df.to_csv(os.path.join(self.output_dir, "trades.csv"), index=False)
 
         # 2. Calculate Metrics
-        trade_metrics = self._analyze_trades(trades_df)
+        closed_trades = self._reconstruct_closed_trades(trades_df)
+        trade_metrics = self._trade_metrics_from_closed(closed_trades)
         equity_metrics = self._calculate_equity_metrics(equity_curve)
 
         metrics = {**equity_metrics, **trade_metrics}
 
         extended = dict(metrics.get("ExtendedAnalytics") or {})
-        extended["drawdown_events"] = calculate_drawdown_events(equity_curve["equity"])
+        extended["drawdown_events"] = calculate_drawdown_events(
+            equity_curve["equity"], min_depth_pct=0.01
+        )
         if benchmark_curve is not None:
             extended["benchmark_comparison"] = calculate_benchmark_comparison(
                 equity_curve["equity"], benchmark_curve
@@ -94,8 +183,10 @@ class ReportGenerator:
         metrics["MetricResults"] = self._headline_metric_results(metrics)
 
         if not metrics_only:
-            # 3. Save Report Text
-            self._save_report_text(metrics, metadata)
+            # 3. Save Report Text（report.txt 的分析型分节直接读 ExtendedAnalytics，
+            # 不重新计算一遍——避免 trade_quality/attribution 等函数在同一次
+            # generate() 调用里跑两次）。
+            self._save_report_text(metrics, metadata, metrics["ExtendedAnalytics"])
 
             # 4. Generate Plots
             self._plot_equity(equity_curve, benchmark_curve)
@@ -191,41 +282,31 @@ class ReportGenerator:
         }
 
     def _analyze_trades(self, trades_df: pd.DataFrame) -> Dict[str, Any]:
+        """基于 trades.csv 重建已平仓交易并统计交易级指标（薄封装，见下两个方法）。"""
+        return self._trade_metrics_from_closed(self._reconstruct_closed_trades(trades_df))
+
+    def _reconstruct_closed_trades(self, trades_df: pd.DataFrame) -> List[Dict[str, Any]]:
         """
-        基于 trades.csv 重建已平仓交易并统计交易级指标。
+        基于成交明细重建已平仓交易（FIFO 配对开平仓）。
 
         方法：
-        - 按 symbol 分组
-        - 使用 FIFO 栈（long_stack/short_stack）配对开平仓，计算每一笔闭合交易的 PnL
-        - 统计全局指标与按策略归因指标（Strat_{name}_*）
+        - 按 symbol 分组，使用 FIFO 栈（long_stack/short_stack）配对开平仓
+        - 每条闭合记录附带 symbol、entry_time、exit_time（若成交明细无 fill_time
+          列则为 None），供 core.metrics 的归因/交易质量函数使用
         """
         if trades_df.empty:
-            return {
-                "TotalTrades": 0,
-                "WinRate": 0.0,
-                "ProfitFactor": None,
-                "ProfitFactorStatus": "insufficient",
-                "ProfitFactorSamples": 0,
-                "ProfitFactorLosses": 0,
-                "AvgTrade": 0.0,
-                "GrossPnL": 0.0,
-                "TotalCommission": 0.0,
-                "TotalSlippage": 0.0,
-                "NetPnL": 0.0,
-                "ExtendedAnalytics": self._extended_trade_analytics([]),
-            }
+            return []
 
-        # Reconstruct PnL using FIFO
-        closed_trades = []  # List of dicts with pnl details
+        closed_trades: List[Dict[str, Any]] = []
 
         # Group by symbol
         for symbol, group in trades_df.groupby("symbol"):
             long_stack: Deque[
-                Tuple[float, float, str, float, float]
-            ] = deque()  # (qty, price, strategy_id, unit_comm, unit_slip)
+                Tuple[float, float, str, float, float, Any]
+            ] = deque()  # (qty, price, strategy_id, unit_comm, unit_slip, entry_time)
             short_stack: Deque[
-                Tuple[float, float, str, float, float]
-            ] = deque()  # (qty, price, strategy_id, unit_comm, unit_slip)
+                Tuple[float, float, str, float, float, Any]
+            ] = deque()
 
             columns = list(group.columns)
             column_index = {name: index for index, name in enumerate(columns)}
@@ -239,19 +320,19 @@ class ReportGenerator:
                 comm = row[column_index["commission"]]
                 # Broker stores 'slip' as unit price difference (absolute)
                 unit_slip = row[slip_index] if slip_index is not None else 0.0
-                exit_time = row[fill_time_index] if fill_time_index is not None else None
 
                 unit_comm = comm / qty if qty > 0 else 0.0
 
                 strategy_id = (
                     row[strategy_index] if strategy_index is not None else "Unknown"
                 )
+                fill_time = row[fill_time_index] if fill_time_index is not None else None
 
                 if side == "buy":
                     # Check if covering short
                     remaining = qty
                     while remaining > 0 and short_stack:
-                        s_qty, s_price, s_strat, s_unit_comm, s_unit_slip = (
+                        s_qty, s_price, s_strat, s_unit_comm, s_unit_slip, s_time = (
                             short_stack.popleft()
                         )
                         matched = min(remaining, s_qty)
@@ -276,7 +357,8 @@ class ReportGenerator:
                                 "slippage": trade_slip,
                                 "strategy": s_strat,
                                 "symbol": symbol,
-                                "exit_time": exit_time,
+                                "entry_time": s_time,
+                                "exit_time": fill_time,
                             }
                         )
 
@@ -289,19 +371,20 @@ class ReportGenerator:
                                     s_strat,
                                     s_unit_comm,
                                     s_unit_slip,
+                                    s_time,
                                 ),
                             )
 
                     if remaining > 0:
                         long_stack.append(
-                            (remaining, price, strategy_id, unit_comm, unit_slip)
+                            (remaining, price, strategy_id, unit_comm, unit_slip, fill_time)
                         )
 
                 elif side == "sell":
                     # Close Long
                     remaining = qty
                     while remaining > 0 and long_stack:
-                        l_qty, l_price, l_strat, l_unit_comm, l_unit_slip = (
+                        l_qty, l_price, l_strat, l_unit_comm, l_unit_slip, l_time = (
                             long_stack.popleft()
                         )
                         matched = min(remaining, l_qty)
@@ -320,7 +403,8 @@ class ReportGenerator:
                                 "slippage": trade_slip,
                                 "strategy": l_strat,
                                 "symbol": symbol,
-                                "exit_time": exit_time,
+                                "entry_time": l_time,
+                                "exit_time": fill_time,
                             }
                         )
 
@@ -333,23 +417,26 @@ class ReportGenerator:
                                     l_strat,
                                     l_unit_comm,
                                     l_unit_slip,
+                                    l_time,
                                 ),
                             )
 
                     if remaining > 0:
                         short_stack.append(
-                            (remaining, price, strategy_id, unit_comm, unit_slip)
+                            (remaining, price, strategy_id, unit_comm, unit_slip, fill_time)
                         )
 
                 elif side == "short":
                     # Open Short
-                    short_stack.append((qty, price, strategy_id, unit_comm, unit_slip))
+                    short_stack.append(
+                        (qty, price, strategy_id, unit_comm, unit_slip, fill_time)
+                    )
 
                 elif side == "cover":
                     # Close Short (Buy to Cover)
                     remaining = qty
                     while remaining > 0 and short_stack:
-                        s_qty, s_price, s_strat, s_unit_comm, s_unit_slip = (
+                        s_qty, s_price, s_strat, s_unit_comm, s_unit_slip, s_time = (
                             short_stack.popleft()
                         )
                         matched = min(remaining, s_qty)
@@ -367,7 +454,8 @@ class ReportGenerator:
                                 "slippage": trade_slip,
                                 "strategy": s_strat,
                                 "symbol": symbol,
-                                "exit_time": exit_time,
+                                "entry_time": s_time,
+                                "exit_time": fill_time,
                             }
                         )
 
@@ -380,14 +468,21 @@ class ReportGenerator:
                                     s_strat,
                                     s_unit_comm,
                                     s_unit_slip,
+                                    s_time,
                                 ),
                             )
 
                     if remaining > 0:
                         long_stack.append(
-                            (remaining, price, strategy_id, unit_comm, unit_slip)
+                            (remaining, price, strategy_id, unit_comm, unit_slip, fill_time)
                         )
 
+        return closed_trades
+
+    def _trade_metrics_from_closed(
+        self, closed_trades: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """把 `_reconstruct_closed_trades` 的输出聚合为控制台/report.txt 用的扁平指标字典。"""
         if not closed_trades:
             return {
                 "TotalTrades": 0,
@@ -489,31 +584,19 @@ class ReportGenerator:
         return metrics
 
     def _save_report_text(
-        self, metrics: Dict[str, Any], metadata: Dict[str, Any] = None
+        self,
+        metrics: Dict[str, Any],
+        metadata: Dict[str, Any] = None,
+        analysis: Optional[Dict[str, Any]] = None,
     ):
         """
-        将指标与配置写入 report.txt，并追加输出文件说明。
+        将指标与配置写入 report.txt。
+
+        控制台只打印 ``PRIMARY_METRIC_KEYS``；report.txt 是唯一的完整指标出口，
+        按「核心摘要 → 完整指标明细 → 回撤事件 → 交易质量 → 归因分析 → 基准对比 →
+        文件说明」分节写出，``analysis`` 里没有的分节会被跳过而不是留空标题。
         """
-        # Metrics Translation Map
-        METRIC_NAMES = {
-            "CAGR": "CAGR (年化收益率)",
-            "MaxDrawdownPct": "Max Drawdown % (最大回撤率)",
-            "MaxDrawdownAmount": "Max Drawdown $ (最大回撤金额)",
-            "AvgMonthlyReturn": "Avg Monthly Return (月均收益率)",
-            "SharpeRatio": "Sharpe Ratio (夏普比率)",
-            "EndEquity": "End Equity (最终净值)",
-            "TotalReturn": "Total Return (总收益率)",
-            "TotalTrades": "Total Trades (总交易次数)",
-            "WinRate": "Win Rate (胜率)",
-            "ProfitFactor": "Profit Factor (盈亏比)",
-            "Expectancy": "Expectancy (期望值)",
-            "AvgWin": "Avg Win (平均盈利)",
-            "AvgLoss": "Avg Loss (平均亏损)",
-            "GrossPnL": "Gross PnL (毛利润)",
-            "TotalCommission": "Total Commission (总手续费)",
-            "TotalSlippage": "Total Slippage (总滑点成本)",
-            "NetPnL": "Net PnL (净利润)",
-        }
+        analysis = analysis or {}
 
         path = os.path.join(self.output_dir, "report.txt")
         with open(path, "w", encoding="utf-8") as f:
@@ -526,18 +609,23 @@ class ReportGenerator:
                     f.write(f"{k}: {v}\n")
                 f.write("\n")
 
-            f.write("Metrics (核心指标):\n")
+            f.write("Core Metrics (核心指标摘要):\n")
+            f.write("-----------------\n")
+            f.write(format_primary_metrics(metrics))
+            f.write("\n\n")
+
+            f.write("Full Metrics (完整指标明细):\n")
             f.write("-----------------\n")
             for k, v in metrics.items():
-                # Handle strategy specific metrics dynamically
                 display_key = METRIC_NAMES.get(k, k)
-
-                if isinstance(v, float):
-                    f.write(f"{display_key:<45}: {v:.4f}\n")
-                else:
-                    f.write(f"{display_key:<45}: {v}\n")
-
+                f.write(f"{display_key:<45}: {_format_metric_value(v)}\n")
             f.write("\n")
+
+            self._write_drawdown_events_section(f, analysis.get("drawdown_events"))
+            self._write_trade_quality_section(f, analysis.get("trade_quality"))
+            self._write_attribution_section(f, analysis.get("attribution"))
+            self._write_benchmark_section(f, analysis.get("benchmark_comparison"))
+
             f.write("File Descriptions (文件说明):\n")
             f.write("===========================\n")
 
@@ -564,6 +652,108 @@ class ReportGenerator:
             f.write(
                 "   - exit_reason: Reason for order (成交原因: signal/stop/takeprofit)\n"
             )
+
+    @staticmethod
+    def _write_drawdown_events_section(f, events: Optional[List[Dict[str, Any]]]) -> None:
+        """枚举每一段独立的峰→谷→恢复回撤（而非只报最差一次），按深度从大到小排序。"""
+        f.write("Drawdown Events (回撤事件明细):\n")
+        f.write("-----------------\n")
+        if not events:
+            f.write("No drawdown events at or above the 1%% depth filter.\n")
+            f.write("（未检测到深度超过 1%% 的回撤事件）\n\n")
+            return
+        ranked = sorted(
+            events, key=lambda e: e["depth_pct"] if e["depth_pct"] is not None else 0.0
+        )
+        shown_limit = 20
+        for i, event in enumerate(ranked[:shown_limit], start=1):
+            status = "OPEN (尚未恢复)" if event["is_open"] else "RECOVERED (已恢复)"
+            f.write(
+                f"#{i} depth={event['depth_pct']:.2%} peak={event['peak']} "
+                f"trough={event['trough']} recovery={event['recovery']} "
+                f"duration_days={event['duration_days']} status={status}\n"
+            )
+        if len(ranked) > shown_limit:
+            f.write(f"... 仅显示按深度排序的前 {shown_limit} 条，共 {len(ranked)} 条\n")
+        f.write("\n")
+
+    @staticmethod
+    def _write_trade_quality_section(f, quality: Optional[Dict[str, Any]]) -> None:
+        """胜率/期望值/持仓时长，以及按策略、按标的的细分（core.metrics.calculate_trade_quality）。"""
+        f.write("Trade Quality (交易质量与持仓时长):\n")
+        f.write("-----------------\n")
+        if not quality or not quality.get("sample_size"):
+            f.write("No closed trades to analyze (无已闭合交易可供分析)\n\n")
+            return
+        if quality["status"] == "insufficient":
+            f.write(
+                "(样本数低于 30 笔的稳健性阈值，以下为原始统计，非稳健置信区间估计)\n"
+            )
+        duration = quality.get("holding_duration_hours") or {}
+        f.write(f"Sample Size (样本数)              : {quality['sample_size']}\n")
+        f.write(f"Win Rate (胜率)                   : {_format_metric_value(quality['win_rate'])}\n")
+        f.write(f"Expectancy (期望值)               : {_format_metric_value(quality['expectancy'])}\n")
+        f.write(
+            f"Profit Factor (盈亏比)            : "
+            f"{_format_metric_value(quality['profit_factor'])} "
+            f"[{quality['profit_factor_status']}]\n"
+        )
+        if duration.get("status") == "ok":
+            f.write(
+                f"Holding Duration hrs (持仓时长/小时): mean={duration['mean']:.2f} "
+                f"median={duration['median']:.2f} min={duration['min']:.2f} max={duration['max']:.2f}\n"
+            )
+        f.write("\nBy Symbol (按标的):\n")
+        for symbol, stats in (quality.get("by_symbol") or {}).items():
+            f.write(
+                f"  {symbol:<15} trades={stats['sample_size']:<6} "
+                f"win_rate={stats['win_rate']:.2%} net_pnl={stats['net_pnl']:.4f} "
+                f"profit_factor={_format_metric_value(stats['profit_factor'])}\n"
+            )
+        f.write("\nBy Strategy (按策略):\n")
+        for strategy, stats in (quality.get("by_strategy") or {}).items():
+            f.write(
+                f"  {strategy:<15} trades={stats['sample_size']:<6} "
+                f"win_rate={stats['win_rate']:.2%} net_pnl={stats['net_pnl']:.4f} "
+                f"profit_factor={_format_metric_value(stats['profit_factor'])}\n"
+            )
+        f.write("\n")
+
+    @staticmethod
+    def _write_attribution_section(f, attribution: Optional[Dict[str, Any]]) -> None:
+        """按策略/标的/月份拆分净盈亏贡献（core.metrics.calculate_attribution）。"""
+        f.write("Attribution (归因分析 — 按策略/标的/月份):\n")
+        f.write("-----------------\n")
+        if not attribution or not attribution.get("sample_size"):
+            f.write("No closed trades to attribute (无已闭合交易可供归因)\n\n")
+            return
+        f.write(f"Total Net PnL (总净盈亏): {attribution['total_net_pnl']:.4f}\n\n")
+        for label, key in (("By Strategy (按策略)", "by_strategy"),
+                           ("By Symbol (按标的)", "by_symbol"),
+                           ("By Month (按月份)", "by_month")):
+            f.write(f"{label}:\n")
+            for name, pnl in sorted((attribution.get(key) or {}).items()):
+                f.write(f"  {name:<15}: {pnl:.4f}\n")
+            f.write("\n")
+
+    @staticmethod
+    def _write_benchmark_section(f, comparison: Optional[Dict[str, Any]]) -> None:
+        """策略 vs. 基准（等权买入并持有）总收益对比（core.metrics.calculate_benchmark_comparison）。"""
+        if comparison is None:
+            return
+        f.write("Benchmark Comparison (对基准的超额收益):\n")
+        f.write("-----------------\n")
+        if comparison.get("status") != "ok":
+            f.write("Insufficient overlapping history with benchmark (与基准重叠历史不足)\n\n")
+            return
+        f.write(f"Strategy Return (策略总收益)   : {comparison['strategy_return']:.4%}\n")
+        f.write(f"Benchmark Return (基准总收益)   : {comparison['benchmark_return']:.4%}\n")
+        f.write(f"Excess Return (超额收益)        : {comparison['excess_return']:.4%}\n")
+        correlation = comparison.get("correlation")
+        f.write(
+            f"Return Correlation (收益相关性) : "
+            f"{'%.4f' % correlation if correlation is not None else 'N/A'}\n\n"
+        )
 
     def _plot_equity(
         self, equity_curve: pd.DataFrame, benchmark_curve: pd.Series = None
