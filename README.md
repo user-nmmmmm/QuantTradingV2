@@ -1,8 +1,12 @@
 # Still Water QuantTrading
 
 > **规范目录名**：`QuantTradingV1`。旧拼写 `QauntTradingV1` 已废弃，部署脚本与文档均不应再使用。
+> Canonical repository directory: `QuantTradingV1`. The deprecated
+> `QauntTradingV1` spelling must not be used by deployment scripts or documentation.
 >
 > **能力边界声明**：本仓库未实现任何机器学习训练或预测子系统；曾经的占位包 `models/` 已被移除，避免仓库宣称不存在的 ML 能力。
+> This repository has no machine-learning training or prediction subsystem
+> implemented; the former placeholder `models/` package was removed.
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![Status: Alpha](https://img.shields.io/badge/Status-Alpha-orange.svg)]()
