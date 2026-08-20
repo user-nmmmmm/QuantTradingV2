@@ -12,6 +12,7 @@
 6. [`deployment.md`](deployment.md)：当前允许的安装、回测、sandbox 和运维方式。
 7. [`baselines/batch0_fixed_baseline.md`](baselines/batch0_fixed_baseline.md)：固定回归基线及其验收证据。
 8. [`modules/README.md`](modules/README.md)：逐包代码说明（core/backtest/live_trading/router/strategies/其余小包），回答"这段代码是做什么的"，不涉及项目阶段状态。
+9. [`glossary.md`](glossary.md)：专业词汇表（执行/风控/绩效指标/交易质量/归因/稳健性验证/合约术语），统一中英文术语与计算口径，供后续选币、仓位管理和合约模块开发复用。
 
 ## 权威顺序
 
@@ -29,4 +30,7 @@ unified_roadmap.md
 
 ## 历史资料
 
-已停止独立排期的旧路线图、架构审计和旧基线位于 [`archive/2026-08-roadmap-consolidation/`](archive/2026-08-roadmap-consolidation/README.md)，其中也包含旧任务编号到 R0–R8、BM0–BM8 的映射表。历史文件不得继续维护项目完成状态。
+- 已停止独立排期的旧路线图、架构审计和旧基线位于 [`archive/2026-08-roadmap-consolidation/`](archive/2026-08-roadmap-consolidation/README.md)，其中也包含旧任务编号到 R0–R8、BM0–BM8 的映射表。
+- `unified_roadmap.md` 生效后的几次一次性代码审查/问题清单快照位于 [`archive/2026-08-technical-reviews/`](archive/2026-08-technical-reviews/README.md)。
+
+历史文件不得继续维护项目完成状态。

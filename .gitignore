@@ -2,6 +2,11 @@
 __pycache__/
 *.pyc
 
+# Test/coverage artifacts and throwaway debug scripts
+.coverage
+.coverage.*
+htmlcov/
+
 # Virtual env
 .venv/
 .venv-linux/

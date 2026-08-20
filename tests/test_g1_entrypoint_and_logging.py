@@ -27,6 +27,20 @@ class TestG1Entrypoint(unittest.TestCase):
         self.assertNotIn("--api_key", option_names)
         self.assertNotIn("--secret", option_names)
 
+    def test_r8_gray_release_flags_are_registered(self):
+        args = build_parser().parse_args(
+            [
+                "--r8-evidence", "reports/r7_acceptance.json",
+                "--rollback-snapshot", "reports/snapshot.json",
+                "--r8-max-order-notional", "1000",
+                "--r8-max-daily-risk", "0.02",
+            ]
+        )
+        self.assertEqual(args.r8_evidence, "reports/r7_acceptance.json")
+        self.assertEqual(args.rollback_snapshot, "reports/snapshot.json")
+        self.assertEqual(args.r8_max_order_notional, 1000.0)
+        self.assertEqual(args.r8_max_daily_risk, 0.02)
+
 
 class TestSensitiveDataFilter(unittest.TestCase):
     def test_redacts_environment_credentials_and_headers(self):
