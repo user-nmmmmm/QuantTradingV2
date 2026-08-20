@@ -92,6 +92,18 @@ pip install -r requirements-dev.txt
 > CI 与 `mypy` 目标 Python 版本为 **3.11**（见 `.github/workflows/tests.yml`、
 > `pyproject.toml`），本地开发环境固定为 3.13.2（`.python-version`）。
 
+**核心依赖版本**（`requirements.txt`）：
+
+| 库 | 版本 | 用途 |
+| --- | --- | --- |
+| `ccxt` | 4.5.35 | 交易所连接（数据 + 实盘下单） |
+| `pandas` / `numpy` | 2.3.3 / 2.4.2 | 数据处理与指标计算 |
+| `matplotlib` / `plotly` | 3.10.8 / 6.5.2 | `equity.png` 静态出图 / 交互式图表 |
+| `streamlit` | 1.54.0 | 已声明依赖，但当前代码库中未被任何模块导入使用 |
+| `PyYAML` | 6.0.3 | `config/params.yaml` 解析 |
+| `requests` | 2.32.5 | HTTP 调用（如 Telegram 告警） |
+| `yfinance` | 1.1.0 | Yahoo Finance 数据源 |
+
 ### 2) 运行回测（推荐从 Synthetic 开始）
 
 - **交互式模式**：
@@ -147,6 +159,40 @@ python resolve_live_order.py CLIENT_ORDER_ID --order-store reports/live_orders.d
 该命令会拒绝已有交易所订单 ID 或任何成交记录的订单，把符合条件的订单迁移到
 `EXPIRED_UNSUBMITTED` 状态，并把操作人、原因、迁移前状态和时间戳写入 SQLite
 审计账本。**切勿**仅因某次交易所查询超时或临时无结果就使用此命令。
+
+#### 实盘参数说明（`run_live.py`）
+
+| 参数 | 默认 | 说明 |
+| :--- | :--- | :--- |
+| `--symbols` | `BTC/USDT ETH/USDT` | 标的列表 |
+| `--interval` | `60` | 轮询间隔（秒） |
+| `--sandbox` / `--live` | `--sandbox`（互斥组，默认 sandbox） | `--live` 才会连接真实资金端点；两者只能二选一 |
+| `--exchange` | `binance` | CCXT 交易所 ID |
+| `--market-type` | `spot` | `spot` / `future` / `futures` / `swap` / `margin`；后四者受「当前能力边界」一节所述限制 |
+| `--base-currency` | `USDT` | 计价货币 |
+| `--preflight-only` | `False` | 只连接交易所、写启动报告后退出，不进入主循环，用于部署前自检 |
+| `--preflight-report` | `reports/startup_preflight.json` | 启动自检报告输出路径 |
+
+> `--r8-evidence` / `--rollback-snapshot` / `--r8-max-order-notional` /
+> `--r8-max-daily-risk` 是 `--live` 生产放量（R8 gray-release）预留的参数，
+> 用于强制要求 R7 验收证据、可回滚快照和限额；当前 `run_live.py` 中这几个
+> `add_argument` 调用写在 `return parser` 之后，实际不会被注册生效，
+> 这是已知的代码缺陷，不是使用文档的问题。
+
+#### 环境变量参考
+
+| 变量 | 用途 |
+| --- | --- |
+| `EXCHANGE_API_KEY` / `EXCHANGE_SECRET` / `EXCHANGE_PASSWORD` | 交易所 API 凭据（`core/live_safety.py` 从环境变量读取，不接受命令行传参） |
+| `QUANT_ALLOWED_EXCHANGES` | 允许连接的交易所白名单 |
+| `QUANT_ALLOWED_SYMBOLS` | 允许交易的标的白名单 |
+| `QUANT_ALLOWED_ACCOUNT_TYPES` | 允许的账户/市场类型白名单（现货/合约等） |
+| `QUANT_PROXY_URL` | 代理地址，`core/data_fetcher.py` 用于设置 `HTTP_PROXY`/`HTTPS_PROXY` |
+| `QUANT_LOG_LEVEL` | 日志级别 |
+| `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | Telegram 心跳与告警推送凭据（`core/telegram_heartbeat.py`） |
+| `LIVE_ALERT_WEBHOOK_URL` | 实盘告警 Webhook 地址 |
+
+以上变量均只能通过环境变量注入，**不要**写入命令行参数、仓库或日志。
 
 ---
 
@@ -218,6 +264,24 @@ python -m dashboard --status reports/live_status.json --alerts reports/live_aler
 
 ---
 
+## 指标能力一览（`core/metrics.py`）
+
+`report.txt` 背后的指标全部为纯函数实现（无副作用、只读输入），按用途分为五类；
+每个函数的公式、空值语义与边界条件的权威定义见 [`docs/glossary.md`](docs/glossary.md)：
+
+| 类别 | 关键函数 | 覆盖内容 |
+| --- | --- | --- |
+| 核心绩效 | `calculate_equity_metrics` / `calculate_sharpe` / `calculate_drawdown` | CAGR、Sharpe、最大回撤（含峰值/谷底/恢复时长）、月收益 |
+| 回撤事件 | `calculate_drawdown_events` | 枚举权益曲线上每一段独立的峰→谷→恢复回撤，而非只报最差一次 |
+| 交易质量 | `calculate_trade_quality` / `calculate_profit_factor` / `calculate_r_multiple_stats` | 胜率、期望值、盈利因子（含 Bootstrap 置信区间）、R-Multiple、SQN |
+| 归因与对比 | `calculate_attribution` / `calculate_benchmark_comparison` / `calculate_exposure` | 按策略/标的/月份的盈亏归因、对基准的超额收益、组合敞口 |
+| 稳健性验证 | `train_test_split_returns` / `walk_forward_windows` / `bootstrap_return_distribution` / `monte_carlo_trade_sequence` / `benjamini_hochberg` | OOS 切分、滚动验证窗口、自助法置信区间、蒙特卡洛交易重排、多重检验 FDR 校正 |
+
+`analysis/optimize.py --oos` 和 `analysis/validation.py` 是这套稳健性工具在
+参数寻优场景下的调用入口。
+
+---
+
 ## 关键机制
 
 （与代码保持一致的"可落地描述"）
@@ -238,6 +302,30 @@ python -m dashboard --status reports/live_status.json --alerts reports/live_aler
 - **Stop**：触发后按更不利的开盘/触发价成交（taker）
 
 更完整细节见 [`docs/backtest_assumptions.md`](docs/backtest_assumptions.md)。
+
+---
+
+## 已注册策略（`strategies/`）
+
+`core/system_factory.py` 是策略注册的唯一入口，路由映射（见上文「配置」一节）
+按 regime 名字把每根 bar 分发给下表对应的策略实例：
+
+| Regime | 路由到的策略名 | 实现类 | 文件 |
+| --- | --- | --- | --- |
+| `TREND_UP` | `TrendBreakout` | `TrendBreakoutStrategy` | `strategies/trend_breakout.py` |
+| `TREND_DOWN` | `TrendBreakdown` | `TrendBreakdownStrategy` | `strategies/trend_breakout.py` |
+| `SIDEWAYS` | `RangeMeanReversion` | `RangeStrategy` | `strategies/mean_reversion.py` |
+| `VOLATILE` | `VolatilityReversion` | `VolatilityReversionStrategy` | `strategies/volatility.py` |
+
+所有已注册策略都继承 `strategies/base.py` 的 `Strategy` 基类，并统一在具体退出
+逻辑之前接受 `Strategy.hard_stop_exit` 的硬止损检查。`TrendBreakoutStrategy` /
+`TrendBreakdownStrategy` 的健康度状态通过 `_PersistentHealthMixin` 持久化，
+可在进程重启后恢复而不丢失。
+
+**未接入路由的模型**：`strategies/statistical_arbitrage.py`（`PairsTradingModel`，
+跨标的配对交易信号）与 `strategies/trend_following.py`（`TrendUpStrategy` /
+`TrendDownStrategy`）当前**未**在 `core/system_factory.py` 中注册，不会被
+`run_live.py` 或 `main.py` 的默认路由调用，只能在测试/研究脚本中单独使用。
 
 ---
 
