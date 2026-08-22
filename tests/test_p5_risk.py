@@ -120,6 +120,55 @@ class TestRiskManager(unittest.TestCase):
 
         self.assertTrue(allowed)
 
+    def test_cash_sufficiency_rejects_buy_beyond_free_cash(self):
+        """Spot buys must be fully funded by cash; no implicit margin financing."""
+        # 10000 cash, price 100 -> buying 150 qty needs 15000, only 10000 free.
+        # Concentration/leverage limits alone (20%/3x) would not catch this at
+        # this qty/price combo unless cash is checked directly, so raise them
+        # out of the way to isolate the cash check.
+        risk_manager = RiskManager(
+            max_leverage=100.0, max_pos_size_pct=1.0, liquidity_limit_pct=1.0
+        )
+        allowed = risk_manager.check_entry_risk(
+            self.portfolio, "BTC", qty=150.0, price=100.0,
+        )
+        self.assertFalse(allowed, "Buy notional exceeding free cash must be rejected")
+
+    def test_cash_sufficiency_accounts_for_reserved_notional(self):
+        risk_manager = RiskManager(
+            max_leverage=100.0, max_pos_size_pct=1.0, liquidity_limit_pct=1.0
+        )
+        # 10000 cash, 6000 already reserved by other pending opens -> only
+        # 4000 free; a further 5000 buy must be rejected even though it would
+        # pass leverage/concentration.
+        allowed = risk_manager.check_entry_risk(
+            self.portfolio,
+            "ETH",
+            qty=50.0,
+            price=100.0,
+            pending_open_notional={"BTC": 6000.0},
+        )
+        self.assertFalse(allowed, "Reserved cash from other pending opens must be honored")
+
+    def test_cash_sufficiency_allows_funded_buy(self):
+        risk_manager = RiskManager(
+            max_leverage=100.0, max_pos_size_pct=1.0, liquidity_limit_pct=1.0
+        )
+        allowed = risk_manager.check_entry_risk(
+            self.portfolio, "BTC", qty=50.0, price=100.0,
+        )
+        self.assertTrue(allowed, "Buy fully covered by free cash should be allowed")
+
+    def test_cash_sufficiency_skipped_for_short(self):
+        """Shorts don't consume cash in this model (margin is not_modeled)."""
+        risk_manager = RiskManager(
+            max_leverage=100.0, max_pos_size_pct=2.0, liquidity_limit_pct=1.0
+        )
+        allowed = risk_manager.check_entry_risk(
+            self.portfolio, "BTC", qty=150.0, price=100.0, action="short",
+        )
+        self.assertTrue(allowed, "Short notional should not be gated by cash")
+
     def test_reset_daily_breaker(self):
         self.risk_manager.circuit_breaker_triggered = True
 
