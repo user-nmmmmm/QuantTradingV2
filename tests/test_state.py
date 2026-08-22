@@ -119,5 +119,67 @@ class TestMarketStateMachine(unittest.TestCase):
         # Verify it stays BULL
         self.assertTrue((states.iloc[100:] == MarketState.BULL_TREND).all())
 
+    def _wide_range_uptrend(self, periods: int = 200) -> pd.DataFrame:
+        """Clean uptrend whose bars are wide enough to clear any ATR% gate.
+
+        High-low spans ~20% of price, so atr_pct comfortably exceeds the
+        VOLATILE threshold on every bar — the exact condition under which
+        VOLATILE used to swallow the trend.
+        """
+        dates = pd.date_range(start="2023-01-01", periods=periods, freq="D")
+        df = pd.DataFrame(index=dates)
+        df["close"] = np.arange(periods) + 100.0
+        df["open"] = df["close"]
+        df["high"] = df["close"] * 1.10
+        df["low"] = df["close"] * 0.90
+        df["volume"] = 1000
+        return df
+
+    def test_volatile_does_not_swallow_a_clean_trend(self):
+        """A structurally clean trend stays TREND_UP even when ATR% is huge.
+
+        Regression guard: VOLATILE shares the ADX gate with TREND_UP/DOWN and
+        is assigned last. Without an explicit exclusion it overrode both, which
+        erased 96%+ of trend bars on real crypto data (ATR ~4.4% of price vs a
+        2.5% threshold) and left the trend strategies permanently unrouted.
+        """
+        fsm = MarketStateMachine(stability_period=3, atr_pct_threshold=0.025)
+        df = self._wide_range_uptrend()
+
+        states = fsm.calculate_states(df)
+
+        atr_pct = df[f"ATR_{fsm.atr_period}"] / df["close"]
+        self.assertGreater(
+            atr_pct.iloc[-1], fsm.atr_pct_threshold,
+            "fixture must clear the ATR gate for this test to mean anything",
+        )
+        self.assertEqual(states.iloc[-1], MarketState.TREND_UP)
+        self.assertNotIn(
+            MarketState.VOLATILE, set(states.iloc[100:]),
+            "VOLATILE must not claim bars that a directional trend already owns",
+        )
+
+    def test_states_are_mutually_exclusive(self):
+        """Every bar resolves to exactly one state — no silent override chain."""
+        fsm = MarketStateMachine(stability_period=1)
+        df = self._wide_range_uptrend(300)
+        # Second half reverses into a downtrend so several states are exercised.
+        df.iloc[150:, df.columns.get_loc("close")] = (
+            np.arange(150, 0, -1) + 100.0
+        )
+        df["high"] = df["close"] * 1.10
+        df["low"] = df["close"] * 0.90
+        df["open"] = df["close"]
+
+        states = fsm.calculate_states(df)
+
+        valid = {
+            MarketState.TREND_UP, MarketState.TREND_DOWN,
+            MarketState.SIDEWAYS, MarketState.VOLATILE,
+        }
+        self.assertTrue(set(states).issubset(valid))
+        self.assertEqual(len(states), len(df), "one state per bar, no gaps")
+
+
 if __name__ == '__main__':
     unittest.main()

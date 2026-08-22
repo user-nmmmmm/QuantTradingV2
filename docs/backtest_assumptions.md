@@ -77,6 +77,32 @@ notional / equity = risk_per_trade ÷ (止损距离 / 价格)
 > `RangeMeanReversion` 从 0 笔成交变为 83 笔，总收益率从 -60.3% 变为 -71.0%——
 > 变差不代表修复错误，而是此前该策略的负 alpha 被风控掩盖、未能体现在结果中。
 
+## 4.2 市场状态判定（四状态互斥）
+
+状态机 (`core/state.py`) 输出四个**互斥**状态，路由表按状态分派策略：
+
+| 状态 | 条件 | 路由策略 |
+|---|---|---|
+| `TREND_UP` | ADX > 阈值 且 close > MA_fast > MA_slow | TrendBreakout |
+| `TREND_DOWN` | ADX > 阈值 且 close < MA_fast < MA_slow | TrendBreakdown |
+| `VOLATILE` | ADX > 阈值 且 ATR% > 阈值，**且均线结构未成方向** | VolatilityReversion |
+| `SIDEWAYS` | 其余 | RangeMeanReversion |
+
+- **`VOLATILE` 的语义是"动得凶但没方向"**（转折/来回扫），不是"强趋势/突破"——
+  干净的突破会被判为 `TREND_UP`/`TREND_DOWN`。这与路由表把它分派给均值回归策略一致。
+- **必须排除已成方向的 bar**：三者共用同一个 ADX 门槛且 `VOLATILE` 最后赋值，
+  若不排除则会无条件覆盖趋势状态。加密日线 ATR 中位数约为价格的 4.4%，
+  远高于 `atr_pct_threshold`（2.5%），实测 BTC 2017-2026 上 96.3% 的 `TREND_UP`
+  与 99.8% 的 `TREND_DOWN` 因此被吞掉，趋势策略在整段回测中从未被路由到。
+- **`stability_period`**：设为 1 表示不做去抖，每次原始状态翻转都立即切换。
+  由于相邻状态分派给不同策略，每次切换都会触发 `StateSwitch` 强制平仓 + 路由冷却，
+  调大该值可减少这类摩擦。
+
+> 口径变更影响：修复互斥后，BTC 状态分布由
+> `VOLATILE 55.7% / SIDEWAYS 43.4% / TREND_UP 0.83% / TREND_DOWN 0.03%`
+> 变为 `SIDEWAYS 43.2% / TREND_UP 22.8% / TREND_DOWN 18.0% / VOLATILE 16.0%`；
+> 六标的样本总收益率由 -71.0% 变为 +74.4%（Profit Factor 0.71 → 1.29）。
+
 ## 5. 数据质量与处理
 
 - **缺失值**: 执行时跳过缺失 K 线，但指标计算可能受影响 (采用前值填充)。

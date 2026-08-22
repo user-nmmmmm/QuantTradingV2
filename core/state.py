@@ -25,7 +25,10 @@ class MarketState(Enum):
     BULL_TREND = 1
     BEAR_TREND = 2
     RANGE = 3
-    VOLATILE = 5  # Strong Trend / Breakout Mode
+    # High ADX and wide range but no stacked MA direction: a violent, directionless
+    # transition/whipsaw regime. Routed to mean-reversion (see params.yaml
+    # `routing`), NOT to breakout — a clean breakout resolves to TREND_UP/DOWN.
+    VOLATILE = 5
     NO_TRADE = 4  # 模糊阶段，短期全部禁用
 
 
@@ -95,14 +98,18 @@ class MarketStateMachine:
         """
         计算整段数据的市场状态序列（返回 pd.Series，索引与 df 对齐）。
 
-        基础规则（raw states）：
-        - TREND_UP：close > SMA(30) 且 SMA(30) 斜率为正
-        - TREND_DOWN：close < SMA(30) 且 SMA(30) 斜率为负
+        判定规则（raw states，四个状态互斥）：
+        - TREND_UP：ADX > 阈值 且 close > MA_fast > MA_slow（多头结构完整）
+        - TREND_DOWN：ADX > 阈值 且 close < MA_fast < MA_slow（空头结构完整）
+        - VOLATILE：ADX > 阈值 且 ATR% > 阈值，**但均线结构不成方向**
+          —— 即“动得很凶却没有干净方向”的震荡/转折段，路由给均值回归类策略。
         - SIDEWAYS：其余情况
 
-        覆盖规则（强趋势/突破模式）：
-        - 若 ADX_14 存在且 ADX_14 > 25，则标记为 VOLATILE
-          该状态用于路由“突破/强趋势”类策略（如 Donchian Breakout）。
+        为什么 VOLATILE 必须排除已成方向的 bar：
+        三个条件共用同一个 ADX 门槛，若让 VOLATILE 无条件覆盖 TREND_UP/DOWN，
+        则在加密日线（ATR 中位数约为价格 4.4%，远高于 atr_pct_threshold）上
+        几乎所有趋势 bar 都会被 VOLATILE 吞掉——实测 BTC 2017-2026 上
+        96.3% 的 TREND_UP 与 99.8% 的 TREND_DOWN 因此消失，趋势策略永不上场。
 
         最终输出：
         - 对 raw states 应用稳定性过滤器，减少短期噪声导致的频繁切换。
@@ -136,8 +143,17 @@ class MarketStateMachine:
         down_cond = (close < ma_fast) & (ma_fast < ma_slow) & (adx > self.adx_threshold)
         raw_states[down_cond] = MarketState.TREND_DOWN
 
+        # VOLATILE only claims bars that no directional trend already owns:
+        # strong ADX and wide range, but the moving averages are not stacked in
+        # either direction (transition / whipsaw). Without this exclusion the
+        # ATR gate — which nearly every crypto bar clears — would override both
+        # trend states and starve the trend strategies entirely.
         atr_pct = atr / close.replace(0, np.nan)
-        volatile_cond = (adx > self.adx_threshold) & (atr_pct > self.atr_pct_threshold)
+        volatile_cond = (
+            (adx > self.adx_threshold)
+            & (atr_pct > self.atr_pct_threshold)
+            & ~(up_cond | down_cond)
+        )
         raw_states[volatile_cond] = MarketState.VOLATILE
 
         # Stability Filter
