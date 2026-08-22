@@ -103,6 +103,28 @@ notional / equity = risk_per_trade ÷ (止损距离 / 价格)
 > 变为 `SIDEWAYS 43.2% / TREND_UP 22.8% / TREND_DOWN 18.0% / VOLATILE 16.0%`；
 > 六标的样本总收益率由 -71.0% 变为 +74.4%（Profit Factor 0.71 → 1.29）。
 
+## 4.3 结果可信度诊断（core/diagnostics.py）
+
+`core/metrics.py` 回答"策略表现如何"，`core/diagnostics.py` 回答两个前置问题：
+**这个业绩数字能不能信**，以及**系统的实际行为是否与代码描述一致**。
+每项指标都对应一个真实存在过、且被现有指标完全掩盖的缺陷：
+
+| 指标 | 暴露的问题 |
+|---|---|
+| `calculate_pnl_concentration` | 收益是否依赖极少数交易。Top-N 贡献占比、剔除后净盈亏、利润 HHI。**份额>100% 表示剔除后系统净亏损**。 |
+| `calculate_exit_attribution` | 谁真正平掉了仓位。按 `exit_reason` 与"开仓策略 vs 平仓方"拆分；自身出场占比低于 10% 的策略会被标进 `inert_exit_logic`——其出场规则与相关参数实际上是死代码。 |
+| `calculate_lifecycle_coverage` | 策略是否观测得到自己的平仓事件。依赖平仓回调的风控（熄火闸门、连亏冷却）在覆盖率远低于 1.0 时处于失效状态。 |
+| `calculate_calendar_returns` | 按自然年/季而非索引位置切分，用于看"10年里有几年是亏的""某一年是否贡献了大部分利润"。 |
+| `calculate_streaks` | 最长连盈/连亏。连亏长度远超冷却阈值即说明该规则从未触发。 |
+
+产出位于 `metrics["Diagnostics"]`，并在 `report.txt` 的
+`Result Diagnostics (结果可信度诊断)` 分节渲染，含警告行。
+该分节即使在收益为正时也可能给出警告——这正是它的目的。
+
+**前置改动**：闭合交易记录新增 `exit_reason` 与 `exit_strategy` 两个字段
+（来自平仓那一笔成交）。此前只保留开仓策略，导致"仓位被 Router 强平"
+这一情况在按策略/标的归因中完全不可见。
+
 ## 5. 数据质量与处理
 
 - **缺失值**: 执行时跳过缺失 K 线，但指标计算可能受影响 (采用前值填充)。

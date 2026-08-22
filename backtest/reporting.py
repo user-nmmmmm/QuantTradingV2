@@ -6,6 +6,7 @@ import os
 from collections import deque
 from typing import Deque, List, Dict, Any, Optional, Tuple
 
+from core.diagnostics import build_diagnostics
 from core.logger import get_logger
 from core.metric_result import MetricResult
 from core.metrics import (
@@ -179,6 +180,12 @@ class ReportGenerator:
             extended["benchmark_comparison"] = calculate_benchmark_comparison(
                 equity_curve["equity"], benchmark_curve
             )
+        # Trustworthiness diagnostics: whether the headline numbers can be
+        # believed and whether the system behaves as its code claims. Kept in
+        # its own key so consumers can tell "performance" from "credibility".
+        metrics["Diagnostics"] = build_diagnostics(
+            closed_trades, equity_curve["equity"]
+        )
         metrics["ExtendedAnalytics"] = extended
         metrics["MetricResults"] = self._headline_metric_results(metrics)
 
@@ -316,6 +323,7 @@ class ReportGenerator:
             slip_index = column_index.get("slip")
             strategy_index = column_index.get("strategy_id")
             fill_time_index = column_index.get("fill_time")
+            exit_reason_index = column_index.get("exit_reason")
             for row in group.itertuples(index=False, name=None):
                 side = row[column_index["side"]]
                 qty = row[column_index["qty"]]
@@ -330,6 +338,13 @@ class ReportGenerator:
                     row[strategy_index] if strategy_index is not None else "Unknown"
                 )
                 fill_time = row[fill_time_index] if fill_time_index is not None else None
+                # The closing fill carries who ended the trade and why. Keeping
+                # only the entry strategy hides the case where a position is
+                # force-closed by the router rather than by the strategy's own
+                # exit rule — which is invisible in strategy/symbol attribution.
+                exit_reason = (
+                    row[exit_reason_index] if exit_reason_index is not None else None
+                )
 
                 if side == "buy":
                     # Check if covering short
@@ -362,6 +377,8 @@ class ReportGenerator:
                                 "symbol": symbol,
                                 "entry_time": s_time,
                                 "exit_time": fill_time,
+                                "exit_reason": exit_reason,
+                                "exit_strategy": strategy_id,
                             }
                         )
 
@@ -408,6 +425,8 @@ class ReportGenerator:
                                 "symbol": symbol,
                                 "entry_time": l_time,
                                 "exit_time": fill_time,
+                                "exit_reason": exit_reason,
+                                "exit_strategy": strategy_id,
                             }
                         )
 
@@ -459,6 +478,8 @@ class ReportGenerator:
                                 "symbol": symbol,
                                 "entry_time": s_time,
                                 "exit_time": fill_time,
+                                "exit_reason": exit_reason,
+                                "exit_strategy": strategy_id,
                             }
                         )
 
@@ -620,6 +641,10 @@ class ReportGenerator:
             f.write("Full Metrics (完整指标明细):\n")
             f.write("-----------------\n")
             for k, v in metrics.items():
+                # Diagnostics is a deep nested structure with its own rendered
+                # section below; dumping it here would bury the scalar metrics.
+                if k == "Diagnostics":
+                    continue
                 display_key = METRIC_NAMES.get(k, k)
                 f.write(f"{display_key:<45}: {_format_metric_value(v)}\n")
             f.write("\n")
@@ -628,6 +653,7 @@ class ReportGenerator:
             self._write_trade_quality_section(f, analysis.get("trade_quality"))
             self._write_attribution_section(f, analysis.get("attribution"))
             self._write_benchmark_section(f, analysis.get("benchmark_comparison"))
+            self._write_diagnostics_section(f, metrics.get("Diagnostics"))
 
             f.write("File Descriptions (文件说明):\n")
             f.write("===========================\n")
@@ -766,6 +792,107 @@ class ReportGenerator:
             f"Return Correlation (收益相关性) : "
             f"{'%.4f' % correlation if correlation is not None else 'N/A'}\n\n"
         )
+
+    @staticmethod
+    def _write_diagnostics_section(f, diagnostics: Optional[Dict[str, Any]]) -> None:
+        """结果可信度诊断（core.diagnostics）。
+
+        与上面的绩效分节不同，本节回答的是「这个业绩数字能不能信」以及
+        「系统的实际行为是否和代码描述一致」，因此即使收益为正也可能给出警告。
+        """
+        if not diagnostics:
+            return
+        f.write("Result Diagnostics (结果可信度诊断):\n")
+        f.write("-----------------\n")
+
+        concentration = diagnostics.get("pnl_concentration") or {}
+        if concentration.get("status") == "ok":
+            f.write("PnL Concentration (盈亏集中度):\n")
+            for count, entry in sorted(
+                concentration.get("top_n", {}).items(), key=lambda kv: int(kv[0])
+            ):
+                share = entry.get("share_of_total")
+                share_text = f"{share:.1%}" if share is not None else "N/A"
+                f.write(
+                    f"  Top {int(count):>2} trades (最赚钱{int(count)}笔): "
+                    f"{entry['contribution']:>12.2f}  = {share_text:>7} of net profit  "
+                    f"| excluding them (剔除后): {entry['total_excluding']:>12.2f}\n"
+                )
+            hhi = concentration.get("profit_hhi")
+            if hhi is not None:
+                f.write(f"  Profit HHI (利润赫芬达尔指数): {hhi:.4f}  "
+                        f"(1.0=单笔贡献全部利润 / 越低越分散)\n")
+            top10 = concentration.get("top_n", {}).get("10", {})
+            if top10.get("share_of_total") is not None and top10["share_of_total"] >= 1.0:
+                f.write("  [WARNING] 剔除最赚钱的10笔后系统净亏损——收益依赖极少数交易，"
+                        "不构成稳定 edge。\n")
+            f.write("\n")
+
+        exits = diagnostics.get("exit_attribution") or {}
+        if exits.get("status") == "ok":
+            f.write("Exit Attribution (出场归因 — 谁真正平掉了仓位):\n")
+            ratio = exits.get("own_exit_ratio")
+            if ratio is not None:
+                f.write(f"  Own-exit ratio (策略自身出场占比): {ratio:.1%}\n")
+            for reason, count in sorted(
+                exits.get("by_reason", {}).items(), key=lambda kv: -kv[1]
+            ):
+                f.write(f"    {reason:<45} {count}\n")
+            for name, entry in sorted(exits.get("by_strategy", {}).items()):
+                own_ratio = entry.get("own_exit_ratio")
+                own_text = f"{own_ratio:.1%}" if own_ratio is not None else "N/A"
+                f.write(
+                    f"  {name:<22} closed={entry['closed_trades']:<4} "
+                    f"own={entry['own_exits']:<4} external={entry['external_exits']:<4} "
+                    f"own_ratio={own_text}\n"
+                )
+            for name in exits.get("inert_exit_logic", []):
+                f.write(f"  [WARNING] {name} 的出场规则几乎从未触发——其出场参数实际无效，"
+                        f"仓位由外部（如 Router regime 切换）平掉。\n")
+            f.write("\n")
+
+        coverage = diagnostics.get("lifecycle_coverage") or {}
+        if coverage.get("status") == "ok":
+            f.write("Lifecycle Coverage (闭合事件覆盖率):\n")
+            overall = coverage.get("overall_coverage")
+            if overall is not None:
+                f.write(f"  Overall (总体): {overall:.1%}\n")
+            for name in coverage.get("blind_strategies", []):
+                entry = coverage["by_strategy"][name]
+                f.write(
+                    f"  [WARNING] {name} 只观测到 {entry['observed_closures']}/"
+                    f"{entry['expected_closures']} 次平仓——依赖平仓回调的风控"
+                    f"（熄火/冷却）处于失效状态。\n"
+                )
+            f.write("\n")
+
+        calendar = diagnostics.get("calendar_returns") or {}
+        if calendar.get("status") == "ok":
+            f.write("Calendar Returns (逐年表现):\n")
+            for entry in calendar.get("periods", []):
+                trades = entry.get("trades")
+                trades_text = f"trades={trades:<4}" if trades is not None else ""
+                f.write(
+                    f"  {entry['period']:<8} return={entry['return']:>9.2%}  "
+                    f"{trades_text} end_equity={entry['end_equity']:.2f}\n"
+                )
+            negative = calendar.get("negative_periods")
+            total = calendar.get("sample_size")
+            if negative is not None:
+                f.write(f"  Negative periods (亏损期数): {negative}/{total}\n")
+            f.write("\n")
+
+        streaks = diagnostics.get("streaks") or {}
+        if streaks.get("status") == "ok":
+            f.write("Streaks (连续盈亏):\n")
+            f.write(
+                f"  Max win streak (最长连盈):  {streaks['max_win_streak']:>3} "
+                f"({streaks['max_win_streak_pnl']:.2f})\n"
+            )
+            f.write(
+                f"  Max loss streak (最长连亏): {streaks['max_loss_streak']:>3} "
+                f"({streaks['max_loss_streak_pnl']:.2f})\n\n"
+            )
 
     def _plot_equity(
         self, equity_curve: pd.DataFrame, benchmark_curve: pd.Series = None
