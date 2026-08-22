@@ -302,6 +302,7 @@ class Strategy(ABC):
                             current_volume=current_volume,
                             current_prices=price_map,
                             pending_open_notional=pending_open_notional,
+                            action=action,
                         ):
                             submission = broker.submit_order(
                                 symbol,

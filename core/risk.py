@@ -135,6 +135,7 @@ class RiskManager:
         current_prices: Optional[Dict[str, float]] = None,
         pending_open_notional: Optional[Dict[str, float]] = None,
         reservation_projection: Optional[RiskReservationProjection] = None,
+        action: str = "buy",
     ) -> bool:
         """
         校验一笔“拟进入的交易”是否违反风控规则。
@@ -144,6 +145,8 @@ class RiskManager:
         - symbol/qty/price：拟下单信息（qty 为绝对数量，side 在上层决定）
         - current_volume：当前 bar 的成交量（用于流动性上限）
         - current_prices：symbol -> 当前价格（用于敞口/权益估算）
+        - action：'buy' 或 'short'。做多需要用现金全额支付（现货无杠杆融资建模），
+          做空暂不做现金占用校验（保证金/借券成本尚未建模，见 backtest_assumptions.md）。
 
         返回：
         - True：允许交易
@@ -157,18 +160,16 @@ class RiskManager:
 
         if qty <= 0 or price <= 0:
             return False
-            
+
         # 1. Liquidity Check
         if current_volume > 0:
             max_qty = current_volume * self.liquidity_limit_pct
             if qty > max_qty:
                 logger.warning(f"Trade Rejected: Liquidity Limit. Qty {qty:.4f} > Max {max_qty:.4f} (1% of {current_volume})")
                 return False
-                
-        # 2. Leverage Check
-        # Estimate new exposure
+
         trade_value = qty * price
-        
+
         # Current exposure
         if current_prices is None:
             if portfolio.positions:
@@ -184,10 +185,10 @@ class RiskManager:
         else:
             current_exposure = portfolio.get_total_exposure(current_prices)
             current_equity = portfolio.get_total_value(current_prices)
-            
+
         if current_equity <= 0:
             return False
-            
+
         reserved_by_symbol = (
             reservation_projection.pending_notional(current_prices)
             if reservation_projection is not None else pending_open_notional or {}
@@ -195,14 +196,30 @@ class RiskManager:
         reserved_exposure = sum(
             max(float(value), 0.0) for value in reserved_by_symbol.values()
         )
+
+        # 2. Cash Sufficiency Check (spot: a buy must be fully funded by free
+        # cash; the backtest models no margin financing for long positions).
+        # Reserved notional from other pending opens is treated as already
+        # spoken-for cash, mirroring the leverage/concentration checks below.
+        if action != "short":
+            free_cash = portfolio.cash - reserved_exposure
+            if trade_value > free_cash:
+                logger.warning(
+                    f"Trade Rejected: Insufficient Cash. Need {trade_value:.2f}, "
+                    f"free cash {free_cash:.2f} (cash={portfolio.cash:.2f}, "
+                    f"reserved={reserved_exposure:.2f})"
+                )
+                return False
+
+        # 3. Leverage Check
         new_exposure = current_exposure + reserved_exposure + trade_value
         projected_leverage = new_exposure / current_equity
-        
+
         if projected_leverage > self.max_leverage:
             logger.warning(f"Trade Rejected: Leverage Limit. Projected {projected_leverage:.2f} > Max {self.max_leverage}")
             return False
 
-        # 3. Concentration Check (Max Position Size)
+        # 4. Concentration Check (Max Position Size)
         # Check if adding this trade makes this single position too large
         current_pos = portfolio.get_position(symbol)
         current_pos_value = abs(current_pos['qty']) * price # Approximate current value
@@ -250,6 +267,7 @@ class RiskManager:
                 current_volume=current_volume,
                 current_prices=current_prices,
                 pending_open_notional=reserved,
+                action=intent.action,
             )
             decision = RiskDecision(
                 decision_id=decision_id,
