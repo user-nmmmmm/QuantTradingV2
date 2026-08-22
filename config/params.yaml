@@ -20,7 +20,11 @@ risk:
 
 # 2b. Market State
 state:
-  stability_period: 1           # 1: immediate state confirmation; VOLATILE↔TREND_UP won't trigger StateSwitch (same strategy)
+  stability_period: 1           # 1 = no de-bouncing: every raw flip switches state immediately.
+                                # NOTE: VOLATILE and TREND_UP route to *different* strategies
+                                # (VolatilityReversion vs TrendBreakout), so each flip does cost a
+                                # StateSwitch forced exit + router cooldown. Raise this to trade
+                                # fewer, longer regimes.
   ma_fast: 20
   ma_slow: 60
   adx_period: 14

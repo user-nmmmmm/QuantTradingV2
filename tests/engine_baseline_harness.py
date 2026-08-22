@@ -110,6 +110,10 @@ def run_engine(
             equity_curve=result["equity_curve"],
             benchmark_curve=result["benchmark"],
             metrics_only=True,
+            # Engine-produced behavior, so the baseline should pin it: a
+            # regression that stops strategies observing their own closures
+            # shows up here as changed lifecycle coverage.
+            close_events=result.get("close_events"),
         )
 
     equity_curve = result["equity_curve"].reset_index()

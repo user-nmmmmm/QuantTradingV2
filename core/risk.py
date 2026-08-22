@@ -25,13 +25,18 @@ RiskManager（风险管理）模块
 """
 
 class RiskManager:
+    # Shrink a clamped order this far below the cap so float rounding in
+    # qty*price cannot push it back over the limit it was clamped to.
+    CAP_SAFETY_MARGIN = 1e-9
+
     def __init__(
-        self, 
+        self,
         risk_per_trade: float = 0.01,
         max_leverage: float = 3.0,
         max_drawdown_limit: float = 0.20,
         liquidity_limit_pct: float = 0.01, # Max 1% of bar volume
-        max_pos_size_pct: float = 0.20 # Max 20% equity per position
+        max_pos_size_pct: float = 0.20, # Max 20% equity per position
+        min_entry_notional_pct: float = 0.01, # Skip dust entries below 1% of equity
     ):
         """
         初始化风控参数。
@@ -42,15 +47,22 @@ class RiskManager:
         - max_drawdown_limit：日内回撤熔断阈值（示例：0.20 表示 -20%）
         - liquidity_limit_pct：流动性上限（单笔 qty 不超过当根 bar 成交量的比例）
         - max_pos_size_pct：单标的最大仓位占比（position value / equity）
+        - min_entry_notional_pct：最小开仓名义金额占权益比例。仓位被削减到风控
+          上限后若低于该门槛，则放弃这笔交易——避免只剩一点点额度时成交出
+          纯付手续费的尘埃仓位。
         """
         self.risk_per_trade = risk_per_trade
         self.max_leverage = max_leverage
         self.max_drawdown_limit = max_drawdown_limit
         self.liquidity_limit_pct = liquidity_limit_pct
         self.max_pos_size_pct = max_pos_size_pct
-        
+        self.min_entry_notional_pct = min_entry_notional_pct
+
         self.circuit_breaker_triggered = False
         self.health_assessment = None
+        # Populated by _entry_notional_caps so the gate/clamp can report the
+        # equity/exposure figures behind a decision without recomputing them.
+        self._last_entry_context: Dict[str, float] = {}
 
     def set_health_assessment(self, assessment) -> None:
         """Install the latest live health fact used by opening-risk checks."""
@@ -125,11 +137,179 @@ class RiskManager:
         allocation = equity * pct
         return allocation / entry_price
 
+    def _entry_notional_caps(
+        self,
+        portfolio: Portfolio,
+        symbol: str,
+        price: float,
+        current_prices: Optional[Dict[str, float]],
+        reserved_by_symbol: Dict[str, float],
+        action: str,
+    ) -> Optional[Dict[str, float]]:
+        """一次开仓在各项风控约束下允许的**最大名义金额**（trade value）。
+
+        这是 `check_entry_risk`（布尔闸门）与 `max_entry_notional`（削减到上限）
+        的唯一口径来源——两者必须看同一份上限，否则会重演“双重限速口径”那类漂移。
+
+        返回：
+        - dict：{约束名: 该约束允许的最大 trade_value}（可能为负，表示已超限）
+        - None：无法核实敞口（fail closed，调用方应拒绝交易）
+        """
+        if current_prices is None:
+            if portfolio.positions:
+                # No price map means existing positions can only be valued
+                # via stale avg_price, which would understate/overstate real
+                # exposure. Fail closed instead of risking a silent misread.
+                logger.warning(
+                    "Trade Rejected: no current prices supplied to value existing positions"
+                )
+                return None
+            current_exposure = 0.0
+            current_equity = portfolio.cash
+        else:
+            current_exposure = portfolio.get_total_exposure(current_prices)
+            current_equity = portfolio.get_total_value(current_prices)
+
+        if current_equity <= 0:
+            return None
+
+        reserved_exposure = sum(
+            max(float(value), 0.0) for value in reserved_by_symbol.values()
+        )
+        reserved_symbol_value = max(float(reserved_by_symbol.get(symbol, 0.0)), 0.0)
+        current_pos_value = abs(portfolio.get_position(symbol)["qty"]) * price
+
+        caps: Dict[str, float] = {
+            # Leverage: gross exposure (incl. other pending opens) vs equity.
+            "leverage": (
+                current_equity * self.max_leverage
+                - current_exposure
+                - reserved_exposure
+            ),
+            # Concentration: this symbol's own position vs equity.
+            "concentration": (
+                current_equity * self.max_pos_size_pct
+                - current_pos_value
+                - reserved_symbol_value
+            ),
+        }
+
+        # Cash sufficiency (spot: a buy must be fully funded by free cash; the
+        # backtest models no margin financing for long positions). Shorts are
+        # exempt — margin/borrow is still not_modeled.
+        if action != "short":
+            caps["cash"] = portfolio.cash - reserved_exposure
+
+        self._last_entry_context = {
+            "equity": current_equity,
+            "exposure": current_exposure,
+            "reserved": reserved_exposure,
+            "position_value": current_pos_value,
+        }
+        return caps
+
+    def max_entry_notional(
+        self,
+        portfolio: Portfolio,
+        symbol: str,
+        price: float,
+        *,
+        current_volume: float = 0,
+        current_prices: Optional[Dict[str, float]] = None,
+        pending_open_notional: Optional[Dict[str, float]] = None,
+        reservation_projection: Optional[RiskReservationProjection] = None,
+        action: str = "buy",
+    ) -> float:
+        """本次开仓允许的最大名义金额（0 表示一分钱都不能开）。
+
+        供上层把“算出来的仓位”**削减到风控上限**，而不是整单作废。
+        风险定仓下 notional/equity = risk_per_trade ÷ (止损距离/价格)，止损越紧
+        仓位越大——直接拒单会让风险最小的信号反而永远无法成交（见
+        docs/backtest_assumptions.md 第 4 节）。削减后实际承担的风险只会更小。
+        """
+        if price <= 0:
+            return 0.0
+        if self.circuit_breaker_triggered or not self._health_allows_new_risk():
+            return 0.0
+
+        reserved_by_symbol = (
+            reservation_projection.pending_notional(current_prices)
+            if reservation_projection is not None else pending_open_notional or {}
+        )
+        caps = self._entry_notional_caps(
+            portfolio, symbol, price, current_prices, reserved_by_symbol, action
+        )
+        if caps is None:
+            return 0.0
+
+        budget = min(caps.values())
+        if current_volume > 0:
+            budget = min(budget, current_volume * self.liquidity_limit_pct * price)
+        if budget <= 0:
+            return 0.0
+
+        # Stay strictly inside the caps: qty*price can round just above budget,
+        # which check_entry_risk would then reject as a limit breach.
+        return budget * (1.0 - self.CAP_SAFETY_MARGIN)
+
+    def clamp_entry_qty(
+        self,
+        portfolio: Portfolio,
+        symbol: str,
+        qty: float,
+        price: float,
+        *,
+        current_volume: float = 0,
+        current_prices: Optional[Dict[str, float]] = None,
+        pending_open_notional: Optional[Dict[str, float]] = None,
+        reservation_projection: Optional[RiskReservationProjection] = None,
+        action: str = "buy",
+    ) -> float:
+        """把 ``qty`` 削减到风控上限内；低于最小开仓门槛时返回 0。
+
+        最小门槛（``min_entry_notional_pct``）用于避免“上限只剩一点点额度”时
+        成交出无意义的尘埃仓位——那种仓位只会白付手续费。
+        """
+        if qty <= 0 or price <= 0:
+            return 0.0
+
+        allowed_notional = self.max_entry_notional(
+            portfolio, symbol, price,
+            current_volume=current_volume,
+            current_prices=current_prices,
+            pending_open_notional=pending_open_notional,
+            reservation_projection=reservation_projection,
+            action=action,
+        )
+        if allowed_notional <= 0:
+            return 0.0
+
+        clamped = min(qty, allowed_notional / price)
+        equity = float(self._last_entry_context.get("equity", 0.0))
+        if equity > 0:
+            min_notional = equity * self.min_entry_notional_pct
+            if clamped * price < min_notional:
+                logger.info(
+                    "Entry skipped: clamped notional %.2f below minimum %.2f "
+                    "(%.2f%% of equity) for %s",
+                    clamped * price, min_notional,
+                    self.min_entry_notional_pct * 100, symbol,
+                )
+                return 0.0
+
+        if clamped < qty:
+            logger.info(
+                "Entry clamped to risk limits: %s qty %.8f -> %.8f "
+                "(notional %.2f -> %.2f)",
+                symbol, qty, clamped, qty * price, clamped * price,
+            )
+        return clamped
+
     def check_entry_risk(
-        self, 
-        portfolio: Portfolio, 
-        symbol: str, 
-        qty: float, 
+        self,
+        portfolio: Portfolio,
+        symbol: str,
+        qty: float,
         price: float,
         current_volume: float = 0,
         current_prices: Optional[Dict[str, float]] = None,
@@ -151,6 +331,9 @@ class RiskManager:
         返回：
         - True：允许交易
         - False：拒绝交易
+
+        注意：这是**闸门**，不做削减。上层应先用 `clamp_entry_qty` 把仓位削到
+        上限内，本方法作为最后一道防线（含实盘路径）。
         """
         if self.circuit_breaker_triggered:
             logger.warning("Trade Rejected: Circuit Breaker Active")
@@ -170,66 +353,42 @@ class RiskManager:
 
         trade_value = qty * price
 
-        # Current exposure
-        if current_prices is None:
-            if portfolio.positions:
-                # No price map means existing positions can only be valued
-                # via stale avg_price, which would understate/overstate real
-                # exposure. Fail closed instead of risking a silent misread.
-                logger.warning(
-                    "Trade Rejected: no current prices supplied to value existing positions"
-                )
-                return False
-            current_exposure = 0.0
-            current_equity = portfolio.cash
-        else:
-            current_exposure = portfolio.get_total_exposure(current_prices)
-            current_equity = portfolio.get_total_value(current_prices)
-
-        if current_equity <= 0:
-            return False
-
         reserved_by_symbol = (
             reservation_projection.pending_notional(current_prices)
             if reservation_projection is not None else pending_open_notional or {}
         )
-        reserved_exposure = sum(
-            max(float(value), 0.0) for value in reserved_by_symbol.values()
+        caps = self._entry_notional_caps(
+            portfolio, symbol, price, current_prices, reserved_by_symbol, action
         )
+        if caps is None:
+            return False
 
-        # 2. Cash Sufficiency Check (spot: a buy must be fully funded by free
-        # cash; the backtest models no margin financing for long positions).
-        # Reserved notional from other pending opens is treated as already
-        # spoken-for cash, mirroring the leverage/concentration checks below.
-        if action != "short":
-            free_cash = portfolio.cash - reserved_exposure
-            if trade_value > free_cash:
-                logger.warning(
-                    f"Trade Rejected: Insufficient Cash. Need {trade_value:.2f}, "
-                    f"free cash {free_cash:.2f} (cash={portfolio.cash:.2f}, "
-                    f"reserved={reserved_exposure:.2f})"
-                )
-                return False
+        context = self._last_entry_context
+        equity = context["equity"]
+
+        # 2. Cash Sufficiency Check
+        if "cash" in caps and trade_value > caps["cash"]:
+            logger.warning(
+                f"Trade Rejected: Insufficient Cash. Need {trade_value:.2f}, "
+                f"free cash {caps['cash']:.2f} (cash={portfolio.cash:.2f}, "
+                f"reserved={context['reserved']:.2f})"
+            )
+            return False
 
         # 3. Leverage Check
-        new_exposure = current_exposure + reserved_exposure + trade_value
-        projected_leverage = new_exposure / current_equity
-
-        if projected_leverage > self.max_leverage:
+        if trade_value > caps["leverage"]:
+            projected_leverage = (
+                context["exposure"] + context["reserved"] + trade_value
+            ) / equity
             logger.warning(f"Trade Rejected: Leverage Limit. Projected {projected_leverage:.2f} > Max {self.max_leverage}")
             return False
 
         # 4. Concentration Check (Max Position Size)
-        # Check if adding this trade makes this single position too large
-        current_pos = portfolio.get_position(symbol)
-        current_pos_value = abs(current_pos['qty']) * price # Approximate current value
-        reserved_symbol_value = max(float(reserved_by_symbol.get(symbol, 0.0)), 0.0)
-        new_pos_value = current_pos_value + reserved_symbol_value + trade_value
-        
-        if new_pos_value > (current_equity * self.max_pos_size_pct):
-            logger.warning(f"Trade Rejected: Concentration Limit. Symbol {symbol} would be {new_pos_value/current_equity:.1%} > Max {self.max_pos_size_pct:.1%}")
+        if trade_value > caps["concentration"]:
+            new_pos_value = context["position_value"] + trade_value
+            logger.warning(f"Trade Rejected: Concentration Limit. Symbol {symbol} would be {new_pos_value/equity:.1%} > Max {self.max_pos_size_pct:.1%}")
             return False
-            
+
         return True
 
 
