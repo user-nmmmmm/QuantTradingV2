@@ -68,6 +68,8 @@ class TestBacktestEngine(unittest.TestCase):
         risk_manager = MagicMock()
         risk_manager.calculate_position_size.return_value = 1.0
         risk_manager.check_entry_risk.return_value = False
+        # Pass sizing through unclamped so this test isolates the liquidity arg.
+        risk_manager.clamp_entry_qty.side_effect = lambda *a, **k: a[2]
 
         df = pd.DataFrame(
             {

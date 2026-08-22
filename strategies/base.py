@@ -293,7 +293,25 @@ class Strategy(ABC):
                         )
                         if not isinstance(pending_open_notional, dict):
                             pending_open_notional = {}
-                        # Pre-trade Risk Check
+                        # Clamp to the risk caps rather than dropping the trade.
+                        # Risk-based sizing makes notional inversely proportional
+                        # to stop distance, so a tight stop can exceed the
+                        # concentration cap and would otherwise be rejected
+                        # outright — silencing the lowest-risk signals.
+                        clamp = getattr(risk_manager, "clamp_entry_qty", None)
+                        if callable(clamp):
+                            size = clamp(
+                                portfolio,
+                                symbol,
+                                size,
+                                current_price,
+                                current_volume=current_volume,
+                                current_prices=price_map,
+                                pending_open_notional=pending_open_notional,
+                                action=action,
+                            )
+                    if size > 0:
+                        # Pre-trade Risk Check (final gate; clamp already applied)
                         if risk_manager.check_entry_risk(
                             portfolio,
                             symbol,
