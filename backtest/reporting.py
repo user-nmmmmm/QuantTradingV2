@@ -172,9 +172,7 @@ class ReportGenerator:
         metrics = {**equity_metrics, **trade_metrics}
 
         extended = dict(metrics.get("ExtendedAnalytics") or {})
-        extended["drawdown_events"] = calculate_drawdown_events(
-            equity_curve["equity"], min_depth_pct=0.01
-        )
+        extended["drawdown_events"] = calculate_drawdown_events(equity_curve["equity"])
         if benchmark_curve is not None:
             extended["benchmark_comparison"] = calculate_benchmark_comparison(
                 equity_curve["equity"], benchmark_curve
@@ -655,15 +653,24 @@ class ReportGenerator:
 
     @staticmethod
     def _write_drawdown_events_section(f, events: Optional[List[Dict[str, Any]]]) -> None:
-        """枚举每一段独立的峰→谷→恢复回撤（而非只报最差一次），按深度从大到小排序。"""
+        """枚举每一段独立的峰→谷→恢复回撤（而非只报最差一次），按深度从大到小排序。
+
+        底层 ``ExtendedAnalytics["drawdown_events"]`` 不做深度过滤（供其他消费者/
+        回归基线使用完整数据）；这里只在渲染 report.txt 文本时过滤掉深度低于 1%%
+        的噪声事件，不影响返回给调用方的 metrics 字典。
+        """
         f.write("Drawdown Events (回撤事件明细):\n")
         f.write("-----------------\n")
-        if not events:
+        filtered = [
+            e for e in (events or [])
+            if e.get("depth_pct") is not None and abs(e["depth_pct"]) >= 0.01
+        ]
+        if not filtered:
             f.write("No drawdown events at or above the 1%% depth filter.\n")
             f.write("（未检测到深度超过 1%% 的回撤事件）\n\n")
             return
         ranked = sorted(
-            events, key=lambda e: e["depth_pct"] if e["depth_pct"] is not None else 0.0
+            filtered, key=lambda e: e["depth_pct"] if e["depth_pct"] is not None else 0.0
         )
         shown_limit = 20
         for i, event in enumerate(ranked[:shown_limit], start=1):
