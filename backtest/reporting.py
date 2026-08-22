@@ -143,6 +143,7 @@ class ReportGenerator:
         metadata: Dict[str, Any] = None,
         benchmark_curve: pd.Series = None,
         metrics_only: bool = False,
+        close_events: Optional[Dict[str, int]] = None,
     ):
         """
         生成报告并返回指标字典。
@@ -154,6 +155,10 @@ class ReportGenerator:
         - benchmark_curve：基准曲线（Series，可选）
         - metrics_only：为 True 时跳过 CSV/报告文本/图表落盘，只返回指标字典
           （用于网格搜索等只关心指标、丢弃产物的场景）
+        - close_events：策略名 -> 该策略实际观测到的平仓次数（来自
+          ``BacktestEngine.run`` 的 ``close_events``）。传入后诊断会计算
+          ``lifecycle_coverage``，用于发现"平仓回调从未触发导致熄火/冷却风控
+          失效"这类问题；不传则跳过该项（例如只有成交明细、没有引擎上下文时）。
         """
         trades_df = pd.DataFrame(trades)
 
@@ -184,7 +189,7 @@ class ReportGenerator:
         # believed and whether the system behaves as its code claims. Kept in
         # its own key so consumers can tell "performance" from "credibility".
         metrics["Diagnostics"] = build_diagnostics(
-            closed_trades, equity_curve["equity"]
+            closed_trades, equity_curve["equity"], close_events
         )
         metrics["ExtendedAnalytics"] = extended
         metrics["MetricResults"] = self._headline_metric_results(metrics)

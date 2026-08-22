@@ -153,6 +153,15 @@ class BacktestEngine:
             "trades": broker.trades,
             "equity_curve": pd.DataFrame(equity_curve).set_index("timestamp"),
             "benchmark": benchmark_series,
+            # Per-strategy count of round trips each strategy actually saw
+            # close. Diagnostics compares this against the reconstructed
+            # closed-trade count to detect strategies whose on_trade_closed
+            # hook never fires (e.g. positions liquidated by the router), which
+            # silently disables their health/cooldown safeguards.
+            "close_events": {
+                name: int(getattr(strategy, "observed_close_events", 0))
+                for name, strategy in strategies.items()
+            },
         }
 
     def _benchmark(

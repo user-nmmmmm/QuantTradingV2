@@ -311,5 +311,76 @@ class TestBuildDiagnostics(unittest.TestCase):
         self.assertNotIn("lifecycle_coverage", build_diagnostics([], equity))
 
 
+class TestLifecycleWiring(unittest.TestCase):
+    """The report path must actually supply close-event counts.
+
+    calculate_lifecycle_coverage only runs when `observed_close_events` is
+    passed. If the report calls build_diagnostics without it, the whole
+    lifecycle section is silently omitted and the diagnostic cannot report the
+    blindness it exists to detect — which is exactly how it shipped initially.
+    """
+
+    def _fills(self):
+        base = {"commission": 1.0, "slip": 0.5}
+        return [
+            {"symbol": "BTC/USDT", "side": "buy", "qty": 1.0, "fill_price": 100.0,
+             "strategy_id": "S", "exit_reason": "signal",
+             "fill_time": pd.Timestamp("2024-01-01"), **base},
+            {"symbol": "BTC/USDT", "side": "sell", "qty": 1.0, "fill_price": 110.0,
+             "strategy_id": "Router", "exit_reason": "StateSwitch",
+             "fill_time": pd.Timestamp("2024-01-05"), **base},
+        ]
+
+    def _equity(self):
+        return pd.DataFrame(
+            {"equity": [10000.0, 10005.0, 10010.0, 10008.0, 10009.0],
+             "cash": [10000.0, 10005.0, 10010.0, 10008.0, 10009.0]},
+            index=pd.date_range("2024-01-01", periods=5, freq="D"),
+        )
+
+    def test_report_computes_lifecycle_coverage_when_counts_are_given(self):
+        import tempfile
+        from backtest.reporting import ReportGenerator
+
+        with tempfile.TemporaryDirectory() as directory:
+            metrics = ReportGenerator(directory).generate(
+                self._fills(), self._equity(), close_events={"S": 0},
+            )
+
+        coverage = metrics["Diagnostics"].get("lifecycle_coverage")
+        self.assertIsNotNone(
+            coverage,
+            "generate() must forward close_events into build_diagnostics",
+        )
+        self.assertEqual(coverage["by_strategy"]["S"]["expected_closures"], 1)
+        self.assertEqual(coverage["by_strategy"]["S"]["observed_closures"], 0)
+        self.assertIn("S", coverage["blind_strategies"])
+
+    def test_engine_run_reports_per_strategy_close_event_counts(self):
+        """BacktestEngine must expose the counts the report needs."""
+        import numpy as np
+        from backtest.engine import BacktestEngine
+
+        periods = 120
+        index = pd.date_range("2024-01-01", periods=periods, freq="D")
+        rng = np.random.default_rng(11)
+        close = 100.0 * np.cumprod(1 + rng.normal(0.002, 0.03, periods))
+        frame = pd.DataFrame(
+            {"open": close, "high": close * 1.05, "low": close * 0.95,
+             "close": close, "volume": np.full(periods, 1e7)},
+            index=index,
+        )
+
+        results = BacktestEngine(initial_capital=10000.0).run(
+            {"BTC/USDT": frame}, routing_log_enabled=False
+        )
+
+        self.assertIn("close_events", results)
+        self.assertIsInstance(results["close_events"], dict)
+        self.assertTrue(
+            all(isinstance(v, int) for v in results["close_events"].values())
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
