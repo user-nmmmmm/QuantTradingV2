@@ -6,6 +6,7 @@
 > 回测执行计划：[`development_plan.md`](development_plan.md)  
 > 实盘执行计划：[`live_trading_remediation_plan.md`](live_trading_remediation_plan.md)  
 > 回测指标计划：[`backtest_metrics_detailed_development_plan.md`](backtest_metrics_detailed_development_plan.md)
+> 策略能力计划：[`strategy_development_roadmap.md`](strategy_development_roadmap.md)（S0–S4：缺陷清理、选币、保证金、合约策略）
 
 ## 1. 文档治理
 
