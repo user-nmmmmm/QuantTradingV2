@@ -6,7 +6,10 @@ import pandas as pd
 import json
 from datetime import datetime, timedelta
 from typing import List, Dict, Any
-from tabulate import tabulate
+try:
+    from tabulate import tabulate
+except ImportError:  # Optional CLI presentation dependency.
+    tabulate = None
 
 # Add project root to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -134,9 +137,9 @@ def run_grid_search(
     print("=" * 80)
 
     # Use tabulate if available, else string format
-    try:
+    if tabulate is not None:
         print(tabulate(results_df, headers="keys", tablefmt="grid", floatfmt=".2f"))
-    except ImportError:
+    else:
         print(results_df.to_string(index=False))
 
     # Save to CSV
