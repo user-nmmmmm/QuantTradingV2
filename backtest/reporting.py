@@ -1,7 +1,15 @@
 import math
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
+import matplotlib
+# Report generation only writes PNG files; it never opens a window. Pin the
+# non-interactive Agg backend before pyplot is imported so rendering cannot
+# depend on a GUI toolkit being installed and working. Otherwise matplotlib
+# probes for Tk/Qt at first figure creation, which fails on machines with a
+# broken Tcl/Tk install and — because the probe happens lazily — turns chart
+# output into an intermittent failure.
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt  # noqa: E402
 import os
 from collections import deque
 from typing import Deque, List, Dict, Any, Optional, Tuple
@@ -993,11 +1001,14 @@ class ReportGenerator:
 
             ax4.set_xlabel("Date")
 
-            plt.tight_layout()
+            # Save through the figure object, not the pyplot global "current
+            # figure": a figure leaked by an earlier call would otherwise
+            # receive the write, producing a wrong or empty image.
+            fig.tight_layout()
             output_path = os.path.join(self.output_dir, "equity.png")
-            plt.savefig(output_path, dpi=300)
+            fig.savefig(output_path, dpi=300)
             logger.info("Plot saved to: %s", output_path)
-            plt.close()
+            plt.close(fig)
         except Exception as e:
             logger.error("Error saving plot: %s", e)
 
@@ -1043,9 +1054,9 @@ class ReportGenerator:
                     )
 
             fig.colorbar(im, ax=ax, label="Return")
-            plt.tight_layout()
+            fig.tight_layout()
             output_path = os.path.join(self.output_dir, "monthly_returns_heatmap.png")
-            plt.savefig(output_path, dpi=300)
+            fig.savefig(output_path, dpi=300)
             logger.info("Plot saved to: %s", output_path)
             plt.close(fig)
         except Exception as e:
@@ -1104,9 +1115,9 @@ class ReportGenerator:
             ax2.set_xlabel("Date")
             ax2.grid(True, linestyle="--", alpha=0.6)
 
-            plt.tight_layout()
+            fig.tight_layout()
             output_path = os.path.join(self.output_dir, "rolling_metrics.png")
-            plt.savefig(output_path, dpi=300)
+            fig.savefig(output_path, dpi=300)
             logger.info("Plot saved to: %s", output_path)
             plt.close(fig)
         except Exception as e:
@@ -1141,9 +1152,9 @@ class ReportGenerator:
             ax.legend(loc="upper right")
             ax.grid(True, axis="y", linestyle="--", alpha=0.6)
 
-            plt.tight_layout()
+            fig.tight_layout()
             output_path = os.path.join(self.output_dir, "pnl_distribution.png")
-            plt.savefig(output_path, dpi=300)
+            fig.savefig(output_path, dpi=300)
             logger.info("Plot saved to: %s", output_path)
             plt.close(fig)
         except Exception as e:

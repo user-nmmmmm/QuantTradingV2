@@ -260,8 +260,7 @@ def calculate_calendar_returns(
             exit_time = trade.get("exit_time")
             if exit_time is None:
                 continue
-            stamp = pd.Timestamp(exit_time)
-            key = stamp.to_period(_period_alias(freq))
+            key = _to_period(exit_time, freq)
             trade_counts[key] += 1
             pnl_by_period[key] = pnl_by_period.get(key, 0.0) + float(
                 trade.get("net_pnl") or 0.0
@@ -269,7 +268,7 @@ def calculate_calendar_returns(
 
     periods: List[Dict[str, Any]] = []
     for stamp, value in returns.items():
-        key = pd.Timestamp(stamp).to_period(_period_alias(freq))
+        key = _to_period(stamp, freq)
         periods.append({
             "period": str(key),
             "return": float(value),
@@ -299,6 +298,21 @@ def _period_alias(freq: str) -> str:
     return {"Y": "Y", "A": "Y", "Q": "Q", "M": "M", "W": "W", "D": "D"}.get(
         head[0], "Y"
     )
+
+
+def _to_period(stamp: Any, freq: str) -> Any:
+    """Bucket a timestamp by its own wall-clock date.
+
+    ``Timestamp.to_period`` drops the timezone (with a warning) rather than
+    converting, so make that explicit: a trade closed at 00:30 +08:00 belongs
+    to the calendar period the trader saw it in, not the UTC one it maps to.
+    Equity timestamps and trade timestamps come from the same run, so both
+    sides bucket consistently.
+    """
+    value = pd.Timestamp(stamp)
+    if value.tzinfo is not None:
+        value = value.tz_localize(None)
+    return value.to_period(_period_alias(freq))
 
 
 def calculate_streaks(trades: Iterable[Mapping[str, Any]]) -> Dict[str, Any]:

@@ -11,6 +11,7 @@ from tests.engine_baseline_harness import (
     SCHEMA_VERSION,
     build_synthetic_data_map,
     canonical_json,
+    compare_artifacts,
     run_engine,
 )
 
@@ -91,13 +92,91 @@ class TestBacktestEngineEquivalenceBaseline(unittest.TestCase):
         )
         artifacts = run_engine(data_map, warmup_period=bundle["metadata"]["warmup_period"])
 
-        self.assertEqual(canonical_json(artifacts), canonical_json(bundle["artifacts"]))
+        # Structural comparison with a float tolerance rather than byte-equal
+        # canonical JSON: the last ULP of a reduction (e.g. the benchmark's
+        # row-wise mean) legitimately differs between the machine that recorded
+        # the fixture and the CI runner, and pinning 17 significant digits
+        # turns that into a failure unrelated to behavior. Counts, timestamps,
+        # statuses, key sets and container shapes still compare exactly.
+        problems = compare_artifacts(artifacts, bundle["artifacts"])
+        self.assertEqual(
+            problems, [],
+            "Engine output diverged from the recorded baseline:\n"
+            + "\n".join(problems[:20]),
+        )
 
     def test_two_runs_in_same_process_are_identical(self):
+        """Within one process the engine must still be bit-identical.
+
+        The cross-machine tolerance above applies only to comparing against a
+        fixture recorded elsewhere; it must not excuse nondeterminism here.
+        """
         data_map = build_synthetic_data_map()
         first = run_engine(data_map, warmup_period=DEFAULT_WARMUP_PERIOD)
         second = run_engine(data_map, warmup_period=DEFAULT_WARMUP_PERIOD)
         self.assertEqual(canonical_json(first), canonical_json(second))
+
+
+class TestBaselineComparisonTolerance(unittest.TestCase):
+    """The tolerance must absorb ULP noise without letting regressions through.
+
+    A comparison loose enough to hide a changed fill price or trade count would
+    turn the baseline into a rubber stamp, so these pin both directions.
+    """
+
+    def test_absorbs_last_ulp_float_noise(self):
+        expected = {"value": 10077.520811121292}
+        actual = {"value": 10077.520811121294}
+
+        self.assertEqual(compare_artifacts(actual, expected), [])
+
+    def test_rejects_a_changed_fill_price(self):
+        expected = {"trades": [{"fill_price": 11658.28647606}]}
+        actual = {"trades": [{"fill_price": 11658.29647606}]}  # +0.01
+
+        problems = compare_artifacts(actual, expected)
+
+        self.assertTrue(problems)
+        self.assertIn("fill_price", problems[0])
+
+    def test_rejects_a_changed_trade_count(self):
+        expected = {"metrics": {"TotalTrades": 32}}
+        actual = {"metrics": {"TotalTrades": 33}}
+
+        self.assertTrue(compare_artifacts(actual, expected))
+
+    def test_rejects_added_or_removed_trades(self):
+        expected = {"trades": [{"qty": 1.0}, {"qty": 2.0}]}
+        actual = {"trades": [{"qty": 1.0}]}
+
+        problems = compare_artifacts(actual, expected)
+
+        self.assertTrue(problems)
+        self.assertIn("length", problems[0])
+
+    def test_rejects_key_set_drift(self):
+        self.assertTrue(compare_artifacts({"a": 1}, {"a": 1, "b": 2}))
+        self.assertTrue(compare_artifacts({"a": 1, "b": 2}, {"a": 1}))
+
+    def test_rejects_changed_strings_and_timestamps_exactly(self):
+        expected = {"exit_reason": "StateSwitch", "t": "2024-02-07T00:00:00"}
+        actual = {"exit_reason": "hard_stop", "t": "2024-02-08T00:00:00"}
+
+        self.assertEqual(len(compare_artifacts(actual, expected)), 2)
+
+    def test_does_not_treat_bool_as_a_number(self):
+        """True == 1 numerically; a status flag flipping must not slip through."""
+        self.assertTrue(compare_artifacts({"is_open": True}, {"is_open": 1}))
+        self.assertTrue(compare_artifacts({"is_open": False}, {"is_open": True}))
+
+    def test_reports_the_path_of_a_nested_mismatch(self):
+        expected = {"metrics": {"nested": [{"pnl": 1.0}]}}
+        actual = {"metrics": {"nested": [{"pnl": 5.0}]}}
+
+        problems = compare_artifacts(actual, expected)
+
+        self.assertEqual(len(problems), 1)
+        self.assertIn("artifacts.metrics.nested[0].pnl", problems[0])
 
 
 if __name__ == "__main__":
