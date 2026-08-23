@@ -6,7 +6,10 @@ import pandas as pd
 import json
 from datetime import datetime, timedelta
 from typing import List, Dict, Any
-from tabulate import tabulate
+try:
+    from tabulate import tabulate
+except ImportError:  # Optional CLI presentation dependency.
+    tabulate = None
 
 # Add project root to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -14,10 +17,20 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.data_fetcher import DataFetcher
 from backtest.engine import BacktestEngine
 from backtest.reporting import ReportGenerator
-from strategies.trend_following import TrendUpStrategy, TrendDownStrategy
+from strategies.trend_breakout import TrendBreakoutStrategy, TrendBreakdownStrategy
+from strategies.volatility import VolatilityReversionStrategy
 from strategies.mean_reversion import RangeStrategy
 
 from analysis.validation import ValidationConfig, validate_parameter_candidates
+
+def build_optimization_strategies(entry_window: int, exit_window: int):
+    """Build a registry whose keys exactly match params.yaml routing values."""
+    return {
+        "TrendBreakout": TrendBreakoutStrategy(entry_window, exit_window),
+        "TrendBreakdown": TrendBreakdownStrategy(entry_window, exit_window),
+        "RangeMeanReversion": RangeStrategy(),
+        "VolatilityReversion": VolatilityReversionStrategy(),
+    }
 
 def run_grid_search(
     symbols: List[str],
@@ -26,12 +39,11 @@ def run_grid_search(
     start_date: str,
     end_date: str,
     initial_capital: float = 10000.0,
+    oos: bool = False,
 ):
     print(f"\nStarting Grid Search Optimization...")
     print(f"Symbols: {symbols}")
     print(f"Data Source: {data_source}")
-    oos: bool = False,
-
     # Calculate dates if not provided
     if not end_date:
         end_date = datetime.now().strftime("%Y-%m-%d")
@@ -68,11 +80,11 @@ def run_grid_search(
 
     # 2. Define Parameter Grid
     # Optimizing Trend Strategies (Up and Down)
-    sma_periods = [20, 30, 50, 100]
-    atr_multipliers = [1.5, 2.0, 2.5, 3.0]
+    entry_windows = [20, 30, 50, 100]
+    exit_windows = [5, 10, 15, 20]
 
     # We will use the same params for both TrendUp and TrendDown for simplicity in this run
-    param_grid = list(itertools.product(sma_periods, atr_multipliers))
+    param_grid = list(itertools.product(entry_windows, exit_windows))
 
     results = []
 
@@ -80,14 +92,9 @@ def run_grid_search(
     returns_by_candidate = {}
     print("-" * 60)
 
-    for sma, atr_mult in param_grid:
+    for entry_window, exit_window in param_grid:
         # Create strategy instances with current params
-        strategies = {
-            "TrendUp": TrendUpStrategy(sma_period=sma, atr_multiplier=atr_mult),
-            "TrendDown": TrendDownStrategy(sma_period=sma, atr_multiplier=atr_mult),
-            # Keep RangeStrategy default as we are optimizing Trend
-            "RangeMeanReversion": RangeStrategy(),
-        }
+        strategies = build_optimization_strategies(entry_window, exit_window)
 
         # Run Backtest
         engine = BacktestEngine(initial_capital=initial_capital)
@@ -102,14 +109,14 @@ def run_grid_search(
             benchmark_curve=backtest_result["benchmark"],
             metrics_only=True,
         )
-        returns_by_candidate[f"sma={sma},atr={atr_mult}"] = (
+        returns_by_candidate[f"entry={entry_window},exit={exit_window}"] = (
             backtest_result["equity_curve"]["equity"].pct_change().dropna()
         )
         
         # Store result
         results.append({
-            "SMA_Period": sma,
-            "ATR_Mult": atr_mult,
+            "Entry_Window": entry_window,
+            "Exit_Window": exit_window,
             "Total_Ret%": metrics.get("TotalReturn", 0.0) * 100,
             "Max_DD%": metrics.get("MaxDrawdownPct", 0.0) * 100,
             "Sharpe": metrics.get("SharpeRatio", 0.0),
@@ -117,7 +124,7 @@ def run_grid_search(
             "Win_Rate%": metrics.get("WinRate", 0.0) * 100
         })
         
-        print(f"SMA={sma:<3} ATR={atr_mult:<3} | Ret: {metrics.get('TotalReturn', 0.0)*100:>6.2f}% | DD: {metrics.get('MaxDrawdownPct', 0.0)*100:>6.2f}% | Sharpe: {metrics.get('SharpeRatio', 0.0):>5.2f}")
+        print(f"Entry={entry_window:<3} Exit={exit_window:<3} | Ret: {metrics.get('TotalReturn', 0.0)*100:>6.2f}% | DD: {metrics.get('MaxDrawdownPct', 0.0)*100:>6.2f}% | Sharpe: {metrics.get('SharpeRatio', 0.0):>5.2f}")
 
     # 3. Display Results
     results_df = pd.DataFrame(results)
@@ -130,9 +137,9 @@ def run_grid_search(
     print("=" * 80)
 
     # Use tabulate if available, else string format
-    try:
+    if tabulate is not None:
         print(tabulate(results_df, headers="keys", tablefmt="grid", floatfmt=".2f"))
-    except ImportError:
+    else:
         print(results_df.to_string(index=False))
 
     # Save to CSV

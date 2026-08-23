@@ -82,7 +82,11 @@ class TestRouterSwitchCleanup(unittest.TestCase):
         )
 
         self.assertEqual(stale_order.status, BacktestOrderStatus.CANCELED)
-        self.assertEqual(trend_strategy.context["BTC/USDT"], {})
+        self.assertEqual(
+            trend_strategy.context["BTC/USDT"],
+            {"stop_loss": 95.0, "entry_bar": 1},
+            "opening context must survive until the flatten fill is consumed",
+        )
         self.assertIn("BTC/USDT", router.cooldowns)
         self.assertEqual(len(broker.active_orders), 0)
         self.assertEqual(len(broker.pending_orders), 1)

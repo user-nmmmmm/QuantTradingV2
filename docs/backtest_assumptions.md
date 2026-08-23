@@ -103,6 +103,17 @@ notional / equity = risk_per_trade ÷ (止损距离 / 价格)
 > 变为 `SIDEWAYS 43.2% / TREND_UP 22.8% / TREND_DOWN 18.0% / VOLATILE 16.0%`；
 > 六标的样本总收益率由 -71.0% 变为 +74.4%（Profit Factor 0.71 → 1.29）。
 
+### 4.2.1 Regime 切换与策略出场的优先级
+
+当前契约采用 **regime 切换即平仓**：当新状态映射到不同策略时，Router 先取消该标的
+所有未完成订单，再提交全量平仓单，并进入路由冷却；不会等待旧策略的 `should_exit`
+条件或设置额外超时。平仓成交仍在 Next-Bar Execution 模型下发生，成交归因为
+`exit_strategy=Router`、`exit_reason=StateSwitch`。
+
+Router/CircuitBreaker 的外部平仓不会绕过策略生命周期：持仓实际归零后，原开仓策略的
+`on_trade_closed` 必须且只会回调一次。因此连续亏损、冷却和熄火闸门使用真实成交结果，
+而不是依赖旧策略在切换后再次被路由。趋势策略的 `health_stats` 当前明确采用
+`scope=cross_symbol_aggregate`，即总交易数、滚动 PnL 与连续亏损是跨标的组合级计数。
 ## 4.3 结果可信度诊断（core/diagnostics.py）
 
 `core/metrics.py` 回答"策略表现如何"，`core/diagnostics.py` 回答两个前置问题：

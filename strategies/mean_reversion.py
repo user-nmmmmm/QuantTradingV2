@@ -1,11 +1,9 @@
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 import pandas as pd
 import numpy as np
 from core.state import MarketState
 from core.portfolio import Portfolio
 from core.indicators import Indicators
-from core.broker import Broker
-from core.risk import RiskManager
 from strategies.base import Strategy
 
 """
@@ -147,34 +145,6 @@ class RangeStrategy(Strategy):
             elif qty < 0 and bar_high > stop_loss:
                 reason = 'Stop Loss'
                 
-        if reason:
-            action = 'sell' if qty > 0 else 'cover'
-            return {'action': action, 'reason': reason}
-            
-        return None
-        # Or I can return None and let Base implementation check Stop Loss?
-        # My Base implementation:
-        # 1. Check Exit (should_exit)
-        # 2. (Not implemented in Base yet: Auto Stop Loss Check inside on_bar?)
-        # Let's check Base implementation again.
-        
-        # Base implementation in previous turn:
-        # It calls `should_exit`. If returns signal, execute.
-        # IT DOES NOT have built-in stop loss check outside of `should_exit`?
-        # Wait, let me check `strategies/base.py`.
-        
-        # Checking strategies/base.py...
-        # It calls `should_exit`.
-        # Inside `TrendStrategies`, I implemented "Stop/Trail triggered" check INSIDE `should_exit`.
-        # So I must do the same here.
-        
-        stop_loss = ctx.get('stop_loss', np.inf if qty < 0 else -np.inf)
-        
-        if qty > 0 and close < stop_loss:
-            reason = 'Stop Loss hit'
-        elif qty < 0 and close > stop_loss:
-            reason = 'Stop Loss hit'
-            
         if reason:
             action = 'sell' if qty > 0 else 'cover'
             return {'action': action, 'reason': reason}
