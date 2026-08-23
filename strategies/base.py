@@ -41,6 +41,12 @@ class Strategy(ABC):
         # symbol -> { 'entry_price': float, 'stop_loss': float, 'trailing_stop': float }
         self.context: Dict[str, Dict[str, Any]] = {}
         self._processed_trade_keys = set()
+        # How many round trips this strategy actually observed closing. Compared
+        # against the reconstructed closed-trade count by
+        # core.diagnostics.calculate_lifecycle_coverage: a shortfall means the
+        # safeguards that update from on_trade_closed (health/alpha-death gates,
+        # consecutive-loss cooldowns) are running blind.
+        self.observed_close_events = 0
 
     def get_context(self, symbol: str) -> Dict[str, Any]:
         """
@@ -59,6 +65,7 @@ class Strategy(ABC):
     def reset_runtime_state(self) -> None:
         self.context = {}
         self._processed_trade_keys = set()
+        self.observed_close_events = 0
 
     def bind_state_store(self, _state_store) -> None:
         """Optional live-state binding for strategies with durable health state."""
@@ -133,6 +140,7 @@ class Strategy(ABC):
             ) + pnl
             if portfolio.get_position(symbol).get("qty", 0.0) == 0:
                 realized = float(ctx["_realized_exit_pnl"])
+                self.observed_close_events += 1
                 self.on_trade_closed(symbol, realized, trade, bar_index)
                 self.context[symbol] = {}
 
@@ -293,7 +301,25 @@ class Strategy(ABC):
                         )
                         if not isinstance(pending_open_notional, dict):
                             pending_open_notional = {}
-                        # Pre-trade Risk Check
+                        # Clamp to the risk caps rather than dropping the trade.
+                        # Risk-based sizing makes notional inversely proportional
+                        # to stop distance, so a tight stop can exceed the
+                        # concentration cap and would otherwise be rejected
+                        # outright — silencing the lowest-risk signals.
+                        clamp = getattr(risk_manager, "clamp_entry_qty", None)
+                        if callable(clamp):
+                            size = clamp(
+                                portfolio,
+                                symbol,
+                                size,
+                                current_price,
+                                current_volume=current_volume,
+                                current_prices=price_map,
+                                pending_open_notional=pending_open_notional,
+                                action=action,
+                            )
+                    if size > 0:
+                        # Pre-trade Risk Check (final gate; clamp already applied)
                         if risk_manager.check_entry_risk(
                             portfolio,
                             symbol,

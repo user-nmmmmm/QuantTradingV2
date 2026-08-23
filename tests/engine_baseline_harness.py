@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import tempfile
 from pathlib import Path
 from typing import Any, Dict
@@ -37,6 +38,73 @@ DEFAULT_SEED = 20260812
 
 def canonical_json(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+# Cross-machine float tolerance for the recorded baseline.
+#
+# The engine is bit-deterministic within one process, but the last ULP of a
+# reduction (e.g. the benchmark's row-wise mean over three symbols) can differ
+# between the machine that recorded the fixture and the CI runner, because
+# SIMD summation order depends on the CPU and array layout. Comparing 17
+# significant digits byte-for-byte therefore fails for reasons unrelated to
+# behavior — this repo has hit it repeatedly.
+#
+# 1e-9 relative is many orders of magnitude tighter than any genuine behavior
+# change: a different fill, size, or trade count moves these values in the
+# first few significant digits, and non-numeric fields (counts, timestamps,
+# statuses, symbols) are still compared exactly.
+BASELINE_REL_TOL = 1e-9
+BASELINE_ABS_TOL = 1e-12
+
+
+def compare_artifacts(actual: Any, expected: Any, path: str = "artifacts") -> list[str]:
+    """Structurally diff two artifact bundles, tolerating float noise.
+
+    Returns a list of human-readable mismatch descriptions (empty when the
+    bundles agree). Numbers compare with :data:`BASELINE_REL_TOL`; everything
+    else — including container shapes and key sets — compares exactly.
+    """
+    if isinstance(expected, bool) or isinstance(actual, bool):
+        # bool is an int subclass; compare identity of type before numbers.
+        if actual != expected or type(actual) is not type(expected):
+            return [f"{path}: {actual!r} != {expected!r}"]
+        return []
+
+    if isinstance(expected, (int, float)) and isinstance(actual, (int, float)):
+        if math.isclose(
+            float(actual), float(expected),
+            rel_tol=BASELINE_REL_TOL, abs_tol=BASELINE_ABS_TOL,
+        ):
+            return []
+        return [f"{path}: {actual!r} != {expected!r}"]
+
+    if isinstance(expected, dict):
+        if not isinstance(actual, dict):
+            return [f"{path}: expected a mapping, got {type(actual).__name__}"]
+        problems = []
+        missing = sorted(set(expected) - set(actual))
+        extra = sorted(set(actual) - set(expected))
+        if missing:
+            problems.append(f"{path}: missing keys {missing}")
+        if extra:
+            problems.append(f"{path}: unexpected keys {extra}")
+        for key in sorted(set(expected) & set(actual)):
+            problems.extend(compare_artifacts(actual[key], expected[key], f"{path}.{key}"))
+        return problems
+
+    if isinstance(expected, (list, tuple)):
+        if not isinstance(actual, (list, tuple)):
+            return [f"{path}: expected a sequence, got {type(actual).__name__}"]
+        if len(actual) != len(expected):
+            return [f"{path}: length {len(actual)} != {len(expected)}"]
+        problems = []
+        for index, (left, right) in enumerate(zip(actual, expected)):
+            problems.extend(compare_artifacts(left, right, f"{path}[{index}]"))
+        return problems
+
+    if actual != expected:
+        return [f"{path}: {actual!r} != {expected!r}"]
+    return []
 
 
 def data_digest(data: Any) -> str:
@@ -110,6 +178,10 @@ def run_engine(
             equity_curve=result["equity_curve"],
             benchmark_curve=result["benchmark"],
             metrics_only=True,
+            # Engine-produced behavior, so the baseline should pin it: a
+            # regression that stops strategies observing their own closures
+            # shows up here as changed lifecycle coverage.
+            close_events=result.get("close_events"),
         )
 
     equity_curve = result["equity_curve"].reset_index()

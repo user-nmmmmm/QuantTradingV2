@@ -254,6 +254,7 @@ def main(argv=None) -> int:
         results["equity_curve"],
         metadata=metadata,
         benchmark_curve=results.get("benchmark"),
+        close_events=results.get("close_events"),
     )
 
     artifact_failures = []

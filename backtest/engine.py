@@ -99,12 +99,21 @@ class BacktestEngine:
 
         market_data = HistoricalMarketDataAdapter(data_map)
         processed_data = market_data.data_map
+        # Early exits must keep the same result keys as a completed run, or
+        # callers that read close_events/benchmark silently get None and the
+        # diagnostics that depend on them are dropped without explanation.
+        empty_result = {
+            "trades": [],
+            "equity_curve": pd.DataFrame(),
+            "benchmark": None,
+            "close_events": {name: 0 for name in strategies},
+        }
         if not processed_data:
             logger.warning("No valid symbol data available after normalization")
-            return {"trades": [], "equity_curve": pd.DataFrame()}
+            return empty_result
         timestamps = market_data.timestamps
         if len(timestamps) == 0:
-            return {"trades": [], "equity_curve": pd.DataFrame()}
+            return empty_result
 
         execution = SimulatedExecutionAdapter(broker)
         processor = EventProcessor(
@@ -153,6 +162,15 @@ class BacktestEngine:
             "trades": broker.trades,
             "equity_curve": pd.DataFrame(equity_curve).set_index("timestamp"),
             "benchmark": benchmark_series,
+            # Per-strategy count of round trips each strategy actually saw
+            # close. Diagnostics compares this against the reconstructed
+            # closed-trade count to detect strategies whose on_trade_closed
+            # hook never fires (e.g. positions liquidated by the router), which
+            # silently disables their health/cooldown safeguards.
+            "close_events": {
+                name: int(getattr(strategy, "observed_close_events", 0))
+                for name, strategy in strategies.items()
+            },
         }
 
     def _benchmark(

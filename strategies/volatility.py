@@ -41,7 +41,7 @@ class VolatilityReversionStrategy(Strategy):
         return None
 
     def should_exit(self, symbol: str, i: int, df: pd.DataFrame, state: MarketState, portfolio: Portfolio) -> Optional[Dict[str, Any]]:
-        qty = portfolio.get_position_qty(symbol)
+        qty = portfolio.get_position(symbol)["qty"]
         if not qty:
             return None
         center = self._indicators(df)[0].iat[i]

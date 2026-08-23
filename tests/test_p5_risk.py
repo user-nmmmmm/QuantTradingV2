@@ -169,6 +169,80 @@ class TestRiskManager(unittest.TestCase):
         )
         self.assertTrue(allowed, "Short notional should not be gated by cash")
 
+    def test_clamp_reduces_oversized_entry_to_concentration_cap(self):
+        """A tight stop makes risk-based sizing exceed the cap; clamp, don't reject.
+
+        This is the structural bug that silenced RangeMeanReversion: with
+        risk_per_trade/max_pos_size_pct = 0.02/0.20, any stop tighter than 10%
+        of price sizes above the cap and used to be dropped entirely.
+        """
+        # 10000 equity, 20% cap -> 2000 max notional. Ask for 5000.
+        clamped = self.risk_manager.clamp_entry_qty(
+            self.portfolio, "BTC", qty=50.0, price=100.0,
+            current_prices={"BTC": 100.0},
+        )
+
+        self.assertGreater(clamped, 0.0, "Oversized entry must be clamped, not dropped")
+        self.assertLessEqual(clamped * 100.0, 2000.0)
+        self.assertAlmostEqual(clamped, 20.0, places=6)
+
+    def test_clamped_qty_passes_the_gate_it_was_clamped_to(self):
+        """Clamp and gate must agree — no float-rounding standoff between them."""
+        prices = {"BTC": 100.0}
+        clamped = self.risk_manager.clamp_entry_qty(
+            self.portfolio, "BTC", qty=50.0, price=100.0, current_prices=prices,
+        )
+
+        self.assertTrue(
+            self.risk_manager.check_entry_risk(
+                self.portfolio, "BTC", clamped, 100.0, current_prices=prices,
+            ),
+            "check_entry_risk must accept the qty clamp_entry_qty produced",
+        )
+
+    def test_clamp_respects_the_binding_constraint(self):
+        """Cash can bind tighter than concentration; the minimum must win."""
+        risk_manager = RiskManager(max_leverage=100.0, max_pos_size_pct=1.0)
+        # 10000 cash, 6000 reserved -> 4000 free cash is the binding cap,
+        # looser concentration (100%) must not override it.
+        clamped = risk_manager.clamp_entry_qty(
+            self.portfolio, "ETH", qty=90.0, price=100.0,
+            pending_open_notional={"BTC": 6000.0},
+        )
+
+        self.assertAlmostEqual(clamped * 100.0, 4000.0, delta=1e-3)
+
+    def test_clamp_skips_dust_entries(self):
+        """When almost no headroom remains, skip rather than pay fees for dust."""
+        # 20% cap on 10000 equity = 2000; 1999 already reserved leaves 1,
+        # far below the 1%-of-equity (100) minimum.
+        clamped = self.risk_manager.clamp_entry_qty(
+            self.portfolio, "BTC", qty=50.0, price=100.0,
+            current_prices={"BTC": 100.0},
+            pending_open_notional={"BTC": 1999.0},
+        )
+
+        self.assertEqual(clamped, 0.0)
+
+    def test_clamp_returns_zero_when_breaker_or_health_blocks(self):
+        risk_manager = RiskManager()
+        risk_manager.circuit_breaker_triggered = True
+
+        self.assertEqual(
+            risk_manager.clamp_entry_qty(
+                self.portfolio, "BTC", qty=1.0, price=100.0,
+            ),
+            0.0,
+        )
+
+    def test_clamp_leaves_compliant_size_untouched(self):
+        clamped = self.risk_manager.clamp_entry_qty(
+            self.portfolio, "BTC", qty=10.0, price=100.0,
+            current_prices={"BTC": 100.0},
+        )
+
+        self.assertAlmostEqual(clamped, 10.0, places=9)
+
     def test_reset_daily_breaker(self):
         self.risk_manager.circuit_breaker_triggered = True
 

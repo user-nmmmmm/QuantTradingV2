@@ -64,6 +64,9 @@ class TestNoLookahead(unittest.TestCase):
         risk_manager.check_circuit_breaker.return_value = False
         risk_manager.calculate_position_size.return_value = 1.0
         risk_manager.check_entry_risk.return_value = True
+        # Pass sizing through unclamped: this test is about execution timing,
+        # not risk caps.
+        risk_manager.clamp_entry_qty.side_effect = lambda *a, **k: a[2]
 
         with patch("backtest.engine.build_risk_manager", return_value=risk_manager), \
              patch("backtest.engine.build_strategy_registry", return_value={"Mock": strategy}), \
