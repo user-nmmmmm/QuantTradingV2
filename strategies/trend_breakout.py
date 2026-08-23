@@ -23,6 +23,7 @@ class _PersistentHealthMixin:
     @staticmethod
     def _new_health_stats() -> Dict[str, Any]:
         return {
+            "scope": "cross_symbol_aggregate",
             "total_trades": 0,
             "consecutive_losses": 0,
             "rolling_pnl": [],

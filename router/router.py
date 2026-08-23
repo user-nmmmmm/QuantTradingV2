@@ -45,6 +45,11 @@ class Router:
         route_event = "active"
         strategy_changed = False
 
+        # Deliver fills before cooldown/Cash/missing-route early returns. The
+        # opening strategy must observe Router/CircuitBreaker closing fills.
+        for strategy in self.strategies.values():
+            strategy._consume_execution_trades(symbol, i, portfolio, broker)
+
         if symbol in self.cooldowns:
             if i <= self.cooldowns[symbol]:
                 self._log_routing(
@@ -176,10 +181,6 @@ class Router:
         broker: ExecutionPort,
     ):
         broker.cancel_symbol_orders(symbol)
-
-        if old_strategy_name and old_strategy_name in self.strategies:
-            if symbol in self.strategies[old_strategy_name].context:
-                self.strategies[old_strategy_name].context[symbol] = {}
 
         qty = portfolio.get_position(symbol)["qty"]
         if qty == 0:

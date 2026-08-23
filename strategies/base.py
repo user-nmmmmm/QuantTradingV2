@@ -40,7 +40,7 @@ class Strategy(ABC):
         # State tracking for the strategy per symbol
         # symbol -> { 'entry_price': float, 'stop_loss': float, 'trailing_stop': float }
         self.context: Dict[str, Dict[str, Any]] = {}
-        self._processed_trade_keys = set()
+        self._trade_cursor = 0
         # How many round trips this strategy actually observed closing. Compared
         # against the reconstructed closed-trade count by
         # core.diagnostics.calculate_lifecycle_coverage: a shortfall means the
@@ -64,7 +64,7 @@ class Strategy(ABC):
 
     def reset_runtime_state(self) -> None:
         self.context = {}
-        self._processed_trade_keys = set()
+        self._trade_cursor = 0
         self.observed_close_events = 0
 
     def bind_state_store(self, _state_store) -> None:
@@ -97,26 +97,26 @@ class Strategy(ABC):
         self, symbol: str, bar_index: int,
         portfolio: Portfolio, broker: ExecutionPort,
     ) -> None:
-        trades = list(getattr(broker, "trades", []) or [])
-        for trade in trades:
-            if trade.get("symbol") != symbol or trade.get("strategy_id") != self.name:
+        """Consume each appended fill once and deliver authoritative closes."""
+        trades = getattr(broker, "trades", []) or []
+        if self._trade_cursor > len(trades):
+            self._trade_cursor = 0
+        new_trades = list(trades[self._trade_cursor:])
+        self._trade_cursor = len(trades)
+
+        for trade in new_trades:
+            trade_symbol = trade.get("symbol")
+            if not trade_symbol:
                 continue
             price = float(trade.get("fill_price", trade.get("price", 0.0)) or 0.0)
             qty = float(trade.get("qty", 0.0) or 0.0)
             if price <= 0 or qty <= 0:
                 continue
-            key = (
-                trade.get("id") or trade.get("fill_id") or trade.get("order_id"),
-                str(trade.get("fill_time") or trade.get("timestamp")),
-                qty,
-                price,
-            )
-            if key in self._processed_trade_keys:
-                continue
-            self._processed_trade_keys.add(key)
             side = str(trade.get("side") or "").lower()
-            ctx = self.get_context(symbol)
+            ctx = self.get_context(trade_symbol)
             if side in {"buy", "short"}:
+                if trade.get("strategy_id") != self.name:
+                    continue
                 prior_qty = float(ctx.get("_entry_fill_qty", 0.0))
                 prior_price = float(ctx.get("entry_price", price))
                 total_qty = prior_qty + qty
@@ -128,6 +128,8 @@ class Strategy(ABC):
                 continue
             if side not in {"sell", "cover"}:
                 continue
+            if not ctx.get("_entry_fill_qty") and "entry_price" not in ctx:
+                continue
             entry_price = float(ctx.get("entry_price", price))
             fee = float(trade.get("commission", trade.get("fee", 0.0)) or 0.0)
             pnl = (
@@ -138,12 +140,17 @@ class Strategy(ABC):
             ctx["_realized_exit_pnl"] = float(
                 ctx.get("_realized_exit_pnl", 0.0)
             ) + pnl
-            if portfolio.get_position(symbol).get("qty", 0.0) == 0:
+            if portfolio.get_position(trade_symbol).get("qty", 0.0) == 0:
                 realized = float(ctx["_realized_exit_pnl"])
                 self.observed_close_events += 1
-                self.on_trade_closed(symbol, realized, trade, bar_index)
-                self.context[symbol] = {}
+                self.on_trade_closed(trade_symbol, realized, trade, bar_index)
+                self.context[trade_symbol] = {}
 
+        ctx = self.get_context(symbol)
+        if ctx.get("entry_pending") and not portfolio.get_position(symbol).get("qty", 0.0):
+            has_active = getattr(broker, "has_active_open_order", None)
+            if callable(has_active) and has_active(symbol) is False:
+                self.context[symbol] = {}
     @abstractmethod
     def should_enter(
         self,
