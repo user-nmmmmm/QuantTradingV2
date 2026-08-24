@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from core.state import MarketState
 from core.portfolio import Portfolio
+from core.factors import VolumeFactors
 from strategies.base import Strategy
 
 """
@@ -16,6 +17,10 @@ from strategies.base import Strategy
 - allowed_states 允许 TREND_UP 与 VOLATILE（波动扩张时更容易出现突破）
 - 入场信号提供 stop_loss（使用 Donchian Exit Level），供 RiskManager 做风险定仓
 - 内置“健康度监控”（P5）：连续亏损与滚动收益为负时熄火（停止出信号）
+
+成交量确认（OBV）：
+- 突破入场额外要求 OBV 在 entry_window 窗口内同向累积（多头 OBV 上升 / 空头 OBV 下降），
+  过滤缩量假突破（价格突破但背后无资金推动）
 """
 
 
@@ -157,6 +162,9 @@ class TrendBreakoutStrategy(_PersistentHealthMixin, Strategy):
                 df["low"].rolling(window=self.exit_window).min().shift(1)
             )
 
+        if "OBV" not in df.columns and "volume" in df.columns:
+            df["OBV"] = VolumeFactors.OBV(df)
+
     def should_enter(
         self,
         symbol: str,
@@ -169,6 +177,7 @@ class TrendBreakoutStrategy(_PersistentHealthMixin, Strategy):
         入场逻辑（做多）：
         - 先通过 check_health()；若 alpha 熄火则不交易
         - close > HIGH_MAX_entry_window 视为有效突破，返回 buy 信号
+        - OBV 需在 entry_window 窗口内净上升，确认突破有成交量支撑
         - 初始止损使用 Donchian Exit Level（LOW_MIN_exit_window）
         """
         # P5: Gate on health check before generating any signal
@@ -185,6 +194,15 @@ class TrendBreakoutStrategy(_PersistentHealthMixin, Strategy):
 
         # Check Entry Signal
         if pd.notna(high_max) and close > high_max:
+            # Volume Confirmation: OBV must have net-accumulated over the
+            # entry window, otherwise the breakout lacks volume support.
+            # Skipped (not required) when the data source has no volume.
+            if "OBV" in df.columns:
+                obv_now = df["OBV"].iat[i]
+                obv_prior = df["OBV"].iat[i - self.entry_window]
+                if pd.isna(obv_now) or pd.isna(obv_prior) or obv_now <= obv_prior:
+                    return None
+
             # Breakout!
 
             # Risk Management Integration (P3 Requirement)
@@ -288,6 +306,8 @@ class TrendBreakdownStrategy(_PersistentHealthMixin, Strategy):
             df[self.col_low_min] = (
                 df["low"].rolling(window=self.entry_window).min().shift(1)
             )
+        if "OBV" not in df.columns and "volume" in df.columns:
+            df["OBV"] = VolumeFactors.OBV(df)
 
     def should_enter(
         self,
@@ -307,6 +327,15 @@ class TrendBreakdownStrategy(_PersistentHealthMixin, Strategy):
         close = df["close"].iat[i]
         low_min = df[self.col_low_min].iat[i]
         if pd.notna(low_min) and close < low_min:
+            # Volume Confirmation: OBV must have net-declined over the entry
+            # window, otherwise the breakdown lacks volume support.
+            # Skipped (not required) when the data source has no volume.
+            if "OBV" in df.columns:
+                obv_now = df["OBV"].iat[i]
+                obv_prior = df["OBV"].iat[i - self.entry_window]
+                if pd.isna(obv_now) or pd.isna(obv_prior) or obv_now >= obv_prior:
+                    return None
+
             stop_loss = df[self.col_high_max].iat[i]
             if pd.isna(stop_loss) or stop_loss <= close:
                 stop_loss = close * 1.05
