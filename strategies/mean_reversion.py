@@ -4,6 +4,7 @@ import numpy as np
 from core.state import MarketState
 from core.portfolio import Portfolio
 from core.indicators import Indicators
+from core.factors import MomentumFactors
 from strategies.base import Strategy
 
 """
@@ -23,13 +24,17 @@ from strategies.base import Strategy
 """
 
 class RangeStrategy(Strategy):
-    def __init__(self, atr_threshold_pct: float = 0.03):
+    def __init__(self, atr_threshold_pct: float = 0.03, rsi_oversold: float = 30.0, rsi_overbought: float = 70.0):
         super().__init__("RangeMeanReversion", {MarketState.SIDEWAYS})
         """
         参数：
         - atr_threshold_pct：ATR/Price 上限，超过则认为波动过大不交易（默认 3%）
+        - rsi_oversold/rsi_overbought：RSI 确认阈值，触布林下轨做多需 RSI < rsi_oversold，
+          触上轨做空需 RSI > rsi_overbought，减少布林带单指标的假信号
         """
         self.atr_threshold_pct = atr_threshold_pct
+        self.rsi_oversold = rsi_oversold
+        self.rsi_overbought = rsi_overbought
         
         # Extended Context: Track consecutive losses and cooldown
         # symbol -> { 'consecutive_losses': int, 'cooldown_until': int (index) }
@@ -58,6 +63,8 @@ class RangeStrategy(Strategy):
             df['BB_UPPER'], df['BB_MIDDLE'], df['BB_LOWER'] = Indicators.BBANDS(df['close'], 20, 2.0)
         if 'ATR_14' not in df.columns:
             df['ATR_14'] = Indicators.ATR(df, 14)
+        if 'RSI_14' not in df.columns:
+            df['RSI_14'] = MomentumFactors.RSI(df['close'], 14)
 
     def should_enter(self, symbol: str, i: int, df: pd.DataFrame, state: MarketState, portfolio: Portfolio) -> Optional[Dict[str, Any]]:
         """
@@ -99,14 +106,19 @@ class RangeStrategy(Strategy):
         
         low = df['low'].iat[i]
         high = df['high'].iat[i]
-        
+        rsi = df['RSI_14'].iat[i]
+        if pd.isna(rsi):
+            return None
+
         entry_signal = None
-        
-        if low <= bb_lower:
+
+        # RSI Confirmation: require oversold/overbought alongside the band touch
+        # to filter false signals from the Bollinger Band alone.
+        if low <= bb_lower and rsi < self.rsi_oversold:
             entry_signal = {'action': 'buy', 'stop_loss': close - 1 * atr}
-        elif high >= bb_upper:
+        elif high >= bb_upper and rsi > self.rsi_overbought:
             entry_signal = {'action': 'short', 'stop_loss': close + 1 * atr}
-            
+
         return entry_signal
 
     def should_exit(self, symbol: str, i: int, df: pd.DataFrame, state: MarketState, portfolio: Portfolio) -> Optional[Dict[str, Any]]:
