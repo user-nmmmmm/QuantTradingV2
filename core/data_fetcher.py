@@ -329,6 +329,148 @@ class DataFetcher:
             df = df[df.index < pd.Timestamp(end_boundary_ms, unit="ms")]
         return self._normalize(df)
 
+    def fetch_funding_rate_history(
+        self,
+        symbol: str,
+        exchange_id: str = "binance",
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        limit: int = 1000,
+    ) -> pd.DataFrame:
+        """
+        拉取永续合约历史资金费率（用于 core.factors.capital_flow 衍生特征）。
+
+        参数：
+        - symbol：CCXT 格式合约符号（例如 BTC/USDT:USDT）
+        - exchange_id：需支持 fetchFundingRateHistory 的交易所（默认 binance）
+
+        返回：
+        - DataFrame，index 为 timestamp，列为 funding_rate
+        """
+        try:
+            import ccxt
+
+            exchange_class = getattr(ccxt, exchange_id)
+            exchange = exchange_class(
+                {
+                    "enableRateLimit": True,
+                    "proxies": self._build_ccxt_proxies(),
+                    "timeout": self.request_timeout_ms,
+                }
+            )
+            if not exchange.has.get("fetchFundingRateHistory"):
+                logger.error("%s does not support fetchFundingRateHistory", exchange_id)
+                return pd.DataFrame()
+
+            since = self._local_date_to_utc_ms(start_date) if start_date else None
+            end_boundary_ms = (
+                self._local_date_to_utc_ms(end_date) + 86_400_000 if end_date else None
+            )
+
+            all_records = []
+            current_since = since
+            while True:
+                batch = exchange.fetchFundingRateHistory(
+                    symbol, since=current_since, limit=min(limit, 1000)
+                )
+                if not batch:
+                    break
+                all_records.extend(batch)
+                last_ts = batch[-1]["timestamp"]
+                current_since = last_ts + 1
+                if end_boundary_ms is not None and last_ts >= end_boundary_ms:
+                    break
+                if len(batch) < min(limit, 1000):
+                    break
+                if len(all_records) >= 10000:
+                    break
+
+            if not all_records:
+                logger.warning("No funding rate data returned for %s on %s", symbol, exchange_id)
+                return pd.DataFrame()
+
+            df = pd.DataFrame(
+                [{"timestamp": r["timestamp"], "funding_rate": r["fundingRate"]} for r in all_records]
+            )
+            df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+            df.set_index("timestamp", inplace=True)
+            if end_boundary_ms is not None:
+                df = df[df.index < pd.Timestamp(end_boundary_ms, unit="ms")]
+            return df.sort_index()
+
+        except ImportError:
+            logger.error("ccxt not installed. Please run: pip install ccxt")
+            return pd.DataFrame()
+        except Exception as e:
+            logger.error("Error fetching funding rate for %s from %s: %s", symbol, exchange_id, e)
+            return pd.DataFrame()
+
+    def fetch_open_interest_history(
+        self,
+        symbol: str,
+        timeframe: str = "1h",
+        exchange_id: str = "binance",
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        limit: int = 500,
+    ) -> pd.DataFrame:
+        """
+        拉取永续合约历史持仓量（Open Interest）。
+
+        注意：多数交易所仅保留近期（如 binance 约 30 天）持仓量历史，
+        更长历史需要专门的数据商（如 Coinglass/CoinAPI）。
+
+        返回：
+        - DataFrame，index 为 timestamp，列为 open_interest
+        """
+        try:
+            import ccxt
+
+            exchange_class = getattr(ccxt, exchange_id)
+            exchange = exchange_class(
+                {
+                    "enableRateLimit": True,
+                    "proxies": self._build_ccxt_proxies(),
+                    "timeout": self.request_timeout_ms,
+                }
+            )
+            if not exchange.has.get("fetchOpenInterestHistory"):
+                logger.error("%s does not support fetchOpenInterestHistory", exchange_id)
+                return pd.DataFrame()
+
+            since = self._local_date_to_utc_ms(start_date) if start_date else None
+            batch = exchange.fetchOpenInterestHistory(
+                symbol, timeframe=timeframe, since=since, limit=limit
+            )
+            if not batch:
+                logger.warning("No open interest data returned for %s on %s", symbol, exchange_id)
+                return pd.DataFrame()
+
+            df = pd.DataFrame(
+                [
+                    {
+                        "timestamp": r["timestamp"],
+                        "open_interest": (r.get("openInterestAmount") or r.get("openInterestValue")),
+                    }
+                    for r in batch
+                ]
+            )
+            df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+            df.set_index("timestamp", inplace=True)
+
+            if end_date:
+                end_boundary_ms = self._local_date_to_utc_ms(end_date) + 86_400_000
+                df = df[df.index < pd.Timestamp(end_boundary_ms, unit="ms")]
+
+            return df.sort_index()
+
+        except ImportError:
+            logger.error("ccxt not installed. Please run: pip install ccxt")
+            return pd.DataFrame()
+        except Exception as e:
+            logger.error("Error fetching open interest for %s from %s: %s", symbol, exchange_id, e)
+            return pd.DataFrame()
+
     def generate_scenario(
         self,
         symbol: str,
