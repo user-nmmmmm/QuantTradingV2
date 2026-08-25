@@ -1,0 +1,197 @@
+{
+  "baseline_commit": "ff14fb8cce57310f1e0828349a0357225ce33956",
+  "branch": "feature/factors-extended-indicators",
+  "archived_at": "2026-08-25",
+  "sets": {
+    "20260824_161753_720d_3Syms_Ret101.8pct": {
+      "benchmark.csv": {
+        "sha256": "fdf23e1a11f316d1f89519f272135cb2b9adbc9f38b617de0055543c02da6269",
+        "size_bytes": 21727
+      },
+      "data_quality_report.json": {
+        "sha256": "136edcb0e88b34639e54168fa6faf08f80e3ab78e13884a05cbbb73ca7734f0e",
+        "size_bytes": 1359
+      },
+      "equity.csv": {
+        "sha256": "a3869a9ef62cc4661ce33cedb2ccb6b26b333b5fd3ff71586a6190cba28299db",
+        "size_bytes": 34795
+      },
+      "equity.png": {
+        "sha256": "a8c70655b1b9757b47e13550095c516b801e152ff9ff56304334d932d72cceed",
+        "size_bytes": 603912
+      },
+      "monthly_returns_heatmap.png": {
+        "sha256": "4f13d1125af0e6b6a3022c962c38a6799d8dc1740238fbb0b5a493f7abc116b8",
+        "size_bytes": 119521
+      },
+      "pnl_distribution.png": {
+        "sha256": "3e3e5a3dbfdf7bfeeb13b995d58e99629ee94e9a679a99722eb2449bbcf25051",
+        "size_bytes": 84771
+      },
+      "report.txt": {
+        "sha256": "ce1b63b4c7234790c23d6de8baa5c5fb132fd26781b9050735887008b61fe638",
+        "size_bytes": 34818
+      },
+      "rolling_metrics.png": {
+        "sha256": "c0abc3780849f46bb864d34771be75d67595e0c8d94ef054dc03737b06b4785a",
+        "size_bytes": 375180
+      },
+      "trades.csv": {
+        "sha256": "b9d4f91a50999417bcc455ea9301b06a94c0f623384b937c60dfddc0e7768639",
+        "size_bytes": 79695
+      }
+    },
+    "20260824_161807_720d_3Syms_Ret117.7pct": {
+      "benchmark.csv": {
+        "sha256": "fdf23e1a11f316d1f89519f272135cb2b9adbc9f38b617de0055543c02da6269",
+        "size_bytes": 21727
+      },
+      "data_quality_report.json": {
+        "sha256": "136edcb0e88b34639e54168fa6faf08f80e3ab78e13884a05cbbb73ca7734f0e",
+        "size_bytes": 1359
+      },
+      "equity.csv": {
+        "sha256": "4fcd1a07d8c9148f32a67fd628a749b0fc41151a56dd9f33c0245a24594ccb40",
+        "size_bytes": 34866
+      },
+      "equity.png": {
+        "sha256": "fdc187a44a4fc3e74909098823728d149aac39132c7792552c3889dee64bd5f1",
+        "size_bytes": 578276
+      },
+      "monthly_returns_heatmap.png": {
+        "sha256": "3bed1bf09f12687bcebc4657aba06b4ce5dbdda17bd84c74ccd217893559b5c9",
+        "size_bytes": 116279
+      },
+      "pnl_distribution.png": {
+        "sha256": "a5f8db0ee50e5af443654adb3babb79626d835b41f50554c866cdf8d95a5fd5e",
+        "size_bytes": 87394
+      },
+      "report.txt": {
+        "sha256": "639135ea7a6c8ac2f97d81a6e4b219b2c7a870f65639d04949b455a692b3799d",
+        "size_bytes": 37256
+      },
+      "rolling_metrics.png": {
+        "sha256": "7365cbfe981c9465c4c1c25c0f5960d11a5060b3897e74a36c61942b3d1b46a9",
+        "size_bytes": 356212
+      },
+      "trades.csv": {
+        "sha256": "e9dc927a7941127946f2b12b420b7e860a7d91adbd60b8133c556e4c0cf60ae1",
+        "size_bytes": 44622
+      }
+    },
+    "20260824_163700_3498d_10Syms_Ret17.0pct": {
+      "benchmark.csv": {
+        "sha256": "e7364248197de5d5933437adbb943aeb96f69a11b211757017809f5d69ec0b3b",
+        "size_bytes": 99472
+      },
+      "data_quality_report.json": {
+        "sha256": "a6e36dcd8be9c6a9acf5a2d0c19617de848e3bd638d543de1cfa5de552edc42b",
+        "size_bytes": 4546
+      },
+      "equity.csv": {
+        "sha256": "96c116a86c0ce7c4927fc824b7507ea179584e8bdba26a1ffd2b4ecb72a26476",
+        "size_bytes": 158301
+      },
+      "equity.png": {
+        "sha256": "030aa61c504302d261dd3aa28d45a637b11239a4462bad4540d7dd2967db6e17",
+        "size_bytes": 651869
+      },
+      "monthly_returns_heatmap.png": {
+        "sha256": "bcaf3e2ec7add897f004302c7bda99d89a8f59c568edc5481e4e7f798c515c14",
+        "size_bytes": 268462
+      },
+      "pnl_distribution.png": {
+        "sha256": "d5fab43c46d291c279d90326167e977e92005c4238c84e60c8c61fbd2426ddde",
+        "size_bytes": 87110
+      },
+      "report.txt": {
+        "sha256": "65db05a0f582f469f8a02c6b8d519e9f6cff76dae999be085205ddce85b4af6c",
+        "size_bytes": 29281
+      },
+      "rolling_metrics.png": {
+        "sha256": "fead7b241a4e65c9527ced89bb0006e223347f4ef8cca972fc5abee0bc708c64",
+        "size_bytes": 485519
+      },
+      "trades.csv": {
+        "sha256": "d63a410e61c64e92080e561aec1c059f12f074cc7dccd97b998bae041d4ccb2e",
+        "size_bytes": 173940
+      }
+    },
+    "20260824_163836_3498d_10Syms_Ret-15.8pct": {
+      "benchmark.csv": {
+        "sha256": "e7364248197de5d5933437adbb943aeb96f69a11b211757017809f5d69ec0b3b",
+        "size_bytes": 99472
+      },
+      "data_quality_report.json": {
+        "sha256": "a6e36dcd8be9c6a9acf5a2d0c19617de848e3bd638d543de1cfa5de552edc42b",
+        "size_bytes": 4546
+      },
+      "equity.csv": {
+        "sha256": "c9e382c2139e692bc468cf6384b9ef6b61eda675a10cf5fc226af482d193bc5b",
+        "size_bytes": 156305
+      },
+      "equity.png": {
+        "sha256": "4000fc17316e1aa4de8c9ad742481134200b8c2be6109ec37c60b9be96454054",
+        "size_bytes": 660927
+      },
+      "monthly_returns_heatmap.png": {
+        "sha256": "fde748f5f1a67ae4caa83fc7f6c050f30bafb2dfaca4ff8657d7989e1e846c34",
+        "size_bytes": 278984
+      },
+      "pnl_distribution.png": {
+        "sha256": "5d25fc4eb59f44bab0e95d393805dd708f3862bd9aa4ffb0527489c73c37649a",
+        "size_bytes": 92597
+      },
+      "report.txt": {
+        "sha256": "acafd11cc6a5f6df633020578ac90ac266fd5ec2c26c02831cc16185e55063ea",
+        "size_bytes": 25097
+      },
+      "rolling_metrics.png": {
+        "sha256": "fb2e599ae55ae291715e085f4e185c150b725750ccc841605242b8884916f88e",
+        "size_bytes": 486285
+      },
+      "trades.csv": {
+        "sha256": "7a68e5361cef5e86d483fc2669f6a17af4830973d623dd7394238940294575dc",
+        "size_bytes": 252169
+      }
+    },
+    "20260824_170434_3498d_10Syms_Ret18.2pct": {
+      "benchmark.csv": {
+        "sha256": "5ef8adc9a2bacc4603709fae34026259a2a27a1b595f6f973e4deae13a0ca37f",
+        "size_bytes": 99568
+      },
+      "data_quality_report.json": {
+        "sha256": "a6e36dcd8be9c6a9acf5a2d0c19617de848e3bd638d543de1cfa5de552edc42b",
+        "size_bytes": 4546
+      },
+      "equity.csv": {
+        "sha256": "70262e9dc8dc5fe25f9580e7adff6da42a00d2184baa27aff80b5a0cdf63acae",
+        "size_bytes": 158650
+      },
+      "equity.png": {
+        "sha256": "fc62ac159ce1f064ebb943f669cd4d6db6f5a95e89aa5d0070dbf37b4fa15e11",
+        "size_bytes": 624894
+      },
+      "monthly_returns_heatmap.png": {
+        "sha256": "2b774d52b1b8934548c6ce68b62ef3be05f17197da16b8a01f1396fa0cfe7e39",
+        "size_bytes": 275170
+      },
+      "pnl_distribution.png": {
+        "sha256": "6b50f4ec72267550f03cb98375730aaf5cf06a3d89aae4d3bfa5d08b9f686521",
+        "size_bytes": 99205
+      },
+      "report.txt": {
+        "sha256": "b9e57e4ce3e93207de9ab2794a995f33ff7ffc63a5f375aeef39ad07d520bd01",
+        "size_bytes": 28941
+      },
+      "rolling_metrics.png": {
+        "sha256": "80965b668dd5828939885527c935287325565aa5b69f5d4cd22f4d266c2be805",
+        "size_bytes": 491931
+      },
+      "trades.csv": {
+        "sha256": "95114666f71d66d985c894403b99e6af1fb6c02c858babe837212944feee0113",
+        "size_bytes": 205220
+      }
+    }
+  }
+}

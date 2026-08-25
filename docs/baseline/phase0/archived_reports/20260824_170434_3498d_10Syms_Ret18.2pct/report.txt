@@ -1,0 +1,324 @@
+Backtest Results (回测结果)
+==========================
+
+Configuration (配置信息):
+Days: 3498
+Start: 2017-01-01
+End: 2026-07-31
+Capital: 1000000.0
+Symbols: BTC-USDT, ETH-USDT, BNB-USDT, XRP-USDT, ADA-USDT, SOL-USDT, DOGE-USDT, AVAX-USDT, DOT-USDT, LTC-USDT
+Source: ccxt
+
+Core Metrics (核心指标摘要):
+-----------------
+Total Return (总收益率)     : 0.1825
+CAGR (年化收益率)            : 0.0189
+Max Drawdown % (最大回撤率)  : -0.2253
+Sharpe Ratio (夏普比率)     : 0.2218
+Total Trades (总交易次数)    : 306
+Win Rate (胜率)           : 0.4444
+Profit Factor (盈亏比)     : 1.1549
+Net PnL (净利润)           : 182493.2165
+End Equity (最终净值)       : 1182493.2165
+
+Full Metrics (完整指标明细):
+-----------------
+CAGR (年化收益率)                                 : 0.0189
+CAGR Status (年化收益率状态)                        : ok
+Max Drawdown % (最大回撤率)                       : -0.2253
+Max Drawdown $ (最大回撤金额)                      : -238418.5264
+Current Drawdown % (当前回撤率)                   : -0.0016
+Drawdown Status (回撤计算状态)                     : ok
+Max Drawdown Peak Time (最大回撤峰值时间)            : 2017-12-16 00:00:00
+Max Drawdown Trough Time (最大回撤谷底时间)          : 2019-03-21 00:00:00
+Max Drawdown Recovery Time (最大回撤恢复时间)        : 2020-02-11 00:00:00
+Max Drawdown Duration (periods) (最大回撤持续周期数)  : 787
+Max Drawdown Duration (days) (最大回撤持续天数)      : 787.0000
+Max Drawdown Recovery (periods) (最大回撤恢复周期数)  : 327
+Max Drawdown Recovery (days) (最大回撤恢复天数)      : 327.0000
+Max Drawdown Still Open (最大回撤是否尚未恢复)         : False
+Underwater Ratio (水下时间占比)                    : 0.9728
+Avg Monthly Return (月均收益率)                   : 0.0021
+Monthly Return Status (月收益计算状态)              : ok
+Monthly Return Samples (月收益样本数)              : 107
+Sharpe Ratio (夏普比率)                          : 0.2218
+Sharpe Status (夏普比率计算状态)                     : ok
+Sharpe Samples (夏普比率样本数)                     : 3270
+Periods Per Year (年化周期数)                     : 365.2500
+End Equity (最终净值)                            : 1182493.2165
+Total Return (总收益率)                          : 0.1825
+Metrics Formula Version (指标公式版本)             : 1.0
+Total Trades (总交易次数)                         : 306
+Win Rate (胜率)                                : 0.4444
+Profit Factor (盈亏比)                          : 1.1549
+Profit Factor Status (盈亏比计算状态)               : ok
+Profit Factor Samples (盈亏比样本数)               : 306
+Profit Factor Loss Count (盈亏比亏损笔数)           : 170
+Profit Factor 95% CI Lower (盈亏比 95% 置信区间下限)  : 0.7802
+Profit Factor 95% CI Upper (盈亏比 95% 置信区间上限)  : 1.6949
+Expectancy (期望值)                             : 596.3831
+Avg Win (平均盈利)                               : 10004.8762
+Avg Loss (平均亏损)                              : -6930.4114
+Gross PnL (毛利润)                              : 214852.9906
+Total Commission (总手续费)                      : 32359.7741
+Total Slippage (总滑点成本)                       : 32359.8359
+Net PnL (净利润)                                : 182493.2165
+ExtendedAnalytics                            : {'trade_quality': {'sample_size': 306, 'status': 'ok', 'win_count': 136, 'loss_count': 170, 'breakeven_count': 0, 'win_rate': 0.4444444444444444, 'avg_win': 10004.876179144352, 'avg_loss': -6930.411434330649, 'expectancy': 596.3830605471285, 'profit_factor': 1.1548954949005148, 'profit_factor_status': 'ok', 'holding_duration_hours': {'status': 'ok', 'sample_size': 306, 'mean': 574.7450980392157, 'median': 228.0, 'min': 24.0, 'max': 34320.0}, 'by_strategy': {'VolatilityReversion': {'sample_size': 185, 'win_rate': 0.4810810810810811, 'net_pnl': 11010.958063666601, 'profit_factor': 1.0122980063826041, 'profit_factor_status': 'ok'}, 'TrendBreakdown': {'sample_size': 25, 'win_rate': 0.48, 'net_pnl': -27759.858553133814, 'profit_factor': 0.502908907718214, 'profit_factor_status': 'insufficient'}, 'TrendBreakout': {'sample_size': 71, 'win_rate': 0.36619718309859156, 'net_pnl': 229833.6977073468, 'profit_factor': 2.7138655206460545, 'profit_factor_status': 'ok'}, 'RangeMeanReversion': {'sample_size': 21, 'win_rate': 0.38095238095238093, 'net_pnl': -30591.580690457722, 'profit_factor': 0.6706256347079352, 'profit_factor_status': 'insufficient'}, 'Router': {'sample_size': 4, 'win_rate': 0.25, 'net_pnl': -3.224755774544084e-10, 'profit_factor': None, 'profit_factor_status': 'undefined'}}, 'by_symbol': {'ADA-USDT': {'sample_size': 56, 'win_rate': 0.5892857142857143, 'net_pnl': 111144.20392353642, 'profit_factor': 1.7901367793354854, 'profit_factor_status': 'ok'}, 'AVAX-USDT': {'sample_size': 10, 'win_rate': 0.6, 'net_pnl': -14794.872202016082, 'profit_factor': 0.7337075740620089, 'profit_factor_status': 'insufficient'}, 'BNB-USDT': {'sample_size': 35, 'win_rate': 0.45714285714285713, 'net_pnl': -177155.85759284504, 'profit_factor': 0.5040290459972067, 'profit_factor_status': 'ok'}, 'BTC-USDT': {'sample_size': 31, 'win_rate': 0.41935483870967744, 'net_pnl': 102056.06529989578, 'profit_factor': 1.7236211800888022, 'profit_factor_status': 'ok'}, 'DOGE-USDT': {'sample_size': 82, 'win_rate': 0.18292682926829268, 'net_pnl': -21337.537254087983, 'profit_factor': 0.5638324043228796, 'profit_factor_status': 'ok'}, 'DOT-USDT': {'sample_size': 10, 'win_rate': 0.7, 'net_pnl': 20913.118587033616, 'profit_factor': 3.767817451021934, 'profit_factor_status': 'insufficient'}, 'ETH-USDT': {'sample_size': 29, 'win_rate': 0.41379310344827586, 'net_pnl': 1201.000085570573, 'profit_factor': 1.004988712584027, 'profit_factor_status': 'insufficient'}, 'LTC-USDT': {'sample_size': 23, 'win_rate': 0.7391304347826086, 'net_pnl': 90827.26085739447, 'profit_factor': 2.968959889174779, 'profit_factor_status': 'insufficient'}, 'SOL-USDT': {'sample_size': 8, 'win_rate': 0.375, 'net_pnl': -22033.629380736955, 'profit_factor': 0.6940344111711394, 'profit_factor_status': 'insufficient'}, 'XRP-USDT': {'sample_size': 22, 'win_rate': 0.6363636363636364, 'net_pnl': 91673.4642036767, 'profit_factor': 2.341065055165163, 'profit_factor_status': 'insufficient'}}}, 'attribution': {'sample_size': 306, 'total_net_pnl': 182493.21652742152, 'by_strategy': {'VolatilityReversion': 11010.958063666625, 'TrendBreakdown': -27759.85855313381, 'TrendBreakout': 229833.69770734667, 'RangeMeanReversion': -30591.580690457726, 'Router': -3.2247557745440834e-10}, 'by_symbol': {'ADA-USDT': 111144.20392353642, 'AVAX-USDT': -14794.872202016082, 'BNB-USDT': -177155.8575928451, 'BTC-USDT': 102056.06529989578, 'DOGE-USDT': -21337.537254087976, 'DOT-USDT': 20913.118587033616, 'ETH-USDT': 1201.0000855705666, 'LTC-USDT': 90827.26085739447, 'SOL-USDT': -22033.629380736955, 'XRP-USDT': 91673.46420367672}, 'by_month': {'2018-06': -1574.1603301576956, '2018-07': -32145.91345517031, '2018-08': -4810.706800975389, '2018-12': -12232.564430630202, '2019-04': 42944.26609600862, '2019-05': 7545.107362346115, '2019-08': 5101.625539051313, '2020-01': -115423.79855571526, '2020-02': 93659.73241218692, '2020-04': 46720.25350488897, '2020-05': -27623.95703120804, '2020-06': -6860.327166689824, '2020-08': 29452.998899649647, '2021-12': 32499.631082786007, '2022-04': 5472.1575426673435, '2023-01': -157729.48424440366, '2024-01': 22959.944879509425, '2024-07': -18037.859698708657, '2024-08': 68423.84689898259, '2025-07': -22523.430452522764, '2026-01': 56212.87512254736, '2026-07': 43553.951364210625, '2021-01': -36211.528025703854, '2022-02': 54967.76998110334, '2022-12': -11071.494005437902, '2023-10': 3844.3651896144725, '2024-12': 8923.571259097145, '2017-12': 24366.646826947836, '2018-01': -143855.37657869954, '2019-02': -5281.86049032731, '2019-03': 2662.9770007704233, '2019-06': 81972.3688745545, '2019-10': 2427.4557315509683, '2020-03': 6906.249143430984, '2020-07': 14058.564509427735, '2021-05': -46638.471827230875, '2023-04': 38042.90637055739, '2023-06': -19250.33447518282, '2023-08': -23986.07070414383, '2025-05': 2307.967470965515, '2026-03': 52063.447659579586, '2017-10': -5345.2468881918285, '2018-02': 19147.233837251955, '2018-04': -22586.019171422362, '2018-05': -2803.3022974984924, '2018-11': -7365.399958464317, '2019-07': 21837.243204323844, '2021-08': 25423.300404926926, '2021-10': -11539.719639905388, '2023-02': 34603.757752242374, '2024-11': 19775.956758293876, '2019-09': 43261.307539243746, '2025-01': 10596.22534160075, '2025-06': -1358.5035910324732, '2026-06': -9988.372866704573, '2022-09': 1206.8153411281808, '2023-11': 5252.108385688181, '2021-06': 18773.357207427624, '2022-07': -67038.5447567327, '2022-10': -11738.953325039762, '2024-09': -3793.378538103844, '2024-04': 5861.905581708624, '2026-05': 10274.542821444902, '2023-07': -4501.593462593067, '2025-10': 35321.004362087435, '2026-02': -32982.37692093667, '2018-10': 16034.81269888552, '2020-09': 12389.745801172136, '2020-12': 22721.977631081856, '2024-02': -780.0091739878383}}, 'r_multiple': {'sample_size': 306, 'excluded_no_initial_risk': 306, 'r_multiple': {'status': 'insufficient', 'sample_size': 0, 'mean_r': None, 'std_r': None, 'sqn': None}, 'mae': {'status': 'insufficient', 'sample_size': 0, 'mean': None, 'median': None}, 'mfe': {'status': 'insufficient', 'sample_size': 0, 'mean': None, 'median': None}}, 'cost_sensitivity': {'status': 'ok', 'sample_size': 306, 'gross_pnl': 214852.99062199102, 'baseline_commission': 32359.774094569475, 'baseline_slippage': 32359.83589777274, 'baseline_net_pnl': 150133.3806296488, 'grid': [{'commission_multiplier': 0.5, 'slippage_multiplier': 0.5, 'net_pnl': 182493.1856258199}, {'commission_multiplier': 0.5, 'slippage_multiplier': 1.0, 'net_pnl': 166313.26767693352}, {'commission_multiplier': 0.5, 'slippage_multiplier': 1.5, 'net_pnl': 150133.34972804715}, {'commission_multiplier': 0.5, 'slippage_multiplier': 2.0, 'net_pnl': 133953.4317791608}, {'commission_multiplier': 1.0, 'slippage_multiplier': 0.5, 'net_pnl': 166313.29857853518}, {'commission_multiplier': 1.0, 'slippage_multiplier': 1.0, 'net_pnl': 150133.3806296488}, {'commission_multiplier': 1.0, 'slippage_multiplier': 1.5, 'net_pnl': 133953.46268076246}, {'commission_multiplier': 1.0, 'slippage_multiplier': 2.0, 'net_pnl': 117773.54473187607}, {'commission_multiplier': 1.5, 'slippage_multiplier': 0.5, 'net_pnl': 150133.41153125043}, {'commission_multiplier': 1.5, 'slippage_multiplier': 1.0, 'net_pnl': 133953.49358236406}, {'commission_multiplier': 1.5, 'slippage_multiplier': 1.5, 'net_pnl': 117773.5756334777}, {'commission_multiplier': 1.5, 'slippage_multiplier': 2.0, 'net_pnl': 101593.65768459132}, {'commission_multiplier': 2.0, 'slippage_multiplier': 0.5, 'net_pnl': 133953.52448396568}, {'commission_multiplier': 2.0, 'slippage_multiplier': 1.0, 'net_pnl': 117773.6065350793}, {'commission_multiplier': 2.0, 'slippage_multiplier': 1.5, 'net_pnl': 101593.68858619295}, {'commission_multiplier': 2.0, 'slippage_multiplier': 2.0, 'net_pnl': 85413.77063730657}], 'unmodeled_note': 'commission and slippage only; funding/borrow fees and market impact beyond recorded slippage are not modeled'}, 'drawdown_events': [{'peak': Timestamp('2017-10-21 00:00:00'), 'peak_value': 1000078.7527879827, 'trough': Timestamp('2017-10-24 00:00:00'), 'trough_value': 991835.4587198929, 'recovery': Timestamp('2017-11-26 00:00:00'), 'depth_pct': -0.008242644936820677, 'depth_amount': -8243.294068089803, 'duration_periods': 36, 'duration_days': 36.0, 'recovery_periods': 33, 'recovery_days': 33.0, 'is_open': False}, {'peak': Timestamp('2017-11-28 00:00:00'), 'peak_value': 1008085.2512447443, 'trough': Timestamp('2017-11-29 00:00:00'), 'trough_value': 1006553.3379607283, 'recovery': Timestamp('2017-12-01 00:00:00'), 'depth_pct': -0.0015196267201850354, 'depth_amount': -1531.9132840159582, 'duration_periods': 3, 'duration_days': 3.0, 'recovery_periods': 2, 'recovery_days': 2.0, 'is_open': False}, {'peak': Timestamp('2017-12-07 00:00:00'), 'peak_value': 1057229.3696256152, 'trough': Timestamp('2017-12-09 00:00:00'), 'trough_value': 1042982.7667301861, 'recovery': Timestamp('2017-12-16 00:00:00'), 'depth_pct': -0.013475413476712357, 'depth_amount': -14246.602895429125, 'duration_periods': 9, 'duration_days': 9.0, 'recovery_periods': 7, 'recovery_days': 7.0, 'is_open': False}, {'peak': Timestamp('2017-12-16 00:00:00'), 'peak_value': 1058155.5904375508, 'trough': Timestamp('2019-03-21 00:00:00'), 'trough_value': 819737.0640272136, 'recovery': Timestamp('2020-02-11 00:00:00'), 'depth_pct': -0.22531518858370378, 'depth_amount': -238418.5264103372, 'duration_periods': 787, 'duration_days': 787.0, 'recovery_periods': 327, 'recovery_days': 327.0, 'is_open': False}, {'peak': Timestamp('2020-02-12 00:00:00'), 'peak_value': 1110199.9707636056, 'trough': Timestamp('2020-02-13 00:00:00'), 'trough_value': 1108360.509669135, 'recovery': Timestamp('2020-02-14 00:00:00'), 'depth_pct': -0.0016568736650256475, 'depth_amount': -1839.4610944704618, 'duration_periods': 2, 'duration_days': 2.0, 'recovery_periods': 1, 'recovery_days': 1.0, 'is_open': False}, {'peak': Timestamp('2020-02-14 00:00:00'), 'peak_value': 1142916.0423575372, 'trough': Timestamp('2020-03-01 00:00:00'), 'trough_value': 985120.1147063177, 'recovery': Timestamp('2022-02-17 00:00:00'), 'depth_pct': -0.1380643212652154, 'depth_amount': -157795.92765121954, 'duration_periods': 734, 'duration_days': 734.0, 'recovery_periods': 718, 'recovery_days': 718.0, 'is_open': False}, {'peak': Timestamp('2022-02-17 00:00:00'), 'peak_value': 1144991.094850878, 'trough': Timestamp('2022-02-19 00:00:00'), 'trough_value': 1131645.2224048213, 'recovery': Timestamp('2022-04-12 00:00:00'), 'depth_pct': -0.01165587444834655, 'depth_amount': -13345.872446056688, 'duration_periods': 54, 'duration_days': 54.0, 'recovery_periods': 52, 'recovery_days': 52.0, 'is_open': False}, {'peak': Timestamp('2022-04-13 00:00:00'), 'peak_value': 1152735.155484232, 'trough': Timestamp('2023-02-10 00:00:00'), 'trough_value': 899287.6844677127, 'recovery': Timestamp('2026-07-07 00:00:00'), 'depth_pct': -0.21986617638121136, 'depth_amount': -253447.47101651924, 'duration_periods': 1546, 'duration_days': 1546.0, 'recovery_periods': 1243, 'recovery_days': 1243.0, 'is_open': False}, {'peak': Timestamp('2026-07-09 00:00:00'), 'peak_value': 1171490.3856775886, 'trough': Timestamp('2026-07-10 00:00:00'), 'trough_value': 1171347.0552682555, 'recovery': Timestamp('2026-07-11 00:00:00'), 'depth_pct': -0.00012234877134754095, 'depth_amount': -143.33040933310986, 'duration_periods': 2, 'duration_days': 2.0, 'recovery_periods': 1, 'recovery_days': 1.0, 'is_open': False}, {'peak': Timestamp('2026-07-13 00:00:00'), 'peak_value': 1184390.1225175683, 'trough': Timestamp('2026-07-15 00:00:00'), 'trough_value': 1182493.2165274222, 'recovery': None, 'depth_pct': -0.0016015888296281899, 'depth_amount': -1896.9059901461005, 'duration_periods': 18, 'duration_days': 18.0, 'recovery_periods': None, 'recovery_days': None, 'is_open': True}], 'benchmark_comparison': {'status': 'ok', 'sample_size': 3271, 'strategy_return': 0.18249321652742223, 'benchmark_return': 20.085129808898625, 'excess_return': -19.902636592371202, 'correlation': 0.02019938950225967}}
+Strat_VolatilityReversion_Trades             : 185
+Strat_VolatilityReversion_WinRate            : 0.4811
+Strat_VolatilityReversion_ProfitFactor       : 1.0123
+Strat_VolatilityReversion_ProfitFactorStatus : ok
+Strat_VolatilityReversion_ProfitFactorSamples: 185
+Strat_VolatilityReversion_ProfitFactorLosses : 96
+Strat_VolatilityReversion_NetPnL             : 11010.9581
+Strat_VolatilityReversion_Comm               : 22652.7233
+Strat_VolatilityReversion_Slip               : 22652.7373
+Strat_TrendBreakdown_Trades                  : 25
+Strat_TrendBreakdown_WinRate                 : 0.4800
+Strat_TrendBreakdown_ProfitFactor            : 0.5029
+Strat_TrendBreakdown_ProfitFactorStatus      : insufficient
+Strat_TrendBreakdown_ProfitFactorSamples     : 25
+Strat_TrendBreakdown_ProfitFactorLosses      : 13
+Strat_TrendBreakdown_NetPnL                  : -27759.8586
+Strat_TrendBreakdown_Comm                    : 1001.5098
+Strat_TrendBreakdown_Slip                    : 1001.5034
+Strat_TrendBreakout_Trades                   : 71
+Strat_TrendBreakout_WinRate                  : 0.3662
+Strat_TrendBreakout_ProfitFactor             : 2.7139
+Strat_TrendBreakout_ProfitFactorStatus       : ok
+Strat_TrendBreakout_ProfitFactorSamples      : 71
+Strat_TrendBreakout_ProfitFactorLosses       : 45
+Strat_TrendBreakout_NetPnL                   : 229833.6977
+Strat_TrendBreakout_Comm                     : 3200.3067
+Strat_TrendBreakout_Slip                     : 3200.3658
+Strat_RangeMeanReversion_Trades              : 21
+Strat_RangeMeanReversion_WinRate             : 0.3810
+Strat_RangeMeanReversion_ProfitFactor        : 0.6706
+Strat_RangeMeanReversion_ProfitFactorStatus  : insufficient
+Strat_RangeMeanReversion_ProfitFactorSamples : 21
+Strat_RangeMeanReversion_ProfitFactorLosses  : 13
+Strat_RangeMeanReversion_NetPnL              : -30591.5807
+Strat_RangeMeanReversion_Comm                : 5505.2343
+Strat_RangeMeanReversion_Slip                : 5505.2294
+Strat_Router_Trades                          : 4
+Strat_Router_WinRate                         : 0.2500
+Strat_Router_ProfitFactor                    : None
+Strat_Router_ProfitFactorStatus              : undefined
+Strat_Router_ProfitFactorSamples             : 4
+Strat_Router_ProfitFactorLosses              : 3
+Strat_Router_NetPnL                          : -0.0000
+Strat_Router_Comm                            : 0.0000
+Strat_Router_Slip                            : 0.0000
+MetricResults                                : [{'name': 'SharpeRatio', 'value': 0.22180410020155766, 'status': 'ok', 'sample_size': 3270, 'unit': None, 'reason': None}, {'name': 'CAGR', 'value': 0.018899642219751156, 'status': 'ok', 'sample_size': 107, 'unit': 'ratio', 'reason': None}, {'name': 'MaxDrawdownPct', 'value': -0.22531518858370378, 'status': 'ok', 'sample_size': 0, 'unit': 'ratio', 'reason': None}, {'name': 'ProfitFactor', 'value': 1.1548954949005148, 'status': 'ok', 'sample_size': 306, 'unit': None, 'reason': None}, {'name': 'WinRate', 'value': 0.4444444444444444, 'status': 'ok', 'sample_size': 306, 'unit': 'ratio', 'reason': None}, {'name': 'SQN', 'value': None, 'status': 'insufficient', 'sample_size': 0, 'unit': None, 'reason': None}]
+
+Drawdown Events (回撤事件明细):
+-----------------
+#1 depth=-22.53% peak=2017-12-16 00:00:00 trough=2019-03-21 00:00:00 recovery=2020-02-11 00:00:00 duration_days=787.0 status=RECOVERED (已恢复)
+#2 depth=-21.99% peak=2022-04-13 00:00:00 trough=2023-02-10 00:00:00 recovery=2026-07-07 00:00:00 duration_days=1546.0 status=RECOVERED (已恢复)
+#3 depth=-13.81% peak=2020-02-14 00:00:00 trough=2020-03-01 00:00:00 recovery=2022-02-17 00:00:00 duration_days=734.0 status=RECOVERED (已恢复)
+#4 depth=-1.35% peak=2017-12-07 00:00:00 trough=2017-12-09 00:00:00 recovery=2017-12-16 00:00:00 duration_days=9.0 status=RECOVERED (已恢复)
+#5 depth=-1.17% peak=2022-02-17 00:00:00 trough=2022-02-19 00:00:00 recovery=2022-04-12 00:00:00 duration_days=54.0 status=RECOVERED (已恢复)
+
+Trade Quality (交易质量与持仓时长):
+-----------------
+Sample Size (样本数)              : 306
+Win Rate (胜率)                   : 0.4444
+Expectancy (期望值)               : 596.3831
+Profit Factor (盈亏比)            : 1.1549 [ok]
+Holding Duration hrs (持仓时长/小时): mean=574.75 median=228.00 min=24.00 max=34320.00
+
+By Symbol (按标的):
+  ADA-USDT        trades=56     win_rate=58.93% net_pnl=111144.2039 profit_factor=1.7901
+  AVAX-USDT       trades=10     win_rate=60.00% net_pnl=-14794.8722 profit_factor=0.7337
+  BNB-USDT        trades=35     win_rate=45.71% net_pnl=-177155.8576 profit_factor=0.5040
+  BTC-USDT        trades=31     win_rate=41.94% net_pnl=102056.0653 profit_factor=1.7236
+  DOGE-USDT       trades=82     win_rate=18.29% net_pnl=-21337.5373 profit_factor=0.5638
+  DOT-USDT        trades=10     win_rate=70.00% net_pnl=20913.1186 profit_factor=3.7678
+  ETH-USDT        trades=29     win_rate=41.38% net_pnl=1201.0001 profit_factor=1.0050
+  LTC-USDT        trades=23     win_rate=73.91% net_pnl=90827.2609 profit_factor=2.9690
+  SOL-USDT        trades=8      win_rate=37.50% net_pnl=-22033.6294 profit_factor=0.6940
+  XRP-USDT        trades=22     win_rate=63.64% net_pnl=91673.4642 profit_factor=2.3411
+
+By Strategy (按策略):
+  VolatilityReversion trades=185    win_rate=48.11% net_pnl=11010.9581 profit_factor=1.0123
+  TrendBreakdown  trades=25     win_rate=48.00% net_pnl=-27759.8586 profit_factor=0.5029
+  TrendBreakout   trades=71     win_rate=36.62% net_pnl=229833.6977 profit_factor=2.7139
+  RangeMeanReversion trades=21     win_rate=38.10% net_pnl=-30591.5807 profit_factor=0.6706
+  Router          trades=4      win_rate=25.00% net_pnl=-0.0000 profit_factor=None
+
+Attribution (归因分析 — 按策略/标的/月份):
+-----------------
+Total Net PnL (总净盈亏): 182493.2165
+
+By Strategy (按策略):
+  RangeMeanReversion: -30591.5807
+  Router         : -0.0000
+  TrendBreakdown : -27759.8586
+  TrendBreakout  : 229833.6977
+  VolatilityReversion: 11010.9581
+
+By Symbol (按标的):
+  ADA-USDT       : 111144.2039
+  AVAX-USDT      : -14794.8722
+  BNB-USDT       : -177155.8576
+  BTC-USDT       : 102056.0653
+  DOGE-USDT      : -21337.5373
+  DOT-USDT       : 20913.1186
+  ETH-USDT       : 1201.0001
+  LTC-USDT       : 90827.2609
+  SOL-USDT       : -22033.6294
+  XRP-USDT       : 91673.4642
+
+By Month (按月份):
+  2017-10        : -5345.2469
+  2017-12        : 24366.6468
+  2018-01        : -143855.3766
+  2018-02        : 19147.2338
+  2018-04        : -22586.0192
+  2018-05        : -2803.3023
+  2018-06        : -1574.1603
+  2018-07        : -32145.9135
+  2018-08        : -4810.7068
+  2018-10        : 16034.8127
+  2018-11        : -7365.4000
+  2018-12        : -12232.5644
+  2019-02        : -5281.8605
+  2019-03        : 2662.9770
+  2019-04        : 42944.2661
+  2019-05        : 7545.1074
+  2019-06        : 81972.3689
+  2019-07        : 21837.2432
+  2019-08        : 5101.6255
+  2019-09        : 43261.3075
+  2019-10        : 2427.4557
+  2020-01        : -115423.7986
+  2020-02        : 93659.7324
+  2020-03        : 6906.2491
+  2020-04        : 46720.2535
+  2020-05        : -27623.9570
+  2020-06        : -6860.3272
+  2020-07        : 14058.5645
+  2020-08        : 29452.9989
+  2020-09        : 12389.7458
+  2020-12        : 22721.9776
+  2021-01        : -36211.5280
+  2021-05        : -46638.4718
+  2021-06        : 18773.3572
+  2021-08        : 25423.3004
+  2021-10        : -11539.7196
+  2021-12        : 32499.6311
+  2022-02        : 54967.7700
+  2022-04        : 5472.1575
+  2022-07        : -67038.5448
+  2022-09        : 1206.8153
+  2022-10        : -11738.9533
+  2022-12        : -11071.4940
+  2023-01        : -157729.4842
+  2023-02        : 34603.7578
+  2023-04        : 38042.9064
+  2023-06        : -19250.3345
+  2023-07        : -4501.5935
+  2023-08        : -23986.0707
+  2023-10        : 3844.3652
+  2023-11        : 5252.1084
+  2024-01        : 22959.9449
+  2024-02        : -780.0092
+  2024-04        : 5861.9056
+  2024-07        : -18037.8597
+  2024-08        : 68423.8469
+  2024-09        : -3793.3785
+  2024-11        : 19775.9568
+  2024-12        : 8923.5713
+  2025-01        : 10596.2253
+  2025-05        : 2307.9675
+  2025-06        : -1358.5036
+  2025-07        : -22523.4305
+  2025-10        : 35321.0044
+  2026-01        : 56212.8751
+  2026-02        : -32982.3769
+  2026-03        : 52063.4477
+  2026-05        : 10274.5428
+  2026-06        : -9988.3729
+  2026-07        : 43553.9514
+
+Benchmark Comparison (对基准的超额收益):
+-----------------
+Strategy Return (策略总收益)   : 18.2493%
+Benchmark Return (基准总收益)   : 2008.5130%
+Excess Return (超额收益)        : -1990.2637%
+Return Correlation (收益相关性) : 0.0202
+
+Result Diagnostics (结果可信度诊断):
+-----------------
+PnL Concentration (盈亏集中度):
+  Top  1 trades (最赚钱1笔):     67903.35  =   37.2% of net profit  | excluding them (剔除后):    114589.86
+  Top  3 trades (最赚钱3笔):    162955.32  =   89.3% of net profit  | excluding them (剔除后):     19537.90
+  Top  5 trades (最赚钱5笔):    240647.95  =  131.9% of net profit  | excluding them (剔除后):    -58154.73
+  Top 10 trades (最赚钱10笔):    403571.23  =  221.1% of net profit  | excluding them (剔除后):   -221078.02
+  Profit HHI (利润赫芬达尔指数): 0.0176  (1.0=单笔贡献全部利润 / 越低越分散)
+  [WARNING] 剔除最赚钱的10笔后系统净亏损——收益依赖极少数交易，不构成稳定 edge。
+
+Exit Attribution (出场归因 — 谁真正平掉了仓位):
+  Own-exit ratio (策略自身出场占比): 19.6%
+    StateSwitch                                   244
+    hard_stop                                     51
+    signal                                        4
+    Target hit (Mid Band)                         3
+    Volatility mean reversion complete            3
+    Breakdown Exit (Above High10)                 1
+  RangeMeanReversion     closed=21   own=12   external=9    own_ratio=57.1%
+  Router                 closed=4    own=2    external=2    own_ratio=50.0%
+  TrendBreakdown         closed=25   own=1    external=24   own_ratio=4.0%
+  TrendBreakout          closed=71   own=0    external=71   own_ratio=0.0%
+  VolatilityReversion    closed=185  own=45   external=140  own_ratio=24.3%
+  [WARNING] TrendBreakdown 的出场规则几乎从未触发——其出场参数实际无效，仓位由外部（如 Router regime 切换）平掉。
+  [WARNING] TrendBreakout 的出场规则几乎从未触发——其出场参数实际无效，仓位由外部（如 Router regime 切换）平掉。
+
+Lifecycle Coverage (闭合事件覆盖率):
+  Overall (总体): 60.5%
+  [WARNING] RangeMeanReversion 只观测到 19/21 次平仓——依赖平仓回调的风控（熄火/冷却）处于失效状态。
+  [WARNING] Router 只观测到 0/4 次平仓——依赖平仓回调的风控（熄火/冷却）处于失效状态。
+  [WARNING] TrendBreakdown 只观测到 21/25 次平仓——依赖平仓回调的风控（熄火/冷却）处于失效状态。
+  [WARNING] TrendBreakout 只观测到 35/71 次平仓——依赖平仓回调的风控（熄火/冷却）处于失效状态。
+  [WARNING] VolatilityReversion 只观测到 110/185 次平仓——依赖平仓回调的风控（熄火/冷却）处于失效状态。
+
+Calendar Returns (逐年表现):
+  2017     return=   -9.27%  trades=5    end_equity=907313.88
+  2018     return=   -8.87%  trades=40   end_equity=826830.00
+  2019     return=   24.49%  trades=65   end_equity=1029300.49
+  2020     return=    7.38%  trades=90   end_equity=1105301.93
+  2021     return=   -1.60%  trades=12   end_equity=1087608.50
+  2022     return=   -2.59%  trades=17   end_equity=1059406.25
+  2023     return=  -11.68%  trades=29   end_equity=935681.91
+  2024     return=   10.68%  trades=17   end_equity=1035574.54
+  2025     return=    2.68%  trades=13   end_equity=1063359.15
+  2026     return=   11.20%  trades=18   end_equity=1182493.22
+  Negative periods (亏损期数): 5/10
+
+Streaks (连续盈亏):
+  Max win streak (最长连盈):    9 (51055.53)
+  Max loss streak (最长连亏):  24 (-6972.56)
+
+File Descriptions (文件说明):
+===========================
+1. report.txt (回测报告概要)
+   - Contains summary metrics and configuration parameters.
+   - 包含核心指标汇总与回测参数配置。
+
+2. equity.csv (净值曲线数据)
+   - timestamp: Date (日期)
+   - equity: Total Account Equity (总权益 = 现金 + 持仓市值)
+   - cash: Available Cash (可用现金)
+
+3. trades.csv (交易明细记录 - Execution Log)
+   - signal_time: Time signal was generated (信号产生时间)
+   - fill_time: Time order was filled (成交时间)
+   - symbol: Trading Pair (交易标的)
+   - side: buy/sell/short/cover (交易方向)
+   - qty: Executed Quantity (成交数量)
+   - fill_price: Executed Price (成交价格)
+   - commission: Transaction Fee (手续费)
+   - slip: Slippage Value (滑点金额)
+   - slip_dir: Slippage Direction (滑点方向)
+   - strategy_id: Strategy Name (策略名称)
+   - exit_reason: Reason for order (成交原因: signal/stop/takeprofit)

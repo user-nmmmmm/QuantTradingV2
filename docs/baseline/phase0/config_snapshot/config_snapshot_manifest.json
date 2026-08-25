@@ -1,0 +1,16 @@
+{
+  "baseline_commit": "ff14fb8cce57310f1e0828349a0357225ce33956",
+  "snapshot_at": "2026-08-25",
+  "files": {
+    "config.py": {
+      "sha256": "4fa724225ee8a65022f5bb950c7fb1851fb821bd9467e7206bd44ab386fd2ed1",
+      "size_bytes": 4756,
+      "source_path": "config/config.py"
+    },
+    "params.yaml": {
+      "sha256": "ae868346f1cb88596d7c63baa3fa14e04248c1add7e2372f1cd804f3ab0ce171",
+      "size_bytes": 2196,
+      "source_path": "config/params.yaml"
+    }
+  }
+}

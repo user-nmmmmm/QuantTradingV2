@@ -1,0 +1,53 @@
+{
+    "BTC-USDT": {
+        "symbol": "BTC-USDT",
+        "total_rows": 721,
+        "start_date": "2024-09-03 00:00:00",
+        "end_date": "2026-08-24 00:00:00",
+        "duplicates": "0",
+        "missing_values": {
+            "open": 0,
+            "high": 0,
+            "low": 0,
+            "close": 0,
+            "volume": 0
+        },
+        "gaps": 0,
+        "spikes": 0,
+        "expected_freq": "1 days 00:00:00"
+    },
+    "ETH-USDT": {
+        "symbol": "ETH-USDT",
+        "total_rows": 721,
+        "start_date": "2024-09-03 00:00:00",
+        "end_date": "2026-08-24 00:00:00",
+        "duplicates": "0",
+        "missing_values": {
+            "open": 0,
+            "high": 0,
+            "low": 0,
+            "close": 0,
+            "volume": 0
+        },
+        "gaps": 0,
+        "spikes": 0,
+        "expected_freq": "1 days 00:00:00"
+    },
+    "SOL-USDT": {
+        "symbol": "SOL-USDT",
+        "total_rows": 721,
+        "start_date": "2024-09-03 00:00:00",
+        "end_date": "2026-08-24 00:00:00",
+        "duplicates": "0",
+        "missing_values": {
+            "open": 0,
+            "high": 0,
+            "low": 0,
+            "close": 0,
+            "volume": 0
+        },
+        "gaps": 0,
+        "spikes": 0,
+        "expected_freq": "1 days 00:00:00"
+    }
+}

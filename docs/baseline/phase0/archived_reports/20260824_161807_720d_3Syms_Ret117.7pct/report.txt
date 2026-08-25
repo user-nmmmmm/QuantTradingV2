@@ -1,0 +1,232 @@
+Backtest Results (回测结果)
+==========================
+
+Configuration (配置信息):
+Days: 720
+Start: 2024-09-03
+End: 2026-08-24
+Capital: 10000.0
+Symbols: BTC-USDT, ETH-USDT, SOL-USDT
+Source: synthetic
+
+Core Metrics (核心指标摘要):
+-----------------
+Total Return (总收益率)     : 1.1773
+CAGR (年化收益率)            : 0.4840
+Max Drawdown % (最大回撤率)  : -0.1140
+Sharpe Ratio (夏普比率)     : 5.0898
+Total Trades (总交易次数)    : 49
+Win Rate (胜率)           : 0.4490
+Profit Factor (盈亏比)     : 4.0016
+Net PnL (净利润)           : 10183.6608
+End Equity (最终净值)       : 21772.7980
+
+Full Metrics (完整指标明细):
+-----------------
+CAGR (年化收益率)                                 : 0.4840
+CAGR Status (年化收益率状态)                        : ok
+Max Drawdown % (最大回撤率)                       : -0.1140
+Max Drawdown $ (最大回撤金额)                      : -2089.6218
+Current Drawdown % (当前回撤率)                   : -0.0072
+Drawdown Status (回撤计算状态)                     : ok
+Max Drawdown Peak Time (最大回撤峰值时间)            : 2025-04-25 00:00:00
+Max Drawdown Trough Time (最大回撤谷底时间)          : 2026-01-18 00:00:00
+Max Drawdown Recovery Time (最大回撤恢复时间)        : 2026-04-21 00:00:00
+Max Drawdown Duration (periods) (最大回撤持续周期数)  : 361
+Max Drawdown Duration (days) (最大回撤持续天数)      : 361.0000
+Max Drawdown Recovery (periods) (最大回撤恢复周期数)  : 93
+Max Drawdown Recovery (days) (最大回撤恢复天数)      : 93.0000
+Max Drawdown Still Open (最大回撤是否尚未恢复)         : False
+Underwater Ratio (水下时间占比)                    : 0.7060
+Avg Monthly Return (月均收益率)                   : 0.0358
+Monthly Return Status (月收益计算状态)              : ok
+Monthly Return Samples (月收益样本数)              : 23
+Sharpe Ratio (夏普比率)                          : 5.0898
+Sharpe Status (夏普比率计算状态)                     : ok
+Sharpe Samples (夏普比率样本数)                     : 720
+Periods Per Year (年化周期数)                     : 365.2500
+End Equity (最终净值)                            : 21772.7980
+Total Return (总收益率)                          : 1.1773
+Metrics Formula Version (指标公式版本)             : 1.0
+Total Trades (总交易次数)                         : 49
+Win Rate (胜率)                                : 0.4490
+Profit Factor (盈亏比)                          : 4.0016
+Profit Factor Status (盈亏比计算状态)               : ok
+Profit Factor Samples (盈亏比样本数)               : 49
+Profit Factor Loss Count (盈亏比亏损笔数)           : 27
+Profit Factor 95% CI Lower (盈亏比 95% 置信区间下限)  : 1.3517
+Profit Factor 95% CI Upper (盈亏比 95% 置信区间上限)  : 9.7025
+Expectancy (期望值)                             : 207.8298
+Avg Win (平均盈利)                               : 617.1119
+Avg Loss (平均亏损)                              : -125.6593
+Gross PnL (毛利润)                              : 10373.7504
+Total Commission (总手续费)                      : 190.0896
+Total Slippage (总滑点成本)                       : 190.0922
+Net PnL (净利润)                                : 10183.6608
+ExtendedAnalytics                            : {'trade_quality': {'sample_size': 49, 'status': 'ok', 'win_count': 22, 'loss_count': 27, 'breakeven_count': 0, 'win_rate': 0.4489795918367347, 'avg_win': 617.1118746177953, 'avg_loss': -125.6592762457308, 'expectancy': 207.8298118970768, 'profit_factor': 4.001550166924549, 'profit_factor_status': 'ok', 'holding_duration_hours': {'status': 'ok', 'sample_size': 49, 'mean': 479.0204081632653, 'median': 72.0, 'min': 24.0, 'max': 4344.0}, 'by_strategy': {'RangeMeanReversion': {'sample_size': 28, 'win_rate': 0.2857142857142857, 'net_pnl': -1677.8388441920388, 'profit_factor': 0.24611977050482883, 'profit_factor_status': 'insufficient'}, 'TrendBreakout': {'sample_size': 11, 'win_rate': 0.6363636363636364, 'net_pnl': 7462.1917663953, 'profit_factor': 11.478255215000855, 'profit_factor_status': 'insufficient'}, 'VolatilityReversion': {'sample_size': 2, 'win_rate': 0.5, 'net_pnl': -23.36681586058363, 'profit_factor': 0.833871430893465, 'profit_factor_status': 'insufficient'}, 'TrendBreakdown': {'sample_size': 8, 'win_rate': 0.75, 'net_pnl': 4422.674676614086, 'profit_factor': 15.067850444194526, 'profit_factor_status': 'insufficient'}}, 'by_symbol': {'BTC-USDT': {'sample_size': 17, 'win_rate': 0.47058823529411764, 'net_pnl': 3988.1972733883354, 'profit_factor': 3.274650156743188, 'profit_factor_status': 'insufficient'}, 'ETH-USDT': {'sample_size': 11, 'win_rate': 0.5454545454545454, 'net_pnl': 3700.4659176387418, 'profit_factor': 11.762885759809851, 'profit_factor_status': 'insufficient'}, 'SOL-USDT': {'sample_size': 21, 'win_rate': 0.38095238095238093, 'net_pnl': 2494.9975919296867, 'profit_factor': 2.925657905884144, 'profit_factor_status': 'insufficient'}}}, 'attribution': {'sample_size': 49, 'total_net_pnl': 10183.660782956764, 'by_strategy': {'RangeMeanReversion': -1677.8388441920386, 'TrendBreakout': 7462.1917663953, 'VolatilityReversion': -23.36681586058363, 'TrendBreakdown': 4422.674676614086}, 'by_symbol': {'BTC-USDT': 3988.1972733883354, 'ETH-USDT': 3700.465917638742, 'SOL-USDT': 2494.9975919296867}, 'by_month': {'2024-10': -272.0543962111434, '2024-11': -77.7800551686652, '2025-05': 4905.084128259878, '2025-06': 7.593053804342901, '2025-07': 249.74278246275477, '2025-08': -30.37254744104733, '2025-09': -84.8318530021765, '2025-11': -713.2434835342284, '2026-03': 928.5241294970276, '2026-05': 162.10930901672035, '2026-06': 1142.5057847765102, '2024-12': 573.5668854825267, '2025-03': 1492.6919951623424, '2025-12': -167.11261397281905, '2026-07': 1982.2631791890874, '2025-01': 454.2200118627974, '2025-02': -60.03779473153306, '2026-02': -195.05533255046447, '2026-04': -114.15239994514582}}, 'r_multiple': {'sample_size': 49, 'excluded_no_initial_risk': 49, 'r_multiple': {'status': 'insufficient', 'sample_size': 0, 'mean_r': None, 'std_r': None, 'sqn': None}, 'mae': {'status': 'insufficient', 'sample_size': 0, 'mean': None, 'median': None}, 'mfe': {'status': 'insufficient', 'sample_size': 0, 'mean': None, 'median': None}}, 'cost_sensitivity': {'status': 'ok', 'sample_size': 49, 'gross_pnl': 10373.750386562231, 'baseline_commission': 190.08960360546726, 'baseline_slippage': 190.09224456610704, 'baseline_net_pnl': 9993.568538390657, 'grid': [{'commission_multiplier': 0.5, 'slippage_multiplier': 0.5, 'net_pnl': 10183.659462476446}, {'commission_multiplier': 0.5, 'slippage_multiplier': 1.0, 'net_pnl': 10088.613340193391}, {'commission_multiplier': 0.5, 'slippage_multiplier': 1.5, 'net_pnl': 9993.567217910339}, {'commission_multiplier': 0.5, 'slippage_multiplier': 2.0, 'net_pnl': 9898.521095627284}, {'commission_multiplier': 1.0, 'slippage_multiplier': 0.5, 'net_pnl': 10088.614660673711}, {'commission_multiplier': 1.0, 'slippage_multiplier': 1.0, 'net_pnl': 9993.568538390657}, {'commission_multiplier': 1.0, 'slippage_multiplier': 1.5, 'net_pnl': 9898.522416107604}, {'commission_multiplier': 1.0, 'slippage_multiplier': 2.0, 'net_pnl': 9803.47629382455}, {'commission_multiplier': 1.5, 'slippage_multiplier': 0.5, 'net_pnl': 9993.569858870978}, {'commission_multiplier': 1.5, 'slippage_multiplier': 1.0, 'net_pnl': 9898.523736587924}, {'commission_multiplier': 1.5, 'slippage_multiplier': 1.5, 'net_pnl': 9803.477614304871}, {'commission_multiplier': 1.5, 'slippage_multiplier': 2.0, 'net_pnl': 9708.431492021817}, {'commission_multiplier': 2.0, 'slippage_multiplier': 0.5, 'net_pnl': 9898.525057068244}, {'commission_multiplier': 2.0, 'slippage_multiplier': 1.0, 'net_pnl': 9803.47893478519}, {'commission_multiplier': 2.0, 'slippage_multiplier': 1.5, 'net_pnl': 9708.432812502137}, {'commission_multiplier': 2.0, 'slippage_multiplier': 2.0, 'net_pnl': 9613.386690219082}], 'unmodeled_note': 'commission and slippage only; funding/borrow fees and market impact beyond recorded slippage are not modeled'}, 'drawdown_events': [{'peak': Timestamp('2024-10-03 00:00:00'), 'peak_value': 10000.0, 'trough': Timestamp('2024-11-02 00:00:00'), 'trough_value': 9650.165548620198, 'recovery': Timestamp('2024-11-14 00:00:00'), 'depth_pct': -0.0349834451379802, 'depth_amount': -349.834451379802, 'duration_periods': 42, 'duration_days': 42.0, 'recovery_periods': 12, 'recovery_days': 12.0, 'is_open': False}, {'peak': Timestamp('2024-11-15 00:00:00'), 'peak_value': 10128.711523959544, 'trough': Timestamp('2024-11-16 00:00:00'), 'trough_value': 10089.553024064146, 'recovery': Timestamp('2024-11-19 00:00:00'), 'depth_pct': -0.003866088969240444, 'depth_amount': -39.15849989539856, 'duration_periods': 4, 'duration_days': 4.0, 'recovery_periods': 3, 'recovery_days': 3.0, 'is_open': False}, {'peak': Timestamp('2024-11-20 00:00:00'), 'peak_value': 10192.585546983975, 'trough': Timestamp('2024-11-21 00:00:00'), 'trough_value': 10151.421378742354, 'recovery': Timestamp('2024-11-22 00:00:00'), 'depth_pct': -0.004038638484010741, 'depth_amount': -41.164168241621155, 'duration_periods': 2, 'duration_days': 2.0, 'recovery_periods': 1, 'recovery_days': 1.0, 'is_open': False}, {'peak': Timestamp('2024-11-26 00:00:00'), 'peak_value': 10368.798022707833, 'trough': Timestamp('2024-11-27 00:00:00'), 'trough_value': 10357.181955128519, 'recovery': Timestamp('2024-11-28 00:00:00'), 'depth_pct': -0.0011202906599082198, 'depth_amount': -11.616067579314404, 'duration_periods': 2, 'duration_days': 2.0, 'recovery_periods': 1, 'recovery_days': 1.0, 'is_open': False}, {'peak': Timestamp('2024-12-01 00:00:00'), 'peak_value': 10584.710545592703, 'trough': Timestamp('2024-12-02 00:00:00'), 'trough_value': 10562.165506546764, 'recovery': Timestamp('2024-12-03 00:00:00'), 'depth_pct': -0.0021299627371791003, 'depth_amount': -22.54503904593912, 'duration_periods': 2, 'duration_days': 2.0, 'recovery_periods': 1, 'recovery_days': 1.0, 'is_open': False}, {'peak': Timestamp('2024-12-11 00:00:00'), 'peak_value': 10936.532757781102, 'trough': Timestamp('2024-12-12 00:00:00'), 'trough_value': 10918.244422223945, 'recovery': Timestamp('2024-12-13 00:00:00'), 'depth_pct': -0.0016722242745668917, 'depth_amount': -18.288335557157552, 'duration_periods': 2, 'duration_days': 2.0, 'recovery_periods': 1, 'recovery_days': 1.0, 'is_open': False}, {'peak': Timestamp('2024-12-21 00:00:00'), 'peak_value': 11326.768018002984, 'trough': Timestamp('2024-12-23 00:00:00'), 'trough_value': 11296.450392743647, 'recovery': Timestamp('2024-12-24 00:00:00'), 'depth_pct': -0.002676635136443972, 'depth_amount': -30.317625259336637, 'duration_periods': 3, 'duration_days': 3.0, 'recovery_periods': 1, 'recovery_days': 1.0, 'is_open': False}, {'peak': Timestamp('2024-12-25 00:00:00'), 'peak_value': 11519.753931621708, 'trough': Timestamp('2024-12-29 00:00:00'), 'trough_value': 11425.142831811427, 'recovery': Timestamp('2024-12-31 00:00:00'), 'depth_pct': -0.00821294451008836, 'depth_amount': -94.6110998102813, 'duration_periods': 6, 'duration_days': 6.0, 'recovery_periods': 2, 'recovery_days': 2.0, 'is_open': False}, {'peak': Timestamp('2025-01-01 00:00:00'), 'peak_value': 11606.258754763467, 'trough': Timestamp('2025-01-02 00:00:00'), 'trough_value': 11561.40322796793, 'recovery': Timestamp('2025-01-03 00:00:00'), 'depth_pct': -0.0038647705297046304, 'depth_amount': -44.85552679553621, 'duration_periods': 2, 'duration_days': 2.0, 'recovery_periods': 1, 'recovery_days': 1.0, 'is_open': False}, {'peak': Timestamp('2025-01-06 00:00:00'), 'peak_value': 11820.197816453277, 'trough': Timestamp('2025-01-07 00:00:00'), 'trough_value': 11779.885950570744, 'recovery': Timestamp('2025-01-09 00:00:00'), 'depth_pct': -0.0034104222711417477, 'depth_amount': -40.31186588253331, 'duration_periods': 3, 'duration_days': 3.0, 'recovery_periods': 2, 'recovery_days': 2.0, 'is_open': False}, {'peak': Timestamp('2025-01-09 00:00:00'), 'peak_value': 11821.851617401338, 'trough': Timestamp('2025-01-11 00:00:00'), 'trough_value': 11769.262155756001, 'recovery': Timestamp('2025-01-16 00:00:00'), 'depth_pct': -0.004448496170255361, 'depth_amount': -52.589461645336996, 'duration_periods': 7, 'duration_days': 7.0, 'recovery_periods': 5, 'recovery_days': 5.0, 'is_open': False}, {'peak': Timestamp('2025-01-16 00:00:00'), 'peak_value': 11889.63884495987, 'trough': Timestamp('2025-01-17 00:00:00'), 'trough_value': 11888.73072380148, 'recovery': Timestamp('2025-01-18 00:00:00'), 'depth_pct': -7.637920463628502e-05, 'depth_amount': -0.9081211583907134, 'duration_periods': 2, 'duration_days': 2.0, 'recovery_periods': 1, 'recovery_days': 1.0, 'is_open': False}, {'peak': Timestamp('2025-01-19 00:00:00'), 'peak_value': 12093.296355663662, 'trough': Timestamp('2025-01-20 00:00:00'), 'trough_value': 12060.926852852015, 'recovery': Timestamp('2025-01-22 00:00:00'), 'depth_pct': -0.002676648438908681, 'depth_amount': -32.36950281164718, 'duration_periods': 3, 'duration_days': 3.0, 'recovery_periods': 2, 'recovery_days': 2.0, 'is_open': False}, {'peak': Timestamp('2025-01-24 00:00:00'), 'peak_value': 12247.223215634906, 'trough': Timestamp('2025-01-28 00:00:00'), 'trough_value': 12159.775503884526, 'recovery': Timestamp('2025-01-29 00:00:00'), 'depth_pct': -0.007140207229892148, 'depth_amount': -87.44771175037931, 'duration_periods': 5, 'duration_days': 5.0, 'recovery_periods': 1, 'recovery_days': 1.0, 'is_open': False}, {'peak': Timestamp('2025-02-08 00:00:00'), 'peak_value': 12890.568340528906, 'trough': Timestamp('2025-02-09 00:00:00'), 'trough_value': 12804.320726832573, 'recovery': Timestamp('2025-02-11 00:00:00'), 'depth_pct': -0.006690753380141, 'depth_amount': -86.24761369633234, 'duration_periods': 3, 'duration_days': 3.0, 'recovery_periods': 2, 'recovery_days': 2.0, 'is_open': False}, {'peak': Timestamp('2025-02-21 00:00:00'), 'peak_value': 13517.750364989472, 'trough': Timestamp('2025-02-22 00:00:00'), 'trough_value': 13470.576349354638, 'recovery': Timestamp('2025-02-24 00:00:00'), 'depth_pct': -0.0034897830157459052, 'depth_amount': -47.17401563483327, 'duration_periods': 3, 'duration_days': 3.0, 'recovery_periods': 2, 'recovery_days': 2.0, 'is_open': False}, {'peak': Timestamp('2025-02-27 00:00:00'), 'peak_value': 13781.752568985941, 'trough': Timestamp('2025-02-28 00:00:00'), 'trough_value': 13695.504812087183, 'recovery': Timestamp('2025-03-01 00:00:00'), 'depth_pct': -0.006258112418361605, 'depth_amount': -86.24775689875787, 'duration_periods': 2, 'duration_days': 2.0, 'recovery_periods': 1, 'recovery_days': 1.0, 'is_open': False}, {'peak': Timestamp('2025-03-14 00:00:00'), 'peak_value': 14696.519354419732, 'trough': Timestamp('2025-03-15 00:00:00'), 'trough_value': 14689.131504064291, 'recovery': Timestamp('2025-03-16 00:00:00'), 'depth_pct': -0.0005026938812705223, 'depth_amount': -7.387850355440605, 'duration_periods': 2, 'duration_days': 2.0, 'recovery_periods': 1, 'recovery_days': 1.0, 'is_open': False}, {'peak': Timestamp('2025-03-20 00:00:00'), 'peak_value': 15022.738152208753, 'trough': Timestamp('2025-03-21 00:00:00'), 'trough_value': 14916.321789932743, 'recovery': Timestamp('2025-03-24 00:00:00'), 'depth_pct': -0.007083686156132838, 'depth_amount': -106.41636227600975, 'duration_periods': 4, 'duration_days': 4.0, 'recovery_periods': 3, 'recovery_days': 3.0, 'is_open': False}, {'peak': Timestamp('2025-03-26 00:00:00'), 'peak_value': 15272.83997521684, 'trough': Timestamp('2025-03-27 00:00:00'), 'trough_value': 15220.7608097722, 'recovery': Timestamp('2025-03-28 00:00:00'), 'depth_pct': -0.0034099201935690305, 'depth_amount': -52.07916544464024, 'duration_periods': 2, 'duration_days': 2.0, 'recovery_periods': 1, 'recovery_days': 1.0, 'is_open': False}, {'peak': Timestamp('2025-04-09 00:00:00'), 'peak_value': 16953.230894417342, 'trough': Timestamp('2025-04-10 00:00:00'), 'trough_value': 16854.293436354943, 'recovery': Timestamp('2025-04-11 00:00:00'), 'depth_pct': -0.005835905773865135, 'depth_amount': -98.93745806239895, 'duration_periods': 2, 'duration_days': 2.0, 'recovery_periods': 1, 'recovery_days': 1.0, 'is_open': False}, {'peak': Timestamp('2025-04-13 00:00:00'), 'peak_value': 17145.544389744955, 'trough': Timestamp('2025-04-15 00:00:00'), 'trough_value': 17085.937676764508, 'recovery': Timestamp('2025-04-16 00:00:00'), 'depth_pct': -0.003476513292637048, 'depth_amount': -59.6067129804469, 'duration_periods': 3, 'duration_days': 3.0, 'recovery_periods': 1, 'recovery_days': 1.0, 'is_open': False}, {'peak': Timestamp('2025-04-17 00:00:00'), 'peak_value': 17517.743776276853, 'trough': Timestamp('2025-04-18 00:00:00'), 'trough_value': 17429.891173547956, 'recovery': Timestamp('2025-04-21 00:00:00'), 'depth_pct': -0.0050150638033575005, 'depth_amount': -87.85260272889718, 'duration_periods': 4, 'duration_days': 4.0, 'recovery_periods': 3, 'recovery_days': 3.0, 'is_open': False}, {'peak': Timestamp('2025-04-25 00:00:00'), 'peak_value': 18333.88445542836, 'trough': Timestamp('2026-01-18 00:00:00'), 'trough_value': 16244.26267527937, 'recovery': Timestamp('2026-04-21 00:00:00'), 'depth_pct': -0.11397594357208292, 'depth_amount': -2089.621780148991, 'duration_periods': 361, 'duration_days': 361.0, 'recovery_periods': 93, 'recovery_days': 93.0, 'is_open': False}, {'peak': Timestamp('2026-04-25 00:00:00'), 'peak_value': 18671.40482783343, 'trough': Timestamp('2026-04-26 00:00:00'), 'trough_value': 18626.909999528947, 'recovery': Timestamp('2026-04-27 00:00:00'), 'depth_pct': -0.0023830466274372066, 'depth_amount': -44.494828304483235, 'duration_periods': 2, 'duration_days': 2.0, 'recovery_periods': 1, 'recovery_days': 1.0, 'is_open': False}, {'peak': Timestamp('2026-04-30 00:00:00'), 'peak_value': 19051.027028245364, 'trough': Timestamp('2026-05-01 00:00:00'), 'trough_value': 18995.51696731821, 'recovery': Timestamp('2026-05-02 00:00:00'), 'depth_pct': -0.0029137568722596347, 'depth_amount': -55.51006092715397, 'duration_periods': 2, 'duration_days': 2.0, 'recovery_periods': 1, 'recovery_days': 1.0, 'is_open': False}, {'peak': Timestamp('2026-05-03 00:00:00'), 'peak_value': 19125.928898364702, 'trough': Timestamp('2026-05-04 00:00:00'), 'trough_value': 19078.738965979857, 'recovery': Timestamp('2026-05-05 00:00:00'), 'depth_pct': -0.0024673276072295523, 'depth_amount': -47.189932384844724, 'duration_periods': 2, 'duration_days': 2.0, 'recovery_periods': 1, 'recovery_days': 1.0, 'is_open': False}, {'peak': Timestamp('2026-05-05 00:00:00'), 'peak_value': 19159.579763800008, 'trough': Timestamp('2026-05-06 00:00:00'), 'trough_value': 19140.99827885269, 'recovery': Timestamp('2026-05-07 00:00:00'), 'depth_pct': -0.000969827374941958, 'depth_amount': -18.58148494731722, 'duration_periods': 2, 'duration_days': 2.0, 'recovery_periods': 1, 'recovery_days': 1.0, 'is_open': False}, {'peak': Timestamp('2026-05-07 00:00:00'), 'peak_value': 19181.71716270393, 'trough': Timestamp('2026-05-08 00:00:00'), 'trough_value': 19113.568281034874, 'recovery': Timestamp('2026-05-10 00:00:00'), 'depth_pct': -0.0035528040107672765, 'depth_amount': -68.14888166905803, 'duration_periods': 3, 'duration_days': 3.0, 'recovery_periods': 2, 'recovery_days': 2.0, 'is_open': False}, {'peak': Timestamp('2026-05-10 00:00:00'), 'peak_value': 19238.733064454012, 'trough': Timestamp('2026-05-11 00:00:00'), 'trough_value': 19232.93112031611, 'recovery': Timestamp('2026-05-12 00:00:00'), 'depth_pct': -0.00030157620662784695, 'depth_amount': -5.801944137903774, 'duration_periods': 2, 'duration_days': 2.0, 'recovery_periods': 1, 'recovery_days': 1.0, 'is_open': False}, {'peak': Timestamp('2026-05-15 00:00:00'), 'peak_value': 19441.044955868765, 'trough': Timestamp('2026-05-16 00:00:00'), 'trough_value': 19385.74847009011, 'recovery': Timestamp('2026-05-17 00:00:00'), 'depth_pct': -0.002844316542869837, 'depth_amount': -55.29648577865373, 'duration_periods': 2, 'duration_days': 2.0, 'recovery_periods': 1, 'recovery_days': 1.0, 'is_open': False}, {'peak': Timestamp('2026-05-18 00:00:00'), 'peak_value': 19511.944254067002, 'trough': Timestamp('2026-05-19 00:00:00'), 'trough_value': 19488.102251034335, 'recovery': Timestamp('2026-05-20 00:00:00'), 'depth_pct': -0.0012219183656030298, 'depth_amount': -23.84200303266698, 'duration_periods': 2, 'duration_days': 2.0, 'recovery_periods': 1, 'recovery_days': 1.0, 'is_open': False}, {'peak': Timestamp('2026-05-20 00:00:00'), 'peak_value': 19516.915170874538, 'trough': Timestamp('2026-05-21 00:00:00'), 'trough_value': 19466.511054600767, 'recovery': Timestamp('2026-05-23 00:00:00'), 'depth_pct': -0.002582586224947545, 'depth_amount': -50.40411627377034, 'duration_periods': 3, 'duration_days': 3.0, 'recovery_periods': 2, 'recovery_days': 2.0, 'is_open': False}, {'peak': Timestamp('2026-05-23 00:00:00'), 'peak_value': 19554.88320129933, 'trough': Timestamp('2026-05-24 00:00:00'), 'trough_value': 19553.363040061377, 'recovery': Timestamp('2026-05-25 00:00:00'), 'depth_pct': -7.773819062505478e-05, 'depth_amount': -1.520161237953289, 'duration_periods': 2, 'duration_days': 2.0, 'recovery_periods': 1, 'recovery_days': 1.0, 'is_open': False}, {'peak': Timestamp('2026-05-26 00:00:00'), 'peak_value': 19587.355276265178, 'trough': Timestamp('2026-05-27 00:00:00'), 'trough_value': 19578.72553369313, 'recovery': Timestamp('2026-05-28 00:00:00'), 'depth_pct': -0.00044057722190318934, 'depth_amount': -8.62974257204769, 'duration_periods': 2, 'duration_days': 2.0, 'recovery_periods': 1, 'recovery_days': 1.0, 'is_open': False}, {'peak': Timestamp('2026-05-30 00:00:00'), 'peak_value': 19751.551126221097, 'trough': Timestamp('2026-05-31 00:00:00'), 'trough_value': 19701.051352707407, 'recovery': Timestamp('2026-06-01 00:00:00'), 'depth_pct': -0.0025567497555495098, 'depth_amount': -50.49977351368943, 'duration_periods': 2, 'duration_days': 2.0, 'recovery_periods': 1, 'recovery_days': 1.0, 'is_open': False}, {'peak': Timestamp('2026-06-04 00:00:00'), 'peak_value': 20011.444054616997, 'trough': Timestamp('2026-06-09 00:00:00'), 'trough_value': 19713.962158746213, 'recovery': Timestamp('2026-06-24 00:00:00'), 'depth_pct': -0.014865588663110467, 'depth_amount': -297.4818958707838, 'duration_periods': 20, 'duration_days': 20.0, 'recovery_periods': 15, 'recovery_days': 15.0, 'is_open': False}, {'peak': Timestamp('2026-06-26 00:00:00'), 'peak_value': 20202.27393540283, 'trough': Timestamp('2026-06-27 00:00:00'), 'trough_value': 20152.02132436785, 'recovery': Timestamp('2026-06-29 00:00:00'), 'depth_pct': -0.002487473004061957, 'depth_amount': -50.252611034979054, 'duration_periods': 3, 'duration_days': 3.0, 'recovery_periods': 2, 'recovery_days': 2.0, 'is_open': False}, {'peak': Timestamp('2026-07-01 00:00:00'), 'peak_value': 20278.254975911776, 'trough': Timestamp('2026-07-02 00:00:00'), 'trough_value': 20262.004105389868, 'recovery': Timestamp('2026-07-03 00:00:00'), 'depth_pct': -0.0008013939336107611, 'depth_amount': -16.250870521907927, 'duration_periods': 2, 'duration_days': 2.0, 'recovery_periods': 1, 'recovery_days': 1.0, 'is_open': False}, {'peak': Timestamp('2026-07-03 00:00:00'), 'peak_value': 20381.349029053392, 'trough': Timestamp('2026-07-05 00:00:00'), 'trough_value': 20268.875819040528, 'recovery': Timestamp('2026-07-08 00:00:00'), 'depth_pct': -0.005518437952882052, 'depth_amount': -112.473210012864, 'duration_periods': 5, 'duration_days': 5.0, 'recovery_periods': 3, 'recovery_days': 3.0, 'is_open': False}, {'peak': Timestamp('2026-07-08 00:00:00'), 'peak_value': 20395.39894992853, 'trough': Timestamp('2026-07-09 00:00:00'), 'trough_value': 20368.210003936496, 'recovery': Timestamp('2026-07-10 00:00:00'), 'depth_pct': -0.001333092138025088, 'depth_amount': -27.18894599203486, 'duration_periods': 2, 'duration_days': 2.0, 'recovery_periods': 1, 'recovery_days': 1.0, 'is_open': False}, {'peak': Timestamp('2026-07-14 00:00:00'), 'peak_value': 20565.68977509043, 'trough': Timestamp('2026-07-15 00:00:00'), 'trough_value': 20536.743129408114, 'recovery': Timestamp('2026-07-17 00:00:00'), 'depth_pct': -0.0014075212647318162, 'depth_amount': -28.946645682317467, 'duration_periods': 3, 'duration_days': 3.0, 'recovery_periods': 2, 'recovery_days': 2.0, 'is_open': False}, {'peak': Timestamp('2026-07-17 00:00:00'), 'peak_value': 20845.11588084232, 'trough': Timestamp('2026-07-18 00:00:00'), 'trough_value': 20702.732750924573, 'recovery': Timestamp('2026-07-20 00:00:00'), 'depth_pct': -0.006830527147541758, 'depth_amount': -142.38312991774728, 'duration_periods': 3, 'duration_days': 3.0, 'recovery_periods': 2, 'recovery_days': 2.0, 'is_open': False}, {'peak': Timestamp('2026-07-23 00:00:00'), 'peak_value': 20955.168759654298, 'trough': Timestamp('2026-07-29 00:00:00'), 'trough_value': 20802.45210131668, 'recovery': Timestamp('2026-07-30 00:00:00'), 'depth_pct': -0.007287779931013829, 'depth_amount': -152.71665833761654, 'duration_periods': 7, 'duration_days': 7.0, 'recovery_periods': 1, 'recovery_days': 1.0, 'is_open': False}, {'peak': Timestamp('2026-08-01 00:00:00'), 'peak_value': 21046.0638113391, 'trough': Timestamp('2026-08-02 00:00:00'), 'trough_value': 20991.98731978209, 'recovery': Timestamp('2026-08-03 00:00:00'), 'depth_pct': -0.002569434932905395, 'depth_amount': -54.07649155701074, 'duration_periods': 2, 'duration_days': 2.0, 'recovery_periods': 1, 'recovery_days': 1.0, 'is_open': False}, {'peak': Timestamp('2026-08-04 00:00:00'), 'peak_value': 21279.33940537906, 'trough': Timestamp('2026-08-05 00:00:00'), 'trough_value': 21272.621822254936, 'recovery': Timestamp('2026-08-06 00:00:00'), 'depth_pct': -0.00031568569851503825, 'depth_amount': -6.717583124125667, 'duration_periods': 2, 'duration_days': 2.0, 'recovery_periods': 1, 'recovery_days': 1.0, 'is_open': False}, {'peak': Timestamp('2026-08-06 00:00:00'), 'peak_value': 21305.25330546484, 'trough': Timestamp('2026-08-07 00:00:00'), 'trough_value': 21265.738913131703, 'recovery': Timestamp('2026-08-08 00:00:00'), 'depth_pct': -0.0018546783634345444, 'depth_amount': -39.51439233313795, 'duration_periods': 2, 'duration_days': 2.0, 'recovery_periods': 1, 'recovery_days': 1.0, 'is_open': False}, {'peak': Timestamp('2026-08-08 00:00:00'), 'peak_value': 21435.614094201468, 'trough': Timestamp('2026-08-10 00:00:00'), 'trough_value': 21254.5571896782, 'recovery': Timestamp('2026-08-12 00:00:00'), 'depth_pct': -0.00844654618839435, 'depth_amount': -181.05690452326962, 'duration_periods': 4, 'duration_days': 4.0, 'recovery_periods': 2, 'recovery_days': 2.0, 'is_open': False}, {'peak': Timestamp('2026-08-14 00:00:00'), 'peak_value': 21503.58509507559, 'trough': Timestamp('2026-08-15 00:00:00'), 'trough_value': 21497.63985687497, 'recovery': Timestamp('2026-08-16 00:00:00'), 'depth_pct': -0.0002764766049165313, 'depth_amount': -5.945238200620224, 'duration_periods': 2, 'duration_days': 2.0, 'recovery_periods': 1, 'recovery_days': 1.0, 'is_open': False}, {'peak': Timestamp('2026-08-16 00:00:00'), 'peak_value': 21587.402091204796, 'trough': Timestamp('2026-08-17 00:00:00'), 'trough_value': 21496.28149811225, 'recovery': Timestamp('2026-08-18 00:00:00'), 'depth_pct': -0.004221007822412814, 'depth_amount': -91.12059309254619, 'duration_periods': 2, 'duration_days': 2.0, 'recovery_periods': 1, 'recovery_days': 1.0, 'is_open': False}, {'peak': Timestamp('2026-08-19 00:00:00'), 'peak_value': 21739.611208842747, 'trough': Timestamp('2026-08-20 00:00:00'), 'trough_value': 21690.61869730351, 'recovery': Timestamp('2026-08-21 00:00:00'), 'depth_pct': -0.0022536056909475953, 'depth_amount': -48.99251153923615, 'duration_periods': 2, 'duration_days': 2.0, 'recovery_periods': 1, 'recovery_days': 1.0, 'is_open': False}, {'peak': Timestamp('2026-08-22 00:00:00'), 'peak_value': 21930.522383524672, 'trough': Timestamp('2026-08-23 00:00:00'), 'trough_value': 21747.87059133892, 'recovery': None, 'depth_pct': -0.008328656700077946, 'depth_amount': -182.65179218575213, 'duration_periods': 2, 'duration_days': 2.0, 'recovery_periods': None, 'recovery_days': None, 'is_open': True}], 'benchmark_comparison': {'status': 'ok', 'sample_size': 721, 'strategy_return': 1.177279795045683, 'benchmark_return': -0.18868685794838935, 'excess_return': 1.3659666529940724, 'correlation': 0.06147395600521925}}
+Strat_RangeMeanReversion_Trades              : 28
+Strat_RangeMeanReversion_WinRate             : 0.2857
+Strat_RangeMeanReversion_ProfitFactor        : 0.2461
+Strat_RangeMeanReversion_ProfitFactorStatus  : insufficient
+Strat_RangeMeanReversion_ProfitFactorSamples : 28
+Strat_RangeMeanReversion_ProfitFactorLosses  : 20
+Strat_RangeMeanReversion_NetPnL              : -1677.8388
+Strat_RangeMeanReversion_Comm                : 118.4533
+Strat_RangeMeanReversion_Slip                : 118.4530
+Strat_TrendBreakout_Trades                   : 11
+Strat_TrendBreakout_WinRate                  : 0.6364
+Strat_TrendBreakout_ProfitFactor             : 11.4783
+Strat_TrendBreakout_ProfitFactorStatus       : insufficient
+Strat_TrendBreakout_ProfitFactorSamples      : 11
+Strat_TrendBreakout_ProfitFactorLosses       : 4
+Strat_TrendBreakout_NetPnL                   : 7462.1918
+Strat_TrendBreakout_Comm                     : 37.8531
+Strat_TrendBreakout_Slip                     : 37.8550
+Strat_VolatilityReversion_Trades             : 2
+Strat_VolatilityReversion_WinRate            : 0.5000
+Strat_VolatilityReversion_ProfitFactor       : 0.8339
+Strat_VolatilityReversion_ProfitFactorStatus : insufficient
+Strat_VolatilityReversion_ProfitFactorSamples: 2
+Strat_VolatilityReversion_ProfitFactorLosses : 1
+Strat_VolatilityReversion_NetPnL             : -23.3668
+Strat_VolatilityReversion_Comm               : 10.1097
+Strat_VolatilityReversion_Slip               : 10.1097
+Strat_TrendBreakdown_Trades                  : 8
+Strat_TrendBreakdown_WinRate                 : 0.7500
+Strat_TrendBreakdown_ProfitFactor            : 15.0679
+Strat_TrendBreakdown_ProfitFactorStatus      : insufficient
+Strat_TrendBreakdown_ProfitFactorSamples     : 8
+Strat_TrendBreakdown_ProfitFactorLosses      : 2
+Strat_TrendBreakdown_NetPnL                  : 4422.6747
+Strat_TrendBreakdown_Comm                    : 23.6735
+Strat_TrendBreakdown_Slip                    : 23.6746
+MetricResults                                : [{'name': 'SharpeRatio', 'value': 5.089828201904727, 'status': 'ok', 'sample_size': 720, 'unit': None, 'reason': None}, {'name': 'CAGR', 'value': 0.48395618830896514, 'status': 'ok', 'sample_size': 23, 'unit': 'ratio', 'reason': None}, {'name': 'MaxDrawdownPct', 'value': -0.11397594357208292, 'status': 'ok', 'sample_size': 0, 'unit': 'ratio', 'reason': None}, {'name': 'ProfitFactor', 'value': 4.001550166924549, 'status': 'ok', 'sample_size': 49, 'unit': None, 'reason': None}, {'name': 'WinRate', 'value': 0.4489795918367347, 'status': 'ok', 'sample_size': 49, 'unit': 'ratio', 'reason': None}, {'name': 'SQN', 'value': None, 'status': 'insufficient', 'sample_size': 0, 'unit': None, 'reason': None}]
+
+Drawdown Events (回撤事件明细):
+-----------------
+#1 depth=-11.40% peak=2025-04-25 00:00:00 trough=2026-01-18 00:00:00 recovery=2026-04-21 00:00:00 duration_days=361.0 status=RECOVERED (已恢复)
+#2 depth=-3.50% peak=2024-10-03 00:00:00 trough=2024-11-02 00:00:00 recovery=2024-11-14 00:00:00 duration_days=42.0 status=RECOVERED (已恢复)
+#3 depth=-1.49% peak=2026-06-04 00:00:00 trough=2026-06-09 00:00:00 recovery=2026-06-24 00:00:00 duration_days=20.0 status=RECOVERED (已恢复)
+
+Trade Quality (交易质量与持仓时长):
+-----------------
+Sample Size (样本数)              : 49
+Win Rate (胜率)                   : 0.4490
+Expectancy (期望值)               : 207.8298
+Profit Factor (盈亏比)            : 4.0016 [ok]
+Holding Duration hrs (持仓时长/小时): mean=479.02 median=72.00 min=24.00 max=4344.00
+
+By Symbol (按标的):
+  BTC-USDT        trades=17     win_rate=47.06% net_pnl=3988.1973 profit_factor=3.2747
+  ETH-USDT        trades=11     win_rate=54.55% net_pnl=3700.4659 profit_factor=11.7629
+  SOL-USDT        trades=21     win_rate=38.10% net_pnl=2494.9976 profit_factor=2.9257
+
+By Strategy (按策略):
+  RangeMeanReversion trades=28     win_rate=28.57% net_pnl=-1677.8388 profit_factor=0.2461
+  TrendBreakout   trades=11     win_rate=63.64% net_pnl=7462.1918 profit_factor=11.4783
+  VolatilityReversion trades=2      win_rate=50.00% net_pnl=-23.3668 profit_factor=0.8339
+  TrendBreakdown  trades=8      win_rate=75.00% net_pnl=4422.6747 profit_factor=15.0679
+
+Attribution (归因分析 — 按策略/标的/月份):
+-----------------
+Total Net PnL (总净盈亏): 10183.6608
+
+By Strategy (按策略):
+  RangeMeanReversion: -1677.8388
+  TrendBreakdown : 4422.6747
+  TrendBreakout  : 7462.1918
+  VolatilityReversion: -23.3668
+
+By Symbol (按标的):
+  BTC-USDT       : 3988.1973
+  ETH-USDT       : 3700.4659
+  SOL-USDT       : 2494.9976
+
+By Month (按月份):
+  2024-10        : -272.0544
+  2024-11        : -77.7801
+  2024-12        : 573.5669
+  2025-01        : 454.2200
+  2025-02        : -60.0378
+  2025-03        : 1492.6920
+  2025-05        : 4905.0841
+  2025-06        : 7.5931
+  2025-07        : 249.7428
+  2025-08        : -30.3725
+  2025-09        : -84.8319
+  2025-11        : -713.2435
+  2025-12        : -167.1126
+  2026-02        : -195.0553
+  2026-03        : 928.5241
+  2026-04        : -114.1524
+  2026-05        : 162.1093
+  2026-06        : 1142.5058
+  2026-07        : 1982.2632
+
+Benchmark Comparison (对基准的超额收益):
+-----------------
+Strategy Return (策略总收益)   : 117.7280%
+Benchmark Return (基准总收益)   : -18.8687%
+Excess Return (超额收益)        : 136.5967%
+Return Correlation (收益相关性) : 0.0615
+
+Result Diagnostics (结果可信度诊断):
+-----------------
+PnL Concentration (盈亏集中度):
+  Top  1 trades (最赚钱1笔):      4390.11  =   43.1% of net profit  | excluding them (剔除后):      5793.55
+  Top  3 trades (最赚钱3笔):      7982.15  =   78.4% of net profit  | excluding them (剔除后):      2201.51
+  Top  5 trades (最赚钱5笔):     10465.49  =  102.8% of net profit  | excluding them (剔除后):      -281.83
+  Top 10 trades (最赚钱10笔):     12747.18  =  125.2% of net profit  | excluding them (剔除后):     -2563.52
+  Profit HHI (利润赫芬达尔指数): 0.1657  (1.0=单笔贡献全部利润 / 越低越分散)
+  [WARNING] 剔除最赚钱的10笔后系统净亏损——收益依赖极少数交易，不构成稳定 edge。
+
+Exit Attribution (出场归因 — 谁真正平掉了仓位):
+  Own-exit ratio (策略自身出场占比): 44.9%
+    StateSwitch                                   27
+    hard_stop                                     18
+    Target hit (Mid Band)                         3
+    Breakout Exit (Below Low10)                   1
+  RangeMeanReversion     closed=28   own=21   external=7    own_ratio=75.0%
+  TrendBreakdown         closed=8    own=0    external=8    own_ratio=0.0%
+  TrendBreakout          closed=11   own=1    external=10   own_ratio=9.1%
+  VolatilityReversion    closed=2    own=0    external=2    own_ratio=0.0%
+  [WARNING] TrendBreakdown 的出场规则几乎从未触发——其出场参数实际无效，仓位由外部（如 Router regime 切换）平掉。
+  [WARNING] TrendBreakout 的出场规则几乎从未触发——其出场参数实际无效，仓位由外部（如 Router regime 切换）平掉。
+  [WARNING] VolatilityReversion 的出场规则几乎从未触发——其出场参数实际无效，仓位由外部（如 Router regime 切换）平掉。
+
+Lifecycle Coverage (闭合事件覆盖率):
+  Overall (总体): 100.0%
+
+Calendar Returns (逐年表现):
+  2024     return=   15.59%  trades=12   end_equity=11559.38
+  2025     return=   40.82%  trades=25   end_equity=16277.47
+  2026     return=   33.76%  trades=12   end_equity=21772.80
+  Negative periods (亏损期数): 0/3
+
+Streaks (连续盈亏):
+  Max win streak (最长连盈):    5 (454.82)
+  Max loss streak (最长连亏):   7 (-1075.41)
+
+File Descriptions (文件说明):
+===========================
+1. report.txt (回测报告概要)
+   - Contains summary metrics and configuration parameters.
+   - 包含核心指标汇总与回测参数配置。
+
+2. equity.csv (净值曲线数据)
+   - timestamp: Date (日期)
+   - equity: Total Account Equity (总权益 = 现金 + 持仓市值)
+   - cash: Available Cash (可用现金)
+
+3. trades.csv (交易明细记录 - Execution Log)
+   - signal_time: Time signal was generated (信号产生时间)
+   - fill_time: Time order was filled (成交时间)
+   - symbol: Trading Pair (交易标的)
+   - side: buy/sell/short/cover (交易方向)
+   - qty: Executed Quantity (成交数量)
+   - fill_price: Executed Price (成交价格)
+   - commission: Transaction Fee (手续费)
+   - slip: Slippage Value (滑点金额)
+   - slip_dir: Slippage Direction (滑点方向)
+   - strategy_id: Strategy Name (策略名称)
+   - exit_reason: Reason for order (成交原因: signal/stop/takeprofit)
