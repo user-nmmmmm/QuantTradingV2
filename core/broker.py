@@ -79,6 +79,10 @@ class Order:
     stop_loss: float = 0.0
     take_profit: float = 0.0
     exit_reason: str = "signal"  # signal, stop, takeprofit, reverse
+    # T-1.11: EndOfBacktest "mark_to_market" mode closes tail positions at the
+    # last price with zero extra commission/slippage - the same choke point
+    # used for a real close, just with costs suppressed for this one order.
+    zero_cost: bool = False
 
     # State tracking
     status: BacktestOrderStatus = BacktestOrderStatus.CREATED
@@ -163,6 +167,8 @@ class Broker:
         expire_time: Any = None,
         sequence: Optional[int] = None,
         _intent: Optional[OrderIntent] = None,
+        stop_loss: float = 0.0,
+        zero_cost: bool = False,
     ) -> Order:
         """
         提交订单（进入撮合队列）。
@@ -221,6 +227,8 @@ class Broker:
             id=intent.client_order_id,
             intent=intent,
             last_event_id=str(intent_envelope.event_id),
+            stop_loss=stop_loss,
+            zero_cost=zero_cost,
         )
         if qty <= 0:
             logger.warning(
@@ -427,7 +435,7 @@ class Broker:
             participation = fill_qty / volume
             if participation > 0.01:
                 impact_slip = participation * 0.1
-        total_slip_rate = slip_rate + impact_slip
+        total_slip_rate = 0.0 if order.zero_cost else (slip_rate + impact_slip)
         if order.side in {"buy", "cover"}:
             fill_price = price * (1 + total_slip_rate)
             qty_delta = fill_qty
@@ -457,7 +465,9 @@ class Broker:
             return None
 
         value = fill_qty * fill_price
-        fee_rate = self.commission_rate_maker if is_maker else self.commission_rate
+        fee_rate = 0.0 if order.zero_cost else (
+            self.commission_rate_maker if is_maker else self.commission_rate
+        )
         commission = value * fee_rate
         if order.side in {"buy", "short"} and value + commission > self.portfolio.cash + 1e-12:
             logger.warning(
@@ -527,6 +537,21 @@ class Broker:
                 )
                 self.close_events.append(event)
                 close_event_ids.append(close_event_id)
+        # T-1.9/T-1.10: per-lot risk/excursion detail for this fill's closes,
+        # in the same FIFO order _reconstruct_closed_trades matches its own
+        # long/short stacks against this same trades_df row - so it can pick
+        # these up positionally instead of losing them to a scalar field.
+        lot_close_details = [
+            {
+                "lot_id": lot_close.lot_id,
+                "position_id": lot_close.position_id,
+                "qty_closed": lot_close.qty_closed,
+                "initial_risk": lot_close.initial_risk,
+                "mae": lot_close.mae,
+                "mfe": lot_close.mfe,
+            }
+            for lot_close in lot_closes
+        ]
         trade_record = {
             "order_id": order.id,
             "signal_time": order.timestamp,
@@ -544,6 +569,7 @@ class Broker:
             "exit_reason": order.exit_reason,
             "is_maker": is_maker,
             "close_event_ids": close_event_ids,
+            "lot_closes": lot_close_details,
         }
         self.trades.append(trade_record)
         if order.intent is not None:

@@ -333,11 +333,10 @@ class Strategy(ABC):
                                 order_type=order_type,
                                 timestamp=df.index[i],
                                 strategy_id=self.name,
-                                # stop_loss is not passed to submit_order currently in Broker signature?
-                                # Let's check Broker signature. It accepts strategy_id, exit_reason.
-                                # It does NOT accept stop_loss.
-                                # But we can store it in context.
                                 exit_reason="signal",
+                                # Persisted onto the opened lot as initial_risk
+                                # = |entry - stop| * qty (T-1.9).
+                                stop_loss=stop_loss,
                             )
                             if not submission.accepted:
                                 return submission

@@ -338,6 +338,7 @@ class ReportGenerator:
             fill_time_index = column_index.get("fill_time")
             exit_reason_index = column_index.get("exit_reason")
             theoretical_index = column_index.get("theoretical_price")
+            lot_closes_index = column_index.get("lot_closes")
             for row in group.itertuples(index=False, name=None):
                 side = row[column_index["side"]]
                 qty = row[column_index["qty"]]
@@ -365,6 +366,24 @@ class ReportGenerator:
                 exit_reason = (
                     row[exit_reason_index] if exit_reason_index is not None else None
                 )
+                # T-1.9/T-1.10: per-lot initial_risk/MAE/MFE for this fill's
+                # closes, consumed positionally in the same FIFO order they
+                # were produced in at fill time (core.broker._execute_trade).
+                lot_closes_list = (
+                    row[lot_closes_index] if lot_closes_index is not None else None
+                )
+                if not isinstance(lot_closes_list, list):
+                    lot_closes_list = []
+                lot_close_ptr = 0
+
+                def _next_lot_detail():
+                    nonlocal lot_close_ptr
+                    if lot_close_ptr < len(lot_closes_list):
+                        detail = lot_closes_list[lot_close_ptr]
+                        lot_close_ptr += 1
+                        return detail
+                    lot_close_ptr += 1
+                    return None
 
                 if side == "buy":
                     # Check if covering short
@@ -375,6 +394,7 @@ class ReportGenerator:
                             s_theoretical,
                         ) = short_stack.popleft()
                         matched = min(remaining, s_qty)
+                        lot_detail = _next_lot_detail()
 
                         # Short PnL: (Entry - Exit) * qty
                         gross_pnl = (s_price - price) * matched
@@ -403,6 +423,11 @@ class ReportGenerator:
                                 "exit_time": fill_time,
                                 "exit_reason": exit_reason,
                                 "exit_strategy": strategy_id,
+                                "lot_id": lot_detail.get("lot_id") if lot_detail else None,
+                                "position_id": lot_detail.get("position_id") if lot_detail else None,
+                                "initial_risk": lot_detail.get("initial_risk") if lot_detail else None,
+                                "mae": lot_detail.get("mae") if lot_detail else None,
+                                "mfe": lot_detail.get("mfe") if lot_detail else None,
                             }
                         )
 
@@ -437,6 +462,7 @@ class ReportGenerator:
                             l_theoretical,
                         ) = long_stack.popleft()
                         matched = min(remaining, l_qty)
+                        lot_detail = _next_lot_detail()
 
                         # Long PnL: (Exit - Entry) * qty
                         gross_pnl = (price - l_price) * matched
@@ -458,6 +484,11 @@ class ReportGenerator:
                                 "exit_time": fill_time,
                                 "exit_reason": exit_reason,
                                 "exit_strategy": strategy_id,
+                                "lot_id": lot_detail.get("lot_id") if lot_detail else None,
+                                "position_id": lot_detail.get("position_id") if lot_detail else None,
+                                "initial_risk": lot_detail.get("initial_risk") if lot_detail else None,
+                                "mae": lot_detail.get("mae") if lot_detail else None,
+                                "mfe": lot_detail.get("mfe") if lot_detail else None,
                             }
                         )
 
@@ -501,6 +532,7 @@ class ReportGenerator:
                             s_theoretical,
                         ) = short_stack.popleft()
                         matched = min(remaining, s_qty)
+                        lot_detail = _next_lot_detail()
 
                         gross_pnl = (s_price - price) * matched
                         gross_pnl_theoretical = (s_theoretical - theoretical_price) * matched
@@ -521,6 +553,11 @@ class ReportGenerator:
                                 "exit_time": fill_time,
                                 "exit_reason": exit_reason,
                                 "exit_strategy": strategy_id,
+                                "lot_id": lot_detail.get("lot_id") if lot_detail else None,
+                                "position_id": lot_detail.get("position_id") if lot_detail else None,
+                                "initial_risk": lot_detail.get("initial_risk") if lot_detail else None,
+                                "mae": lot_detail.get("mae") if lot_detail else None,
+                                "mfe": lot_detail.get("mfe") if lot_detail else None,
                             }
                         )
 
