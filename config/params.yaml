@@ -50,11 +50,7 @@ capacity:
 
 # 2b. Market State
 state:
-  stability_period: 1           # 1 = no de-bouncing: every raw flip switches state immediately.
-                                # NOTE: VOLATILE and TREND_UP route to *different* strategies
-                                # (VolatilityReversion vs TrendBreakout), so each flip does cost a
-                                # StateSwitch forced exit + router cooldown. Raise this to trade
-                                # fewer, longer regimes.
+  stability_period: 5           # Phase 4 knee analysis across 2/3/5/10 candidates.
   ma_fast: 20
   ma_slow: 60
   adx_period: 14
@@ -66,13 +62,25 @@ state:
 # Map Market State to Strategy Class Name
 routing:
   TREND_UP: "TrendBreakout"
-  TREND_DOWN: "TrendBreakdown"  # Short side; overridden by VOLATILE in most volatile regimes
-  SIDEWAYS: "RangeMeanReversion"
-  VOLATILE: "VolatilityReversion"
+  TREND_DOWN: "Cash"            # Paused pending redesigned short-side admission review (T-4.5)
+  SIDEWAYS: "Cash"              # RangeMeanReversion paused pending redesign (T-4.6)
+  VOLATILE: "Cash"              # VolatilityReversion remains isolated research-only (T-4.7)
 
 # 3b. Router Parameters
 router:
   cooldown_bars: 2              # Issue2 fix: reduced from 3 → faster re-entry after state switch
+
+phase4:
+  transition_action: stop_new_entries
+  max_holding_days: 365         # Explicit time exit; prevents multi-year capital lock-up.
+  allocation_order: score_strategy_symbol
+  stability_candidates: [2, 3, 5, 10]
+
+strategy_governance:
+  TrendBreakout: admitted
+  TrendBreakdown: paused_redesign
+  RangeMeanReversion: paused_redesign
+  VolatilityReversion: isolated_research
 
 
 # 4. Data

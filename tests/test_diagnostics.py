@@ -299,7 +299,8 @@ class TestBuildDiagnostics(unittest.TestCase):
         self.assertEqual(
             set(suite),
             {"pnl_concentration", "exit_attribution", "calendar_returns",
-             "streaks", "lifecycle_coverage"},
+             "streaks", "lifecycle_coverage", "joint_entry_exit_attribution",
+             "holding_period_audit"},
         )
         self.assertEqual(trades, snapshot, "diagnostics must not mutate its input")
 

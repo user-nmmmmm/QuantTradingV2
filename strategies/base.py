@@ -7,6 +7,7 @@ from core.portfolio import Portfolio
 from core.execution_port import ExecutionPort
 from core.events import Signal
 from core.risk import RiskManager
+from core.phase4 import EntryCandidate
 
 """
 Strategy（策略基类）模块
@@ -370,6 +371,108 @@ class Strategy(ABC):
                                 else np.inf,  # Init trail
                                 "entry_bar": i,  # Track bar to prevent same-bar exit
                             }
+    def process_exit_only(
+        self, symbol: str, i: int, df: pd.DataFrame, state: MarketState,
+        portfolio: Portfolio, broker: ExecutionPort,
+    ) -> Optional[Any]:
+        """Evaluate an existing position without considering a new entry."""
+
+        self._consume_execution_trades(symbol, i, portfolio, broker)
+        qty = portfolio.get_position(symbol)["qty"]
+        ctx = self.get_context(symbol)
+        just_entered = i <= ctx.get("entry_bar", -2) + 1
+        if qty == 0 or ctx.get("exit_pending"):
+            return None
+        signal = self.hard_stop_exit(symbol, i, df, portfolio)
+        if signal is None and not just_entered:
+            signal = self.should_exit(symbol, i, df, state, portfolio)
+        if not signal:
+            return None
+        action = signal["action"]
+        if not ((qty > 0 and action == "sell") or (qty < 0 and action == "cover")):
+            return None
+        price = float(signal.get("price", df["close"].iat[i]))
+        reason = str(signal.get("reason", "signal"))
+        self._publish_signal(
+            broker, symbol=symbol, timestamp=df.index[i], action=action,
+            signal_kind="exit", price=price, reason=reason,
+        )
+        result = broker.submit_order(
+            symbol, action, abs(qty), price=price,
+            order_type=signal.get("order_type", "market"), timestamp=df.index[i],
+            strategy_id=self.name, exit_reason=reason,
+        )
+        if result.accepted:
+            ctx["exit_pending"] = True
+        return result
+
+    def build_entry_candidate(
+        self, symbol: str, i: int, df: pd.DataFrame, state: MarketState,
+        portfolio: Portfolio,
+    ) -> Optional[EntryCandidate]:
+        """Create an entry proposal without spending portfolio risk budget."""
+
+        if portfolio.get_position(symbol)["qty"] != 0:
+            return None
+        if self.get_context(symbol).get("entry_pending") or state not in self.allowed_states:
+            return None
+        signal = self.should_enter(symbol, i, df, state, portfolio)
+        if not signal:
+            return None
+        score = float(signal.get("score", signal.get("priority", 0.0)))
+        return EntryCandidate(symbol, self, i, df, state, dict(signal), score)
+
+    def submit_entry_candidate(
+        self, candidate: EntryCandidate, *, portfolio: Portfolio,
+        broker: ExecutionPort, risk_manager: RiskManager,
+        current_prices: Dict[str, float],
+    ) -> Optional[Any]:
+        """Size and submit a proposal after portfolio-level ranking."""
+
+        symbol, i, df = candidate.symbol, candidate.bar_index, candidate.frame
+        signal = candidate.signal
+        action = str(signal["action"])
+        current_price = float(df["close"].iat[i])
+        order_price = float(signal.get("price", current_price))
+        stop_loss = float(signal.get("stop_loss", 0.0) or 0.0)
+        equity = portfolio.get_equity(current_prices)
+        if stop_loss > 0:
+            size = risk_manager.calculate_position_size(equity, current_price, stop_loss)
+        else:
+            size = risk_manager.calculate_position_size_fixed_pct(equity, current_price, pct=0.10)
+        pending_provider = getattr(broker, "pending_open_notional", None)
+        pending = pending_provider(current_prices) if callable(pending_provider) else {}
+        clamp = getattr(risk_manager, "clamp_entry_qty", None)
+        if callable(clamp):
+            size = clamp(
+                portfolio, symbol, size, current_price, current_volume=0.0,
+                current_prices=current_prices, pending_open_notional=pending,
+                action=action,
+            )
+        if size <= 0 or not risk_manager.check_entry_risk(
+            portfolio, symbol, size, current_price, current_volume=0.0,
+            current_prices=current_prices, pending_open_notional=pending,
+            action=action,
+        ):
+            return None
+        self._publish_signal(
+            broker, symbol=symbol, timestamp=df.index[i], action=action,
+            signal_kind="entry", price=order_price, reason="portfolio_allocation",
+        )
+        result = broker.submit_order(
+            symbol, action, size, price=order_price,
+            order_type=signal.get("order_type", "market"), timestamp=df.index[i],
+            strategy_id=self.name, exit_reason="signal", stop_loss=stop_loss,
+        )
+        if result.accepted:
+            self.context[symbol] = {
+                "entry_pending": True, "stop_loss": stop_loss,
+                "entry_price": current_price,
+                "trailing_stop": -np.inf if action == "buy" else np.inf,
+                "entry_bar": i,
+            }
+        return result
+
     def _publish_signal(
         self,
         broker: ExecutionPort,

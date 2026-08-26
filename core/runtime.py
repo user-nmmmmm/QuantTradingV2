@@ -140,11 +140,24 @@ class EventProcessor:
         routed: list[str] = []
         selected = set(symbols) if symbols is not None else None
         if not breaker:
+            candidates = []
+            # Candidate collection is intentionally independent of the input
+            # mapping's iteration order.  Allocation below applies a stable
+            # score/strategy/symbol ordering to all same-timestamp signals.
             for symbol in event.bars:
                 if selected is not None and symbol not in selected:
                     continue
-                if self.process_symbol(event, symbol):
+                candidate, processed = self._collect_symbol_candidate(event, symbol)
+                if processed:
                     routed.append(symbol)
+                if candidate is not None:
+                    candidates.append(candidate)
+            allocator = getattr(self.router, "allocator", None)
+            if hasattr(type(self.router), "collect_candidate") and allocator is not None:
+                allocator.allocate(
+                    candidates, portfolio=self.portfolio, broker=self.execution,
+                    risk_manager=self.risk_manager, current_prices=self.last_prices,
+                )
 
         return RuntimeResult(
             equity=equity,
@@ -161,18 +174,38 @@ class EventProcessor:
     def process_symbol(self, event: MarketDataSlice, symbol: str) -> bool:
         """Run the shared state/strategy/risk path for one real bar."""
 
+        candidate, processed = self._collect_symbol_candidate(event, symbol)
+        allocator = getattr(self.router, "allocator", None)
+        if (candidate is not None and hasattr(type(self.router), "collect_candidate")
+                and allocator is not None):
+            allocator.allocate(
+                [candidate], portfolio=self.portfolio, broker=self.execution,
+                risk_manager=self.risk_manager, current_prices=self.last_prices,
+            )
+        return processed
+
+    def _collect_symbol_candidate(self, event: MarketDataSlice, symbol: str):
+        """Return ``(candidate, processed)`` without allocating capital."""
+
         df = event.histories.get(symbol)
         if df is None or df.empty or symbol not in event.bars:
-            return False
+            return None, False
         location = event.positions.get(symbol)
         if location is None:
             try:
                 location = df.index.get_loc(event.timestamp)
             except KeyError:
-                return False
+                return None, False
         if not isinstance(location, int) or location < self.warmup_period:
-            return False
+            return None, False
         state = self.state_machine.get_state(df, location)
+        collect = getattr(type(self.router), "collect_candidate", None)
+        if callable(collect):
+            candidate = self.router.collect_candidate(
+                symbol, location, df, state, self.portfolio, self.execution,
+                self.risk_manager, self.last_prices,
+            )
+            return candidate, True
         self.router.route(
             symbol,
             location,
@@ -183,7 +216,7 @@ class EventProcessor:
             self.risk_manager,
             self.last_prices,
         )
-        return True
+        return None, True
 
     def run(self, market_data: MarketDataAdapter) -> list[RuntimeResult]:
         return [self.process(event) for event in market_data.stream()]

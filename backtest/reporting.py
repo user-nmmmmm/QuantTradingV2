@@ -933,6 +933,27 @@ class ReportGenerator:
                         f"仓位由外部（如 Router regime 切换）平掉。\n")
             f.write("\n")
 
+        joint = diagnostics.get("joint_entry_exit_attribution") or {}
+        if joint.get("sample_size"):
+            f.write("Entry Strategy x Exit Controller (联合归因):\n")
+            for entry, row in sorted((joint.get("matrix") or {}).items()):
+                for controller, cell in sorted(row.items()):
+                    f.write(
+                        f"  {entry:<22} x {controller:<22} "
+                        f"trades={cell['trades']:<4} net_pnl={cell['net_pnl']:.2f}\n"
+                    )
+            f.write("\n")
+
+        holding = diagnostics.get("holding_period_audit") or {}
+        if holding.get("sample_size"):
+            f.write("Holding-period Tail Audit (持仓长尾):\n")
+            f.write(
+                f"  median={holding['median_holding_days']:.2f}d "
+                f"p95={holding['p95_holding_days']:.2f}d "
+                f"max={holding['max_holding_days']:.2f}d "
+                f"timeouts={len(holding.get('timeouts') or [])}\n\n"
+            )
+
         coverage = diagnostics.get("lifecycle_coverage") or {}
         if coverage.get("status") == "ok":
             f.write("Lifecycle Coverage (闭合事件覆盖率):\n")
