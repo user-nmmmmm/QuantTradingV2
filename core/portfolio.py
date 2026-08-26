@@ -1,4 +1,6 @@
-from typing import Dict, Optional
+from typing import Any, Dict, List, Optional
+
+from core.lots import Lot, LotBook, LotClose
 
 """
 Portfolio（组合/账户）模块
@@ -6,11 +8,14 @@ Portfolio（组合/账户）模块
 本模块负责维护回测/实盘通用的账户状态，包括：
 - 现金余额（cash）
 - 持仓字典（positions）：symbol -> {qty, avg_price}
+- 持仓批次账本（lot_books）：symbol -> LotBook，按 FIFO 追踪每一次开仓批次
+  （position_id/lot_id），支持加仓、减仓、部分成交与方向反转的批次级核算（T-1.1/T-1.2）。
 
 设计要点：
 - 使用“带符号数量”统一表示多空：qty > 0 表示多头，qty < 0 表示空头。
 - 现金流采用通用会计约定：买入（qty_delta > 0）会消耗现金；卖出/做空（qty_delta < 0）会回收/增加现金。
 - avg_price 仅用于记录当前持仓的成本基准；平仓/减仓产生的盈亏通过 cash 的变化“隐式体现”。
+- lot_books 与 positions 由同一个 update_position 调用同步维护，两者不会出现不一致。
 """
 
 
@@ -26,6 +31,21 @@ class Portfolio:
         self.cash = initial_capital
         # positions: symbol -> {'qty': float, 'avg_price': float}
         self.positions: Dict[str, Dict[str, float]] = {}
+        # lot_books: symbol -> LotBook (FIFO batch ledger, see core/lots.py)
+        self.lot_books: Dict[str, LotBook] = {}
+
+    def get_lot_book(self, symbol: str) -> LotBook:
+        if symbol not in self.lot_books:
+            self.lot_books[symbol] = LotBook(symbol)
+        return self.lot_books[symbol]
+
+    def open_lots(self, symbol: str) -> List[Lot]:
+        return self.get_lot_book(symbol).open_lots
+
+    def update_lot_extremes(self, symbol: str, high: float, low: float) -> None:
+        """按当前 bar 高低点刷新该 symbol 所有未平仓批次的 MAE/MFE（T-1.10）。"""
+        if symbol in self.lot_books:
+            self.lot_books[symbol].update_extremes(high, low)
 
     def get_position(self, symbol: str) -> Dict[str, float]:
         """
@@ -38,8 +58,17 @@ class Portfolio:
         return self.positions.get(symbol, {"qty": 0.0, "avg_price": 0.0})
 
     def update_position(
-        self, symbol: str, qty_delta: float, price: float, fee: float = 0.0
-    ):
+        self,
+        symbol: str,
+        qty_delta: float,
+        price: float,
+        fee: float = 0.0,
+        *,
+        strategy_id: str = "",
+        order_id: Optional[str] = None,
+        stop_price: Optional[float] = None,
+        time: Any = None,
+    ) -> List[LotClose]:
         """
         更新某标的持仓（一次成交/一次撮合的结果）。
 
@@ -47,6 +76,8 @@ class Portfolio:
         - qty_delta：本次成交导致的数量变化（买入/回补为正；卖出/开空为负）
         - price：本次成交价格（已包含滑点）
         - fee：本次成交手续费（已折算为现金扣减）
+        - strategy_id/order_id/stop_price/time：可选，透传给批次账本（lot_books），
+          用于批次归属、同笔订单分批成交合并与初始风险(initial_risk)计算（T-1.1/T-1.2/T-1.9）。
 
         现金与持仓更新规则：
         1) 先扣手续费：cash -= fee
@@ -55,8 +86,21 @@ class Portfolio:
            - 卖出：qty_delta < 0 -> cash 增加
         3) 若本次属于“开仓/加仓”（绝对持仓变大），则更新 avg_price 为加权平均；
            若属于“减仓/平仓”，avg_price 不变（盈亏通过现金流隐式反映）。
+
+        返回：
+        - 本次 fill 在批次账本中核销掉的 LotClose 列表（纯开仓/加仓时为空列表），
+          供 Broker 据此构造统一的 CloseEvent（T-1.3）。
         """
         self.cash -= fee
+
+        lot_closes = self.get_lot_book(symbol).apply_fill(
+            qty_delta,
+            price,
+            time=time,
+            strategy_id=strategy_id,
+            order_id=order_id,
+            stop_price=stop_price,
+        )
 
         current_pos = self.get_position(symbol)
         old_qty = current_pos["qty"]
@@ -72,7 +116,7 @@ class Portfolio:
             self.positions[symbol] = {
                 "qty": new_qty, "avg_price": price
             }
-            return
+            return lot_closes
 
         # 判断是否为“开仓/加仓”（绝对持仓增加）：
         # - 从 0 变为非 0：开仓
@@ -101,6 +145,8 @@ class Portfolio:
             else:
                 self.positions[symbol]["qty"] = new_qty
                 # avg_price remains same
+
+        return lot_closes
 
     def get_equity(self, current_prices: Dict[str, float]) -> float:
         """
