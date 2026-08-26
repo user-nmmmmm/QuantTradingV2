@@ -16,8 +16,10 @@ class SimulatedExecutionAdapter:
         self.portfolio = broker.portfolio
 
     def on_market_data(self, event: MarketDataSlice):
-        return self.broker.process_orders(dict(event.bars))
+        bars = dict(event.bars)
+        trades = self.broker.process_orders(bars)
+        self.broker.accrue_carry(bars)
+        return trades
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self.broker, name)
-

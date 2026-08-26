@@ -21,12 +21,19 @@ def build_strategy_registry() -> Dict[str, object]:
     }
 
 def build_risk_manager() -> RiskManager:
+    drawdown = config.get("drawdown") or {}
     return RiskManager(
         risk_per_trade=config.require("risk", "risk_per_trade"),
         max_leverage=config.require("risk", "max_leverage"),
         max_drawdown_limit=config.require("risk", "max_drawdown_limit"),
         liquidity_limit_pct=config.require("risk", "liquidity_limit_pct"),
         max_pos_size_pct=config.require("risk", "max_pos_size_pct"),
+        daily_loss_limit=drawdown.get("daily_loss_limit"),
+        portfolio_drawdown_reduce=drawdown.get("reduce_threshold"),
+        portfolio_drawdown_block=drawdown.get("block_threshold"),
+        portfolio_drawdown_liquidate=drawdown.get("liquidate_threshold"),
+        portfolio_drawdown_lock=drawdown.get("lock_threshold"),
+        reduced_risk_multiplier=drawdown.get("reduced_risk_multiplier", 0.5),
     )
 
 

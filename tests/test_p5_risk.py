@@ -9,6 +9,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.risk import RiskManager
 from core.portfolio import Portfolio
+from core.accounts import AccountMode
 
 # Configure logging to capture output
 logging.basicConfig(level=logging.INFO)
@@ -160,14 +161,20 @@ class TestRiskManager(unittest.TestCase):
         self.assertTrue(allowed, "Buy fully covered by free cash should be allowed")
 
     def test_cash_sufficiency_skipped_for_short(self):
-        """Shorts don't consume cash in this model (margin is not_modeled)."""
+        """Margin shorts use margin headroom rather than spot cash notional."""
         risk_manager = RiskManager(
             max_leverage=100.0, max_pos_size_pct=2.0, liquidity_limit_pct=1.0
         )
-        allowed = risk_manager.check_entry_risk(
-            self.portfolio, "BTC", qty=150.0, price=100.0, action="short",
+        margin_portfolio = Portfolio(
+            initial_capital=10000.0,
+            account_mode=AccountMode.SPOT_MARGIN,
+            initial_margin_rate=0.01,
+            maintenance_margin_rate=0.005,
         )
-        self.assertTrue(allowed, "Short notional should not be gated by cash")
+        allowed = risk_manager.check_entry_risk(
+            margin_portfolio, "BTC", qty=150.0, price=100.0, action="short",
+        )
+        self.assertTrue(allowed, "Margin short should be gated by margin, not spot cash")
 
     def test_clamp_reduces_oversized_entry_to_concentration_cap(self):
         """A tight stop makes risk-based sizing exceed the cap; clamp, don't reject.

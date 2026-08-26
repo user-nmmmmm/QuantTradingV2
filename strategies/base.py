@@ -5,6 +5,7 @@ import numpy as np
 from core.state import MarketState
 from core.portfolio import Portfolio
 from core.execution_port import ExecutionPort
+from core.events import Signal
 from core.risk import RiskManager
 
 """
@@ -240,6 +241,15 @@ class Strategy(ABC):
                 # If action matches position direction (sell for long, cover for short)
                 if (qty > 0 and action == "sell") or (qty < 0 and action == "cover"):
                     timestamp = df.index[i]
+                    self._publish_signal(
+                        broker,
+                        symbol=symbol,
+                        timestamp=timestamp,
+                        action=action,
+                        signal_kind="exit",
+                        price=order_price,
+                        reason=reason,
+                    )
                     submission = broker.submit_order(
                         symbol,
                         action,
@@ -325,6 +335,15 @@ class Strategy(ABC):
                             pending_open_notional=pending_open_notional,
                             action=action,
                         ):
+                            self._publish_signal(
+                                broker,
+                                symbol=symbol,
+                                timestamp=df.index[i],
+                                action=action,
+                                signal_kind="entry",
+                                price=order_price,
+                                reason="signal",
+                            )
                             submission = broker.submit_order(
                                 symbol,
                                 action,
@@ -351,3 +370,41 @@ class Strategy(ABC):
                                 else np.inf,  # Init trail
                                 "entry_bar": i,  # Track bar to prevent same-bar exit
                             }
+    def _publish_signal(
+        self,
+        broker: ExecutionPort,
+        *,
+        symbol: str,
+        timestamp: Any,
+        action: str,
+        signal_kind: str,
+        price: float,
+        reason: str,
+    ) -> None:
+        """Publish the decision fact before the resulting order (T-2.9)."""
+
+        pipeline = getattr(broker, "event_pipeline", None)
+        if pipeline is None:
+            return
+        point = pd.Timestamp(timestamp)
+        if point.tzinfo is None:
+            point = point.tz_localize("UTC")
+        else:
+            point = point.tz_convert("UTC")
+        pipeline.publish(
+            Signal(
+                strategy_id=self.name,
+                symbol=symbol,
+                action=action,
+                signal_kind=signal_kind,
+                reference_price=float(price),
+                reason=reason,
+                bar_time=point.to_pydatetime(),
+            ),
+            occurred_at=point.to_pydatetime(),
+            idempotency_key=(
+                f"{self.name}:{symbol}:{point.isoformat()}:{signal_kind}:{action}"
+            ),
+            symbol=symbol,
+            source="backtest_strategy",
+        )

@@ -1,6 +1,8 @@
 from dataclasses import replace
+from enum import Enum
 from typing import Dict, Optional, Tuple
 
+from core.accounts import AccountMode
 from core.domain import OrderIntent, RiskDecision, RiskReservation
 from core.events import TradingEventPipeline, stable_uuid5
 from core.portfolio import Portfolio
@@ -8,6 +10,23 @@ from core.logger import get_logger
 from core.risk_reservation import RiskReservationProjection
 
 logger = get_logger(__name__)
+
+
+class BreakerAction(str, Enum):
+    NORMAL = "normal"
+    REDUCE = "reduce"
+    BLOCK_NEW = "block_new"
+    LIQUIDATE = "liquidate"
+    LOCKED = "locked"
+
+
+_BREAKER_RANK = {
+    BreakerAction.NORMAL: 0,
+    BreakerAction.REDUCE: 1,
+    BreakerAction.BLOCK_NEW: 2,
+    BreakerAction.LIQUIDATE: 3,
+    BreakerAction.LOCKED: 4,
+}
 
 """
 RiskManager（风险管理）模块
@@ -37,6 +56,12 @@ class RiskManager:
         liquidity_limit_pct: float = 0.01, # Max 1% of bar volume
         max_pos_size_pct: float = 0.20, # Max 20% equity per position
         min_entry_notional_pct: float = 0.01, # Skip dust entries below 1% of equity
+        daily_loss_limit: Optional[float] = None,
+        portfolio_drawdown_reduce: Optional[float] = None,
+        portfolio_drawdown_block: Optional[float] = None,
+        portfolio_drawdown_liquidate: Optional[float] = None,
+        portfolio_drawdown_lock: Optional[float] = None,
+        reduced_risk_multiplier: float = 0.5,
     ):
         """
         初始化风控参数。
@@ -54,11 +79,49 @@ class RiskManager:
         self.risk_per_trade = risk_per_trade
         self.max_leverage = max_leverage
         self.max_drawdown_limit = max_drawdown_limit
+        self.daily_loss_limit = (
+            max_drawdown_limit if daily_loss_limit is None else float(daily_loss_limit)
+        )
+        self.portfolio_drawdown_reduce = (
+            max_drawdown_limit * 0.50
+            if portfolio_drawdown_reduce is None else float(portfolio_drawdown_reduce)
+        )
+        self.portfolio_drawdown_block = (
+            max_drawdown_limit * 0.75
+            if portfolio_drawdown_block is None else float(portfolio_drawdown_block)
+        )
+        self.portfolio_drawdown_liquidate = (
+            max_drawdown_limit
+            if portfolio_drawdown_liquidate is None else float(portfolio_drawdown_liquidate)
+        )
+        self.portfolio_drawdown_lock = (
+            self.portfolio_drawdown_liquidate
+            if portfolio_drawdown_lock is None else float(portfolio_drawdown_lock)
+        )
+        thresholds = [
+            self.portfolio_drawdown_reduce,
+            self.portfolio_drawdown_block,
+            self.portfolio_drawdown_liquidate,
+            self.portfolio_drawdown_lock,
+        ]
+        if not 0 < self.daily_loss_limit <= 1:
+            raise ValueError("daily_loss_limit must be in (0, 1]")
+        if any(value <= 0 or value > 1 for value in thresholds):
+            raise ValueError("portfolio drawdown thresholds must be in (0, 1]")
+        if thresholds != sorted(thresholds):
+            raise ValueError("portfolio drawdown thresholds must be ordered")
+        if not 0 < reduced_risk_multiplier <= 1:
+            raise ValueError("reduced_risk_multiplier must be in (0, 1]")
+        self.reduced_risk_multiplier = float(reduced_risk_multiplier)
         self.liquidity_limit_pct = liquidity_limit_pct
         self.max_pos_size_pct = max_pos_size_pct
         self.min_entry_notional_pct = min_entry_notional_pct
 
         self.circuit_breaker_triggered = False
+        self.high_water_equity: Optional[float] = None
+        self.portfolio_breaker_action = BreakerAction.NORMAL
+        self.last_drawdown = 0.0
+        self.breaker_audit: list[Dict[str, object]] = []
         self.health_assessment = None
         # Populated by _entry_notional_caps so the gate/clamp can report the
         # equity/exposure figures behind a decision without recomputing them.
@@ -83,7 +146,55 @@ class RiskManager:
     def reset_daily_breaker(self) -> None:
         if self.circuit_breaker_triggered:
             logger.info("Resetting daily circuit breaker state")
+        self.circuit_breaker_triggered = (
+            _BREAKER_RANK[self.portfolio_breaker_action]
+            >= _BREAKER_RANK[BreakerAction.BLOCK_NEW]
+        )
+
+    @property
+    def breaker_action(self) -> BreakerAction:
+        return self.portfolio_breaker_action
+
+    @property
+    def risk_multiplier(self) -> float:
+        if self.portfolio_breaker_action is BreakerAction.REDUCE:
+            return self.reduced_risk_multiplier
+        if self._blocks_new_risk():
+            return 0.0
+        return 1.0
+
+    def _blocks_new_risk(self) -> bool:
+        return self.circuit_breaker_triggered or (
+            _BREAKER_RANK[self.portfolio_breaker_action]
+            >= _BREAKER_RANK[BreakerAction.BLOCK_NEW]
+        )
+
+    def manual_resume(
+        self,
+        *,
+        approved_by: str,
+        current_equity: float,
+        rebase_high_water: bool = False,
+    ) -> None:
+        """Resume a persistent portfolio breaker only after named approval."""
+        if not approved_by or not approved_by.strip():
+            raise ValueError("approved_by is required for manual recovery")
+        previous = self.portfolio_breaker_action
+        if rebase_high_water or self.high_water_equity is None:
+            self.high_water_equity = float(current_equity)
+        self.portfolio_breaker_action = BreakerAction.NORMAL
         self.circuit_breaker_triggered = False
+        self.last_drawdown = max(
+            0.0,
+            1.0 - float(current_equity) / max(float(self.high_water_equity), 1e-12),
+        )
+        self.breaker_audit.append({
+            "event": "manual_resume",
+            "approved_by": approved_by.strip(),
+            "equity": float(current_equity),
+            "previous_action": previous.value,
+            "rebase_high_water": bool(rebase_high_water),
+        })
 
     def calculate_position_size(self, equity: float, entry_price: float, stop_loss_price: float) -> float:
         """
@@ -97,7 +208,7 @@ class RiskManager:
         返回：
         - qty：建议下单数量；若参数不合法或熔断器触发，则返回 0。
         """
-        if self.circuit_breaker_triggered:
+        if self._blocks_new_risk():
             return 0.0
         if not self._health_allows_new_risk():
             return 0.0
@@ -111,7 +222,7 @@ class RiskManager:
         if price_diff == 0:
             return 0.0
             
-        qty = risk_amount / price_diff
+        qty = risk_amount / price_diff * self.risk_multiplier
         return qty
 
     def calculate_position_size_fixed_pct(self, equity: float, entry_price: float, pct: float = 0.10) -> float:
@@ -126,7 +237,7 @@ class RiskManager:
         - 没有明确止损价（无法按风险比例定仓）
         - 快速原型/简化回测
         """
-        if self.circuit_breaker_triggered:
+        if self._blocks_new_risk():
             return 0.0
         if not self._health_allows_new_risk():
             return 0.0
@@ -135,7 +246,7 @@ class RiskManager:
             return 0.0
             
         allocation = equity * pct
-        return allocation / entry_price
+        return allocation / entry_price * self.risk_multiplier
 
     def _entry_notional_caps(
         self,
@@ -194,11 +305,18 @@ class RiskManager:
             ),
         }
 
-        # Cash sufficiency (spot: a buy must be fully funded by free cash; the
-        # backtest models no margin financing for long positions). Shorts are
-        # exempt — margin/borrow is still not_modeled.
-        if action != "short":
+        if portfolio.account_mode is AccountMode.SPOT and action == "short":
+            caps["account_mode"] = 0.0
+        # Spot buys exchange cash for inventory. Leveraged account notional is
+        # instead limited by reconciled initial margin.
+        if portfolio.account_mode is AccountMode.SPOT and action != "short":
             caps["cash"] = portfolio.cash - reserved_exposure
+        elif portfolio.account_mode.uses_margin:
+            caps["initial_margin"] = (
+                current_equity / portfolio.initial_margin_rate
+                - current_exposure
+                - reserved_exposure
+            )
 
         self._last_entry_context = {
             "equity": current_equity,
@@ -229,7 +347,7 @@ class RiskManager:
         """
         if price <= 0:
             return 0.0
-        if self.circuit_breaker_triggered or not self._health_allows_new_risk():
+        if self._blocks_new_risk() or not self._health_allows_new_risk():
             return 0.0
 
         reserved_by_symbol = (
@@ -250,7 +368,7 @@ class RiskManager:
 
         # Stay strictly inside the caps: qty*price can round just above budget,
         # which check_entry_risk would then reject as a limit breach.
-        return budget * (1.0 - self.CAP_SAFETY_MARGIN)
+        return budget * self.risk_multiplier * (1.0 - self.CAP_SAFETY_MARGIN)
 
     def clamp_entry_qty(
         self,
@@ -335,7 +453,7 @@ class RiskManager:
         注意：这是**闸门**，不做削减。上层应先用 `clamp_entry_qty` 把仓位削到
         上限内，本方法作为最后一道防线（含实盘路径）。
         """
-        if self.circuit_breaker_triggered:
+        if self._blocks_new_risk():
             logger.warning("Trade Rejected: Circuit Breaker Active")
             return False
         if not self._health_allows_new_risk():
@@ -490,21 +608,54 @@ class RiskManager:
         - True：熔断器处于触发状态（本次触发或此前已触发）
         - False：未触发
         """
-        if self.circuit_breaker_triggered:
-            return True # Already triggered
+        current_equity = float(current_equity)
+        if self.high_water_equity is None or current_equity > self.high_water_equity:
+            self.high_water_equity = current_equity
+        if self.high_water_equity > 0:
+            self.last_drawdown = max(
+                0.0, 1.0 - current_equity / self.high_water_equity
+            )
 
-        if daily_start_equity <= 0:
-            return False
+        target = BreakerAction.NORMAL
+        if self.last_drawdown >= self.portfolio_drawdown_lock:
+            target = BreakerAction.LOCKED
+        elif self.last_drawdown >= self.portfolio_drawdown_liquidate:
+            target = BreakerAction.LIQUIDATE
+        elif self.last_drawdown >= self.portfolio_drawdown_block:
+            target = BreakerAction.BLOCK_NEW
+        elif self.last_drawdown >= self.portfolio_drawdown_reduce:
+            target = BreakerAction.REDUCE
 
-        drawdown = 1 - (current_equity / daily_start_equity)
-        
-        if drawdown > self.max_drawdown_limit:
+        # Portfolio protection is sticky: only manual_resume may reduce the
+        # action level.  A new high-water mark cannot silently re-enable risk.
+        if _BREAKER_RANK[target] > _BREAKER_RANK[self.portfolio_breaker_action]:
+            previous = self.portfolio_breaker_action
+            self.portfolio_breaker_action = target
+            self.breaker_audit.append({
+                "event": "portfolio_drawdown_action",
+                "from": previous.value,
+                "to": target.value,
+                "equity": current_equity,
+                "high_water_equity": self.high_water_equity,
+                "drawdown": self.last_drawdown,
+            })
+            logger.error(
+                "Portfolio drawdown action %s at %.2f%% (high-water %.2f, equity %.2f)",
+                target.value,
+                self.last_drawdown * 100,
+                self.high_water_equity,
+                current_equity,
+            )
+
+        daily_drawdown = 0.0
+        if daily_start_equity > 0:
+            daily_drawdown = max(0.0, 1.0 - current_equity / daily_start_equity)
+        if daily_drawdown >= self.daily_loss_limit:
             self.circuit_breaker_triggered = True
             logger.error(
-                "Circuit breaker triggered: intraday drawdown %.2f%% > limit %.2f%%",
-                drawdown * 100,
-                self.max_drawdown_limit * 100,
+                "Daily loss breaker triggered: %.2f%% >= %.2f%%",
+                daily_drawdown * 100,
+                self.daily_loss_limit * 100,
             )
-            return True
-            
-        return False
+
+        return self._blocks_new_risk()
