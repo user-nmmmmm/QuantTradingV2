@@ -1,0 +1,12 @@
+{
+  "registered_trials": 5,
+  "deflated_sharpe": {
+    "status": "ok",
+    "sample_size": 2615,
+    "trials": 5,
+    "observed_sharpe": -0.2506516192863735,
+    "expected_max_sharpe": 1.192594001014789,
+    "probability": 0.0
+  },
+  "registry": "experiment_registry.jsonl"
+}

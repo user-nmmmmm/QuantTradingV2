@@ -24,7 +24,14 @@ from strategies.base import Strategy
 """
 
 class RangeStrategy(Strategy):
-    def __init__(self, atr_threshold_pct: float = 0.03, rsi_oversold: float = 30.0, rsi_overbought: float = 70.0):
+    def __init__(
+        self,
+        atr_threshold_pct: float = 0.03,
+        rsi_oversold: float = 30.0,
+        rsi_overbought: float = 70.0,
+        *,
+        use_rsi: bool = True,
+    ):
         super().__init__("RangeMeanReversion", {MarketState.SIDEWAYS})
         """
         参数：
@@ -35,6 +42,7 @@ class RangeStrategy(Strategy):
         self.atr_threshold_pct = atr_threshold_pct
         self.rsi_oversold = rsi_oversold
         self.rsi_overbought = rsi_overbought
+        self.use_rsi = use_rsi
         
         # Extended Context: Track consecutive losses and cooldown
         # symbol -> { 'consecutive_losses': int, 'cooldown_until': int (index) }
@@ -107,16 +115,16 @@ class RangeStrategy(Strategy):
         low = df['low'].iat[i]
         high = df['high'].iat[i]
         rsi = df['RSI_14'].iat[i]
-        if pd.isna(rsi):
+        if self.use_rsi and pd.isna(rsi):
             return None
 
         entry_signal = None
 
         # RSI Confirmation: require oversold/overbought alongside the band touch
         # to filter false signals from the Bollinger Band alone.
-        if low <= bb_lower and rsi < self.rsi_oversold:
+        if low <= bb_lower and (not self.use_rsi or rsi < self.rsi_oversold):
             entry_signal = {'action': 'buy', 'stop_loss': close - 1 * atr}
-        elif high >= bb_upper and rsi > self.rsi_overbought:
+        elif high >= bb_upper and (not self.use_rsi or rsi > self.rsi_overbought):
             entry_signal = {'action': 'short', 'stop_loss': close + 1 * atr}
 
         return entry_signal

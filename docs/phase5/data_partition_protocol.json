@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "protocol": {
+    "protocol_id": "phase5-baseline-v1",
+    "train_start": "2017-08-17",
+    "train_end": "2022-12-30",
+    "validation_start": "2022-12-31",
+    "validation_end": "2024-10-14",
+    "holdout_start": "2024-10-15",
+    "holdout_end": "2026-07-31",
+    "timezone_name": "UTC",
+    "version": 1
+  },
+  "protocol_hash": "fcced8c9819c1ec03597c2528052024509e0844f2c94af20d5322a2e8166b633",
+  "data_hash": "ddf5853f9a88b585e883c001a3223caa80977c3b5d6b953dccea83feafa08a11",
+  "status": "frozen",
+  "opened_at": null
+}

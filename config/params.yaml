@@ -82,6 +82,26 @@ strategy_governance:
   RangeMeanReversion: paused_redesign
   VolatilityReversion: isolated_research
 
+# Phase 5 research governance. The final holdout is opened once and never used
+# for parameter selection; failing a gate requires a new hypothesis/protocol.
+phase5:
+  partition:
+    train_fraction: 0.60
+    validation_fraction: 0.20
+    holdout_fraction: 0.20
+  walk_forward:
+    train_bars: 730
+    validation_bars: 180
+    test_bars: 180
+    purge_bars: 30
+    embargo_bars: 30
+  admission:
+    minimum_profit_factor: 1.15
+    minimum_profit_factor_ci_lower: 1.0
+    maximum_drawdown: 0.20
+    concentration_remove_top: [5, 10]
+    cost_multipliers: [1.0, 1.5, 2.0, 3.0]
+
 
 # 4. Data
 data:
