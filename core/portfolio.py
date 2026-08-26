@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional
 
-from core.lots import Lot, LotBook, LotClose
+from core.lots import Lot, LotBook, LotClose, LotIdAllocator
 
 """
 Portfolio（组合/账户）模块
@@ -33,10 +33,14 @@ class Portfolio:
         self.positions: Dict[str, Dict[str, float]] = {}
         # lot_books: symbol -> LotBook (FIFO batch ledger, see core/lots.py)
         self.lot_books: Dict[str, LotBook] = {}
+        # Shared across every LotBook this Portfolio creates, so re-running the
+        # same backtest from a fresh Portfolio yields identical lot/position
+        # ids in the same order (run-to-run determinism).
+        self._lot_id_allocator = LotIdAllocator()
 
     def get_lot_book(self, symbol: str) -> LotBook:
         if symbol not in self.lot_books:
-            self.lot_books[symbol] = LotBook(symbol)
+            self.lot_books[symbol] = LotBook(symbol, allocator=self._lot_id_allocator)
         return self.lot_books[symbol]
 
     def open_lots(self, symbol: str) -> List[Lot]:

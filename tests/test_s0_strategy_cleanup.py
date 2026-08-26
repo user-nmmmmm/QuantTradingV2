@@ -5,6 +5,7 @@ from analysis.optimize import build_optimization_strategies
 from config.config import config
 from core.broker import Broker
 from core.domain import OrderStatus
+from core.lots import CloseEvent
 from core.portfolio import Portfolio
 from strategies.trend_breakout import TrendBreakoutStrategy
 
@@ -18,15 +19,24 @@ class TestS0StrategyCleanup(unittest.TestCase):
         }
         portfolio = Portfolio()
         broker = MagicMock()
-        broker.trades = [{
-            "order_id": "router-close",
-            "symbol": "BTC/USDT",
-            "side": "sell",
-            "qty": 1.0,
-            "fill_price": 90.0,
-            "commission": 1.0,
-            "strategy_id": "Router",
-        }]
+        # Router closes the position (T-1.3/T-1.4): the CloseEvent still
+        # carries the opening strategy's id even though Router triggered it.
+        broker.close_events = [
+            CloseEvent(
+                close_event_id="LOT-000000001:1",
+                position_id="POS-000000001",
+                lot_id="LOT-000000001",
+                symbol="BTC/USDT",
+                opening_strategy_id=strategy.name,
+                exit_reason="StateSwitch",
+                qty=1.0,
+                exit_price=90.0,
+                theoretical_exit_price=90.0,
+                realized_pnl=-11.0,
+                timestamp=None,
+                is_position_fully_closed=True,
+            )
+        ]
 
         strategy._consume_execution_trades("BTC/USDT", 12, portfolio, broker)
         strategy._consume_execution_trades("BTC/USDT", 13, portfolio, broker)
@@ -34,7 +44,7 @@ class TestS0StrategyCleanup(unittest.TestCase):
         self.assertEqual(strategy.observed_close_events, 1)
         self.assertEqual(strategy.health_stats["total_trades"], 1)
         self.assertEqual(strategy.health_stats["rolling_pnl"], [-11.0])
-        self.assertEqual(strategy._trade_cursor, 1)
+        self.assertEqual(len(strategy._consumed_close_event_ids), 1)
 
     def test_six_consecutive_losses_trigger_health_gate(self):
         strategy = TrendBreakoutStrategy()

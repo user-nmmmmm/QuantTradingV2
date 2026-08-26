@@ -9,6 +9,7 @@ import pandas as pd
 from core.domain import OrderIntent, OrderStatus
 from core.cost_model import CostBreakdown
 from core.events import FillEvent, OrderEvent, TradingEventPipeline
+from core.lots import CloseEvent
 from core.logger import get_logger
 from core.portfolio import Portfolio
 from core.risk_reservation import (
@@ -136,6 +137,12 @@ class Broker:
             raise ValueError("max_participation_rate must be in (0, 1]")
         self.max_participation_rate = max_participation_rate
         self.trades = []  # List to store executed trades
+        # Unified close-event contract (T-1.3): every exit path (self-exit,
+        # hard stop, Router state-switch, circuit breaker, EndOfBacktest)
+        # closes lots through _execute_trade -> Portfolio.update_position,
+        # so this is the single place CloseEvents are constructed.
+        self.close_events: List[CloseEvent] = []
+        self._close_event_sequence = 0
         self.pending_orders: List[Order] = []
         self.active_orders: List[
             Order
@@ -459,7 +466,16 @@ class Broker:
             )
             self._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
             return None
-        self.portfolio.update_position(order.symbol, qty_delta, fill_price, commission)
+        lot_closes = self.portfolio.update_position(
+            order.symbol,
+            qty_delta,
+            fill_price,
+            commission,
+            strategy_id=order.strategy_id,
+            order_id=order.id,
+            stop_price=(order.stop_loss or None),
+            time=timestamp,
+        )
         costs = CostBreakdown(
             commission=commission,
             slippage=abs(fill_price - price) * fill_qty,
@@ -469,6 +485,42 @@ class Broker:
             funding_status="not_modeled",
             borrow_status="not_modeled",
         )
+        close_event_ids = []
+        if lot_closes:
+            # T-1.6: theoretical_price is the reference price before slip is
+            # applied (see cost-field contract on CostBreakdown); real_cost is
+            # the total monetary cost actually incurred on this fill.
+            real_cost = commission + costs.slippage + costs.impact
+            position_fully_closed = (
+                self.portfolio.get_position(order.symbol).get("qty", 0.0) == 0.0
+            )
+            for lot_close in lot_closes:
+                self._close_event_sequence += 1
+                close_event_id = f"{lot_close.lot_id}:{self._close_event_sequence}"
+                cost_share = (
+                    real_cost * (lot_close.qty_closed / fill_qty) if fill_qty else 0.0
+                )
+                if lot_close.side == "long":
+                    gross_pnl = (fill_price - lot_close.entry_price) * lot_close.qty_closed
+                else:
+                    gross_pnl = (lot_close.entry_price - fill_price) * lot_close.qty_closed
+                realized_pnl = gross_pnl - cost_share
+                event = CloseEvent(
+                    close_event_id=close_event_id,
+                    position_id=lot_close.position_id,
+                    lot_id=lot_close.lot_id,
+                    symbol=order.symbol,
+                    opening_strategy_id=lot_close.strategy_id,
+                    exit_reason=order.exit_reason,
+                    qty=lot_close.qty_closed,
+                    exit_price=fill_price,
+                    theoretical_exit_price=price,
+                    realized_pnl=realized_pnl,
+                    timestamp=timestamp,
+                    is_position_fully_closed=position_fully_closed,
+                )
+                self.close_events.append(event)
+                close_event_ids.append(close_event_id)
         trade_record = {
             "order_id": order.id,
             "signal_time": order.timestamp,
@@ -477,6 +529,7 @@ class Broker:
             "side": order.side,
             "qty": fill_qty,
             "fill_price": fill_price,
+            "theoretical_price": price,
             "commission": commission,
             "slip": abs(fill_price - price),
             "slip_dir": slip_dir,
@@ -484,6 +537,7 @@ class Broker:
             "strategy_id": order.strategy_id,
             "exit_reason": order.exit_reason,
             "is_maker": is_maker,
+            "close_event_ids": close_event_ids,
         }
         self.trades.append(trade_record)
         if order.intent is not None:

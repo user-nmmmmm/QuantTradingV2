@@ -22,18 +22,27 @@ from dataclasses import dataclass, field
 from itertools import count
 from typing import Any, Deque, List, Optional
 
-_LOT_SEQ = count(1)
-_POSITION_SEQ = count(1)
-
 _QTY_EPS = 1e-12
 
 
-def _next_lot_id() -> str:
-    return f"LOT-{next(_LOT_SEQ):09d}"
+class LotIdAllocator:
+    """Generates lot_id/position_id strings.
 
+    Scoped per Portfolio (not a module-level global) so that two separate
+    backtest runs starting from a fresh Portfolio produce identical ids in
+    the same order - required for the engine's run-to-run determinism
+    (tests/test_backtest_regression.py::TestBacktestEngineEquivalenceBaseline).
+    """
 
-def _next_position_id() -> str:
-    return f"POS-{next(_POSITION_SEQ):09d}"
+    def __init__(self) -> None:
+        self._lot_seq = count(1)
+        self._position_seq = count(1)
+
+    def next_lot_id(self) -> str:
+        return f"LOT-{next(self._lot_seq):09d}"
+
+    def next_position_id(self) -> str:
+        return f"POS-{next(self._position_seq):09d}"
 
 
 @dataclass
@@ -82,13 +91,39 @@ class LotClose:
     fully_closed: bool
 
 
+@dataclass(frozen=True)
+class CloseEvent:
+    """统一的平仓事件契约（T-1.3）。
+
+    无论触发方是策略自身出场、Router 状态切换、硬止损、熔断还是
+    EndOfBacktest 收尾平仓，都会且只会通过 Broker 的同一个成交入口
+    （``core.broker.Broker._execute_trade``）构造出结构完全一致的
+    CloseEvent，供开仓策略消费（T-1.4）。``close_event_id`` 全局唯一，
+    用于保证重复投递时的幂等消费（T-1.5）。
+    """
+
+    close_event_id: str
+    position_id: str
+    lot_id: str
+    symbol: str
+    opening_strategy_id: str
+    exit_reason: str
+    qty: float
+    exit_price: float
+    theoretical_exit_price: float
+    realized_pnl: float
+    timestamp: Any
+    is_position_fully_closed: bool
+
+
 class LotBook:
     """单个 symbol 的 FIFO 批次账本。"""
 
-    def __init__(self, symbol: str):
+    def __init__(self, symbol: str, allocator: Optional[LotIdAllocator] = None):
         self.symbol = symbol
         self._lots: Deque[Lot] = deque()
         self._current_position_id: Optional[str] = None
+        self._allocator = allocator or LotIdAllocator()
 
     @property
     def open_lots(self) -> List[Lot]:
@@ -168,11 +203,11 @@ class LotBook:
                 last_lot._recompute_initial_risk()
             else:
                 if not self._lots:
-                    self._current_position_id = _next_position_id()
-                position_id = self._current_position_id or _next_position_id()
+                    self._current_position_id = self._allocator.next_position_id()
+                position_id = self._current_position_id or self._allocator.next_position_id()
                 self._current_position_id = position_id
                 new_lot = Lot(
-                    lot_id=_next_lot_id(),
+                    lot_id=self._allocator.next_lot_id(),
                     position_id=position_id,
                     symbol=self.symbol,
                     side=fill_side,
