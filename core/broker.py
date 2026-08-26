@@ -9,6 +9,7 @@ import pandas as pd
 from core.domain import OrderIntent, OrderStatus
 from core.cost_model import CostBreakdown
 from core.events import FillEvent, OrderEvent, TradingEventPipeline
+from core.lots import CloseEvent
 from core.logger import get_logger
 from core.portfolio import Portfolio
 from core.risk_reservation import (
@@ -78,6 +79,10 @@ class Order:
     stop_loss: float = 0.0
     take_profit: float = 0.0
     exit_reason: str = "signal"  # signal, stop, takeprofit, reverse
+    # T-1.11: EndOfBacktest "mark_to_market" mode closes tail positions at the
+    # last price with zero extra commission/slippage - the same choke point
+    # used for a real close, just with costs suppressed for this one order.
+    zero_cost: bool = False
 
     # State tracking
     status: BacktestOrderStatus = BacktestOrderStatus.CREATED
@@ -136,6 +141,12 @@ class Broker:
             raise ValueError("max_participation_rate must be in (0, 1]")
         self.max_participation_rate = max_participation_rate
         self.trades = []  # List to store executed trades
+        # Unified close-event contract (T-1.3): every exit path (self-exit,
+        # hard stop, Router state-switch, circuit breaker, EndOfBacktest)
+        # closes lots through _execute_trade -> Portfolio.update_position,
+        # so this is the single place CloseEvents are constructed.
+        self.close_events: List[CloseEvent] = []
+        self._close_event_sequence = 0
         self.pending_orders: List[Order] = []
         self.active_orders: List[
             Order
@@ -156,6 +167,8 @@ class Broker:
         expire_time: Any = None,
         sequence: Optional[int] = None,
         _intent: Optional[OrderIntent] = None,
+        stop_loss: float = 0.0,
+        zero_cost: bool = False,
     ) -> Order:
         """
         提交订单（进入撮合队列）。
@@ -214,6 +227,8 @@ class Broker:
             id=intent.client_order_id,
             intent=intent,
             last_event_id=str(intent_envelope.event_id),
+            stop_loss=stop_loss,
+            zero_cost=zero_cost,
         )
         if qty <= 0:
             logger.warning(
@@ -420,7 +435,7 @@ class Broker:
             participation = fill_qty / volume
             if participation > 0.01:
                 impact_slip = participation * 0.1
-        total_slip_rate = slip_rate + impact_slip
+        total_slip_rate = 0.0 if order.zero_cost else (slip_rate + impact_slip)
         if order.side in {"buy", "cover"}:
             fill_price = price * (1 + total_slip_rate)
             qty_delta = fill_qty
@@ -450,7 +465,9 @@ class Broker:
             return None
 
         value = fill_qty * fill_price
-        fee_rate = self.commission_rate_maker if is_maker else self.commission_rate
+        fee_rate = 0.0 if order.zero_cost else (
+            self.commission_rate_maker if is_maker else self.commission_rate
+        )
         commission = value * fee_rate
         if order.side in {"buy", "short"} and value + commission > self.portfolio.cash + 1e-12:
             logger.warning(
@@ -459,7 +476,16 @@ class Broker:
             )
             self._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
             return None
-        self.portfolio.update_position(order.symbol, qty_delta, fill_price, commission)
+        lot_closes = self.portfolio.update_position(
+            order.symbol,
+            qty_delta,
+            fill_price,
+            commission,
+            strategy_id=order.strategy_id,
+            order_id=order.id,
+            stop_price=(order.stop_loss or None),
+            time=timestamp,
+        )
         costs = CostBreakdown(
             commission=commission,
             slippage=abs(fill_price - price) * fill_qty,
@@ -469,6 +495,63 @@ class Broker:
             funding_status="not_modeled",
             borrow_status="not_modeled",
         )
+        close_event_ids = []
+        if lot_closes:
+            # T-1.6/T-1.7: fill_price already embeds slippage AND impact (both
+            # feed total_slip_rate above), so gross_pnl computed from fill
+            # prices already reflects them. Netting only commission here (not
+            # costs.slippage/impact again) avoids the same double-count this
+            # phase fixed in core.metrics.calculate_cost_sensitivity (I-25).
+            position_fully_closed = (
+                self.portfolio.get_position(order.symbol).get("qty", 0.0) == 0.0
+            )
+            for lot_close in lot_closes:
+                self._close_event_sequence += 1
+                close_event_id = f"{lot_close.lot_id}:{self._close_event_sequence}"
+                exit_cost_share = (
+                    commission * (lot_close.qty_closed / fill_qty) if fill_qty else 0.0
+                )
+                # T-1.8: net out BOTH sides' cost so realized_pnl - and the
+                # accounting identity built from it - isn't short the entry
+                # commission/slippage that was already paid when this lot
+                # opened (it was deducted from cash then, not just now).
+                cost_share = exit_cost_share + lot_close.entry_cost_share
+                if lot_close.side == "long":
+                    gross_pnl = (fill_price - lot_close.entry_price) * lot_close.qty_closed
+                else:
+                    gross_pnl = (lot_close.entry_price - fill_price) * lot_close.qty_closed
+                realized_pnl = gross_pnl - cost_share
+                event = CloseEvent(
+                    close_event_id=close_event_id,
+                    position_id=lot_close.position_id,
+                    lot_id=lot_close.lot_id,
+                    symbol=order.symbol,
+                    opening_strategy_id=lot_close.strategy_id,
+                    exit_reason=order.exit_reason,
+                    qty=lot_close.qty_closed,
+                    exit_price=fill_price,
+                    theoretical_exit_price=price,
+                    realized_pnl=realized_pnl,
+                    timestamp=timestamp,
+                    is_position_fully_closed=position_fully_closed,
+                )
+                self.close_events.append(event)
+                close_event_ids.append(close_event_id)
+        # T-1.9/T-1.10: per-lot risk/excursion detail for this fill's closes,
+        # in the same FIFO order _reconstruct_closed_trades matches its own
+        # long/short stacks against this same trades_df row - so it can pick
+        # these up positionally instead of losing them to a scalar field.
+        lot_close_details = [
+            {
+                "lot_id": lot_close.lot_id,
+                "position_id": lot_close.position_id,
+                "qty_closed": lot_close.qty_closed,
+                "initial_risk": lot_close.initial_risk,
+                "mae": lot_close.mae,
+                "mfe": lot_close.mfe,
+            }
+            for lot_close in lot_closes
+        ]
         trade_record = {
             "order_id": order.id,
             "signal_time": order.timestamp,
@@ -477,6 +560,7 @@ class Broker:
             "side": order.side,
             "qty": fill_qty,
             "fill_price": fill_price,
+            "theoretical_price": price,
             "commission": commission,
             "slip": abs(fill_price - price),
             "slip_dir": slip_dir,
@@ -484,6 +568,8 @@ class Broker:
             "strategy_id": order.strategy_id,
             "exit_reason": order.exit_reason,
             "is_maker": is_maker,
+            "close_event_ids": close_event_ids,
+            "lot_closes": lot_close_details,
         }
         self.trades.append(trade_record)
         if order.intent is not None:

@@ -40,13 +40,15 @@ class Strategy(ABC):
         # State tracking for the strategy per symbol
         # symbol -> { 'entry_price': float, 'stop_loss': float, 'trailing_stop': float }
         self.context: Dict[str, Dict[str, Any]] = {}
-        self._trade_cursor = 0
         # How many round trips this strategy actually observed closing. Compared
         # against the reconstructed closed-trade count by
         # core.diagnostics.calculate_lifecycle_coverage: a shortfall means the
         # safeguards that update from on_trade_closed (health/alpha-death gates,
         # consecutive-loss cooldowns) are running blind.
         self.observed_close_events = 0
+        # CloseEvent ids already delivered to on_trade_closed (T-1.5): guards
+        # against double-counting if the same event is ever observed twice.
+        self._consumed_close_event_ids: Set[str] = set()
 
     def get_context(self, symbol: str) -> Dict[str, Any]:
         """
@@ -64,8 +66,8 @@ class Strategy(ABC):
 
     def reset_runtime_state(self) -> None:
         self.context = {}
-        self._trade_cursor = 0
         self.observed_close_events = 0
+        self._consumed_close_event_ids = set()
 
     def bind_state_store(self, _state_store) -> None:
         """Optional live-state binding for strategies with durable health state."""
@@ -97,54 +99,40 @@ class Strategy(ABC):
         self, symbol: str, bar_index: int,
         portfolio: Portfolio, broker: ExecutionPort,
     ) -> None:
-        """Consume each appended fill once and deliver authoritative closes."""
-        trades = getattr(broker, "trades", []) or []
-        if self._trade_cursor > len(trades):
-            self._trade_cursor = 0
-        new_trades = list(trades[self._trade_cursor:])
-        self._trade_cursor = len(trades)
+        """Deliver every CloseEvent this strategy opened, exactly once (T-1.3/T-1.4/T-1.5).
 
-        for trade in new_trades:
-            trade_symbol = trade.get("symbol")
-            if not trade_symbol:
+        Close events are authoritative: they are built once, at fill time, by
+        Broker._execute_trade from the lot ledger (core.lots), regardless of
+        which of the exit paths (self-exit, hard stop, Router state-switch,
+        circuit breaker, EndOfBacktest) triggered the closing fill. Filtering
+        by ``opening_strategy_id`` (captured on the lot when it was opened,
+        not on whichever order/strategy closed it) is what makes external
+        closes (Router/CircuitBreaker/EndOfBacktest) still get attributed to
+        the strategy that actually opened the position. The per-event id
+        dedupe guards idempotency if this is ever called more than once for
+        the same event.
+        """
+        close_events = getattr(broker, "close_events", None) or []
+        for event in close_events:
+            if event.opening_strategy_id != self.name:
                 continue
-            price = float(trade.get("fill_price", trade.get("price", 0.0)) or 0.0)
-            qty = float(trade.get("qty", 0.0) or 0.0)
-            if price <= 0 or qty <= 0:
+            if event.close_event_id in self._consumed_close_event_ids:
                 continue
-            side = str(trade.get("side") or "").lower()
-            ctx = self.get_context(trade_symbol)
-            if side in {"buy", "short"}:
-                if trade.get("strategy_id") != self.name:
-                    continue
-                prior_qty = float(ctx.get("_entry_fill_qty", 0.0))
-                prior_price = float(ctx.get("entry_price", price))
-                total_qty = prior_qty + qty
-                ctx["entry_price"] = (
-                    (prior_price * prior_qty + price * qty) / total_qty
-                )
-                ctx["_entry_fill_qty"] = total_qty
-                ctx.pop("entry_pending", None)
-                continue
-            if side not in {"sell", "cover"}:
-                continue
-            if not ctx.get("_entry_fill_qty") and "entry_price" not in ctx:
-                continue
-            entry_price = float(ctx.get("entry_price", price))
-            fee = float(trade.get("commission", trade.get("fee", 0.0)) or 0.0)
-            pnl = (
-                (price - entry_price) * qty
-                if side == "sell"
-                else (entry_price - price) * qty
-            ) - fee
-            ctx["_realized_exit_pnl"] = float(
-                ctx.get("_realized_exit_pnl", 0.0)
-            ) + pnl
-            if portfolio.get_position(trade_symbol).get("qty", 0.0) == 0:
-                realized = float(ctx["_realized_exit_pnl"])
-                self.observed_close_events += 1
-                self.on_trade_closed(trade_symbol, realized, trade, bar_index)
-                self.context[trade_symbol] = {}
+            self._consumed_close_event_ids.add(event.close_event_id)
+            self.observed_close_events += 1
+            trade = {
+                "symbol": event.symbol,
+                "lot_id": event.lot_id,
+                "position_id": event.position_id,
+                "qty": event.qty,
+                "fill_price": event.exit_price,
+                "theoretical_price": event.theoretical_exit_price,
+                "exit_reason": event.exit_reason,
+                "strategy_id": event.opening_strategy_id,
+            }
+            self.on_trade_closed(event.symbol, event.realized_pnl, trade, bar_index)
+            if event.is_position_fully_closed:
+                self.context[event.symbol] = {}
 
         ctx = self.get_context(symbol)
         if ctx.get("entry_pending") and not portfolio.get_position(symbol).get("qty", 0.0):
@@ -345,11 +333,10 @@ class Strategy(ABC):
                                 order_type=order_type,
                                 timestamp=df.index[i],
                                 strategy_id=self.name,
-                                # stop_loss is not passed to submit_order currently in Broker signature?
-                                # Let's check Broker signature. It accepts strategy_id, exit_reason.
-                                # It does NOT accept stop_loss.
-                                # But we can store it in context.
                                 exit_reason="signal",
+                                # Persisted onto the opened lot as initial_risk
+                                # = |entry - stop| * qty (T-1.9).
+                                stop_loss=stop_loss,
                             )
                             if not submission.accepted:
                                 return submission

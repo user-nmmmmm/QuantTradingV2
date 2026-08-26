@@ -12,6 +12,7 @@ from config.config import config
 from core.domain import OrderStatus, SyncResult
 from core.exchange_boundary import OrderParser
 from core.live_broker import LiveBroker
+from core.lots import CloseEvent
 from core.order_store import OrderStore
 from core.persistent_risk_guard import PersistentOrderSafetyGuard
 from core.portfolio import Portfolio
@@ -198,16 +199,22 @@ class TestRemainingP1PersistenceAndStrategies(unittest.TestCase):
         strategy.context["BTC/USDT"] = {"entry_price": 100.0}
         portfolio = Portfolio()
         broker = MagicMock()
-        broker.trades = [{
-            "id": "fill-1",
-            "symbol": "BTC/USDT",
-            "side": "sell",
-            "qty": 1.0,
-            "fill_price": 90.0,
-            "commission": 1.0,
-            "strategy_id": strategy.name,
-            "fill_time": NOW,
-        }]
+        broker.close_events = [
+            CloseEvent(
+                close_event_id="LOT-000000001:1",
+                position_id="POS-000000001",
+                lot_id="LOT-000000001",
+                symbol="BTC/USDT",
+                opening_strategy_id=strategy.name,
+                exit_reason="signal",
+                qty=1.0,
+                exit_price=90.0,
+                theoretical_exit_price=90.0,
+                realized_pnl=-11.0,
+                timestamp=NOW,
+                is_position_fully_closed=True,
+            )
+        ]
 
         strategy._consume_execution_trades(
             "BTC/USDT", 12, portfolio, broker

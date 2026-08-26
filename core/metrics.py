@@ -410,16 +410,28 @@ def calculate_cost_sensitivity(
 ) -> Dict[str, Any]:
     """Net-PnL sensitivity to commission/slippage assumptions (BM4).
 
-    Each trade must provide ``gross_pnl``, ``commission``, ``slippage``
-    (missing ones default to 0.0). The realized order flow — fill prices
-    and quantities — is held fixed; this rescales the recorded cost
-    components by each multiplier rather than re-simulating execution, so
-    it is a first-order sensitivity, not a new backtest. Net PnL under a
-    multiplier is ``gross_pnl - commission*commission_multiplier -
+    Each trade must provide ``gross_pnl_theoretical`` (the zero-cost PnL
+    computed from ``theoretical_price``, i.e. before any slippage was
+    applied to the fill — see the T-1.6 cost-field contract on
+    ``CostBreakdown``), plus ``commission``/``slippage`` (missing ones
+    default to 0.0). Trades recorded before ``gross_pnl_theoretical``
+    existed fall back to ``gross_pnl``, which already has slippage baked
+    into the fill price (T-1.7 fix for I-25: using ``gross_pnl`` — not
+    ``gross_pnl_theoretical`` — as the sensitivity base double-counts
+    slippage, since that fill-price-derived PnL already reflects it).
+
+    The realized order flow — fill prices and quantities — is held fixed;
+    this rescales the recorded cost components by each multiplier rather
+    than re-simulating execution, so it is a first-order sensitivity, not
+    a new backtest. Net PnL under a multiplier is
+    ``gross_pnl_theoretical - commission*commission_multiplier -
     slippage*slippage_multiplier``: by construction this is monotonically
     non-increasing as either multiplier grows, so a grid point with higher
     net PnL than a lower-multiplier point indicates bad input data, not a
-    real cost benefit.
+    real cost benefit. At commission_multiplier=1.0/slippage_multiplier=1.0
+    ``baseline_net_pnl`` must equal the main report's NetPnL exactly (both
+    reduce to ``gross_pnl - commission``), which is the acceptance test for
+    the I-25 fix.
 
     Costs such as funding/borrow fees or market impact beyond the recorded
     slippage are not modeled here — this only scales the two cost fields
@@ -429,23 +441,25 @@ def calculate_cost_sensitivity(
     if not records:
         return {"status": "insufficient", "sample_size": 0, "grid": []}
 
-    gross = float(sum(float(t.get("gross_pnl", 0.0)) for t in records))
+    gross_theoretical = float(
+        sum(float(t.get("gross_pnl_theoretical", t.get("gross_pnl", 0.0))) for t in records)
+    )
     total_commission = float(sum(float(t.get("commission", 0.0)) for t in records))
     total_slippage = float(sum(float(t.get("slippage", 0.0)) for t in records))
 
     grid = []
     for c_mult in commission_multipliers:
         for s_mult in slippage_multipliers:
-            net = gross - total_commission * c_mult - total_slippage * s_mult
+            net = gross_theoretical - total_commission * c_mult - total_slippage * s_mult
             grid.append({
                 "commission_multiplier": float(c_mult),
                 "slippage_multiplier": float(s_mult),
                 "net_pnl": float(net),
             })
     return {
-        "status": "ok", "sample_size": len(records), "gross_pnl": gross,
+        "status": "ok", "sample_size": len(records), "gross_pnl": gross_theoretical,
         "baseline_commission": total_commission, "baseline_slippage": total_slippage,
-        "baseline_net_pnl": gross - total_commission - total_slippage,
+        "baseline_net_pnl": gross_theoretical - total_commission - total_slippage,
         "grid": grid,
         "unmodeled_note": (
             "commission and slippage only; funding/borrow fees and market "

@@ -48,3 +48,11 @@ router:
 # 4. Data
 data:
   check_quality: true           # Generate data quality report
+
+# 5. Backtest lifecycle
+backtest:
+  # T-1.11: how to handle positions still open when the backtest ends.
+  # mark_to_market - close at the last price with zero extra commission/slippage
+  #                  (matches the equity curve's existing mark-to-market value).
+  # forced_liquidation - close like a real exit, with normal commission/slippage.
+  end_of_backtest_mode: mark_to_market

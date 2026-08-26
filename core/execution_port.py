@@ -31,6 +31,8 @@ class ExecutionPort(Protocol):
         slippage: float = 0.0,
         strategy_id: str = "Manual",
         exit_reason: str = "signal",
+        stop_loss: float = 0.0,
+        zero_cost: bool = False,
     ) -> ExecutionResult:
         ...
 

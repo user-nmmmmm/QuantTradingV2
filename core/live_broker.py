@@ -179,8 +179,10 @@ class LiveBroker:
         position_side: Optional[str] = None,
         reduce_only: Optional[bool] = None,
         sequence: int = 0,
+        stop_loss: float = 0.0,
+        zero_cost: bool = False,
     ) -> OrderSubmissionResult:
-        del slippage, exit_reason
+        del slippage, exit_reason, stop_loss, zero_cost
         intent = self._build_intent(
             symbol, side, qty, price, order_type, timestamp, strategy_id,
             time_in_force, position_side, reduce_only, sequence,
