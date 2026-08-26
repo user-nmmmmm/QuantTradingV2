@@ -27,6 +27,8 @@ class VolatilityReversionStrategy(Strategy):
         stop_atr: float = 1.5,
         stoch_oversold: float = 20.0,
         stoch_overbought: float = 80.0,
+        *,
+        use_stochastic: bool = True,
     ):
         super().__init__("VolatilityReversion", {MarketState.VOLATILE})
         self.window = window
@@ -34,6 +36,7 @@ class VolatilityReversionStrategy(Strategy):
         self.stop_atr = stop_atr
         self.stoch_oversold = stoch_oversold
         self.stoch_overbought = stoch_overbought
+        self.use_stochastic = use_stochastic
 
     def _indicators(self, df: pd.DataFrame) -> tuple[pd.Series, pd.Series, pd.Series]:
         mean = df["close"].rolling(self.window).mean()
@@ -52,14 +55,20 @@ class VolatilityReversionStrategy(Strategy):
         close, center, sigma, risk = map(float, (df["close"].iat[i], mean.iat[i], std.iat[i], atr.iat[i]))
         if not all(pd.notna(value) and value > 0 for value in (close, center, sigma, risk)):
             return None
-        self._ensure_stoch(df)
-        stoch_k = df["STOCH_K"].iat[i]
-        if pd.isna(stoch_k):
-            return None
+        stoch_k = None
+        if self.use_stochastic:
+            self._ensure_stoch(df)
+            stoch_k = df["STOCH_K"].iat[i]
+            if pd.isna(stoch_k):
+                return None
         z_score = (close - center) / sigma
-        if z_score <= -self.entry_z and stoch_k < self.stoch_oversold:
+        if z_score <= -self.entry_z and (
+            not self.use_stochastic or stoch_k < self.stoch_oversold
+        ):
             return {"action": "buy", "price": close, "stop_loss": close - self.stop_atr * risk}
-        if z_score >= self.entry_z and stoch_k > self.stoch_overbought:
+        if z_score >= self.entry_z and (
+            not self.use_stochastic or stoch_k > self.stoch_overbought
+        ):
             return {"action": "short", "price": close, "stop_loss": close + self.stop_atr * risk}
         return None
 

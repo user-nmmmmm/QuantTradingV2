@@ -91,7 +91,9 @@ class TrendBreakoutStrategy(_PersistentHealthMixin, Strategy):
     - Allowed Regimes: TREND_UP, VOLATILE
     """
 
-    def __init__(self, entry_window: int = 20, exit_window: int = 10):
+    def __init__(
+        self, entry_window: int = 20, exit_window: int = 10, *, use_obv: bool = True,
+    ):
         """
         参数：
         - entry_window：突破窗口（过去 N 根的最高价）
@@ -101,6 +103,7 @@ class TrendBreakoutStrategy(_PersistentHealthMixin, Strategy):
         super().__init__("TrendBreakout", {MarketState.TREND_UP, MarketState.VOLATILE})
         self.entry_window = entry_window
         self.exit_window = exit_window
+        self.use_obv = use_obv
 
         self.col_high_max = f"HIGH_MAX_{self.entry_window}"
         self.col_low_min = f"LOW_MIN_{self.exit_window}"
@@ -197,7 +200,7 @@ class TrendBreakoutStrategy(_PersistentHealthMixin, Strategy):
             # Volume Confirmation: OBV must have net-accumulated over the
             # entry window, otherwise the breakout lacks volume support.
             # Skipped (not required) when the data source has no volume.
-            if "OBV" in df.columns:
+            if self.use_obv and "OBV" in df.columns:
                 obv_now = df["OBV"].iat[i]
                 obv_prior = df["OBV"].iat[i - self.entry_window]
                 if pd.isna(obv_now) or pd.isna(obv_prior) or obv_now <= obv_prior:
@@ -269,10 +272,13 @@ class TrendBreakdownStrategy(_PersistentHealthMixin, Strategy):
     Mirrored Donchian breakdown strategy for short-side trend participation.
     """
 
-    def __init__(self, entry_window: int = 20, exit_window: int = 10):
+    def __init__(
+        self, entry_window: int = 20, exit_window: int = 10, *, use_obv: bool = True,
+    ):
         super().__init__("TrendBreakdown", {MarketState.TREND_DOWN})
         self.entry_window = entry_window
         self.exit_window = exit_window
+        self.use_obv = use_obv
 
         self.col_high_max = f"HIGH_MAX_{self.exit_window}"
         self.col_low_min = f"LOW_MIN_{self.entry_window}"
@@ -330,7 +336,7 @@ class TrendBreakdownStrategy(_PersistentHealthMixin, Strategy):
             # Volume Confirmation: OBV must have net-declined over the entry
             # window, otherwise the breakdown lacks volume support.
             # Skipped (not required) when the data source has no volume.
-            if "OBV" in df.columns:
+            if self.use_obv and "OBV" in df.columns:
                 obv_now = df["OBV"].iat[i]
                 obv_prior = df["OBV"].iat[i - self.entry_window]
                 if pd.isna(obv_now) or pd.isna(obv_prior) or obv_now >= obv_prior:

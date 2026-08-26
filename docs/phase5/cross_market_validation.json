@@ -1,0 +1,12 @@
+{
+  "scenario_count": 0,
+  "exchanges": [],
+  "timeframes": [],
+  "regimes": [],
+  "coverage_complete": false,
+  "positive_fraction": null,
+  "stable_positive_edge": false,
+  "status": "evidence_pending",
+  "reason": "no second-exchange or alternate-timeframe input dataset is present in the repository",
+  "implementation": "analysis.phase5.cross_market_validation"
+}

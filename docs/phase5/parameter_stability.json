@@ -1,0 +1,6 @@
+{
+  "status": "implementation_complete_evidence_pending",
+  "implementation": "analysis.phase5.parameter_plateau",
+  "reason": "archived reports do not contain a labeled two-dimensional parameter grid",
+  "required_evidence": "run analysis.optimize on train/validation only and pass its grid to parameter_plateau"
+}

@@ -1,0 +1,188 @@
+{
+  "decision": "reject",
+  "gates": {
+    "G12_positive_oos_edge": true,
+    "G13_pf_significance": false,
+    "G14_not_concentrated": false,
+    "G15_cost_stress": true,
+    "drawdown_limit": true
+  },
+  "returns": {
+    "strategy": 0.15372118517295075,
+    "benchmark": -0.32753423615001487,
+    "excess": 0.4812554213229656
+  },
+  "profit_factor": {
+    "value": 1.598832029350477,
+    "status": "ok",
+    "sample_size": 57,
+    "win_count": 30,
+    "loss_count": 27,
+    "breakeven_count": 0,
+    "lower": 0.8212478104733475,
+    "upper": 3.1543414405734707
+  },
+  "profit_factor_by_strategy": {
+    "RangeMeanReversion": {
+      "value": 0.713179164013434,
+      "status": "ok",
+      "sample_size": 33,
+      "win_count": 13,
+      "loss_count": 20,
+      "breakeven_count": 0,
+      "lower": 0.28829946507862325,
+      "upper": 1.58968263748804
+    },
+    "VolatilityReversion": {
+      "value": 3.7332093984423507,
+      "status": "insufficient",
+      "sample_size": 24,
+      "win_count": 17,
+      "loss_count": 7,
+      "breakeven_count": 0,
+      "lower": 1.3471833599331648,
+      "upper": 20.254722994633372
+    }
+  },
+  "drawdown": {
+    "status": "ok",
+    "sample_size": 655,
+    "max_pct": -0.07043009619959283,
+    "max_amount": -550.3038404461795,
+    "current_pct": -0.0016460014690938376,
+    "peak": "2025-06-09 00:00:00",
+    "trough": "2025-09-18 00:00:00",
+    "recovery": "2026-01-07 00:00:00",
+    "duration_periods": 212,
+    "duration_days": 212.0,
+    "recovery_periods": 111,
+    "recovery_days": 111.0,
+    "underwater_ratio": 0.9404580152671755,
+    "is_open": false
+  },
+  "concentration": {
+    "status": "ok",
+    "sample_size": 57,
+    "baseline_net_pnl": 1121.6658432266522,
+    "scenarios": [
+      {
+        "removed_top_winners": 5,
+        "effective_removed": 5,
+        "remaining_net_pnl": -24.685484287086666,
+        "positive": false
+      },
+      {
+        "removed_top_winners": 10,
+        "effective_removed": 10,
+        "remaining_net_pnl": -727.6720594594061,
+        "positive": false
+      }
+    ]
+  },
+  "cost_stress": {
+    "status": "ok",
+    "sample_size": 57,
+    "gross_pnl": 1237.1641919844742,
+    "baseline_commission": 115.49834875782192,
+    "baseline_slippage": 115.49868692352571,
+    "baseline_net_pnl": 1006.1671563031265,
+    "grid": [
+      {
+        "commission_multiplier": 1.0,
+        "slippage_multiplier": 1.0,
+        "net_pnl": 1006.1671563031265
+      },
+      {
+        "commission_multiplier": 1.0,
+        "slippage_multiplier": 1.5,
+        "net_pnl": 948.4178128413637
+      },
+      {
+        "commission_multiplier": 1.0,
+        "slippage_multiplier": 2.0,
+        "net_pnl": 890.6684693796008
+      },
+      {
+        "commission_multiplier": 1.0,
+        "slippage_multiplier": 3.0,
+        "net_pnl": 775.1697824560752
+      },
+      {
+        "commission_multiplier": 1.5,
+        "slippage_multiplier": 1.0,
+        "net_pnl": 948.4179819242155
+      },
+      {
+        "commission_multiplier": 1.5,
+        "slippage_multiplier": 1.5,
+        "net_pnl": 890.6686384624527
+      },
+      {
+        "commission_multiplier": 1.5,
+        "slippage_multiplier": 2.0,
+        "net_pnl": 832.9192950006898
+      },
+      {
+        "commission_multiplier": 1.5,
+        "slippage_multiplier": 3.0,
+        "net_pnl": 717.4206080771642
+      },
+      {
+        "commission_multiplier": 2.0,
+        "slippage_multiplier": 1.0,
+        "net_pnl": 890.6688075453046
+      },
+      {
+        "commission_multiplier": 2.0,
+        "slippage_multiplier": 1.5,
+        "net_pnl": 832.9194640835418
+      },
+      {
+        "commission_multiplier": 2.0,
+        "slippage_multiplier": 2.0,
+        "net_pnl": 775.1701206217789
+      },
+      {
+        "commission_multiplier": 2.0,
+        "slippage_multiplier": 3.0,
+        "net_pnl": 659.6714336982532
+      },
+      {
+        "commission_multiplier": 3.0,
+        "slippage_multiplier": 1.0,
+        "net_pnl": 775.1704587874827
+      },
+      {
+        "commission_multiplier": 3.0,
+        "slippage_multiplier": 1.5,
+        "net_pnl": 717.4211153257199
+      },
+      {
+        "commission_multiplier": 3.0,
+        "slippage_multiplier": 2.0,
+        "net_pnl": 659.671771863957
+      },
+      {
+        "commission_multiplier": 3.0,
+        "slippage_multiplier": 3.0,
+        "net_pnl": 544.1730849404314
+      }
+    ],
+    "unmodeled_note": "commission and slippage only; funding/borrow fees and market impact beyond recorded slippage are not modeled"
+  },
+  "thresholds": {
+    "minimum_pf": 1.15,
+    "minimum_pf_ci_lower": 1.0,
+    "maximum_drawdown": 0.2,
+    "required_cost_multiplier": 1.5,
+    "concentration_removals": [
+      5,
+      10
+    ]
+  },
+  "protocol_hash": "fcced8c9819c1ec03597c2528052024509e0844f2c94af20d5322a2e8166b633",
+  "data_hash": "ddf5853f9a88b585e883c001a3223caa80977c3b5d6b953dccea83feafa08a11",
+  "source": "docs\\baseline\\phase0\\archived_reports\\20260824_163836_3498d_10Syms_Ret-15.8pct",
+  "holdout_trade_count": 57,
+  "governance_note": "Final holdout was evaluated once; rejection must not trigger tuning on this partition."
+}

@@ -1,0 +1,10 @@
+{
+  "status": "implementation_complete_evidence_pending",
+  "implementation": "analysis.phase5.factor_ablation",
+  "switches": {
+    "OBV": "TrendBreakoutStrategy(use_obv=False)",
+    "RSI": "RangeStrategy(use_rsi=False)",
+    "Stochastic": "VolatilityReversionStrategy(use_stochastic=False)"
+  },
+  "reason": "raw market inputs for the archived baseline were not retained in the Phase 0 package"
+}
