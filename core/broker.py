@@ -487,19 +487,25 @@ class Broker:
         )
         close_event_ids = []
         if lot_closes:
-            # T-1.6: theoretical_price is the reference price before slip is
-            # applied (see cost-field contract on CostBreakdown); real_cost is
-            # the total monetary cost actually incurred on this fill.
-            real_cost = commission + costs.slippage + costs.impact
+            # T-1.6/T-1.7: fill_price already embeds slippage AND impact (both
+            # feed total_slip_rate above), so gross_pnl computed from fill
+            # prices already reflects them. Netting only commission here (not
+            # costs.slippage/impact again) avoids the same double-count this
+            # phase fixed in core.metrics.calculate_cost_sensitivity (I-25).
             position_fully_closed = (
                 self.portfolio.get_position(order.symbol).get("qty", 0.0) == 0.0
             )
             for lot_close in lot_closes:
                 self._close_event_sequence += 1
                 close_event_id = f"{lot_close.lot_id}:{self._close_event_sequence}"
-                cost_share = (
-                    real_cost * (lot_close.qty_closed / fill_qty) if fill_qty else 0.0
+                exit_cost_share = (
+                    commission * (lot_close.qty_closed / fill_qty) if fill_qty else 0.0
                 )
+                # T-1.8: net out BOTH sides' cost so realized_pnl - and the
+                # accounting identity built from it - isn't short the entry
+                # commission/slippage that was already paid when this lot
+                # opened (it was deducted from cash then, not just now).
+                cost_share = exit_cost_share + lot_close.entry_cost_share
                 if lot_close.side == "long":
                     gross_pnl = (fill_price - lot_close.entry_price) * lot_close.qty_closed
                 else:

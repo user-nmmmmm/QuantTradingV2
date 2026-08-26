@@ -63,10 +63,19 @@ class Lot:
     initial_risk: Optional[float] = None
     mae: float = 0.0
     mfe: float = 0.0
+    # Total $ cost (commission/slippage/impact) already paid to open this lot
+    # (accumulates across merged partial-fill entries). Needed so a still-open
+    # lot's unrealized PnL - and a later close's realized_pnl - correctly
+    # nets out the entry-side cost, not just the exit-side cost (T-1.8).
+    entry_cost_total: float = 0.0
 
     @property
     def is_closed(self) -> bool:
         return self.qty_open <= _QTY_EPS
+
+    @property
+    def entry_cost_per_unit(self) -> float:
+        return self.entry_cost_total / self.qty_original if self.qty_original else 0.0
 
     def _recompute_initial_risk(self) -> None:
         if self.stop_price is not None:
@@ -89,6 +98,7 @@ class LotClose:
     mae: float
     mfe: float
     fully_closed: bool
+    entry_cost_share: float
 
 
 @dataclass(frozen=True)
@@ -145,19 +155,28 @@ class LotBook:
         strategy_id: str = "",
         order_id: Optional[str] = None,
         stop_price: Optional[float] = None,
+        fee: float = 0.0,
     ) -> List[LotClose]:
-        """应用一次带符号数量变化的 fill，返回本次核销掉的 LotClose 列表（纯开仓/加仓返回空列表）。"""
+        """应用一次带符号数量变化的 fill，返回本次核销掉的 LotClose 列表（纯开仓/加仓返回空列表）。
+
+        ``fee`` 是这次 fill 的总成本（手续费+滑点+冲击），按开仓/平仓两部分的
+        数量占比拆分：平仓部分体现为 LotClose.entry_cost_share 之外的、由调用方
+        （Broker）自行叠加的平仓侧成本；开仓部分累加进新/被合并 Lot 的
+        entry_cost_total，供后续平仓与未平仓估值正确扣除开仓侧成本（T-1.8）。
+        """
         if qty_delta == 0:
             return []
 
         fill_side = "long" if qty_delta > 0 else "short"
         opposite_side = "short" if fill_side == "long" else "long"
-        remaining = abs(qty_delta)
+        total_fill_qty = abs(qty_delta)
+        remaining = total_fill_qty
         closes: List[LotClose] = []
 
         while remaining > _QTY_EPS and self._lots and self._lots[0].side == opposite_side:
             lot = self._lots[0]
             close_qty = min(remaining, lot.qty_open)
+            entry_cost_share = lot.entry_cost_per_unit * close_qty
             lot.qty_open -= close_qty
             remaining -= close_qty
             fully_closed = lot.qty_open <= _QTY_EPS
@@ -175,6 +194,7 @@ class LotBook:
                     mae=lot.mae,
                     mfe=lot.mfe,
                     fully_closed=fully_closed,
+                    entry_cost_share=entry_cost_share,
                 )
             )
             if fully_closed:
@@ -185,6 +205,7 @@ class LotBook:
 
         if remaining > _QTY_EPS:
             add_qty = remaining
+            fee_for_open = fee * (add_qty / total_fill_qty) if total_fill_qty else 0.0
             last_lot = self._lots[-1] if self._lots else None
             if (
                 last_lot is not None
@@ -198,6 +219,7 @@ class LotBook:
                 ) / total_qty
                 last_lot.qty_open = total_qty
                 last_lot.qty_original += add_qty
+                last_lot.entry_cost_total += fee_for_open
                 if stop_price is not None:
                     last_lot.stop_price = stop_price
                 last_lot._recompute_initial_risk()
@@ -218,6 +240,7 @@ class LotBook:
                     strategy_id=strategy_id,
                     order_id=order_id,
                     stop_price=stop_price,
+                    entry_cost_total=fee_for_open,
                 )
                 new_lot._recompute_initial_risk()
                 self._lots.append(new_lot)

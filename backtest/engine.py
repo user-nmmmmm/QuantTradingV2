@@ -9,6 +9,7 @@ import pandas as pd
 
 from backtest.execution_adapter import SimulatedExecutionAdapter
 from config.config import config
+from core.accounting_check import AccountingReconciler
 from core.broker import Broker
 from core.logger import get_logger
 from core.market_data import HistoricalMarketDataAdapter, normalize_market_frame
@@ -107,6 +108,7 @@ class BacktestEngine:
             "equity_curve": pd.DataFrame(),
             "benchmark": None,
             "close_events": {name: 0 for name in strategies},
+            "accounting_check": AccountingReconciler(self.initial_capital).result().to_dict(),
         }
         if not processed_data:
             logger.warning("No valid symbol data available after normalization")
@@ -131,7 +133,8 @@ class BacktestEngine:
 
         logger.info("Starting backtest on %s bars", len(timestamps))
         equity_curve = []
-        for event in market_data.stream():
+        accounting = AccountingReconciler(self.initial_capital)
+        for bar_index, event in enumerate(market_data.stream()):
             result = processor.process(event)
             if result.circuit_breaker:
                 for symbol, position in list(portfolio.positions.items()):
@@ -154,6 +157,12 @@ class BacktestEngine:
                     "cash": result.cash,
                 }
             )
+            # T-1.8: accounting-identity check (Gate G2), one lightweight pass
+            # per bar using the same equity/prices the loop already computed.
+            accounting.check_bar(
+                bar_index, event.timestamp, result.equity, portfolio,
+                result.prices, broker.close_events,
+            )
         router.save_log()
         logger.info("Backtest completed")
 
@@ -171,6 +180,9 @@ class BacktestEngine:
                 name: int(getattr(strategy, "observed_close_events", 0))
                 for name, strategy in strategies.items()
             },
+            # T-1.8 / Gate G2: equity(t) == initial_capital + realized + unrealized,
+            # checked every bar and summarized here for the report/roadmap gate.
+            "accounting_check": accounting.result().to_dict(),
         }
 
     def _benchmark(

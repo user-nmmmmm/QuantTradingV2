@@ -325,10 +325,10 @@ class ReportGenerator:
         # Group by symbol
         for symbol, group in trades_df.groupby("symbol"):
             long_stack: Deque[
-                Tuple[float, float, str, float, float, Any]
-            ] = deque()  # (qty, price, strategy_id, unit_comm, unit_slip, entry_time)
+                Tuple[float, float, str, float, float, Any, float]
+            ] = deque()  # (qty, price, strategy_id, unit_comm, unit_slip, entry_time, theoretical_price)
             short_stack: Deque[
-                Tuple[float, float, str, float, float, Any]
+                Tuple[float, float, str, float, float, Any, float]
             ] = deque()
 
             columns = list(group.columns)
@@ -337,6 +337,7 @@ class ReportGenerator:
             strategy_index = column_index.get("strategy_id")
             fill_time_index = column_index.get("fill_time")
             exit_reason_index = column_index.get("exit_reason")
+            theoretical_index = column_index.get("theoretical_price")
             for row in group.itertuples(index=False, name=None):
                 side = row[column_index["side"]]
                 qty = row[column_index["qty"]]
@@ -344,6 +345,12 @@ class ReportGenerator:
                 comm = row[column_index["commission"]]
                 # Broker stores 'slip' as unit price difference (absolute)
                 unit_slip = row[slip_index] if slip_index is not None else 0.0
+                # T-1.6 cost-field contract: theoretical_price is the zero-cost
+                # reference price (falls back to fill_price for trade records
+                # recorded before this field existed).
+                theoretical_price = (
+                    row[theoretical_index] if theoretical_index is not None else price
+                )
 
                 unit_comm = comm / qty if qty > 0 else 0.0
 
@@ -363,13 +370,16 @@ class ReportGenerator:
                     # Check if covering short
                     remaining = qty
                     while remaining > 0 and short_stack:
-                        s_qty, s_price, s_strat, s_unit_comm, s_unit_slip, s_time = (
-                            short_stack.popleft()
-                        )
+                        (
+                            s_qty, s_price, s_strat, s_unit_comm, s_unit_slip, s_time,
+                            s_theoretical,
+                        ) = short_stack.popleft()
                         matched = min(remaining, s_qty)
 
                         # Short PnL: (Entry - Exit) * qty
                         gross_pnl = (s_price - price) * matched
+                        # T-1.6/T-1.7: zero-cost reference PnL for cost-sensitivity.
+                        gross_pnl_theoretical = (s_theoretical - theoretical_price) * matched
 
                         # Commission: Entry + Exit
                         trade_comm = (s_unit_comm + unit_comm) * matched
@@ -383,6 +393,7 @@ class ReportGenerator:
                         closed_trades.append(
                             {
                                 "gross_pnl": gross_pnl,
+                                "gross_pnl_theoretical": gross_pnl_theoretical,
                                 "net_pnl": net_pnl,
                                 "commission": trade_comm,
                                 "slippage": trade_slip,
@@ -405,25 +416,31 @@ class ReportGenerator:
                                     s_unit_comm,
                                     s_unit_slip,
                                     s_time,
+                                    s_theoretical,
                                 ),
                             )
 
                     if remaining > 0:
                         long_stack.append(
-                            (remaining, price, strategy_id, unit_comm, unit_slip, fill_time)
+                            (
+                                remaining, price, strategy_id, unit_comm, unit_slip,
+                                fill_time, theoretical_price,
+                            )
                         )
 
                 elif side == "sell":
                     # Close Long
                     remaining = qty
                     while remaining > 0 and long_stack:
-                        l_qty, l_price, l_strat, l_unit_comm, l_unit_slip, l_time = (
-                            long_stack.popleft()
-                        )
+                        (
+                            l_qty, l_price, l_strat, l_unit_comm, l_unit_slip, l_time,
+                            l_theoretical,
+                        ) = long_stack.popleft()
                         matched = min(remaining, l_qty)
 
                         # Long PnL: (Exit - Entry) * qty
                         gross_pnl = (price - l_price) * matched
+                        gross_pnl_theoretical = (theoretical_price - l_theoretical) * matched
                         trade_comm = (l_unit_comm + unit_comm) * matched
                         trade_slip = (l_unit_slip + unit_slip) * matched
                         net_pnl = gross_pnl - trade_comm
@@ -431,6 +448,7 @@ class ReportGenerator:
                         closed_trades.append(
                             {
                                 "gross_pnl": gross_pnl,
+                                "gross_pnl_theoretical": gross_pnl_theoretical,
                                 "net_pnl": net_pnl,
                                 "commission": trade_comm,
                                 "slippage": trade_slip,
@@ -453,30 +471,39 @@ class ReportGenerator:
                                     l_unit_comm,
                                     l_unit_slip,
                                     l_time,
+                                    l_theoretical,
                                 ),
                             )
 
                     if remaining > 0:
                         short_stack.append(
-                            (remaining, price, strategy_id, unit_comm, unit_slip, fill_time)
+                            (
+                                remaining, price, strategy_id, unit_comm, unit_slip,
+                                fill_time, theoretical_price,
+                            )
                         )
 
                 elif side == "short":
                     # Open Short
                     short_stack.append(
-                        (qty, price, strategy_id, unit_comm, unit_slip, fill_time)
+                        (
+                            qty, price, strategy_id, unit_comm, unit_slip, fill_time,
+                            theoretical_price,
+                        )
                     )
 
                 elif side == "cover":
                     # Close Short (Buy to Cover)
                     remaining = qty
                     while remaining > 0 and short_stack:
-                        s_qty, s_price, s_strat, s_unit_comm, s_unit_slip, s_time = (
-                            short_stack.popleft()
-                        )
+                        (
+                            s_qty, s_price, s_strat, s_unit_comm, s_unit_slip, s_time,
+                            s_theoretical,
+                        ) = short_stack.popleft()
                         matched = min(remaining, s_qty)
 
                         gross_pnl = (s_price - price) * matched
+                        gross_pnl_theoretical = (s_theoretical - theoretical_price) * matched
                         trade_comm = (s_unit_comm + unit_comm) * matched
                         trade_slip = (s_unit_slip + unit_slip) * matched
                         net_pnl = gross_pnl - trade_comm
@@ -484,6 +511,7 @@ class ReportGenerator:
                         closed_trades.append(
                             {
                                 "gross_pnl": gross_pnl,
+                                "gross_pnl_theoretical": gross_pnl_theoretical,
                                 "net_pnl": net_pnl,
                                 "commission": trade_comm,
                                 "slippage": trade_slip,
@@ -506,12 +534,16 @@ class ReportGenerator:
                                     s_unit_comm,
                                     s_unit_slip,
                                     s_time,
+                                    s_theoretical,
                                 ),
                             )
 
                     if remaining > 0:
                         long_stack.append(
-                            (remaining, price, strategy_id, unit_comm, unit_slip, fill_time)
+                            (
+                                remaining, price, strategy_id, unit_comm, unit_slip,
+                                fill_time, theoretical_price,
+                            )
                         )
 
         return closed_trades

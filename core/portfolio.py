@@ -104,6 +104,7 @@ class Portfolio:
             strategy_id=strategy_id,
             order_id=order_id,
             stop_price=stop_price,
+            fee=fee,
         )
 
         current_pos = self.get_position(symbol)
