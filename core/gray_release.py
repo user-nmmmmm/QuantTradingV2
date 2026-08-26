@@ -28,8 +28,18 @@ class GrayReleasePolicy:
         if os.getenv(self.approval_env, "").lower() not in {"1", "true", "approved"}:
             raise SafetyConfigurationError("R8 operator approval is absent")
         evidence = json.loads(Path(self.r7_evidence_path).read_text(encoding="utf-8"))
-        if not evidence.get("passed"):
-            raise SafetyConfigurationError("R7 acceptance evidence did not pass")
+        phase6_admission = (
+            evidence.get("admission_passed") is True
+            or (
+                isinstance(evidence.get("tasks"), dict)
+                and isinstance(evidence["tasks"].get("T-6.6"), dict)
+                and evidence["tasks"]["T-6.6"].get("passed") is True
+            )
+        )
+        if evidence.get("passed") is not True and not phase6_admission:
+            raise SafetyConfigurationError(
+                "R7/Phase 6 admission evidence did not pass"
+            )
         if startup.exchange_id != self.exchange or startup.symbols != (self.symbol,):
             raise SafetyConfigurationError("R8 starts with exactly one approved exchange and symbol")
         if startup.max_order_notional > self.max_order_notional:

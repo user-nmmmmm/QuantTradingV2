@@ -1,0 +1,73 @@
+{
+  "minimum_paper_days": 56,
+  "minimum_market_regimes": 2,
+  "reconciliation_tolerance": 1e-08,
+  "backtest_signals": [],
+  "shadow_signals": [],
+  "paper_observations": [],
+  "expected_lifecycle": {
+    "signals": [],
+    "orders": [],
+    "fills": [],
+    "positions": [],
+    "costs": [],
+    "pnl": []
+  },
+  "actual_lifecycle": {
+    "signals": [],
+    "orders": [],
+    "fills": [],
+    "positions": [],
+    "costs": [],
+    "pnl": []
+  },
+  "execution_observations": [],
+  "calibration_tolerances": {
+    "slippage_mae_bps": 2.0,
+    "spread_mae_bps": 2.0,
+    "rejection_rate_error": 0.05,
+    "latency_mae_ms": 100.0
+  },
+  "monitoring_snapshots": [],
+  "alert_delivery_verified": false,
+  "p0_issues": [],
+  "holdout_report": {},
+  "admission_approval": {
+    "approved": false,
+    "operator": "",
+    "approved_at": ""
+  },
+  "micro_live_scope": {
+    "exchange": "",
+    "symbol": "",
+    "strategy": "",
+    "capital": 0,
+    "leverage": 0
+  },
+  "micro_live_observations": [],
+  "micro_live_reconciliation": {},
+  "current_scope": {
+    "capital": 0,
+    "symbols": [],
+    "exchanges": [],
+    "strategies": [],
+    "leverage": 0,
+    "unattended_hours": 0
+  },
+  "proposed_scope": {
+    "capital": 0,
+    "symbols": [],
+    "exchanges": [],
+    "strategies": [],
+    "leverage": 0,
+    "unattended_hours": 0
+  },
+  "capacity_review": {"passed": false},
+  "cost_review": {"passed": false},
+  "risk_review": {"passed": false},
+  "expansion_approval": {
+    "approved": false,
+    "operator": "",
+    "approved_at": ""
+  }
+}

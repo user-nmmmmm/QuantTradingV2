@@ -25,7 +25,23 @@ def recent_alerts(path: str, limit: int = 10) -> list[dict[str, Any]]:
     return list(alerts)
 
 
-def _invalid_dashboard(alerts_path: str, alert_limit: int) -> dict[str, Any]:
+def _load_phase6_monitoring(path: str | None) -> dict[str, Any] | None:
+    if not path:
+        return None
+    try:
+        payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError, TypeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    if isinstance(payload.get("tasks"), dict):
+        payload = payload["tasks"].get("T-6.5") or {}
+    return payload if isinstance(payload, dict) and payload.get("task") == "T-6.5" else None
+
+
+def _invalid_dashboard(
+    alerts_path: str, alert_limit: int, phase6_path: str | None = None,
+) -> dict[str, Any]:
     """Return no financial facts when the status snapshot is untrustworthy."""
     return {
         "status_valid": False,
@@ -42,22 +58,27 @@ def _invalid_dashboard(alerts_path: str, alert_limit: int) -> dict[str, Any]:
             "message": "status snapshot is missing, malformed, or has an invalid schema",
         }],
         "recent_alerts": recent_alerts(alerts_path, alert_limit),
+        "phase6_monitoring": _load_phase6_monitoring(phase6_path),
     }
 
 
 def load_dashboard(
-    status_path: str, alerts_path: str, *, alert_limit: int = 10,
+    status_path: str,
+    alerts_path: str,
+    *,
+    alert_limit: int = 10,
+    phase6_path: str | None = None,
 ) -> dict[str, Any]:
     try:
         with open(status_path, "r", encoding="utf-8") as handle:
             status = json.load(handle)
     except (OSError, UnicodeError, json.JSONDecodeError, TypeError):
-        return _invalid_dashboard(alerts_path, alert_limit)
+        return _invalid_dashboard(alerts_path, alert_limit, phase6_path)
     if not isinstance(status, dict) or not isinstance(status.get("healthy"), bool):
-        return _invalid_dashboard(alerts_path, alert_limit)
+        return _invalid_dashboard(alerts_path, alert_limit, phase6_path)
     health = status.get("health_assessment") or {}
     if not isinstance(health, dict):
-        return _invalid_dashboard(alerts_path, alert_limit)
+        return _invalid_dashboard(alerts_path, alert_limit, phase6_path)
     return {
         "status_valid": True,
         "timestamp": status.get("last_update") or status.get("timestamp"),
@@ -69,6 +90,7 @@ def load_dashboard(
         "health_reason_codes": status.get("health_reason_codes") or [],
         "health_reasons": health.get("reasons") or [],
         "recent_alerts": recent_alerts(alerts_path, alert_limit),
+        "phase6_monitoring": _load_phase6_monitoring(phase6_path),
     }
 
 
@@ -113,6 +135,19 @@ def render_text(data: dict[str, Any]) -> str:
             )
     else:
         lines.append("  (none)")
+    phase6 = data.get("phase6_monitoring")
+    lines.append("")
+    lines.append("Phase 6 monitoring:")
+    if phase6:
+        lines.append(f"  Gate: {'PASS' if phase6.get('passed') else 'FAIL'}")
+        latest = phase6.get("latest_snapshot") or {}
+        for dimension in ("lifecycle", "costs", "drawdown", "regime", "data_quality"):
+            section = latest.get(dimension) or {}
+            state = "OK" if section.get("ok") is True else "ALERT"
+            reason = section.get("reason")
+            lines.append(f"  {dimension}: {state}" + (f" ({reason})" if reason else ""))
+    else:
+        lines.append("  (no Phase 6 evidence report)")
     return "\n".join(lines)
 
 
@@ -120,11 +155,15 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Read-only live operations dashboard")
     parser.add_argument("--status", default="reports/live_status.json")
     parser.add_argument("--alerts", default="reports/live_alerts.jsonl")
+    parser.add_argument("--phase6-report", default="reports/phase6/phase6_report.json")
     parser.add_argument("--alert-limit", type=int, default=10)
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
     data = load_dashboard(
-        args.status, args.alerts, alert_limit=args.alert_limit,
+        args.status,
+        args.alerts,
+        alert_limit=args.alert_limit,
+        phase6_path=args.phase6_report,
     )
     print(json.dumps(data, indent=2, sort_keys=True) if args.json else render_text(data))
     return 0 if data["status_valid"] else 2

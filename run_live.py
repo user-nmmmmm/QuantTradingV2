@@ -51,7 +51,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--preflight-report", default="reports/startup_preflight.json",
     )
-    parser.add_argument("--r8-evidence", help="passed R7 acceptance JSON (required for --live)")
+    parser.add_argument(
+        "--r8-evidence",
+        help="passed R7 or Phase 6 admission JSON (required for --live)",
+    )
     parser.add_argument("--rollback-snapshot", help="validated state snapshot (required for --live)")
     parser.add_argument("--r8-max-order-notional", type=float)
     parser.add_argument("--r8-max-daily-risk", type=float)
