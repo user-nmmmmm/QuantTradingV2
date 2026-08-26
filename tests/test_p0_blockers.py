@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 from core.alerting import JsonlAlertSink
+from core.accounts import AccountMode
 from core.broker import Broker, Order, OrderType
 from core.domain import OrderErrorCode, OrderStatus, SyncResult
 from core.live_broker import LiveBroker
@@ -391,7 +392,15 @@ class TestP0Blockers(unittest.TestCase):
             store.close()
 
     def test_limit_fills_never_cross_limit_after_slippage(self):
-        broker = Broker(Portfolio(), slippage=0.10, commission_rate=0)
+        broker = Broker(
+            Portfolio(
+                account_mode=AccountMode.SPOT_MARGIN,
+                initial_margin_rate=0.20,
+                maintenance_margin_rate=0.10,
+            ),
+            slippage=0.10,
+            commission_rate=0,
+        )
         buy = Order("BTC/USDT", "buy", 1, OrderType.LIMIT, price=100)
         buy_fill = broker._execute_trade(buy, 100, NOW, 1)
         sell = Order("BTC/USDT", "short", 1, OrderType.LIMIT, price=100)

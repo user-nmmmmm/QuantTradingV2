@@ -1,5 +1,6 @@
 from typing import Any, Dict, List, Optional
 
+from core.accounts import AccountMode, FinancingEntry, MarginSnapshot
 from core.lots import Lot, LotBook, LotClose, LotIdAllocator
 
 """
@@ -20,13 +21,29 @@ Portfolio（组合/账户）模块
 
 
 class Portfolio:
-    def __init__(self, initial_capital: float = 10000.0):
+    def __init__(
+        self,
+        initial_capital: float = 10000.0,
+        *,
+        account_mode: AccountMode | str = AccountMode.SPOT,
+        initial_margin_rate: float = 1.0,
+        maintenance_margin_rate: float = 0.05,
+    ):
         """
         初始化账户。
 
         参数：
         - initial_capital：初始资金（默认 10,000），同时初始化 cash。
         """
+        self.account_mode = AccountMode(account_mode)
+        if not 0 < initial_margin_rate <= 1:
+            raise ValueError("initial_margin_rate must be in (0, 1]")
+        if not 0 <= maintenance_margin_rate <= initial_margin_rate:
+            raise ValueError(
+                "maintenance_margin_rate must be between 0 and initial_margin_rate"
+            )
+        self.initial_margin_rate = float(initial_margin_rate)
+        self.maintenance_margin_rate = float(maintenance_margin_rate)
         self.initial_capital = initial_capital
         self.cash = initial_capital
         # positions: symbol -> {'qty': float, 'avg_price': float}
@@ -37,6 +54,10 @@ class Portfolio:
         # same backtest from a fresh Portfolio yields identical lot/position
         # ids in the same order (run-to-run determinism).
         self._lot_id_allocator = LotIdAllocator()
+        self.margin_ledger: List[MarginSnapshot] = []
+        self.financing_ledger: List[FinancingEntry] = []
+        # Positive means a cost paid by the account, negative means a credit.
+        self.cumulative_financing_cost = 0.0
 
     def get_lot_book(self, symbol: str) -> LotBook:
         if symbol not in self.lot_books:
@@ -95,8 +116,6 @@ class Portfolio:
         - 本次 fill 在批次账本中核销掉的 LotClose 列表（纯开仓/加仓时为空列表），
           供 Broker 据此构造统一的 CloseEvent（T-1.3）。
         """
-        self.cash -= fee
-
         lot_closes = self.get_lot_book(symbol).apply_fill(
             qty_delta,
             price,
@@ -111,9 +130,23 @@ class Portfolio:
         old_qty = current_pos["qty"]
         new_qty = old_qty + qty_delta
 
-        # 现金流：买入消耗现金，卖出/开空回笼现金
-        cost = qty_delta * price
-        self.cash -= cost
+        self.cash -= fee
+        if self.account_mode is AccountMode.SPOT:
+            # Spot owns the asset: buys exchange quote cash for inventory and
+            # sells exchange inventory back into quote cash.
+            self.cash -= qty_delta * price
+        else:
+            # Leveraged accounts keep collateral separate from position
+            # notional.  Only realised PnL and explicit costs move collateral.
+            for lot_close in lot_closes:
+                if lot_close.side == "long":
+                    self.cash += (
+                        price - lot_close.entry_price
+                    ) * lot_close.qty_closed
+                else:
+                    self.cash += (
+                        lot_close.entry_price - price
+                    ) * lot_close.qty_closed
         # A fill that crosses through zero closes the old lot and opens the
         # residual in the opposite direction at the current fill price.
         # Keeping the old average here corrupts short/long reversal cost basis.
@@ -164,10 +197,13 @@ class Portfolio:
         equity = self.cash
         for symbol, pos in self.positions.items():
             qty = pos["qty"]
-            price = current_prices.get(
-                symbol, pos["avg_price"]
-            )  # Fallback to avg_price if no current price
-            equity += qty * price
+            price = current_prices.get(symbol, pos["avg_price"])
+            if self.account_mode is AccountMode.SPOT:
+                equity += qty * price
+            elif qty > 0:
+                equity += (price - pos["avg_price"]) * qty
+            else:
+                equity += (pos["avg_price"] - price) * abs(qty)
         return equity
 
     def get_total_value(self, current_prices: Dict[str, float]) -> float:
@@ -187,3 +223,78 @@ class Portfolio:
             price = current_prices.get(symbol, pos["avg_price"])
             exposure += qty * price
         return exposure
+
+    def margin_snapshot(
+        self,
+        current_prices: Dict[str, float],
+        *,
+        timestamp: Any = None,
+        record: bool = False,
+    ) -> MarginSnapshot:
+        """Return an auditable initial/maintenance/free-margin reconciliation."""
+        equity = self.get_equity(current_prices)
+        gross = self.get_total_exposure(current_prices)
+        if self.account_mode.uses_margin:
+            initial = gross * self.initial_margin_rate
+            maintenance = gross * self.maintenance_margin_rate
+            available = equity - initial
+            ratio = float("inf") if maintenance <= 0 else equity / maintenance
+            liquidation = gross > 0 and equity <= maintenance
+        else:
+            initial = gross
+            maintenance = 0.0
+            available = self.cash
+            ratio = float("inf")
+            liquidation = False
+        snapshot = MarginSnapshot(
+            timestamp=timestamp,
+            account_mode=self.account_mode.value,
+            equity=equity,
+            gross_notional=gross,
+            initial_margin=initial,
+            maintenance_margin=maintenance,
+            available_margin=available,
+            margin_ratio=ratio,
+            liquidation_required=liquidation,
+        )
+        if record:
+            self.margin_ledger.append(snapshot)
+        return snapshot
+
+    def projected_margin_available(
+        self,
+        current_prices: Dict[str, float],
+        additional_notional: float,
+    ) -> float:
+        snapshot = self.margin_snapshot(current_prices)
+        if not self.account_mode.uses_margin:
+            return snapshot.available_margin - additional_notional
+        return snapshot.equity - (
+            snapshot.gross_notional + max(additional_notional, 0.0)
+        ) * self.initial_margin_rate
+
+    def apply_financing(
+        self,
+        *,
+        timestamp: Any,
+        symbol: str,
+        kind: str,
+        rate: float,
+        notional: float,
+        amount: float,
+        source: str,
+    ) -> FinancingEntry:
+        """Post a signed financing cost to collateral and the audit ledger."""
+        entry = FinancingEntry(
+            timestamp=timestamp,
+            symbol=symbol,
+            kind=kind,
+            rate=float(rate),
+            notional=float(notional),
+            amount=float(amount),
+            source=source,
+        )
+        self.cash -= entry.amount
+        self.cumulative_financing_cost += entry.amount
+        self.financing_ledger.append(entry)
+        return entry

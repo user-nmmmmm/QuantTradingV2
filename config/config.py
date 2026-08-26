@@ -15,11 +15,23 @@ logger = get_logger(__name__)
 REQUIRED_CONFIG: Dict[str, Tuple[str, ...]] = {
     "execution": (
         "commission_rate_taker", "commission_rate_maker", "slippage_bps",
-        "use_impact_cost", "reconciliation_interval_seconds",
+        "spread_bps", "volatility_slippage_factor", "use_impact_cost",
+        "impact_coefficient", "impact_exponent", "max_participation_rate",
+        "reconciliation_interval_seconds",
         "strategy_failure_threshold",
         "state_export_interval_ticks",
     ),
     "risk": ("max_leverage", "risk_per_trade", "max_drawdown_limit", "liquidity_limit_pct", "max_pos_size_pct"),
+    "drawdown": (
+        "daily_loss_limit", "reduce_threshold", "block_threshold",
+        "liquidate_threshold", "lock_threshold", "reduced_risk_multiplier",
+    ),
+    "account": (
+        "mode", "initial_margin_rate", "maintenance_margin_rate",
+        "funding_interval_hours", "funding_rate_required",
+        "default_borrow_rate_annual", "borrow_availability_required",
+        "default_borrow_limit_qty", "liquidation_penalty_bps",
+    ),
     "state": ("stability_period", "ma_fast", "ma_slow", "adx_period", "adx_threshold", "atr_period", "atr_pct_threshold"),
     "routing": ("TREND_UP", "TREND_DOWN", "SIDEWAYS", "VOLATILE"),
     "router": ("cooldown_bars",),

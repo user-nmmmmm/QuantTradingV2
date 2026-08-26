@@ -63,10 +63,12 @@
 - **动态策略路由（Router）**：按 regime 将每根 bar 的决策路由到对应策略，并带
   **状态切换互斥 + 冷却期**（`router.cooldown_bars`），避免频繁翻转造成过度交易。
 - **成本与执行模拟**：支持 Market / Limit / Stop 三种订单类型，模拟 maker/taker
-  双边手续费、固定/随机滑点，并可选启用基于成交量比例的简化冲击成本模型。
+  双边手续费、固定/随机滑点、买卖价差、波动率滑点、参与率非线性冲击与跨 bar 分批成交。
 - **风控**：杠杆上限（`risk.max_leverage`）、单标的持仓集中度上限
   （`risk.max_pos_size_pct`）、流动性约束（单笔订单不超过 bar 成交量的固定比例）、
-  日内回撤熔断（触发后禁止新开仓，不强平存量持仓）。
+  独立日内亏损限制，以及基于历史权益高水位的降仓/停开仓/强平/锁定分级熔断。
+- **账户与保证金**：回测明确区分 `spot / spot_margin / perpetual`，逐 bar 对账初始保证金、
+  维持保证金和可用保证金，并支持历史资金费、借币费、可借限制和标记价格强平。
 - **报告与归因**：自动输出 `equity.csv / trades.csv / report.txt / equity.png`，
   并提供按策略、标的、月份切分的归因、稳健性验证（OOS / Walk-Forward /
   Bootstrap / Monte Carlo / 多重检验校正）等指标，详见
@@ -238,12 +240,20 @@ python -m dashboard --status reports/live_status.json --alerts reports/live_aler
   - `execution.commission_rate_taker` = `0.0005`（0.05%，taker 双边费率）
   - `execution.commission_rate_maker` = `0.0002`（0.02%，maker 双边费率）
   - `execution.slippage_bps` = `5`（默认滑点，5 个基点）
-  - `execution.use_impact_cost`：是否启用简化冲击成本（默认关闭）
+  - `execution.spread_bps` = `2`（缺少 bar 级价差时使用）
+  - `execution.volatility_slippage_factor` = `0.02`
+  - `execution.use_impact_cost` = `true`，冲击指数默认为 `1.5`
+  - `execution.max_participation_rate` = `0.05`（超过后跨 bar 分批成交）
 - **风控**
   - `risk.max_leverage` = `3.0`（最大杠杆，gross exposure / equity）
   - `risk.max_pos_size_pct` = `0.30`（单标的最大持仓占权益比例）
-  - `risk.max_drawdown_limit` = `0.20`（日内回撤熔断阈值）
+  - `drawdown.daily_loss_limit` = `0.05`（独立日内亏损限制）
+  - `drawdown.reduce/block/liquidate/lock_threshold` = `0.10/0.15/0.20/0.25`
   - `risk.liquidity_limit_pct` = `0.01`（单笔订单占该 bar 成交量的最大比例）
+- **账户**
+  - `account.mode` = `spot_margin`
+  - `account.initial_margin_rate / maintenance_margin_rate` = `1/3 / 0.10`
+  - `account.default_borrow_rate_annual` = `0.08`
 - **路由映射**
   - `routing.TREND_UP / TREND_DOWN / SIDEWAYS / VOLATILE` → 策略名（例如 `"TrendBreakout"`）
   - `router.cooldown_bars` = `2`（状态切换后的冷却 bar 数）
@@ -335,12 +345,10 @@ python -m dashboard --status reports/live_status.json --alerts reports/live_aler
 
 ## 当前能力边界
 
-- **现货 vs 衍生品**：所有入口（`run_live.py`、安全配置默认值）目前都以**现货
-  （spot）**为默认交易模式。底层 `core/exchange_boundary.py` 已经定义了衍生品
-  相关的能力检测（`future/futures/swap/margin`），`run_live.py --market-type`
-  也接受这些取值，但要在生产中真正启用合约/杠杆交易，还需要额外验证保证金、
-  强平、`core/live_safety.py` 账户类型白名单等相关行为是否已经打通。术语定义
-  见 [`docs/glossary.md` 第 9 节](docs/glossary.md#9-合约衍生品相关术语当前为能力预留尚未打通)。
+- **现货 vs 衍生品**：回测路径已用 `account.mode` 打通 `spot / spot_margin / perpetual`
+  三种独立语义及其保证金、融资成本和强平契约。实盘入口仍受
+  `core/live_safety.py` 的账户类型白名单、交易所元数据和启动预检约束；回测支持不等于
+  自动批准真实资金使用，真实资金准入仍属于后续 Paper/灰度阶段。
 - **多标的并发交易**：实盘引擎（`live_trading/engine.py`）和回测引擎均原生支持
   **同时**处理多个标的（如 `--symbols BTC/USDT ETH/USDT SOL/USDT ...`），并非依次
   轮询触发。仓位状态按标的独立记录（`core/portfolio.py`），仓位计算基于组合整体

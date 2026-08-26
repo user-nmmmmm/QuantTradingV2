@@ -25,6 +25,13 @@ class DataHandler:
     负责数据的加载、验证和标准化。
     """
     REQUIRED_COLUMNS = ['open', 'high', 'low', 'close', 'volume']
+    ANOMALY_COLUMNS = [
+        "anomaly_missing_ohlcv",
+        "anomaly_invalid_ohlc",
+        "anomaly_spike",
+        "anomaly_nonpositive",
+        "anomaly_any",
+    ]
 
     @staticmethod
     def validate(df: pd.DataFrame) -> pd.DataFrame:
@@ -117,6 +124,7 @@ class DataHandler:
         - gaps：时间差 > 1.5 * 典型频率（median diff）的数量（用于发现缺口）
         - spikes：单根收盘涨跌幅绝对值 > 20% 的次数（用于发现异常点/极端行情）
         """
+        annotated = DataHandler.annotate_quality(df, copy=True)
         report = {
             "symbol": symbol,
             "total_rows": len(df),
@@ -125,7 +133,13 @@ class DataHandler:
             "duplicates": df.index.duplicated().sum(),
             "missing_values": df.isnull().sum().to_dict(),
             "gaps": 0,
-            "spikes": 0
+            "spikes": int(annotated["anomaly_spike"].sum()),
+            "invalid_ohlc": int(annotated["anomaly_invalid_ohlc"].sum()),
+            "nonpositive_prices": int(annotated["anomaly_nonpositive"].sum()),
+            "anomaly_rows": int(annotated["anomaly_any"].sum()),
+            "anomaly_timestamps": [
+                str(timestamp) for timestamp in annotated.index[annotated["anomaly_any"]]
+            ],
         }
 
         # Check for gaps (assuming regular frequency if possible)
@@ -139,13 +153,43 @@ class DataHandler:
             report["gaps"] = len(gaps)
             report["expected_freq"] = str(freq)
             
-            # Check for price spikes (> 20% change in one bar)
-            # pct_change
-            returns = df['close'].pct_change().abs()
-            spikes = returns[returns > 0.20]
-            report["spikes"] = len(spikes)
-            
+            # Detailed anomaly flags are calculated by annotate_quality so the
+            # exact same facts can travel with bars and fills (T-2.10).
+
         return report
+
+    @staticmethod
+    def annotate_quality(
+        df: pd.DataFrame,
+        *,
+        spike_threshold: float = 0.20,
+        copy: bool = True,
+    ) -> pd.DataFrame:
+        """Attach row-level anomaly facts to a market frame.
+
+        Flags are ordinary boolean columns, so the historical adapter carries
+        them into ``MarketDataSlice.bars`` and Broker persists them into each
+        fill's ``data_quality_context``.  The data is marked, not silently
+        deleted or repaired.
+        """
+
+        if spike_threshold <= 0:
+            raise ValueError("spike_threshold must be positive")
+        result = df.copy() if copy else df
+        required = [column for column in DataHandler.REQUIRED_COLUMNS if column in result]
+        missing = result[required].isna().any(axis=1) if required else pd.Series(True, index=result.index)
+        invalid_ohlc = (
+            (result["high"] < result[["open", "close", "low"]].max(axis=1))
+            | (result["low"] > result[["open", "close", "high"]].min(axis=1))
+        )
+        nonpositive = (result[["open", "high", "low", "close"]] <= 0).any(axis=1)
+        spike = result["close"].pct_change(fill_method=None).abs().gt(spike_threshold)
+        result["anomaly_missing_ohlcv"] = missing.astype(bool)
+        result["anomaly_invalid_ohlc"] = invalid_ohlc.fillna(True).astype(bool)
+        result["anomaly_spike"] = spike.fillna(False).astype(bool)
+        result["anomaly_nonpositive"] = nonpositive.fillna(True).astype(bool)
+        result["anomaly_any"] = result[DataHandler.ANOMALY_COLUMNS[:-1]].any(axis=1)
+        return result
 
     @staticmethod
     def generate_quality_report(data_map: dict, output_path: str = None) -> dict:

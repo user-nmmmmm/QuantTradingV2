@@ -82,7 +82,10 @@ class TestNoLookahead(unittest.TestCase):
         trade = trades[0]
         self.assertEqual(trade["signal_time"], dates[50])
         self.assertEqual(trade["fill_time"], dates[51])
-        self.assertEqual(trade["fill_price"], 151.0)
+        # Phase 3 execution costs may worsen the actual fill, but the zero-cost
+        # reference must still be exactly the next bar's open.
+        self.assertEqual(trade["theoretical_price"], 151.0)
+        self.assertGreaterEqual(trade["fill_price"], trade["theoretical_price"])
 
 
 if __name__ == "__main__":

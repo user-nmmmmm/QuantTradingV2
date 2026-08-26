@@ -4,13 +4,20 @@ from __future__ import annotations
 
 import os
 from typing import Any, Dict, Optional
+from uuid import uuid4
 
 import pandas as pd
 
 from backtest.execution_adapter import SimulatedExecutionAdapter
 from config.config import config
 from core.accounting_check import AccountingReconciler
+from core.accounts import AccountMode
+from core.benchmarks import (
+    dynamic_equal_weight_rebalanced,
+    fixed_equal_weight_buy_hold,
+)
 from core.broker import Broker
+from core.events import TradingEventPipeline
 from core.logger import get_logger
 from core.market_data import HistoricalMarketDataAdapter, normalize_market_frame
 from core.portfolio import Portfolio
@@ -36,10 +43,37 @@ class BacktestEngine:
         slippage: Optional[float] = None,
         random_slip: bool = False,
         warmup_period: int = 30,
+        alignment_mode: Optional[str] = None,
+        benchmark_mode: Optional[str] = None,
+        benchmark_rebalance_cost_bps: Optional[float] = None,
+        timeframe: Optional[str] = None,
+        universe: Optional[object] = None,
+        run_id: Optional[str] = None,
+        account_mode: Optional[str] = None,
     ) -> None:
+        config_data = config.require("data")
+        config_benchmark = config.require("benchmark")
+        alignment_mode = alignment_mode or config_data["alignment_mode"]
+        benchmark_mode = benchmark_mode or config_benchmark["mode"]
+        benchmark_rebalance_cost_bps = (
+            config_benchmark["dynamic_rebalance_cost_bps"]
+            if benchmark_rebalance_cost_bps is None
+            else benchmark_rebalance_cost_bps
+        )
+        timeframe = timeframe or config_data["timeframe"]
+        if alignment_mode not in {"union", "intersection"}:
+            raise ValueError("alignment_mode must be 'union' or 'intersection'")
+        if benchmark_mode not in {"fixed", "dynamic"}:
+            raise ValueError("benchmark_mode must be 'fixed' or 'dynamic'")
+        if benchmark_rebalance_cost_bps < 0:
+            raise ValueError("benchmark_rebalance_cost_bps cannot be negative")
         self.initial_capital = initial_capital
         self.config_execution = config.require("execution")
         self.config_risk = config.require("risk")
+        self.config_account = config.get("account") or {}
+        self.account_mode = AccountMode(
+            account_mode or self.config_account.get("mode", AccountMode.SPOT.value)
+        )
         self.slippage = (
             self.config_execution["slippage_bps"] / 10000.0
             if slippage is None
@@ -47,9 +81,15 @@ class BacktestEngine:
         )
         self.random_slip = random_slip
         self.warmup_period = warmup_period
-        self.market_data_adapter = None
-        self.execution_adapter = None
-        self.event_processor = None
+        self.alignment_mode = alignment_mode
+        self.benchmark_mode = benchmark_mode
+        self.benchmark_rebalance_cost_bps = benchmark_rebalance_cost_bps
+        self.timeframe = timeframe
+        self.universe = universe
+        self.run_id = run_id or str(uuid4())
+        self.market_data_adapter: Optional[HistoricalMarketDataAdapter] = None
+        self.execution_adapter: Optional[SimulatedExecutionAdapter] = None
+        self.event_processor: Optional[EventProcessor] = None
 
     @staticmethod
     def _prepare_dataframe(df: pd.DataFrame) -> pd.DataFrame:
@@ -65,7 +105,24 @@ class BacktestEngine:
         if not data_map:
             return {}
 
-        portfolio = Portfolio(self.initial_capital)
+        initial_margin_rate = float(
+            self.config_account.get(
+                "initial_margin_rate",
+                1.0 / max(float(self.config_risk["max_leverage"]), 1.0),
+            )
+        )
+        portfolio = Portfolio(
+            self.initial_capital,
+            account_mode=self.account_mode,
+            initial_margin_rate=initial_margin_rate,
+            maintenance_margin_rate=float(
+                self.config_account.get("maintenance_margin_rate", 0.05)
+            ),
+        )
+        event_pipeline = TradingEventPipeline(
+            run_id=self.run_id,
+            retention_limit=250000,
+        )
         broker = Broker(
             portfolio,
             slippage=self.slippage,
@@ -77,6 +134,28 @@ class BacktestEngine:
                 "max_participation_rate",
                 self.config_risk["liquidity_limit_pct"],
             ),
+            spread_bps=self.config_execution.get("spread_bps", 0.0),
+            volatility_slippage_factor=self.config_execution.get(
+                "volatility_slippage_factor", 0.0
+            ),
+            impact_coefficient=self.config_execution.get("impact_coefficient", 0.10),
+            impact_exponent=self.config_execution.get("impact_exponent", 1.5),
+            funding_interval_hours=self.config_account.get("funding_interval_hours", 8.0),
+            funding_rate_required=self.config_account.get("funding_rate_required", True),
+            default_borrow_rate_annual=self.config_account.get(
+                "default_borrow_rate_annual", 0.0
+            ),
+            borrow_availability_required=self.config_account.get(
+                "borrow_availability_required", False
+            ),
+            default_borrow_limit_qty=self.config_account.get(
+                "default_borrow_limit_qty", float("inf")
+            ),
+            liquidation_penalty_bps=self.config_account.get(
+                "liquidation_penalty_bps", 0.0
+            ),
+            event_pipeline=event_pipeline,
+            timeframe=self.timeframe,
         )
         risk_manager = build_risk_manager()
         state_machine = build_state_machine()
@@ -98,7 +177,12 @@ class BacktestEngine:
             routing_log_path = None
         router = build_router(strategies, log_path=routing_log_path)
 
-        market_data = HistoricalMarketDataAdapter(data_map)
+        market_data = HistoricalMarketDataAdapter(
+            data_map,
+            timeframe=self.timeframe,
+            alignment_mode=self.alignment_mode,
+            universe=self.universe,
+        )
         processed_data = market_data.data_map
         # Early exits must keep the same result keys as a completed run, or
         # callers that read close_events/benchmark silently get None and the
@@ -107,8 +191,28 @@ class BacktestEngine:
             "trades": [],
             "equity_curve": pd.DataFrame(),
             "benchmark": None,
+            "benchmark_fixed": None,
+            "benchmark_dynamic": None,
+            "benchmark_weights": pd.DataFrame(),
+            "benchmark_turnover": pd.Series(dtype=float),
+            "benchmark_costs": pd.Series(dtype=float),
+            "benchmark_metadata": {},
             "close_events": {name: 0 for name in strategies},
             "accounting_check": AccountingReconciler(self.initial_capital).result().to_dict(),
+            "event_log": tuple(event_pipeline.events),
+            "run_id": self.run_id,
+            "alignment_mode": self.alignment_mode,
+            "account_mode": self.account_mode.value,
+            "margin_ledger": [],
+            "financing_ledger": [],
+            "execution_audit": [],
+            "breaker_audit": [],
+            "breaker_state": {
+                "action": "normal",
+                "high_water_equity": None,
+                "drawdown": 0.0,
+                "daily_loss_triggered": False,
+            },
         }
         if not processed_data:
             logger.warning("No valid symbol data available after normalization")
@@ -136,6 +240,7 @@ class BacktestEngine:
         accounting = AccountingReconciler(self.initial_capital)
         bar_index = -1
         last_event_timestamp = None
+        applied_breaker_actions: set[str] = set()
         for bar_index, event in enumerate(market_data.stream()):
             last_event_timestamp = event.timestamp
             result = processor.process(event)
@@ -147,20 +252,57 @@ class BacktestEngine:
                     portfolio.update_lot_extremes(
                         symbol, float(bar["high"]), float(bar["low"])
                     )
-            if result.circuit_breaker:
-                for symbol, position in list(portfolio.positions.items()):
-                    qty = position["qty"]
-                    if qty == 0 or symbol not in event.bars:
-                        continue
-                    execution.submit_order(
-                        symbol,
-                        "sell" if qty > 0 else "cover",
-                        abs(qty),
-                        result.prices[symbol],
+            margin = portfolio.margin_snapshot(
+                result.prices, timestamp=event.timestamp, record=True
+            )
+            forced_trades = []
+            if margin.liquidation_required:
+                forced_trades.extend(
+                    broker.force_liquidate(
+                        dict(event.bars),
                         timestamp=event.timestamp,
-                        strategy_id="CircuitBreaker",
-                        exit_reason="MaxLoss",
+                        reason="MarginLiquidation",
                     )
+                )
+            elif result.breaker_action == "reduce" and "reduce" not in applied_breaker_actions:
+                forced_trades.extend(
+                    broker.force_liquidate(
+                        dict(event.bars),
+                        timestamp=event.timestamp,
+                        reason="DrawdownReduce",
+                        remaining_fraction=risk_manager.reduced_risk_multiplier,
+                    )
+                )
+                applied_breaker_actions.add("reduce")
+            elif result.breaker_action in {"liquidate", "locked"}:
+                if result.breaker_action not in applied_breaker_actions:
+                    forced_trades.extend(
+                        broker.force_liquidate(
+                            dict(event.bars),
+                            timestamp=event.timestamp,
+                            reason="AccountLiquidation",
+                        )
+                    )
+                    applied_breaker_actions.add(result.breaker_action)
+            elif result.circuit_breaker and result.breaker_action == "normal":
+                forced_trades.extend(
+                    broker.force_liquidate(
+                        dict(event.bars),
+                        timestamp=event.timestamp,
+                        reason="DailyLossLimit",
+                    )
+                )
+            if forced_trades:
+                for strategy in strategies.values():
+                    for symbol in event.bars:
+                        strategy._consume_execution_trades(
+                            symbol, bar_index, portfolio, execution
+                        )
+                result.equity = portfolio.get_equity(result.prices)
+                result.cash = float(portfolio.cash)
+                portfolio.margin_snapshot(
+                    result.prices, timestamp=event.timestamp, record=True
+                )
             equity_curve.append(
                 {
                     "timestamp": event.timestamp,
@@ -181,11 +323,38 @@ class BacktestEngine:
         router.save_log()
         logger.info("Backtest completed")
 
-        benchmark_series = self._benchmark(processed_data, self.warmup_period)
+        fixed_benchmark = fixed_equal_weight_buy_hold(
+            processed_data, self.initial_capital, start_idx=self.warmup_period
+        )
+        dynamic_benchmark = dynamic_equal_weight_rebalanced(
+            processed_data,
+            self.initial_capital,
+            start_idx=self.warmup_period,
+            cost_bps=self.benchmark_rebalance_cost_bps,
+        )
+        selected_benchmark = (
+            dynamic_benchmark if self.benchmark_mode == "dynamic" else fixed_benchmark
+        )
         return {
             "trades": broker.trades,
             "equity_curve": pd.DataFrame(equity_curve).set_index("timestamp"),
-            "benchmark": benchmark_series,
+            "benchmark": selected_benchmark.equity if selected_benchmark else None,
+            "benchmark_fixed": fixed_benchmark.equity if fixed_benchmark else None,
+            "benchmark_dynamic": dynamic_benchmark.equity if dynamic_benchmark else None,
+            "benchmark_weights": (
+                selected_benchmark.weights if selected_benchmark else pd.DataFrame()
+            ),
+            "benchmark_turnover": (
+                selected_benchmark.turnover if selected_benchmark else pd.Series(dtype=float)
+            ),
+            "benchmark_costs": (
+                selected_benchmark.costs if selected_benchmark else pd.Series(dtype=float)
+            ),
+            "benchmark_metadata": {
+                "selected": self.benchmark_mode,
+                "fixed": fixed_benchmark.metadata if fixed_benchmark else None,
+                "dynamic": dynamic_benchmark.metadata if dynamic_benchmark else None,
+            },
             # Per-strategy count of round trips each strategy actually saw
             # close. Diagnostics compares this against the reconstructed
             # closed-trade count to detect strategies whose on_trade_closed
@@ -198,6 +367,20 @@ class BacktestEngine:
             # T-1.8 / Gate G2: equity(t) == initial_capital + realized + unrealized,
             # checked every bar and summarized here for the report/roadmap gate.
             "accounting_check": accounting.result().to_dict(),
+            "event_log": tuple(event_pipeline.events),
+            "run_id": self.run_id,
+            "alignment_mode": self.alignment_mode,
+            "account_mode": self.account_mode.value,
+            "margin_ledger": [item.to_dict() for item in portfolio.margin_ledger],
+            "financing_ledger": [item.to_dict() for item in portfolio.financing_ledger],
+            "execution_audit": list(broker.execution_audit),
+            "breaker_audit": list(risk_manager.breaker_audit),
+            "breaker_state": {
+                "action": risk_manager.breaker_action.value,
+                "high_water_equity": risk_manager.high_water_equity,
+                "drawdown": risk_manager.last_drawdown,
+                "daily_loss_triggered": bool(risk_manager.circuit_breaker_triggered),
+            },
         }
 
     def _close_tail_positions(
@@ -264,7 +447,9 @@ class BacktestEngine:
             for symbol in synthetic_bars:
                 strategy._consume_execution_trades(symbol, bar_index + 1, portfolio, execution)
 
-        final_prices = dict(self.event_processor.last_prices) if self.event_processor else {}
+        final_prices: Dict[str, float] = (
+            dict(self.event_processor.last_prices) if self.event_processor else {}
+        )
         final_equity = portfolio.get_equity(final_prices)
         equity_curve.append(
             {"timestamp": synthetic_time, "equity": final_equity, "cash": portfolio.cash}
@@ -277,20 +462,8 @@ class BacktestEngine:
     def _benchmark(
         self, processed_data: Dict[str, pd.DataFrame], start_idx: int
     ) -> Optional[pd.Series]:
-        try:
-            closes = pd.DataFrame(
-                {symbol: frame["close"] for symbol, frame in processed_data.items()}
-            )
-            returns = closes.pct_change(fill_method=None).fillna(0)
-            benchmark = (1 + returns.mean(axis=1)).cumprod()
-            if start_idx < len(benchmark):
-                base = benchmark.iloc[start_idx]
-                if base != 0:
-                    benchmark = benchmark / base * self.initial_capital
-                    benchmark.iloc[:start_idx] = self.initial_capital
-                    return benchmark
-            return benchmark * self.initial_capital
-        except Exception as exc:
-            logger.warning("Failed to calculate benchmark: %s", exc)
-            return None
+        result = fixed_equal_weight_buy_hold(
+            processed_data, self.initial_capital, start_idx=start_idx
+        )
+        return result.equity if result else None
 

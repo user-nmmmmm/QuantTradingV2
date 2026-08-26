@@ -1,0 +1,118 @@
+{
+  "scope": "deterministic synthetic capacity verification; not a production AUM claim",
+  "account_mode": "spot_margin",
+  "capital_levels": [10000.0, 100000.0, 1000000.0, 10000000.0],
+  "points": [
+    {
+      "initial_capital": 10000.0,
+      "final_equity": 9349.341233159326,
+      "total_return": -0.06506587668406738,
+      "fill_count": 32,
+      "unique_order_count": 32,
+      "rejected_order_count": 0,
+      "partial_fill_count": 0,
+      "rejection_rate": 0.0,
+      "average_participation_rate": 0.000054198991710404916,
+      "total_commission": 43.19914895027688,
+      "total_slippage_cost": 79.51502900245306,
+      "total_impact_cost": 0.007473360403929066,
+      "total_financing_cost": 111.94140681878122,
+      "trade_path_signature": "BTC/USDT:cover:4|BTC/USDT:short:4|ETH/USDT:buy:2|ETH/USDT:cover:5|ETH/USDT:sell:2|ETH/USDT:short:5|SOL/USDT:buy:2|SOL/USDT:cover:3|SOL/USDT:sell:2|SOL/USDT:short:3",
+      "rejection_reasons": {},
+      "explanation": "non-linear market impact contributed 0.01 of cost"
+    },
+    {
+      "initial_capital": 100000.0,
+      "final_equity": 93491.22200878916,
+      "total_return": -0.06508777991210835,
+      "fill_count": 32,
+      "unique_order_count": 32,
+      "rejected_order_count": 0,
+      "partial_fill_count": 0,
+      "rejection_rate": 0.0,
+      "average_participation_rate": 0.0005419853542168792,
+      "total_commission": 431.9860810974628,
+      "total_slippage_cost": 795.1389741283876,
+      "total_impact_cost": 2.3632529982146115,
+      "total_financing_cost": 1119.3916991413844,
+      "trade_path_signature": "BTC/USDT:cover:4|BTC/USDT:short:4|ETH/USDT:buy:2|ETH/USDT:cover:5|ETH/USDT:sell:2|ETH/USDT:short:5|SOL/USDT:buy:2|SOL/USDT:cover:3|SOL/USDT:sell:2|SOL/USDT:short:3",
+      "rejection_reasons": {},
+      "explanation": "non-linear market impact contributed 2.36 of cost"
+    },
+    {
+      "initial_capital": 1000000.0,
+      "final_equity": 920402.089806284,
+      "total_return": -0.07959791019371598,
+      "fill_count": 31,
+      "unique_order_count": 30,
+      "rejected_order_count": 0,
+      "partial_fill_count": 1,
+      "rejection_rate": 0.0,
+      "average_participation_rate": 0.005283789332473722,
+      "total_commission": 4039.5595295467597,
+      "total_slippage_cost": 7451.333350581385,
+      "total_impact_cost": 626.6243169439525,
+      "total_financing_cost": 10658.725521576667,
+      "trade_path_signature": "BTC/USDT:cover:4|BTC/USDT:short:4|ETH/USDT:buy:2|ETH/USDT:cover:5|ETH/USDT:sell:2|ETH/USDT:short:4|SOL/USDT:buy:2|SOL/USDT:cover:3|SOL/USDT:sell:2|SOL/USDT:short:3",
+      "rejection_reasons": {},
+      "explanation": "1 partial fill was caused by the configured participation cap; non-linear market impact contributed 626.62 of cost"
+    },
+    {
+      "initial_capital": 10000000.0,
+      "final_equity": 9130279.405752987,
+      "total_return": -0.08697205942470132,
+      "fill_count": 33,
+      "unique_order_count": 25,
+      "rejected_order_count": 0,
+      "partial_fill_count": 8,
+      "rejection_rate": 0.0,
+      "average_participation_rate": 0.02039471330198822,
+      "total_commission": 31706.230260864686,
+      "total_slippage_cost": 57866.31324131839,
+      "total_impact_cost": 22088.674873274063,
+      "total_financing_cost": 94960.59731500837,
+      "trade_path_signature": "BTC/USDT:cover:4|BTC/USDT:short:5|ETH/USDT:buy:2|ETH/USDT:cover:6|ETH/USDT:sell:2|ETH/USDT:short:5|SOL/USDT:buy:1|SOL/USDT:cover:4|SOL/USDT:sell:2|SOL/USDT:short:2",
+      "rejection_reasons": {},
+      "explanation": "8 partial fills were caused by the configured participation cap; non-linear market impact contributed 22088.67 of cost"
+    }
+  ],
+  "path_changes": [
+    {
+      "initial_capital": 1000000.0,
+      "baseline_signature": "BTC/USDT:cover:4|BTC/USDT:short:4|ETH/USDT:buy:2|ETH/USDT:cover:5|ETH/USDT:sell:2|ETH/USDT:short:5|SOL/USDT:buy:2|SOL/USDT:cover:3|SOL/USDT:sell:2|SOL/USDT:short:3",
+      "observed_signature": "BTC/USDT:cover:4|BTC/USDT:short:4|ETH/USDT:buy:2|ETH/USDT:cover:5|ETH/USDT:sell:2|ETH/USDT:short:4|SOL/USDT:buy:2|SOL/USDT:cover:3|SOL/USDT:sell:2|SOL/USDT:short:3",
+      "explanation": "1 partial fill was caused by the configured participation cap; non-linear market impact contributed 626.62 of cost",
+      "explained": true
+    },
+    {
+      "initial_capital": 10000000.0,
+      "baseline_signature": "BTC/USDT:cover:4|BTC/USDT:short:4|ETH/USDT:buy:2|ETH/USDT:cover:5|ETH/USDT:sell:2|ETH/USDT:short:5|SOL/USDT:buy:2|SOL/USDT:cover:3|SOL/USDT:sell:2|SOL/USDT:short:3",
+      "observed_signature": "BTC/USDT:cover:4|BTC/USDT:short:5|ETH/USDT:buy:2|ETH/USDT:cover:6|ETH/USDT:sell:2|ETH/USDT:short:5|SOL/USDT:buy:1|SOL/USDT:cover:4|SOL/USDT:sell:2|SOL/USDT:short:2",
+      "explanation": "8 partial fills were caused by the configured participation cap; non-linear market impact contributed 22088.67 of cost",
+      "explained": true
+    }
+  ],
+  "return_inflections": [
+    {
+      "from_capital": 100000.0,
+      "to_capital": 1000000.0,
+      "return_change": -0.01451013028160763,
+      "fill_count_change": -1,
+      "partial_fill_count_change": 1,
+      "rejection_rate_change": 0.0,
+      "impact_cost_change": 624.2610639457379,
+      "explanation": "1 partial fill was caused by the configured participation cap; non-linear market impact contributed 626.62 of cost"
+    },
+    {
+      "from_capital": 1000000.0,
+      "to_capital": 10000000.0,
+      "return_change": -0.00737414923098534,
+      "fill_count_change": 2,
+      "partial_fill_count_change": 7,
+      "rejection_rate_change": 0.0,
+      "impact_cost_change": 21462.05055633011,
+      "explanation": "8 partial fills were caused by the configured participation cap; non-linear market impact contributed 22088.67 of cost"
+    }
+  ],
+  "all_path_changes_explained": true
+}

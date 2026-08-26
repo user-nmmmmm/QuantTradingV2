@@ -57,6 +57,7 @@ class RuntimeResult:
     prices: Dict[str, float]
     routed_symbols: list[str] = field(default_factory=list)
     circuit_breaker: bool = False
+    breaker_action: str = "normal"
 
 
 class EventProcessor:
@@ -151,6 +152,10 @@ class EventProcessor:
             prices=self.last_prices,
             routed_symbols=routed,
             circuit_breaker=breaker,
+            breaker_action=str(
+                getattr(getattr(self.risk_manager, "breaker_action", "normal"), "value",
+                        getattr(self.risk_manager, "breaker_action", "normal"))
+            ),
         )
 
     def process_symbol(self, event: MarketDataSlice, symbol: str) -> bool:
@@ -182,4 +187,3 @@ class EventProcessor:
 
     def run(self, market_data: MarketDataAdapter) -> list[RuntimeResult]:
         return [self.process(event) for event in market_data.stream()]
-

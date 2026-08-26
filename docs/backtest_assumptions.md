@@ -27,8 +27,8 @@
 
 - **佣金模式**: 双边收费 (开仓和平仓均收费)。
 - **费率类型**:
-  - **Maker Fee (挂单)**: 适用于日内被动成交的限价单。默认: **0.05% (5 bps)**。
-  - **Taker Fee (吃单)**: 适用于市价单及立即成交的限价单。默认: **0.10% (10 bps)**。
+  - **Maker Fee (挂单)**: 适用于日内被动成交的限价单。默认: **0.02% (2 bps)**。
+  - **Taker Fee (吃单)**: 适用于市价单及立即成交的限价单。默认: **0.05% (5 bps)**。
 - **计算公式**: $Cost = Price \times Qty \times FeeRate$
 
 ## 3. 滑点与流动性
@@ -36,21 +36,35 @@
 - **固定滑点 (Fixed Slippage)**: 在成交价基础上增加/减少固定百分比。
   - 买入: $P_{fill} = P_{open} \times (1 + slip)$
   - 卖出: $P_{fill} = P_{open} \times (1 - slip)$
+- **买卖价差**：使用 bar 的 `spread_bps`；缺失时使用配置默认值，并按半个价差计入单边成交。
+- **波动率滑点**：`volatility_slippage_factor × (high-low)/reference_price`；若 bar 提供
+  `volatility` 列则优先使用该列。
 - **随机滑点 (Random Slippage)** (可选): 在 $[0, MaxSlip]$ 范围内均匀分布，模拟真实波动。
-- **冲击成本 (Impact Cost)** (计划中): 基于订单量与市场成交量的比率计算惩罚成本。
+- **非线性市场冲击**：$impact = coefficient × participation^{exponent}$，默认指数 1.5。
+- **分批成交**：所有订单共享每个 symbol/bar 的成交量预算；超过
+  `max_participation_rate` 的剩余数量进入下一根 K 线，FOK/IOC 按各自语义取消。
+- 每笔成交记录 `spread_slippage_rate`、`volatility_slippage_rate`、
+  `impact_slippage_rate` 和 `participation_rate`，拒单/分批原因写入 `execution_audit`。
 
-## 4. 资金费率与杠杆
+## 4. 账户、资金费率与杠杆
 
-- **资金费率**: 目前暂未模拟。假设现货为 0，或永续合约多空平衡。
-- **杠杆**:
-  - 支持杠杆交易，但受 `RiskManager` 限制 (通常 1x-3x)。
-  - 尚未实现自动强平引擎 (Liquidation Engine)。
-  - **现金充足性**: 做多（buy）在下单前会经过 `RiskManager.check_entry_risk` 的现金校验——
-    成交名义金额 + 其他挂单已占用的现金 必须 ≤ 账户可用现金，否则直接拒单；
-    `Broker` 在实际成交时也有对称的兜底校验（现金不足则整单 `REJECTED`）。
-    做空（short）不受此现金校验约束，因为保证金/借券占用尚未建模，
-    其风险目前仅由杠杆与集中度上限间接限制——**这部分仍是已知缺口**，
-    在合约保证金系统落地前，做空的资金占用假设仍是"现实中不可能出现的免费杠杆"。
+`account.mode` 明确选择且只选择一种账户语义：
+
+- `spot`：买入交换现金与现货库存，禁止做空；可用现金约束开仓。
+- `spot_margin`：现金表示抵押品，持仓名义金额不直接改变现金；做空受
+  `borrow_available_qty`（或审计标记的配置回退值）限制，按 `borrow_rate_annual`
+  与实际持有时间计提借币费。
+- `perpetual`：现金表示合约抵押品；按历史 `funding_rate` 和配置结算周期计提资金费。
+  正资金费时多头支付、空头收取；`funding_rate_required=true` 时缺失历史费率会失败关闭。
+
+保证金账户每根 K 线保存：标记权益、总名义敞口、初始保证金、维持保证金、可用保证金、
+保证金率和强平状态。新开仓必须通过初始保证金校验；标记权益不高于维持保证金时，
+`Broker.force_liquidate` 按标记价格并叠加强平惩罚，通过统一成交/批次/CloseEvent 路径清算。
+资金费和借币费分别写入 `financing_ledger`，并计入权益与会计恒等式。
+
+组合风控另以历史权益高水位计算永久性回撤，依次执行降仓、停止开仓、强平与锁定。
+这些状态不会随自然日自动恢复；只有带审批人的 `RiskManager.manual_resume()` 可以恢复。
+`drawdown.daily_loss_limit` 是独立的日内限制，仅该日内状态会跨日复位。
 
 ### 4.1 仓位削减（Clamp）语义
 
@@ -157,6 +171,43 @@ Router/CircuitBreaker 的外部平仓不会绕过策略生命周期：持仓实�
 - **benchmark.csv**: 基准策略 (Buy & Hold) 的净值数据。
 - **data_quality_report.json**: 输入数据的质量分析报告 (缺失值、异常值统计)。
 - **routing_log.csv**: 策略路由的详细决策日志。
+
+## Phase 2: reproducibility, alignment, benchmarks and audit
+
+Every normal CLI backtest is an immutable report bundle. `run_manifest.json`
+records Git SHA/branch/dirty state, dependency-lock hashes, the complete config
+snapshot and hash, requested/effective periods, data-source identity, per-symbol
+data hashes, seed and execution settings. Exact engine inputs are stored under
+`data_inputs/`; `--replay-manifest` verifies those hashes and compares the
+trade, equity, benchmark and report-payload digests exactly.
+
+Multi-asset alignment is explicit:
+
+- `union` (default): the event timeline contains every real bar from any asset;
+  only symbols with a real bar at that timestamp are routed.
+- `intersection`: the timeline contains only timestamps present for every asset.
+
+The report always saves two benchmark definitions. The fixed benchmark buys,
+at equal weights, only assets observable at the benchmark start and never
+rebalances. The dynamic benchmark rebalances equally across assets observable
+at each event timestamp; one-way turnover and the configured transaction cost
+are saved alongside every weight. `benchmark.csv` is the selected primary
+benchmark, while `benchmark_fixed.csv`, `benchmark_dynamic.csv`,
+`benchmark_weights.csv`, and `benchmark_turnover_cost.csv` preserve the audit
+trail.
+
+Data anomalies are marked in the OHLCV frame rather than silently removed.
+Each fill persists the anomaly flags for its execution bar. `event_log.jsonl`
+contains signal, risk-decision, order-intent, order, fill and close events;
+`routing_log.csv` contains routing decisions. If trading occurred and a required
+event family is absent, the CLI returns a failed artifact status. Independent
+second-source verification is written to `top_trade_market_data_audit.json`;
+without a supplied secondary directory it is explicitly `unverified`.
+
+A point-in-time universe CSV may be supplied with `symbol`, `listed_at`, and
+optional `delisted_at`. Bars before listing and at/after delisting are ineligible,
+while a delisted asset's earlier history remains in the sample. A static symbol
+list is recorded as not controlling survivorship bias.
 ## 8. 指标统计口径
 
 - **年化因子**：根据权益曲线时间索引的中位正间隔推断 `periods_per_year`；加密日线为 365.25，4 小时、1 小时和 15 分钟周期分别按每日 6、24 和 96 个周期年化。报告同时输出该因子。

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Dict, Iterable, List
+from typing import Dict, Iterable, List, Optional
 
 import pandas as pd
 
@@ -28,7 +28,7 @@ def normalize_market_frame(df: pd.DataFrame) -> pd.DataFrame:
 
 
 class HistoricalMarketDataAdapter:
-    """Turns fixed OHLCV frames into a union-of-real-bars event timeline."""
+    """Turns fixed OHLCV frames into an explicit union/intersection timeline."""
 
     def __init__(
         self,
@@ -36,8 +36,18 @@ class HistoricalMarketDataAdapter:
         *,
         timeframe: str = "unknown",
         calculate_indicators: bool = True,
+        alignment_mode: str = "union",
+        universe: Optional[object] = None,
     ) -> None:
+        if alignment_mode not in {"union", "intersection"}:
+            raise ValueError("alignment_mode must be 'union' or 'intersection'")
         self.timeframe = timeframe
+        self.alignment_mode = alignment_mode
+        if universe is not None:
+            apply_universe = getattr(universe, "apply", None)
+            if not callable(apply_universe):
+                raise TypeError("universe must provide apply(data_map)")
+            data_map = apply_universe(data_map)
         self.data_map: Dict[str, pd.DataFrame] = {}
         for symbol, frame in data_map.items():
             prepared = normalize_market_frame(frame)
@@ -53,9 +63,15 @@ class HistoricalMarketDataAdapter:
 
     @property
     def timestamps(self) -> pd.DatetimeIndex:
-        timeline = pd.DatetimeIndex([])
-        for frame in self.data_map.values():
-            timeline = timeline.union(frame.index)
+        frames = list(self.data_map.values())
+        if not frames:
+            return pd.DatetimeIndex([])
+        timeline = frames[0].index
+        for frame in frames[1:]:
+            if self.alignment_mode == "intersection":
+                timeline = timeline.intersection(frame.index)
+            else:
+                timeline = timeline.union(frame.index)
         return timeline.sort_values()
 
     def stream(self) -> Iterable[MarketDataSlice]:

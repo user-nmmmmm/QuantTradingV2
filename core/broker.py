@@ -1,11 +1,12 @@
 import random
 from typing import Dict, Any, List, Optional
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from enum import Enum
 
 import pandas as pd
 
+from core.accounts import AccountMode
 from core.domain import OrderIntent, OrderStatus
 from core.cost_model import CostBreakdown
 from core.events import FillEvent, OrderEvent, TradingEventPipeline
@@ -85,7 +86,7 @@ class Order:
     zero_cost: bool = False
 
     # State tracking
-    status: BacktestOrderStatus = BacktestOrderStatus.CREATED
+    status: OrderStatus = BacktestOrderStatus.CREATED
     submitted_date: Any = None
     filled_qty: float = 0.0
     remaining_qty: float = 0.0
@@ -120,6 +121,16 @@ class Broker:
         random_slip: bool = False,
         use_impact_cost: bool = False,
         max_participation_rate: float = 1.0,
+        spread_bps: float = 0.0,
+        volatility_slippage_factor: float = 0.0,
+        impact_coefficient: float = 0.10,
+        impact_exponent: float = 1.5,
+        funding_interval_hours: float = 8.0,
+        funding_rate_required: bool = True,
+        default_borrow_rate_annual: float = 0.0,
+        borrow_availability_required: bool = False,
+        default_borrow_limit_qty: float = float("inf"),
+        liquidation_penalty_bps: float = 0.0,
         event_pipeline: Optional[TradingEventPipeline] = None,
         exchange_id: str = "backtest",
         account_id: str = "backtest",
@@ -140,7 +151,29 @@ class Broker:
         if not 0 < max_participation_rate <= 1:
             raise ValueError("max_participation_rate must be in (0, 1]")
         self.max_participation_rate = max_participation_rate
-        self.trades = []  # List to store executed trades
+        if spread_bps < 0 or volatility_slippage_factor < 0:
+            raise ValueError("spread and volatility slippage inputs cannot be negative")
+        if impact_coefficient < 0 or impact_exponent <= 1:
+            raise ValueError("impact_coefficient must be non-negative and exponent > 1")
+        if funding_interval_hours <= 0:
+            raise ValueError("funding_interval_hours must be positive")
+        if default_borrow_rate_annual < 0 or default_borrow_limit_qty < 0:
+            raise ValueError("borrow defaults cannot be negative")
+        self.spread_bps = float(spread_bps)
+        self.volatility_slippage_factor = float(volatility_slippage_factor)
+        self.impact_coefficient = float(impact_coefficient)
+        self.impact_exponent = float(impact_exponent)
+        self.funding_interval_hours = float(funding_interval_hours)
+        self.funding_rate_required = bool(funding_rate_required)
+        self.default_borrow_rate_annual = float(default_borrow_rate_annual)
+        self.borrow_availability_required = bool(borrow_availability_required)
+        self.default_borrow_limit_qty = float(default_borrow_limit_qty)
+        self.liquidation_penalty_bps = float(liquidation_penalty_bps)
+        self.last_prices: Dict[str, float] = {}
+        self._last_funding_bucket: Dict[str, int] = {}
+        self._last_borrow_time: Dict[str, pd.Timestamp] = {}
+        self.execution_audit: List[Dict[str, Any]] = []
+        self.trades: List[Dict[str, Any]] = []  # List to store executed trades
         # Unified close-event contract (T-1.3): every exit path (self-exit,
         # hard stop, Router state-switch, circuit breaker, EndOfBacktest)
         # closes lots through _execute_trade -> Portfolio.update_position,
@@ -157,7 +190,7 @@ class Broker:
         symbol: str,
         side: str,
         qty: float,
-        price: float = None,
+        price: Optional[float] = None,
         order_type: str = "market",  # keeping string for compatibility, convert to Enum
         timestamp: Any = None,
         slippage: float = 0.0,
@@ -322,6 +355,10 @@ class Broker:
         """Match eligible orders against real bars with a shared volume budget."""
         executed_trades: List[Dict] = []
         next_active_orders: List[Order] = []
+        for symbol, bar in current_bar.items():
+            mark = bar.get("mark_price", bar.get("close", bar.get("open")))
+            if mark is not None and pd.notna(mark):
+                self.last_prices[symbol] = float(mark)
         for order in self.pending_orders:
             self._set_status(order, BacktestOrderStatus.SUBMITTED, order.timestamp)
             self.active_orders.append(order)
@@ -355,22 +392,29 @@ class Broker:
             open_price = float(bar_data["open"])
             high_price = float(bar_data["high"])
             low_price = float(bar_data["low"])
+            limit_price = float(order.price) if order.price is not None else None
             exec_price = None
             is_maker = False
             if order.order_type == OrderType.MARKET:
                 exec_price = open_price
             elif order.order_type == OrderType.LIMIT:
-                if order.side in {"buy", "cover"} and low_price <= order.price:
-                    exec_price = open_price if open_price <= order.price else order.price
-                    is_maker = open_price > order.price
-                elif order.side in {"sell", "short"} and high_price >= order.price:
-                    exec_price = open_price if open_price >= order.price else order.price
-                    is_maker = open_price < order.price
+                if limit_price is None:
+                    self._set_status(order, BacktestOrderStatus.REJECTED, current_time)
+                    continue
+                if order.side in {"buy", "cover"} and low_price <= limit_price:
+                    exec_price = open_price if open_price <= limit_price else limit_price
+                    is_maker = open_price > limit_price
+                elif order.side in {"sell", "short"} and high_price >= limit_price:
+                    exec_price = open_price if open_price >= limit_price else limit_price
+                    is_maker = open_price < limit_price
             elif order.order_type == OrderType.STOP:
-                if order.side in {"buy", "cover"} and high_price >= order.price:
-                    exec_price = max(open_price, order.price)
-                elif order.side in {"sell", "short"} and low_price <= order.price:
-                    exec_price = min(open_price, order.price)
+                if limit_price is None:
+                    self._set_status(order, BacktestOrderStatus.REJECTED, current_time)
+                    continue
+                if order.side in {"buy", "cover"} and high_price >= limit_price:
+                    exec_price = max(open_price, limit_price)
+                elif order.side in {"sell", "short"} and low_price <= limit_price:
+                    exec_price = min(open_price, limit_price)
 
             if exec_price is None:
                 if order.time_in_force in {TimeInForce.IOC, TimeInForce.FOK}:
@@ -382,6 +426,7 @@ class Broker:
             available = volume_budget.get(order.symbol, 0.0)
             requested = order.remaining_qty
             if order.time_in_force == TimeInForce.FOK and available < requested:
+                self._audit_order(order, current_time, "rejected", "fok_volume")
                 self._set_status(order, BacktestOrderStatus.CANCELED, current_time)
                 continue
             fill_qty = min(requested, available)
@@ -392,9 +437,20 @@ class Broker:
                     next_active_orders.append(order)
                 continue
 
+            if fill_qty < requested:
+                self._audit_order(
+                    order,
+                    current_time,
+                    "partial_fill",
+                    "participation_limit",
+                    requested_qty=requested,
+                    fill_qty=fill_qty,
+                )
+
             trade = self._execute_trade(
                 order, exec_price, current_time, fill_qty,
                 float(bar_data.get("volume", 0.0)), is_maker=is_maker,
+                bar_context=bar_data,
             )
             if trade is None:
                 if order.status is BacktestOrderStatus.SUBMITTING:
@@ -419,6 +475,25 @@ class Broker:
 
         self.active_orders = next_active_orders
         return executed_trades
+
+    def _audit_order(
+        self,
+        order: Order,
+        timestamp: Any,
+        outcome: str,
+        reason: str,
+        **details: Any,
+    ) -> None:
+        self.execution_audit.append({
+            "timestamp": timestamp,
+            "order_id": order.id,
+            "symbol": order.symbol,
+            "side": order.side,
+            "outcome": outcome,
+            "reason": reason,
+            **details,
+        })
+
     def _execute_trade(
         self,
         order: Order,
@@ -427,15 +502,43 @@ class Broker:
         fill_qty: float,
         volume: float = 0,
         is_maker: bool = False,
+        bar_context: Optional[pd.Series] = None,
     ) -> Optional[Dict]:
         base_slip = order.slippage if order.slippage > 0 else self.slippage
         slip_rate = random.uniform(0, base_slip) if self.random_slip and base_slip > 0 else base_slip
+        quoted_spread_bps = (
+            float(bar_context.get("spread_bps"))
+            if bar_context is not None and pd.notna(bar_context.get("spread_bps"))
+            else self.spread_bps
+        )
+        spread_slip = max(quoted_spread_bps, 0.0) / 20000.0
+        volatility_slip = 0.0
+        if bar_context is not None and price > 0:
+            if pd.notna(bar_context.get("volatility")):
+                bar_volatility = max(float(bar_context.get("volatility")), 0.0)
+            else:
+                bar_volatility = max(
+                    float(bar_context.get("high", price))
+                    - float(bar_context.get("low", price)),
+                    0.0,
+                ) / price
+            volatility_slip = self.volatility_slippage_factor * bar_volatility
         impact_slip = 0.0
+        participation = 0.0
         if self.use_impact_cost and volume > 0:
             participation = fill_qty / volume
-            if participation > 0.01:
-                impact_slip = participation * 0.1
-        total_slip_rate = 0.0 if order.zero_cost else (slip_rate + impact_slip)
+            impact_slip = self.impact_coefficient * (
+                max(participation, 0.0) ** self.impact_exponent
+            )
+        liquidation_penalty = (
+            self.liquidation_penalty_bps / 10000.0
+            if order.exit_reason in {"MarginLiquidation", "AccountLiquidation"}
+            else 0.0
+        )
+        total_slip_rate = 0.0 if order.zero_cost else (
+            slip_rate + spread_slip + volatility_slip
+            + impact_slip + liquidation_penalty
+        )
         if order.side in {"buy", "cover"}:
             fill_price = price * (1 + total_slip_rate)
             qty_delta = fill_qty
@@ -469,11 +572,68 @@ class Broker:
             self.commission_rate_maker if is_maker else self.commission_rate
         )
         commission = value * fee_rate
-        if order.side in {"buy", "short"} and value + commission > self.portfolio.cash + 1e-12:
+        is_opening = order.side in {"buy", "short"}
+        if order.side == "short" and not self.portfolio.account_mode.allows_short:
+            self._audit_order(order, timestamp, "rejected", "spot_short_forbidden")
+            self._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
+            return None
+        if (
+            order.side == "short"
+            and self.portfolio.account_mode is AccountMode.SPOT_MARGIN
+        ):
+            available_raw = (
+                bar_context.get("borrow_available_qty")
+                if bar_context is not None else None
+            )
+            if available_raw is None or pd.isna(available_raw):
+                if self.borrow_availability_required:
+                    self._audit_order(order, timestamp, "rejected", "missing_borrow_availability")
+                    self._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
+                    return None
+                available_borrow = self.default_borrow_limit_qty
+                borrow_source = "configured_default"
+            else:
+                available_borrow = max(float(available_raw), 0.0)
+                borrow_source = "historical_bar"
+            projected_short = max(
+                -self.portfolio.get_position(order.symbol)["qty"], 0.0
+            ) + fill_qty
+            if projected_short > available_borrow + 1e-12:
+                self._audit_order(
+                    order,
+                    timestamp,
+                    "rejected",
+                    "borrow_limit",
+                    requested_short_qty=projected_short,
+                    borrow_available_qty=available_borrow,
+                    source=borrow_source,
+                )
+                self._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
+                return None
+        if is_opening and self.portfolio.account_mode.uses_margin:
+            margin_available = self.portfolio.projected_margin_available(
+                self.last_prices, value
+            )
+            if margin_available < commission - 1e-12:
+                self._audit_order(
+                    order,
+                    timestamp,
+                    "rejected",
+                    "initial_margin",
+                    projected_available_margin=margin_available,
+                )
+                self._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
+                return None
+        if (
+            is_opening
+            and self.portfolio.account_mode is AccountMode.SPOT
+            and value + commission > self.portfolio.cash + 1e-12
+        ):
             logger.warning(
                 "Order rejected: insufficient cash for %s %s; required=%.8f available=%.8f",
                 order.side, order.symbol, value + commission, self.portfolio.cash,
             )
+            self._audit_order(order, timestamp, "rejected", "insufficient_cash")
             self._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
             return None
         lot_closes = self.portfolio.update_position(
@@ -488,14 +648,23 @@ class Broker:
         )
         costs = CostBreakdown(
             commission=commission,
-            slippage=abs(fill_price - price) * fill_qty,
+            slippage=abs(price * (slip_rate + spread_slip + volatility_slip)) * fill_qty,
             impact=abs(price * impact_slip) * fill_qty,
             funding=None,
             borrow=None,
-            funding_status="not_modeled",
-            borrow_status="not_modeled",
+            funding_status=(
+                "accrued_separately"
+                if self.portfolio.account_mode is AccountMode.PERPETUAL
+                else "not_applicable"
+            ),
+            borrow_status=(
+                "accrued_separately"
+                if self.portfolio.account_mode is AccountMode.SPOT_MARGIN
+                else "not_applicable"
+            ),
         )
         close_event_ids = []
+        new_close_events: List[CloseEvent] = []
         if lot_closes:
             # T-1.6/T-1.7: fill_price already embeds slippage AND impact (both
             # feed total_slip_rate above), so gross_pnl computed from fill
@@ -505,6 +674,7 @@ class Broker:
             position_fully_closed = (
                 self.portfolio.get_position(order.symbol).get("qty", 0.0) == 0.0
             )
+            position_fully_closed = bool(position_fully_closed)
             for lot_close in lot_closes:
                 self._close_event_sequence += 1
                 close_event_id = f"{lot_close.lot_id}:{self._close_event_sequence}"
@@ -536,6 +706,7 @@ class Broker:
                     is_position_fully_closed=position_fully_closed,
                 )
                 self.close_events.append(event)
+                new_close_events.append(event)
                 close_event_ids.append(close_event_id)
         # T-1.9/T-1.10: per-lot risk/excursion detail for this fill's closes,
         # in the same FIFO order _reconstruct_closed_trades matches its own
@@ -564,14 +735,34 @@ class Broker:
             "commission": commission,
             "slip": abs(fill_price - price),
             "slip_dir": slip_dir,
+            "spread_bps": quoted_spread_bps,
+            "spread_slippage_rate": spread_slip,
+            "volatility_slippage_rate": volatility_slip,
+            "impact_slippage_rate": impact_slip,
+            "participation_rate": participation,
+            "account_mode": self.portfolio.account_mode.value,
             "costs": costs.to_dict(),
             "strategy_id": order.strategy_id,
             "exit_reason": order.exit_reason,
             "is_maker": is_maker,
             "close_event_ids": close_event_ids,
             "lot_closes": lot_close_details,
+            "data_quality_context": {
+                str(key): bool(value)
+                for key, value in (bar_context.items() if bar_context is not None else [])
+                if str(key).startswith("anomaly_")
+            },
         }
         self.trades.append(trade_record)
+        self._audit_order(
+            order,
+            timestamp,
+            "filled",
+            "matched",
+            fill_qty=fill_qty,
+            participation_rate=participation,
+            total_slippage_rate=total_slip_rate,
+        )
         if order.intent is not None:
             fill_id = f"{order.id}:{order.filled_qty + fill_qty:.12f}"
             fill = self.event_pipeline.publish(
@@ -595,11 +786,153 @@ class Broker:
                 source="backtest",
             )
             order.last_event_id = str(fill.event_id)
+            for close_event in new_close_events:
+                close_payload = asdict(close_event)
+                close_payload["timestamp"] = self._event_time(close_event.timestamp)
+                close_envelope = self.event_pipeline.publish(
+                    close_payload,
+                    event_type="close",
+                    occurred_at=self._event_time(timestamp),
+                    correlation_id=order.intent.correlation_id,
+                    causation_id=order.last_event_id,
+                    idempotency_key=close_event.close_event_id,
+                    account_id=order.intent.account,
+                    symbol=order.symbol,
+                    timeframe=order.intent.timeframe,
+                    source="backtest",
+                )
+                order.last_event_id = str(close_envelope.event_id)
         logger.info(
             "Trade filled symbol=%s side=%s qty=%.8f fill_price=%.8f signal_time=%s fill_time=%s",
             order.symbol, order.side, fill_qty, fill_price, order.timestamp, timestamp,
         )
         return trade_record
+
+    def accrue_carry(self, current_bar: Dict[str, pd.Series]) -> List[Dict[str, Any]]:
+        """Accrue historical perpetual funding and margin-short borrow costs."""
+        entries = []
+        seconds_per_year = 365.0 * 24.0 * 3600.0
+        for symbol, position in list(self.portfolio.positions.items()):
+            bar = current_bar.get(symbol)
+            if bar is None or position["qty"] == 0:
+                continue
+            timestamp = pd.Timestamp(bar.name)
+            mark_price = float(bar.get("mark_price", bar.get("close", position["avg_price"])))
+            notional = abs(position["qty"]) * mark_price
+            if self.portfolio.account_mode is AccountMode.PERPETUAL:
+                bucket_seconds = self.funding_interval_hours * 3600.0
+                bucket = int(timestamp.timestamp() // bucket_seconds)
+                if self._last_funding_bucket.get(symbol) == bucket:
+                    continue
+                rate_raw = bar.get("funding_rate")
+                if rate_raw is None or pd.isna(rate_raw):
+                    if self.funding_rate_required:
+                        raise ValueError(
+                            f"missing funding_rate for perpetual position {symbol} at {timestamp}"
+                        )
+                    rate = 0.0
+                    source = "configured_zero_fallback"
+                else:
+                    rate = float(rate_raw)
+                    source = "historical_bar"
+                # Positive funding: longs pay, shorts receive.
+                amount = position["qty"] * mark_price * rate
+                entry = self.portfolio.apply_financing(
+                    timestamp=timestamp,
+                    symbol=symbol,
+                    kind="funding",
+                    rate=rate,
+                    notional=notional,
+                    amount=amount,
+                    source=source,
+                )
+                self._last_funding_bucket[symbol] = bucket
+                entries.append(entry.to_dict())
+            elif (
+                self.portfolio.account_mode is AccountMode.SPOT_MARGIN
+                and position["qty"] < 0
+            ):
+                previous = self._last_borrow_time.get(symbol)
+                self._last_borrow_time[symbol] = timestamp
+                if previous is None or timestamp <= previous:
+                    continue
+                elapsed_seconds = (timestamp - previous).total_seconds()
+                rate_raw = bar.get("borrow_rate_annual")
+                if rate_raw is None or pd.isna(rate_raw):
+                    rate = self.default_borrow_rate_annual
+                    source = "configured_default"
+                else:
+                    rate = float(rate_raw)
+                    source = "historical_bar"
+                amount = notional * rate * elapsed_seconds / seconds_per_year
+                entry = self.portfolio.apply_financing(
+                    timestamp=timestamp,
+                    symbol=symbol,
+                    kind="borrow",
+                    rate=rate,
+                    notional=notional,
+                    amount=amount,
+                    source=source,
+                )
+                entries.append(entry.to_dict())
+        return entries
+
+    def force_liquidate(
+        self,
+        current_bar: Dict[str, pd.Series],
+        *,
+        timestamp: Any,
+        reason: str = "MarginLiquidation",
+        remaining_fraction: float = 0.0,
+    ) -> List[Dict]:
+        """Reduce marked positions immediately through the canonical fill path."""
+        if not 0 <= remaining_fraction < 1:
+            raise ValueError("remaining_fraction must be in [0, 1)")
+        for order in list(self.pending_orders) + list(self.active_orders):
+            if order.side in {"buy", "short"}:
+                self._set_status(order, BacktestOrderStatus.CANCELED, timestamp)
+        self.pending_orders = [o for o in self.pending_orders if o.side not in {"buy", "short"}]
+        self.active_orders = [o for o in self.active_orders if o.side not in {"buy", "short"}]
+        signal_time = pd.Timestamp(timestamp) - pd.Timedelta(microseconds=1)
+        liquidation_bars: Dict[str, pd.Series] = {}
+        for symbol, position in list(self.portfolio.positions.items()):
+            bar = current_bar.get(symbol)
+            if bar is None or position["qty"] == 0:
+                continue
+            reduce_qty = abs(position["qty"]) * (1.0 - remaining_fraction)
+            if reduce_qty <= 0:
+                continue
+            mark = float(bar.get("mark_price", bar.get("close", bar.get("open"))))
+            self.submit_order(
+                symbol,
+                "sell" if position["qty"] > 0 else "cover",
+                reduce_qty,
+                mark,
+                timestamp=signal_time,
+                strategy_id="AccountRisk",
+                exit_reason=reason,
+            )
+            forced_bar = bar.copy()
+            forced_bar.name = pd.Timestamp(timestamp)
+            forced_bar["open"] = mark
+            forced_bar["volume"] = max(
+                float(forced_bar.get("volume", 0.0)),
+                reduce_qty / self.max_participation_rate * 2.0,
+            )
+            liquidation_bars[symbol] = forced_bar
+        if not liquidation_bars:
+            return []
+        trades = self.process_orders(liquidation_bars)
+        for trade in trades:
+            self.execution_audit.append({
+                "timestamp": timestamp,
+                "order_id": trade["order_id"],
+                "symbol": trade["symbol"],
+                "side": trade["side"],
+                "outcome": "forced_liquidation",
+                "reason": reason,
+            })
+        return trades
 
     def has_active_open_order(self, symbol: str) -> bool:
         return any(

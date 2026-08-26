@@ -5,7 +5,12 @@ execution:
   commission_rate_taker: 0.0005 # 0.05% (Binance Futures standard taker, was 0.1% spot rate)
   commission_rate_maker: 0.0002 # 0.02% (Binance Futures standard maker)
   slippage_bps: 5               # 5 basis points (0.05%)
-  use_impact_cost: false        # Enable volume-based impact cost
+  spread_bps: 2                 # Default full bid/ask spread; bar spread_bps overrides it
+  volatility_slippage_factor: 0.02 # Additional slip = intrabar range * factor
+  use_impact_cost: true         # Non-linear participation-rate market impact
+  impact_coefficient: 0.10
+  impact_exponent: 1.5
+  max_participation_rate: 0.05  # Split fills across bars above 5% participation
   reconciliation_interval_seconds: 300  # Independent order reconciliation cadence
   strategy_failure_threshold: 3         # Consecutive strategy failures before HALTED
   state_export_interval_ticks: 5          # Export live_status periodically or on state change
@@ -14,9 +19,34 @@ execution:
 risk:
   max_leverage: 3.0
   risk_per_trade: 0.02          # 2% of equity per trade (was 1% — doubled to improve capital use)
-  max_drawdown_limit: 0.20      # Circuit breaker at 20% DD
+  max_drawdown_limit: 0.20      # Compatibility alias: portfolio liquidation threshold
   liquidity_limit_pct: 0.01     # Max order size as % of bar volume
   max_pos_size_pct: 0.30        # 30% max per position (was 20% — allows meaningful sizing)
+
+# 2a. Portfolio drawdown control. Daily loss resets at a UTC day boundary;
+# high-water actions are sticky and require RiskManager.manual_resume().
+drawdown:
+  daily_loss_limit: 0.05
+  reduce_threshold: 0.10
+  block_threshold: 0.15
+  liquidate_threshold: 0.20
+  lock_threshold: 0.25
+  reduced_risk_multiplier: 0.50
+
+# 2b. Explicit selected account mode: spot | spot_margin | perpetual.
+account:
+  mode: spot_margin
+  initial_margin_rate: 0.3333333333
+  maintenance_margin_rate: 0.10
+  funding_interval_hours: 8
+  funding_rate_required: true
+  default_borrow_rate_annual: 0.08
+  borrow_availability_required: false
+  default_borrow_limit_qty: 1000000000000
+  liquidation_penalty_bps: 25
+
+capacity:
+  capital_levels: [10000, 100000, 1000000, 10000000]
 
 # 2b. Market State
 state:
@@ -48,6 +78,14 @@ router:
 # 4. Data
 data:
   check_quality: true           # Generate data quality report
+  alignment_mode: union         # union routes only symbols with a real bar; intersection requires all symbols
+  timeframe: 1d
+  timezone: UTC
+
+# 4b. Auditable benchmark definitions (Phase 2)
+benchmark:
+  mode: fixed                   # fixed = equal-weight buy-and-hold; dynamic = equal-weight rebalance
+  dynamic_rebalance_cost_bps: 5.0
 
 # 5. Backtest lifecycle
 backtest:

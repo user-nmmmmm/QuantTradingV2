@@ -117,7 +117,12 @@ class AccountingReconciler:
                 continue
             unrealized += unrealized_pnl_for_lots(lot_book.open_lots, price)
 
-        expected_equity = self.initial_capital + self._realized_pnl_total + unrealized
+        expected_equity = (
+            self.initial_capital
+            + self._realized_pnl_total
+            + unrealized
+            - portfolio.cumulative_financing_cost
+        )
         self._checks += 1
         diff = equity - expected_equity
         self._max_abs_difference = max(self._max_abs_difference, abs(diff))
