@@ -30,6 +30,8 @@ from __future__ import annotations
 from collections import Counter
 from typing import Any, Dict, Iterable, List, Mapping, Optional
 
+from core.phase4 import holding_period_audit, joint_entry_exit_attribution
+
 import numpy as np
 import pandas as pd
 
@@ -382,6 +384,8 @@ def build_diagnostics(
     suite: Dict[str, Any] = {
         "pnl_concentration": calculate_pnl_concentration(records),
         "exit_attribution": calculate_exit_attribution(records),
+        "joint_entry_exit_attribution": joint_entry_exit_attribution(records),
+        "holding_period_audit": holding_period_audit(records, max_holding_days=365),
         "calendar_returns": calculate_calendar_returns(equity, records),
         "streaks": calculate_streaks(records),
     }

@@ -15,9 +15,14 @@ from core.system_factory import build_router, build_strategy_registry
 
 
 # Strategies deliberately kept out of the routing table, with the reason
-# documented here. Empty today — any registry addition must either be routed
-# or explicitly justified in this set, not silently left dangling.
-INTENTIONALLY_UNROUTED_STRATEGIES: frozenset[str] = frozenset()
+# documented here. Phase 4 keeps these implementations available for isolated
+# replay/research while their regimes deliberately route to Cash until the
+# admission gates in docs/phase4_implementation.md are met.
+INTENTIONALLY_UNROUTED_STRATEGIES: frozenset[str] = frozenset({
+    "TrendBreakdown",
+    "RangeMeanReversion",
+    "VolatilityReversion",
+})
 
 
 class TestStrategyRoutingConsistency(unittest.TestCase):

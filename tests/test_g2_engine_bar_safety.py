@@ -42,7 +42,9 @@ class TestEngineBarSafety(unittest.TestCase):
             )
             engine.data_map["BTC/USDT"] = frame
             engine.state_machine.get_state = MagicMock(return_value=MagicMock())
-            engine.router.route = MagicMock(side_effect=lambda *args: unknown.update(active=True))
+            engine.router.collect_candidate = MagicMock(
+                side_effect=lambda *args: unknown.update(active=True)
+            )
 
             engine._tick()
 

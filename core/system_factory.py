@@ -63,6 +63,7 @@ def build_router(
         regime_map=routing_config,
         cooldown_bars=config.require("router", "cooldown_bars"),
         log_path=log_path,
+        max_holding_days=(config.get("phase4") or {}).get("max_holding_days"),
     )
     router.log_path = log_path
     if not hasattr(router, "log_buffer"):
