@@ -25,6 +25,9 @@ reports/live_alerts.jsonl
 tests/.generated/
 docs/baselines/generated/
 
+# Cached market data downloaded by scripts/fetch_binance_data.py
+data/binance/
+
 # Python caches and generated artifacts
 **pycache**/
 *.py[cod]
