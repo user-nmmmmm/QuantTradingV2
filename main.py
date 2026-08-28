@@ -55,6 +55,34 @@ logger = get_logger(__name__)
 """
 
 
+def _load_local_ohlcv(symbol: str, start: str, end: str, data_dir: str) -> pd.DataFrame:
+    """
+    从本地缓存目录读取单标的 OHLCV CSV（由 scripts/fetch_binance_data.py 生成）。
+
+    - 文件名按 symbol 归一化匹配，兼容 BTC/USDT、BTC-USDT、BTC_USDT 等写法。
+    - 读入后按 [start, end] 半开区间（end 次日 00:00 之前）裁剪。
+    """
+    root = Path(data_dir)
+    if not root.is_dir():
+        raise ValueError(f"Local data directory does not exist: {root}")
+
+    candidates = [
+        root / f"{_safe_symbol_name(symbol)}.csv",
+        root / f"{symbol.replace('/', '_').replace('-', '_').replace(':', '_')}.csv",
+        root / f"{symbol}.csv",
+    ]
+    path = next((item for item in candidates if item.exists()), None)
+    if path is None:
+        raise FileNotFoundError(
+            f"No local CSV for {symbol} in {root} (tried: {', '.join(c.name for c in candidates)})"
+        )
+
+    df = DataHandler.load_csv(str(path))
+    start_ts = pd.Timestamp(start)
+    end_ts = pd.Timestamp(end) + pd.Timedelta(days=1)
+    return df[(df.index >= start_ts) & (df.index < end_ts)]
+
+
 def get_data(
     symbol: str,
     start: str,
@@ -65,6 +93,7 @@ def get_data(
     exchange: str = "binance",
     timeframe: str = "1d",
     data_timezone: str = "UTC",
+    data_dir: str | None = None,
 ) -> pd.DataFrame:
     """
     获取单标的数据（封装 DataFetcher 的多源实现）。
@@ -72,12 +101,17 @@ def get_data(
     参数：
     - symbol：标的代码（不同数据源格式不同）
     - start/end：日期字符串（YYYY-MM-DD）
-    - source：synthetic/yahoo/ccxt
+    - source：synthetic/yahoo/ccxt/local
     - days：回测天数（ccxt 作为 limit 的近似）
+    - data_dir：source=local 时的本地缓存目录（如 data/binance/1d）
     """
     fetcher = DataFetcher(data_timezone=data_timezone)
 
-    if source == "ccxt":
+    if source == "local":
+        if not data_dir:
+            raise ValueError("--source local requires --data-dir")
+        return _load_local_ohlcv(symbol, start, end, data_dir)
+    elif source == "ccxt":
         return fetcher.fetch_ccxt(
             symbol,
             timeframe=timeframe,
@@ -187,8 +221,14 @@ def main(argv=None) -> int:
         "--source",
         type=str,
         default="synthetic",
-        choices=["synthetic", "yahoo", "ccxt"],
+        choices=["synthetic", "yahoo", "ccxt", "local"],
         help="Data source",
+    )
+    parser.add_argument(
+        "--data-dir",
+        type=str,
+        default=None,
+        help="Local OHLCV CSV directory for --source local (e.g. data/binance/1d).",
     )
     parser.add_argument(
         "--seed",
@@ -321,6 +361,7 @@ def main(argv=None) -> int:
             exchange=args.exchange,
             timeframe=args.timeframe,
             data_timezone=args.data_timezone,
+            data_dir=args.data_dir,
         )
 
         if not df.empty and len(df) > 10:  # Lower limit for short tests
