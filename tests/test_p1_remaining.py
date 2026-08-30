@@ -19,7 +19,7 @@ from core.portfolio import Portfolio
 from core.risk import RiskManager
 from core.state import MarketState
 from core.state_store_v2 import StateStore
-from core.system_factory import build_strategy_registry
+from composition.factory import build_strategy_registry
 from live_trading.engine import LiveTradingEngine
 from strategies.mean_reversion import RangeStrategy
 from strategies.trend_breakout import TrendBreakoutStrategy
@@ -73,6 +73,7 @@ class TestRemainingP1LiveSafety(unittest.TestCase):
             strategies={},
             broker=broker,
             risk_manager=RiskManager(),
+            configuration=config,
             data_fetcher=fetcher,
             clock=lambda: NOW,
             state_file=os.path.join(directory, "status.json"),
@@ -109,7 +110,7 @@ class TestRemainingP1LiveSafety(unittest.TestCase):
         broker.recover_open_orders.return_value = {"order-1": MagicMock(status=OrderStatus.ACCEPTED)}
         engine = LiveTradingEngine(
             symbols=[], strategies={}, broker=broker,
-            risk_manager=RiskManager(), clock=lambda: NOW,
+            risk_manager=RiskManager(), configuration=config, clock=lambda: NOW,
             reconciliation_interval_seconds=60,
         )
 
@@ -129,7 +130,7 @@ class TestRemainingP1LiveSafety(unittest.TestCase):
         broker.has_unresolved_unknown.return_value = False
         engine = LiveTradingEngine(
             symbols=[], strategies={}, broker=broker,
-            risk_manager=RiskManager(), clock=lambda: NOW,
+            risk_manager=RiskManager(), configuration=config, clock=lambda: NOW,
         )
         with patch("builtins.open", side_effect=OSError("disk full")), patch(
             "live_trading.engine.logger.exception"

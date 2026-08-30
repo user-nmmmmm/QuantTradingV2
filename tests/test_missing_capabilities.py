@@ -12,7 +12,7 @@ from core.gray_release import GrayReleasePolicy
 from core.live_safety import StartupSafetyPolicy
 from core.metric_result import MetricResult
 from core.supervisor import RestartPolicy, supervise
-from core.system_factory import build_strategy_registry
+from composition.factory import build_strategy_registry
 from core.portfolio import Portfolio
 from strategies.statistical_arbitrage import PairsTradingModel
 from strategies.volatility import VolatilityReversionStrategy

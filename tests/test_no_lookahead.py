@@ -48,15 +48,17 @@ class TestNoLookahead(unittest.TestCase):
 
         strategy = MockStrategy()
 
-        def mock_build_router(strategies, log_path=None):
-            router = MagicMock()
-            router.route.side_effect = (
-                lambda symbol, i, data, state, portfolio, broker, risk_manager, prices:
-                    strategies["Mock"].on_bar(
-                        symbol, i, data, MarketState.SIDEWAYS, portfolio, broker, risk_manager, prices
-                    )
+        def mock_build_router(strategies, _configuration, log_path=None):
+            return Router(
+                strategies,
+                regime_map={
+                    "TREND_UP": "Mock",
+                    "TREND_DOWN": "Mock",
+                    "SIDEWAYS": "Mock",
+                    "VOLATILE": "Mock",
+                },
+                log_path=log_path,
             )
-            return router
         engine = BacktestEngine(initial_capital=10000.0, slippage=0.0, warmup_period=20)
 
         risk_manager = MagicMock()
@@ -67,8 +69,11 @@ class TestNoLookahead(unittest.TestCase):
         # Pass sizing through unclamped: this test is about execution timing,
         # not risk caps.
         risk_manager.clamp_entry_qty.side_effect = lambda *a, **k: a[2]
+        state_machine = MagicMock()
+        state_machine.get_state.return_value = MarketState.SIDEWAYS
 
         with patch("backtest.engine.build_risk_manager", return_value=risk_manager), \
+             patch("backtest.engine.build_state_machine", return_value=state_machine), \
              patch("backtest.engine.build_strategy_registry", return_value={"Mock": strategy}), \
              patch("backtest.engine.build_router", side_effect=mock_build_router):
             with tempfile.TemporaryDirectory() as temp_dir:

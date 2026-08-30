@@ -11,7 +11,7 @@ import pytest
 
 from backtest.engine import BacktestEngine
 from config.config import config
-from core.system_factory import build_strategy_registry
+from composition.factory import build_strategy_registry
 from strategies.base import Strategy
 from core.state import MarketState
 
@@ -57,7 +57,7 @@ def _run_with_tail_position(mode: str):
     # Patch build_router for this run only so every state routes to our strategy.
     import backtest.engine as engine_module
 
-    def _router_factory(strats, log_path=None):
+    def _router_factory(strats, _configuration, log_path=None):
         return Router(strats, regime_map={s.name: "AlwaysLong" for s in MarketState}, log_path=log_path)
 
     original_build_router = engine_module.build_router

@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pandas as pd
 
+from config.config import config
 from core.domain import OrderStatus
 from core.health import (
     DataHealthMonitor,
@@ -140,7 +141,7 @@ class TestHealthFailClosed(unittest.TestCase):
             path = os.path.join(directory, "status.json")
             engine = LiveTradingEngine(
                 symbols=["BTC/USDT"], strategies={}, broker=broker,
-                risk_manager=RiskManager(), data_fetcher=MagicMock(),
+                risk_manager=RiskManager(), configuration=config, data_fetcher=MagicMock(),
                 clock=lambda: NOW, state_file=path,
             )
             engine._set_health_assessment(self.unhealthy)

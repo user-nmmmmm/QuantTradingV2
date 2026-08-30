@@ -49,7 +49,10 @@ class TestEventTimeline(unittest.TestCase):
             list(result["equity_curve"].index),
             list(pd.to_datetime(["2024-01-01", "2024-01-02", "2024-01-03"])),
         )
-        routed = [(call.args[0], call.args[2].index[call.args[1]]) for call in router.route.call_args_list]
+        routed = [
+            (call.args[0], call.args[2].index[call.args[1]])
+            for call in router.collect_candidate.call_args_list
+        ]
         self.assertEqual(
             routed,
             [

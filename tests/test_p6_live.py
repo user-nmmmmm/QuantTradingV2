@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 
 import pandas as pd
 
+from config.config import config
 from core.live_broker import LiveBroker
 from live_trading.engine import LiveTradingEngine
 from core.portfolio import Portfolio
@@ -187,6 +188,7 @@ class TestLiveTrading(unittest.TestCase):
             strategies={},
             broker=broker,
             risk_manager=self.risk_manager,
+            configuration=config,
             data_fetcher=mock_fetcher,
             lookback_days=2,
         )
@@ -211,6 +213,7 @@ class TestLiveTrading(unittest.TestCase):
             strategies={},
             broker=broker,
             risk_manager=self.risk_manager,
+            configuration=config,
             data_fetcher=MagicMock(),
         )
 

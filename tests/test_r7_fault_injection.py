@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 
 import pandas as pd
 
+from config.config import config
 from core.domain import SyncResult
 from core.live_safety import StartupSafetyPolicy
 from core.order_store import OrderStore
@@ -104,6 +105,7 @@ class CircuitBreakerRecoveryFaultInjectionTests(unittest.TestCase):
             strategies={},
             broker=broker,
             risk_manager=risk,
+            configuration=config,
             data_fetcher=fetcher,
             clock=lambda: now,
             state_file=str(Path(store.path).with_suffix(".json")),

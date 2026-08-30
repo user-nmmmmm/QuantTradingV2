@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 
 import pandas as pd
 
+from config.config import config
 from core.events import TradingEventPipeline
 from core.health import DataHealthMonitor
 from core.market_data import HistoricalMarketDataAdapter
@@ -56,6 +57,7 @@ class TestP211ToP217(unittest.TestCase):
             strategies={},
             broker=broker,
             risk_manager=RiskManager(),
+            configuration=config,
             clock=lambda: NOW,
             state_export_interval_ticks=export_interval,
         )
@@ -110,9 +112,10 @@ class TestP211ToP217(unittest.TestCase):
             risk_manager=RiskManager(),
             state_machine=MagicMock(get_state=MagicMock(return_value=MarketState.SIDEWAYS)),
             router=router,
+            allocator=MagicMock(),
         )
         self.assertTrue(processor.process_symbol(event, "BTC/USDT"))
-        router.route.assert_called_once()
+        router.collect_candidate.assert_called_once()
 
     def test_strategy_hot_paths_use_positional_iat_not_chained_iloc(self):
         files = list((ROOT / "strategies").glob("*.py")) + [

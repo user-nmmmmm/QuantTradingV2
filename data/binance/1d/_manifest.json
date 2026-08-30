@@ -1,0 +1,219 @@
+{
+  "exchange": "binance",
+  "timeframe": "1d",
+  "requested_start": "2017-07-01",
+  "requested_end": "2026-08-27",
+  "generated_at": "2026-08-27T06:47:21.999366+00:00",
+  "symbols": {
+    "BTC/USDT": {
+      "file": "BTC_USDT.csv",
+      "rows": 3298,
+      "first": "2017-08-17T00:00:00",
+      "last": "2026-08-27T00:00:00",
+      "sha256": "28557054ee0bf0e1eb6a2d9a8bff052f32d1c80690e247a53632b711c4254c06"
+    },
+    "ETH/USDT": {
+      "file": "ETH_USDT.csv",
+      "rows": 3298,
+      "first": "2017-08-17T00:00:00",
+      "last": "2026-08-27T00:00:00",
+      "sha256": "db4c67c77c29f7eec0d3b05d6945c7fd1c5512e05ecaa3ba07dae1568de1917f"
+    },
+    "BNB/USDT": {
+      "file": "BNB_USDT.csv",
+      "rows": 3217,
+      "first": "2017-11-06T00:00:00",
+      "last": "2026-08-27T00:00:00",
+      "sha256": "69917448ba785620973d9e0f160a51ff9c5702241c1d14ef7ed1936dc8d6e451"
+    },
+    "XRP/USDT": {
+      "file": "XRP_USDT.csv",
+      "rows": 3038,
+      "first": "2018-05-04T00:00:00",
+      "last": "2026-08-27T00:00:00",
+      "sha256": "c0766c41245480dc70767b5d2f0f6b33f1653d128781cda635f5d38d3c10d0e3"
+    },
+    "ADA/USDT": {
+      "file": "ADA_USDT.csv",
+      "rows": 3055,
+      "first": "2018-04-17T00:00:00",
+      "last": "2026-08-27T00:00:00",
+      "sha256": "98fe8583e0336d856d6d0d8b431c633eeb73c47b00aaf14d373e669f42c2cc8d"
+    },
+    "SOL/USDT": {
+      "file": "SOL_USDT.csv",
+      "rows": 2208,
+      "first": "2020-08-11T00:00:00",
+      "last": "2026-08-27T00:00:00",
+      "sha256": "f39ea9cd28d7aeea9894e08e7632198c1347261a93e8f00c52fd4ae5a2d09344"
+    },
+    "DOGE/USDT": {
+      "file": "DOGE_USDT.csv",
+      "rows": 2611,
+      "first": "2019-07-05T00:00:00",
+      "last": "2026-08-27T00:00:00",
+      "sha256": "878a518ca7d0a976919c1a4d6433e581395e4e549708fec13ac4546a44b07b7a"
+    },
+    "AVAX/USDT": {
+      "file": "AVAX_USDT.csv",
+      "rows": 2166,
+      "first": "2020-09-22T00:00:00",
+      "last": "2026-08-27T00:00:00",
+      "sha256": "363385da775e76b19bf3e635036196806a168a5e4bea565d4f8f12f40b907ed4"
+    },
+    "DOT/USDT": {
+      "file": "DOT_USDT.csv",
+      "rows": 2201,
+      "first": "2020-08-18T00:00:00",
+      "last": "2026-08-27T00:00:00",
+      "sha256": "f9f9b9f51500d78c91a2ae022c2b3e7f9c55508b58ec48f32f82ac5994490acb"
+    },
+    "LTC/USDT": {
+      "file": "LTC_USDT.csv",
+      "rows": 3180,
+      "first": "2017-12-13T00:00:00",
+      "last": "2026-08-27T00:00:00",
+      "sha256": "3f71d80f3410f1587b4b056bbb5ab920291fb07b70ea7e2672fd9fd1d101a525"
+    },
+    "LINK/USDT": {
+      "file": "LINK_USDT.csv",
+      "rows": 2781,
+      "first": "2019-01-16T00:00:00",
+      "last": "2026-08-27T00:00:00",
+      "sha256": "d7801445be96546a2044ff8c68641097a884acd50857c00e75d52f3583540bd1"
+    },
+    "TRX/USDT": {
+      "file": "TRX_USDT.csv",
+      "rows": 3000,
+      "first": "2018-06-11T00:00:00",
+      "last": "2026-08-27T00:00:00",
+      "sha256": "65557d3a90c79649274cfe6da4bf97edd31b51c6e9ffabb3d097a230b25779d9"
+    },
+    "MATIC/USDT": {
+      "file": "MATIC_USDT.csv",
+      "rows": 2048,
+      "first": "2019-04-26T00:00:00",
+      "last": "2025-03-24T00:00:00",
+      "sha256": "08494e7f5bb2ed1474f1cd00af13935050c1ff9cd58461d8119d2c6ead605468"
+    },
+    "ATOM/USDT": {
+      "file": "ATOM_USDT.csv",
+      "rows": 2678,
+      "first": "2019-04-29T00:00:00",
+      "last": "2026-08-27T00:00:00",
+      "sha256": "0ca8d73e60c0aa308c387200c6677e08868d408ba9fc42ab6dee22cba120fdc2"
+    },
+    "UNI/USDT": {
+      "file": "UNI_USDT.csv",
+      "rows": 2171,
+      "first": "2020-09-17T00:00:00",
+      "last": "2026-08-27T00:00:00",
+      "sha256": "d514c285ea42aed1eafd2e63af26b338bc16ac63b236d28b79e7f98fff8e292a"
+    },
+    "ETC/USDT": {
+      "file": "ETC_USDT.csv",
+      "rows": 2999,
+      "first": "2018-06-12T00:00:00",
+      "last": "2026-08-27T00:00:00",
+      "sha256": "72468f64ab6bfc43531a6fa5c59f2886aea77237070b540ac8593f5f9f24b1e2"
+    },
+    "XLM/USDT": {
+      "file": "XLM_USDT.csv",
+      "rows": 3011,
+      "first": "2018-05-31T00:00:00",
+      "last": "2026-08-27T00:00:00",
+      "sha256": "2323ec52d55765f483f828e3854d721e4f42b771a08dc209b8a189192fbe8577"
+    },
+    "BCH/USDT": {
+      "file": "BCH_USDT.csv",
+      "rows": 2465,
+      "first": "2019-11-28T00:00:00",
+      "last": "2026-08-27T00:00:00",
+      "sha256": "aaf4e3f4b0418ecc38728b60d2b50e908b82714e59248936122147f5d208f4e5"
+    },
+    "FIL/USDT": {
+      "file": "FIL_USDT.csv",
+      "rows": 2143,
+      "first": "2020-10-15T00:00:00",
+      "last": "2026-08-27T00:00:00",
+      "sha256": "bc0c173924292c58a751b8ea3c46239dcdfa76a98336edc8bd3f750f76bcce26"
+    },
+    "NEAR/USDT": {
+      "file": "NEAR_USDT.csv",
+      "rows": 2144,
+      "first": "2020-10-14T00:00:00",
+      "last": "2026-08-27T00:00:00",
+      "sha256": "ebfd7e4214095ce84a9bfcb70073b9a7a912055c7bf637685894768b137f6437"
+    },
+    "ICP/USDT": {
+      "file": "ICP_USDT.csv",
+      "rows": 1935,
+      "first": "2021-05-11T00:00:00",
+      "last": "2026-08-27T00:00:00",
+      "sha256": "49c3a7048dda631dfc1410d89763b9f9dab792d8833802bac2b61c83e6f27c8a"
+    },
+    "AAVE/USDT": {
+      "file": "AAVE_USDT.csv",
+      "rows": 2143,
+      "first": "2020-10-15T00:00:00",
+      "last": "2026-08-27T00:00:00",
+      "sha256": "d2c10bb8a1f15162503f74e21ee85b914aecd086616a9a3c079600f9d31cc2d1"
+    },
+    "APT/USDT": {
+      "file": "APT_USDT.csv",
+      "rows": 1409,
+      "first": "2022-10-19T00:00:00",
+      "last": "2026-08-27T00:00:00",
+      "sha256": "15951990a5444782d611c0a30b89e87ffa3345486fb283afd1b9a3892ac072f8"
+    },
+    "ARB/USDT": {
+      "file": "ARB_USDT.csv",
+      "rows": 1254,
+      "first": "2023-03-23T00:00:00",
+      "last": "2026-08-27T00:00:00",
+      "sha256": "76cc4bf9362ba481855cc08e0c9ed8b9d9dd75cc810dfc4ae7b4107d009af2a7"
+    },
+    "OP/USDT": {
+      "file": "OP_USDT.csv",
+      "rows": 1549,
+      "first": "2022-06-01T00:00:00",
+      "last": "2026-08-27T00:00:00",
+      "sha256": "7ecd699534f9e1c9bc2f001c32a98a3c8be29eb2ec0fd329ad4f9079ce5821f8"
+    },
+    "INJ/USDT": {
+      "file": "INJ_USDT.csv",
+      "rows": 2137,
+      "first": "2020-10-21T00:00:00",
+      "last": "2026-08-27T00:00:00",
+      "sha256": "ac3b3b387a265e2296272e554c228a8935893d4786e0dd22de039c588867b6a7"
+    },
+    "SUI/USDT": {
+      "file": "SUI_USDT.csv",
+      "rows": 1501,
+      "first": "2022-03-18T00:00:00",
+      "last": "2026-08-27T00:00:00",
+      "sha256": "ceacbfbd7fde85fb27066660b88e30be43debf069254d36353ee7be677604485"
+    },
+    "SEI/USDT": {
+      "file": "SEI_USDT.csv",
+      "rows": 1109,
+      "first": "2023-08-15T00:00:00",
+      "last": "2026-08-27T00:00:00",
+      "sha256": "e37a1d9f30e858bad36e8d57f2d16c0259405439401ef791585dffd530b06bad"
+    },
+    "TIA/USDT": {
+      "file": "TIA_USDT.csv",
+      "rows": 1032,
+      "first": "2023-10-31T00:00:00",
+      "last": "2026-08-27T00:00:00",
+      "sha256": "77b4d6c2bbcf8ba39f696abd9153a45cb70fce5d7e152843cb1eebe779d02d89"
+    },
+    "LDO/USDT": {
+      "file": "LDO_USDT.csv",
+      "rows": 1572,
+      "first": "2022-05-09T00:00:00",
+      "last": "2026-08-27T00:00:00",
+      "sha256": "d8b9e6d1456c3ecca20762ffa28b5991eb710214f9b39c461886fa9b90fd1860"
+    }
+  }
+}

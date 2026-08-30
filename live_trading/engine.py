@@ -10,6 +10,12 @@ from typing import Dict, List, Optional
 
 import pandas as pd
 
+from composition.factory import (
+    Configuration,
+    build_router,
+    build_state_machine,
+    market_type_supports_shorts,
+)
 from core.alerting import AlertSink, build_default_alert_sink
 from core.clock import ClockLike, coerce_clock
 from core.data_fetcher import DataFetcher
@@ -21,7 +27,6 @@ from core.risk import RiskManager
 from core.runtime import EventProcessor, MarketDataSlice
 from core.state_store_v2 import StateStore, default_state_db_path
 from core.sqlite_backup import SQLiteSnapshotManager
-from core.system_factory import build_router, build_state_machine, market_type_supports_shorts
 from core.timeframes import as_utc_timestamp, closed_bars, timeframe_delta
 from core.valuation import build_portfolio_snapshot
 from live_trading.execution_adapter import RecordedExecutionAdapter
@@ -38,6 +43,7 @@ class LiveTradingEngine:
         strategies: Dict,
         broker: LiveBroker,
         risk_manager: RiskManager,
+        configuration: Configuration,
         interval_seconds: int = 60,
         lookback_days: int = 30,
         timeframe: str = "1d",
@@ -72,7 +78,7 @@ class LiveTradingEngine:
         self.clock = coerce_clock(clock)
         self.health_monitor = DataHealthMonitor(health_policy)
         self.health_assessment: Optional[HealthAssessment] = None
-        self.state_machine = build_state_machine()
+        self.state_machine = build_state_machine(configuration)
         self._current_trading_day = None
         self.data_map: Dict[str, pd.DataFrame] = {}
         self.state_file = state_file
@@ -124,7 +130,7 @@ class LiveTradingEngine:
         )
         self.alert_sink = alert_sink or build_default_alert_sink(logger, record_path=alert_path)
         allow_short = market_type_supports_shorts(getattr(broker, "market_type", "spot"))
-        self.router = build_router(strategies, allow_short=allow_short)
+        self.router = build_router(strategies, configuration, allow_short=allow_short)
         if not allow_short:
             logger.warning(
                 "Live broker market_type=%s does not support short routing; TREND_DOWN is mapped to Cash",
@@ -148,6 +154,7 @@ class LiveTradingEngine:
             risk_manager=risk_manager,
             state_machine=self.state_machine,
             router=self.router,
+            allocator=self.router.allocator,
             warmup_period=0,
             initial_equity=broker.portfolio.cash,
         )

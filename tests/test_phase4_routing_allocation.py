@@ -12,7 +12,7 @@ from core.phase4 import (
     state_duration_and_transition_matrix,
 )
 from core.state import MarketState
-from core.system_factory import build_router, build_strategy_registry
+from composition.factory import build_router, build_strategy_registry
 
 
 @dataclass
@@ -85,7 +85,7 @@ def test_t4_12_joint_attribution_separates_entry_and_exit_owners():
 
 
 def test_t4_5_to_t4_7_unadmitted_strategies_are_not_in_portfolio_routes():
-    router = build_router(build_strategy_registry(), allow_short=True)
+    router = build_router(build_strategy_registry(), config, allow_short=True)
     assert router.regime_map["TREND_DOWN"] == "Cash"
     assert router.regime_map["SIDEWAYS"] == "Cash"
     assert router.regime_map["VOLATILE"] == "Cash"
@@ -96,7 +96,7 @@ def test_t4_5_to_t4_7_unadmitted_strategies_are_not_in_portfolio_routes():
 
 
 def test_t4_1_and_t4_11_router_has_explicit_production_contract():
-    router = build_router(build_strategy_registry())
+    router = build_router(build_strategy_registry(), config)
     assert callable(router.collect_candidate)
     assert router.max_holding_days == 365.0
     assert config.require("phase4")["transition_action"] == "stop_new_entries"

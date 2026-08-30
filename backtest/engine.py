@@ -9,6 +9,12 @@ from uuid import uuid4
 import pandas as pd
 
 from backtest.execution_adapter import SimulatedExecutionAdapter
+from composition.factory import (
+    build_risk_manager,
+    build_router,
+    build_state_machine,
+    build_strategy_registry,
+)
 from config.config import config
 from core.accounting_check import AccountingReconciler
 from core.accounts import AccountMode
@@ -22,12 +28,6 @@ from core.logger import get_logger
 from core.market_data import HistoricalMarketDataAdapter, normalize_market_frame
 from core.portfolio import Portfolio
 from core.runtime import EventProcessor
-from core.system_factory import (
-    build_risk_manager,
-    build_router,
-    build_state_machine,
-    build_strategy_registry,
-)
 
 logger = get_logger(__name__)
 
@@ -157,8 +157,8 @@ class BacktestEngine:
             event_pipeline=event_pipeline,
             timeframe=self.timeframe,
         )
-        risk_manager = build_risk_manager()
-        state_machine = build_state_machine()
+        risk_manager = build_risk_manager(config)
+        state_machine = build_state_machine(config)
         strategies = strategies or build_strategy_registry()
         for strategy in strategies.values():
             reset = getattr(strategy, "reset_runtime_state", None)
@@ -175,7 +175,7 @@ class BacktestEngine:
                 os.makedirs(log_dir, exist_ok=True)
         else:
             routing_log_path = None
-        router = build_router(strategies, log_path=routing_log_path)
+        router = build_router(strategies, config, log_path=routing_log_path)
 
         market_data = HistoricalMarketDataAdapter(
             data_map,
@@ -228,6 +228,7 @@ class BacktestEngine:
             risk_manager=risk_manager,
             state_machine=state_machine,
             router=router,
+            allocator=router.allocator,
             warmup_period=self.warmup_period,
             initial_equity=self.initial_capital,
         )

@@ -11,7 +11,7 @@ class P3CompletionTests(unittest.TestCase):
     def test_runtime_values_once_and_reuses_prices(self):
         portfolio = MagicMock(cash=1000.0); portfolio.get_total_value.return_value = 1000.0
         risk = MagicMock(); risk.check_circuit_breaker.return_value = False
-        processor = EventProcessor(portfolio=portfolio, execution=MagicMock(), risk_manager=risk, state_machine=MagicMock(), router=MagicMock())
+        processor = EventProcessor(portfolio=portfolio, execution=MagicMock(), risk_manager=risk, state_machine=MagicMock(), router=MagicMock(), allocator=MagicMock())
         result = processor.process(MarketDataSlice(pd.Timestamp("2026-01-01T00:00:00Z"), {}, {}), execute_market_event=False)
         portfolio.get_total_value.assert_called_once_with(processor.last_prices)
         self.assertIs(result.prices, processor.last_prices)
@@ -26,7 +26,9 @@ class P3CompletionTests(unittest.TestCase):
             self.assertEqual(list(output.iterdir()), [])
     def test_fifo_and_dead_code_sources(self):
         root = Path(__file__).parents[1]
-        reporting = (root / "backtest" / "reporting.py").read_text(encoding="utf-8")
+        reporting = (root / "backtest" / "trade_reconstruction.py").read_text(
+            encoding="utf-8"
+        )
         engine = (root / "backtest" / "engine.py").read_text(encoding="utf-8")
         self.assertIn("itertuples(", reporting); self.assertNotIn("iterrows(", reporting)
         self.assertNotIn("pop(0)", reporting); self.assertNotIn("_looks_daily_or_slower", engine)
