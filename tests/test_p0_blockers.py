@@ -6,6 +6,7 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
+from config.config import config
 from core.alerting import JsonlAlertSink
 from core.accounts import AccountMode
 from core.broker import Broker, Order, OrderType
@@ -100,7 +101,7 @@ class TestP0Blockers(unittest.TestCase):
             store = StateStore(os.path.join(directory, "state.db"))
             engine = LiveTradingEngine(
                 symbols=["BTC/USDT"], strategies={}, broker=broker,
-                risk_manager=RiskManager(), clock=lambda: NOW,
+                risk_manager=RiskManager(), configuration=config, clock=lambda: NOW,
                 state_file=os.path.join(directory, "status.json"),
                 state_store=store, alert_sink=alerts,
             )
@@ -290,7 +291,7 @@ class TestP0Blockers(unittest.TestCase):
             store = StateStore(os.path.join(directory, 'state.db'))
             engine = LiveTradingEngine(
                 symbols=[], strategies={}, broker=broker,
-                risk_manager=RiskManager(), clock=lambda: NOW,
+                risk_manager=RiskManager(), configuration=config, clock=lambda: NOW,
                 state_file=os.path.join(directory, 'status.json'),
                 state_store=store, alert_sink=alerts,
                 failure_backoff_base_seconds=2,
@@ -381,7 +382,7 @@ class TestP0Blockers(unittest.TestCase):
             store = StateStore(os.path.join(directory, "state.db"))
             engine = LiveTradingEngine(
                 symbols=[], strategies={}, broker=broker,
-                risk_manager=RiskManager(), clock=lambda: NOW,
+                risk_manager=RiskManager(), configuration=config, clock=lambda: NOW,
                 state_file=path, state_store=store, alert_sink=MagicMock(),
             )
             engine._export_state()

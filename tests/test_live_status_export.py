@@ -10,6 +10,7 @@ import pandas as pd
 # Add project root
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from config.config import config
 from live_trading.engine import LiveTradingEngine
 from core.domain import PortfolioSnapshot
 from core.portfolio import Portfolio
@@ -35,6 +36,7 @@ class TestLiveStatusExport(unittest.TestCase):
             strategies={},
             broker=self.mock_broker,
             risk_manager=self.risk_manager,
+            configuration=config,
             state_file=os.path.join(self.temp_dir.name, "live_status.json"),
         )
 

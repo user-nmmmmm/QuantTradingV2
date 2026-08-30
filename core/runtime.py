@@ -50,6 +50,36 @@ class RuntimeExecutionAdapter(ExecutionPort, Protocol):
     def on_market_data(self, event: MarketDataSlice) -> Any: ...
 
 
+class CandidateRouter(Protocol):
+    """Static routing contract consumed by the shared runtime."""
+
+    def collect_candidate(
+        self,
+        symbol: str,
+        i: int,
+        df: pd.DataFrame,
+        state: Any,
+        portfolio: Portfolio,
+        broker: ExecutionPort,
+        risk_manager: RiskManager,
+        current_prices: Optional[Dict[str, float]] = None,
+    ) -> Any: ...
+
+
+class CandidateAllocator(Protocol):
+    """Portfolio-level allocation contract consumed by the shared runtime."""
+
+    def allocate(
+        self,
+        candidates: Iterable[Any],
+        *,
+        portfolio: Portfolio,
+        broker: RuntimeExecutionAdapter,
+        risk_manager: RiskManager,
+        current_prices: Mapping[str, float],
+    ) -> Any: ...
+
+
 @dataclass
 class RuntimeResult:
     equity: float
@@ -74,7 +104,8 @@ class EventProcessor:
         execution: RuntimeExecutionAdapter,
         risk_manager: RiskManager,
         state_machine: Any,
-        router: Any,
+        router: CandidateRouter,
+        allocator: CandidateAllocator,
         warmup_period: int = 0,
         initial_equity: Optional[float] = None,
     ) -> None:
@@ -83,6 +114,7 @@ class EventProcessor:
         self.risk_manager = risk_manager
         self.state_machine = state_machine
         self.router = router
+        self.allocator = allocator
         self.warmup_period = max(int(warmup_period), 0)
         self.last_prices: Dict[str, float] = {}
         self._current_day = None
@@ -152,12 +184,10 @@ class EventProcessor:
                     routed.append(symbol)
                 if candidate is not None:
                     candidates.append(candidate)
-            allocator = getattr(self.router, "allocator", None)
-            if hasattr(type(self.router), "collect_candidate") and allocator is not None:
-                allocator.allocate(
-                    candidates, portfolio=self.portfolio, broker=self.execution,
-                    risk_manager=self.risk_manager, current_prices=self.last_prices,
-                )
+            self.allocator.allocate(
+                candidates, portfolio=self.portfolio, broker=self.execution,
+                risk_manager=self.risk_manager, current_prices=self.last_prices,
+            )
 
         return RuntimeResult(
             equity=equity,
@@ -175,10 +205,8 @@ class EventProcessor:
         """Run the shared state/strategy/risk path for one real bar."""
 
         candidate, processed = self._collect_symbol_candidate(event, symbol)
-        allocator = getattr(self.router, "allocator", None)
-        if (candidate is not None and hasattr(type(self.router), "collect_candidate")
-                and allocator is not None):
-            allocator.allocate(
+        if candidate is not None:
+            self.allocator.allocate(
                 [candidate], portfolio=self.portfolio, broker=self.execution,
                 risk_manager=self.risk_manager, current_prices=self.last_prices,
             )
@@ -199,24 +227,11 @@ class EventProcessor:
         if not isinstance(location, int) or location < self.warmup_period:
             return None, False
         state = self.state_machine.get_state(df, location)
-        collect = getattr(type(self.router), "collect_candidate", None)
-        if callable(collect):
-            candidate = self.router.collect_candidate(
-                symbol, location, df, state, self.portfolio, self.execution,
-                self.risk_manager, self.last_prices,
-            )
-            return candidate, True
-        self.router.route(
-            symbol,
-            location,
-            df,
-            state,
-            self.portfolio,
-            self.execution,
-            self.risk_manager,
-            self.last_prices,
+        candidate = self.router.collect_candidate(
+            symbol, location, df, state, self.portfolio, self.execution,
+            self.risk_manager, self.last_prices,
         )
-        return None, True
+        return candidate, True
 
     def run(self, market_data: MarketDataAdapter) -> list[RuntimeResult]:
         return [self.process(event) for event in market_data.stream()]

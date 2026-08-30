@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 
 import pandas as pd
 
+from config.config import config
 from core.domain import SyncResult
 from core.portfolio import Portfolio
 from core.risk import RiskManager
@@ -36,7 +37,7 @@ class TestEngineBarSafety(unittest.TestCase):
             store = StateStore(os.path.join(directory, "state.db"))
             engine = LiveTradingEngine(
                 symbols=["BTC/USDT"], strategies={}, broker=broker,
-                risk_manager=RiskManager(), data_fetcher=fetcher,
+                risk_manager=RiskManager(), configuration=config, data_fetcher=fetcher,
                 clock=lambda: now, state_file=os.path.join(directory, "status.json"),
                 state_store=store, close_grace_seconds=0,
             )

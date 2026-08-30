@@ -4,6 +4,7 @@ import sys
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+from composition.factory import build_risk_manager, build_strategy_registry
 from config.config import config
 from core.portfolio import Portfolio
 from core.logger import configure_logging, get_logger
@@ -17,7 +18,6 @@ from core.persistent_risk_guard import PersistentOrderSafetyGuard
 from core.gray_release import GrayReleasePolicy, write_release_record
 from core.startup_preflight import build_startup_report, write_startup_report
 from core.safe_live_broker import SafeLiveBroker
-from core.system_factory import build_risk_manager, build_strategy_registry
 from live_trading.engine import LiveTradingEngine
 
 configure_logging()
@@ -83,7 +83,7 @@ def main() -> int:
         parser.error(str(exc))
 
     portfolio = Portfolio()
-    risk_manager = build_risk_manager()
+    risk_manager = build_risk_manager(config)
     safety_guard = PersistentOrderSafetyGuard(policy)
     broker = SafeLiveBroker(
         portfolio=portfolio,
@@ -132,6 +132,7 @@ def main() -> int:
         strategies=build_strategy_registry(),
         broker=broker,
         risk_manager=risk_manager,
+        configuration=config,
         interval_seconds=args.interval,
         reconciliation_interval_seconds=config.require(
             "execution", "reconciliation_interval_seconds"

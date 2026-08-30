@@ -19,7 +19,7 @@ class PassiveStrategy(Strategy):
 
 
 class TestRouterSwitchCleanup(unittest.TestCase):
-    def test_switch_cancels_stale_orders_and_submits_flatten_order(self):
+    def test_switch_does_not_flatten_position_owned_by_opening_strategy(self):
         portfolio = Portfolio(initial_capital=10000.0)
         portfolio.update_position("BTC/USDT", qty_delta=2.0, price=100.0)
         broker = Broker(portfolio)
@@ -70,7 +70,7 @@ class TestRouterSwitchCleanup(unittest.TestCase):
             {"close": [101.0]},
             index=[pd.Timestamp("2024-01-02")],
         )
-        router.route(
+        candidate = router.collect_candidate(
             "BTC/USDT",
             0,
             df,
@@ -80,27 +80,28 @@ class TestRouterSwitchCleanup(unittest.TestCase):
             risk_manager,
             {"BTC/USDT": 101.0},
         )
+        router.allocator.allocate(
+            [candidate] if candidate is not None else [],
+            portfolio=portfolio,
+            broker=broker,
+            risk_manager=risk_manager,
+            current_prices={"BTC/USDT": 101.0},
+        )
 
-        self.assertEqual(stale_order.status, BacktestOrderStatus.CANCELED)
+        self.assertEqual(stale_order.status, BacktestOrderStatus.SUBMITTED)
         self.assertEqual(
             trend_strategy.context["BTC/USDT"],
             {"stop_loss": 95.0, "entry_bar": 1},
             "opening context must survive until the flatten fill is consumed",
         )
-        self.assertIn("BTC/USDT", router.cooldowns)
-        self.assertEqual(len(broker.active_orders), 0)
-        self.assertEqual(len(broker.pending_orders), 1)
-
-        flatten_order = broker.pending_orders[0]
-        self.assertEqual(flatten_order.side, "sell")
-        self.assertEqual(flatten_order.qty, 2.0)
-        self.assertEqual(flatten_order.exit_reason, "StateSwitch")
-        self.assertEqual(router.log_buffer[-1]["route_event"], "strategy_switch")
-        self.assertTrue(router.log_buffer[-1]["strategy_changed"])
+        self.assertNotIn("BTC/USDT", router.cooldowns)
+        self.assertEqual(len(broker.active_orders), 1)
+        self.assertEqual(len(broker.pending_orders), 0)
+        self.assertEqual(router.log_buffer[-1]["route_event"], "position_exit_control")
+        self.assertFalse(router.log_buffer[-1]["strategy_changed"])
 
     def test_regime_change_with_same_strategy_does_not_flatten_or_cooldown(self):
         portfolio = Portfolio(initial_capital=10000.0)
-        portfolio.update_position("BTC/USDT", qty_delta=2.0, price=100.0)
         broker = Broker(portfolio)
         risk_manager = RiskManager()
 
@@ -148,7 +149,7 @@ class TestRouterSwitchCleanup(unittest.TestCase):
             {"close": [101.0]},
             index=[pd.Timestamp("2024-01-02")],
         )
-        router.route(
+        candidate = router.collect_candidate(
             "BTC/USDT",
             0,
             df,
@@ -158,13 +159,20 @@ class TestRouterSwitchCleanup(unittest.TestCase):
             risk_manager,
             {"BTC/USDT": 101.0},
         )
+        router.allocator.allocate(
+            [candidate] if candidate is not None else [],
+            portfolio=portfolio,
+            broker=broker,
+            risk_manager=risk_manager,
+            current_prices={"BTC/USDT": 101.0},
+        )
 
         self.assertEqual(stale_order.status, BacktestOrderStatus.SUBMITTED)
         self.assertEqual(breakout_strategy.context["BTC/USDT"]["stop_loss"], 95.0)
         self.assertNotIn("BTC/USDT", router.cooldowns)
         self.assertEqual(len(broker.pending_orders), 0)
         self.assertEqual(router.log_buffer[-1]["strategy"], "TrendBreakout")
-        self.assertEqual(router.log_buffer[-1]["route_event"], "regime_change")
+        self.assertEqual(router.log_buffer[-1]["route_event"], "candidate")
         self.assertFalse(router.log_buffer[-1]["strategy_changed"])
 
 

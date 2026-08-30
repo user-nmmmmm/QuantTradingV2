@@ -59,8 +59,14 @@ class Router:
     def __init__(self):
         self.calls = []
 
-    def route(self, symbol, i, df, state, *_args):
+    def collect_candidate(self, symbol, i, df, state, *_args):
         self.calls.append((symbol, i, state, float(df["close"].iloc[i])))
+        return None
+
+
+class Allocator:
+    def allocate(self, *_args, **_kwargs):
+        return []
 
 
 class Broker:
@@ -94,6 +100,7 @@ class TestSharedRuntimeGoldenScenario(unittest.TestCase):
                 risk_manager=Risk(),
                 state_machine=StateMachine(),
                 router=router,
+                allocator=Allocator(),
             )
             for event in events:
                 processor.process(event)
@@ -143,4 +150,3 @@ class TestRecordedExecutionReplay(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

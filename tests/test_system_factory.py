@@ -4,7 +4,7 @@ from datetime import datetime
 from unittest.mock import MagicMock
 
 from config.config import config
-from core.system_factory import (
+from composition.factory import (
     build_risk_manager,
     build_router,
     build_state_machine,
@@ -24,19 +24,19 @@ class TestSystemFactory(unittest.TestCase):
         config._config["risk"]["liquidity_limit_pct"] = 0.03
         config._config["risk"]["max_pos_size_pct"] = 0.35
 
-        risk_manager = build_risk_manager()
+        risk_manager = build_risk_manager(config)
 
         self.assertEqual(risk_manager.liquidity_limit_pct, 0.03)
         self.assertEqual(risk_manager.max_pos_size_pct, 0.35)
 
     def test_build_router_maps_short_to_cash_when_shorting_disabled(self):
-        router = build_router(build_strategy_registry(), allow_short=False)
+        router = build_router(build_strategy_registry(), config, allow_short=False)
         self.assertEqual(router.regime_map["TREND_DOWN"], "Cash")
 
     def test_missing_routing_section_fails_closed(self):
         del config._config["routing"]
         with self.assertRaisesRegex(Exception, "routing"):
-            build_router(build_strategy_registry())
+            build_router(build_strategy_registry(), config)
 
     def test_live_engine_rejects_naive_clock_values(self):
         engine = object.__new__(LiveTradingEngine)
@@ -61,12 +61,13 @@ class TestSystemFactory(unittest.TestCase):
             symbols=["BTC/USDT"],
             strategies=build_strategy_registry(),
             broker=broker,
-            risk_manager=build_risk_manager(),
+            risk_manager=build_risk_manager(config),
+            configuration=config,
             data_fetcher=MagicMock(),
         )
 
-        expected_router = build_router(build_strategy_registry(), allow_short=True)
-        expected_state_machine = build_state_machine()
+        expected_router = build_router(build_strategy_registry(), config, allow_short=True)
+        expected_state_machine = build_state_machine(config)
 
         self.assertEqual(engine.router.regime_map, expected_router.regime_map)
         self.assertEqual(engine.router.cooldown_bars, expected_router.cooldown_bars)
