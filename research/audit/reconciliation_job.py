@@ -1,4 +1,8 @@
-"""Schedulable end-of-day reconciliation with durable JSON reports."""
+"""Schedulable end-of-day reconciliation with durable JSON reports.
+
+Offline audit tooling — not wired into the live or backtest order path.
+See ``research/audit/ledger.py`` module docstring and docs/architecture_review.md (A3).
+"""
 
 from __future__ import annotations
 
@@ -11,7 +15,7 @@ from pathlib import Path
 from typing import Any, Mapping, Optional
 
 from core.event_store import SQLiteEventStore
-from core.ledger import AuthoritativeLedger, PortfolioProjection, ReconciliationReport
+from research.audit.ledger import AuthoritativeLedger, PortfolioProjection, ReconciliationReport
 
 
 def report_to_dict(

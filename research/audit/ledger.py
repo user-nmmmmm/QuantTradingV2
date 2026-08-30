@@ -1,3 +1,15 @@
+"""Offline event-sourced ledger for audit and reconciliation research.
+
+This module is NOT wired into the live or backtest order path. ``Portfolio``
+and ``LotBook`` (see ``core/portfolio.py``, ``core/lots.py``) remain the
+single authoritative source of account facts for trading. ``AuthoritativeLedger``
+and ``PortfolioProjection`` here exist for offline event-sourced replay and
+reconciliation research; do not import this module from ``core``,
+``router``, ``strategies``, ``backtest``, or ``live_trading``.
+
+See docs/architecture_review.md (A3) for the reasoning behind this decision.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
