@@ -7,7 +7,7 @@ from pathlib import Path
 
 from core.event_store import SQLiteEventStore
 from core.events import FillEvent, TradingEventPipeline
-from core.ledger import (
+from research.audit.ledger import (
     AuthoritativeLedger,
     AverageCostPositionReducer,
     PositionState,

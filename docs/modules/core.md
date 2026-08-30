@@ -143,7 +143,7 @@
 ### `core/valuation.py` — 组合快照
 `build_portfolio_snapshot(portfolio, prices, price_times, synced_at)`：任何持仓缺少新鲜的正价格就抛 `ValueError`，否则计算权益/总敞口/净敞口，生成不可变的 `PortfolioSnapshot`。
 
-### `core/ledger.py` — 权威事件溯源账本
+### `research/audit/ledger.py` — 权威事件溯源账本
 比 `portfolio.py` 更严格的**平行**实现，全程用 `Decimal`，均价成本法，正确处理平仓穿越零点的语义，面向实盘权威记账和对账场景：
 - `AverageCostPositionReducer.reduce(...)`：处理同向加仓（加权均价）、部分平仓（均价不变）、穿越零点的平仓（剩余部分按成交价重新开仓），返回已实现盈亏增量。
 - `FillLedger`/`FeeLedger`/`CashLedger`：按 `event_id` 去重的幂等记账。
@@ -201,8 +201,8 @@
 ### `core/retry.py` — 重试包装器
 `with_retry(fn, max_attempts=3, base_delay=0.5, max_delay=8.0, retryable=is_ambiguous_error)`：带指数退避的有界重试，默认只重试"不确定"类错误（网络超时等），延迟为 `min(base_delay * 2**attempt, max_delay)`。
 
-### `core/reconciliation_job.py` — 日终对账
-`EODReconciliationJob` 调用 `core/ledger.py` 的 `PortfolioProjection.reconcile`，对比外部交易所现金/持仓，原子性地把 JSON 报告落盘到 `<output_dir>/<日期>_<账户>.json`（临时文件 + `os.replace`）。要求 `checked_at` 带时区。产出被 `r7_acceptance.py` 消费，要求整个 soak 期内每天零偏差。
+### `research/audit/reconciliation_job.py` — 日终对账
+`EODReconciliationJob` 调用 `research/audit/ledger.py` 的 `PortfolioProjection.reconcile`，对比外部交易所现金/持仓，原子性地把 JSON 报告落盘到 `<output_dir>/<日期>_<账户>.json`（临时文件 + `os.replace`）。要求 `checked_at` 带时区。产出被 `r7_acceptance.py` 消费，要求整个 soak 期内每天零偏差。
 
 ### `core/startup_preflight.py` — 启动前检查
 `build_startup_report(policy, credentials, engine)` 生成不含密钥明文的 JSON"证据"报告（凭据是否存在、sandbox/live 模式、一键停机是否未激活、账户/订单同步基线、健康基线、熔断状态）。`write_startup_report(...)` 原子写入（临时文件 + `os.replace` + fsync）。

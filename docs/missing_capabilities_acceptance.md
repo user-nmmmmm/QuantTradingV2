@@ -6,14 +6,14 @@
 | --- | --- |
 | M-01 | `tests/test_backtest_regression.py` 固定 fixtures、结构化事实包及连续运行一致性。 |
 | M-02 | `core/metric_result.py` 提供 `MetricResult`、明确状态和 JSON Schema，区分零值与不可计算。 |
-| M-03 | `core/ledger.py` 的权威账本保存可重建 fill、费用、现金、仓位和已实现 PnL。 |
+| M-03 | `research/audit/ledger.py` 的权威账本保存可重建 fill、费用、现金、仓位和已实现 PnL。 |
 | M-04 | `core/cost_model.py` 统一成本语义；缺失的资金/借券成本显式标为 `not_modeled`。 |
 | M-05 | `PortfolioProjection.reconcile` 和现金充足性检查覆盖组合级对账。 |
 | M-06 | `core/metrics.py` 提供回撤事件、交易质量、暴露、信号漏斗和成本敏感性。 |
 | M-07 | `core/metrics.py` 提供归因、基准、R-Multiple、MAE/MFE 和 SQN。 |
 | M-08 | `analysis/validation.py` 组合 OOS/walk-forward/Bootstrap/Monte Carlo/多重测试；`optimize.py --oos` 输出证据。 |
 | M-09 | `core/exchange_boundary.py` 统一 markets、精度、步长、最小数量/名义金额。 |
-| M-10 | `core/reconciliation_job.py` 原子输出日终对账报告。 |
+| M-10 | `research/audit/reconciliation_job.py` 原子输出日终对账报告。 |
 | M-11 | `core/events.py` 定义共享事件、因果 ID、幂等消费和回放。 |
 | M-12 | 原子状态、遥测、滞回告警、启动检查、心跳、对账、备份回滚和 Dashboard schema 均有模块与测试。 |
 | M-13 | R7 故障注入、sandbox 凭据门控测试和连续运行证据审计已实现。 |
