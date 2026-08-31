@@ -14,7 +14,7 @@ import pandas as pd
 
 from core.execution_port import ExecutionPort
 from core.portfolio import Portfolio
-from core.risk import RiskManager
+from core.risk import BreakerAction, RiskControlDecision, RiskManager
 
 
 @dataclass(frozen=True)
@@ -65,6 +65,17 @@ class CandidateRouter(Protocol):
         current_prices: Optional[Dict[str, float]] = None,
     ) -> Any: ...
 
+    def process_position_management(
+        self, symbol: str, i: int, df: pd.DataFrame, state: Any,
+        portfolio: Portfolio, broker: ExecutionPort,
+    ) -> bool: ...
+
+    def collect_entry_candidate(
+        self, symbol: str, i: int, df: pd.DataFrame, state: Any,
+        portfolio: Portfolio, broker: ExecutionPort, risk_manager: RiskManager,
+        current_prices: Optional[Dict[str, float]] = None,
+    ) -> Any: ...
+
 
 class CandidateAllocator(Protocol):
     """Portfolio-level allocation contract consumed by the shared runtime."""
@@ -88,6 +99,7 @@ class RuntimeResult:
     routed_symbols: list[str] = field(default_factory=list)
     circuit_breaker: bool = False
     breaker_action: str = "normal"
+    risk_decision: Optional[RiskControlDecision] = None
 
 
 class EventProcessor:
@@ -121,6 +133,8 @@ class EventProcessor:
         self._daily_start_equity = float(
             initial_equity if initial_equity is not None else portfolio.cash
         )
+        self._previous_session_close_equity = self._daily_start_equity
+        self._bar_index = -1
 
     @staticmethod
     def _utc_datetime(value: Any) -> datetime:
@@ -154,51 +168,91 @@ class EventProcessor:
                 self.last_prices[symbol] = close
 
         equity = self.portfolio.get_total_value(self.last_prices)
+        self._bar_index += 1
         current_day = event.timestamp.date()
         if current_day != self._current_day:
             if self._current_day is not None:
-                self._daily_start_equity = equity
+                # Daily bars compare the current close with the prior session's
+                # close.  Intraday bars retain the first session baseline.
+                self._daily_start_equity = self._previous_session_close_equity
             self.risk_manager.reset_daily_breaker()
             self._current_day = current_day
 
-        breaker = False
+        raw_decision: Any = False
         if check_circuit_breaker:
-            breaker = bool(
-                self.risk_manager.check_circuit_breaker(
+            try:
+                raw_decision = self.risk_manager.check_circuit_breaker(
+                    equity, self._daily_start_equity,
+                    occurred_at=event.timestamp, bar_index=self._bar_index,
+                )
+            except TypeError:
+                # Compatibility for adapters/test doubles implementing the
+                # pre-decision two-positional-argument contract.
+                raw_decision = self.risk_manager.check_circuit_breaker(
                     equity, self._daily_start_equity
                 )
-            )
+        decision = self._normalize_risk_decision(raw_decision)
 
         routed: list[str] = []
         selected = set(symbols) if symbols is not None else None
-        if not breaker:
-            candidates = []
-            # Candidate collection is intentionally independent of the input
-            # mapping's iteration order.  Allocation below applies a stable
-            # score/strategy/symbol ordering to all same-timestamp signals.
-            for symbol in event.bars:
-                if selected is not None and symbol not in selected:
-                    continue
-                candidate, processed = self._collect_symbol_candidate(event, symbol)
-                if processed:
-                    routed.append(symbol)
-                if candidate is not None:
-                    candidates.append(candidate)
+        candidates = []
+        # Position management and entry collection are deliberately separate:
+        # BLOCK_NEW must never disable stops or strategy exits.
+        for symbol in event.bars:
+            if selected is not None and symbol not in selected:
+                continue
+            candidate, processed = self._collect_symbol_candidate(
+                event, symbol,
+                allow_position_management=decision.allow_position_management,
+                allow_new_entries=decision.allow_new_entries,
+            )
+            if processed:
+                routed.append(symbol)
+            if candidate is not None:
+                candidates.append(candidate)
+        if decision.allow_new_entries:
             self.allocator.allocate(
                 candidates, portfolio=self.portfolio, broker=self.execution,
                 risk_manager=self.risk_manager, current_prices=self.last_prices,
             )
+
+        self._previous_session_close_equity = equity
 
         return RuntimeResult(
             equity=equity,
             cash=float(self.portfolio.cash),
             prices=self.last_prices,
             routed_symbols=routed,
-            circuit_breaker=breaker,
-            breaker_action=str(
-                getattr(getattr(self.risk_manager, "breaker_action", "normal"), "value",
-                        getattr(self.risk_manager, "breaker_action", "normal"))
+            circuit_breaker=bool(decision),
+            breaker_action=decision.action.value,
+            risk_decision=decision,
+        )
+
+    def _normalize_risk_decision(self, value: Any) -> RiskControlDecision:
+        if isinstance(value, RiskControlDecision):
+            return value
+        action_value = getattr(self.risk_manager, "breaker_action", BreakerAction.NORMAL)
+        try:
+            action = action_value if isinstance(action_value, BreakerAction) else BreakerAction(
+                getattr(action_value, "value", action_value)
+            )
+        except (TypeError, ValueError):
+            action = BreakerAction.NORMAL
+        blocked = bool(value)
+        return RiskControlDecision(
+            action=action,
+            allow_position_management=action not in {
+                BreakerAction.LIQUIDATE, BreakerAction.LOCKED
+            },
+            allow_new_entries=not blocked,
+            force_reduce_fraction=(
+                getattr(self.risk_manager, "reduced_risk_multiplier", 0.5)
+                if action is BreakerAction.REDUCE else None
             ),
+            force_liquidate=action in {
+                BreakerAction.LIQUIDATE, BreakerAction.LOCKED
+            } or (blocked and action is BreakerAction.NORMAL),
+            terminal=action in {BreakerAction.LIQUIDATE, BreakerAction.LOCKED},
         )
 
     def process_symbol(self, event: MarketDataSlice, symbol: str) -> bool:
@@ -212,7 +266,11 @@ class EventProcessor:
             )
         return processed
 
-    def _collect_symbol_candidate(self, event: MarketDataSlice, symbol: str):
+    def _collect_symbol_candidate(
+        self, event: MarketDataSlice, symbol: str, *,
+        allow_position_management: bool = True,
+        allow_new_entries: bool = True,
+    ):
         """Return ``(candidate, processed)`` without allocating capital."""
 
         df = event.histories.get(symbol)
@@ -227,10 +285,38 @@ class EventProcessor:
         if not isinstance(location, int) or location < self.warmup_period:
             return None, False
         state = self.state_machine.get_state(df, location)
-        candidate = self.router.collect_candidate(
-            symbol, location, df, state, self.portfolio, self.execution,
-            self.risk_manager, self.last_prices,
+        router_type = type(self.router)
+        legacy_override = "collect_candidate" in vars(self.router)
+        manager = (
+            getattr(self.router, "process_position_management", None)
+            if not legacy_override and hasattr(router_type, "process_position_management") else None
         )
+        entry_collector = (
+            getattr(self.router, "collect_entry_candidate", None)
+            if not legacy_override and hasattr(router_type, "collect_entry_candidate") else None
+        )
+        if callable(manager) and callable(entry_collector):
+            held = False
+            if allow_position_management:
+                held = bool(manager(
+                    symbol, location, df, state, self.portfolio, self.execution,
+                ))
+            if held or not allow_new_entries:
+                candidate = None
+            else:
+                candidate = entry_collector(
+                    symbol, location, df, state, self.portfolio, self.execution,
+                    self.risk_manager, self.last_prices,
+                )
+        elif allow_position_management or allow_new_entries:
+            candidate = self.router.collect_candidate(
+                symbol, location, df, state, self.portfolio, self.execution,
+                self.risk_manager, self.last_prices,
+            )
+            if not allow_new_entries:
+                candidate = None
+        else:
+            candidate = None
         return candidate, True
 
     def run(self, market_data: MarketDataAdapter) -> list[RuntimeResult]:

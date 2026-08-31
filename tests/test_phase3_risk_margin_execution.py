@@ -34,15 +34,15 @@ class TestHighWaterDrawdownProtection:
             portfolio_drawdown_liquidate=0.20,
             portfolio_drawdown_lock=0.25,
         )
-        assert risk.check_circuit_breaker(100.0, 100.0) is False
-        assert risk.check_circuit_breaker(89.0, 100.0) is False
+        assert bool(risk.check_circuit_breaker(100.0, 100.0)) is False
+        assert bool(risk.check_circuit_breaker(89.0, 100.0)) is False
         assert risk.breaker_action is BreakerAction.REDUCE
         assert risk.risk_multiplier == pytest.approx(0.5)
 
-        assert risk.check_circuit_breaker(84.0, 100.0) is True
+        assert bool(risk.check_circuit_breaker(84.0, 100.0)) is True
         assert risk.breaker_action is BreakerAction.BLOCK_NEW
         risk.reset_daily_breaker()
-        assert risk.check_circuit_breaker(99.0, 99.0) is True
+        assert bool(risk.check_circuit_breaker(99.0, 99.0)) is True
         assert risk.breaker_action is BreakerAction.BLOCK_NEW
 
         risk.check_circuit_breaker(74.0, 99.0)
@@ -61,7 +61,7 @@ class TestHighWaterDrawdownProtection:
             portfolio_drawdown_lock=0.80,
         )
         risk.check_circuit_breaker(100.0, 100.0)
-        assert risk.check_circuit_breaker(94.0, 100.0) is True
+        assert bool(risk.check_circuit_breaker(94.0, 100.0)) is True
         assert risk.breaker_action is BreakerAction.NORMAL
         risk.reset_daily_breaker()
         assert risk.circuit_breaker_triggered is False

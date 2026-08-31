@@ -312,6 +312,7 @@ def deterministic_result_digest(result: Mapping[str, Any]) -> Dict[str, str]:
             "execution_audit": result.get("execution_audit"),
             "breaker_audit": result.get("breaker_audit"),
             "breaker_state": result.get("breaker_state"),
+            "lifecycle": result.get("lifecycle"),
         }).encode("utf-8")),
     }
 
