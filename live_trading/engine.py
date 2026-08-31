@@ -1,8 +1,25 @@
-"""Live scheduler composed around the shared EventProcessor."""
+"""Live scheduler composed around the shared EventProcessor.
+
+Split by change reason (A4) — see docs/architecture_review.md:
+- live_trading/recovery.py         — order recovery, reconciliation-due checks
+- live_trading/state_export.py     — durable JSON export of engine state
+- live_trading/tick_orchestrator.py — the body of one tick (data/sync/risk/routing)
+
+``LiveTradingEngine`` composes the three mixins below via inheritance rather
+than holding separate collaborator objects, so every method still
+reads/writes the exact same ``self`` attributes as before the split --
+behavior-identical, mechanical. A true composition redesign is a bigger
+change on this money-path-adjacent code and is deliberately left for a
+dedicated pass, not bundled into this file-size cleanup.
+
+``LiveTradingEngine`` itself keeps ``__init__``, lifecycle (``initialize``,
+``run``), and the cross-cutting helpers (``_now``, ``_alert``,
+``_assess_health``, ``_ensure_state_store``, ``_reset_daily_risk_if_needed``)
+that the split modules call back into.
+"""
 
 from __future__ import annotations
 
-import json
 import os
 import time
 from datetime import datetime, timezone
@@ -24,17 +41,18 @@ from core.live_broker import LiveBroker
 from core.logger import get_logger
 from core.market_data import LiveMarketDataAdapter
 from core.risk import RiskManager
-from core.runtime import EventProcessor, MarketDataSlice
+from core.runtime import EventProcessor
 from core.state_store_v2 import StateStore, default_state_db_path
 from core.sqlite_backup import SQLiteSnapshotManager
-from core.timeframes import as_utc_timestamp, closed_bars, timeframe_delta
-from core.valuation import build_portfolio_snapshot
 from live_trading.execution_adapter import RecordedExecutionAdapter
+from live_trading.recovery import RecoveryMixin
+from live_trading.state_export import StateExportMixin
+from live_trading.tick_orchestrator import TickOrchestratorMixin
 
 logger = get_logger(__name__)
 
 
-class LiveTradingEngine:
+class LiveTradingEngine(TickOrchestratorMixin, RecoveryMixin, StateExportMixin):
     """Live durability/scheduling shell with mode-independent event processing."""
 
     def __init__(
@@ -321,379 +339,3 @@ class LiveTradingEngine:
                 time.sleep(delay)
         except KeyboardInterrupt:
             logger.info("Live Trading Stopped by User")
-
-    def _recover_orders(self) -> Dict:
-        recover = getattr(self.broker, "recover_open_orders", None)
-        return recover() if callable(recover) else {}
-
-    def _has_unresolved_unknown(self, *, refresh: bool = False) -> bool:
-        if refresh or self._unresolved_unknown_cache is None:
-            checker = getattr(self.broker, "has_unresolved_unknown", None)
-            self._unresolved_unknown_cache = (
-                bool(checker()) if callable(checker) else False
-            )
-        return self._unresolved_unknown_cache
-
-    def _update_data(self):
-        self.market_data_adapter.data_map = dict(self.data_map)
-        self.data_map = self.market_data_adapter.refresh()
-
-    def _tick(self) -> bool:
-        '''Contain unexpected failures so one bad tick cannot kill the process.'''
-        try:
-            self._tick_once()
-        except Exception as exc:
-            self._consecutive_tick_crashes += 1
-            if self._consecutive_tick_crashes == 1:
-                self._next_retry_delay = min(
-                    self.failure_backoff_base_seconds,
-                    self.failure_backoff_max_seconds,
-                )
-            else:
-                self._next_retry_delay = min(
-                    self.failure_backoff_max_seconds,
-                    max(
-                        self.failure_backoff_base_seconds,
-                        self._next_retry_delay * 2,
-                    ),
-                )
-            self._healthy = False
-            self._operational_state = 'HALTED'
-            logger.exception(
-                'Unexpected live tick failure; retrying in %.3fs',
-                self._next_retry_delay,
-            )
-            self._alert('critical', 'tick_crashed', {
-                'error': type(exc).__name__,
-                'consecutive_failures': self._consecutive_tick_crashes,
-                'retry_delay_seconds': self._next_retry_delay,
-            })
-            try:
-                self._export_state()
-            except Exception:
-                logger.exception('Failed to export state after live tick crash')
-            return False
-        self._consecutive_tick_crashes = 0
-        self._next_retry_delay = 0.0
-        return True
-
-    def _run_reconciliation_if_due(
-        self, now: datetime, *, force: bool = False,
-    ) -> Dict:
-        due = (
-            force
-            or self._last_reconciliation_at is None
-            or (now - self._last_reconciliation_at).total_seconds()
-            >= self.reconciliation_interval_seconds
-        )
-        if not due:
-            return dict(self._reconciliation_status)
-
-        recovered = dict(self._recover_orders() or {})
-        unresolved = [
-            client_order_id
-            for client_order_id, result in recovered.items()
-            if str(getattr(getattr(result, "status", None), "value", ""))
-            == "unknown"
-        ]
-        self._last_reconciliation_at = now
-        self._reconciliation_status = {
-            "last_run_at": now.isoformat(),
-            "checked_count": len(recovered),
-            "discrepancy_count": len(unresolved),
-            "ok": not unresolved,
-        }
-        if not self._has_unresolved_unknown(refresh=True):
-            self._last_order_sync_at = now
-        if unresolved:
-            self._alert("error", "reconcile_discrepancy", {
-                "discrepancy_count": len(unresolved),
-                "client_order_ids": unresolved,
-            })
-        return dict(self._reconciliation_status)
-
-    def _tick_once(self):
-        self._tick_count += 1
-        self._unresolved_unknown_cache = None
-        now = self._now()
-        state_store = self._ensure_state_store()
-        self._reset_daily_risk_if_needed(now)
-        try:
-            self._update_data()
-        except Exception as exc:
-            self._assess_health(now, HealthReason(
-                "MARKET_DATA_UPDATE_FAILED", "market_data", "data",
-                f"market data update failed: {type(exc).__name__}",
-            ))
-            self._alert("error", "tick_unhealthy", {
-                "operation": "update_data", "error": type(exc).__name__,
-            })
-            self._maybe_export_state()
-            return
-        try:
-            sync_result = self.broker.sync()
-        except Exception as exc:
-            self._assess_health(now, HealthReason(
-                "ACCOUNT_SYNC_FAILED", "account_sync", "account",
-                f"account synchronization raised: {type(exc).__name__}",
-            ))
-            self._alert("error", "tick_unhealthy", {
-                "operation": "broker_sync", "error": type(exc).__name__,
-            })
-            self._maybe_export_state()
-            return
-        self._healthy = bool(getattr(sync_result, "ok", sync_result is None))
-        if not self._healthy:
-            self._assess_health(now, HealthReason(
-                "ACCOUNT_SYNC_FAILED", "account_sync", "account",
-                f"account synchronization failed: {getattr(sync_result, 'error', 'unknown')}",
-            ))
-            logger.error("Trading disabled: portfolio synchronization failed")
-            self._maybe_export_state()
-            return
-        synced_at = getattr(sync_result, "synced_at", None)
-        self._last_account_sync_at = (
-            synced_at if isinstance(synced_at, datetime) else now
-        )
-
-        try:
-            self._run_reconciliation_if_due(
-                now, force=self._has_unresolved_unknown()
-            )
-        except Exception as exc:
-            self._reconciliation_status = {
-                "last_run_at": now.isoformat(),
-                "checked_count": 0,
-                "discrepancy_count": 1,
-                "ok": False,
-                "error": type(exc).__name__,
-            }
-            self._assess_health(now, HealthReason(
-                "ORDER_SYNC_FAILED", "order_sync", "order",
-                f"order synchronization failed: {type(exc).__name__}",
-            ))
-            self._alert("error", "reconcile_discrepancy", {
-                "error": type(exc).__name__,
-            })
-            self._maybe_export_state()
-            return
-        if self._has_unresolved_unknown():
-            self._assess_health(now, HealthReason(
-                "ORDER_STATE_UNKNOWN", "order_sync", "order",
-                "an order has unresolved exchange state",
-            ))
-            logger.critical("Trading halted: unresolved unknown order")
-            self._maybe_export_state()
-            return
-
-        prices: Dict[str, float] = {}
-        price_times = {}
-        closed_map: Dict[str, pd.DataFrame] = {}
-        for symbol, data in self.data_map.items():
-            eligible = closed_bars(data, self.timeframe, now, self.close_grace_seconds)
-            if not eligible.empty:
-                closed_map[symbol] = eligible
-                prices[symbol] = float(eligible["close"].iloc[-1])
-                price_times[symbol] = as_utc_timestamp(eligible.index[-1]).to_pydatetime()
-
-        self._assess_health(now)
-
-        try:
-            self._snapshot = build_portfolio_snapshot(
-                self.broker.portfolio,
-                prices,
-                price_times,
-                now if now.tzinfo else now.replace(tzinfo=timezone.utc),
-            )
-        except ValueError as exc:
-            self._assess_health(now, HealthReason(
-                "VALUATION_FACT_MISSING", "valuation", "portfolio",
-                f"portfolio valuation is unavailable: {exc}",
-            ))
-            logger.error("Trading disabled: %s", exc)
-            self._maybe_export_state()
-            return
-
-        self.event_processor.last_prices.update(self._snapshot.prices)
-        day_key = f"daily_start_equity:{now.date().isoformat()}"
-        daily_start = state_store.get(day_key)
-        if daily_start is None:
-            daily_start = self._snapshot.equity
-            state_store.set(day_key, daily_start)
-        was_already_triggered = bool(self.risk_manager.circuit_breaker_triggered)
-        breaker = self.risk_manager.check_circuit_breaker(
-            self._snapshot.equity, float(daily_start)
-        )
-        breaker_day = now.date().isoformat()
-        if bool(breaker) != self._last_written_breaker:
-            state_store.set("circuit_breaker", bool(breaker))
-            self._last_written_breaker = bool(breaker)
-        if breaker_day != self._last_written_breaker_day:
-            state_store.set("circuit_breaker_day", breaker_day)
-            self._last_written_breaker_day = breaker_day
-        if breaker:
-            self._operational_state = "RISK_HALTED"
-            logger.critical("Trading disabled: daily circuit breaker active")
-            # Alert only on the trip itself, not every tick the halt stays
-            # active: equity moves every tick, which would otherwise defeat
-            # HysteresisAlertSink's dedup key and page on every interval.
-            if not was_already_triggered:
-                self._alert("critical", "circuit_breaker_triggered", {
-                    "equity": self._snapshot.equity,
-                    "daily_start_equity": float(daily_start),
-                })
-            self._maybe_export_state()
-            return
-
-        strategy_failures = []
-        for symbol in self.symbols:
-            frame = closed_map.get(symbol)
-            if frame is None or frame.empty:
-                continue
-            timestamp = frame.index[-1]
-            close_time = as_utc_timestamp(timestamp) + timeframe_delta(self.timeframe)
-            bar_key = (
-                f"{getattr(self.broker, 'exchange_id', 'exchange')}|"
-                f"{getattr(self.broker, 'account_id', getattr(self.broker, 'market_type', 'spot'))}|"
-                f"{symbol}|{self.timeframe}|{close_time.isoformat()}"
-            )
-            if not state_store.claim_bar(
-                bar_key, now.isoformat(), lease_seconds=self.bar_claim_lease_seconds
-            ):
-                continue
-            set_context = getattr(self.broker, "set_bar_context", None)
-            if callable(set_context):
-                set_context(self.timeframe, close_time)
-            event = MarketDataSlice(
-                timestamp=timestamp,
-                bars={symbol: frame.iloc[-1]},
-                histories={symbol: frame},
-                timeframe=self.timeframe,
-                source="live",
-            )
-            try:
-                self.event_processor.process_symbol(event, symbol)
-                if self._has_unresolved_unknown(refresh=True):
-                    state_store.release_bar(bar_key)
-                    self._assess_health(now, HealthReason(
-                        "ORDER_STATE_UNKNOWN", "order_sync", "order",
-                        "an order has unresolved exchange state",
-                    ))
-                    logger.critical("Bar released because order fact is unknown: %s", bar_key)
-                    break
-                state_store.complete_bar(bar_key, now.isoformat())
-            except Exception as exc:
-                state_store.release_bar(bar_key)
-                strategy_failures.append((symbol, type(exc).__name__))
-                logger.exception("Failed processing bar %s", bar_key)
-
-        if strategy_failures:
-            self._consecutive_strategy_failures += len(strategy_failures)
-            self._last_strategy_error = strategy_failures[-1][1]
-            halted = (
-                self._consecutive_strategy_failures
-                >= self.strategy_failure_threshold
-            )
-            self._healthy = False
-            self._operational_state = "HALTED" if halted else "DEGRADED"
-            self._alert("critical" if halted else "error", "strategy_processing_failed", {
-                "failures": strategy_failures,
-                "consecutive_failures": self._consecutive_strategy_failures,
-                "threshold": self.strategy_failure_threshold,
-                "operational_state": self._operational_state,
-            })
-        else:
-            self._consecutive_strategy_failures = 0
-            self._last_strategy_error = None
-        self._maybe_export_state()
-
-    def _critical_state_signature(self):
-        return (
-            self._healthy,
-            self._operational_state,
-            self._has_unresolved_unknown(),
-            tuple(
-                self.health_assessment.reason_codes
-                if self.health_assessment else ()
-            ),
-        )
-
-    def _maybe_export_state(self, *, force: bool = False) -> bool:
-        critical_state = self._critical_state_signature()
-        transition = critical_state != self._last_exported_critical_state
-        due = (
-            self._last_export_tick is None
-            or self._tick_count - self._last_export_tick
-            >= self.state_export_interval_ticks
-        )
-        if not (force or transition or due):
-            return False
-        if self._export_state():
-            self._last_export_tick = self._tick_count
-            self._last_exported_critical_state = critical_state
-            return True
-        return False
-
-    def _export_state(self):
-        tmp_path = f"{self.state_file}.{os.getpid()}.tmp"
-        try:
-            if self._snapshot is not None:
-                # Reuse the authoritative valuation already produced this
-                # tick instead of re-deriving equity from raw bar closes,
-                # which can disagree with the price rule risk decisions used.
-                cash = self._snapshot.cash
-                equity = self._snapshot.equity
-            else:
-                current_prices = {
-                    symbol: frame["close"].iloc[-1]
-                    for symbol, frame in self.data_map.items()
-                    if not frame.empty
-                }
-                cash = self.broker.portfolio.cash
-                equity = self.broker.portfolio.get_equity(current_prices)
-            state_data = {
-                "schema_version": 1,
-                "timestamp": self._now().strftime("%Y-%m-%d %H:%M:%S"),
-                "cash": cash,
-                "equity": equity,
-                "positions": self.broker.portfolio.positions,
-                "symbols": self.symbols,
-                "last_update": self._now().isoformat(),
-                "healthy": self._healthy,
-                "operational_state": self._operational_state,
-                "unresolved_unknown_order": self._has_unresolved_unknown(),
-                "reconciliation": dict(self._reconciliation_status),
-                "consecutive_strategy_failures": self._consecutive_strategy_failures,
-                "last_strategy_error": self._last_strategy_error,
-                "health_reason_codes": (
-                    self.health_assessment.reason_codes
-                    if self.health_assessment else []
-                ),
-                "health_assessment": (
-                    self.health_assessment.to_dict()
-                    if self.health_assessment else None
-                ),
-            }
-            critical_state = (
-                state_data["healthy"],
-                state_data["operational_state"],
-                state_data["unresolved_unknown_order"],
-                tuple(state_data["health_reason_codes"]),
-            )
-            needs_fsync = critical_state != self._last_exported_critical_state
-            with open(tmp_path, "w", encoding="utf-8") as handle:
-                json.dump(state_data, handle, indent=2)
-                handle.flush()
-                if needs_fsync:
-                    os.fsync(handle.fileno())
-            os.replace(tmp_path, self.state_file)
-            self._last_exported_critical_state = critical_state
-            return True
-        except Exception as exc:
-            logger.exception("Failed to export state")
-            try:
-                if os.path.exists(tmp_path):
-                    os.remove(tmp_path)
-            except OSError:
-                logger.warning("Failed to remove incomplete state file: %s", tmp_path)
-            return False
