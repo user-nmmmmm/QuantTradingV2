@@ -24,11 +24,15 @@ of this module's public API.
 """
 from typing import Dict, Optional
 
-from core.risk_circuit_breaker import BreakerAction, CircuitBreakerMixin
+from core.risk_circuit_breaker import (
+    BreakerAction,
+    CircuitBreakerMixin,
+    RiskControlDecision,
+)
 from core.risk_position_sizing import PositionSizingMixin
 from core.risk_entry_policy import EntryPolicyMixin
 
-__all__ = ["BreakerAction", "RiskManager"]
+__all__ = ["BreakerAction", "RiskControlDecision", "RiskManager"]
 
 
 class RiskManager(CircuitBreakerMixin, PositionSizingMixin, EntryPolicyMixin):
@@ -106,10 +110,15 @@ class RiskManager(CircuitBreakerMixin, PositionSizingMixin, EntryPolicyMixin):
         self.min_entry_notional_pct = min_entry_notional_pct
 
         self.circuit_breaker_triggered = False
+        self.daily_loss_triggered = False
         self.high_water_equity: Optional[float] = None
         self.portfolio_breaker_action = BreakerAction.NORMAL
         self.last_drawdown = 0.0
         self.breaker_audit: list[Dict[str, object]] = []
+        self.breaker_epoch = 0
+        self._breaker_transition_sequence = 0
+        self.current_transition_id: Optional[str] = None
+        self.current_daily_action_id: Optional[str] = None
         self.health_assessment = None
         # Populated by _entry_notional_caps so the gate/clamp can report the
         # equity/exposure figures behind a decision without recomputing them.

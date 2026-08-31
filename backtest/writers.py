@@ -41,6 +41,13 @@ class ReportWritersMixin:
             f.write(self._format_primary_metrics(metrics))
             f.write("\n\n")
 
+            self._write_lifecycle_section(
+                f,
+                metrics.get("BacktestLifecycle"),
+                metrics.get("FullCapitalPeriodMetrics"),
+                metrics.get("ActiveStrategyPeriodMetrics"),
+            )
+
             f.write("Full Metrics (完整指标明细):\n")
             f.write("-----------------\n")
             for k, v in metrics.items():
@@ -84,6 +91,31 @@ class ReportWritersMixin:
             f.write(
                 "   - exit_reason: Reason for order (成交原因: signal/stop/takeprofit)\n"
             )
+
+    def _write_lifecycle_section(
+        self,
+        f,
+        lifecycle: Optional[Dict[str, Any]],
+        full_metrics: Optional[Dict[str, Any]],
+        active_metrics: Optional[Dict[str, Any]],
+    ) -> None:
+        lifecycle = lifecycle or {}
+        full_metrics = full_metrics or {}
+        active_metrics = active_metrics or {}
+        f.write("Backtest Lifecycle (回测生命周期):\n")
+        f.write("-----------------\n")
+        for key in (
+            "status", "active_start", "active_end", "termination_timestamp",
+            "termination_reason", "inactive_bars", "resume_count",
+            "inactive_days",
+            "breaker_epochs", "suppressed_setups_after_termination",
+        ):
+            f.write(f"{key}: {lifecycle.get(key)}\n")
+        f.write("\nFull Capital-Period Metrics (完整资金期):\n")
+        f.write(self._format_primary_metrics(full_metrics))
+        f.write("\n\nActive Strategy-Period Metrics (策略活跃期):\n")
+        f.write(self._format_primary_metrics(active_metrics))
+        f.write("\n\n")
 
     @staticmethod
     def _write_drawdown_events_section(f, events: Optional[List[Dict[str, Any]]]) -> None:

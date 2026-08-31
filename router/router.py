@@ -55,7 +55,25 @@ class Router:
         candidates for the portfolio allocator.
         """
 
-        del risk_manager, current_prices
+        managed = self.process_position_management(
+            symbol, i, df, state, portfolio, broker
+        )
+        if managed:
+            return None
+        return self.collect_entry_candidate(
+            symbol, i, df, state, portfolio, broker, risk_manager, current_prices
+        )
+
+    def process_position_management(
+        self,
+        symbol: str,
+        i: int,
+        df: pd.DataFrame,
+        state: MarketState,
+        portfolio: Portfolio,
+        broker: ExecutionPort,
+    ) -> bool:
+        """Consume fills and manage an existing position; return whether held."""
         current_time = df.index[i]
         for strategy in self.strategies.values():
             strategy._consume_execution_trades(symbol, i, portfolio, broker)
@@ -67,7 +85,7 @@ class Router:
                 self._log_routing(current_time, symbol, state.name,
                                   "MaxHoldingPeriod", qty,
                                   route_event="time_exit", strategy_changed=False)
-                return None
+                return True
             opening_name = self._opening_strategy_name(symbol, portfolio)
             strategy = self.strategies.get(opening_name or "")
             if strategy is not None:
@@ -76,6 +94,24 @@ class Router:
             self._log_routing(current_time, symbol, state.name,
                               opening_name or "UNOWNED_POSITION", qty,
                               route_event="position_exit_control", strategy_changed=False)
+            return True
+        return False
+
+    def collect_entry_candidate(
+        self,
+        symbol: str,
+        i: int,
+        df: pd.DataFrame,
+        state: MarketState,
+        portfolio: Portfolio,
+        broker: ExecutionPort,
+        risk_manager: RiskManager,
+        current_prices: Optional[Dict[str, float]] = None,
+    ) -> Optional[EntryCandidate]:
+        """Return an entry proposal for an already confirmed flat symbol."""
+        del risk_manager, current_prices
+        current_time = df.index[i]
+        if float(portfolio.get_position(symbol)["qty"]) != 0:
             return None
 
         if symbol in self.cooldowns:

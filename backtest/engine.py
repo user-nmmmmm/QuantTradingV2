@@ -50,6 +50,7 @@ class BacktestEngine:
         universe: Optional[object] = None,
         run_id: Optional[str] = None,
         account_mode: Optional[str] = None,
+        breaker_policy: Optional[Dict[str, Any]] = None,
     ) -> None:
         config_data = config.require("data")
         config_benchmark = config.require("benchmark")
@@ -71,6 +72,16 @@ class BacktestEngine:
         self.config_execution = config.require("execution")
         self.config_risk = config.require("risk")
         self.config_account = config.get("account") or {}
+        configured_policy = dict((config.get("backtest") or {}).get("breaker_policy") or {})
+        self.breaker_policy = {**configured_policy, **(breaker_policy or {})}
+        self.breaker_policy.setdefault("on_reduce", "continue_reduced")
+        self.breaker_policy.setdefault("on_block_new", "exit_only")
+        self.breaker_policy.setdefault("on_liquidate", "terminate")
+        self.breaker_policy.setdefault("on_locked", "terminate")
+        self.breaker_policy.setdefault("shadow_diagnostics", True)
+        self.breaker_policy.setdefault("recovery", {"mode": "none"})
+        if self.breaker_policy["on_liquidate"] not in {"terminate", "cooldown"}:
+            raise ValueError("breaker_policy.on_liquidate must be terminate or cooldown")
         self.account_mode = AccountMode(
             account_mode or self.config_account.get("mode", AccountMode.SPOT.value)
         )
@@ -213,6 +224,18 @@ class BacktestEngine:
                 "drawdown": 0.0,
                 "daily_loss_triggered": False,
             },
+            "lifecycle": {
+                "status": "data_exhausted",
+                "active_start": None,
+                "active_end": None,
+                "termination_timestamp": None,
+                "termination_reason": None,
+                "inactive_bars": 0,
+                "inactive_days": 0,
+                "resume_count": 0,
+                "breaker_epochs": 1,
+                "suppressed_setups_after_termination": None,
+            },
         }
         if not processed_data:
             logger.warning("No valid symbol data available after normalization")
@@ -242,8 +265,57 @@ class BacktestEngine:
         bar_index = -1
         last_event_timestamp = None
         applied_breaker_actions: set[str] = set()
+        lifecycle = {
+            "status": "completed",
+            "active_start": None,
+            "active_end": None,
+            "termination_timestamp": None,
+            "termination_reason": None,
+            "inactive_bars": 0,
+            "inactive_days": 0,
+            "resume_count": 0,
+            "breaker_epochs": 1,
+            # None explicitly means shadow evaluation was not enabled; it is
+            # never misreported as a market with zero setups.
+            "suppressed_setups_after_termination": None,
+        }
+        recovery = dict(self.breaker_policy.get("recovery") or {})
+        recovery_mode = str(recovery.get("mode", "none"))
+        flat_bars = 0
+        health_bars = 0
+        waiting_for_recovery = False
         for bar_index, event in enumerate(market_data.stream()):
             last_event_timestamp = event.timestamp
+            if lifecycle["active_start"] is None:
+                lifecycle["active_start"] = event.timestamp
+            if waiting_for_recovery and recovery_mode == "timed_rebase":
+                flat_bars += 1
+                assessment = getattr(risk_manager, "health_assessment", None)
+                healthy = assessment is None or bool(
+                    getattr(assessment, "allows_new_risk", False)
+                )
+                health_bars = health_bars + 1 if healthy else 0
+                max_resumes = int(recovery.get("max_resumes", 1))
+                if (
+                    flat_bars >= int(recovery.get("flat_bars_required", 30))
+                    and health_bars >= int(recovery.get("health_bars_required", 5))
+                    and lifecycle["resume_count"] < max_resumes
+                ):
+                    current_equity = portfolio.get_total_value(processor.last_prices)
+                    risk_manager.manual_resume(
+                        approved_by=str(
+                            recovery.get("approved_by", "backtest_protocol_v1")
+                        ),
+                        current_equity=current_equity,
+                        rebase_high_water=bool(recovery.get("rebase_high_water", True)),
+                        occurred_at=event.timestamp,
+                        bar_index=bar_index,
+                    )
+                    lifecycle["resume_count"] += 1
+                    lifecycle["breaker_epochs"] = risk_manager.breaker_epoch + 1
+                    waiting_for_recovery = False
+                    flat_bars = 0
+                    health_bars = 0
             result = processor.process(event)
             # T-1.10: sample this bar's high/low against every open lot so
             # MAE/MFE (adverse/favorable excursion) are available at close,
@@ -257,6 +329,18 @@ class BacktestEngine:
                 result.prices, timestamp=event.timestamp, record=True
             )
             forced_trades = []
+            action_cost = 0.0
+            positions_before = sum(
+                1 for symbol in portfolio.positions
+                if float(portfolio.get_position(symbol).get("qty", 0.0)) != 0.0
+            )
+            decision = result.risk_decision
+            transition_id = (
+                decision.transition_id if decision is not None else None
+            )
+            portfolio_action_id = getattr(
+                risk_manager, "current_transition_id", None
+            )
             if margin.liquidation_required:
                 forced_trades.extend(
                     broker.force_liquidate(
@@ -265,7 +349,11 @@ class BacktestEngine:
                         reason="MarginLiquidation",
                     )
                 )
-            elif result.breaker_action == "reduce" and "reduce" not in applied_breaker_actions:
+            elif result.breaker_action == "reduce" and (
+                transition_id or f"epoch-{getattr(risk_manager, 'breaker_epoch', 0)}-reduce"
+            ) not in applied_breaker_actions and not (
+                decision is not None and decision.daily_loss_triggered
+            ):
                 forced_trades.extend(
                     broker.force_liquidate(
                         dict(event.bars),
@@ -274,9 +362,15 @@ class BacktestEngine:
                         remaining_fraction=risk_manager.reduced_risk_multiplier,
                     )
                 )
-                applied_breaker_actions.add("reduce")
+                applied_breaker_actions.add(
+                    transition_id or f"epoch-{getattr(risk_manager, 'breaker_epoch', 0)}-reduce"
+                )
             elif result.breaker_action in {"liquidate", "locked"}:
-                if result.breaker_action not in applied_breaker_actions:
+                action_key = transition_id or (
+                    f"epoch-{getattr(risk_manager, 'breaker_epoch', 0)}-"
+                    f"{result.breaker_action}"
+                )
+                if action_key not in applied_breaker_actions:
                     forced_trades.extend(
                         broker.force_liquidate(
                             dict(event.bars),
@@ -284,14 +378,19 @@ class BacktestEngine:
                             reason="AccountLiquidation",
                         )
                     )
-                    applied_breaker_actions.add(result.breaker_action)
-            elif result.circuit_breaker and result.breaker_action == "normal":
+                    applied_breaker_actions.add(action_key)
+            elif result.circuit_breaker and result.breaker_action in {"normal", "reduce"} and (
+                transition_id or f"daily-{event.timestamp.date()}"
+            ) not in applied_breaker_actions:
                 forced_trades.extend(
                     broker.force_liquidate(
                         dict(event.bars),
                         timestamp=event.timestamp,
                         reason="DailyLossLimit",
                     )
+                )
+                applied_breaker_actions.add(
+                    transition_id or f"daily-{event.timestamp.date()}"
                 )
             if forced_trades:
                 for strategy in strategies.values():
@@ -303,6 +402,35 @@ class BacktestEngine:
                 result.cash = float(portfolio.cash)
                 portfolio.margin_snapshot(
                     result.prices, timestamp=event.timestamp, record=True
+                )
+                action_cost = sum(
+                    float(item.get("commission", 0.0) or 0.0)
+                    + abs(float(item.get("slip", 0.0) or 0.0))
+                    for item in forced_trades
+                )
+                processor._previous_session_close_equity = result.equity
+            risk_manager.record_breaker_action_result(
+                transition_id,
+                post_action_equity=result.equity,
+                cost=action_cost,
+                positions_before=positions_before,
+                positions_after=sum(
+                    1 for symbol in portfolio.positions
+                    if float(portfolio.get_position(symbol).get("qty", 0.0)) != 0.0
+                ),
+            )
+            if portfolio_action_id and portfolio_action_id != transition_id:
+                risk_manager.record_breaker_action_result(
+                    portfolio_action_id,
+                    post_action_equity=result.equity,
+                    cost=0.0,
+                    positions_before=positions_before,
+                    positions_after=sum(
+                        1 for symbol in portfolio.positions
+                        if float(portfolio.get_position(symbol).get("qty", 0.0)) != 0.0
+                    ),
+                    executed=False,
+                    overridden_by=transition_id,
                 )
             equity_curve.append(
                 {
@@ -317,10 +445,86 @@ class BacktestEngine:
                 bar_index, event.timestamp, result.equity, portfolio,
                 result.prices, broker.close_events,
             )
-        self._close_tail_positions(
-            portfolio, broker, execution, strategies, equity_curve, accounting,
-            last_event_timestamp, bar_index,
-        )
+            terminal_action = result.breaker_action in {"liquidate", "locked"}
+            policy_key = "on_locked" if result.breaker_action == "locked" else "on_liquidate"
+            if terminal_action and self.breaker_policy.get(policy_key, "terminate") == "terminate":
+                lifecycle.update({
+                    "status": "locked" if result.breaker_action == "locked" else "terminated_by_risk",
+                    "active_end": event.timestamp,
+                    "termination_timestamp": event.timestamp,
+                    "termination_reason": f"portfolio_{result.breaker_action}",
+                    "inactive_bars": max(0, len(timestamps) - bar_index - 1),
+                    "inactive_days": max(
+                        0, (pd.Timestamp(timestamps[-1]) - event.timestamp).days
+                    ),
+                })
+                break
+            if terminal_action and self.breaker_policy.get(policy_key) == "cooldown":
+                if lifecycle["resume_count"] >= int(recovery.get("max_resumes", 1)):
+                    lifecycle.update({
+                        "status": "terminated_by_risk",
+                        "active_end": event.timestamp,
+                        "termination_timestamp": event.timestamp,
+                        "termination_reason": "recovery_limit_exhausted",
+                        "inactive_bars": max(0, len(timestamps) - bar_index - 1),
+                        "inactive_days": max(
+                            0, (pd.Timestamp(timestamps[-1]) - event.timestamp).days
+                        ),
+                    })
+                    break
+                if not waiting_for_recovery:
+                    waiting_for_recovery = True
+                    flat_bars = 0
+                    health_bars = 0
+        if lifecycle["status"] not in {"terminated_by_risk", "locked"}:
+            self._close_tail_positions(
+                portfolio, broker, execution, strategies, equity_curve, accounting,
+                last_event_timestamp, bar_index,
+            )
+            lifecycle["active_end"] = last_event_timestamp
+        else:
+            terminal_equity = float(equity_curve[-1]["equity"])
+            terminal_cash = float(equity_curve[-1]["cash"])
+            if bool(self.breaker_policy.get("shadow_diagnostics", True)):
+                shadow_router = build_router(strategies, config, log_path=None)
+                shadow_processor = EventProcessor(
+                    portfolio=portfolio,
+                    execution=execution,
+                    risk_manager=risk_manager,
+                    state_machine=state_machine,
+                    router=shadow_router,
+                    allocator=shadow_router.allocator,
+                    warmup_period=self.warmup_period,
+                    initial_equity=terminal_equity if equity_curve else self.initial_capital,
+                )
+                suppressed = 0
+                termination_timestamp = pd.Timestamp(
+                    lifecycle["termination_timestamp"]
+                )
+                for shadow_event in market_data.stream():
+                    if shadow_event.timestamp <= termination_timestamp:
+                        continue
+                    for symbol, bar in shadow_event.bars.items():
+                        close = float(bar["close"])
+                        if pd.notna(close):
+                            shadow_processor.last_prices[symbol] = close
+                        candidate, _ = shadow_processor._collect_symbol_candidate(
+                            shadow_event,
+                            symbol,
+                            allow_position_management=False,
+                            allow_new_entries=True,
+                        )
+                        if candidate is not None:
+                            suppressed += 1
+                lifecycle["suppressed_setups_after_termination"] = suppressed
+            # Preserve the full capital-period experience as an explicit flat
+            # cash tail while active-strategy metrics stop at active_end.
+            for inactive_timestamp in timestamps[bar_index + 1:]:
+                equity_curve.append({
+                    "timestamp": inactive_timestamp,
+                    "equity": terminal_equity,
+                    "cash": terminal_cash,
+                })
         router.save_log()
         logger.info("Backtest completed")
 
@@ -380,8 +584,13 @@ class BacktestEngine:
                 "action": risk_manager.breaker_action.value,
                 "high_water_equity": risk_manager.high_water_equity,
                 "drawdown": risk_manager.last_drawdown,
-                "daily_loss_triggered": bool(risk_manager.circuit_breaker_triggered),
+                "daily_loss_triggered": bool(risk_manager.daily_loss_triggered),
+                "blocks_new_risk": bool(risk_manager._blocks_new_risk()),
+                "liquidation_triggered": risk_manager.breaker_action.value in {"liquidate", "locked"},
+                "locked": risk_manager.breaker_action.value == "locked",
+                "breaker_epoch": risk_manager.breaker_epoch,
             },
+            "lifecycle": lifecycle,
         }
 
     def _close_tail_positions(

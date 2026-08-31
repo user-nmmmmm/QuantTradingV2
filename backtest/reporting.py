@@ -167,6 +167,7 @@ class ReportGenerator(
         benchmark_curve: pd.Series = None,
         metrics_only: bool = False,
         close_events: Optional[Dict[str, int]] = None,
+        lifecycle: Optional[Dict[str, Any]] = None,
     ):
         """
         生成报告并返回指标字典。
@@ -201,6 +202,19 @@ class ReportGenerator(
         equity_metrics = self._calculate_equity_metrics(equity_curve)
 
         metrics = {**equity_metrics, **trade_metrics}
+        lifecycle_provided = lifecycle is not None
+        lifecycle = dict(lifecycle or {})
+        active_end = lifecycle.get("active_end")
+        active_curve = equity_curve
+        if active_end is not None and not equity_curve.empty:
+            active_curve = equity_curve.loc[:pd.Timestamp(active_end)]
+        if lifecycle_provided:
+            metrics["FullCapitalPeriodMetrics"] = dict(equity_metrics)
+            metrics["ActiveStrategyPeriodMetrics"] = (
+                self._calculate_equity_metrics(active_curve)
+                if not active_curve.empty else {}
+            )
+            metrics["BacktestLifecycle"] = lifecycle
 
         extended = dict(metrics.get("ExtendedAnalytics") or {})
         extended["drawdown_events"] = calculate_drawdown_events(equity_curve["equity"])
@@ -208,6 +222,10 @@ class ReportGenerator(
             extended["benchmark_comparison"] = calculate_benchmark_comparison(
                 equity_curve["equity"], benchmark_curve
             )
+            if active_end is not None and not active_curve.empty:
+                extended["active_benchmark_comparison"] = calculate_benchmark_comparison(
+                    active_curve["equity"], benchmark_curve.loc[:pd.Timestamp(active_end)]
+                )
         # Trustworthiness diagnostics: whether the headline numbers can be
         # believed and whether the system behaves as its code claims. Kept in
         # its own key so consumers can tell "performance" from "credibility".

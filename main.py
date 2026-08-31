@@ -496,6 +496,7 @@ def main(argv=None) -> int:
         metadata=metadata,
         benchmark_curve=results.get("benchmark"),
         close_events=results.get("close_events"),
+        lifecycle=results.get("lifecycle"),
     )
 
     artifact_failures = []
@@ -519,6 +520,10 @@ def main(argv=None) -> int:
             "account_mode": results.get("account_mode"),
             **(results.get("breaker_state") or {}),
         })
+        write_json_report(
+            output_path / "backtest_lifecycle.json",
+            results.get("lifecycle") or {},
+        )
     except Exception as exc:
         artifact_failures.append("phase3_account_risk_audit")
         logger.exception("Failed to save Phase 3 account/risk artifacts: %s", exc)
@@ -636,7 +641,7 @@ def main(argv=None) -> int:
             "routing_log.csv", "event_log.jsonl", "data_quality_report.json",
             "top_trade_market_data_audit.json",
             "margin_ledger.csv", "financing_ledger.csv", "execution_audit.csv",
-            "breaker_audit.csv", "breaker_state.json",
+            "breaker_audit.csv", "breaker_state.json", "backtest_lifecycle.json",
         ]
         execution_identity = {
             **runtime_identity(),
