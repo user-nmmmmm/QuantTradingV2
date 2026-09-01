@@ -80,7 +80,7 @@ fees; fee totals are separately available for net attribution.
 
 ```python
 from datetime import datetime, timezone
-from core.event_store import SQLiteEventStore
+from core.events.store import SQLiteEventStore
 from research.audit.ledger import AuthoritativeLedger
 
 store = SQLiteEventStore("state/ledger.sqlite3")

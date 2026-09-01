@@ -13,7 +13,7 @@ from core.strategy_health import (
     classify_exit_controller,
 )
 
-from core.metrics_performance import _clean_equity
+from core.metrics.performance import _clean_equity
 
 _FUNNEL_STAGES = ("risk_evaluated", "risk_approved", "order_created", "order_accepted", "filled")
 _ORDER_ACCEPTED_STATUSES = {"accepted", "partially_filled", "filled"}

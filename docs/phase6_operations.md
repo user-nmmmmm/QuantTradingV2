@@ -8,7 +8,7 @@
 将证据保存为一个 JSON 对象，然后运行：
 
 ~~~powershell
-python -m core.phase6 --input reports/phase6/evidence_bundle.json --output reports/phase6/phase6_report.json
+python -m core.admission_gates --input reports/phase6/evidence_bundle.json --output reports/phase6/phase6_report.json
 ~~~
 
 退出码 `0` 表示八项任务的真实证据全部通过；退出码 `2` 表示至少一个门槛未通过，

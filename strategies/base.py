@@ -8,7 +8,7 @@ from core.portfolio import Portfolio
 from core.execution_port import ExecutionPort
 from core.events import Signal
 from core.risk import RiskManager
-from core.phase4 import EntryCandidate
+from core.allocation import EntryCandidate
 
 """
 Strategy（策略基类）模块

@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 from core.gray_release import GrayReleasePolicy
 from core.live_safety import StartupSafetyPolicy
-from core.phase6 import (
+from core.admission_gates import (
     EXPANSION_DIMENSIONS,
     MONITORING_DIMENSIONS,
     RECONCILIATION_LAYERS,

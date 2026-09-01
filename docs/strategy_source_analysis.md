@@ -2,7 +2,7 @@
 
 > 文档状态：技术分析 v1.0
 > 生成日期：2026-08-31
-> 分析范围：`strategies/`、`router/`、`composition/factory.py`、`core/state.py`、`core/phase4.py`（路由/分配部分）、`core/risk*.py`（策略集成面）、`core/indicators.py`、`core/factors/`（策略实际使用的子集）
+> 分析范围：`strategies/`、`router/`、`composition/factory.py`、`core/state.py`、`core/allocation.py`（路由/分配部分）、`core/risk/`（策略集成面）、`core/indicators.py`、`core/factors/`（策略实际使用的子集）
 > 关联文档：[`docs/modules/strategies.md`](modules/strategies.md)、[`docs/modules/router.md`](modules/router.md)、[`docs/strategy_development_roadmap.md`](strategy_development_roadmap.md)、[`docs/backtest_assumptions.md`](backtest_assumptions.md)
 
 ---
@@ -28,13 +28,13 @@ core/state.py  MarketStateMachine  ── 把 OHLCV 序列映射为离散 Market
         ▼
 core/runtime.py  EventProcessor    ── 每根 bar 的确定性编排（唯一业务路径，回测/实盘共用）
         │
-        ├─(1) 熔断器检查        core/risk_circuit_breaker.py
+        ├─(1) 熔断器检查        core/risk/circuit_breaker.py
         ├─(2) 逐标的：持仓管理   router.Router.process_position_management
         ├─(3) 逐标的：入场候选   router.Router.collect_entry_candidate → Strategy.build_entry_candidate
-        └─(4) 组合级分配        core/phase4.PortfolioSignalAllocator.allocate → Strategy.submit_entry_candidate
+        └─(4) 组合级分配        core/allocation.PortfolioSignalAllocator.allocate → Strategy.submit_entry_candidate
         │
         ▼
-core/risk*.py  RiskManager        ── 定仓、名义上限削减(clamp)、准入闸门(gate)
+core/risk/  RiskManager        ── 定仓、名义上限削减(clamp)、准入闸门(gate)
         │
         ▼
 core/execution_port.py (ExecutionPort)  ── 回测 SimulatedExecutionAdapter / 实盘 broker
@@ -264,7 +264,7 @@ Router(strategies: Dict[str, Strategy], regime_map: Dict[str,str], cooldown_bars
 
 ---
 
-## 6. `core/phase4.py` — 组合信号分配
+## 6. `core/allocation.py` — 组合信号分配
 
 ### 6.1 `EntryCandidate`（frozen dataclass）
 
@@ -411,7 +411,7 @@ signal(left: pd.Series, right: pd.Series) -> PairSignal(action, z_score, hedge_r
 
 ## 8. 与 RiskManager 的集成面
 
-`RiskManager` = `CircuitBreakerMixin` + `PositionSizingMixin` + `EntryPolicyMixin` 三个 mixin 通过继承组合（`core/risk.py`），所有方法读写同一个 `self`。策略只通过 4 个方法与它交互。
+`RiskManager` = `CircuitBreakerMixin` + `PositionSizingMixin` + `EntryPolicyMixin` 三个 mixin 通过继承组合（`core/risk/`），所有方法读写同一个 `self`。策略只通过 4 个方法与它交互。
 
 ### 8.1 定仓公式
 

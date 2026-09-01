@@ -12,14 +12,14 @@
 
 | 术语 | 英文 | 定义 | 代码位置 |
 | --- | --- | --- | --- |
-| 次K线执行 | Next-Bar Execution | 信号在 bar `t` 收盘后生成，订单在 bar `t+1` 才撮合，防止使用未来数据（前视偏差）。 | `core/broker.py`；口径见 [`backtest_assumptions.md §1`](backtest_assumptions.md) |
+| 次K线执行 | Next-Bar Execution | 信号在 bar `t` 收盘后生成，订单在 bar `t+1` 才撮合，防止使用未来数据（前视偏差）。 | `core/broker/`；口径见 [`backtest_assumptions.md §1`](backtest_assumptions.md) |
 | 前视偏差 | Look-Ahead Bias | 回测中错误使用了在该时间点实际不可得的信息（如用收盘后才确定的最高价去做当根K线的决策）。是回测结果失真的最常见原因之一。 | — |
-| 市价单 | Market Order | 以下一根K线开盘价成交（叠加滑点），保证成交但不保证价格。 | `core/broker.py` |
-| 限价单 | Limit Order | 指定价格挂单；触及即成交，开盘直接穿价按开盘价（Taker），盘中触及按限价成交（Maker）。 | `core/broker.py` |
-| 止损单 | Stop Order | 触发价被触及后转为市价单，按更不利的“开盘价/触发价”成交（Taker）。 | `core/broker.py` |
+| 市价单 | Market Order | 以下一根K线开盘价成交（叠加滑点），保证成交但不保证价格。 | `core/broker/` |
+| 限价单 | Limit Order | 指定价格挂单；触及即成交，开盘直接穿价按开盘价（Taker），盘中触及按限价成交（Maker）。 | `core/broker/` |
+| 止损单 | Stop Order | 触发价被触及后转为市价单，按更不利的“开盘价/触发价”成交（Taker）。 | `core/broker/` |
 | 挂单方 / Maker | Maker | 提供流动性的一方（限价单盘中被动成交），费率通常更低。默认 0.05%（5 bps）。 | `config/params.yaml: execution.commission_rate_maker` |
 | 吃单方 / Taker | Taker | 主动吃掉盘口流动性的一方（市价单及立即成交的限价单），费率通常更高。默认 0.10%（10 bps）。 | `config/params.yaml: execution.commission_rate_taker` |
-| 滑点 | Slippage | 实际成交价与预期价之间的偏差。支持固定滑点（按比例平移）和随机滑点（`[0, MaxSlip]` 均匀分布）。 | `core/broker.py`；`--slippage` / `--random_slip` |
+| 滑点 | Slippage | 实际成交价与预期价之间的偏差。支持固定滑点（按比例平移）和随机滑点（`[0, MaxSlip]` 均匀分布）。 | `core/broker/`；`--slippage` / `--random_slip` |
 | 冲击成本 | Impact Cost | 订单量相对市场成交量过大时产生的额外成本惩罚（简化模拟，非真实订单簿深度模型）。 | `config/params.yaml: execution.use_impact_cost` |
 | 多标的时间对齐 | Multi-Symbol Time Alignment | 多标的回测按时间戳交集对齐；若为日线及更慢周期，退化为按日历日期对齐。 | `backtest/engine.py` |
 
@@ -44,9 +44,9 @@
 | 权益 | Equity | 账户总价值 = 现金 + 所有持仓的市值。 | `core/portfolio.py`；`equity.csv` |
 | 敞口 / 名义敞口 | Exposure / Notional Exposure | 持仓的市值风险暴露。区分总敞口（Gross，各标的绝对值求和）与净敞口（Net，多空相抵后求和）。 | `calculate_exposure`（`core/metrics.py`） |
 | 杠杆 | Leverage | 总敞口相对权益的倍数（Gross Exposure / Equity）。 | `config/params.yaml: risk.max_leverage` |
-| 集中度限制 | Concentration Limit | 单一标的仓位市值占组合权益的最大比例，默认 `max_pos_size_pct=20%`。 | `core/risk.py` |
+| 集中度限制 | Concentration Limit | 单一标的仓位市值占组合权益的最大比例，默认 `max_pos_size_pct=20%`。 | `core/risk/` |
 | 日内回撤熔断 | Intraday Drawdown Circuit Breaker | 当日回撤触及阈值后禁止新开仓（不强平已有持仓）。 | `config/params.yaml: risk.max_drawdown_limit` |
-| 流动性约束 | Liquidity Constraint | 单笔订单量不得超过该 bar 成交量的一定比例，防止不现实的巨额瞬时成交。 | `core/risk.py` |
+| 流动性约束 | Liquidity Constraint | 单笔订单量不得超过该 bar 成交量的一定比例，防止不现实的巨额瞬时成交。 | `core/risk/` |
 
 ---
 
@@ -111,17 +111,17 @@
 | 术语 | 英文 | 定义 | 代码位置 |
 | --- | --- | --- | --- |
 | 信号漏斗 | Signal Funnel | 按 `correlation_id` 把同一笔信号在“风控评估 → 风控通过 → 订单创建 → 订单被交易所接受 → 成交”链路中各阶段的转化情况统计出来。 | `calculate_signal_funnel` |
-| 关联 ID | Correlation ID | 同一笔信号在整条处理链路（信号→风控→订单→成交）中共享的确定性 ID，用于串联事件。 | `core/events.py` |
+| 关联 ID | Correlation ID | 同一笔信号在整条处理链路（信号→风控→订单→成交）中共享的确定性 ID，用于串联事件。 | `core/events/` |
 
 ---
 
 ## 9. 合约/衍生品相关术语（当前为能力预留，尚未打通）
 
-> 这些术语的检测/数据结构已在 `core/exchange_boundary.py` 中定义，但保证金、强平等实际行为尚未在生产链路验证（见 [README「当前能力边界」](../README.md)）。列在此处是为了让后续「仓位管理系统」「合约基础设施」阶段的开发使用统一术语。
+> 这些术语的检测/数据结构已在 `core/exchange/__init__.py` 中定义，但保证金、强平等实际行为尚未在生产链路验证（见 [README「当前能力边界」](../README.md)）。列在此处是为了让后续「仓位管理系统」「合约基础设施」阶段的开发使用统一术语。
 
 | 术语 | 英文 | 定义 | 代码位置 |
 | --- | --- | --- | --- |
-| 衍生品市场类型 | Derivative Market Types | `future` / `futures` / `swap`（永续）/ `margin`，区别于 `spot`（现货）。 | `DERIVATIVE_MARKET_TYPES`（`core/exchange_boundary.py`） |
+| 衍生品市场类型 | Derivative Market Types | `future` / `futures` / `swap`（永续）/ `margin`，区别于 `spot`（现货）。 | `DERIVATIVE_MARKET_TYPES`（`core/exchange/__init__.py`） |
 | 只减仓 | Reduce-Only | 订单只能减少现有仓位，不能反向开新仓，常用于止损/止盈以防止意外反手。 | `OrderIntent.reduce_only` |
 | 双向持仓模式 | Hedge Mode | 同一标的允许同时持有多头和空头两个独立仓位（对冲模式），区别于单向模式（One-Way）。 | `ExchangeCapabilities.supports_hedge_mode` |
 | 合约面值 | Contract Size | 单张合约对应的标的数量，用于把“张数”换算为名义价值。 | `MarketSpecification.contract_size` |
@@ -149,5 +149,5 @@
 
 - 指标口径的权威说明：[`docs/backtest_assumptions.md §8`](backtest_assumptions.md)
 - 指标实现：[`core/metrics.py`](../core/metrics.py)
-- 交易所边界与合约能力检测：[`core/exchange_boundary.py`](../core/exchange_boundary.py)
+- 交易所边界与合约能力检测：[`core/exchange/`](../core/exchange/__init__.py)
 - 能力验收矩阵：[`docs/missing_capabilities_acceptance.md`](missing_capabilities_acceptance.md)

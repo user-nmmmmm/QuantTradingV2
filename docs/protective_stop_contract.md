@@ -12,7 +12,7 @@
 | --- | --- | --- |
 | 单笔初始风险 | 结构止损与 ATR 最大风险距离的混合 | `plan_initial_stop` |
 | 盈利保护 | 只上移的 Chandelier ATR 追踪止损（可选保本） | `update_trailing_stop` |
-| 组合保护 | Daily Loss / Drawdown 熔断（不污染策略健康统计） | `core/risk_circuit_breaker.py` + [`strategy_health_contract.md`](strategy_health_contract.md) |
+| 组合保护 | Daily Loss / Drawdown 熔断（不污染策略健康统计） | `core/risk/circuit_breaker.py` + [`strategy_health_contract.md`](strategy_health_contract.md) |
 
 ## 2. 无前视契约（SR2-1）
 
@@ -154,7 +154,7 @@ trail；`flatten` 会把 `_operational_state` 置为
 ## 8. 回测的 intrabar 止损等价性（STR-P1-01，已关闭）
 
 实现：[`backtest/protective_stops.py`](../backtest/protective_stops.py)
-（`ResidentStopSimulator`）、`core/broker_matching.py` 的 `process_orders(...,
+（`ResidentStopSimulator`）、`core/broker/matching.py` 的 `process_orders(...,
 order_filter=...)`、`backtest/engine.py` 的每根 bar 三段式顺序。
 测试：[`tests/test_sr2_backtest_intrabar_stops.py`](../tests/test_sr2_backtest_intrabar_stops.py)（15）。
 开关：`config/params.yaml` 的 `protective_orders.backtest_resident`。

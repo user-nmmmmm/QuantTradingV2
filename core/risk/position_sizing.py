@@ -11,8 +11,8 @@ from typing import Dict, Optional
 from core.accounts import AccountMode
 from core.logger import get_logger
 from core.portfolio import Portfolio
-from core.portfolio_risk import exposure_by_cluster
-from core.risk_reservation import RiskReservationProjection
+from core.risk.portfolio_governor import exposure_by_cluster
+from core.risk.reservation import RiskReservationProjection
 
 logger = get_logger(__name__)
 

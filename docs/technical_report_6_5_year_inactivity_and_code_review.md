@@ -34,8 +34,8 @@
 ### 2.2 代码范围
 
 - `core/runtime.py`
-- `core/risk_circuit_breaker.py`
-- `core/risk.py`
+- `core/risk/circuit_breaker.py`
+- `core/risk/`
 - `backtest/engine.py`
 - `router/router.py`
 - `strategies/base.py`
@@ -186,14 +186,14 @@ for event in market_data.stream():
 
 ### [P0] 清算后无显式终止或恢复协议，导致永久静默运行
 
-**位置**：`backtest/engine.py:245-325`，`core/risk_circuit_breaker.py:93-118, 152-164`  
+**位置**：`backtest/engine.py:245-325`，`core/risk/circuit_breaker.py:93-118, 152-164`  
 **证据**：2020-02-26 清算后仍遍历至 2026-08-27；`manual_resume()` 在回测路径没有调用。  
 **影响**：后续币种和信号从未被策略评估；报告表面覆盖九年，实际交易只覆盖约两年半。  
 **建议**：新增显式 `backtest.breaker_policy`。默认采用 `on_liquidate: terminate`；若需要研究恢复，必须使用预注册、确定性的 cooldown/rebase 协议并生成独立报告。
 
 ### [P1] `breaker` 布尔值命名和返回语义过载
 
-**位置**：`core/risk_circuit_breaker.py:87-90, 120-184`；`core/runtime.py:164-201`  
+**位置**：`core/risk/circuit_breaker.py:87-90, 120-184`；`core/runtime.py:164-201`  
 **问题**：同一个布尔值同时表示日内熔断、组合禁止开仓和运行时是否应完全跳过路由。  
 **影响**：调用方无法区分“禁止开仓”“必须减仓”“必须清算”“完全锁定”。  
 **建议**：返回结构化 `RiskControlDecision`，至少包含：
@@ -210,14 +210,14 @@ reason_codes
 
 ### [P1] breaker audit 缺少时间戳和前后权益
 
-**位置**：`core/risk_circuit_breaker.py:157-164`  
+**位置**：`core/risk/circuit_breaker.py:157-164`  
 **问题**：audit 只有 `from/to/equity/high_water/drawdown`，没有 timestamp、bar index、阈值、触发原因、动作后的权益和成本。  
 **影响**：无法仅靠 audit 文件确定动作日期；audit 中 17,898.47 与 equity curve 的 17,850.73 看似不一致，实际是强制减仓及成本前后口径不同。  
 **建议**：记录 `occurred_at`、`bar_index`、`threshold`、`pre_action_equity`、`post_action_equity`、`cost`、`positions_before/after`、`action_id`。
 
 ### [P1] `daily_loss_triggered` 字段并不等于日内亏损被触发
 
-**位置**：`core/risk_circuit_breaker.py:67-73`；`backtest/engine.py:379-383`  
+**位置**：`core/risk/circuit_breaker.py:67-73`；`backtest/engine.py:379-383`  
 **问题**：`reset_daily_breaker()` 在组合状态达到 `BLOCK_NEW` 后会把 `circuit_breaker_triggered` 继续设为 True；报告却把该通用状态输出为 `daily_loss_triggered`。  
 **证据**：最新 `breaker_state.json` 显示 `daily_loss_triggered: true`，但 breaker audit 只有 portfolio drawdown transitions，没有独立 daily-loss 事件。  
 **影响**：错误归因风险触发来源。  

@@ -22,7 +22,7 @@ from core.events import (
 from core.live_broker import LiveBroker
 from core.order_store import OrderStore
 from core.portfolio import Portfolio
-from core.safe_live_broker import SafeLiveBroker
+from core.live_broker.safe import SafeLiveBroker
 
 
 UTC_NOW = datetime(2026, 8, 6, 8, 0, tzinfo=timezone.utc)

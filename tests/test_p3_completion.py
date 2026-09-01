@@ -26,7 +26,7 @@ class P3CompletionTests(unittest.TestCase):
             self.assertEqual(list(output.iterdir()), [])
     def test_fifo_and_dead_code_sources(self):
         root = Path(__file__).parents[1]
-        reporting = (root / "backtest" / "trade_reconstruction.py").read_text(
+        reporting = (root / "backtest" / "reporting" / "trades.py").read_text(
             encoding="utf-8"
         )
         engine = (root / "backtest" / "engine.py").read_text(encoding="utf-8")

@@ -13,7 +13,7 @@ from core.domain import OrderIntent, RiskDecision, RiskReservation
 from core.events import TradingEventPipeline, stable_uuid5
 from core.logger import get_logger
 from core.portfolio import Portfolio
-from core.risk_reservation import RiskReservationProjection
+from core.risk.reservation import RiskReservationProjection
 
 logger = get_logger(__name__)
 

@@ -22,10 +22,10 @@ from core.account_cost_contract import (
 )
 from core.broker import Broker
 from core.candidate_scoring import CandidateScorePolicy, score_breakout_candidate
-from core.metrics_attribution import calculate_attribution
-from core.phase4 import EntryCandidate, PortfolioSignalAllocator
+from core.metrics.attribution import calculate_attribution
+from core.allocation import EntryCandidate, PortfolioSignalAllocator
 from core.portfolio import Portfolio
-from core.portfolio_risk import (
+from core.risk.portfolio_governor import (
     CorrelationClusterPolicy,
     PortfolioRiskGovernor,
     exposure_by_cluster,
@@ -121,7 +121,7 @@ class TestAllocationOrdering(unittest.TestCase):
         submitted: list = []
         strategy = _StubStrategy("TrendBreakout", submitted)
         allocator = PortfolioSignalAllocator()
-        with self.assertLogs("core.phase4", level="WARNING") as captured:
+        with self.assertLogs("core.allocation", level="WARNING") as captured:
             decisions = allocator.allocate(
                 [
                     _candidate(strategy, "ETH/USDT", 0.0),

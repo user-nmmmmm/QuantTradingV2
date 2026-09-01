@@ -9,7 +9,7 @@ from decimal import Decimal
 from typing import Any, Optional
 
 from core.domain import OrderIntent
-from core.exchange_metadata import (
+from core.exchange.metadata import (
     ExchangeCapabilities,
     MarketSpecification,
     OrderValidationError,

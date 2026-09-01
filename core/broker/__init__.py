@@ -13,11 +13,11 @@
   - Stop：触发后视为市价单（taker），按触发价与开盘价之间的更不利价格成交
 
 Split by change reason (A4) — see docs/architecture_review.md:
-- core/broker_types.py        — Order/OrderType/TimeInForce data types
-- core/broker_matching.py     — order submission, per-bar matching, book bookkeeping
-- core/broker_fill_service.py — cost accounting, position update, event publishing
-- core/broker_financing.py    — perpetual funding / margin-short borrow accrual
-- core/broker_liquidation.py  — forced position reduction
+- core/broker/types.py        — Order/OrderType/TimeInForce data types
+- core/broker/matching.py     — order submission, per-bar matching, book bookkeeping
+- core/broker/fill_service.py — cost accounting, position update, event publishing
+- core/broker/financing.py    — perpetual funding / margin-short borrow accrual
+- core/broker/liquidation.py  — forced position reduction
 
 ``Broker`` composes the four mixins below via inheritance rather than
 holding separate collaborator objects, so every method still reads/writes
@@ -32,16 +32,16 @@ from typing import Dict, Any, List, Optional
 
 import pandas as pd
 
-from core.broker_types import BacktestOrderStatus, Order, OrderType, TimeInForce
-from core.broker_matching import MatchingMixin
-from core.broker_fill_service import FillServiceMixin
-from core.broker_financing import FinancingMixin
-from core.broker_liquidation import LiquidationMixin
+from core.broker.types import BacktestOrderStatus, Order, OrderType, TimeInForce
+from core.broker.matching import MatchingMixin
+from core.broker.fill_service import FillServiceMixin
+from core.broker.financing import FinancingMixin
+from core.broker.liquidation import LiquidationMixin
 from core.events import TradingEventPipeline
 from core.logger import get_logger
 from core.lots import CloseEvent
 from core.portfolio import Portfolio
-from core.risk_reservation import RiskReservationProjection
+from core.risk.reservation import RiskReservationProjection
 
 logger = get_logger(__name__)
 

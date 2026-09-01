@@ -12,9 +12,9 @@
 - 回测与实盘共享同一套接口，但实盘更建议结合交易所真实仓位、保证金与订单簿深度做更严格校验。
 
 Split by change reason (A4) — see docs/architecture_review.md:
-- core/risk_circuit_breaker.py — daily loss breaker, sticky drawdown action
-- core/risk_position_sizing.py — notional caps, qty clamping
-- core/risk_entry_policy.py    — final admission gate, decision/reservation publishing
+- core/risk/circuit_breaker.py — daily loss breaker, sticky drawdown action
+- core/risk/position_sizing.py — notional caps, qty clamping
+- core/risk/entry_policy.py    — final admission gate, decision/reservation publishing
 
 ``RiskManager`` composes the three mixins below via inheritance rather than
 holding separate collaborator objects, so every method still reads/writes
@@ -24,13 +24,13 @@ of this module's public API.
 """
 from typing import Dict, Optional
 
-from core.risk_circuit_breaker import (
+from core.risk.circuit_breaker import (
     BreakerAction,
     CircuitBreakerMixin,
     RiskControlDecision,
 )
-from core.risk_position_sizing import PositionSizingMixin
-from core.risk_entry_policy import EntryPolicyMixin
+from core.risk.position_sizing import PositionSizingMixin
+from core.risk.entry_policy import EntryPolicyMixin
 
 __all__ = ["BreakerAction", "RiskControlDecision", "RiskManager"]
 

@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, Mapping, Optional
 
 from core.domain import OrderIntent
-from core.exchange_metadata import ExchangeCapabilities
+from core.exchange.metadata import ExchangeCapabilities
 
 
 @dataclass(frozen=True)

@@ -53,19 +53,14 @@
   - `.process(event)`：更新最新价格；按日期滚动重置风控熔断的"当日起始权益"基准；检查熔断；对每个标的调用 `process_symbol`。
   - `.process_symbol(event, symbol)`：定位该 bar 在历史序列里的位置，若还在预热期（`warmup_period`）内则跳过；否则从状态机取状态，交给 `router.route(...)`。
 
-`core/event_processor.py` 只是转发 `core/runtime.py` 里这几个类的兼容 shim，没有新逻辑。
-
 ### `core/clock.py` — 时间抽象
 `Clock` 协议 + `SystemClock`（真实 UTC）+ `CallableClock`（包装一个返回时间的可调用对象），让实盘调度/健康检查逻辑可以在测试中做到确定性可控。
-
-### `core/adapters.py` — 适配器门面
-纯聚合模块，把 `HistoricalMarketDataAdapter`、`LiveMarketDataAdapter`、`SimulatedExecutionAdapter`、`RecordedExecutionAdapter` 汇总到一个稳定的导入路径下，本身无逻辑。
 
 ---
 
 ## 三、经纪商与执行
 
-### `core/broker.py` — 回测撮合引擎（"虚拟交易所"）
+### `core/broker/` — 回测撮合引擎（"虚拟交易所"）
 `Broker` 用后续 K 线撮合策略订单，模拟滑点、maker/taker 手续费、可选冲击成本，并更新 `Portfolio` 和成交记录。
 - `Order`（dataclass）：`.accepted` 除非状态是 REJECTED/EXPIRED/CANCELED 都为真。
 - `submit_order(...)`：构建 `OrderIntent`，通过 `ensure_opening_reservation` 预占风险额度，进入 `pending_orders` 队列。
@@ -75,7 +70,7 @@
 
 **关键防未来函数机制**：bar *i* 提交的订单只有在 bar *i+1* 才有资格成交（`current_time <= order.timestamp` 会被跳过）。所有订单和成交都发布到共享的 `TradingEventPipeline` 上，供 `RiskReservationProjection` 消费。
 
-### `core/live_broker.py` — 实盘经纪商（CCXT）
+### `core/live_broker/` — 实盘经纪商（CCXT）
 `LiveBroker` 以 `OrderStore` 作为唯一真相源，设计目标是**进程崩溃重启后能安全恢复，不会重复下单**。
 - `submit_intent(intent)`：核心写路径——先查是否已有记录（有则走 `reconcile_order` 重放）→ 检查健康评估是否允许新风险 → 校验 intent → 经 `ExchangeBoundary.prepare` 规范化 → 预占风险 → 在 `OrderStore` 落地 `SUBMITTING` 记录 → 调用 `ccxt.create_order`。
 - `reconcile_order(client_order_id)`：幂等地重新拉取交易所订单状态，解决 `UNKNOWN`/不确定的结果。
@@ -84,14 +79,17 @@
 
 **关键行为**：`create_order` 被当作**非幂等**操作——任何不确定的失败（网络/超时/限流）都会被标记为 `OrderStatus.UNKNOWN`，而不是直接重试（重试可能导致重复下单），只能靠 `reconcile_order` 的幂等查询来解决。衍生品持仓同步（`_sync_derivatives_positions`）在交易所不支持查询持仓时**失败关闭**（抛异常），不会假设"空仓"。每个标的同时只允许一笔活跃的开仓订单。
 
-### `core/safe_live_broker.py` — 带安全闸门的实盘经纪商
+### `core/live_broker/safe.py` — 带安全闸门的实盘经纪商
 `SafeLiveBroker` 是 `LiveBroker` 的薄子类，强制所有实盘下单先过 `safety_guard`（如 `PersistentOrderSafetyGuard`）。构造函数不接受明文 API 凭据（必须通过父类的环境变量路径传入）。安全检查只在**全新** intent 时执行（`order_store.get(...) is None`）；幂等重放会跳过检查，避免重复占用当日风险预算。
 
 ### `core/execution_port.py` — 执行端协议
 `ExecutionPort` Protocol（`submit_intent`/`submit_order`/`cancel_symbol_orders`/`has_active_open_order`/`pending_open_notional`），`Broker`/`LiveBroker`/`SafeLiveBroker` 都满足这个接口——这是策略/路由代码能在回测和实盘间无缝切换的结构化类型基础。
 
-### `core/exchange_boundary.py` — CCXT 边界隔离层
-全项目唯一理解 CCXT 市场元数据/报文格式的模块，用规范化的数据类把其余代码和 CCXT 细节隔离开：
+### `core/exchange/` — CCXT 边界隔离层
+全项目唯一理解 CCXT 市场元数据/报文格式的包，用规范化的数据类把其余代码和 CCXT 细节隔离开。
+外部一律通过 `from core.exchange import ...` 消费门面（`core/exchange/__init__.py` 的
+`ExchangeBoundary`/`PreparedOrder`）；下列实现分别落在 `metadata.py`、`validation.py`、
+`normalization.py`、`ccxt_mapper.py`、`parsers.py`：
 - `ExchangeCapabilities`：交易所能力标志（订单类型、TIF、reduce-only、对冲模式）。
 - `MarketSpecification`：单标的约束（数量/价格步进、最小/最大数量/价格/名义价值、合约乘数），`market_type` 默认 `"spot"`；同时定义了 `DERIVATIVE_TYPES = {"future","futures","swap","margin"}` 和 `is_derivative` 判断——**衍生品相关的骨架已经存在，但目前所有入口默认仍是现货**。
 - `MarketMetadataLoader`：线程安全的 TTL 缓存包装 `load_markets()`；运行期元数据发生变化时，`MetadataChangeHaltPolicy` 可以直接 HALT（失败关闭），需要操作员显式调用 `acknowledge_change()` 才能恢复。
@@ -119,7 +117,7 @@
 
 生产路径（如 `reports/live_orders.db`）跨进程重启持久化；`_migrate_orders()` 支持就地增列做 schema 演进。
 
-### `core/risk.py` — 风控与仓位计算
+### `core/risk/` — 风控与仓位计算
 `RiskManager(risk_per_trade, max_leverage, max_drawdown_limit, liquidity_limit_pct, max_pos_size_pct)`：
 - `calculate_position_size(equity, entry_price, stop_loss_price)`：按风险比例算数量，`qty = equity*risk_per_trade / |entry-stop|`。
 - `calculate_position_size_fixed_pct(equity, entry_price, pct=0.10)`：按名义资金比例算数量。
@@ -127,10 +125,10 @@
 - `approve_and_create_intent(...)`：在 `reservation_projection.transaction()` 事务内原子性地评估风险，通过则一起发布 `RiskDecision` + `RiskReservation` + 增强后的 `OrderIntent`。
 - `check_circuit_breaker(current_equity, daily_start_equity)`：当日回撤超过 `max_drawdown_limit` 触发熔断；触发后所有仓位计算/入场检查返回 0/False，直到 `reset_daily_breaker()`。
 
-### `core/risk_reservation.py` — 在途风险预占投影
+### `core/risk/reservation.py` — 在途风险预占投影
 `RiskReservationProjection` 订阅 `TradingEventPipeline`：收到 `RiskReservation` 就登记预占；收到 `FillEvent` 就扣减 `remaining_qty`；收到状态属于 `RELEASING_STATUSES`（CANCELED/REJECTED/EXPIRED/FILLED）的 `OrderEvent` 就释放预占。`pending_notional(current_prices)` 按标的汇总 `remaining_qty * max(参考价, 市价)`。**`OrderStatus.UNKNOWN` 故意不释放预占**——不确定的交易所状态必须继续占用风险额度，直到出现权威的终态事实，这与 `LiveBroker` 对 UNKNOWN 的处理直接呼应。
 
-### `core/persistent_risk_guard.py` — 重启安全的实盘风险闸门
+### `core/risk/persistent_guard.py` — 重启安全的实盘风险闸门
 `PersistentOrderSafetyGuard(policy, path, clock)`：`assert_order_allowed(...)` 在以下情况抛 `SafetyConfigurationError`：一键停机开关激活、标的不在白名单、价格缺失或非正、单笔名义值超过 `max_order_notional`、或（仅买入/做空时）当日累计预留名义值 + 本笔超过 `max_daily_new_risk`。通过后原子性地累加当天的 SQLite 计数行。**该计数按 ISO 日期存 SQLite，跨进程重启依然生效**——这是它能真正限制"每日"风险的关键。
 
 ---
@@ -155,7 +153,7 @@
 - `OrderIntent`：规范化的下单指令；`.client_order_id` 是对 `identity` 字段（exchange/account/symbol/timeframe/bar_time/strategy_id/action/sequence）做 SHA-256 后取前 24 位十六进制、加 `qt_` 前缀——**这是全系统幂等重发设计的关键**，相同身份字段永远产生相同 ID。
 - `RiskDecision`/`RiskReservation`/`OrderSubmissionResult`/`FillRecord`/`SyncResult`/`PortfolioSnapshot`：其余不可变数据类，多有 `__post_init__` 校验。
 
-### `core/events.py` — 事件溯源基础设施
+### `core/events/` — 事件溯源基础设施
 - `EventEnvelope`：每个事件的统一外壳（event_id/correlation_id/causation_id/run_id/account_id/source/occurred_at/observed_at，时间字段必须带时区）。
 - `EventCodec`：确定性 JSON 编解码，通过 `__qt_type__` 标签保留 Decimal/datetime/UUID/Enum/dataclass 类型。
 - `stable_uuid5`/`event_id_for`/`correlation_id_for`/`causation_id_for`：确定性 UUID5 生成，保证相同逻辑事件永远拿到相同 ID（去重基石）。
@@ -170,7 +168,7 @@
 ### `core/state_store_v2.py` — 实盘 bar 处理租约
 `StateStore`：事务性 SQLite 键值存储 + 带租约的 bar 处理认领机制，用于实盘"近似恰好一次"处理。`claim_bar(bar_key, now, lease_seconds=300)`：若无既有认领则插入"processing"状态；若已是"processed"则拒绝；若既有"processing"认领已超过租约时长则可重新认领（处理崩溃恢复）。`complete_bar`/`release_bar` 配套。线程安全（`RLock`）。
 
-### `core/event_store.py` — 事件持久化
+### `core/events/store.py` — 事件持久化
 `SQLiteEventStore`：只追加、按 `event_id` 幂等去重的事件日志；若已存在事件的内容（除 `observed_at` 外）与新事件不同则抛 `ValueError`。用 SQLite 触发器（`events_no_update`/`events_no_delete`）在数据库层面强制"只追加"，防止直接 SQL 篡改。`InMemoryEventStore` 是 `:memory:` 变体，供测试用。
 
 ### `core/sqlite_backup.py` / `core/sqlite_utils.py` — 数据库运维
@@ -198,7 +196,7 @@
 ### `core/telegram_heartbeat.py` — 定期心跳报告
 和 `alerting.py` 的事件触发型告警不同，这是**周期性**（由 cron 驱动）的"系统仍在运行"状态汇报。`build_heartbeat_message(dashboard)` 汇总状态/健康/权益/现金/持仓/告警；若状态文件本身无效会明确报告 `RISK_HALTED`。`send_heartbeat(...)` 通过 `dashboard.__main__.load_dashboard` 加载数据，经 `alerting.send_telegram_message` 发送。
 
-### `core/retry.py` — 重试包装器
+### `core/live_broker/retry.py` — 重试包装器
 `with_retry(fn, max_attempts=3, base_delay=0.5, max_delay=8.0, retryable=is_ambiguous_error)`：带指数退避的有界重试，默认只重试"不确定"类错误（网络超时等），延迟为 `min(base_delay * 2**attempt, max_delay)`。
 
 ### `research/audit/reconciliation_job.py` — 日终对账
@@ -207,7 +205,7 @@
 ### `core/startup_preflight.py` — 启动前检查
 `build_startup_report(policy, credentials, engine)` 生成不含密钥明文的 JSON"证据"报告（凭据是否存在、sandbox/live 模式、一键停机是否未激活、账户/订单同步基线、健康基线、熔断状态）。`write_startup_report(...)` 原子写入（临时文件 + `os.replace` + fsync）。
 
-### `core/system_factory.py` — 组件装配工厂
+### `composition/factory.py` — 组件装配工厂
 `build_strategy_registry()`（组装 TrendBreakout/TrendBreakdown/RangeMeanReversion 策略）、`build_risk_manager()`、`build_state_machine()`、`build_router(strategies, log_path, allow_short)`、`market_type_supports_shorts(market_type)`（future/futures/swap/margin 返回真）。**注意**：`build_router` 在 `allow_short=False` 时会把 `regime_map["TREND_DOWN"]` 强制改成 `"Cash"`，在路由层面彻底禁用做空策略，与策略对象本身是否存在无关。
 
 ### `core/live_safety.py` — 实盘安全闸门
@@ -231,11 +229,11 @@ data_fetcher/data → market_data(适配器) → runtime.EventProcessor
                                             │            │
                                      risk.RiskManager   execution_port(Broker / LiveBroker)
                                             │                    │
-                                risk_reservation投影      orders/order_store/exchange_boundary
+                                risk/reservation 投影      orders/order_store/exchange_boundary
                                             │                    │
                                        events.TradingEventPipeline（去重与事件总线）
                                             │
                           portfolio(轻量) / ledger.PortfolioProjection（权威账本，用于对账）
 ```
 
-`live_safety.py`、`persistent_risk_guard.py`、`health.py`、`alerting.py`、`startup_preflight.py`、`reconciliation_job.py`、`incident_journal.py`、`r7_acceptance.py` 共同构成实盘运行的"安全护栏"，回测路径基本不涉及这些模块。
+`live_safety.py`、`risk/persistent_guard.py`、`health.py`、`alerting.py`、`startup_preflight.py`、`reconciliation_job.py`、`incident_journal.py`、`r7_acceptance.py` 共同构成实盘运行的"安全护栏"，回测路径基本不涉及这些模块。

@@ -12,7 +12,7 @@ from core.accounts import AccountMode
 from core.broker import Broker, Order, OrderType
 from core.domain import OrderErrorCode, OrderStatus, SyncResult
 from core.live_broker import LiveBroker
-from core.persistent_risk_guard import PersistentOrderSafetyGuard
+from core.risk.persistent_guard import PersistentOrderSafetyGuard
 from core.order_store import OrderStore
 from core.portfolio import Portfolio
 from core.risk import RiskManager

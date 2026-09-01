@@ -1,14 +1,14 @@
 """Deterministic UUID5 generation for event/correlation/causation identity.
 
 Split out of core/events.py (A4) — see docs/architecture_review.md.
-Depends on core.event_codec.canonical_json to hash payload content.
+Depends on core.events.codec.canonical_json to hash payload content.
 """
 from __future__ import annotations
 
 from typing import Any, Union
 from uuid import UUID, uuid5
 
-from core.event_codec import canonical_json
+from core.events.codec import canonical_json
 
 EVENT_NAMESPACE = UUID("319d3de2-89af-5ed8-9733-76ef45c01c41")
 

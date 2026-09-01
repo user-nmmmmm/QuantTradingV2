@@ -7,7 +7,7 @@ from core.portfolio import Portfolio
 from core.risk import RiskManager
 from core.state import MarketState
 from strategies.base import Strategy
-from core.phase4 import EntryCandidate, PortfolioSignalAllocator
+from core.allocation import EntryCandidate, PortfolioSignalAllocator
 
 
 class Router:

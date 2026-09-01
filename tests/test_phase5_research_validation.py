@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from analysis.phase5 import (
+from analysis.research_validation import (
     AdmissionThresholds,
     ExperimentRegistry,
     HoldoutProtocol,

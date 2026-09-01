@@ -14,7 +14,7 @@ from core.live_safety import (
     credentials_from_environment,
     verify_live_permissions,
 )
-from core.persistent_risk_guard import PersistentOrderSafetyGuard
+from core.risk.persistent_guard import PersistentOrderSafetyGuard
 from core.gray_release import GrayReleasePolicy, write_release_record
 from core.account_cost_contract import (
     AccountCostContractError,
@@ -27,7 +27,7 @@ from core.strategy_governance import (
     assert_live_admission,
     routed_strategy_names,
 )
-from core.safe_live_broker import SafeLiveBroker
+from core.live_broker.safe import SafeLiveBroker
 from live_trading.engine import LiveTradingEngine
 
 configure_logging()

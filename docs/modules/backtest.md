@@ -18,11 +18,11 @@
 
 回测版的 `RecordedExecutionAdapter` 对应实现。`on_market_data(event)` 调用 `broker.process_orders(event.bars)`——这正是"下一 bar 执行"模型的落地位置：bar N 提交的挂单会在 bar N+1 的 OHLC 上撮合，`strategies/base.py` 文档字符串反复提到的这个模型就是靠这里实现的。`__getattr__` 代理到 `Broker`（`submit_order`/`cancel_symbol_orders`/`trades` 等），这也是为什么 `Router`/`Strategy` 代码可以把实盘和回测的执行端当作同一种接口对待。
 
-## `backtest/market_data_adapter.py`
+## `backtest/reporting/` — ReportGenerator
 
-和 `live_trading/market_data_adapter.py` 一样是转发 shim：`HistoricalMarketDataAdapter` 实际定义在 `core/market_data.py`，负责把 `Dict[symbol, DataFrame]` 转换成按时间归并的、规范化的 `MarketDataSlice` 流供 `EventProcessor` 消费。
-
-## `backtest/reporting.py` — ReportGenerator
+报告层分两级：`metrics.py`（指标计算）和 `trades.py`（FIFO 往返交易重建）先算出事实，
+`render/` 下的 `text.py`（report.txt）、`charts.py`（PNG）、`workbook.py`（xlsx）、
+`pdf.py`（PDF）只负责把同一份事实渲染成不同产物，本身不再计算任何指标。
 
 回测跑完之后的分析产出，不参与交易循环本身。`ReportGenerator(output_dir).generate(trades, equity_curve, metadata, benchmark_curve)` 写出 `equity.csv`、`benchmark.csv`、`trades.csv`、`report.txt`，以及四联图 `equity.png`（权益+基准、回撤、日收益、现金/持仓堆叠面积）。
 

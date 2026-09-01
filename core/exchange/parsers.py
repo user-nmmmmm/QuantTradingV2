@@ -9,7 +9,7 @@ from decimal import Decimal
 from typing import Any, Mapping, Optional, Tuple
 
 from core.domain import OrderStatus
-from core.exchange_metadata import _decimal, _mapping
+from core.exchange.metadata import _decimal, _mapping
 
 
 @dataclass(frozen=True)

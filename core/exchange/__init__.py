@@ -5,11 +5,11 @@ payload conventions.  The rest of the application consumes canonical
 intents, orders, and positions through this facade (A4) — see
 docs/architecture_review.md:
 
-- core/exchange_metadata.py      — capabilities, market specs, metadata loading
-- core/exchange_validation.py    — pre-submission order validation
-- core/exchange_normalization.py — amount/price quantization to market increments
-- core/exchange_ccxt_mapper.py   — canonical intent -> CCXT request kwargs
-- core/exchange_parsers.py       — CCXT order/position payload -> canonical fact
+- core/exchange/metadata.py      — capabilities, market specs, metadata loading
+- core/exchange/validation.py    — pre-submission order validation
+- core/exchange/normalization.py — amount/price quantization to market increments
+- core/exchange/ccxt_mapper.py   — canonical intent -> CCXT request kwargs
+- core/exchange/parsers.py       — CCXT order/position payload -> canonical fact
 
 ``ExchangeBoundary`` (the orchestrator) and ``PreparedOrder`` stay here since
 they compose all five split modules and did not have a single clean owner
@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 from core.domain import OrderIntent
-from core.exchange_metadata import (
+from core.exchange.metadata import (
     DERIVATIVE_MARKET_TYPES,
     ExchangeBoundaryError,
     ExchangeCapabilities,
@@ -35,10 +35,10 @@ from core.exchange_metadata import (
     MetadataUnavailableError,
     OrderValidationError,
 )
-from core.exchange_validation import OrderValidator, ValidationResult
-from core.exchange_normalization import OrderNormalizer
-from core.exchange_ccxt_mapper import CCXTOrderRequest, CCXTRequestMapper
-from core.exchange_parsers import CanonicalOrder, CanonicalPosition, OrderParser, PositionParser
+from core.exchange.validation import OrderValidator, ValidationResult
+from core.exchange.normalization import OrderNormalizer
+from core.exchange.ccxt_mapper import CCXTOrderRequest, CCXTRequestMapper
+from core.exchange.parsers import CanonicalOrder, CanonicalPosition, OrderParser, PositionParser
 
 __all__ = [
     "DERIVATIVE_MARKET_TYPES",

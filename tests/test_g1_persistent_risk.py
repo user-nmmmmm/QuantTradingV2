@@ -5,7 +5,7 @@ from datetime import date
 from unittest.mock import patch
 
 from core.live_safety import SafetyConfigurationError, StartupSafetyPolicy
-from core.persistent_risk_guard import PersistentOrderSafetyGuard
+from core.risk.persistent_guard import PersistentOrderSafetyGuard
 
 
 class TestPersistentDailyRisk(unittest.TestCase):

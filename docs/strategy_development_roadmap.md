@@ -22,7 +22,7 @@
 | 能力 | 证据 |
 | --- | --- |
 | BM0–BM8 指标体系 | `core/metrics.py` 约 25 个函数，空值语义/年化推断/纯函数已落地 |
-| 报告接线 | `backtest/reporting.py` 输出 `metrics.json` + `report.txt` 分节 |
+| 报告接线 | `backtest/reporting/` 输出 `metrics.json` + `report.txt` 分节 |
 | 4 张图表 | 净值四联图、月度热力图、滚动 Sharpe/回撤、盈亏分布 |
 | 下单前现金校验 | 做多必须由自由现金全额覆盖；做空仍为 `not_modeled` |
 | 仓位削减（clamp） | 超限削减到上限而非拒单，含尘埃过滤 |
