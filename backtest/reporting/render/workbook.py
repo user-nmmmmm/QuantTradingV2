@@ -17,7 +17,9 @@ from openpyxl.formatting.rule import ColorScaleRule
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
-from backtest.reporting.render.pdf import (
+from backtest.reporting.risk_metrics import (
+    METRIC_LABELS,
+    PERCENT_METRIC_KEYS,
     calculate_active_risk_metrics,
     calculate_portfolio_risk_metrics,
 )
@@ -172,30 +174,10 @@ def write_workbook_report(
 
     risk = calculate_portfolio_risk_metrics(equity_curve["equity"])
     active = calculate_active_risk_metrics(equity_curve["equity"], benchmark_curve)
-    labels = {
-        "TotalReturn": "Total return", "CAGR": "CAGR", "MaxDrawdownPct": "Max drawdown",
-        "SharpeRatio": "Sharpe", "TotalTrades": "Closed trades", "WinRate": "Win rate",
-        "ProfitFactor": "Profit factor", "NetPnL": "Net PnL", "EndEquity": "End equity",
-        "annualized_return_arithmetic": "Annual return (mean)", "annualized_volatility": "Annual volatility",
-        "downside_deviation": "Downside deviation", "sortino_ratio": "Sortino", "calmar_ratio": "Calmar",
-        "var_95_period": "Historical VaR 95%", "cvar_95_period": "Historical CVaR 95%",
-        "return_skewness": "Return skewness", "return_excess_kurtosis": "Excess kurtosis",
-        "positive_period_ratio": "Positive periods", "positive_month_ratio": "Positive months",
-        "best_month": "Best month", "worst_month": "Worst month", "beta": "Beta",
-        "annualized_alpha": "Annual alpha", "tracking_error": "Tracking error",
-        "information_ratio": "Information ratio", "return_correlation": "Correlation",
-        "up_capture": "Up capture", "down_capture": "Down capture",
-    }
-    percent_keys = {
-        "TotalReturn", "CAGR", "MaxDrawdownPct", "WinRate", "annualized_return_arithmetic",
-        "annualized_volatility", "downside_deviation", "var_95_period", "cvar_95_period",
-        "positive_period_ratio", "positive_month_ratio", "best_month", "worst_month",
-        "annualized_alpha", "tracking_error",
-    }
     core_keys = ("TotalReturn", "CAGR", "MaxDrawdownPct", "SharpeRatio", "TotalTrades", "WinRate", "ProfitFactor", "NetPnL", "EndEquity")
-    _write_metric_block(dashboard, 4, 1, "Performance", {key: metrics.get(key) for key in core_keys}, labels, percent_keys)
-    _write_metric_block(dashboard, 4, 4, "Portfolio risk", risk, labels, percent_keys)
-    _write_metric_block(dashboard, 4, 7, "Benchmark-relative", active, labels, percent_keys)
+    _write_metric_block(dashboard, 4, 1, "Performance", {key: metrics.get(key) for key in core_keys}, METRIC_LABELS, PERCENT_METRIC_KEYS)
+    _write_metric_block(dashboard, 4, 4, "Portfolio risk", risk, METRIC_LABELS, PERCENT_METRIC_KEYS)
+    _write_metric_block(dashboard, 4, 7, "Benchmark-relative", active, METRIC_LABELS, PERCENT_METRIC_KEYS)
     for column in ("A", "D", "G"):
         dashboard.column_dimensions[column].width = 25
     for column in ("B", "E", "H"):

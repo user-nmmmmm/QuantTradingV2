@@ -99,4 +99,6 @@ def test_t4_1_and_t4_11_router_has_explicit_production_contract():
     router = build_router(build_strategy_registry(), config)
     assert callable(router.collect_candidate)
     assert router.max_holding_days == 365.0
-    assert config.require("phase4")["transition_action"] == "stop_new_entries"
+    assert config.require("router", "transition_action") == "stop_new_entries"
+    assert config.require("allocation", "order") == "score_strategy_symbol"
+    assert config.require("state", "stability_candidates") == [2, 3, 5, 10]

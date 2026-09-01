@@ -59,6 +59,7 @@ capacity:
 # 2b. Market State
 state:
   stability_period: 5           # Phase 4 knee analysis across 2/3/5/10 candidates.
+  stability_candidates: [2, 3, 5, 10]  # Registered research candidates.
   ma_fast: 20
   ma_slow: 60
   adx_period: 14
@@ -77,12 +78,11 @@ routing:
 # 3b. Router Parameters
 router:
   cooldown_bars: 2              # Issue2 fix: reduced from 3 → faster re-entry after state switch
-
-phase4:
   transition_action: stop_new_entries
   max_holding_days: 365         # Explicit time exit; prevents multi-year capital lock-up.
-  allocation_order: score_strategy_symbol
-  stability_candidates: [2, 3, 5, 10]
+
+allocation:
+  order: score_strategy_symbol
 
 # SR3-1 (STR-P1-03): candidate ranking must have economic meaning. With every
 # score at 0 the allocator fell through to the alphabetical tie-break whenever

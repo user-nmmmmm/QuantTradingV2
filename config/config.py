@@ -32,9 +32,17 @@ REQUIRED_CONFIG: Dict[str, Tuple[str, ...]] = {
         "default_borrow_rate_annual", "borrow_availability_required",
         "default_borrow_limit_qty", "liquidation_penalty_bps",
     ),
-    "state": ("stability_period", "ma_fast", "ma_slow", "adx_period", "adx_threshold", "atr_period", "atr_pct_threshold"),
+    "state": ("stability_period", "stability_candidates", "ma_fast", "ma_slow", "adx_period", "adx_threshold", "atr_period", "atr_pct_threshold"),
     "routing": ("TREND_UP", "TREND_DOWN", "SIDEWAYS", "VOLATILE"),
-    "router": ("cooldown_bars",),
+    "router": ("cooldown_bars", "transition_action", "max_holding_days"),
+    "allocation": ("order",),
+}
+
+LEGACY_PHASE4_KEYS = {
+    "transition_action": ("router", "transition_action"),
+    "max_holding_days": ("router", "max_holding_days"),
+    "allocation_order": ("allocation", "order"),
+    "stability_candidates": ("state", "stability_candidates"),
 }
 
 
@@ -77,6 +85,7 @@ class ConfigLoader:
             ) from exc
         if not isinstance(loaded, dict):
             raise ConfigLoadError("params.yaml is empty or not a valid mapping")
+        self._migrate_legacy_phase4(loaded)
         self._validate_required(loaded)
         self._config = loaded
 
@@ -98,6 +107,40 @@ class ConfigLoader:
             float(risk["max_pos_size_pct"]),
             routing,
         )
+
+    @staticmethod
+    def _migrate_legacy_phase4(loaded: Dict[str, Any]) -> None:
+        """Accept the old roadmap-named section while normalizing ownership.
+
+        A mixed file is accepted only when old and new values agree.  This
+        makes upgrades backwards compatible without silently choosing between
+        contradictory runtime contracts.
+        """
+        legacy = loaded.get("phase4")
+        if legacy is None:
+            return
+        if not isinstance(legacy, dict):
+            raise ConfigLoadError("legacy phase4 configuration must be a mapping")
+        migrated = []
+        for old_key, (section, key) in LEGACY_PHASE4_KEYS.items():
+            if old_key not in legacy:
+                continue
+            target = loaded.setdefault(section, {})
+            if not isinstance(target, dict):
+                raise ConfigLoadError(f"configuration section must be a mapping: {section}")
+            if key in target and target[key] != legacy[old_key]:
+                raise ConfigLoadError(
+                    f"conflicting legacy and current configuration: "
+                    f"phase4.{old_key} != {section}.{key}"
+                )
+            if key not in target:
+                target[key] = legacy[old_key]
+                migrated.append(f"phase4.{old_key}->{section}.{key}")
+        if migrated:
+            logger.warning(
+                "Migrated deprecated Phase 4 configuration keys: %s",
+                ", ".join(migrated),
+            )
 
     @staticmethod
     def _validate_required(loaded: Dict[str, Any]) -> None:
