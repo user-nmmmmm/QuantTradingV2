@@ -4,14 +4,14 @@ Facade over the split metrics modules (A4) — see docs/architecture_review.md.
 Every name that used to live here is re-exported unchanged so existing
 ``from core.metrics import ...`` call sites do not need to move:
 
-- core/metrics_performance.py  — equity curve: Sharpe, drawdown, CAGR, exposure
-- core/metrics_trade_quality.py — per-trade win/loss, profit factor, R-multiple
-- core/metrics_attribution.py   — attribution, benchmark, cost sensitivity, funnel
-- core/metrics_validation.py    — train/test split, walk-forward, bootstrap, FDR
+- performance.py   — equity curve: Sharpe, drawdown, CAGR, exposure
+- trade_quality.py — per-trade win/loss, profit factor, R-multiple
+- attribution.py   — attribution, benchmark, cost sensitivity, funnel
+- validation.py    — train/test split, walk-forward, bootstrap, FDR
 """
 from __future__ import annotations
 
-from core.metrics_performance import (
+from core.metrics.performance import (
     SECONDS_PER_YEAR,
     METRICS_FORMULA_VERSION,
     infer_periods_per_year,
@@ -22,12 +22,12 @@ from core.metrics_performance import (
     calculate_equity_metrics,
     calculate_exposure,
 )
-from core.metrics_trade_quality import (
+from core.metrics.trade_quality import (
     calculate_profit_factor,
     calculate_trade_quality,
     calculate_r_multiple_stats,
 )
-from core.metrics_attribution import (
+from core.metrics.attribution import (
     calculate_signal_funnel,
     calculate_cost_sensitivity,
     calculate_attribution,
@@ -35,7 +35,7 @@ from core.metrics_attribution import (
     calculate_rolling_returns,
     calculate_segment_returns,
 )
-from core.metrics_validation import (
+from core.metrics.validation import (
     train_test_split_returns,
     walk_forward_windows,
     bootstrap_return_distribution,

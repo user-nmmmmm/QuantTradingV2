@@ -22,7 +22,7 @@ from core.account_cost_contract import (
 )
 from core.broker import Broker
 from core.candidate_scoring import CandidateScorePolicy, score_breakout_candidate
-from core.metrics_attribution import calculate_attribution
+from core.metrics.attribution import calculate_attribution
 from core.phase4 import EntryCandidate, PortfolioSignalAllocator
 from core.portfolio import Portfolio
 from core.portfolio_risk import (
