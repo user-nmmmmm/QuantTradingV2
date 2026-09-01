@@ -13,7 +13,7 @@ bundled into a file-size cleanup.
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, Iterable, List, Optional
 
 import pandas as pd
 
@@ -24,6 +24,20 @@ from core.logger import get_logger
 from core.risk_reservation import ensure_opening_reservation
 
 logger = get_logger(__name__)
+
+#: ``exit_reason`` carried by every venue-resident protective stop, in the
+#: backtest exactly as in live (see ``core/protective_orders.py``). Matching,
+#: forced liquidation and end-of-backtest all key off this so that a resident
+#: stop is never filled twice or filled by a path that is not the stop.
+PROTECTIVE_EXIT_REASON = "protective_stop"
+
+
+def is_protective_stop(order: Order) -> bool:
+    """True for a venue-resident protective stop order (SR2-5 / STR-P1-01)."""
+    return (
+        order.order_type is OrderType.STOP
+        and str(order.exit_reason) == PROTECTIVE_EXIT_REASON
+    )
 
 
 class MatchingMixin:
@@ -204,8 +218,21 @@ class MatchingMixin:
         order.status = status
         self._publish_order_event(order, occurred_at)
 
-    def process_orders(self, current_bar: Dict[str, pd.Series]) -> List[Dict]:
-        """Match eligible orders against real bars with a shared volume budget."""
+    def process_orders(
+        self,
+        current_bar: Dict[str, pd.Series],
+        *,
+        order_filter: Optional[Callable[[Order], bool]] = None,
+    ) -> List[Dict]:
+        """Match eligible orders against real bars with a shared volume budget.
+
+        ``order_filter`` restricts this pass to the orders it accepts; every
+        other working order is carried forward untouched, keeping its place in
+        the book and its share of the next pass's volume budget. The backtest
+        uses it to match venue-resident protective stops at their own point in
+        the bar without giving the rest of the book a second bite at the same
+        bar's liquidity (STR-P1-01).
+        """
         executed_trades: List[Dict] = []
         next_active_orders: List[Order] = []
         for symbol, bar in current_bar.items():
@@ -223,6 +250,9 @@ class MatchingMixin:
         }
 
         for order in self.active_orders:
+            if order_filter is not None and not order_filter(order):
+                next_active_orders.append(order)
+                continue
             bar_data = current_bar.get(order.symbol)
             if bar_data is None:
                 next_active_orders.append(order)
@@ -359,6 +389,30 @@ class MatchingMixin:
         self, current_prices: Optional[Dict[str, float]] = None
     ) -> Dict[str, float]:
         return self.reservation_projection.pending_notional(current_prices)
+
+    def cancel_protective_stops(self, symbols: Optional[Iterable[str]] = None) -> int:
+        """Cancel venue-resident protective stops, optionally for some symbols.
+
+        Used wherever another path becomes the authoritative close (forced
+        liquidation, end-of-backtest), so a resident stop can never fill on top
+        of a close that has already happened.
+        """
+        wanted = None if symbols is None else set(symbols)
+
+        def _targeted(order: Order) -> bool:
+            return is_protective_stop(order) and (
+                wanted is None or order.symbol in wanted
+            )
+
+        cancelled = [
+            order for order in self.pending_orders + self.active_orders
+            if _targeted(order)
+        ]
+        self.pending_orders = [o for o in self.pending_orders if not _targeted(o)]
+        self.active_orders = [o for o in self.active_orders if not _targeted(o)]
+        for order in cancelled:
+            self._set_status(order, BacktestOrderStatus.CANCELED)
+        return len(cancelled)
 
     def cancel_symbol_orders(self, symbol: str) -> int:
         """

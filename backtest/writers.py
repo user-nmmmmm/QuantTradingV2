@@ -48,6 +48,7 @@ class ReportWritersMixin:
                 metrics.get("ActiveStrategyPeriodMetrics"),
             )
             self._write_strategy_health_section(f, metrics.get("StrategyHealth"))
+            self._write_protective_stop_section(f, metrics.get("ProtectiveStops"))
 
             f.write("Full Metrics (完整指标明细):\n")
             f.write("-----------------\n")
@@ -92,6 +93,17 @@ class ReportWritersMixin:
             f.write("   - strategy_id: Strategy Name (策略名称)\n")
             f.write(
                 "   - exit_reason: Reason for order (成交原因: signal/stop/takeprofit)\n"
+            )
+
+            f.write("\n4. stop_order_audit.csv (保护性止损单审计 - STR-P1-01)\n")
+            f.write(
+                "   - Every resident protective-stop intent and fill: place /\n"
+                "     replace (ratchet) / cancel / fill, with the level in\n"
+                "     force and the price it actually filled at.\n"
+            )
+            f.write(
+                "   - 常驻止损单的每一次挂单、上移、取消与成交；note 列记录\n"
+                "     bar 内价格路径假设。\n"
             )
 
     def _write_lifecycle_section(
@@ -146,6 +158,42 @@ class ReportWritersMixin:
                 "raw_setup_count", "suppressed_raw_setups", "last_raw_setup_at",
             ):
                 f.write(f"  {key}: {entry.get(key)}\n")
+        f.write("\n")
+
+    @staticmethod
+    def _write_protective_stop_section(
+        f, summary: Optional[Dict[str, Any]],
+    ) -> None:
+        """STR-P1-01: how this run's stops were executed, stated up front.
+
+        A backtest that discovers the breach at the close and exits at the next
+        open prices its stops differently from a venue-resident stop, so the
+        mode and the intrabar path assumption belong next to the results rather
+        than only in the code that produced them.
+        """
+        if not summary:
+            return
+        f.write("Protective Stop Execution (保护性止损执行口径):\n")
+        f.write("-----------------\n")
+        enabled = bool(summary.get("backtest_resident_enabled"))
+        f.write(
+            "mode: {}\n".format(
+                "venue_resident_intrabar" if enabled
+                else "legacy_close_detect_next_open_exit"
+            )
+        )
+        f.write(f"intrabar_path: {summary.get('intrabar_path')}\n")
+        f.write(f"triggered_stops: {summary.get('triggered_stops')}\n")
+        f.write(
+            f"unprotected_position_bars: "
+            f"{summary.get('unprotected_position_bars')}\n"
+        )
+        if not enabled:
+            f.write(
+                "WARNING: stops were not venue-equivalent in this run; the "
+                "exit price and timing are optimistic relative to live "
+                "(STR-P1-01).\n"
+            )
         f.write("\n")
 
     @staticmethod

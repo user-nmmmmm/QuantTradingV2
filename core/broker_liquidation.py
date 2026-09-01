@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
+from core.broker_matching import is_protective_stop
 from core.broker_types import BacktestOrderStatus
 
 
@@ -34,11 +35,19 @@ class LiquidationMixin:
         """Reduce marked positions immediately through the canonical fill path."""
         if not 0 <= remaining_fraction < 1:
             raise ValueError("remaining_fraction must be in [0, 1)")
+        # Opening orders are cancelled because the account is de-risking, and
+        # venue-resident protective stops are cancelled because this action is
+        # now the authoritative close: leaving a stop armed against a position
+        # that is being liquidated is exactly the double-sell SR2-5 forbids.
+        # Whatever survives a partial reduce is re-armed by the next sync.
+        def _superseded(order) -> bool:
+            return order.side in {"buy", "short"} or is_protective_stop(order)
+
         for order in list(self.pending_orders) + list(self.active_orders):
-            if order.side in {"buy", "short"}:
+            if _superseded(order):
                 self._set_status(order, BacktestOrderStatus.CANCELED, timestamp)
-        self.pending_orders = [o for o in self.pending_orders if o.side not in {"buy", "short"}]
-        self.active_orders = [o for o in self.active_orders if o.side not in {"buy", "short"}]
+        self.pending_orders = [o for o in self.pending_orders if not _superseded(o)]
+        self.active_orders = [o for o in self.active_orders if not _superseded(o)]
         signal_time = pd.Timestamp(timestamp) - pd.Timedelta(microseconds=1)
         liquidation_bars: Dict[str, pd.Series] = {}
         for symbol, position in list(self.portfolio.positions.items()):

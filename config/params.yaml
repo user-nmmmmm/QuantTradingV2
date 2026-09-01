@@ -136,6 +136,13 @@ stops:
 # confirm fails closed into a flatten. See docs/protective_stop_contract.md.
 protective_orders:
   enabled: true
+  # STR-P1-01: the backtest holds the same resident stop and triggers it inside
+  # the bar on the pre-registered conservative path
+  # (open -> adverse extreme -> favourable extreme -> close), instead of
+  # discovering the breach at the close and exiting at the next open. Turning
+  # this off falls back to that legacy close-based path, which is *not*
+  # equivalent to a venue stop and is only for comparing against old baselines.
+  backtest_resident: true
 
 # SR2-4: post-fill risk verification. The reservation is made at the signal
 # close; the fill can gap. Actual risk above budget + tolerance triggers a

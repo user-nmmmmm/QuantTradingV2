@@ -146,10 +146,65 @@ entry_risk:
 保护单状态经 `live_trading/state_export.py` 的 `protective_orders` 字段导出。
 开关：`config/params.yaml` 的 `protective_orders.enabled`。
 
-## 8. 仍然未关闭：回测的 intrabar 止损等价性（STR-P1-01）
+## 8. 回测的 intrabar 止损等价性（STR-P1-01，已关闭）
 
-回测目前仍然是「bar 收盘后发现穿越、下一根 bar 市价退出」，与交易所常驻
-stop-market 不等价，止损价格与时点存在失真。要关闭它，需要让回测撮合器也持有
-`ProtectiveOrderManager` 产生的常驻止损意图，并按预注册的保守 OHLC 路径规则
-在 bar 内触发。这是 SR2 的最后一项，也是 `reports/.../stop_order_audit.csv`
-在回测侧落地的前提；任何真实资金放行前必须先关闭。
+实现：[`backtest/protective_stops.py`](../backtest/protective_stops.py)
+（`ResidentStopSimulator`）、`core/broker_matching.py` 的 `process_orders(...,
+order_filter=...)`、`backtest/engine.py` 的每根 bar 三段式顺序。
+测试：[`tests/test_sr2_backtest_intrabar_stops.py`](../tests/test_sr2_backtest_intrabar_stops.py)（15）。
+开关：`config/params.yaml` 的 `protective_orders.backtest_resident`。
+
+原先回测是「bar 收盘后发现穿越、下一根 bar 市价退出」，与交易所常驻
+stop-market 不等价：止损价格与时点都被系统性地美化。现在回测持有的是
+**同一个** `ProtectiveOrderManager` 产生的常驻止损意图——实盘
+`tick_orchestrator` 驱动的就是这个对象——并由历史撮合器在 bar 内成交。
+
+### 预注册的保守 bar 内路径
+
+OHLC 不说明极值先后，所以只允许一条路径，且不得逐根 bar 挑选：
+
+```text
+open -> 不利极值 -> 有利极值 -> close
+```
+
+多头即 `open -> low -> high -> close`。由此得到的三条后果都是保守的：
+
+| 情形 | 结果 |
+| --- | --- |
+| armed 期间任意 bar 触及 low ≤ stop | 触发，不会漏掉任何一次穿越 |
+| bar 跳空穿过止损价 | 成交价 = `min(open, stop)`（空头 `max`），不允许成交在市场没有走到的价位 |
+| 同一根 bar 既能打止损又能吃到有利极值 | 先走不利极值，判为止损 |
+
+### 一根 bar 内的顺序
+
+1. 上一根 bar 排队的市价/限价单在本 bar **开盘**成交（入场、策略退出）；
+2. `ResidentStopSimulator.step`：先按此刻的真实净持仓对账保护单，再把常驻
+   止损单撮合到本 bar；
+3. 策略仓位管理与入场信号在**收盘**运行。
+
+对账发生在 (1) 之后，所以本 bar 开盘成交的入场在**自己这根 bar 内**就受保护
+（不再存在裸露的入场 bar）；已经在开盘被平掉的仓位，其残留止损在这里被取消而
+不是留到下一根 bar 触发。期望止损价在 (3) 之前读取，因此生效的永远是上一根
+已完成 bar 推出的价位——无前视。
+
+### 唯一权威 close
+
+`force_liquidate`（DailyLoss / Drawdown / 强平）与 `EndOfBacktest` 现在都会先
+取消常驻止损单，再作为权威 close 成交；部分减仓后由下一次对账按新数量重新挂
+出。这与实盘「持仓归零取消全部残留保护单」是同一条不变量，回测侧不会出现同一
+批仓位被卖两次。
+
+### 与实盘的一处有意差异
+
+实盘遇到「有持仓但没有可用止损价」会 fail closed 平仓；回测把这种情况记为
+`no_protective_level` 审计行并计入 `unprotected_position_bars`，**不平仓**。
+回测里没有止损价通常意味着这个研究臂本来就不定义止损，直接平掉会悄悄改写研究
+问题。该计数会写进 `report.txt` 的 Protective Stop Execution 分节，所以条件是
+可见的，而不是被隐藏或被替研究者做了决定。
+
+### 产物
+
+`reports/.../stop_order_audit.csv`：每一次 place / replace(上移或数量对齐) /
+cancel / fill，带当时生效的止损价、实际成交价与路径假设；`report.txt` 的
+Protective Stop Execution 分节声明本次运行用的是常驻 intrabar 口径还是旧的
+next-open 口径（后者会打 WARNING，因为它相对实盘偏乐观）。

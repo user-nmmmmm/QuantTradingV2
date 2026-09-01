@@ -635,27 +635,33 @@ B0/B1 必须先完成；B2 的纯指标和 shadow 计算可与 B1 后半段并�
 | SR3-3 Alpha 与 AccountRisk 解耦归因 | 完成 | `calculate_attribution` 新增 `by_exit_controller` 与 `control_attribution`（alpha_only / risk_overlay / router_and_system / combined），三者恒等于总 PnL，不对账即报 P0；控制器口径与健康 cohort 共用 |
 | SR3-4 账户模式统一 | 完成 | `core/account_cost_contract.py` 在回测与实盘入口校验 mode/fee_schedule/融资三元组；费率由 futures 0.05%/0.02% 改为 spot-margin 0.10%/0.10%；`_accrue_quote_borrow` 计提 `max(0, long_notional - equity)` 的报价币借款利息 |
 | STR-P1-07 运行范围不一致 | 完成 | `TrendBreakout.allowed_states` 收窄为 `{TREND_UP}`，与生产 routing 一致；新增测试要求 declared == routed |
-| SR2-5 保护单生命周期 | 完成（实盘侧） | `core/protective_orders.py` 状态机 + `live_trading/tick_orchestrator.py` 每 tick 对账：入场成交前不假设有止损、数量等于净持仓、只上移、持仓归零取消全部残留、未知状态 fail closed 平仓、重启以交易所为准重建/清理孤儿单 |
-| REG-01～04 | 保持通过 | 健康闸门只拦新仓；全量测试 514 passed |
+| SR2-5 保护单生命周期 | 完成（实盘 + 回测） | `core/protective_orders.py` 状态机 + `live_trading/tick_orchestrator.py` 每 tick 对账：入场成交前不假设有止损、数量等于净持仓、只上移、持仓归零取消全部残留、未知状态 fail closed 平仓、重启以交易所为准重建/清理孤儿单 |
+| STR-P1-01 回测 intrabar 止损等价性 | 完成 | `backtest/protective_stops.py` 的 `ResidentStopSimulator`：回测持有与实盘同一个 `ProtectiveOrderManager` 产生的常驻止损意图，由历史撮合器在 bar 内成交；预注册保守路径 `open -> 不利极值 -> 有利极值 -> close`，跳空时成交在 `min(open, stop)` 而非走不到的止损价；入场 bar 在自己这根 bar 内即受保护；`force_liquidate` 与 `EndOfBacktest` 先取消常驻止损单，保证唯一权威 close；产出 `stop_order_audit.csv` 与 report.txt 的 Protective Stop Execution 分节 |
+| REG-01～04 | 保持通过 | 健康闸门只拦新仓；全量测试 529 passed |
 
-测试入口：`tests/test_sr1_strategy_health.py`（19）、`tests/test_sr2_protective_stops.py`（19）、`tests/test_sr2_protective_orders.py`（25）、`tests/test_sr3_portfolio_risk.py`（27）。
+测试入口：`tests/test_sr1_strategy_health.py`（19）、`tests/test_sr2_protective_stops.py`（19）、`tests/test_sr2_protective_orders.py`（25）、`tests/test_sr2_backtest_intrabar_stops.py`（15）、`tests/test_sr3_portfolio_risk.py`（27）。
 
 > 注：SR3-4 的费率修正会**降低**所有既有基线的净值（成本更保守），
 > `tests/fixtures/backtest/engine/engine_baseline_v1.json` 已随之重新生成。
+>
+> 注：STR-P1-01 同样会**降低**既有基线——旧口径在 bar 收盘才发现穿越、到下一根
+> bar 开盘才退出，等于假设仓位活过了跳空日；基线里那笔 ETH 交易由 03-21 开盘
+> 3196.69 改为 03-20 跳空开盘 3119.23 成交。基线 fixture 已再次重新生成，
+> 所有 STR-P1-01 之前的报告都不可与之后的报告直接比较。
 
 ### 17.2 未完成（按优先级）
 
 | 条目 | 阻塞原因 |
 | --- | --- |
-| SR0-1 基线三次可重复冻结 | 需要 30 标的原始数据；本次只登记了预期诊断（`current_strategy_protocol.json`），未实际重跑并比对三次 |
-| STR-P1-01 回测 intrabar 止损等价性 | 保护单状态机已就绪并接入实盘，但回测撮合器仍是"收盘发现穿越、下一 bar 市价退出"。需要让回测也持有常驻止损意图并按预注册的保守 OHLC 路径在 bar 内触发；这也是 `stop_order_audit.csv` 在回测侧落地的前提。**这是当前最大的执行风险缺口。** |
+| SR0-1 基线三次可重复冻结 | 需要 30 标的原始数据；本次只登记了预期诊断（`current_strategy_protocol.json`），未实际重跑并比对三次。**注意：STR-P1-01 已改变止损成交口径，冻结必须在新口径下重跑。** |
 | SR3-2 压力情景 | `portfolio_expected_shortfall_stress` 与 2020-03 / 2021-05 / 2021-09 情景需要真实历史数据集，随 SR4 一起做 |
 | SR3 簇定义 | 目前是配置里的静态映射，尚未由历史相关矩阵估计 |
 | SR4 全部 | 需要 point-in-time universe 文件、第二数据源与异常审核，属数据工程与外部数据获取 |
 | SR5 全部 | 依赖 SR3/SR4；final holdout 必须保持关闭 |
 | SR6 全部 | 依赖 SR5；shadow/sandbox/paper 需要真实运行时间 |
 
-因此 §16 的完成定义中，第 1/2/3/5/6/7/8 条已满足；第 4 条在实盘侧已满足
-（保护单可对账、可恢复、不重复平仓），但回测侧的 intrabar 等价性仍缺
-（STR-P1-01）；第 9～12 条仍未满足。`TrendBreakout` 维持 `paused_revalidation`，
-不得按"已验证生产 Alpha"扩大真实资金。
+因此 §16 的完成定义中，第 1～8 条已满足：第 4 条现在在实盘与回测两侧都成立
+（保护单可对账、可恢复、不重复平仓，且回测按同一常驻止损意图在 bar 内成交）。
+第 9～12 条仍未满足，且全部依赖真实历史数据与外部数据源（SR0-1 重跑冻结、
+SR3-2 压力情景、SR4 数据基础、SR5 holdout、SR6 运行时间），不是代码缺口。
+`TrendBreakout` 维持 `paused_revalidation`，不得按"已验证生产 Alpha"扩大真实资金。
