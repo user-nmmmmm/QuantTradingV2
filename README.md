@@ -348,8 +348,7 @@ QuantTradingV1/
 ├── analysis/
 │   ├── optimize.py             # 参数优化（含 --oos）
 │   ├── validation.py           # walk-forward / bootstrap 验证
-│   ├── phase5.py               # 研究治理：数据分区、holdout 协议、多重检验
-│   └── plot_performance.py     # 绩效绘图
+│   └── phase5.py               # 研究治理：数据分区、holdout 协议、多重检验
 │
 ├── dashboard/                  # 只读运维 CLI（消费 live_status.json，不控制交易）
 ├── scripts/                    # 数据抓取、批量矩阵、阶段证据、环境与依赖校验
