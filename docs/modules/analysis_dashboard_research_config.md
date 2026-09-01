@@ -8,7 +8,7 @@
 趋势跟踪策略的参数网格搜索工具。`run_grid_search(symbols, data_source, days, start_date, end_date, initial_capital)` 用 `core.data_fetcher.DataFetcher` 只拉一次数据，然后遍历 `sma_periods=[20,30,50,100]` × `atr_multipliers=[1.5,2.0,2.5,3.0]` 的笛卡尔积，为每个组合实例化 `TrendUpStrategy`/`TrendDownStrategy`（`strategies.trend_following`）+ 默认参数的 `RangeStrategy`（`strategies.mean_reversion`），跑 `backtest.engine.BacktestEngine.run(...)`，用 `backtest.reporting.ReportGenerator.generate(...)` 打分（临时报告写到 `reports/temp_opt`）。结果按夏普比率排序，保存为 `reports/optimization_<timestamp>.csv`。CLI（`python -m analysis.optimize`）参数：`--symbols`（默认 `BTC-USDT`）、`--days`（365）、`--start`、`--end`、`--source {synthetic,yahoo,ccxt}`（默认 synthetic）、`--capital`（10000）。是回测引擎之上的批量驱动脚本，`live_trading/` 不使用它。
 
 > `analysis/plot_performance.py` 已删除：它画的权益曲线 + 回撤双联图，
-> `backtest/charts.py` 产出的 `equity.png` 已完整覆盖（并额外含日收益与资金占用）。
+> `backtest/reporting/render/charts.py` 产出的 `equity.png` 已完整覆盖（并额外含日收益与资金占用）。
 
 ## dashboard/ — 只读运维面板
 

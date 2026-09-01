@@ -134,10 +134,10 @@ METRIC_NAMES = {
 }
 
 
-from backtest.charts import ReportChartsMixin
-from backtest.report_metrics import ReportMetricsMixin
-from backtest.trade_reconstruction import TradeReconstructionMixin
-from backtest.writers import ReportWritersMixin
+from backtest.reporting.render.charts import ReportChartsMixin
+from backtest.reporting.metrics import ReportMetricsMixin
+from backtest.reporting.trades import TradeReconstructionMixin
+from backtest.reporting.render.text import ReportWritersMixin
 
 
 class ReportGenerator(
@@ -266,7 +266,7 @@ class ReportGenerator(
             self._plot_pnl_distribution(closed_trades)
 
             if report_profile == "workbook":
-                from backtest.workbook_report import write_workbook_report
+                from backtest.reporting.render.workbook import write_workbook_report
                 write_workbook_report(
                     self.output_dir, metrics, equity_curve, trades, closed_trades,
                     benchmark_curve=benchmark_curve, metadata=metadata,
@@ -275,7 +275,7 @@ class ReportGenerator(
             else:
                 # Directly viewable reading layer. In compact mode the PDF embeds
                 # detailed charts while dashboard.png remains a one-glance view.
-                from backtest.pdf_report import write_pdf_report
+                from backtest.reporting.render.pdf import write_pdf_report
                 write_pdf_report(
                     self.output_dir, metrics, equity_curve, closed_trades,
                     benchmark_curve=benchmark_curve, metadata=metadata,

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from backtest.pdf_report import (
+from backtest.reporting.render.pdf import (
     calculate_active_risk_metrics,
     calculate_portfolio_risk_metrics,
 )

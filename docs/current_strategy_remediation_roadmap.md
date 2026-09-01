@@ -301,7 +301,7 @@ probation_required_cohorts: [3, 5, 10]
 
 ### SR1-4 生命周期、报告与告警（P0）
 
-责任文件：`backtest/engine.py`、`backtest/reporting.py`、`backtest/writers.py`、`live_trading/state_export.py`、告警适配层。
+责任文件：`backtest/engine.py`、`backtest/reporting/`、`backtest/reporting/render/text.py`、`live_trading/state_export.py`、告警适配层。
 
 新增输出：
 

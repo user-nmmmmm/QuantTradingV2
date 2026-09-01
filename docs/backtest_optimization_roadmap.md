@@ -27,11 +27,11 @@
 | B-04 | 止损不按触发价成交，延迟一整根 bar | `strategies/*` `should_exit` + `core/broker/__init__.py:348-352`（STOP 未用） | 回撤/盈亏失真 | P1 |
 | B-05 | 熔断强平是 Next-Bar 且被成交量限速 | `backtest/engine.py:115-128` | 极端行情回撤被低估 | P1 |
 | B-06 | 成交量双重 1% 限速，大单被拆 100+ 根 | `backtest/engine.py:72-75`、`core/risk/__init__.py:161-166` | 成交价系统性偏离信号价 | P1 |
-| B-07 | 部分成交把一次往返算成多笔交易 | `backtest/reporting.py:143-276` | TotalTrades/WinRate 失真 | P2 |
+| B-07 | 部分成交把一次往返算成多笔交易 | `backtest/reporting/__init__.py:143-276` | TotalTrades/WinRate 失真 | P2 |
 | B-08 | 多标的用"最近已知价"估值 | `core/runtime.py:118-123` | 指标/熔断轻微失真 | P2 |
 | B-09 | 基准时间轴不齐用 fillna(0) 近似 | `backtest/engine.py:146-164` | 超额收益不可比 | P2 |
 | B-10 | 部分成交卖单在持仓耗尽后标 REJECTED | `core/broker/__init__.py:434-442,378-380` | 成交统计含假拒单 | P2 |
-| B-11 | `metrics.py` 约 30 个指标函数未接入报告 | `backtest/reporting.py:71-74` | 研究能力闲置 | P2 |
+| B-11 | `metrics.py` 约 30 个指标函数未接入报告 | `backtest/reporting/__init__.py:71-74` | 研究能力闲置 | P2 |
 | B-12 | 只跑日线，`resample_ohlcv` 未接线 | `main.py:51`、`core/data.py:81-108` | 无法多周期验证 | P2 |
 | B-13 | 合成数据不可控/无极端场景模板 | `core/data_fetcher.py:332-401` | 压力测试缺失 | P2 |
 | B-14 | `optimize.py` 无样本外/稳健性校验 | `analysis/optimize.py:68-119` | 参数过拟合 | P1 |
@@ -179,7 +179,7 @@ E 质量保证（贯穿）
 - 任务（按优先级）：RSI、MACD、ROC/Stochastic（动量）；OBV、VWAP、MFI、量比（量能）；历史波动率、BB 带宽、EWMA vol（波动）；Supertrend/Parabolic SAR（结构）。
 - 验收：每个新指标有边界测试（NaN 前缀、与 pandas/TA-Lib 参考对拍、输入只读）。
 
-### D4 图表扩展（`backtest/reporting.py` + 可选 dashboard）
+### D4 图表扩展（`backtest/reporting/` + 可选 dashboard）
 - 任务（优先级序）：
   1. 价格图 + 进出场标记；
   2. 月度收益热力图（年×月）；

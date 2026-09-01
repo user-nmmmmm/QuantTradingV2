@@ -270,8 +270,7 @@ QuantTradingV1/
 │   ├── runtime.py                    # EventProcessor：模式无关的单 bar 处理
 │   ├── market_data.py                # Historical / Live 行情适配器
 │   ├── execution_port.py             # 执行端口协议（Protocol）
-│   ├── adapters.py / domain.py       # 共享数据契约
-│   ├── system_factory.py             # 策略/风控/状态机/路由的唯一装配入口
+│   ├── domain.py                     # 共享数据契约
 │   │
 │   ├── ── 决策与风控 ──
 │   ├── state.py                      # 市场状态机（Regime）
@@ -360,17 +359,25 @@ QuantTradingV1/
 │
 ├── router/router.py            # Regime → Strategy 路由 + 冷却期 + 候选收集
 │
+├── composition/factory.py      # 策略/风控/状态机/路由的唯一装配入口（读 config）
+│
 ├── backtest/
 │   ├── engine.py               # 回测主循环（bar 时序、强平、会计核对、基准）
 │   ├── execution_adapter.py    # 模拟执行适配器
-│   ├── market_data_adapter.py  # 历史行情适配器装配
+│   ├── protective_stops.py     # 场内常驻止损的盘中撮合模拟
 │   ├── capacity.py             # 资金容量曲线（Phase 3）
-│   └── reporting.py            # report.txt / CSV / 四联图与扩展图表
+│   └── reporting/              # 报告层：先算后渲染
+│       ├── __init__.py         #   ReportGenerator 门面
+│       ├── metrics.py          #   指标计算
+│       ├── trades.py           #   FIFO 往返交易重建
+│       └── render/             #   text.py / charts.py / workbook.py / pdf.py
 │
 ├── live_trading/
 │   ├── engine.py               # 实盘轮询引擎（tick 生命周期、状态导出）
 │   ├── execution_adapter.py    # 记录式执行适配器
-│   └── market_data_adapter.py  # 实盘行情适配器装配
+│   ├── tick_orchestrator.py    # 单次 tick 的阶段编排
+│   ├── state_export.py         # live_status.json 导出
+│   └── recovery.py             # 重启恢复
 │
 ├── analysis/
 │   ├── optimize.py             # 参数优化（含 --oos）
@@ -693,7 +700,7 @@ Phase 6 准入证据的 fail-closed 评估由 `python -m core.phase6` 提供。
 
 ## 9. 策略与路由现状
 
-`core/system_factory.py` 是策略注册的唯一入口。**已注册的策略实例**：
+`composition/factory.py` 是策略注册的唯一入口。**已注册的策略实例**：
 
 | 策略名 | 实现类 | 文件 | 治理状态（`strategy_governance`） |
 | --- | --- | --- | --- |
@@ -720,7 +727,7 @@ Phase 6 准入证据的 fail-closed 评估由 `python -m core.phase6` 提供。
 的健康度状态通过 `_PersistentHealthMixin` 持久化，进程重启后可恢复。
 
 **未接入路由的模型**：`strategies/statistical_arbitrage.py` 的 `PairsTradingModel`
-（跨标的配对交易信号）未在 `core/system_factory.py` 中注册，不会被 `main.py` 或
+（跨标的配对交易信号）未在 `composition/factory.py` 中注册，不会被 `main.py` 或
 `run_live.py` 的默认路由调用，只能在测试/研究脚本中单独使用。
 
 ---

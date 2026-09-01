@@ -17,7 +17,7 @@ from openpyxl.formatting.rule import ColorScaleRule
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
-from backtest.pdf_report import (
+from backtest.reporting.render.pdf import (
     calculate_active_risk_metrics,
     calculate_portfolio_risk_metrics,
 )

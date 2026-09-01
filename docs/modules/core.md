@@ -205,7 +205,7 @@
 ### `core/startup_preflight.py` — 启动前检查
 `build_startup_report(policy, credentials, engine)` 生成不含密钥明文的 JSON"证据"报告（凭据是否存在、sandbox/live 模式、一键停机是否未激活、账户/订单同步基线、健康基线、熔断状态）。`write_startup_report(...)` 原子写入（临时文件 + `os.replace` + fsync）。
 
-### `core/system_factory.py` — 组件装配工厂
+### `composition/factory.py` — 组件装配工厂
 `build_strategy_registry()`（组装 TrendBreakout/TrendBreakdown/RangeMeanReversion 策略）、`build_risk_manager()`、`build_state_machine()`、`build_router(strategies, log_path, allow_short)`、`market_type_supports_shorts(market_type)`（future/futures/swap/margin 返回真）。**注意**：`build_router` 在 `allow_short=False` 时会把 `regime_map["TREND_DOWN"]` 强制改成 `"Cash"`，在路由层面彻底禁用做空策略，与策略对象本身是否存在无关。
 
 ### `core/live_safety.py` — 实盘安全闸门
