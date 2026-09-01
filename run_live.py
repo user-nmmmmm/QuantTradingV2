@@ -27,7 +27,7 @@ from core.strategy_governance import (
     assert_live_admission,
     routed_strategy_names,
 )
-from core.safe_live_broker import SafeLiveBroker
+from core.live_broker.safe import SafeLiveBroker
 from live_trading.engine import LiveTradingEngine
 
 configure_logging()

@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import MagicMock
 
-from core.retry import with_retry
+from core.live_broker.retry import with_retry
 
 
 class InsufficientFundsError(Exception):

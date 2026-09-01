@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 from core.live_safety import OrderSafetyGuard, StartupSafetyPolicy
 from core.portfolio import Portfolio
-from core.safe_live_broker import SafeLiveBroker
+from core.live_broker.safe import SafeLiveBroker
 
 
 class TestSafeLiveBroker(unittest.TestCase):

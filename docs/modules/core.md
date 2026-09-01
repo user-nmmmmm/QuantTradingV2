@@ -75,7 +75,7 @@
 
 **关键防未来函数机制**：bar *i* 提交的订单只有在 bar *i+1* 才有资格成交（`current_time <= order.timestamp` 会被跳过）。所有订单和成交都发布到共享的 `TradingEventPipeline` 上，供 `RiskReservationProjection` 消费。
 
-### `core/live_broker.py` — 实盘经纪商（CCXT）
+### `core/live_broker/` — 实盘经纪商（CCXT）
 `LiveBroker` 以 `OrderStore` 作为唯一真相源，设计目标是**进程崩溃重启后能安全恢复，不会重复下单**。
 - `submit_intent(intent)`：核心写路径——先查是否已有记录（有则走 `reconcile_order` 重放）→ 检查健康评估是否允许新风险 → 校验 intent → 经 `ExchangeBoundary.prepare` 规范化 → 预占风险 → 在 `OrderStore` 落地 `SUBMITTING` 记录 → 调用 `ccxt.create_order`。
 - `reconcile_order(client_order_id)`：幂等地重新拉取交易所订单状态，解决 `UNKNOWN`/不确定的结果。
@@ -84,7 +84,7 @@
 
 **关键行为**：`create_order` 被当作**非幂等**操作——任何不确定的失败（网络/超时/限流）都会被标记为 `OrderStatus.UNKNOWN`，而不是直接重试（重试可能导致重复下单），只能靠 `reconcile_order` 的幂等查询来解决。衍生品持仓同步（`_sync_derivatives_positions`）在交易所不支持查询持仓时**失败关闭**（抛异常），不会假设"空仓"。每个标的同时只允许一笔活跃的开仓订单。
 
-### `core/safe_live_broker.py` — 带安全闸门的实盘经纪商
+### `core/live_broker/safe.py` — 带安全闸门的实盘经纪商
 `SafeLiveBroker` 是 `LiveBroker` 的薄子类，强制所有实盘下单先过 `safety_guard`（如 `PersistentOrderSafetyGuard`）。构造函数不接受明文 API 凭据（必须通过父类的环境变量路径传入）。安全检查只在**全新** intent 时执行（`order_store.get(...) is None`）；幂等重放会跳过检查，避免重复占用当日风险预算。
 
 ### `core/execution_port.py` — 执行端协议
@@ -201,7 +201,7 @@
 ### `core/telegram_heartbeat.py` — 定期心跳报告
 和 `alerting.py` 的事件触发型告警不同，这是**周期性**（由 cron 驱动）的"系统仍在运行"状态汇报。`build_heartbeat_message(dashboard)` 汇总状态/健康/权益/现金/持仓/告警；若状态文件本身无效会明确报告 `RISK_HALTED`。`send_heartbeat(...)` 通过 `dashboard.__main__.load_dashboard` 加载数据，经 `alerting.send_telegram_message` 发送。
 
-### `core/retry.py` — 重试包装器
+### `core/live_broker/retry.py` — 重试包装器
 `with_retry(fn, max_attempts=3, base_delay=0.5, max_delay=8.0, retryable=is_ambiguous_error)`：带指数退避的有界重试，默认只重试"不确定"类错误（网络超时等），延迟为 `min(base_delay * 2**attempt, max_delay)`。
 
 ### `research/audit/reconciliation_job.py` — 日终对账

@@ -89,7 +89,7 @@ flowchart TB
 
     subgraph EXEC["执行层 Execution"]
         BK["Broker 撮合模拟（core/broker/）"]
-        LB["SafeLiveBroker → LiveBroker（core/safe_live_broker.py, live_broker.py）"]
+        LB["SafeLiveBroker → LiveBroker（core/live_broker/）"]
     end
 
     subgraph OBS["治理与观测 Governance & Observability"]
@@ -296,8 +296,13 @@ QuantTradingV1/
 │   │   ├── financing.py              #   永续资金费 / 融券借贷计提
 │   │   ├── liquidation.py            #   强制减仓
 │   │   └── cost_model.py             #   费用/滑点/冲击成本模型
-│   ├── live_broker.py                # CCXT 实盘 broker
-│   ├── safe_live_broker.py           # 幂等/限额/白名单包装层
+│   ├── live_broker/                  # CCXT 实盘 broker
+│   │   ├── __init__.py               #   LiveBroker 门面
+│   │   ├── submission.py             #   下单写路径（幂等 clientOrderId）
+│   │   ├── reconciler.py             #   订单状态幂等对账
+│   │   ├── account_sync.py           #   余额/持仓同步
+│   │   ├── safe.py                   #   幂等/限额/白名单包装层
+│   │   └── retry.py                  #   交易所操作的有界重试
 │   ├── exchange/                     # 交易所元数据/精度/衍生品能力的唯一边界
 │   │   ├── __init__.py               #   ExchangeBoundary 门面
 │   │   ├── metadata.py               #   能力探测、市场规格、元数据加载
@@ -306,7 +311,7 @@ QuantTradingV1/
 │   │   ├── ccxt_mapper.py            #   canonical intent → CCXT 请求
 │   │   └── parsers.py                #   CCXT 回包 → canonical 事实
 │   ├── orders.py / order_store.py    # 订单模型与 SQLite 订单状态机
-│   ├── retry.py / clock.py           # 重试策略与统一时钟
+│   ├── clock.py                      # 统一时钟抽象
 │   │
 │   ├── ── 数据 ──
 │   ├── data_fetcher.py / data.py     # 取数（synthetic/yahoo/ccxt/local）与质量校验
