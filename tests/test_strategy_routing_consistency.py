@@ -66,5 +66,46 @@ class TestStrategyRoutingConsistency(unittest.TestCase):
         )
 
 
+    def test_allowed_states_match_the_regimes_actually_routed(self):
+        """STR-P1-07: a strategy may not claim regimes production never gives it.
+
+        ``TrendBreakoutStrategy`` used to declare ``VOLATILE`` while the
+        routing table sent VOLATILE to Cash, so reading the class suggested a
+        wider operating range than the run ever had.
+        """
+        registry = build_strategy_registry()
+        router = build_router(registry, config, allow_short=True)
+
+        routed_regimes: dict[str, set[str]] = {}
+        for regime, strategy_name in router.regime_map.items():
+            if strategy_name == "Cash":
+                continue
+            routed_regimes.setdefault(strategy_name, set()).add(regime)
+
+        mismatches = {}
+        for name, regimes in routed_regimes.items():
+            declared = {state.name for state in registry[name].allowed_states}
+            if declared != regimes:
+                mismatches[name] = {"declared": sorted(declared),
+                                    "routed": sorted(regimes)}
+        self.assertEqual(
+            mismatches, {},
+            "Strategy allowed_states disagree with the regimes routed to them "
+            f"(STR-P1-07): {mismatches}. Either route the regime or stop "
+            "declaring it.",
+        )
+
+    def test_unrouted_strategies_are_declared_as_such(self):
+        registry = build_strategy_registry()
+        router = build_router(registry, config, allow_short=True)
+        routed = {name for name in router.regime_map.values() if name != "Cash"}
+        for name in set(registry) - routed:
+            self.assertIn(
+                name, INTENTIONALLY_UNROUTED_STRATEGIES,
+                f"{name} is unreachable from any regime but is not documented "
+                "as intentionally unrouted.",
+            )
+
+
 if __name__ == "__main__":
     unittest.main()

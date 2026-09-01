@@ -7,6 +7,12 @@ from typing import Any, Dict, Iterable, Mapping
 import numpy as np
 import pandas as pd
 
+from core.strategy_health import (
+    CONTROLLER_ACCOUNT_RISK,
+    CONTROLLER_STRATEGY,
+    classify_exit_controller,
+)
+
 from core.metrics_performance import _clean_equity
 
 _FUNNEL_STAGES = ("risk_evaluated", "risk_approved", "order_created", "order_accepted", "filled")
@@ -164,12 +170,44 @@ def calculate_attribution(trades: Iterable[Mapping[str, Any]]) -> Dict[str, Any]
         timestamp = pd.Timestamp(exit_time)
         return "UNKNOWN" if pd.isna(timestamp) else timestamp.strftime("%Y-%m")
 
+    # SR3-3 (STR-P1-08): 76.6% of the frozen baseline's net profit came out of
+    # DailyLossLimit exits, so a headline PF cannot be read as evidence about
+    # the Donchian alpha. Splitting the same trades by the controller that
+    # actually closed them gives the three views the roadmap requires -
+    # alpha-only, risk-overlay, combined - and the split is a partition, so it
+    # still sums to total_net_pnl exactly.
+    by_controller = _group_by(
+        lambda t: classify_exit_controller(t.get("exit_reason"))
+    )
+    alpha_only = by_controller.get(CONTROLLER_STRATEGY, 0.0)
+    risk_overlay = by_controller.get(CONTROLLER_ACCOUNT_RISK, 0.0)
+    other = total - alpha_only - risk_overlay
     return {
         "sample_size": len(records),
         "total_net_pnl": total,
         "by_strategy": _group_by(lambda t: str(t.get("strategy") or "UNKNOWN")),
         "by_symbol": _group_by(lambda t: str(t.get("symbol") or "UNKNOWN")),
         "by_month": _group_by(_month_key),
+        "by_exit_controller": by_controller,
+        "control_attribution": {
+            "alpha_only": alpha_only,
+            "risk_overlay": risk_overlay,
+            "router_and_system": other,
+            "combined": total,
+            "risk_overlay_share": (
+                risk_overlay / total if total else None
+            ),
+            "reconciles": abs(
+                (alpha_only + risk_overlay + other) - total
+            ) < 1e-6,
+        },
+        "trade_count_by_exit_controller": {
+            controller: sum(
+                1 for trade in records
+                if classify_exit_controller(trade.get("exit_reason")) == controller
+            )
+            for controller in by_controller
+        },
     }
 
 

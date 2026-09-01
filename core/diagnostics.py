@@ -374,10 +374,114 @@ def calculate_streaks(trades: Iterable[Mapping[str, Any]]) -> Dict[str, Any]:
     }
 
 
+def _to_timestamp(value: Any) -> Optional[pd.Timestamp]:
+    """Best-effort tz-naive UTC timestamp, so gaps can be compared safely."""
+    if value is None:
+        return None
+    try:
+        stamp = pd.Timestamp(value)
+    except (TypeError, ValueError):
+        return None
+    if stamp is pd.NaT or pd.isna(stamp):
+        return None
+    return stamp.tz_convert(None) if stamp.tzinfo is not None else stamp
+
+
+def _in_window(value: Any, start: Any, end: Any) -> bool:
+    stamp = _to_timestamp(value)
+    if stamp is None or start is None or end is None:
+        return False
+    return pd.Timestamp(start) <= stamp <= pd.Timestamp(end)
+
+
+def strategy_activity_consistency(
+    closed_trades: Iterable[Mapping[str, Any]],
+    equity: pd.Series,
+    strategy_health: Optional[Mapping[str, Mapping[str, Any]]] = None,
+    *,
+    silent_gap_days: int = 365,
+) -> Dict[str, Any]:
+    """SR1-4: refuse to call a silently disabled strategy "completed".
+
+    The 2021-2026 failure this guards against: the health gate flipped off,
+    ``should_enter`` returned ``None`` for the rest of the run, and the report
+    still said ``status=completed``/``inactive_bars=0``. If the run contains a
+    trading gap longer than ``silent_gap_days`` while every strategy still
+    claims to be ``active``, that is a defect in the health/reporting pipeline,
+    not a market with no setups - it is surfaced as a high-priority finding.
+    """
+    records = [dict(trade) for trade in closed_trades]
+    exits = sorted(
+        stamp for stamp in (
+            _to_timestamp(trade.get("exit_time") or trade.get("fill_time"))
+            for trade in records
+        ) if stamp is not None
+    )
+    if equity is None or len(equity) == 0:
+        return {"status": "insufficient", "sample_size": len(records)}
+    index = [
+        stamp for stamp in (_to_timestamp(value) for value in equity.index)
+        if stamp is not None
+    ]
+    if not index:
+        return {"status": "insufficient", "sample_size": len(records)}
+    start, end = index[0], index[-1]
+    boundaries = [start, *exits, end]
+    longest = pd.Timedelta(0)
+    gap_start = gap_end = None
+    for earlier, later in zip(boundaries[:-1], boundaries[1:]):
+        span = pd.Timestamp(later) - pd.Timestamp(earlier)
+        if span > longest:
+            longest, gap_start, gap_end = span, earlier, later
+    health = {name: dict(value) for name, value in (strategy_health or {}).items()}
+    statuses = {name: str(entry.get("status", "unknown")) for name, entry in health.items()}
+    all_active = bool(statuses) and all(value == "active" for value in statuses.values())
+    # A long quiet stretch is only a defect if the alpha actually produced
+    # setups during it: a market that offered nothing is not a broken gate.
+    setups_in_gap = [
+        name for name, entry in health.items()
+        if _in_window(entry.get("last_raw_setup_at"), gap_start, gap_end)
+    ]
+    suppressed = sum(
+        int(entry.get("suppressed_raw_setups") or 0) for entry in health.values()
+    )
+    silent = longest.days >= silent_gap_days and (
+        (all_active and bool(setups_in_gap)) or suppressed > 0
+    )
+    findings = []
+    if silent:
+        findings.append(
+            f"no closed trade for {longest.days} days "
+            f"({pd.Timestamp(gap_start).date()} -> {pd.Timestamp(gap_end).date()}) "
+            f"while strategy health reports {statuses or 'no health state'} and "
+            f"{suppressed} raw setups were suppressed "
+            f"(strategies with setups inside the gap: {setups_in_gap or 'none'}): "
+            "either the health lifecycle or the reporting of it is wrong"
+        )
+    return {
+        "status": "ok",
+        "sample_size": len(records),
+        "longest_no_trade_days": int(longest.days),
+        "longest_no_trade_start": (
+            pd.Timestamp(gap_start).isoformat() if gap_start is not None else None
+        ),
+        "longest_no_trade_end": (
+            pd.Timestamp(gap_end).isoformat() if gap_end is not None else None
+        ),
+        "silent_gap_days_threshold": int(silent_gap_days),
+        "suppressed_raw_setups": int(suppressed),
+        "strategies_with_setups_in_gap": setups_in_gap,
+        "strategy_health_status": statuses,
+        "silent_inactivity_detected": bool(silent),
+        "findings": findings,
+    }
+
+
 def build_diagnostics(
     closed_trades: Iterable[Mapping[str, Any]],
     equity: pd.Series,
     observed_close_events: Optional[Mapping[str, int]] = None,
+    strategy_health: Optional[Mapping[str, Mapping[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """Run the full diagnostic suite over one backtest's closed trades/equity."""
     records = [dict(trade) for trade in closed_trades]
@@ -388,6 +492,9 @@ def build_diagnostics(
         "holding_period_audit": holding_period_audit(records, max_holding_days=365),
         "calendar_returns": calculate_calendar_returns(equity, records),
         "streaks": calculate_streaks(records),
+        "strategy_activity_consistency": strategy_activity_consistency(
+            records, equity, strategy_health
+        ),
     }
     if observed_close_events is not None:
         suite["lifecycle_coverage"] = calculate_lifecycle_coverage(

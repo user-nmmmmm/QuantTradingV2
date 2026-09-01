@@ -11,6 +11,7 @@ from typing import Dict, Optional
 from core.accounts import AccountMode
 from core.logger import get_logger
 from core.portfolio import Portfolio
+from core.portfolio_risk import exposure_by_cluster
 from core.risk_reservation import RiskReservationProjection
 
 logger = get_logger(__name__)
@@ -134,6 +135,25 @@ class PositionSizingMixin:
                 - reserved_symbol_value
             ),
         }
+        # SR3-2 (STR-P1-04): correlated coins are not independent positions.
+        # These caps live here, in the one place both clamp_entry_qty and
+        # check_entry_risk read, so the reduction and the gate cannot drift.
+        cluster_policy = getattr(self, "cluster_policy", None)
+        if cluster_policy is not None and cluster_policy.has_notional_caps:
+            by_cluster = exposure_by_cluster(
+                cluster_policy, portfolio, current_prices, reserved_by_symbol
+            )
+            cluster = cluster_policy.cluster_for(symbol)
+            if cluster_policy.max_cluster_exposure_pct is not None:
+                caps["cluster_exposure"] = (
+                    current_equity * float(cluster_policy.max_cluster_exposure_pct)
+                    - by_cluster.get(cluster, 0.0)
+                )
+            if cluster_policy.max_crypto_beta_exposure is not None:
+                caps["crypto_beta_exposure"] = (
+                    current_equity * float(cluster_policy.max_crypto_beta_exposure)
+                    - sum(by_cluster.values())
+                )
 
         if portfolio.account_mode is AccountMode.SPOT and action == "short":
             caps["account_mode"] = 0.0

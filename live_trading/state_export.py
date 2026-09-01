@@ -28,6 +28,33 @@ class StateExportMixin:
     ``_has_unresolved_unknown()`` (from ``RecoveryMixin``).
     """
 
+    def _strategy_health(self):
+        """SR1-4: per-strategy lifecycle state, exported like any other fact."""
+        health = {}
+        for name, strategy in getattr(self, "strategies", {}).items():
+            snapshot = getattr(strategy, "health_snapshot", None)
+            if callable(snapshot):
+                value = snapshot()
+                if value:
+                    health[name] = value
+        return health
+
+    def _protective_order_state(self):
+        """Latest protective-order state per symbol (SR2-5 audit surface)."""
+        manager = getattr(self, "_protective_order_manager", None)
+        if manager is None:
+            return {}
+        latest = {}
+        for row in manager.audit:
+            latest[row["symbol"]] = {
+                "state": row.get("state"),
+                "effective_stop": row.get("effective_stop"),
+                "protected_qty": row.get("protected_qty"),
+                "last_action": row.get("action"),
+                "last_reason": row.get("reason"),
+            }
+        return latest
+
     def _critical_state_signature(self):
         return (
             self._healthy,
@@ -37,6 +64,13 @@ class StateExportMixin:
                 self.health_assessment.reason_codes
                 if self.health_assessment else ()
             ),
+            # A health transition (ACTIVE -> COOLDOWN -> ...) is critical
+            # state: it must force an fsync'd export, not wait for the next
+            # periodic tick.
+            tuple(sorted(
+                (name, entry.get("status"))
+                for name, entry in self._strategy_health().items()
+            )),
         )
 
     def _maybe_export_state(self, *, force: bool = False) -> bool:
@@ -94,12 +128,19 @@ class StateExportMixin:
                     self.health_assessment.to_dict()
                     if self.health_assessment else None
                 ),
+                "strategy_health": self._strategy_health(),
+                # SR2-5: what protection currently exists, per symbol.
+                "protective_orders": self._protective_order_state(),
             }
             critical_state = (
                 state_data["healthy"],
                 state_data["operational_state"],
                 state_data["unresolved_unknown_order"],
                 tuple(state_data["health_reason_codes"]),
+                tuple(sorted(
+                    (name, entry.get("status"))
+                    for name, entry in state_data["strategy_health"].items()
+                )),
             )
             needs_fsync = critical_state != self._last_exported_critical_state
             with open(tmp_path, "w", encoding="utf-8") as handle:

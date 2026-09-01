@@ -7,6 +7,7 @@
 > 实盘执行计划：[`live_trading_remediation_plan.md`](live_trading_remediation_plan.md)  
 > 回测指标计划：[`backtest_metrics_detailed_development_plan.md`](backtest_metrics_detailed_development_plan.md)
 > 策略能力计划：[`strategy_development_roadmap.md`](strategy_development_roadmap.md)（S0–S4：缺陷清理、选币、保证金、合约策略）
+> 当前策略专项：[`current_strategy_remediation_roadmap.md`](current_strategy_remediation_roadmap.md)（健康生命周期、保护性止损、组合风险与重新准入）
 
 ## 1. 文档治理
 

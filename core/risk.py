@@ -116,6 +116,9 @@ class RiskManager(CircuitBreakerMixin, PositionSizingMixin, EntryPolicyMixin):
         self.last_drawdown = 0.0
         self.breaker_audit: list[Dict[str, object]] = []
         self.breaker_epoch = 0
+        # SR3-2: correlation-aware notional budgets, installed by
+        # composition.factory. None keeps the pre-SR3 behaviour.
+        self.cluster_policy = None
         self._breaker_transition_sequence = 0
         self.current_transition_id: Optional[str] = None
         self.current_daily_action_id: Optional[str] = None

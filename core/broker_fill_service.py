@@ -245,6 +245,8 @@ class FillServiceMixin:
                     realized_pnl=realized_pnl,
                     timestamp=timestamp,
                     is_position_fully_closed=position_fully_closed,
+                    initial_risk=lot_close.initial_risk_share,
+                    risk_action_id=order.risk_action_id,
                 )
                 self.close_events.append(event)
                 new_close_events.append(event)

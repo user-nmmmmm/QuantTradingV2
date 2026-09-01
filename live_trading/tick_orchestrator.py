@@ -15,6 +15,11 @@ import pandas as pd
 
 from core.health import HealthReason
 from core.logger import get_logger
+from core.protective_orders import (
+    ProtectiveAction,
+    ProtectiveOrder,
+    ProtectiveOrderManager,
+)
 from core.runtime import MarketDataSlice
 from core.timeframes import as_utc_timestamp, closed_bars, timeframe_delta
 from core.valuation import build_portfolio_snapshot
@@ -269,4 +274,143 @@ class TickOrchestratorMixin:
         else:
             self._consecutive_strategy_failures = 0
             self._last_strategy_error = None
+        self._reconcile_protective_orders()
+        self._alert_strategy_health_transitions()
         self._maybe_export_state()
+
+    def _alert_strategy_health_transitions(self) -> None:
+        """SR1-4: a health transition is an operator event, not a log line.
+
+        Every new ACTIVE/COOLDOWN/PROBATION/MANUAL_LOCK transition raises one
+        alert exactly once. MANUAL_LOCK is critical - it will not clear on its
+        own and needs a human.
+        """
+        seen = getattr(self, "_alerted_health_transitions", None)
+        if seen is None:
+            seen = set()
+            self._alerted_health_transitions = seen
+        for name, strategy in getattr(self, "strategies", {}).items():
+            machine = getattr(strategy, "health", None)
+            if machine is None:
+                continue
+            for index, row in enumerate(machine.transitions):
+                key = (name, index, row.get("at"), row.get("to"))
+                if key in seen:
+                    continue
+                seen.add(key)
+                self._alert(
+                    "critical" if row.get("to") == "manual_lock" else "warning",
+                    "strategy_health_transition",
+                    {"strategy": name, **row},
+                )
+
+    # ------------------------------------------------------------ SR2-5
+
+    def _protective_manager(self):
+        manager = getattr(self, "_protective_order_manager", None)
+        if manager is None:
+            manager = ProtectiveOrderManager()
+            self._protective_order_manager = manager
+        return manager
+
+    def _venue_protective_orders(self):
+        """Protective orders as the order store currently knows them."""
+        store = getattr(self.broker, "order_store", None)
+        if store is None:
+            return []
+        orders = []
+        for record in store.list_non_terminal():
+            if str(record.get("order_type", "")).lower() != "stop":
+                continue
+            intent = record.get("intent")
+            reduce_only = True
+            if isinstance(intent, dict):
+                reduce_only = bool(intent.get("reduce_only", True))
+            orders.append(ProtectiveOrder(
+                order_id=str(record["client_order_id"]),
+                symbol=str(record["symbol"]),
+                side=str(record["side"]),
+                qty=float(record.get("remaining_qty") or record["requested_qty"]),
+                stop_price=float(record.get("price") or 0.0),
+                status=str(record["status"]).lower(),
+                reduce_only=reduce_only,
+            ))
+        return orders
+
+    def _desired_protective_stop(self, symbol: str):
+        """The level the owning strategy currently wants enforced."""
+        for strategy in getattr(self, "strategies", {}).values():
+            context = getattr(strategy, "context", {}).get(symbol) or {}
+            stop = context.get("effective_stop", context.get("stop_loss"))
+            if stop:
+                return float(stop)
+        return None
+
+    def _reconcile_protective_orders(self) -> None:
+        """Keep venue-resident protection in step with the real position.
+
+        SR2-5: the entry fill, not the signal, is what creates protection; the
+        protective quantity tracks the net position; the level only ratchets;
+        and anything the venue cannot confirm fails closed into a flatten
+        rather than being carried as if a stop existed.
+        """
+        if not getattr(self, "protective_orders_enabled", True):
+            return
+        broker = self.broker
+        portfolio = getattr(broker, "portfolio", None)
+        if portfolio is None:
+            return
+        manager = self._protective_manager()
+        try:
+            venue_orders = self._venue_protective_orders()
+        except Exception as exc:  # order store unreadable: do not guess
+            logger.exception("Protective order reconciliation could not read orders")
+            self._alert("critical", "protective_orders_unreadable", {
+                "error": type(exc).__name__,
+            })
+            return
+        symbols = set(portfolio.positions) | {order.symbol for order in venue_orders}
+        for symbol in sorted(symbols):
+            qty = float(portfolio.get_position(symbol).get("qty", 0.0))
+            plan = manager.evaluate(
+                symbol=symbol,
+                position_qty=qty,
+                desired_stop=self._desired_protective_stop(symbol),
+                open_protective_orders=venue_orders,
+            )
+            for intent in plan.intents:
+                self._apply_protective_intent(symbol, intent)
+
+    def _apply_protective_intent(self, symbol: str, intent) -> None:
+        action = intent.action
+        try:
+            if action in (ProtectiveAction.CANCEL, ProtectiveAction.REPLACE):
+                if intent.cancel_order_id:
+                    self.broker.cancel_order(intent.cancel_order_id)
+            if action in (ProtectiveAction.PLACE, ProtectiveAction.REPLACE):
+                self.broker.submit_order(
+                    symbol, intent.side, intent.qty,
+                    price=intent.stop_price, order_type="stop",
+                    timestamp=self._now(), strategy_id="ProtectiveStop",
+                    exit_reason="protective_stop", reduce_only=True,
+                )
+            if action is ProtectiveAction.FLATTEN:
+                # Fail closed: an unprotected position is flattened, and this
+                # is always an operator-visible event.
+                self._operational_state = "DEGRADED"
+                self._alert("critical", "position_unprotected", {
+                    "symbol": symbol, "reason": intent.reason, "qty": intent.qty,
+                })
+                self.broker.submit_order(
+                    symbol, intent.side, intent.qty,
+                    order_type="market", timestamp=self._now(),
+                    strategy_id="ProtectiveStop",
+                    exit_reason="unprotected_flatten", reduce_only=True,
+                )
+        except Exception as exc:
+            logger.exception("Protective intent failed: %s %s", symbol, action)
+            self._operational_state = "DEGRADED"
+            self._alert("critical", "protective_intent_failed", {
+                "symbol": symbol, "action": action.value,
+                "reason": intent.reason, "error": type(exc).__name__,
+            })

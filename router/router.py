@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 import pandas as pd
 
@@ -19,6 +19,7 @@ class Router:
         log_path: Optional[str] = None,
         log_flush_every: int = 256,
         max_holding_days: Optional[float] = None,
+        risk_governor: Optional[Any] = None,
     ):
         self.strategies = strategies
         self.cooldown_bars = cooldown_bars
@@ -34,7 +35,9 @@ class Router:
         self.max_holding_days = (
             float(max_holding_days) if max_holding_days is not None else None
         )
-        self.allocator = PortfolioSignalAllocator()
+        # SR3-2: one governor for the whole run so a session's entries
+        # share a correlated-risk budget instead of each claiming it.
+        self.allocator = PortfolioSignalAllocator(risk_governor)
 
     def collect_candidate(
         self,

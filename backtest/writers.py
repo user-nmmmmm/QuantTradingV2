@@ -47,6 +47,7 @@ class ReportWritersMixin:
                 metrics.get("FullCapitalPeriodMetrics"),
                 metrics.get("ActiveStrategyPeriodMetrics"),
             )
+            self._write_strategy_health_section(f, metrics.get("StrategyHealth"))
 
             f.write("Full Metrics (完整指标明细):\n")
             f.write("-----------------\n")
@@ -62,6 +63,7 @@ class ReportWritersMixin:
             self._write_drawdown_events_section(f, analysis.get("drawdown_events"))
             self._write_trade_quality_section(f, analysis.get("trade_quality"))
             self._write_attribution_section(f, analysis.get("attribution"))
+            self._write_control_attribution(f, analysis.get("attribution"))
             self._write_benchmark_section(f, analysis.get("benchmark_comparison"))
             self._write_diagnostics_section(f, metrics.get("Diagnostics"))
 
@@ -116,6 +118,35 @@ class ReportWritersMixin:
         f.write("\n\nActive Strategy-Period Metrics (策略活跃期):\n")
         f.write(self._format_primary_metrics(active_metrics))
         f.write("\n\n")
+
+    @staticmethod
+    def _write_strategy_health_section(
+        f, health: Optional[Dict[str, Dict[str, Any]]],
+    ) -> None:
+        """SR1-4: the health lifecycle of every strategy, next to the run status.
+
+        Without this section a run can end as ``completed`` while a strategy
+        has been in COOLDOWN or MANUAL_LOCK for years - exactly the 2021-2026
+        silence this roadmap exists to make impossible to miss.
+        """
+        if not health:
+            return
+        f.write("Strategy Health Lifecycle (策略健康生命周期):\n")
+        f.write("-----------------\n")
+        for name, entry in sorted(health.items()):
+            f.write(f"{name}:\n")
+            for key in (
+                "status", "status_changed_at", "cooldown_started_at",
+                "cooldown_until", "trigger_reason", "trigger_event_id",
+                "consecutive_negative_cohorts", "rolling_cohort_r",
+                "probation_closed_cohorts", "probation_total_r",
+                "probation_risk_multiplier", "failed_probation_cycles",
+                "manual_lock_reason", "risk_multiplier", "resume_count",
+                "total_cohorts", "counted_cohorts", "allows_new_entries",
+                "raw_setup_count", "suppressed_raw_setups", "last_raw_setup_at",
+            ):
+                f.write(f"  {key}: {entry.get(key)}\n")
+        f.write("\n")
 
     @staticmethod
     def _write_drawdown_events_section(f, events: Optional[List[Dict[str, Any]]]) -> None:
@@ -191,6 +222,33 @@ class ReportWritersMixin:
                 f"win_rate={stats['win_rate']:.2%} net_pnl={stats['net_pnl']:.4f} "
                 f"profit_factor={self._format_metric_value(stats['profit_factor'])}\n"
             )
+        f.write("\n")
+
+    @staticmethod
+    def _write_control_attribution(f, attribution: Optional[Dict[str, Any]]) -> None:
+        """SR3-3: separate the alpha's own PnL from the risk overlay's.
+
+        A profit factor computed over trades that a portfolio breaker closed
+        says something about the breaker, not about the entry signal.
+        """
+        control = (attribution or {}).get("control_attribution")
+        if not control:
+            return
+        counts = (attribution or {}).get("trade_count_by_exit_controller") or {}
+        f.write("Control Attribution (退出控制器归因):\n")
+        share = control.get("risk_overlay_share")
+        share_text = f"{share:.1%}" if share is not None else "N/A"
+        for key, label in (
+            ("alpha_only", "Alpha 自有退出"),
+            ("risk_overlay", "AccountRisk 组合熔断"),
+            ("router_and_system", "Router/系统退出"),
+            ("combined", "合计"),
+        ):
+            f.write(f"  {key:<20} ({label}): {control.get(key, 0.0):>14.2f}\n")
+        f.write(f"  risk_overlay_share (熔断贡献占比): {share_text}\n")
+        f.write(f"  trade counts (笔数): {counts}\n")
+        if not control.get("reconciles", True):
+            f.write("  [P0] control attribution does not sum to total net PnL\n")
         f.write("\n")
 
     @staticmethod
@@ -321,6 +379,27 @@ class ReportWritersMixin:
                     f"{entry['expected_closures']} 次平仓——依赖平仓回调的风控"
                     f"（熄火/冷却）处于失效状态。\n"
                 )
+            f.write("\n")
+
+        activity = diagnostics.get("strategy_activity_consistency") or {}
+        if activity.get("status") == "ok":
+            f.write("Strategy Activity Consistency (交易活跃度一致性):\n")
+            f.write(
+                f"  Longest no-trade gap (最长零交易间隔): "
+                f"{activity.get('longest_no_trade_days')}d "
+                f"({activity.get('longest_no_trade_start')} -> "
+                f"{activity.get('longest_no_trade_end')})\n"
+            )
+            f.write(
+                f"  Suppressed raw setups (被健康闸门抑制的信号): "
+                f"{activity.get('suppressed_raw_setups')}\n"
+            )
+            f.write(
+                f"  Strategy health (策略健康状态): "
+                f"{activity.get('strategy_health_status')}\n"
+            )
+            for finding in activity.get("findings") or []:
+                f.write(f"  [P0] {finding}\n")
             f.write("\n")
 
         calendar = diagnostics.get("calendar_returns") or {}

@@ -99,6 +99,11 @@ class LotClose:
     mfe: float
     fully_closed: bool
     entry_cost_share: float
+    # SR1-2: the share of the lot's initial risk that this partial close
+    # retires, so summing closes of one lot never exceeds the risk that lot
+    # actually put at stake. ``initial_risk`` stays the whole-lot value that
+    # trade reconstruction already reports.
+    initial_risk_share: Optional[float] = None
 
 
 @dataclass(frozen=True)
@@ -124,6 +129,11 @@ class CloseEvent:
     realized_pnl: float
     timestamp: Any
     is_position_fully_closed: bool
+    # SR1-2: the health cohort key needs the risk that was actually at stake
+    # (from the lot) and the id of the portfolio-level risk action that forced
+    # the exit, so one breaker action closing N symbols is one observation.
+    initial_risk: Optional[float] = None
+    risk_action_id: Optional[str] = None
 
 
 class LotBook:
@@ -191,6 +201,11 @@ class LotBook:
                     strategy_id=lot.strategy_id,
                     order_id=lot.order_id,
                     initial_risk=lot.initial_risk,
+                    initial_risk_share=(
+                        lot.initial_risk * (close_qty / lot.qty_original)
+                        if lot.initial_risk is not None and lot.qty_original
+                        else None
+                    ),
                     mae=lot.mae,
                     mfe=lot.mfe,
                     fully_closed=fully_closed,

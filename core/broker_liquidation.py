@@ -6,7 +6,7 @@ than a standalone collaborator object.
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
@@ -29,6 +29,7 @@ class LiquidationMixin:
         timestamp: Any,
         reason: str = "MarginLiquidation",
         remaining_fraction: float = 0.0,
+        risk_action_id: Optional[str] = None,
     ) -> List[Dict]:
         """Reduce marked positions immediately through the canonical fill path."""
         if not 0 <= remaining_fraction < 1:
@@ -56,6 +57,10 @@ class LiquidationMixin:
                 timestamp=signal_time,
                 strategy_id="AccountRisk",
                 exit_reason=reason,
+                # SR1-2: every close this one action produces shares an id, so
+                # the opening strategies fold them into a single health cohort
+                # instead of N independent "failures".
+                risk_action_id=risk_action_id,
             )
             forced_bar = bar.copy()
             forced_bar.name = pd.Timestamp(timestamp)
@@ -76,5 +81,6 @@ class LiquidationMixin:
                 "side": trade["side"],
                 "outcome": "forced_liquidation",
                 "reason": reason,
+                "risk_action_id": risk_action_id,
             })
         return trades
