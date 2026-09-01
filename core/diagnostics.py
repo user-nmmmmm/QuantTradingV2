@@ -30,7 +30,7 @@ from __future__ import annotations
 from collections import Counter
 from typing import Any, Dict, Iterable, List, Mapping, Optional
 
-from core.phase4 import holding_period_audit, joint_entry_exit_attribution
+from core.allocation import holding_period_audit, joint_entry_exit_attribution
 
 import numpy as np
 import pandas as pd

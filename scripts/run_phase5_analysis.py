@@ -17,7 +17,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from analysis.phase5 import (
+from analysis.research_validation import (
     ExperimentRegistry,
     HoldoutProtocol,
     HoldoutVault,
@@ -149,13 +149,13 @@ def main() -> None:
 
     _dump("parameter_stability.json", {
         "status": "implementation_complete_evidence_pending",
-        "implementation": "analysis.phase5.parameter_plateau",
+        "implementation": "analysis.research_validation.parameter_plateau",
         "reason": "archived reports do not contain a labeled two-dimensional parameter grid",
         "required_evidence": "run analysis.optimize on train/validation only and pass its grid to parameter_plateau",
     })
     _dump("factor_ablation.json", {
         "status": "implementation_complete_evidence_pending",
-        "implementation": "analysis.phase5.factor_ablation",
+        "implementation": "analysis.research_validation.factor_ablation",
         "switches": {
             "OBV": "TrendBreakoutStrategy(use_obv=False)",
             "RSI": "RangeStrategy(use_rsi=False)",
@@ -167,7 +167,7 @@ def main() -> None:
         **cross_market_validation([]),
         "status": "evidence_pending",
         "reason": "no second-exchange or alternate-timeframe input dataset is present in the repository",
-        "implementation": "analysis.phase5.cross_market_validation",
+        "implementation": "analysis.research_validation.cross_market_validation",
     })
 
     vault.open_final(protocol_hash=protocol.fingerprint, purpose="final strategy admission")

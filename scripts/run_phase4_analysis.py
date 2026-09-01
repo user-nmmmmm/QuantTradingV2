@@ -9,7 +9,7 @@ from pathlib import Path
 import pandas as pd
 
 from backtest.reporting import ReportGenerator
-from core.phase4 import (
+from core.allocation import (
     holding_period_audit,
     joint_entry_exit_attribution,
     state_duration_and_transition_matrix,

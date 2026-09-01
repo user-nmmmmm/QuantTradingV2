@@ -1,4 +1,7 @@
-"""Phase 5 research governance and out-of-sample validation primitives.
+"""Research governance and out-of-sample validation primitives.
+
+Implements the Phase 5 roadmap; the name says what the module does rather
+than which roadmap phase asked for it.
 
 The module deliberately separates *research* data from the final holdout.  It
 contains no strategy-specific optimization: callers may rank candidates only

@@ -1,4 +1,7 @@
-"""Phase 6 shadow, paper, reconciliation, admission, and scale governance.
+"""Live-trading admission gates: shadow, paper, reconciliation, and scale governance.
+
+Implements the Phase 6 roadmap; the name says what the module does rather
+than which roadmap phase asked for it.
 
 The module turns the Phase 6 roadmap into a fail-closed evidence contract.  It
 does not pretend that an 8-12 week paper run or a real-money observation has

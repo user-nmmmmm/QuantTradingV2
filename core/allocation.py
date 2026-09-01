@@ -1,4 +1,8 @@
-"""Phase 4 routing, portfolio allocation, and research analytics."""
+"""Portfolio-level signal allocation, transition governance, and holding-period audit.
+
+Implements the Phase 4 roadmap; the name says what the module does rather
+than which roadmap phase asked for it.
+"""
 
 from __future__ import annotations
 

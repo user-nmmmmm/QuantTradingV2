@@ -81,7 +81,7 @@ flowchart TB
     subgraph KERNEL["领域内核 Domain Core（模式无关）"]
         EP["EventProcessor（core/runtime.py）"]
         SM["MarketStateMachine（core/state.py）"]
-        RT["Router + PortfolioSignalAllocator（router/, core/phase4.py）"]
+        RT["Router + PortfolioSignalAllocator（router/, core/allocation.py）"]
         ST["Strategies（strategies/）"]
         RK["RiskManager + 分级熔断（core/risk/）"]
         PF["Portfolio / LotBook（core/portfolio.py, lots.py）"]
@@ -97,7 +97,7 @@ flowchart TB
         EV["events/ · incident_journal"]
         HS["health / supervisor / alerting / telegram_heartbeat"]
         RP["reproducibility / backtest_audit / reconciliation_job"]
-        PH["phase4 / phase5 / phase6 / r7_acceptance / gray_release"]
+        PH["allocation / research_validation / admission_gates / r7_acceptance / gray_release"]
     end
 
     SC --> M
@@ -282,7 +282,7 @@ QuantTradingV1/
 │   │   ├── reservation.py            #   下单前资金预留，防并发超额
 │   │   ├── portfolio_governor.py     #   相关性簇与组合级风险预算
 │   │   └── persistent_guard.py       #   跨重启持久化风控状态
-│   ├── phase4.py                     # 组合级信号分配、状态切换治理、持有期审计
+│   ├── allocation.py                 # 组合级信号分配、状态切换治理、持有期审计
 │   │
 │   ├── ── 账户与账本 ──
 │   ├── portfolio.py                  # 组合、权益、敞口、保证金快照
@@ -382,7 +382,7 @@ QuantTradingV1/
 ├── analysis/
 │   ├── optimize.py             # 参数优化（含 --oos）
 │   ├── validation.py           # walk-forward / bootstrap 验证
-│   └── phase5.py               # 研究治理：数据分区、holdout 协议、多重检验
+│   └── research_validation.py  # 研究治理：数据分区、holdout 协议、多重检验
 │
 ├── dashboard/                  # 只读运维 CLI（消费 live_status.json，不控制交易）
 ├── scripts/                    # 数据抓取、批量矩阵、阶段证据、环境与依赖校验
@@ -590,7 +590,7 @@ python -m dashboard --status reports/live_status.json --alerts reports/live_aler
 | `check_environment.py` | 环境自检 |
 | `verify_lock.py` | 依赖锁（`requirements.lock.txt`）校验 |
 
-Phase 6 准入证据的 fail-closed 评估由 `python -m core.phase6` 提供。
+Phase 6 准入证据的 fail-closed 评估由 `python -m core.admission_gates` 提供。
 
 ### 5.4 环境变量
 
@@ -693,7 +693,7 @@ Phase 6 准入证据的 fail-closed 评估由 `python -m core.phase6` 提供。
 系统是不是真在做代码声称的事**。例如盈亏集中度（少数几笔幸运交易 vs 真实边缘）、
 退出归因（策略自己的退出逻辑是否真的触发）、策略 `on_trade_closed` 钩子是否静默失效。
 
-`analysis/optimize.py --oos`、`analysis/validation.py` 与 `analysis/phase5.py`
+`analysis/optimize.py --oos`、`analysis/validation.py` 与 `analysis/research_validation.py`
 是这套工具在参数寻优与研究治理场景下的调用入口。
 
 ---
@@ -743,7 +743,7 @@ Phase 6 准入证据的 fail-closed 评估由 `python -m core.phase6` 提供。
   同一时间戳的多个候选信号由 `PortfolioSignalAllocator` 按确定性顺序分配资金。
   详见 [`docs/modules/core.md`](docs/modules/core.md)。
 - **实盘准入**：真实资金准入需要 R7 验收证据（`core/r7_acceptance.py`）与
-  Phase 6 影子/纸面运行证据（`core/phase6.py`，fail-closed：证据不存在即视为未通过），
+  Phase 6 影子/纸面运行证据（`core/admission_gates.py`，fail-closed：证据不存在即视为未通过），
   并在 `run_live.py --live` 时通过 `--r8-evidence` / `--rollback-snapshot` 强制校验。
 
 ---
