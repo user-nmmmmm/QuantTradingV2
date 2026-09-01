@@ -53,13 +53,8 @@
   - `.process(event)`：更新最新价格；按日期滚动重置风控熔断的"当日起始权益"基准；检查熔断；对每个标的调用 `process_symbol`。
   - `.process_symbol(event, symbol)`：定位该 bar 在历史序列里的位置，若还在预热期（`warmup_period`）内则跳过；否则从状态机取状态，交给 `router.route(...)`。
 
-`core/event_processor.py` 只是转发 `core/runtime.py` 里这几个类的兼容 shim，没有新逻辑。
-
 ### `core/clock.py` — 时间抽象
 `Clock` 协议 + `SystemClock`（真实 UTC）+ `CallableClock`（包装一个返回时间的可调用对象），让实盘调度/健康检查逻辑可以在测试中做到确定性可控。
-
-### `core/adapters.py` — 适配器门面
-纯聚合模块，把 `HistoricalMarketDataAdapter`、`LiveMarketDataAdapter`、`SimulatedExecutionAdapter`、`RecordedExecutionAdapter` 汇总到一个稳定的导入路径下，本身无逻辑。
 
 ---
 

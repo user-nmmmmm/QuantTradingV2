@@ -84,7 +84,7 @@ flowchart TB
         RT["Router + PortfolioSignalAllocator（router/, core/phase4.py）"]
         ST["Strategies（strategies/）"]
         RK["RiskManager + 分级熔断（core/risk/）"]
-        PF["Portfolio / LotBook / Ledger（core/portfolio.py, lots.py, ledger.py）"]
+        PF["Portfolio / LotBook（core/portfolio.py, lots.py）"]
     end
 
     subgraph EXEC["执行层 Execution"]
@@ -289,7 +289,7 @@ QuantTradingV1/
 │   ├── portfolio.py                  # 组合、权益、敞口、保证金快照
 │   ├── accounts.py                   # spot / spot_margin / perpetual 显式账户契约
 │   ├── lots.py                       # FIFO 批次账本（lot_id / position_id / MAE-MFE）
-│   ├── ledger.py / valuation.py      # 权威账本（fill/费用/持仓）与估值
+│   ├── valuation.py                  # 组合估值快照（权威账本见 research/audit/ledger.py）
 │   ├── accounting_check.py           # 逐 bar 会计恒等式核对（Gate G2）
 │   │
 │   ├── ── 执行 ──
