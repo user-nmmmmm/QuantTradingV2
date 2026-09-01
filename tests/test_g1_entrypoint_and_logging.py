@@ -12,6 +12,7 @@ class TestG1Entrypoint(unittest.TestCase):
     def test_default_mode_is_sandbox(self):
         args = build_parser().parse_args([])
         self.assertFalse(args.live)
+        self.assertIsNone(args.market_type)
 
     def test_live_and_sandbox_are_mutually_exclusive(self):
         with self.assertRaises(SystemExit):

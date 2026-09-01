@@ -498,6 +498,7 @@ def main(argv=None) -> int:
         close_events=results.get("close_events"),
         lifecycle=results.get("lifecycle"),
         strategy_health=results.get("strategy_health"),
+        protective_stops=results.get("protective_stop_summary"),
     )
 
     artifact_failures = []
@@ -527,6 +528,11 @@ def main(argv=None) -> int:
         )
         pd.DataFrame(results.get("risk_budget_reconciliation") or []).to_csv(
             output_path / "risk_budget_reconciliation.csv", index=False
+        )
+        # STR-P1-01 deliverable: the resident protective stop's intents and
+        # fills, so a backtest stop can be audited exactly like a live one.
+        pd.DataFrame(results.get("stop_order_audit") or []).to_csv(
+            output_path / "stop_order_audit.csv", index=False
         )
         # SR3 deliverables: the ranking that actually decided allocation, and
         # the correlated-risk budget that metered it.

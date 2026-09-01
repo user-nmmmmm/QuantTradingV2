@@ -9,6 +9,7 @@ from uuid import uuid4
 import pandas as pd
 
 from backtest.execution_adapter import SimulatedExecutionAdapter
+from backtest.protective_stops import CONSERVATIVE_BAR_PATH, ResidentStopSimulator
 from composition.factory import (
     build_risk_manager,
     build_router,
@@ -104,6 +105,7 @@ class BacktestEngine:
         self.market_data_adapter: Optional[HistoricalMarketDataAdapter] = None
         self.execution_adapter: Optional[SimulatedExecutionAdapter] = None
         self.event_processor: Optional[EventProcessor] = None
+        self.stop_simulator: Optional[ResidentStopSimulator] = None
 
     @staticmethod
     def _prepare_dataframe(df: pd.DataFrame) -> pd.DataFrame:
@@ -259,6 +261,16 @@ class BacktestEngine:
             return empty_result
 
         execution = SimulatedExecutionAdapter(broker)
+        # STR-P1-01: the backtest carries the same venue-resident protective
+        # stop the live path carries, and fills it inside the bar on the
+        # pre-registered conservative OHLC path instead of discovering the
+        # breach at the close and exiting at the next open.
+        protective_config = config.get("protective_orders") or {}
+        stop_simulator = ResidentStopSimulator(
+            broker, strategies,
+            enabled=bool(protective_config.get("backtest_resident", True)),
+        )
+        self.stop_simulator = stop_simulator
         processor = EventProcessor(
             portfolio=portfolio,
             execution=execution,
@@ -342,7 +354,14 @@ class BacktestEngine:
                     waiting_for_recovery = False
                     flat_bars = 0
                     health_bars = 0
-            result = processor.process(event)
+            # One bar, one order: (1) the previous bar's queued orders fill at
+            # this open, (2) protection is reconciled against the position that
+            # now exists and matched against this bar, (3) strategy logic runs
+            # on the close. Splitting the market event out of ``process`` is
+            # what puts the resident stop between (1) and (3).
+            execution.on_market_data(event)
+            stop_simulator.step(event, bar_index=bar_index)
+            result = processor.process(event, execute_market_event=False)
             # T-1.10: sample this bar's high/low against every open lot so
             # MAE/MFE (adverse/favorable excursion) are available at close,
             # not just entry/exit prices.
@@ -712,6 +731,17 @@ class BacktestEngine:
             ]),
             # SR2-4 deliverable: reserved vs actually-risked, per entry fill.
             "risk_budget_reconciliation": risk_budget_audit,
+            # STR-P1-01 deliverable: every protective-stop intent and fill the
+            # backtest produced, in the same shape the live path audits.
+            "stop_order_audit": list(stop_simulator.audit),
+            "protective_stop_summary": {
+                "backtest_resident_enabled": stop_simulator.enabled,
+                "intrabar_path": CONSERVATIVE_BAR_PATH,
+                "triggered_stops": stop_simulator.triggered_stops,
+                "unprotected_position_bars": (
+                    stop_simulator.unprotected_position_bars
+                ),
+            },
             # SR3-1/SR3-2 deliverables: how every same-bar batch was ordered
             # (and whether the order was a real ranking), and what the
             # correlated-risk budget did to each candidate.
@@ -845,6 +875,9 @@ class BacktestEngine:
         ]
         if not open_symbols:
             return
+        # EndOfBacktest is now the authoritative close: a resident stop left
+        # armed would otherwise also match the synthetic bar and sell twice.
+        broker.cancel_protective_stops()
 
         eob_mode = config.get("backtest", "end_of_backtest_mode") or "mark_to_market"
         zero_cost = eob_mode == "mark_to_market"

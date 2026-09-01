@@ -169,6 +169,7 @@ class ReportGenerator(
         close_events: Optional[Dict[str, int]] = None,
         lifecycle: Optional[Dict[str, Any]] = None,
         strategy_health: Optional[Dict[str, Dict[str, Any]]] = None,
+        protective_stops: Optional[Dict[str, Any]] = None,
     ):
         """
         生成报告并返回指标字典。
@@ -240,6 +241,11 @@ class ReportGenerator(
             metrics["StrategyHealth"] = {
                 name: dict(entry) for name, entry in strategy_health.items()
             }
+        # STR-P1-01: a stop number cannot be read without knowing whether the
+        # run used resident intrabar stops or the legacy next-open exit, and
+        # which intrabar path priced them.
+        if protective_stops:
+            metrics["ProtectiveStops"] = dict(protective_stops)
         metrics["ExtendedAnalytics"] = extended
         metrics["MetricResults"] = self._headline_metric_results(metrics)
 

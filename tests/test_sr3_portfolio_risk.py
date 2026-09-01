@@ -15,7 +15,10 @@ import pandas as pd
 
 from core.account_cost_contract import (
     AccountCostContractError,
+    canonical_runtime_account_mode,
+    default_runtime_market_type,
     validate_account_cost_contract,
+    validate_runtime_account_cost_contract,
 )
 from core.broker import Broker
 from core.candidate_scoring import CandidateScorePolicy, score_breakout_candidate
@@ -473,6 +476,29 @@ class TestAccountCostContract(unittest.TestCase):
         from config.config import config
         contract = validate_account_cost_contract(config)
         self.assertEqual(contract.account_mode, contract.market_type)
+
+    def test_runtime_margin_alias_matches_spot_margin_contract(self):
+        contract = validate_runtime_account_cost_contract(
+            _StubConfig(self._payload()), market_type="margin",
+        )
+        self.assertEqual(contract.account_mode, "spot_margin")
+        self.assertEqual(canonical_runtime_account_mode("margin"), "spot_margin")
+
+    def test_runtime_spot_cannot_bypass_spot_margin_contract(self):
+        with self.assertRaisesRegex(AccountCostContractError, "runtime market_type"):
+            validate_runtime_account_cost_contract(
+                _StubConfig(self._payload()), market_type="spot",
+            )
+
+    def test_runtime_derivative_aliases_resolve_to_perpetual(self):
+        for value in ("future", "futures", "swap", "perpetual"):
+            with self.subTest(value=value):
+                self.assertEqual(canonical_runtime_account_mode(value), "perpetual")
+
+    def test_configured_mode_has_a_matching_runtime_default(self):
+        self.assertEqual(default_runtime_market_type("spot"), "spot")
+        self.assertEqual(default_runtime_market_type("spot_margin"), "margin")
+        self.assertEqual(default_runtime_market_type("perpetual"), "swap")
 
 
 class TestControlAttribution(unittest.TestCase):

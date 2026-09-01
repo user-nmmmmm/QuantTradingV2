@@ -37,6 +37,22 @@ _COMPATIBLE_MARKET_TYPES = {
     "perpetual": {"perpetual", "futures", "swap"},
 }
 
+_RUNTIME_ACCOUNT_MODES = {
+    "spot": "spot",
+    "spot_margin": "spot_margin",
+    "margin": "spot_margin",
+    "perpetual": "perpetual",
+    "future": "perpetual",
+    "futures": "perpetual",
+    "swap": "perpetual",
+}
+
+_DEFAULT_RUNTIME_MARKET_TYPES = {
+    "spot": "spot",
+    "spot_margin": "margin",
+    "perpetual": "swap",
+}
+
 
 @dataclass(frozen=True)
 class AccountCostContract:
@@ -121,4 +137,55 @@ def validate_account_cost_contract(
         fee_source=str(schedule.get("source", "unspecified")),
         borrow_modeled=mode in {"spot_margin", "perpetual"} and borrow_rate > 0,
         funding_modeled=mode == "perpetual" and funding_required,
+    )
+
+
+def canonical_runtime_account_mode(market_type: str) -> str:
+    """Translate an exchange/CLI market type into the cost-contract mode."""
+
+    normalized = str(market_type or "").strip().lower()
+    try:
+        return _RUNTIME_ACCOUNT_MODES[normalized]
+    except KeyError as exc:
+        raise AccountCostContractError(
+            f"unknown runtime market type {normalized!r}; expected one of "
+            f"{sorted(_RUNTIME_ACCOUNT_MODES)}"
+        ) from exc
+
+
+def default_runtime_market_type(account_mode: str) -> str:
+    """Return the exchange-facing default for a configured account mode."""
+
+    normalized = str(account_mode or "").strip().lower()
+    try:
+        return _DEFAULT_RUNTIME_MARKET_TYPES[normalized]
+    except KeyError as exc:
+        raise AccountCostContractError(
+            f"unknown configured account mode {normalized!r}; expected one of "
+            f"{sorted(_DEFAULT_RUNTIME_MARKET_TYPES)}"
+        ) from exc
+
+
+def validate_runtime_account_cost_contract(
+    configuration: Any, *, market_type: str,
+) -> AccountCostContract:
+    """Validate the account that will actually be opened by the live broker.
+
+    The configured account mode is the research/backtest contract.  A live
+    command-line override may select the exchange endpoint, but it may not
+    silently select a different economic account.  Exchange-facing aliases
+    (``margin``, ``swap`` and ``futures``) are normalized before comparison.
+    """
+
+    configured = validate_account_cost_contract(configuration)
+    runtime_mode = canonical_runtime_account_mode(market_type)
+    if runtime_mode != configured.account_mode:
+        raise AccountCostContractError(
+            f"runtime market_type={market_type!r} resolves to "
+            f"account.mode={runtime_mode!r}, but configuration requires "
+            f"account.mode={configured.account_mode!r}; the live broker and "
+            "its fee/financing contract must use the same account mode"
+        )
+    return validate_account_cost_contract(
+        configuration, account_mode=runtime_mode,
     )

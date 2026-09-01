@@ -40,6 +40,7 @@ from core.health import DataHealthMonitor, DataHealthPolicy, HealthAssessment, H
 from core.live_broker import LiveBroker
 from core.logger import get_logger
 from core.market_data import LiveMarketDataAdapter
+from core.protective_stops import EntryRiskPolicy
 from core.risk import RiskManager
 from core.runtime import EventProcessor
 from core.state_store_v2 import StateStore, default_state_db_path
@@ -147,6 +148,11 @@ class LiveTradingEngine(TickOrchestratorMixin, RecoveryMixin, StateExportMixin):
             (configuration.get("protective_orders") or {}).get("enabled", True)
         )
         self._protective_order_manager = None
+        # SR2-4: actual-fill risk is checked from the durable order ledger.
+        self.entry_risk_policy = EntryRiskPolicy.from_mapping(
+            configuration.get("entry_risk") or {}
+        )
+        self._live_fill_risk_audit = []
 
         alert_path = os.path.join(
             os.path.dirname(os.path.abspath(state_file)), "live_alerts.jsonl"
