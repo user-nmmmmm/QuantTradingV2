@@ -296,6 +296,11 @@ def main(argv=None) -> int:
         "--replay-manifest",
         help="Re-run an existing run_manifest.json and compare deterministic outputs.",
     )
+    parser.add_argument(
+        "--report-profile", choices=["workbook", "compact", "full"], default="workbook",
+        help=("workbook writes one Excel file; compact writes a PDF, dashboard PNG "
+              "and core CSVs; full also writes the complete audit trail."),
+    )
 
     cli_args = list(sys.argv[1:] if argv is None else argv)
     if not cli_args:
@@ -415,7 +420,9 @@ def main(argv=None) -> int:
     results = engine.run(
         data_map,
         routing_log_path=temp_routing_log,
-        routing_log_enabled=not args.disable_routing_log,
+        routing_log_enabled=(
+            not args.disable_routing_log and args.report_profile == "full"
+        ),
     )
 
     if not results or results["equity_curve"].empty:
@@ -499,9 +506,33 @@ def main(argv=None) -> int:
         lifecycle=results.get("lifecycle"),
         strategy_health=results.get("strategy_health"),
         protective_stops=results.get("protective_stop_summary"),
+        report_profile=args.report_profile,
+        data_quality=quality_report,
     )
 
     artifact_failures = []
+
+    # Daily research runs should be easy to inspect and cheap to retain.  The
+    # full profile below remains the promotion/validation path with immutable
+    # ledgers, event coverage and replay snapshots.
+    if args.report_profile in {"workbook", "compact"}:
+        if os.path.exists(temp_routing_log):
+            try:
+                os.remove(temp_routing_log)
+            except OSError:
+                logger.warning("Failed to remove temporary routing log %s", temp_routing_log)
+        print("\n" + "=" * 30)
+        print("BACKTEST RESULTS (core metrics)")
+        print("=" * 30)
+        print(format_primary_metrics(metrics, bilingual=False))
+        print("=" * 30)
+        report_name = (
+            "backtest_report.xlsx" if args.report_profile == "workbook"
+            else "report.pdf"
+        )
+        print(f"\n{args.report_profile.title()} report saved to: {output_path / report_name}")
+        print("Use --report-profile full for ledgers, event logs and replay artifacts.")
+        return 0
 
     # Phase 3 account/risk/cost ledgers are first-class mandatory audit
     # artifacts, not values buried only in the in-memory engine result.

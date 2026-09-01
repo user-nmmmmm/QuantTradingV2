@@ -170,6 +170,8 @@ class ReportGenerator(
         lifecycle: Optional[Dict[str, Any]] = None,
         strategy_health: Optional[Dict[str, Dict[str, Any]]] = None,
         protective_stops: Optional[Dict[str, Any]] = None,
+        report_profile: str = "full",
+        data_quality: Optional[Dict[str, Any]] = None,
     ):
         """
         生成报告并返回指标字典。
@@ -186,6 +188,8 @@ class ReportGenerator(
           ``lifecycle_coverage``，用于发现"平仓回调从未触发导致熄火/冷却风控
           失效"这类问题；不传则跳过该项（例如只有成交明细、没有引擎上下文时）。
         """
+        if report_profile not in {"workbook", "compact", "full"}:
+            raise ValueError("report_profile must be 'workbook', 'compact' or 'full'")
         trades_df = pd.DataFrame(trades)
 
         if not metrics_only:
@@ -260,5 +264,40 @@ class ReportGenerator(
             self._plot_monthly_heatmap(equity_curve)
             self._plot_rolling_metrics(equity_curve)
             self._plot_pnl_distribution(closed_trades)
+
+            if report_profile == "workbook":
+                from backtest.workbook_report import write_workbook_report
+                write_workbook_report(
+                    self.output_dir, metrics, equity_curve, trades, closed_trades,
+                    benchmark_curve=benchmark_curve, metadata=metadata,
+                    data_quality=data_quality,
+                )
+            else:
+                # Directly viewable reading layer. In compact mode the PDF embeds
+                # detailed charts while dashboard.png remains a one-glance view.
+                from backtest.pdf_report import write_pdf_report
+                write_pdf_report(
+                    self.output_dir, metrics, equity_curve, closed_trades,
+                    benchmark_curve=benchmark_curve, metadata=metadata,
+                )
+            if report_profile == "compact":
+                for name in (
+                    "report.txt", "equity.png", "monthly_returns_heatmap.png",
+                    "rolling_metrics.png", "pnl_distribution.png",
+                ):
+                    try:
+                        os.remove(os.path.join(self.output_dir, name))
+                    except FileNotFoundError:
+                        pass
+            elif report_profile == "workbook":
+                for name in (
+                    "report.txt", "equity.csv", "trades.csv", "benchmark.csv",
+                    "equity.png", "monthly_returns_heatmap.png",
+                    "rolling_metrics.png", "pnl_distribution.png",
+                ):
+                    try:
+                        os.remove(os.path.join(self.output_dir, name))
+                    except FileNotFoundError:
+                        pass
 
         return metrics
