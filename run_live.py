@@ -18,7 +18,8 @@ from core.persistent_risk_guard import PersistentOrderSafetyGuard
 from core.gray_release import GrayReleasePolicy, write_release_record
 from core.account_cost_contract import (
     AccountCostContractError,
-    validate_account_cost_contract,
+    default_runtime_market_type,
+    validate_runtime_account_cost_contract,
 )
 from core.startup_preflight import build_startup_report, write_startup_report
 from core.strategy_governance import (
@@ -49,7 +50,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.set_defaults(live=False)
     parser.add_argument("--exchange", default="binance")
     parser.add_argument(
-        "--market-type", default="spot",
+        "--market-type", default=None,
         choices=["spot", "future", "futures", "swap", "margin"],
     )
     parser.add_argument("--base-currency", default="USDT")
@@ -73,6 +74,13 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
+    if args.market_type is None:
+        try:
+            args.market_type = default_runtime_market_type(
+                config.require("account", "mode")
+            )
+        except AccountCostContractError as exc:
+            parser.error(str(exc))
 
     credentials = credentials_from_environment()
     if not credentials.get("apiKey") or not credentials.get("secret"):
@@ -93,7 +101,9 @@ def main() -> int:
 
     # SR3-4: refuse to trade a cost model that does not match the account.
     try:
-        validate_account_cost_contract(config)
+        validate_runtime_account_cost_contract(
+            config, market_type=args.market_type,
+        )
     except AccountCostContractError as exc:
         parser.error(str(exc))
 

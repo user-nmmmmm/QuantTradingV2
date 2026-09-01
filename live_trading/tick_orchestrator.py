@@ -20,6 +20,7 @@ from core.protective_orders import (
     ProtectiveOrder,
     ProtectiveOrderManager,
 )
+from core.protective_stops import evaluate_fill_risk
 from core.runtime import MarketDataSlice
 from core.timeframes import as_utc_timestamp, closed_bars, timeframe_delta
 from core.valuation import build_portfolio_snapshot
@@ -183,6 +184,17 @@ class TickOrchestratorMixin:
             self._maybe_export_state()
             return
 
+        # A venue fill can gap away from the signal reference used for sizing.
+        # Recheck it before any new strategy work is allowed this tick.
+        # Establish or recover venue protection before strategy evaluation.
+        self._reconcile_protective_orders()
+        if self._operational_state == "DEGRADED":
+            self._maybe_export_state(force=True)
+            return
+        if not self._recheck_live_entry_risk():
+            self._maybe_export_state(force=True)
+            return
+
         self.event_processor.last_prices.update(self._snapshot.prices)
         day_key = f"daily_start_equity:{now.date().isoformat()}"
         daily_start = state_store.get(day_key)
@@ -337,14 +349,148 @@ class TickOrchestratorMixin:
             ))
         return orders
 
-    def _desired_protective_stop(self, symbol: str):
+    def _desired_protective_stop(self, symbol: str, strategy_id: str = ""):
         """The level the owning strategy currently wants enforced."""
+        if strategy_id:
+            strategy = getattr(self, "strategies", {}).get(strategy_id)
+            context = getattr(strategy, "context", {}).get(symbol) or {}
+            stop = context.get("effective_stop", context.get("stop_loss"))
+            if stop:
+                return float(stop)
         for strategy in getattr(self, "strategies", {}).values():
             context = getattr(strategy, "context", {}).get(symbol) or {}
             stop = context.get("effective_stop", context.get("stop_loss"))
             if stop:
                 return float(stop)
         return None
+
+    def _recheck_live_entry_risk(self) -> bool:
+        """SR2-4: verify durable opening fills against the real risk budget.
+
+        The order ledger, not an in-memory callback, is authoritative.  This
+        catches fills learned during reconciliation and fills that happened
+        immediately before a restart.  State-store checkpoints make partial
+        fills idempotent and ensure that only the incremental resize is sent.
+        """
+
+        policy = getattr(self, "entry_risk_policy", None)
+        if policy is None or not policy.enabled or self._snapshot is None:
+            return True
+        order_store = getattr(self.broker, "order_store", None)
+        list_with_fills = getattr(order_store, "list_with_fills", None)
+        if not callable(list_with_fills):
+            return True
+        state_store = self._ensure_state_store()
+        audit = getattr(self, "_live_fill_risk_audit", None)
+        if audit is None:
+            audit = []
+            self._live_fill_risk_audit = audit
+
+        all_accepted = True
+        for record in list_with_fills():
+            intent = record.get("intent") or {}
+            side = str(record.get("side") or intent.get("action") or "").lower()
+            if side not in {"buy", "short"} or bool(intent.get("reduce_only", False)):
+                continue
+            strategy_id = str(intent.get("strategy_id") or "")
+            if strategy_id == "GapRiskResize":
+                continue
+            client_order_id = str(record["client_order_id"])
+            filled_qty = float(record.get("filled_qty") or 0.0)
+            average_fill_price = float(record.get("average_fill_price") or 0.0)
+            if filled_qty <= 0 or average_fill_price <= 0:
+                continue
+
+            checkpoint_key = f"entry_risk_check:{client_order_id}"
+            checkpoint = state_store.get(checkpoint_key) or {}
+            checked_qty = float(checkpoint.get("checked_filled_qty", 0.0) or 0.0)
+            if filled_qty <= checked_qty + 1e-12:
+                continue
+
+            symbol = str(record["symbol"])
+            stop = self._desired_protective_stop(symbol, strategy_id)
+            if not stop:
+                # The protective-order reconciler owns the fail-closed action
+                # for an open position without a usable stop.
+                continue
+            strategy = getattr(self, "strategies", {}).get(strategy_id)
+            multiplier_getter = getattr(strategy, "health_risk_multiplier", None)
+            multiplier = (
+                float(multiplier_getter()) if callable(multiplier_getter) else 1.0
+            )
+            assessment = evaluate_fill_risk(
+                symbol=symbol,
+                lot_id=client_order_id,
+                side="long" if side == "buy" else "short",
+                fill_price=average_fill_price,
+                protective_stop=stop,
+                filled_qty=filled_qty,
+                equity_at_fill=float(self._snapshot.equity),
+                base_risk_per_trade=float(
+                    getattr(self.risk_manager, "risk_per_trade", 0.0)
+                ),
+                health_risk_multiplier=multiplier,
+                policy=policy,
+            )
+            if assessment is None:
+                continue
+            row = assessment.to_dict()
+            row.update({
+                "timestamp": self._now().isoformat(),
+                "client_order_id": client_order_id,
+                "strategy_id": strategy_id,
+                "health_risk_multiplier": multiplier,
+                "source": "live",
+            })
+            audit.append(row)
+            if len(audit) > 1000:
+                del audit[:-1000]
+
+            requested_total = float(
+                checkpoint.get("requested_resize_qty", 0.0) or 0.0
+            )
+            additional_resize = max(
+                0.0, float(assessment.resize_qty) - requested_total
+            )
+            accepted = True
+            if assessment.action == "resize" and additional_resize > 1e-12:
+                held_qty = abs(float(
+                    self.broker.portfolio.get_position(symbol).get("qty", 0.0)
+                ))
+                resize_qty = min(additional_resize, held_qty)
+                if resize_qty > 1e-12:
+                    result = self.broker.submit_order(
+                        symbol,
+                        "sell" if side == "buy" else "cover",
+                        resize_qty,
+                        order_type="market",
+                        timestamp=self._now(),
+                        strategy_id="GapRiskResize",
+                        exit_reason="GapRiskResize",
+                        reduce_only=True,
+                    )
+                    accepted = bool(getattr(result, "accepted", False))
+                    if accepted:
+                        requested_total += resize_qty
+                    else:
+                        all_accepted = False
+                        self._operational_state = "DEGRADED"
+                        self._alert("critical", "gap_risk_resize_failed", {
+                            "symbol": symbol,
+                            "client_order_id": client_order_id,
+                            "requested_qty": resize_qty,
+                            "risk_ratio": assessment.risk_ratio,
+                        })
+
+            if accepted:
+                checkpoint = {
+                    "checked_filled_qty": filled_qty,
+                    "requested_resize_qty": requested_total,
+                    "last_assessment": row,
+                }
+                state_store.set(checkpoint_key, checkpoint)
+                state_store.set("live_fill_risk_audit", list(audit))
+        return all_accepted
 
     def _reconcile_protective_orders(self) -> None:
         """Keep venue-resident protection in step with the real position.

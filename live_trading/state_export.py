@@ -131,6 +131,9 @@ class StateExportMixin:
                 "strategy_health": self._strategy_health(),
                 # SR2-5: what protection currently exists, per symbol.
                 "protective_orders": self._protective_order_state(),
+                "fill_risk_audit": list(
+                    getattr(self, "_live_fill_risk_audit", [])
+                ),
             }
             critical_state = (
                 state_data["healthy"],

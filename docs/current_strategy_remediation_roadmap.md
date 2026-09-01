@@ -629,11 +629,11 @@ B0/B1 必须先完成；B2 的纯指标和 shadow 计算可与 B1 后半段并�
 | SR2-1 无前视 | 完成 | 止损只用已完成 bar；`TestNoLookahead` 用"改写未来 bar 结果不变"固定 |
 | SR2-2 混合初始止损 | 完成（默认 arm A） | `plan_initial_stop`；隐式 5% fallback 已删除，改为显式拒绝/夹取；ATR 腿默认关闭待 A/B/C 研究 |
 | SR2-3 Chandelier | 完成（默认关闭） | `update_trailing_stop`；单调性 property test；可选保本含成本缓冲 |
-| SR2-4 成交后风险重核 | 完成 | `evaluate_fill_risk` + `BacktestEngine._recheck_entry_risk`；超限产生具名 `GapRiskResize`；每笔写入 `risk_budget_reconciliation.csv` |
+| SR2-4 成交后风险重核 | 完成（回测 + 实盘） | 共用 `evaluate_fill_risk`；回测由 `BacktestEngine._recheck_entry_risk` 核验并写 `risk_budget_reconciliation.csv`；实盘从持久订单账本扫描 opening fills，按累计部分成交幂等核验，超限只提交增量 `GapRiskResize`，checkpoint 跨重启恢复，拒单 critical 告警并停止该 tick 新策略工作；审计经 `live_status.json.fill_risk_audit` 导出 |
 | SR3-1 候选 score | 完成 | `core/candidate_scoring.py`：突破幅度/ATR、ADX、OBV、流动性四项无量纲分量；全零批次记 `degenerate_ranking_batches` 并输出 WARNING + `ordering=tie_break_alphabetical`，字母序不再伪装成排名 |
 | SR3-2 相关性簇与组合预算 | 完成 | `core/portfolio_risk.py`：名义类预算（cluster / crypto beta）进 `_entry_notional_caps`（clamp 与 gate 同一口径），风险类预算（同 session 入场风险 / 簇内未平仓止损风险）由 `PortfolioRiskGovernor` 在分配时缩量或拒绝；未映射币种默认相关 |
 | SR3-3 Alpha 与 AccountRisk 解耦归因 | 完成 | `calculate_attribution` 新增 `by_exit_controller` 与 `control_attribution`（alpha_only / risk_overlay / router_and_system / combined），三者恒等于总 PnL，不对账即报 P0；控制器口径与健康 cohort 共用 |
-| SR3-4 账户模式统一 | 完成 | `core/account_cost_contract.py` 在回测与实盘入口校验 mode/fee_schedule/融资三元组；费率由 futures 0.05%/0.02% 改为 spot-margin 0.10%/0.10%；`_accrue_quote_borrow` 计提 `max(0, long_notional - equity)` 的报价币借款利息 |
+| SR3-4 账户模式统一 | 完成 | `core/account_cost_contract.py` 在回测与实盘入口校验 mode/fee_schedule/融资三元组；实盘把 CLI `market-type` 规范化后与配置模式强制比对，未指定时从配置推导匹配默认值；费率由 futures 0.05%/0.02% 改为 spot-margin 0.10%/0.10%；`_accrue_quote_borrow` 计提 `max(0, long_notional - equity)` 的报价币借款利息 |
 | STR-P1-07 运行范围不一致 | 完成 | `TrendBreakout.allowed_states` 收窄为 `{TREND_UP}`，与生产 routing 一致；新增测试要求 declared == routed |
 | SR2-5 保护单生命周期 | 完成（实盘 + 回测） | `core/protective_orders.py` 状态机 + `live_trading/tick_orchestrator.py` 每 tick 对账：入场成交前不假设有止损、数量等于净持仓、只上移、持仓归零取消全部残留、未知状态 fail closed 平仓、重启以交易所为准重建/清理孤儿单 |
 | STR-P1-01 回测 intrabar 止损等价性 | 完成 | `backtest/protective_stops.py` 的 `ResidentStopSimulator`：回测持有与实盘同一个 `ProtectiveOrderManager` 产生的常驻止损意图，由历史撮合器在 bar 内成交；预注册保守路径 `open -> 不利极值 -> 有利极值 -> close`，跳空时成交在 `min(open, stop)` 而非走不到的止损价；入场 bar 在自己这根 bar 内即受保护；`force_liquidate` 与 `EndOfBacktest` 先取消常驻止损单，保证唯一权威 close；产出 `stop_order_audit.csv` 与 report.txt 的 Protective Stop Execution 分节 |

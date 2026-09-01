@@ -21,6 +21,7 @@ from core.protective_orders import (
     ProtectiveOrderManager,
     ProtectiveState,
 )
+from core.protective_stops import EntryRiskPolicy
 from live_trading.tick_orchestrator import TickOrchestratorMixin
 
 
@@ -291,6 +292,23 @@ class _StubOrderStore:
     def list_non_terminal(self):
         return list(self._records)
 
+    def list_with_fills(self):
+        return [
+            record for record in self._records
+            if float(record.get("filled_qty") or 0.0) > 0
+        ]
+
+
+class _DictStateStore:
+    def __init__(self):
+        self.values = {}
+
+    def get(self, key, default=None):
+        return self.values.get(key, default)
+
+    def set(self, key, value):
+        self.values[key] = value
+
 
 class _StubBroker:
     def __init__(self, portfolio, records):
@@ -318,12 +336,16 @@ class _StubEngine(TickOrchestratorMixin):
         self._protective_order_manager = None
         self._operational_state = "RUNNING"
         self.alerts = []
+        self.state_store = _DictStateStore()
 
     def _now(self):
         return datetime(2021, 5, 19, tzinfo=timezone.utc)
 
     def _alert(self, level, event, context):
         self.alerts.append((level, event, context))
+
+    def _ensure_state_store(self):
+        return self.state_store
 
 
 class TestLiveWiring(unittest.TestCase):
@@ -397,6 +419,89 @@ class TestLiveWiring(unittest.TestCase):
         engine.protective_orders_enabled = False
         engine._reconcile_protective_orders()
         self.assertEqual(broker.submitted, [])
+
+
+class TestLiveFillRiskRecheck(unittest.TestCase):
+    def _record(self, filled_qty=300.0, average_fill_price=100.0):
+        return {
+            "client_order_id": "ENTRY-1",
+            "symbol": "BTC/USDT",
+            "side": "buy",
+            "filled_qty": filled_qty,
+            "average_fill_price": average_fill_price,
+            "intent": {
+                "action": "buy",
+                "strategy_id": "TrendBreakout",
+                "reduce_only": False,
+            },
+        }
+
+    def _engine(self, record):
+        portfolio = Portfolio(initial_capital=100_000.0)
+        portfolio.update_position(
+            "BTC/USDT", qty_delta=float(record["filled_qty"]),
+            price=float(record["average_fill_price"]),
+            strategy_id="TrendBreakout", order_id="ENTRY-1", stop_price=90.0,
+        )
+        broker = _StubBroker(portfolio, [record])
+        strategy = SimpleNamespace(
+            context={"BTC/USDT": {"effective_stop": 90.0}},
+            health_risk_multiplier=lambda: 1.0,
+        )
+        engine = _StubEngine(broker, {"TrendBreakout": strategy})
+        engine.entry_risk_policy = EntryRiskPolicy(tolerance=0.0)
+        engine.risk_manager = SimpleNamespace(risk_per_trade=0.02)
+        engine._snapshot = SimpleNamespace(equity=100_000.0)
+        engine._live_fill_risk_audit = []
+        return engine
+
+    def test_gap_fill_is_resized_and_audited_once(self):
+        engine = self._engine(self._record())
+        engine._recheck_live_entry_risk()
+        self.assertEqual(len(engine.broker.submitted), 1)
+        symbol, side, qty, kwargs = engine.broker.submitted[0]
+        self.assertEqual((symbol, side), ("BTC/USDT", "sell"))
+        self.assertAlmostEqual(qty, 100.0)
+        self.assertEqual(kwargs["strategy_id"], "GapRiskResize")
+        self.assertTrue(kwargs["reduce_only"])
+        self.assertTrue(engine._live_fill_risk_audit[-1]["breached"])
+
+        engine._recheck_live_entry_risk()
+        self.assertEqual(len(engine.broker.submitted), 1)
+
+    def test_later_partial_fill_only_requests_incremental_resize(self):
+        record = self._record(filled_qty=100.0)
+        engine = self._engine(record)
+        engine._recheck_live_entry_risk()
+        self.assertEqual(engine.broker.submitted, [])
+
+        record["filled_qty"] = 300.0
+        engine.broker.portfolio.positions["BTC/USDT"]["qty"] = 300.0
+        engine._recheck_live_entry_risk()
+        self.assertEqual(len(engine.broker.submitted), 1)
+        self.assertAlmostEqual(engine.broker.submitted[0][2], 100.0)
+
+    def test_checkpoint_survives_engine_restart(self):
+        record = self._record()
+        first = self._engine(record)
+        first._recheck_live_entry_risk()
+        second = self._engine(record)
+        second.state_store = first.state_store
+        second._recheck_live_entry_risk()
+        self.assertEqual(second.broker.submitted, [])
+
+    def test_rejected_resize_fails_closed_and_is_not_checkpointed(self):
+        engine = self._engine(self._record())
+
+        def reject(symbol, side, qty, **kwargs):
+            engine.broker.submitted.append((symbol, side, qty, kwargs))
+            return SimpleNamespace(accepted=False)
+
+        engine.broker.submit_order = reject
+        self.assertFalse(engine._recheck_live_entry_risk())
+        self.assertEqual(engine._operational_state, "DEGRADED")
+        self.assertEqual(engine.alerts[-1][1], "gap_risk_resize_failed")
+        self.assertIsNone(engine.state_store.get("entry_risk_check:ENTRY-1"))
 
 
 if __name__ == "__main__":  # pragma: no cover

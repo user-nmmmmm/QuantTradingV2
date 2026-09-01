@@ -86,14 +86,18 @@ risk_budget          = fill_time_equity * base_risk_per_trade * health_risk_mult
   直接平掉整个 lot（不留灰尘仓位）；
 - 超限且 `action=audit_only`：只记录不交易（研究模式）。
 
-每次检查（无论是否超限）都写一行到 `risk_budget_reconciliation.csv`，
-字段包含 reserved 与实际风险、比值、动作与原因。每个 lot 只检查一次。
+每次检查（无论是否超限）都记录 reserved 与实际风险、比值、动作与原因。
+回测写入 `risk_budget_reconciliation.csv`；实盘写入持久状态库并通过
+`live_status.json.fill_risk_audit` 导出。回测按 lot 幂等，实盘按持久订单的累计
+成交数量幂等；部分成交增加时只提交新增的缩量数量。
 
 `health_risk_multiplier` 来自策略健康生命周期，因此 PROBATION 的 0.25 乘数
 会同时收紧 sizing 与这里的预算，两处口径一致。
 
-减仓单走普通订单通道，在下一根 bar 成交：这是真实系统在「刚刚知道成交价」之后
-最早能采取的动作，不假装可以在同一时刻回到过去。
+减仓单走普通订单通道。回测在下一根 bar 成交；实盘在同步到权威 fill 后立即提交
+reduce-only `GapRiskResize`。实盘扫描持久订单账本而不是只监听内存 callback，
+因此重启发生在 fill 与核验之间时仍会补做核验；缩量拒绝会把引擎降级、发 critical
+告警并停止该 tick 的新策略工作。
 
 ## 6. 配置
 
@@ -140,7 +144,8 @@ entry_risk:
 | 没有可用保护价 | 同样 `flatten`，不允许裸持仓 |
 | 重启从交易所恢复 | `reconcile_after_restart` 以交易所订单 + 持仓为准：缺失的重建，孤儿单取消 |
 
-实盘接入行为：每个 tick 结束时对账；`flatten` 会把 `_operational_state` 置为
+实盘接入行为：账户同步后、策略评估前先对账，tick 结束时再对账一次以接收最新
+trail；`flatten` 会把 `_operational_state` 置为
 `DEGRADED` 并发 `position_unprotected` critical 告警，再用 reduce-only 市价单
 平掉裸仓；任何执行异常同样降级并告警（fail closed）。
 保护单状态经 `live_trading/state_export.py` 的 `protective_orders` 字段导出。

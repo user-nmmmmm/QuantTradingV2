@@ -110,6 +110,11 @@ symbol 为 `__QUOTE__`。
 - `perpetual` 必须 `funding_rate_required: true`（缺失的历史 funding 必须失败，
   不能被静默当作 0）。
 
+实盘额外通过 `validate_runtime_account_cost_contract` 校验真正传给 broker 的
+`--market-type`：`margin → spot_margin`，`swap/future/futures → perpetual`。
+运行时模式必须与 `config.account.mode` 相同；CLI 未显式指定时，会从配置模式推导
+匹配的安全默认值，不能再出现「校验 spot-margin、实际启动 spot」的分叉。
+
 因此配置里的手续费已从 futures 费率（0.05%/0.02%）改为 Binance
 spot-margin 费率（0.10%/0.10%）。这是**更保守**的方向：所有既有基线的净值都会
 下降，`tests/fixtures/backtest/engine/engine_baseline_v1.json` 已随之重新生成。

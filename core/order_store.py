@@ -203,6 +203,21 @@ class OrderStore:
             ).fetchall()
         return [self._decode_order(row) for row in rows]
 
+    def list_with_fills(self) -> List[Dict[str, Any]]:
+        """Return every durable order with an authoritative fill quantity.
+
+        Post-fill controls must survive a process restart, so they cannot rely
+        on the in-memory event pipeline or only inspect non-terminal orders.
+        """
+
+        with self._lock:
+            rows = self._connection.execute(
+                """SELECT * FROM orders
+                   WHERE filled_qty > 0
+                   ORDER BY updated_at, client_order_id"""
+            ).fetchall()
+        return [self._decode_order(row) for row in rows]
+
     def mark_submission_attempted(self, client_order_id: str, now: str) -> None:
         with self._lock, self._connection:
             self._connection.execute(
