@@ -9,7 +9,7 @@ from decimal import Decimal, ROUND_DOWN
 from typing import Optional
 
 from core.domain import OrderIntent
-from core.exchange_metadata import MarketSpecification, OrderValidationError, _decimal
+from core.exchange.metadata import MarketSpecification, OrderValidationError, _decimal
 
 
 class OrderNormalizer:

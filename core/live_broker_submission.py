@@ -15,7 +15,7 @@ from __future__ import annotations
 from typing import Any, Dict, Optional
 
 from core.domain import OrderErrorCode, OrderIntent, OrderStatus, OrderSubmissionResult
-from core.exchange_boundary import ExchangeBoundaryError
+from core.exchange import ExchangeBoundaryError
 from core.logger import get_logger
 from core.orders import TERMINAL_STATUSES, classify_order_exception, is_ambiguous_error
 from core.risk_reservation import ensure_opening_reservation

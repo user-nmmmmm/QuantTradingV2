@@ -74,7 +74,7 @@ flowchart TB
     subgraph BOUND["边界层 Adapters & Ports"]
         MDA["MarketDataAdapter（core/market_data.py）"]
         EXP["ExecutionPort（core/execution_port.py）"]
-        EB["ExchangeBoundary（core/exchange_boundary.py）"]
+        EB["ExchangeBoundary（core/exchange/）"]
         DF["DataFetcher（core/data_fetcher.py）"]
     end
 
@@ -292,7 +292,13 @@ QuantTradingV1/
 │   ├── broker.py                     # 回测撮合：Market/Limit/Stop、分批成交、强平
 │   ├── live_broker.py                # CCXT 实盘 broker
 │   ├── safe_live_broker.py           # 幂等/限额/白名单包装层
-│   ├── exchange_boundary.py          # 交易所元数据/精度/衍生品能力的唯一边界
+│   ├── exchange/                     # 交易所元数据/精度/衍生品能力的唯一边界
+│   │   ├── __init__.py               #   ExchangeBoundary 门面
+│   │   ├── metadata.py               #   能力探测、市场规格、元数据加载
+│   │   ├── validation.py             #   下单前校验
+│   │   ├── normalization.py          #   数量/价格按步长量化
+│   │   ├── ccxt_mapper.py            #   canonical intent → CCXT 请求
+│   │   └── parsers.py                #   CCXT 回包 → canonical 事实
 │   ├── orders.py / order_store.py    # 订单模型与 SQLite 订单状态机
 │   ├── retry.py / clock.py           # 重试策略与统一时钟
 │   │

@@ -12,7 +12,7 @@
 | M-06 | `core/metrics.py` 提供回撤事件、交易质量、暴露、信号漏斗和成本敏感性。 |
 | M-07 | `core/metrics.py` 提供归因、基准、R-Multiple、MAE/MFE 和 SQN。 |
 | M-08 | `analysis/validation.py` 组合 OOS/walk-forward/Bootstrap/Monte Carlo/多重测试；`optimize.py --oos` 输出证据。 |
-| M-09 | `core/exchange_boundary.py` 统一 markets、精度、步长、最小数量/名义金额。 |
+| M-09 | `core/exchange/__init__.py` 统一 markets、精度、步长、最小数量/名义金额。 |
 | M-10 | `research/audit/reconciliation_job.py` 原子输出日终对账报告。 |
 | M-11 | `core/events.py` 定义共享事件、因果 ID、幂等消费和回放。 |
 | M-12 | 原子状态、遥测、滞回告警、启动检查、心跳、对账、备份回滚和 Dashboard schema 均有模块与测试。 |

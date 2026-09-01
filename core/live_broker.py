@@ -16,7 +16,7 @@ from core.domain import (
     OrderSubmissionResult,
 )
 from core.events import FillEvent, OrderEvent, TradingEventPipeline
-from core.exchange_boundary import (
+from core.exchange import (
     ExchangeBoundary,
     ExchangeCapabilities,
     MarketMetadataLoader,

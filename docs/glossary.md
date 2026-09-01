@@ -117,11 +117,11 @@
 
 ## 9. 合约/衍生品相关术语（当前为能力预留，尚未打通）
 
-> 这些术语的检测/数据结构已在 `core/exchange_boundary.py` 中定义，但保证金、强平等实际行为尚未在生产链路验证（见 [README「当前能力边界」](../README.md)）。列在此处是为了让后续「仓位管理系统」「合约基础设施」阶段的开发使用统一术语。
+> 这些术语的检测/数据结构已在 `core/exchange/__init__.py` 中定义，但保证金、强平等实际行为尚未在生产链路验证（见 [README「当前能力边界」](../README.md)）。列在此处是为了让后续「仓位管理系统」「合约基础设施」阶段的开发使用统一术语。
 
 | 术语 | 英文 | 定义 | 代码位置 |
 | --- | --- | --- | --- |
-| 衍生品市场类型 | Derivative Market Types | `future` / `futures` / `swap`（永续）/ `margin`，区别于 `spot`（现货）。 | `DERIVATIVE_MARKET_TYPES`（`core/exchange_boundary.py`） |
+| 衍生品市场类型 | Derivative Market Types | `future` / `futures` / `swap`（永续）/ `margin`，区别于 `spot`（现货）。 | `DERIVATIVE_MARKET_TYPES`（`core/exchange/__init__.py`） |
 | 只减仓 | Reduce-Only | 订单只能减少现有仓位，不能反向开新仓，常用于止损/止盈以防止意外反手。 | `OrderIntent.reduce_only` |
 | 双向持仓模式 | Hedge Mode | 同一标的允许同时持有多头和空头两个独立仓位（对冲模式），区别于单向模式（One-Way）。 | `ExchangeCapabilities.supports_hedge_mode` |
 | 合约面值 | Contract Size | 单张合约对应的标的数量，用于把“张数”换算为名义价值。 | `MarketSpecification.contract_size` |
@@ -149,5 +149,5 @@
 
 - 指标口径的权威说明：[`docs/backtest_assumptions.md §8`](backtest_assumptions.md)
 - 指标实现：[`core/metrics.py`](../core/metrics.py)
-- 交易所边界与合约能力检测：[`core/exchange_boundary.py`](../core/exchange_boundary.py)
+- 交易所边界与合约能力检测：[`core/exchange/`](../core/exchange/__init__.py)
 - 能力验收矩阵：[`docs/missing_capabilities_acceptance.md`](missing_capabilities_acceptance.md)

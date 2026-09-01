@@ -90,8 +90,11 @@
 ### `core/execution_port.py` — 执行端协议
 `ExecutionPort` Protocol（`submit_intent`/`submit_order`/`cancel_symbol_orders`/`has_active_open_order`/`pending_open_notional`），`Broker`/`LiveBroker`/`SafeLiveBroker` 都满足这个接口——这是策略/路由代码能在回测和实盘间无缝切换的结构化类型基础。
 
-### `core/exchange_boundary.py` — CCXT 边界隔离层
-全项目唯一理解 CCXT 市场元数据/报文格式的模块，用规范化的数据类把其余代码和 CCXT 细节隔离开：
+### `core/exchange/` — CCXT 边界隔离层
+全项目唯一理解 CCXT 市场元数据/报文格式的包，用规范化的数据类把其余代码和 CCXT 细节隔离开。
+外部一律通过 `from core.exchange import ...` 消费门面（`core/exchange/__init__.py` 的
+`ExchangeBoundary`/`PreparedOrder`）；下列实现分别落在 `metadata.py`、`validation.py`、
+`normalization.py`、`ccxt_mapper.py`、`parsers.py`：
 - `ExchangeCapabilities`：交易所能力标志（订单类型、TIF、reduce-only、对冲模式）。
 - `MarketSpecification`：单标的约束（数量/价格步进、最小/最大数量/价格/名义价值、合约乘数），`market_type` 默认 `"spot"`；同时定义了 `DERIVATIVE_TYPES = {"future","futures","swap","margin"}` 和 `is_derivative` 判断——**衍生品相关的骨架已经存在，但目前所有入口默认仍是现货**。
 - `MarketMetadataLoader`：线程安全的 TTL 缓存包装 `load_markets()`；运行期元数据发生变化时，`MetadataChangeHaltPolicy` 可以直接 HALT（失败关闭），需要操作员显式调用 `acknowledge_change()` 才能恢复。

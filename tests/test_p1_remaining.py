@@ -10,7 +10,7 @@ import pandas as pd
 
 from config.config import config
 from core.domain import OrderStatus, SyncResult
-from core.exchange_boundary import OrderParser
+from core.exchange import OrderParser
 from core.live_broker import LiveBroker
 from core.lots import CloseEvent
 from core.order_store import OrderStore

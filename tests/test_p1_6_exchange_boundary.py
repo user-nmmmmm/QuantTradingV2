@@ -5,7 +5,7 @@ from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
 from core.domain import OrderErrorCode, OrderIntent, OrderStatus
-from core.exchange_boundary import (
+from core.exchange import (
     CCXTRequestMapper,
     CanonicalPosition,
     ExchangeBoundary,
