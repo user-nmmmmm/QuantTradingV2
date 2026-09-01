@@ -111,7 +111,7 @@
 | 术语 | 英文 | 定义 | 代码位置 |
 | --- | --- | --- | --- |
 | 信号漏斗 | Signal Funnel | 按 `correlation_id` 把同一笔信号在“风控评估 → 风控通过 → 订单创建 → 订单被交易所接受 → 成交”链路中各阶段的转化情况统计出来。 | `calculate_signal_funnel` |
-| 关联 ID | Correlation ID | 同一笔信号在整条处理链路（信号→风控→订单→成交）中共享的确定性 ID，用于串联事件。 | `core/events.py` |
+| 关联 ID | Correlation ID | 同一笔信号在整条处理链路（信号→风控→订单→成交）中共享的确定性 ID，用于串联事件。 | `core/events/` |
 
 ---
 

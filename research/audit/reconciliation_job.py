@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping, Optional
 
-from core.event_store import SQLiteEventStore
+from core.events.store import SQLiteEventStore
 from research.audit.ledger import AuthoritativeLedger, PortfolioProjection, ReconciliationReport
 
 

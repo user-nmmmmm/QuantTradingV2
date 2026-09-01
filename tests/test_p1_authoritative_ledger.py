@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 
-from core.event_store import SQLiteEventStore
+from core.events.store import SQLiteEventStore
 from core.events import FillEvent, TradingEventPipeline
 from research.audit.ledger import (
     AuthoritativeLedger,

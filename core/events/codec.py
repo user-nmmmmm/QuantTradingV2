@@ -1,7 +1,7 @@
 """Type-preserving JSON encode/decode for event payload values.
 
 Split out of core/events.py (A4) — see docs/architecture_review.md.
-Depends on core.event_types for the payload/value types it round-trips.
+Depends on core.events.types for the payload/value types it round-trips.
 """
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from enum import Enum
 from typing import Any, Dict, Type, Union
 from uuid import UUID
 
-from core.event_types import StructuredPayload, _aware_utc, _normalize_value
+from core.events.types import StructuredPayload, _aware_utc, _normalize_value
 
 
 def _qualified_name(value: Union[Type[Any], Any]) -> str:

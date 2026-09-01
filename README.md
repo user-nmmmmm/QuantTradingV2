@@ -94,7 +94,7 @@ flowchart TB
 
     subgraph OBS["治理与观测 Governance & Observability"]
         MT["metrics / diagnostics / benchmarks"]
-        EV["events / event_store / incident_journal"]
+        EV["events/ · incident_journal"]
         HS["health / supervisor / alerting / telegram_heartbeat"]
         RP["reproducibility / backtest_audit / reconciliation_job"]
         PH["phase4 / phase5 / phase6 / r7_acceptance / gray_release"]
@@ -326,7 +326,12 @@ QuantTradingV1/
 │   ├── metrics.py / metric_result.py # 绩效、交易质量、归因、稳健性验证
 │   ├── diagnostics.py                # 「结果该不该信」：盈亏集中度、退出归因等
 │   ├── benchmarks.py                 # 固定/动态等权基准（可审计）
-│   ├── events.py / event_store.py    # 规范事件模型、因果 ID、幂等消费与回放
+│   ├── events/                       # 规范事件模型、因果 ID、幂等消费与回放
+│   │   ├── __init__.py               #   EventEnvelope / TradingEventPipeline 门面
+│   │   ├── types.py                  #   Market/Signal/Order/Fill 等事件载荷
+│   │   ├── codec.py                  #   严格 JSON 编解码与 canonical_json
+│   │   ├── ids.py                    #   确定性 UUID5 事件/关联/因果 ID
+│   │   └── store.py                  #   SQLite 事件持久化与回放
 │   ├── event_processor.py            # 事件消费管线
 │   ├── backtest_audit.py             # 强制事件日志与第二数据源校验
 │   ├── reproducibility.py            # run_manifest：代码/配置/数据指纹

@@ -26,8 +26,8 @@ from typing import Any, Callable, Dict, List, Optional, Protocol, Tuple, Type, U
 from uuid import UUID, uuid4, uuid5
 
 from core.domain import OrderIntent, RiskDecision, RiskReservation
-from core.event_codec import _decode_value, _encode_value
-from core.event_ids import (
+from core.events.codec import _decode_value, _encode_value
+from core.events.ids import (
     EVENT_NAMESPACE,
     _coerce_uuid,
     causation_id_for,
@@ -38,7 +38,7 @@ from core.event_ids import (
     event_id_for,
     stable_uuid5,
 )
-from core.event_types import (
+from core.events.types import (
     FillEvent,
     MarketEvent,
     OrderEvent,

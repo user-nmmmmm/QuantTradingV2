@@ -14,7 +14,7 @@
 | M-08 | `analysis/validation.py` 组合 OOS/walk-forward/Bootstrap/Monte Carlo/多重测试；`optimize.py --oos` 输出证据。 |
 | M-09 | `core/exchange/__init__.py` 统一 markets、精度、步长、最小数量/名义金额。 |
 | M-10 | `research/audit/reconciliation_job.py` 原子输出日终对账报告。 |
-| M-11 | `core/events.py` 定义共享事件、因果 ID、幂等消费和回放。 |
+| M-11 | `core/events/` 定义共享事件、因果 ID、幂等消费和回放。 |
 | M-12 | 原子状态、遥测、滞回告警、启动检查、心跳、对账、备份回滚和 Dashboard schema 均有模块与测试。 |
 | M-13 | R7 故障注入、sandbox 凭据门控测试和连续运行证据审计已实现。 |
 | M-14 | `core/gray_release.py` 与 `run_live.py --live` 强制 R7、单标的、小额上限、最小权限、人工批准和回滚。 |

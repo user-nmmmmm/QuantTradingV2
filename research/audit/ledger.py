@@ -19,7 +19,7 @@ from typing import Any, Dict, Iterable, Mapping, Optional, Tuple
 from uuid import UUID
 
 from core.domain import PortfolioSnapshot
-from core.event_store import SQLiteEventStore
+from core.events.store import SQLiteEventStore
 from core.events import EventEnvelope, FillEvent, TradingEventPipeline
 
 

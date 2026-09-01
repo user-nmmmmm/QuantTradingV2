@@ -158,7 +158,7 @@
 - `OrderIntent`：规范化的下单指令；`.client_order_id` 是对 `identity` 字段（exchange/account/symbol/timeframe/bar_time/strategy_id/action/sequence）做 SHA-256 后取前 24 位十六进制、加 `qt_` 前缀——**这是全系统幂等重发设计的关键**，相同身份字段永远产生相同 ID。
 - `RiskDecision`/`RiskReservation`/`OrderSubmissionResult`/`FillRecord`/`SyncResult`/`PortfolioSnapshot`：其余不可变数据类，多有 `__post_init__` 校验。
 
-### `core/events.py` — 事件溯源基础设施
+### `core/events/` — 事件溯源基础设施
 - `EventEnvelope`：每个事件的统一外壳（event_id/correlation_id/causation_id/run_id/account_id/source/occurred_at/observed_at，时间字段必须带时区）。
 - `EventCodec`：确定性 JSON 编解码，通过 `__qt_type__` 标签保留 Decimal/datetime/UUID/Enum/dataclass 类型。
 - `stable_uuid5`/`event_id_for`/`correlation_id_for`/`causation_id_for`：确定性 UUID5 生成，保证相同逻辑事件永远拿到相同 ID（去重基石）。
@@ -173,7 +173,7 @@
 ### `core/state_store_v2.py` — 实盘 bar 处理租约
 `StateStore`：事务性 SQLite 键值存储 + 带租约的 bar 处理认领机制，用于实盘"近似恰好一次"处理。`claim_bar(bar_key, now, lease_seconds=300)`：若无既有认领则插入"processing"状态；若已是"processed"则拒绝；若既有"processing"认领已超过租约时长则可重新认领（处理崩溃恢复）。`complete_bar`/`release_bar` 配套。线程安全（`RLock`）。
 
-### `core/event_store.py` — 事件持久化
+### `core/events/store.py` — 事件持久化
 `SQLiteEventStore`：只追加、按 `event_id` 幂等去重的事件日志；若已存在事件的内容（除 `observed_at` 外）与新事件不同则抛 `ValueError`。用 SQLite 触发器（`events_no_update`/`events_no_delete`）在数据库层面强制"只追加"，防止直接 SQL 篡改。`InMemoryEventStore` 是 `:memory:` 变体，供测试用。
 
 ### `core/sqlite_backup.py` / `core/sqlite_utils.py` — 数据库运维

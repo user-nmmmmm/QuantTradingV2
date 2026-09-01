@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from core.alerting import AlertState, HysteresisAlertSink
-from core.event_store import SQLiteEventStore
+from core.events.store import SQLiteEventStore
 from research.audit.ledger import AuthoritativeLedger
 from research.audit.reconciliation_job import EODReconciliationJob
 from core.sqlite_backup import SQLiteSnapshotManager, restore_snapshot
