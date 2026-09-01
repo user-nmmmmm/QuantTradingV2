@@ -83,7 +83,7 @@ flowchart TB
         SM["MarketStateMachine（core/state.py）"]
         RT["Router + PortfolioSignalAllocator（router/, core/phase4.py）"]
         ST["Strategies（strategies/）"]
-        RK["RiskManager + 分级熔断（core/risk.py）"]
+        RK["RiskManager + 分级熔断（core/risk/）"]
         PF["Portfolio / LotBook / Ledger（core/portfolio.py, lots.py, ledger.py）"]
     end
 
@@ -129,7 +129,7 @@ flowchart TB
 | 行情输入 `MarketDataAdapter` | `HistoricalMarketDataAdapter`（多标的时间轴对齐 + universe 过滤） | `LiveMarketDataAdapter`（轮询拉取，只交付已收盘 bar） |
 | 执行输出 `ExecutionPort` | `SimulatedExecutionAdapter` → `Broker` 撮合 | `RecordedExecutionAdapter` → `SafeLiveBroker` → CCXT |
 | 驱动方式 | `BacktestEngine.run()` 一次性遍历整段历史 | `LiveTradingEngine.run()` 按 `--interval` 秒轮询 |
-| 状态持久化 | 进程内 + `run_manifest.json` 快照 | SQLite（`order_store` / `state_store_v2` / `persistent_risk_guard`）+ 备份 |
+| 状态持久化 | 进程内 + `run_manifest.json` 快照 | SQLite（`order_store` / `state_store_v2` / `risk/persistent_guard`）+ 备份 |
 
 ```mermaid
 flowchart LR
@@ -275,9 +275,14 @@ QuantTradingV1/
 │   │
 │   ├── ── 决策与风控 ──
 │   ├── state.py                      # 市场状态机（Regime）
-│   ├── risk.py                       # 杠杆/集中度/流动性/日内与回撤分级熔断
-│   ├── persistent_risk_guard.py      # 跨重启持久化风控状态
-│   ├── risk_reservation.py           # 下单前资金预留，防并发超额
+│   ├── risk/                         # 杠杆/集中度/流动性/日内与回撤分级熔断
+│   │   ├── __init__.py               #   RiskManager 门面
+│   │   ├── circuit_breaker.py        #   日内亏损熔断、回撤分级粘性动作
+│   │   ├── position_sizing.py        #   名义上限与数量夹取
+│   │   ├── entry_policy.py           #   最终准入闸门、风控决策发布
+│   │   ├── reservation.py            #   下单前资金预留，防并发超额
+│   │   ├── portfolio_governor.py     #   相关性簇与组合级风险预算
+│   │   └── persistent_guard.py       #   跨重启持久化风控状态
 │   ├── phase4.py                     # 组合级信号分配、状态切换治理、持有期审计
 │   │
 │   ├── ── 账户与账本 ──
@@ -727,7 +732,7 @@ Phase 6 准入证据的 fail-closed 评估由 `python -m core.phase6` 提供。
   账户类型白名单、交易所元数据和启动预检约束；**回测支持不等于自动批准真实资金使用**。
 - **多标的并发交易**：实盘与回测引擎均原生**同时**处理多个标的，并非依次轮询触发。
   仓位按标的独立记录（`core/portfolio.py`），仓位计算基于组合整体权益，风控
-  （`core/risk.py`）在组合层面统一管控总杠杆与单标的集中度（默认 `max_pos_size_pct=30%`）。
+  （`core/risk/`）在组合层面统一管控总杠杆与单标的集中度（默认 `max_pos_size_pct=30%`）。
   同一时间戳的多个候选信号由 `PortfolioSignalAllocator` 按确定性顺序分配资金。
   详见 [`docs/modules/core.md`](docs/modules/core.md)。
 - **实盘准入**：真实资金准入需要 R7 验收证据（`core/r7_acceptance.py`）与

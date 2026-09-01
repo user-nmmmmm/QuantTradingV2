@@ -6,7 +6,7 @@ from typing import Any, Dict, Optional, Protocol
 
 from core.risk import RiskManager
 from core.candidate_scoring import CandidateScorePolicy
-from core.portfolio_risk import CorrelationClusterPolicy, PortfolioRiskGovernor
+from core.risk.portfolio_governor import CorrelationClusterPolicy, PortfolioRiskGovernor
 from core.protective_stops import ProtectiveStopPolicy
 from core.strategy_health import StrategyHealthPolicy
 from core.state import MarketStateMachine

@@ -11,7 +11,7 @@ from core.live_broker import LiveBroker
 from core.order_store import OrderStore
 from core.portfolio import Portfolio
 from core.risk import RiskManager
-from core.risk_reservation import (
+from core.risk.reservation import (
     RiskReservationProjection,
     ensure_opening_reservation,
 )

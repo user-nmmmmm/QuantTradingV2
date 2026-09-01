@@ -41,7 +41,7 @@ from core.events import TradingEventPipeline
 from core.logger import get_logger
 from core.lots import CloseEvent
 from core.portfolio import Portfolio
-from core.risk_reservation import RiskReservationProjection
+from core.risk.reservation import RiskReservationProjection
 
 logger = get_logger(__name__)
 

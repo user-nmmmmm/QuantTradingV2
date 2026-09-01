@@ -12,7 +12,7 @@
 | --- | --- | --- |
 | 单笔初始风险 | 结构止损与 ATR 最大风险距离的混合 | `plan_initial_stop` |
 | 盈利保护 | 只上移的 Chandelier ATR 追踪止损（可选保本） | `update_trailing_stop` |
-| 组合保护 | Daily Loss / Drawdown 熔断（不污染策略健康统计） | `core/risk_circuit_breaker.py` + [`strategy_health_contract.md`](strategy_health_contract.md) |
+| 组合保护 | Daily Loss / Drawdown 熔断（不污染策略健康统计） | `core/risk/circuit_breaker.py` + [`strategy_health_contract.md`](strategy_health_contract.md) |
 
 ## 2. 无前视契约（SR2-1）
 

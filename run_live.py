@@ -14,7 +14,7 @@ from core.live_safety import (
     credentials_from_environment,
     verify_live_permissions,
 )
-from core.persistent_risk_guard import PersistentOrderSafetyGuard
+from core.risk.persistent_guard import PersistentOrderSafetyGuard
 from core.gray_release import GrayReleasePolicy, write_release_record
 from core.account_cost_contract import (
     AccountCostContractError,

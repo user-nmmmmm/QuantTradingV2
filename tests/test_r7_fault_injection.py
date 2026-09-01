@@ -12,7 +12,7 @@ from config.config import config
 from core.domain import SyncResult
 from core.live_safety import StartupSafetyPolicy
 from core.order_store import OrderStore
-from core.persistent_risk_guard import PersistentOrderSafetyGuard
+from core.risk.persistent_guard import PersistentOrderSafetyGuard
 from core.portfolio import Portfolio
 from core.risk import RiskManager
 from core.sqlite_utils import DatabaseIntegrityError

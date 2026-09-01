@@ -44,9 +44,9 @@
 | 权益 | Equity | 账户总价值 = 现金 + 所有持仓的市值。 | `core/portfolio.py`；`equity.csv` |
 | 敞口 / 名义敞口 | Exposure / Notional Exposure | 持仓的市值风险暴露。区分总敞口（Gross，各标的绝对值求和）与净敞口（Net，多空相抵后求和）。 | `calculate_exposure`（`core/metrics.py`） |
 | 杠杆 | Leverage | 总敞口相对权益的倍数（Gross Exposure / Equity）。 | `config/params.yaml: risk.max_leverage` |
-| 集中度限制 | Concentration Limit | 单一标的仓位市值占组合权益的最大比例，默认 `max_pos_size_pct=20%`。 | `core/risk.py` |
+| 集中度限制 | Concentration Limit | 单一标的仓位市值占组合权益的最大比例，默认 `max_pos_size_pct=20%`。 | `core/risk/` |
 | 日内回撤熔断 | Intraday Drawdown Circuit Breaker | 当日回撤触及阈值后禁止新开仓（不强平已有持仓）。 | `config/params.yaml: risk.max_drawdown_limit` |
-| 流动性约束 | Liquidity Constraint | 单笔订单量不得超过该 bar 成交量的一定比例，防止不现实的巨额瞬时成交。 | `core/risk.py` |
+| 流动性约束 | Liquidity Constraint | 单笔订单量不得超过该 bar 成交量的一定比例，防止不现实的巨额瞬时成交。 | `core/risk/` |
 
 ---
 

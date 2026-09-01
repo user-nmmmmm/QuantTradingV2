@@ -28,7 +28,7 @@ core/state.py  MarketStateMachine  ── 把 OHLCV 序列映射为离散 Market
         ▼
 core/runtime.py  EventProcessor    ── 每根 bar 的确定性编排（唯一业务路径，回测/实盘共用）
         │
-        ├─(1) 熔断器检查        core/risk_circuit_breaker.py
+        ├─(1) 熔断器检查        core/risk/circuit_breaker.py
         ├─(2) 逐标的：持仓管理   router.Router.process_position_management
         ├─(3) 逐标的：入场候选   router.Router.collect_entry_candidate → Strategy.build_entry_candidate
         └─(4) 组合级分配        core/phase4.PortfolioSignalAllocator.allocate → Strategy.submit_entry_candidate
@@ -411,7 +411,7 @@ signal(left: pd.Series, right: pd.Series) -> PairSignal(action, z_score, hedge_r
 
 ## 8. 与 RiskManager 的集成面
 
-`RiskManager` = `CircuitBreakerMixin` + `PositionSizingMixin` + `EntryPolicyMixin` 三个 mixin 通过继承组合（`core/risk.py`），所有方法读写同一个 `self`。策略只通过 4 个方法与它交互。
+`RiskManager` = `CircuitBreakerMixin` + `PositionSizingMixin` + `EntryPolicyMixin` 三个 mixin 通过继承组合（`core/risk/`），所有方法读写同一个 `self`。策略只通过 4 个方法与它交互。
 
 ### 8.1 定仓公式
 

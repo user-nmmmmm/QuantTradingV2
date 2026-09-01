@@ -25,7 +25,7 @@ from core.candidate_scoring import CandidateScorePolicy, score_breakout_candidat
 from core.metrics.attribution import calculate_attribution
 from core.phase4 import EntryCandidate, PortfolioSignalAllocator
 from core.portfolio import Portfolio
-from core.portfolio_risk import (
+from core.risk.portfolio_governor import (
     CorrelationClusterPolicy,
     PortfolioRiskGovernor,
     exposure_by_cluster,

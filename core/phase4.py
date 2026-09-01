@@ -10,7 +10,7 @@ from typing import Any, Iterable, Mapping, Optional, Sequence
 import pandas as pd
 
 from core.logger import get_logger
-from core.portfolio_risk import PortfolioRiskGovernor
+from core.risk.portfolio_governor import PortfolioRiskGovernor
 
 logger = get_logger(__name__)
 
@@ -64,7 +64,7 @@ class PortfolioSignalAllocator:
     passing silently.
 
     SR3-2: the ranked batch is then metered by a
-    :class:`~core.portfolio_risk.PortfolioRiskGovernor`, so one session's
+    :class:`~core.risk.portfolio_governor.PortfolioRiskGovernor`, so one session's
     entries share a correlated-risk budget rather than each claiming the full
     per-trade risk independently.
     """

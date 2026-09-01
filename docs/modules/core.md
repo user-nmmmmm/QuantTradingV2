@@ -122,7 +122,7 @@
 
 生产路径（如 `reports/live_orders.db`）跨进程重启持久化；`_migrate_orders()` 支持就地增列做 schema 演进。
 
-### `core/risk.py` — 风控与仓位计算
+### `core/risk/` — 风控与仓位计算
 `RiskManager(risk_per_trade, max_leverage, max_drawdown_limit, liquidity_limit_pct, max_pos_size_pct)`：
 - `calculate_position_size(equity, entry_price, stop_loss_price)`：按风险比例算数量，`qty = equity*risk_per_trade / |entry-stop|`。
 - `calculate_position_size_fixed_pct(equity, entry_price, pct=0.10)`：按名义资金比例算数量。
@@ -130,10 +130,10 @@
 - `approve_and_create_intent(...)`：在 `reservation_projection.transaction()` 事务内原子性地评估风险，通过则一起发布 `RiskDecision` + `RiskReservation` + 增强后的 `OrderIntent`。
 - `check_circuit_breaker(current_equity, daily_start_equity)`：当日回撤超过 `max_drawdown_limit` 触发熔断；触发后所有仓位计算/入场检查返回 0/False，直到 `reset_daily_breaker()`。
 
-### `core/risk_reservation.py` — 在途风险预占投影
+### `core/risk/reservation.py` — 在途风险预占投影
 `RiskReservationProjection` 订阅 `TradingEventPipeline`：收到 `RiskReservation` 就登记预占；收到 `FillEvent` 就扣减 `remaining_qty`；收到状态属于 `RELEASING_STATUSES`（CANCELED/REJECTED/EXPIRED/FILLED）的 `OrderEvent` 就释放预占。`pending_notional(current_prices)` 按标的汇总 `remaining_qty * max(参考价, 市价)`。**`OrderStatus.UNKNOWN` 故意不释放预占**——不确定的交易所状态必须继续占用风险额度，直到出现权威的终态事实，这与 `LiveBroker` 对 UNKNOWN 的处理直接呼应。
 
-### `core/persistent_risk_guard.py` — 重启安全的实盘风险闸门
+### `core/risk/persistent_guard.py` — 重启安全的实盘风险闸门
 `PersistentOrderSafetyGuard(policy, path, clock)`：`assert_order_allowed(...)` 在以下情况抛 `SafetyConfigurationError`：一键停机开关激活、标的不在白名单、价格缺失或非正、单笔名义值超过 `max_order_notional`、或（仅买入/做空时）当日累计预留名义值 + 本笔超过 `max_daily_new_risk`。通过后原子性地累加当天的 SQLite 计数行。**该计数按 ISO 日期存 SQLite，跨进程重启依然生效**——这是它能真正限制"每日"风险的关键。
 
 ---
@@ -234,11 +234,11 @@ data_fetcher/data → market_data(适配器) → runtime.EventProcessor
                                             │            │
                                      risk.RiskManager   execution_port(Broker / LiveBroker)
                                             │                    │
-                                risk_reservation投影      orders/order_store/exchange_boundary
+                                risk/reservation 投影      orders/order_store/exchange_boundary
                                             │                    │
                                        events.TradingEventPipeline（去重与事件总线）
                                             │
                           portfolio(轻量) / ledger.PortfolioProjection（权威账本，用于对账）
 ```
 
-`live_safety.py`、`persistent_risk_guard.py`、`health.py`、`alerting.py`、`startup_preflight.py`、`reconciliation_job.py`、`incident_journal.py`、`r7_acceptance.py` 共同构成实盘运行的"安全护栏"，回测路径基本不涉及这些模块。
+`live_safety.py`、`risk/persistent_guard.py`、`health.py`、`alerting.py`、`startup_preflight.py`、`reconciliation_job.py`、`incident_journal.py`、`r7_acceptance.py` 共同构成实盘运行的"安全护栏"，回测路径基本不涉及这些模块。

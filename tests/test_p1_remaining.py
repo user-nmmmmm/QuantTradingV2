@@ -14,7 +14,7 @@ from core.exchange import OrderParser
 from core.live_broker import LiveBroker
 from core.lots import CloseEvent
 from core.order_store import OrderStore
-from core.persistent_risk_guard import PersistentOrderSafetyGuard
+from core.risk.persistent_guard import PersistentOrderSafetyGuard
 from core.portfolio import Portfolio
 from core.risk import RiskManager
 from core.state import MarketState

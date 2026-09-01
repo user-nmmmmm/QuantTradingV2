@@ -21,12 +21,12 @@
 
 | ID | 问题 | 根因位置 | 影响 | 优先级 |
 | --- | --- | --- | --- | --- |
-| B-01 | GTC 限价单永不失效，reservation 泄漏 → 标的锁死 | `core/broker/__init__.py:152-153`、`core/risk_reservation.py:22-27` | 策略长期不交易，结果失真 | **P0** |
-| B-02 | 无现金充足校验，账户可为负现金 | `core/risk.py:128-216`、`core/portfolio.py:59-67` | 产生真实中不可能的结果 | **P0** |
+| B-01 | GTC 限价单永不失效，reservation 泄漏 → 标的锁死 | `core/broker/__init__.py:152-153`、`core/risk/reservation.py:22-27` | 策略长期不交易，结果失真 | **P0** |
+| B-02 | 无现金充足校验，账户可为负现金 | `core/risk/__init__.py:128-216`、`core/portfolio.py:59-67` | 产生真实中不可能的结果 | **P0** |
 | B-03 | 做空免费（无抵押/借券/资金费） | `core/portfolio.py` 符号化多空 | 空头 alpha 被高估 | P1 |
 | B-04 | 止损不按触发价成交，延迟一整根 bar | `strategies/*` `should_exit` + `core/broker/__init__.py:348-352`（STOP 未用） | 回撤/盈亏失真 | P1 |
 | B-05 | 熔断强平是 Next-Bar 且被成交量限速 | `backtest/engine.py:115-128` | 极端行情回撤被低估 | P1 |
-| B-06 | 成交量双重 1% 限速，大单被拆 100+ 根 | `backtest/engine.py:72-75`、`core/risk.py:161-166` | 成交价系统性偏离信号价 | P1 |
+| B-06 | 成交量双重 1% 限速，大单被拆 100+ 根 | `backtest/engine.py:72-75`、`core/risk/__init__.py:161-166` | 成交价系统性偏离信号价 | P1 |
 | B-07 | 部分成交把一次往返算成多笔交易 | `backtest/reporting.py:143-276` | TotalTrades/WinRate 失真 | P2 |
 | B-08 | 多标的用"最近已知价"估值 | `core/runtime.py:118-123` | 指标/熔断轻微失真 | P2 |
 | B-09 | 基准时间轴不齐用 fillna(0) 近似 | `backtest/engine.py:146-164` | 超额收益不可比 | P2 |
@@ -66,9 +66,9 @@ E 质量保证（贯穿）
 - 目标：限价/止损单不能无限挂单占额度。
 - 任务：
   1. `Broker` 增加订单 TTL 策略：策略未指定 TIF 时限价单默认 `DAY`，或 N-bar 未成交自动 `CANCELED`（阈值进 config）；
-  2. 取消/过期时确保 `RiskReservationProjection` 释放（打通 `OrderEvent` 状态 → `RELEASING_STATUSES` 全路径，`core/risk_reservation.py:22-27`）；
+  2. 取消/过期时确保 `RiskReservationProjection` 释放（打通 `OrderEvent` 状态 → `RELEASING_STATUSES` 全路径，`core/risk/reservation.py:22-27`）；
   3. `Strategy.on_bar` 入场路径与实盘对齐：入场前检查 `has_active_open_order`（补齐 `core/broker/__init__.py:493` 的调用缺口）；
-  4. reservation 的 `reference_price` 对限价单用"信号收盘价"，避免随市价放大（`core/risk_reservation.py:128-132`）。
+  4. reservation 的 `reference_price` 对限价单用"信号收盘价"，避免随市价放大（`core/risk/reservation.py:128-132`）。
 - 验收：构造"单调上行 + 不触价限价单"样本，断言限价单在 N-bar 后被取消、reservation 归零、后续入场恢复；`pending_open_notional` 不再随时间增大。
 - 测试：`tests/test_broker_order_ttl.py`、`tests/test_reservation_release.py`。
 

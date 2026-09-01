@@ -29,7 +29,7 @@ from core.logger import get_logger
 from core.order_store import OrderStore
 from core.live_broker.retry import with_retry
 from core.portfolio import Portfolio
-from core.risk_reservation import (
+from core.risk.reservation import (
     RiskReservationProjection,
     ensure_opening_reservation,
 )

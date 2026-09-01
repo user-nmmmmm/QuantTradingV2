@@ -23,7 +23,7 @@ component               meaning
 
 Portfolio-relative terms (marginal correlation, current cluster exposure) are
 deliberately *not* here: they depend on the book, not on the signal, and are
-applied at allocation time by :mod:`core.portfolio_risk`, which is the only
+applied at allocation time by :mod:`core.risk.portfolio_governor`, which is the only
 place that sees the whole same-timestamp batch.
 
 Scores are comparable across symbols by construction (every term is a ratio),

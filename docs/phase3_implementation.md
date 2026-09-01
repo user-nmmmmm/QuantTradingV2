@@ -6,7 +6,7 @@ not approve the strategy for production capital.
 
 | Task | Implemented contract | Primary evidence |
 |---|---|---|
-| T-3.1 | Portfolio drawdown is measured from the historical equity high-water mark. | `core/risk.py`; `TestHighWaterDrawdownProtection` |
+| T-3.1 | Portfolio drawdown is measured from the historical equity high-water mark. | `core/risk/`; `TestHighWaterDrawdownProtection` |
 | T-3.2 | `daily_loss_limit` is independent from all portfolio drawdown thresholds. | `config/params.yaml`; daily reset test |
 | T-3.3 | Sticky reduce, block-new, liquidate and lock levels; named manual recovery is required. | `BreakerAction`, `RiskManager.manual_resume`, breaker audit |
 | T-3.4 | Explicit `spot`, `spot_margin` and `perpetual` account modes with different cash/PnL semantics. | `core/accounts.py`; `core/portfolio.py` |
