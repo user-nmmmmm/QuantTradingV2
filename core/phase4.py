@@ -9,6 +9,11 @@ from typing import Any, Iterable, Mapping, Optional, Sequence
 
 import pandas as pd
 
+from core.logger import get_logger
+from core.portfolio_risk import PortfolioRiskGovernor
+
+logger = get_logger(__name__)
+
 
 class TransitionAction(str, Enum):
     STOP_NEW_ENTRIES = "stop_new_entries"
@@ -39,13 +44,35 @@ class AllocationDecision:
     rank: int
     accepted: bool
     reason: str
+    #: SR3-1: how the rank was actually decided. ``score`` means the scores
+    #: separated the candidates; ``tie_break_alphabetical`` means they did not
+    #: and the deterministic name order settled it - which is a diagnostic,
+    #: never a silent Alpha ordering.
+    ordering: str = "score"
+    #: SR3-2: what the correlated-risk budget did to this candidate.
+    risk_budget: Optional[Mapping[str, Any]] = None
 
 
 class PortfolioSignalAllocator:
-    """Rank all same-timestamp signals before any of them reserves risk."""
+    """Rank all same-timestamp signals before any of them reserves risk.
 
-    def __init__(self) -> None:
+    SR3-1 (STR-P1-03): every candidate used to carry ``score=0``, so when
+    capital ran out the surviving order was the alphabetical tie-break -
+    an undisclosed "BTC before ETH" allocation rule masquerading as ranking.
+    Scores are now real (see ``core.candidate_scoring``), and a batch that
+    still ties is reported as ``ordering=tie_break_alphabetical`` instead of
+    passing silently.
+
+    SR3-2: the ranked batch is then metered by a
+    :class:`~core.portfolio_risk.PortfolioRiskGovernor`, so one session's
+    entries share a correlated-risk budget rather than each claiming the full
+    per-trade risk independently.
+    """
+
+    def __init__(self, risk_governor: Optional[PortfolioRiskGovernor] = None) -> None:
         self.audit: list[AllocationDecision] = []
+        self.risk_governor = risk_governor or PortfolioRiskGovernor()
+        self.degenerate_batches = 0
 
     @staticmethod
     def rank(candidates: Iterable[EntryCandidate]) -> list[EntryCandidate]:
@@ -57,17 +84,42 @@ class PortfolioSignalAllocator:
     def allocate(self, candidates: Iterable[EntryCandidate], *, portfolio: Any,
                  broker: Any, risk_manager: Any,
                  current_prices: Mapping[str, float]) -> list[AllocationDecision]:
+        ordered = self.rank(candidates)
+        scores = {round(float(item.score), 12) for item in ordered}
+        degenerate = len(ordered) > 1 and len(scores) == 1
+        if degenerate:
+            self.degenerate_batches += 1
+            logger.warning(
+                "Allocation ranking is degenerate: %d candidates share score "
+                "%s, so the order is the deterministic name tie-break, not an "
+                "alpha ranking (STR-P1-03): %s",
+                len(ordered), next(iter(scores)),
+                ", ".join(f"{item.strategy_name}:{item.symbol}" for item in ordered),
+            )
+        ordering = "tie_break_alphabetical" if degenerate else "score"
+        session = None
+        for item in ordered:
+            try:
+                session = item.frame.index[item.bar_index]
+            except (AttributeError, IndexError, TypeError):
+                session = item.bar_index
+            break
+        self.risk_governor.begin_session(session)
         decisions = []
-        for rank, candidate in enumerate(self.rank(candidates), start=1):
+        for rank, candidate in enumerate(ordered, start=1):
             result = candidate.strategy.submit_entry_candidate(
                 candidate, portfolio=portfolio, broker=broker,
                 risk_manager=risk_manager, current_prices=dict(current_prices),
+                risk_governor=self.risk_governor,
             )
             accepted = bool(getattr(result, "accepted", False))
+            budget = getattr(result, "risk_budget", None)
             decision = AllocationDecision(
                 candidate.symbol, candidate.strategy_name, float(candidate.score),
                 rank, accepted,
                 "accepted" if accepted else "risk_or_execution_rejected",
+                ordering=ordering,
+                risk_budget=budget,
             )
             decisions.append(decision)
             self.audit.append(decision)

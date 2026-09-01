@@ -44,10 +44,15 @@ class TestConfigLoader(unittest.TestCase):
         with self.assertLogs("config.config", level=logging.INFO) as captured:
             loaded = ConfigLoader(config_path=path)
 
-        self.assertEqual(loaded.get("execution")["commission_rate_taker"], 0.0005)
+        # SR3-4: spot-margin account -> spot-margin fees (0.10%), not the
+        # futures rates the account never traded on.
+        self.assertEqual(loaded.get("execution")["commission_rate_taker"], 0.001)
+        self.assertEqual(
+            loaded.get("execution")["fee_schedule"]["market_type"], "spot_margin"
+        )
         rendered = "\n".join(captured.output)
-        self.assertIn("taker=0.0005", rendered)
-        self.assertIn("maker=0.0002", rendered)
+        self.assertIn("taker=0.001", rendered)
+        self.assertIn("maker=0.001", rendered)
         self.assertIn("max_leverage=3.0", rendered)
         self.assertIn("max_dd=0.20", rendered)
         self.assertIn("TREND_UP", rendered)

@@ -51,9 +51,16 @@ class TestS0StrategyCleanup(unittest.TestCase):
         for index in range(6):
             strategy.on_trade_closed("BTC/USDT", -1.0, {}, index)
 
+        # SR1: six unrelated losing exits are six cohorts, so the lifecycle
+        # gate closes - but as a COOLDOWN with an expiry, not a permanent kill.
         self.assertFalse(strategy.check_health())
         self.assertEqual(strategy.health_stats["consecutive_losses"], 6)
-        self.assertEqual(strategy.health_stats["scope"], "cross_symbol_aggregate")
+        self.assertEqual(strategy.health_stats["scope"], "exit_cohort_aggregate")
+        self.assertEqual(strategy.health.status.value, "cooldown")
+        # The gate is bounded: as soon as a real time is observed the cooldown
+        # gets an explicit expiry instead of lasting forever (STR-P0-01).
+        strategy.health.evaluate("2021-09-22T00:00:00Z")
+        self.assertIsNotNone(strategy.health.cooldown_until)
 
     def test_canceled_entry_releases_pending_latch(self):
         strategy = TrendBreakoutStrategy()

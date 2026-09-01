@@ -16,7 +16,16 @@ from core.live_safety import (
 )
 from core.persistent_risk_guard import PersistentOrderSafetyGuard
 from core.gray_release import GrayReleasePolicy, write_release_record
+from core.account_cost_contract import (
+    AccountCostContractError,
+    validate_account_cost_contract,
+)
 from core.startup_preflight import build_startup_report, write_startup_report
+from core.strategy_governance import (
+    GovernanceError,
+    assert_live_admission,
+    routed_strategy_names,
+)
 from core.safe_live_broker import SafeLiveBroker
 from live_trading.engine import LiveTradingEngine
 
@@ -82,6 +91,12 @@ def main() -> int:
     except SafetyConfigurationError as exc:
         parser.error(str(exc))
 
+    # SR3-4: refuse to trade a cost model that does not match the account.
+    try:
+        validate_account_cost_contract(config)
+    except AccountCostContractError as exc:
+        parser.error(str(exc))
+
     portfolio = Portfolio()
     risk_manager = build_risk_manager(config)
     safety_guard = PersistentOrderSafetyGuard(policy)
@@ -95,6 +110,13 @@ def main() -> int:
         require_market_metadata=True,
     )
     if args.live:
+        # SR0-2: a strategy without current admission evidence may run in
+        # research/shadow/sandbox, never with real money.
+        try:
+            assert_live_admission(config, routed_strategy_names(config))
+        except GovernanceError as exc:
+            safety_guard.close()
+            parser.error(str(exc))
         try:
             if not all((args.r8_evidence, args.rollback_snapshot, args.r8_max_order_notional, args.r8_max_daily_risk)):
                 raise SafetyConfigurationError("--live requires R8 evidence, rollback snapshot, and explicit risk caps")
@@ -129,7 +151,7 @@ def main() -> int:
     )
     engine = LiveTradingEngine(
         symbols=args.symbols,
-        strategies=build_strategy_registry(),
+        strategies=build_strategy_registry(config),
         broker=broker,
         risk_manager=risk_manager,
         configuration=config,

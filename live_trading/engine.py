@@ -142,6 +142,11 @@ class LiveTradingEngine(TickOrchestratorMixin, RecoveryMixin, StateExportMixin):
         self._last_strategy_error: Optional[str] = None
         self._strategies_state_bound = False
         self._unresolved_unknown_cache: Optional[bool] = None
+        # SR2-5: venue-resident protective stops, reconciled every tick.
+        self.protective_orders_enabled = bool(
+            (configuration.get("protective_orders") or {}).get("enabled", True)
+        )
+        self._protective_order_manager = None
 
         alert_path = os.path.join(
             os.path.dirname(os.path.abspath(state_file)), "live_alerts.jsonl"

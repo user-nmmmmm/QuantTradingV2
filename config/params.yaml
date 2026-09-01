@@ -2,8 +2,16 @@
 
 # 1. Execution & Fees
 execution:
-  commission_rate_taker: 0.0005 # 0.05% (Binance Futures standard taker, was 0.1% spot rate)
-  commission_rate_maker: 0.0002 # 0.02% (Binance Futures standard maker)
+  # SR3-4 (STR-P1-06): the fee schedule must name the venue and market type it
+  # came from, and core.account_cost_contract refuses to run when it disagrees
+  # with account.mode. The previous futures rates under a spot_margin account
+  # were a venue that does not exist.
+  fee_schedule:
+    venue: binance
+    market_type: spot_margin
+    source: "Binance spot/margin standard tier (taker 0.10%, maker 0.10%)"
+  commission_rate_taker: 0.001  # 0.10% Binance spot-margin taker
+  commission_rate_maker: 0.001  # 0.10% Binance spot-margin maker
   slippage_bps: 5               # 5 basis points (0.05%)
   spread_bps: 2                 # Default full bid/ask spread; bar spread_bps overrides it
   volatility_slippage_factor: 0.02 # Additional slip = intrabar range * factor
@@ -76,8 +84,92 @@ phase4:
   allocation_order: score_strategy_symbol
   stability_candidates: [2, 3, 5, 10]
 
+# SR3-1 (STR-P1-03): candidate ranking must have economic meaning. With every
+# score at 0 the allocator fell through to the alphabetical tie-break whenever
+# capital ran out. All inputs are signal-time facts; portfolio-relative terms
+# are applied by portfolio_risk below.
+candidate_scoring:
+  enabled: true
+  adx_threshold: 25
+  liquidity_reference_notional: 10000000
+  component_cap: 5.0
+  weights:
+    breakout_extent: 1.0        # how far price cleared the channel, in ATR
+    trend_strength: 0.5         # ADX above threshold
+    volume_confirmation: 0.3    # OBV accumulation over the entry window
+    liquidity: 0.2              # log-scaled traded notional
+
+# SR3-2 (STR-P1-04): correlated coins are not independent positions. Notional
+# caps are enforced by RiskManager (same source of truth as the clamp); risk
+# caps are metered per session/cluster by core.portfolio_risk at allocation.
+portfolio_risk:
+  enabled: true
+  clusters:
+    default: crypto_beta        # an unmapped coin is assumed correlated
+    BTC: major
+    ETH: major
+  max_cluster_exposure_pct: 1.5     # one cluster's gross notional / equity
+  max_crypto_beta_exposure: 2.0     # all crypto-correlated gross / equity
+  max_same_session_entry_risk: 0.06 # initial risk opened in one session / equity
+  max_correlated_stop_risk: 0.10    # open initial risk inside one cluster / equity
+
+# SR2-2/SR2-3: protective stop stack. The ATR legs are registered research
+# candidates and default to OFF, so the frozen baseline still runs arm A (pure
+# Donchian). SR2-2 compares A (Donchian) / B (pure ATR) / C (hybrid max) before
+# any of these becomes the production stop.
+stops:
+  use_atr_initial_stop: false
+  use_trailing_stop: false
+  atr_period: 14
+  initial_atr_multiple: 2.0      # candidates [1.5, 2.0, 2.5, 3.0]
+  trailing_atr_multiple: 3.0     # candidates [2.5, 3.0, 4.0]
+  # Pre-registered risk-distance band. Closer than the minimum is rejected
+  # (never sized into a huge position); wider than the maximum is clamped.
+  # Replaces the old implicit `close * 0.95` fallback.
+  min_stop_distance_pct: 0.005
+  max_stop_distance_pct: 0.35
+  breakeven_after_r: null        # optional, off until SR5 says otherwise
+  breakeven_cost_buffer: 0.0
+
+# SR2-5: venue-resident protective stops. Protection is created from the entry
+# fill, tracks the net position, only ratchets, and anything the venue cannot
+# confirm fails closed into a flatten. See docs/protective_stop_contract.md.
+protective_orders:
+  enabled: true
+
+# SR2-4: post-fill risk verification. The reservation is made at the signal
+# close; the fill can gap. Actual risk above budget + tolerance triggers a
+# named GapRiskResize instead of silently carrying more than the configured 2%.
+entry_risk:
+  enabled: true
+  tolerance: 0.10
+  action: resize                 # resize | audit_only
+  min_remaining_fraction: 0.10
+
+# SR1-3: strategy health lifecycle (ACTIVE -> COOLDOWN -> PROBATION ->
+# MANUAL_LOCK). Values are the registered research candidates' midpoints, not
+# validated production constants - see
+# docs/research/current_strategy_experiment_registry.jsonl.
+strategy_health:
+  enabled: true
+  consecutive_negative_cohorts: 3   # candidates [2, 3, 4]
+  cooldown_days: 30                 # candidates [14, 30, 60]
+  probation_risk_multiplier: 0.25   # candidates [0.25, 0.50]
+  probation_required_cohorts: 3     # candidates [3, 5, 10]
+  probation_min_total_r: 0.0
+  max_failed_probation_cycles: 2
+  rolling_cohort_window: 20
+  # STR-P0-04 / SR3-3: account-level risk exits (DailyLossLimit,
+  # AccountLiquidation, ...) are recorded as cohorts and reported, but do not
+  # by themselves prove the alpha stopped working, so they never trigger the
+  # health gate.
+  counted_controllers: [strategy, router]
+
 strategy_governance:
-  TrendBreakout: admitted
+  # SR0-2: no independent holdout evidence exists for the current version, so
+  # the strategy is research/shadow only until SR5 closes. Nothing may read
+  # this as production-ready.
+  TrendBreakout: paused_revalidation
   TrendBreakdown: paused_redesign
   RangeMeanReversion: paused_redesign
   VolatilityReversion: isolated_research

@@ -497,6 +497,7 @@ def main(argv=None) -> int:
         benchmark_curve=results.get("benchmark"),
         close_events=results.get("close_events"),
         lifecycle=results.get("lifecycle"),
+        strategy_health=results.get("strategy_health"),
     )
 
     artifact_failures = []
@@ -516,6 +517,45 @@ def main(argv=None) -> int:
         pd.DataFrame(results.get("breaker_audit") or []).to_csv(
             output_path / "breaker_audit.csv", index=False
         )
+        # SR1-4 deliverables: the health lifecycle and its authoritative
+        # observation unit are audit artifacts, not log text.
+        pd.DataFrame(results.get("strategy_health_transitions") or []).to_csv(
+            output_path / "strategy_health_timeline.csv", index=False
+        )
+        pd.DataFrame(results.get("strategy_health_cohorts") or []).to_csv(
+            output_path / "cohort_trades.csv", index=False
+        )
+        pd.DataFrame(results.get("risk_budget_reconciliation") or []).to_csv(
+            output_path / "risk_budget_reconciliation.csv", index=False
+        )
+        # SR3 deliverables: the ranking that actually decided allocation, and
+        # the correlated-risk budget that metered it.
+        pd.DataFrame(results.get("allocation_audit") or []).to_csv(
+            output_path / "allocation_audit.csv", index=False
+        )
+        pd.DataFrame(results.get("correlated_risk_audit") or []).to_csv(
+            output_path / "correlated_risk_audit.csv", index=False
+        )
+        write_json_report(output_path / "account_cost_contract.json", {
+            **(results.get("account_cost_contract") or {}),
+            "degenerate_ranking_batches": results.get(
+                "degenerate_ranking_batches", 0
+            ),
+        })
+        write_json_report(
+            output_path / "strategy_health.json", results.get("strategy_health") or {}
+        )
+        pd.DataFrame([
+            {
+                "strategy": name,
+                "status": entry.get("status"),
+                "raw_setup_count": entry.get("raw_setup_count"),
+                "suppressed_raw_setups": entry.get("suppressed_raw_setups"),
+                "last_raw_setup_at": entry.get("last_raw_setup_at"),
+                "last_suppressed_setup_at": entry.get("last_suppressed_setup_at"),
+            }
+            for name, entry in (results.get("strategy_health") or {}).items()
+        ]).to_csv(output_path / "suppressed_setups.csv", index=False)
         write_json_report(output_path / "breaker_state.json", {
             "account_mode": results.get("account_mode"),
             **(results.get("breaker_state") or {}),

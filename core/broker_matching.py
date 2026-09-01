@@ -53,6 +53,7 @@ class MatchingMixin:
         _intent: Optional[OrderIntent] = None,
         stop_loss: float = 0.0,
         zero_cost: bool = False,
+        risk_action_id: Optional[str] = None,
     ) -> Order:
         """
         提交订单（进入撮合队列）。
@@ -113,6 +114,7 @@ class MatchingMixin:
             last_event_id=str(intent_envelope.event_id),
             stop_loss=stop_loss,
             zero_cost=zero_cost,
+            risk_action_id=risk_action_id,
         )
         if qty <= 0:
             logger.warning(

@@ -57,6 +57,10 @@ class Order:
     stop_loss: float = 0.0
     take_profit: float = 0.0
     exit_reason: str = "signal"  # signal, stop, takeprofit, reverse
+    # SR1-2: set on synthetic orders emitted by a portfolio-level risk action
+    # (breaker transition id / daily-loss action id) so every CloseEvent this
+    # order produces lands in exactly one health cohort.
+    risk_action_id: Optional[str] = None
     # T-1.11: EndOfBacktest "mark_to_market" mode closes tail positions at the
     # last price with zero extra commission/slippage - the same choke point
     # used for a real close, just with costs suppressed for this one order.

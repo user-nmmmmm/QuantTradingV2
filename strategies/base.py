@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from dataclasses import replace
 from typing import Set, Dict, Any, Optional
 import pandas as pd
 import numpy as np
@@ -97,6 +98,19 @@ class Strategy(ABC):
     ) -> None:
         """Hook invoked only after authoritative closing fills make a position flat."""
 
+    def health_risk_multiplier(self) -> float:
+        """Risk scaling demanded by the strategy's health lifecycle (SR1-3).
+
+        1.0 for a strategy without a health machine; ``PROBATION`` returns a
+        fraction so a recovering strategy re-enters with reduced size, and the
+        same number reaches sizing, the reservation and the report.
+        """
+        return 1.0
+
+    def health_snapshot(self) -> Dict[str, Any]:
+        """Report-facing lifecycle state; empty when health is not modelled."""
+        return {}
+
     def _consume_execution_trades(
         self, symbol: str, bar_index: int,
         portfolio: Portfolio, broker: ExecutionPort,
@@ -124,6 +138,7 @@ class Strategy(ABC):
             self.observed_close_events += 1
             trade = {
                 "symbol": event.symbol,
+                "close_event_id": event.close_event_id,
                 "lot_id": event.lot_id,
                 "position_id": event.position_id,
                 "qty": event.qty,
@@ -131,6 +146,11 @@ class Strategy(ABC):
                 "theoretical_price": event.theoretical_exit_price,
                 "exit_reason": event.exit_reason,
                 "strategy_id": event.opening_strategy_id,
+                # SR1-2 cohort key inputs: when the exit happened, how much
+                # risk it retired, and which portfolio risk action forced it.
+                "timestamp": event.timestamp,
+                "initial_risk": event.initial_risk,
+                "risk_action_id": event.risk_action_id,
             }
             self.on_trade_closed(event.symbol, event.realized_pnl, trade, bar_index)
             if event.is_position_fully_closed:
@@ -294,6 +314,10 @@ class Strategy(ABC):
                         size = risk_manager.calculate_position_size_fixed_pct(
                             equity, current_price, pct=0.10
                         )
+                    # SR1-3: PROBATION re-enters at reduced size. Applied here,
+                    # before the caps and the entry gate, so the clamp, the
+                    # reservation and the order all see the same number.
+                    size *= self.health_risk_multiplier()
 
                     if size > 0:
                         # Liquidity is enforced by the execution venue against the
@@ -426,8 +450,15 @@ class Strategy(ABC):
         self, candidate: EntryCandidate, *, portfolio: Portfolio,
         broker: ExecutionPort, risk_manager: RiskManager,
         current_prices: Dict[str, float],
+        risk_governor: Optional[Any] = None,
     ) -> Optional[Any]:
-        """Size and submit a proposal after portfolio-level ranking."""
+        """Size and submit a proposal after portfolio-level ranking.
+
+        ``risk_governor`` (SR3-2) meters the *correlated* risk budget: the
+        planned initial risk of this entry is checked against what one session
+        and one correlation cluster may put at stake, and the size is scaled
+        down (or the entry dropped) before any reservation is made.
+        """
 
         symbol, i, df = candidate.symbol, candidate.bar_index, candidate.frame
         signal = candidate.signal
@@ -440,6 +471,7 @@ class Strategy(ABC):
             size = risk_manager.calculate_position_size(equity, current_price, stop_loss)
         else:
             size = risk_manager.calculate_position_size_fixed_pct(equity, current_price, pct=0.10)
+        size *= self.health_risk_multiplier()  # SR1-3 probation scaling
         pending_provider = getattr(broker, "pending_open_notional", None)
         pending = pending_provider(current_prices) if callable(pending_provider) else {}
         clamp = getattr(risk_manager, "clamp_entry_qty", None)
@@ -449,11 +481,24 @@ class Strategy(ABC):
                 current_prices=current_prices, pending_open_notional=pending,
                 action=action,
             )
+        budget_decision = None
+        if risk_governor is not None and size > 0 and stop_loss > 0:
+            planned_risk = size * abs(current_price - stop_loss)
+            budget_decision = risk_governor.evaluate(
+                symbol=symbol, planned_risk=planned_risk,
+                equity=equity, portfolio=portfolio,
+            )
+            size *= budget_decision.scale
         if size <= 0 or not risk_manager.check_entry_risk(
             portfolio, symbol, size, current_price, current_volume=0.0,
             current_prices=current_prices, pending_open_notional=pending,
             action=action,
         ):
+            if risk_governor is not None and budget_decision is not None:
+                risk_governor.commit(
+                    replace(budget_decision, allowed=False, allowed_risk=0.0),
+                    symbol=symbol,
+                )
             return None
         self._publish_signal(
             broker, symbol=symbol, timestamp=df.index[i], action=action,
@@ -471,6 +516,16 @@ class Strategy(ABC):
                 "trailing_stop": -np.inf if action == "buy" else np.inf,
                 "entry_bar": i,
             }
+        if risk_governor is not None and budget_decision is not None:
+            committed = (
+                budget_decision if result.accepted
+                else replace(budget_decision, allowed=False, allowed_risk=0.0)
+            )
+            risk_governor.commit(committed, symbol=symbol)
+            try:
+                result.risk_budget = committed.to_dict()
+            except AttributeError:  # frozen/foreign result objects
+                pass
         return result
 
     def _publish_signal(

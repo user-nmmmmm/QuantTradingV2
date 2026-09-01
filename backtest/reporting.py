@@ -168,6 +168,7 @@ class ReportGenerator(
         metrics_only: bool = False,
         close_events: Optional[Dict[str, int]] = None,
         lifecycle: Optional[Dict[str, Any]] = None,
+        strategy_health: Optional[Dict[str, Dict[str, Any]]] = None,
     ):
         """
         生成报告并返回指标字典。
@@ -230,8 +231,15 @@ class ReportGenerator(
         # believed and whether the system behaves as its code claims. Kept in
         # its own key so consumers can tell "performance" from "credibility".
         metrics["Diagnostics"] = build_diagnostics(
-            closed_trades, equity_curve["equity"], close_events
+            closed_trades, equity_curve["equity"], close_events, strategy_health
         )
+        # SR1-4: the lifecycle section must state the health status alongside
+        # the run status, so "completed" can never stand alone next to a
+        # multi-year silence.
+        if strategy_health:
+            metrics["StrategyHealth"] = {
+                name: dict(entry) for name, entry in strategy_health.items()
+            }
         metrics["ExtendedAnalytics"] = extended
         metrics["MetricResults"] = self._headline_metric_results(metrics)
 

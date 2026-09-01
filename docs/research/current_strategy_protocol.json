@@ -1,0 +1,69 @@
+{
+  "schema": "current_strategy_protocol/v1",
+  "created_at": "2026-09-01",
+  "roadmap": "docs/current_strategy_remediation_roadmap.md",
+  "strategy": "TrendBreakout",
+  "governance_status": "paused_revalidation",
+  "governance_note": "SR0-2: no independent holdout evidence exists for the current version. Research, shadow and sandbox runs are allowed; real-money routing is refused by core.strategy_governance.assert_live_admission.",
+  "baseline": {
+    "report": "reports/20260831_214432_3239d_30Syms_Ret173.8pct",
+    "period": "2017-08-17..2026-06-30",
+    "symbols": 30,
+    "timeframe": "1d",
+    "account_mode": "spot_margin",
+    "expected_diagnosis": {
+      "strategy_disabled_at": "2021-09-22",
+      "cause": "cross-symbol close events counted as independent health observations; is_alive had no expiry",
+      "trades_after_disable": 0
+    }
+  },
+  "data_partition": {
+    "mode": "time_ordered",
+    "train_fraction": 0.60,
+    "validation_fraction": 0.20,
+    "holdout_fraction": 0.20,
+    "purge_bars": 30,
+    "embargo_bars": 30,
+    "rule": "The final holdout is opened once. Parameters may never be selected or re-selected on it; a failed gate requires a new hypothesis and a new protocol entry."
+  },
+  "ablation_matrix": [
+    {"id": "E0", "description": "Buy-and-hold / cash / plain 20-day breakout baseline"},
+    {"id": "E1", "description": "Trend regime + Donchian 20/10"},
+    {"id": "E2", "description": "E1 + OBV confirmation"},
+    {"id": "E3", "description": "E2 + ATR initial stop"},
+    {"id": "E4", "description": "E3 + Chandelier trailing stop"},
+    {"id": "E5", "description": "E4 + breakeven (optional)"},
+    {"id": "E6", "description": "E4 + health lifecycle"},
+    {"id": "E7", "description": "E6 + correlation-aware allocation"},
+    {"id": "E8", "description": "E7 + DailyLoss/Drawdown overlay"}
+  ],
+  "robustness_matrix": {
+    "data_sources": ["primary_exchange", "independent_second_source"],
+    "timeframes": ["1d", "4h"],
+    "regimes": ["bull", "bear", "range", "high_volatility"],
+    "cost_multipliers": [1.0, 1.5, 2.0, 3.0],
+    "concentration_removal": [5, 10],
+    "parameter_neighbourhood": "required (plateau, not a single optimum)"
+  },
+  "admission_gates": {
+    "G-S1_lifecycle": "no silent inactivity; health/stop state reconstructable",
+    "G-S2_positive_oos_edge": "strategy and risk-adjusted excess return both positive",
+    "G-S3_pf_significance": "cohort-level PF above threshold with CI lower bound > 1",
+    "G-S4_drawdown": "within the pre-registered maximum, acceptable recovery time",
+    "G-S5_concentration": "net profit still positive after removing the top 5/10 cohorts",
+    "G-S6_cost_stress": "1.5x must pass; 2x must not reverse catastrophically",
+    "G-S7_parameter_plateau": "neighbours of the optimum mostly pass",
+    "G-S8_cross_market": ">=2 data sources/timeframes and multiple regimes agree in direction",
+    "G-S9_execution_risk": "actual risk, stop lifecycle and financing all reconcile",
+    "G-S10_multiple_testing": "deflated Sharpe / registered trial count meets the pre-registered bar"
+  },
+  "status": {
+    "SR0": "SR0-2 and SR0-3 done; SR0-1 open - the 30-symbol baseline has not been re-run three times against this code, and the expected diagnosis above is a registered expectation, not a verified artifact",
+    "SR1": "done (core/strategy_health.py, reporting, alerts, tests)",
+    "SR2": "SR2-1..SR2-5 done (protective-order lifecycle implemented and wired into the live tick); the backtest matcher still lacks venue-resident intrabar stop equivalence (STR-P1-01)",
+    "SR3": "SR3-1..SR3-4 done (ranking, correlation budgets, control attribution, account cost contract); stress scenarios and correlation-estimated clusters ride along with SR4",
+    "SR4": "open",
+    "SR5": "blocked on SR3/SR4; the final holdout must stay closed",
+    "SR6": "blocked on SR5"
+  }
+}

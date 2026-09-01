@@ -111,6 +111,16 @@ class EntryPolicyMixin:
             logger.warning(f"Trade Rejected: Concentration Limit. Symbol {symbol} would be {new_pos_value/equity:.1%} > Max {self.max_pos_size_pct:.1%}")
             return False
 
+        # 5. Correlation cluster / crypto beta budgets (SR3-2). Fifteen
+        # correlated majors are one position with fifteen tickers.
+        for cap_name in ("cluster_exposure", "crypto_beta_exposure"):
+            if cap_name in caps and trade_value > caps[cap_name]:
+                logger.warning(
+                    "Trade Rejected: %s budget. Need %.2f, headroom %.2f (%s)",
+                    cap_name, trade_value, caps[cap_name], symbol,
+                )
+                return False
+
         return True
 
 

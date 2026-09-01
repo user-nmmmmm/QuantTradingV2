@@ -17,6 +17,7 @@ from composition.factory import (
 )
 from config.config import config
 from core.accounting_check import AccountingReconciler
+from core.account_cost_contract import validate_account_cost_contract
 from core.accounts import AccountMode
 from core.benchmarks import (
     dynamic_equal_weight_rebalanced,
@@ -28,6 +29,8 @@ from core.logger import get_logger
 from core.market_data import HistoricalMarketDataAdapter, normalize_market_frame
 from core.portfolio import Portfolio
 from core.runtime import EventProcessor
+from core.protective_stops import EntryRiskPolicy, evaluate_fill_risk
+from core.strategy_health import cohort_rows, transition_rows
 
 logger = get_logger(__name__)
 
@@ -134,6 +137,11 @@ class BacktestEngine:
             run_id=self.run_id,
             retention_limit=250000,
         )
+        # SR3-4: one account mode, one cost model. Refuse to run a spot-margin
+        # book on futures fees, or a perpetual book with optional funding.
+        self.account_cost_contract = validate_account_cost_contract(
+            config, account_mode=self.account_mode.value,
+        )
         broker = Broker(
             portfolio,
             slippage=self.slippage,
@@ -170,7 +178,7 @@ class BacktestEngine:
         )
         risk_manager = build_risk_manager(config)
         state_machine = build_state_machine(config)
-        strategies = strategies or build_strategy_registry()
+        strategies = strategies or build_strategy_registry(config)
         for strategy in strategies.values():
             reset = getattr(strategy, "reset_runtime_state", None)
             if callable(reset):
@@ -235,6 +243,12 @@ class BacktestEngine:
                 "resume_count": 0,
                 "breaker_epochs": 1,
                 "suppressed_setups_after_termination": None,
+                "strategy_health_status": {},
+                "disabled_or_cooldown_at": None,
+                "health_gated_days": 0,
+                "probation_periods": 0,
+                "health_resume_count": 0,
+                "health_transition_log": [],
             },
         }
         if not processed_data:
@@ -265,6 +279,12 @@ class BacktestEngine:
         bar_index = -1
         last_event_timestamp = None
         applied_breaker_actions: set[str] = set()
+        entry_risk_policy = EntryRiskPolicy.from_mapping(
+            config.get("entry_risk") if isinstance(config.get("entry_risk"), dict)
+            else None
+        )
+        risk_budget_audit: list[Dict[str, Any]] = []
+        checked_lot_ids: set[str] = set()
         lifecycle = {
             "status": "completed",
             "active_start": None,
@@ -278,6 +298,12 @@ class BacktestEngine:
             # None explicitly means shadow evaluation was not enabled; it is
             # never misreported as a market with zero setups.
             "suppressed_setups_after_termination": None,
+            "strategy_health_status": {},
+            "disabled_or_cooldown_at": None,
+            "health_gated_days": 0,
+            "probation_periods": 0,
+            "health_resume_count": 0,
+            "health_transition_log": [],
         }
         recovery = dict(self.breaker_policy.get("recovery") or {})
         recovery_mode = str(recovery.get("mode", "none"))
@@ -347,6 +373,10 @@ class BacktestEngine:
                         dict(event.bars),
                         timestamp=event.timestamp,
                         reason="MarginLiquidation",
+                        risk_action_id=(
+                            f"epoch-{getattr(risk_manager, 'breaker_epoch', 0)}"
+                            f"-margin-{bar_index}"
+                        ),
                     )
                 )
             elif result.breaker_action == "reduce" and (
@@ -360,6 +390,10 @@ class BacktestEngine:
                         timestamp=event.timestamp,
                         reason="DrawdownReduce",
                         remaining_fraction=risk_manager.reduced_risk_multiplier,
+                        risk_action_id=(
+                            transition_id
+                            or f"epoch-{getattr(risk_manager, 'breaker_epoch', 0)}-reduce"
+                        ),
                     )
                 )
                 applied_breaker_actions.add(
@@ -376,6 +410,7 @@ class BacktestEngine:
                             dict(event.bars),
                             timestamp=event.timestamp,
                             reason="AccountLiquidation",
+                            risk_action_id=action_key,
                         )
                     )
                     applied_breaker_actions.add(action_key)
@@ -387,6 +422,13 @@ class BacktestEngine:
                         dict(event.bars),
                         timestamp=event.timestamp,
                         reason="DailyLossLimit",
+                        # One daily-loss action = one health cohort, no matter
+                        # how many correlated symbols it closes (STR-P0-02).
+                        risk_action_id=(
+                            getattr(risk_manager, "current_daily_action_id", None)
+                            or transition_id
+                            or f"daily-{event.timestamp.date()}"
+                        ),
                     )
                 )
                 applied_breaker_actions.add(
@@ -409,6 +451,23 @@ class BacktestEngine:
                     for item in forced_trades
                 )
                 processor._previous_session_close_equity = result.equity
+            # SR2-4: the real fill, not the signal close, decides how much is
+            # at stake. A breakout that gapped through the open is resized down
+            # under an explicit ``GapRiskResize``, never left silently over
+            # budget (STR-P1-02).
+            self._recheck_entry_risk(
+                portfolio=portfolio,
+                execution=execution,
+                strategies=strategies,
+                risk_manager=risk_manager,
+                equity=result.equity,
+                prices=result.prices,
+                timestamp=event.timestamp,
+                bar_index=bar_index,
+                policy=entry_risk_policy,
+                checked_lot_ids=checked_lot_ids,
+                audit=risk_budget_audit,
+            )
             risk_manager.record_breaker_action_result(
                 transition_id,
                 post_action_equity=result.equity,
@@ -525,6 +584,54 @@ class BacktestEngine:
                     "equity": terminal_equity,
                     "cash": terminal_cash,
                 })
+        # SR1-4: fold the strategy health lifecycle into the run lifecycle so
+        # a strategy that stopped trading years ago cannot be reported as an
+        # uneventful "completed" run.
+        health_machines = {
+            name: strategy.health for name, strategy in strategies.items()
+            if getattr(strategy, "health", None) is not None
+        }
+        for machine in health_machines.values():
+            machine.evaluate(last_event_timestamp)
+        lifecycle["strategy_health_status"] = {
+            name: machine.status.value for name, machine in health_machines.items()
+        }
+        cooldown_starts = [
+            machine.status_changed_at for machine in health_machines.values()
+            if machine.status.value != "active" and machine.status_changed_at
+        ]
+        lifecycle["disabled_or_cooldown_at"] = (
+            min(cooldown_starts).isoformat() if cooldown_starts else None
+        )
+        lifecycle["health_transition_log"] = transition_rows(
+            list(health_machines.values())
+        )
+        lifecycle["suppressed_raw_setups"] = sum(
+            int(getattr(strategy, "suppressed_setup_count", 0))
+            for strategy in strategies.values()
+        )
+        lifecycle["shadow_setup_count"] = sum(
+            int(getattr(strategy, "raw_setup_count", 0))
+            for strategy in strategies.values()
+        )
+        lifecycle["probation_periods"] = sum(
+            1 for machine in health_machines.values()
+            for row in machine.transitions if row.get("to") == "probation"
+        )
+        lifecycle["health_resume_count"] = sum(
+            machine.resume_count for machine in health_machines.values()
+        )
+        if lifecycle["disabled_or_cooldown_at"] and last_event_timestamp is not None:
+            gate_start = pd.Timestamp(min(cooldown_starts))
+            end_stamp = pd.Timestamp(last_event_timestamp)
+            if gate_start.tzinfo is not None and end_stamp.tzinfo is None:
+                end_stamp = end_stamp.tz_localize("UTC")
+            elif gate_start.tzinfo is None and end_stamp.tzinfo is not None:
+                gate_start = gate_start.tz_localize("UTC")
+            lifecycle["health_gated_days"] = max(0, (end_stamp - gate_start).days)
+        else:
+            lifecycle["health_gated_days"] = 0
+
         router.save_log()
         logger.info("Backtest completed")
 
@@ -576,6 +683,7 @@ class BacktestEngine:
             "run_id": self.run_id,
             "alignment_mode": self.alignment_mode,
             "account_mode": self.account_mode.value,
+            "account_cost_contract": self.account_cost_contract.to_dict(),
             "margin_ledger": [item.to_dict() for item in portfolio.margin_ledger],
             "financing_ledger": [item.to_dict() for item in portfolio.financing_ledger],
             "execution_audit": list(broker.execution_audit),
@@ -591,7 +699,126 @@ class BacktestEngine:
                 "breaker_epoch": risk_manager.breaker_epoch,
             },
             "lifecycle": lifecycle,
+            # SR1-4: the health lifecycle is a first-class run artifact, not a
+            # value that only exists inside a strategy object.
+            "strategy_health": {
+                name: strategy.health_snapshot()
+                for name, strategy in strategies.items()
+                if strategy.health_snapshot()
+            },
+            "strategy_health_transitions": transition_rows([
+                strategy.health for strategy in strategies.values()
+                if getattr(strategy, "health", None) is not None
+            ]),
+            # SR2-4 deliverable: reserved vs actually-risked, per entry fill.
+            "risk_budget_reconciliation": risk_budget_audit,
+            # SR3-1/SR3-2 deliverables: how every same-bar batch was ordered
+            # (and whether the order was a real ranking), and what the
+            # correlated-risk budget did to each candidate.
+            "allocation_audit": [
+                {
+                    "symbol": decision.symbol,
+                    "strategy": decision.strategy,
+                    "score": decision.score,
+                    "rank": decision.rank,
+                    "accepted": decision.accepted,
+                    "reason": decision.reason,
+                    "ordering": decision.ordering,
+                    **{
+                        f"risk_budget_{key}": value
+                        for key, value in (decision.risk_budget or {}).items()
+                    },
+                }
+                for decision in router.allocator.audit
+            ],
+            "degenerate_ranking_batches": router.allocator.degenerate_batches,
+            "correlated_risk_audit": list(router.allocator.risk_governor.audit),
+            "strategy_health_cohorts": cohort_rows([
+                strategy.health for strategy in strategies.values()
+                if getattr(strategy, "health", None) is not None
+            ]),
         }
+
+    def _recheck_entry_risk(
+        self,
+        *,
+        portfolio: Portfolio,
+        execution: SimulatedExecutionAdapter,
+        strategies: Dict[str, Any],
+        risk_manager: Any,
+        equity: float,
+        prices: Dict[str, float],
+        timestamp: Any,
+        bar_index: int,
+        policy: EntryRiskPolicy,
+        checked_lot_ids: set,
+        audit: list,
+    ) -> None:
+        """SR2-4: re-derive each entry's real risk and act when it exceeds budget.
+
+        The reservation was made from the signal bar's close; the fill happens
+        at the next bar's open and can gap. Every newly opened lot is measured
+        once, against the equity at that moment and the strategy's current
+        health multiplier, and a breach produces a named reduce order through
+        the ordinary order path (filling on the next bar, which is the earliest
+        a real system could act on a fill it has just learned about).
+        """
+        if not policy.enabled:
+            return
+        for symbol, lot_book in portfolio.lot_books.items():
+            for lot in lot_book.open_lots:
+                if lot.lot_id in checked_lot_ids:
+                    continue
+                checked_lot_ids.add(lot.lot_id)
+                strategy = strategies.get(lot.strategy_id)
+                multiplier = 1.0
+                if strategy is not None:
+                    getter = getattr(strategy, "health_risk_multiplier", None)
+                    if callable(getter):
+                        multiplier = float(getter())
+                assessment = evaluate_fill_risk(
+                    symbol=symbol,
+                    lot_id=lot.lot_id,
+                    side=lot.side,
+                    fill_price=float(lot.entry_price),
+                    protective_stop=lot.stop_price,
+                    filled_qty=float(lot.qty_open),
+                    equity_at_fill=float(equity),
+                    base_risk_per_trade=float(
+                        getattr(risk_manager, "risk_per_trade", 0.0)
+                    ),
+                    health_risk_multiplier=multiplier,
+                    policy=policy,
+                )
+                if assessment is None:
+                    continue
+                row = assessment.to_dict()
+                row.update({
+                    "timestamp": timestamp,
+                    "bar_index": bar_index,
+                    "strategy_id": lot.strategy_id,
+                    "health_risk_multiplier": multiplier,
+                })
+                audit.append(row)
+                if assessment.action != "resize" or assessment.resize_qty <= 0:
+                    continue
+                mark = prices.get(symbol) or float(lot.entry_price)
+                execution.submit_order(
+                    symbol,
+                    "sell" if lot.side == "long" else "cover",
+                    assessment.resize_qty,
+                    mark,
+                    timestamp=timestamp,
+                    strategy_id=lot.strategy_id,
+                    exit_reason="GapRiskResize",
+                )
+                logger.warning(
+                    "GapRiskResize %s lot=%s risk=%.2f budget=%.2f (%.2fx) "
+                    "reducing %.8f",
+                    symbol, lot.lot_id, assessment.actual_total_risk,
+                    assessment.risk_budget, assessment.risk_ratio,
+                    assessment.resize_qty,
+                )
 
     def _close_tail_positions(
         self,
