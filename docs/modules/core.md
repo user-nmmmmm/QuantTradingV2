@@ -65,7 +65,7 @@
 
 ## 三、经纪商与执行
 
-### `core/broker.py` — 回测撮合引擎（"虚拟交易所"）
+### `core/broker/` — 回测撮合引擎（"虚拟交易所"）
 `Broker` 用后续 K 线撮合策略订单，模拟滑点、maker/taker 手续费、可选冲击成本，并更新 `Portfolio` 和成交记录。
 - `Order`（dataclass）：`.accepted` 除非状态是 REJECTED/EXPIRED/CANCELED 都为真。
 - `submit_order(...)`：构建 `OrderIntent`，通过 `ensure_opening_reservation` 预占风险额度，进入 `pending_orders` 队列。

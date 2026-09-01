@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 
 from analysis.validation import ValidationConfig, validate_parameter_candidates
-from core.cost_model import CostModel
+from core.broker.cost_model import CostModel
 from core.gray_release import GrayReleasePolicy
 from core.live_safety import StartupSafetyPolicy
 from core.metric_result import MetricResult

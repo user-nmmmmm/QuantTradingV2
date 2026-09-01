@@ -7,7 +7,7 @@
 | M-01 | `tests/test_backtest_regression.py` 固定 fixtures、结构化事实包及连续运行一致性。 |
 | M-02 | `core/metric_result.py` 提供 `MetricResult`、明确状态和 JSON Schema，区分零值与不可计算。 |
 | M-03 | `research/audit/ledger.py` 的权威账本保存可重建 fill、费用、现金、仓位和已实现 PnL。 |
-| M-04 | `core/cost_model.py` 统一成本语义；缺失的资金/借券成本显式标为 `not_modeled`。 |
+| M-04 | `core/broker/cost_model.py` 统一成本语义；缺失的资金/借券成本显式标为 `not_modeled`。 |
 | M-05 | `PortfolioProjection.reconcile` 和现金充足性检查覆盖组合级对账。 |
 | M-06 | `core/metrics.py` 提供回撤事件、交易质量、暴露、信号漏斗和成本敏感性。 |
 | M-07 | `core/metrics.py` 提供归因、基准、R-Multiple、MAE/MFE 和 SQN。 |

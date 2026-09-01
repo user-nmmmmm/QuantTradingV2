@@ -88,7 +88,7 @@ flowchart TB
     end
 
     subgraph EXEC["执行层 Execution"]
-        BK["Broker 撮合模拟（core/broker.py）"]
+        BK["Broker 撮合模拟（core/broker/）"]
         LB["SafeLiveBroker → LiveBroker（core/safe_live_broker.py, live_broker.py）"]
     end
 
@@ -286,10 +286,16 @@ QuantTradingV1/
 │   ├── lots.py                       # FIFO 批次账本（lot_id / position_id / MAE-MFE）
 │   ├── ledger.py / valuation.py      # 权威账本（fill/费用/持仓）与估值
 │   ├── accounting_check.py           # 逐 bar 会计恒等式核对（Gate G2）
-│   ├── cost_model.py                 # 费用/滑点/冲击成本模型
 │   │
 │   ├── ── 执行 ──
-│   ├── broker.py                     # 回测撮合：Market/Limit/Stop、分批成交、强平
+│   ├── broker/                       # 回测撮合：Market/Limit/Stop、分批成交、强平
+│   │   ├── __init__.py               #   Broker 门面
+│   │   ├── types.py                  #   Order / OrderType / TimeInForce
+│   │   ├── matching.py               #   下单、逐 bar 撮合、订单簿记账
+│   │   ├── fill_service.py           #   成本核算、持仓更新、事件发布
+│   │   ├── financing.py              #   永续资金费 / 融券借贷计提
+│   │   ├── liquidation.py            #   强制减仓
+│   │   └── cost_model.py             #   费用/滑点/冲击成本模型
 │   ├── live_broker.py                # CCXT 实盘 broker
 │   ├── safe_live_broker.py           # 幂等/限额/白名单包装层
 │   ├── exchange/                     # 交易所元数据/精度/衍生品能力的唯一边界
@@ -392,7 +398,7 @@ QuantTradingV1/
 - **实盘轮询引擎**：fail-closed tick 流程、幂等下单、独立订单对账、健康评估与心跳、
   `reports/live_status.json` 状态导出；异常订单经 `resolve_live_order.py` 走人工审计恢复。
 
-### 订单执行模型（`core/broker.py`）
+### 订单执行模型（`core/broker/`）
 
 - **Market**：bar *t+1* 开盘价成交（叠加滑点）
 - **Limit**：触及限价成交；开盘即可成交时按开盘价（taker），盘中触及时按限价（maker）

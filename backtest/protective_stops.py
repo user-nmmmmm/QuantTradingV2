@@ -61,8 +61,8 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional
 
 import pandas as pd
 
-from core.broker_matching import PROTECTIVE_EXIT_REASON, is_protective_stop
-from core.broker_types import BacktestOrderStatus
+from core.broker.matching import PROTECTIVE_EXIT_REASON, is_protective_stop
+from core.broker.types import BacktestOrderStatus
 from core.logger import get_logger
 from core.protective_orders import (
     ProtectiveAction,

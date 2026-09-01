@@ -12,14 +12,14 @@
 
 | 术语 | 英文 | 定义 | 代码位置 |
 | --- | --- | --- | --- |
-| 次K线执行 | Next-Bar Execution | 信号在 bar `t` 收盘后生成，订单在 bar `t+1` 才撮合，防止使用未来数据（前视偏差）。 | `core/broker.py`；口径见 [`backtest_assumptions.md §1`](backtest_assumptions.md) |
+| 次K线执行 | Next-Bar Execution | 信号在 bar `t` 收盘后生成，订单在 bar `t+1` 才撮合，防止使用未来数据（前视偏差）。 | `core/broker/`；口径见 [`backtest_assumptions.md §1`](backtest_assumptions.md) |
 | 前视偏差 | Look-Ahead Bias | 回测中错误使用了在该时间点实际不可得的信息（如用收盘后才确定的最高价去做当根K线的决策）。是回测结果失真的最常见原因之一。 | — |
-| 市价单 | Market Order | 以下一根K线开盘价成交（叠加滑点），保证成交但不保证价格。 | `core/broker.py` |
-| 限价单 | Limit Order | 指定价格挂单；触及即成交，开盘直接穿价按开盘价（Taker），盘中触及按限价成交（Maker）。 | `core/broker.py` |
-| 止损单 | Stop Order | 触发价被触及后转为市价单，按更不利的“开盘价/触发价”成交（Taker）。 | `core/broker.py` |
+| 市价单 | Market Order | 以下一根K线开盘价成交（叠加滑点），保证成交但不保证价格。 | `core/broker/` |
+| 限价单 | Limit Order | 指定价格挂单；触及即成交，开盘直接穿价按开盘价（Taker），盘中触及按限价成交（Maker）。 | `core/broker/` |
+| 止损单 | Stop Order | 触发价被触及后转为市价单，按更不利的“开盘价/触发价”成交（Taker）。 | `core/broker/` |
 | 挂单方 / Maker | Maker | 提供流动性的一方（限价单盘中被动成交），费率通常更低。默认 0.05%（5 bps）。 | `config/params.yaml: execution.commission_rate_maker` |
 | 吃单方 / Taker | Taker | 主动吃掉盘口流动性的一方（市价单及立即成交的限价单），费率通常更高。默认 0.10%（10 bps）。 | `config/params.yaml: execution.commission_rate_taker` |
-| 滑点 | Slippage | 实际成交价与预期价之间的偏差。支持固定滑点（按比例平移）和随机滑点（`[0, MaxSlip]` 均匀分布）。 | `core/broker.py`；`--slippage` / `--random_slip` |
+| 滑点 | Slippage | 实际成交价与预期价之间的偏差。支持固定滑点（按比例平移）和随机滑点（`[0, MaxSlip]` 均匀分布）。 | `core/broker/`；`--slippage` / `--random_slip` |
 | 冲击成本 | Impact Cost | 订单量相对市场成交量过大时产生的额外成本惩罚（简化模拟，非真实订单簿深度模型）。 | `config/params.yaml: execution.use_impact_cost` |
 | 多标的时间对齐 | Multi-Symbol Time Alignment | 多标的回测按时间戳交集对齐；若为日线及更慢周期，退化为按日历日期对齐。 | `backtest/engine.py` |
 
