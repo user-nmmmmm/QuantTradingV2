@@ -74,7 +74,7 @@ TrendBreakout 的 Donchian 退出继续使用前一时点通道，且生产路�
 
 ## T-4.11 持仓长尾
 
-新增 `phase4.max_holding_days=365`。Router 在生产候选路径中读取 lot 账本最早 `entry_time`，超过上限后提交具名 `MaxHoldingPeriod` 退出；报告诊断同时输出 median、p95、max 和 timeout 列表。超时退出不会伪装成策略自身退出。
+新增 `router.max_holding_days=365`。Router 在生产候选路径中读取 lot 账本最早 `entry_time`，超过上限后提交具名 `MaxHoldingPeriod` 退出；报告诊断同时输出 median、p95、max 和 timeout 列表。超时退出不会伪装成策略自身退出。
 
 ## T-4.12 联合归因
 

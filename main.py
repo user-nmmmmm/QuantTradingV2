@@ -191,14 +191,8 @@ def replay_manifest(manifest_path: str) -> int:
     return 0 if report["status"] == "passed" else 8
 
 
-def main(argv=None) -> int:
-    """
-    命令行入口：
-    1) 解析参数（无参数则进入交互模式）
-    2) 拉取数据并生成数据质量报告（DataHandler.generate_quality_report）
-    3) 运行回测（BacktestEngine.run）
-    4) 输出报告（ReportGenerator.generate），并整理 routing_log/data_quality_report
-    """
+def _build_parser() -> argparse.ArgumentParser:
+    """Declare the public backtest CLI contract in one testable place."""
     parser = argparse.ArgumentParser(description="Quantitative Trading System Backtest")
     parser.add_argument(
         "--days",
@@ -301,6 +295,101 @@ def main(argv=None) -> int:
         help=("workbook writes one Excel file; compact writes a PDF, dashboard PNG "
               "and core CSVs; full also writes the complete audit trail."),
     )
+    return parser
+
+
+def _resolve_date_range(args) -> tuple[datetime, datetime]:
+    """Validate explicit dates or derive the requested range from ``--days``."""
+    if args.start and args.end:
+        try:
+            start_date = datetime.strptime(args.start, "%Y-%m-%d")
+            end_date = datetime.strptime(args.end, "%Y-%m-%d")
+        except ValueError as exc:
+            raise ValueError("Invalid date format. Please use YYYY-MM-DD.") from exc
+        if start_date >= end_date:
+            raise ValueError("Start date must be before end date.")
+        args.days = (end_date - start_date).days
+        print(f"Config: Date Range={args.start} to {args.end} ({args.days} days)")
+        return start_date, end_date
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=args.days)
+    print(
+        f"Config: Last {args.days} Days (Auto-calculated: "
+        f"{start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')})"
+    )
+    return start_date, end_date
+
+
+def _load_requested_data(args, start_date: datetime, end_date: datetime):
+    """Fetch, quality-annotate and apply the point-in-time universe."""
+    data_map = {}
+    download_started_at = datetime.now(timezone.utc)
+    for symbol in args.symbols:
+        frame = get_data(
+            symbol,
+            start_date.strftime("%Y-%m-%d"),
+            end_date.strftime("%Y-%m-%d"),
+            args.source,
+            args.days,
+            exchange=args.exchange,
+            timeframe=args.timeframe,
+            data_timezone=args.data_timezone,
+            data_dir=args.data_dir,
+        )
+        if not frame.empty and len(frame) > 10:
+            print(f"Loaded {symbol}: {len(frame)} bars")
+            data_map[symbol] = DataHandler.annotate_quality(frame)
+        else:
+            print(f"Failed to load sufficient data for {symbol}")
+    if not data_map:
+        raise RuntimeError("No data available. Exiting.")
+
+    if args.universe_file:
+        universe = PointInTimeUniverse.from_csv(args.universe_file)
+        data_map = universe.apply(data_map)
+        universe_identity = universe.to_manifest()
+        if not data_map:
+            raise RuntimeError("Point-in-time universe removed all requested data.")
+    else:
+        universe_identity = static_universe_manifest(data_map)
+    return (
+        data_map,
+        universe_identity,
+        download_started_at,
+        datetime.now(timezone.utc),
+    )
+
+
+def _execute_backtest(args, data_map):
+    """Construct the engine and run it with the requested reporting footprint."""
+    print("\nInitializing Backtest Engine...")
+    engine = BacktestEngine(
+        initial_capital=args.capital,
+        slippage=args.slippage,
+        random_slip=args.random_slip,
+        alignment_mode=args.alignment_mode,
+        benchmark_mode=args.benchmark_mode,
+        benchmark_rebalance_cost_bps=args.benchmark_rebalance_cost_bps,
+        timeframe=args.timeframe,
+        account_mode=("spot_margin" if args.market_type == "margin" else args.market_type),
+    )
+    print("Running Backtest...")
+    reports_dir = os.path.join(os.getcwd(), "reports")
+    os.makedirs(reports_dir, exist_ok=True)
+    temp_routing_log = os.path.join(reports_dir, "temp_routing_log.csv")
+    results = engine.run(
+        data_map,
+        routing_log_path=temp_routing_log,
+        routing_log_enabled=(
+            not args.disable_routing_log and args.report_profile == "full"
+        ),
+    )
+    return engine, results, temp_routing_log
+
+
+def main(argv=None) -> int:
+    """Parse, validate and orchestrate one backtest run."""
+    parser = _build_parser()
 
     cli_args = list(sys.argv[1:] if argv is None else argv)
     if not cli_args:
@@ -324,106 +413,33 @@ def main(argv=None) -> int:
     print("Starting Quantitative Trading System...")
     print(f"Current Working Directory: {os.getcwd()}")
 
-    # Determine Date Range
-    if args.start and args.end:
-        try:
-            start_date = datetime.strptime(args.start, "%Y-%m-%d")
-            end_date = datetime.strptime(args.end, "%Y-%m-%d")
-            if start_date >= end_date:
-                print("Error: Start date must be before end date.", file=sys.stderr)
-                return 2
-            args.days = (end_date - start_date).days
-            print(f"Config: Date Range={args.start} to {args.end} ({args.days} days)")
-        except ValueError:
-            print("Error: Invalid date format. Please use YYYY-MM-DD.", file=sys.stderr)
-            return 2
-    else:
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=args.days)
-        print(
-            f"Config: Last {args.days} Days (Auto-calculated: {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')})"
-        )
+    try:
+        start_date, end_date = _resolve_date_range(args)
+    except ValueError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 2
 
     print(
         f"Config: Capital={args.capital}, Symbols={args.symbols}, Source={args.source}, Slippage={args.slippage if args.slippage is not None else 'config'}, RandomSlip={args.random_slip}"
     )
 
-    # 1. Fetch Data
-    # start_date and end_date are already set above
-
-    # Test with Crypto pairs
-    symbols = args.symbols
-    data_map = {}
-    download_started_at = datetime.now(timezone.utc)
-
-    for sym in symbols:
-        df = get_data(
-            sym,
-            start_date.strftime("%Y-%m-%d"),
-            end_date.strftime("%Y-%m-%d"),
-            args.source,
-            args.days,
-            exchange=args.exchange,
-            timeframe=args.timeframe,
-            data_timezone=args.data_timezone,
-            data_dir=args.data_dir,
-        )
-
-        if not df.empty and len(df) > 10:  # Lower limit for short tests
-            print(f"Loaded {sym}: {len(df)} bars")
-            data_map[sym] = DataHandler.annotate_quality(df)
-        else:
-            print(f"Failed to load sufficient data for {sym}")
-
-    if not data_map:
-        print("No data available. Exiting.", file=sys.stderr)
+    try:
+        (
+            data_map,
+            universe_identity,
+            download_started_at,
+            download_completed_at,
+        ) = _load_requested_data(args, start_date, end_date)
+    except RuntimeError as exc:
+        print(str(exc), file=sys.stderr)
         return 3
-
-    if args.universe_file:
-        universe = PointInTimeUniverse.from_csv(args.universe_file)
-        data_map = universe.apply(data_map)
-        universe_identity = universe.to_manifest()
-        if not data_map:
-            print("Point-in-time universe removed all requested data.", file=sys.stderr)
-            return 3
-    else:
-        universe = None
-        universe_identity = static_universe_manifest(data_map)
-
-    download_completed_at = datetime.now(timezone.utc)
 
     # 1.1 Generate Data Quality Report
     print("Generating Data Quality Report...")
     # Store report in memory to save later in the specific backtest folder
     quality_report = DataHandler.generate_quality_report(data_map, output_path=None)
 
-    # 2. Run Backtest
-    print("\nInitializing Backtest Engine...")
-    engine = BacktestEngine(
-        initial_capital=args.capital,
-        slippage=args.slippage,
-        random_slip=args.random_slip,
-        alignment_mode=args.alignment_mode,
-        benchmark_mode=args.benchmark_mode,
-        benchmark_rebalance_cost_bps=args.benchmark_rebalance_cost_bps,
-        timeframe=args.timeframe,
-        account_mode=(
-            "spot_margin" if args.market_type == "margin" else args.market_type
-        ),
-    )
-
-    print("Running Backtest...")
-    # Use a temporary path for routing log, to be moved later
-    if not os.path.exists(os.path.join(os.getcwd(), "reports")):
-        os.makedirs(os.path.join(os.getcwd(), "reports"))
-    temp_routing_log = os.path.join(os.getcwd(), "reports", "temp_routing_log.csv")
-    results = engine.run(
-        data_map,
-        routing_log_path=temp_routing_log,
-        routing_log_enabled=(
-            not args.disable_routing_log and args.report_profile == "full"
-        ),
-    )
+    engine, results, temp_routing_log = _execute_backtest(args, data_map)
 
     if not results or results["equity_curve"].empty:
         print("\n" + "!" * 50)

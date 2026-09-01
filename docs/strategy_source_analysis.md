@@ -523,7 +523,7 @@ strategy_governance:
 | 节 | 参数 | 值 | 影响 |
 | --- | --- | --- | --- |
 | `router` | `cooldown_bars` | 2 | 状态切换后 2 根 bar 内不产生新候选 |
-| `phase4` | `max_holding_days` | 365 | 单个 lot 持有满 365 天由 `MaxHoldingPeriod` 强平 |
+| `router` | `max_holding_days` | 365 | 单个 lot 持有满 365 天由 `MaxHoldingPeriod` 强平 |
 | `state` | `stability_period` | 5 | 状态切换需连续 5 根确认 |
 | `risk` | `risk_per_trade` | 0.02 | 单笔风险 2% equity |
 | `execution` | `commission_rate_taker` | 0.0005 | 0.05% taker |

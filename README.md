@@ -635,7 +635,7 @@ Phase 6 准入证据的 fail-closed 评估由 `python -m core.admission_gates` �
 | | `state.atr_period` / `atr_pct_threshold` | `14` / `0.025` |
 | 路由 | `routing.*` | 见[第 9 节](#9-策略与路由现状)（当前仅 `TREND_UP` 有活跃策略） |
 | | `router.cooldown_bars` | `2` |
-| | `phase4.max_holding_days` / `allocation_order` | `365` / `score_strategy_symbol` |
+| | `router.max_holding_days` / `allocation.order` | `365` / `score_strategy_symbol` |
 | 数据 | `data.alignment_mode` / `timeframe` / `timezone` | `union` / `1d` / `UTC` |
 | 基准 | `benchmark.mode` / `dynamic_rebalance_cost_bps` | `fixed` / `5.0` |
 | 回测生命周期 | `backtest.end_of_backtest_mode` | `mark_to_market` |

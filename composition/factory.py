@@ -146,7 +146,7 @@ def build_router(
         regime_map=routing_config,
         cooldown_bars=configuration.require("router", "cooldown_bars"),
         log_path=log_path,
-        max_holding_days=(configuration.get("phase4") or {}).get("max_holding_days"),
+        max_holding_days=configuration.require("router", "max_holding_days"),
         risk_governor=PortfolioRiskGovernor(
             build_correlation_cluster_policy(configuration)
         ),
