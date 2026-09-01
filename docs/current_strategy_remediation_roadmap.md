@@ -637,7 +637,7 @@ B0/B1 必须先完成；B2 的纯指标和 shadow 计算可与 B1 后半段并�
 | STR-P1-07 运行范围不一致 | 完成 | `TrendBreakout.allowed_states` 收窄为 `{TREND_UP}`，与生产 routing 一致；新增测试要求 declared == routed |
 | SR2-5 保护单生命周期 | 完成（实盘 + 回测） | `core/protective_orders.py` 状态机 + `live_trading/tick_orchestrator.py` 每 tick 对账：入场成交前不假设有止损、数量等于净持仓、只上移、持仓归零取消全部残留、未知状态 fail closed 平仓、重启以交易所为准重建/清理孤儿单 |
 | STR-P1-01 回测 intrabar 止损等价性 | 完成 | `backtest/protective_stops.py` 的 `ResidentStopSimulator`：回测持有与实盘同一个 `ProtectiveOrderManager` 产生的常驻止损意图，由历史撮合器在 bar 内成交；预注册保守路径 `open -> 不利极值 -> 有利极值 -> close`，跳空时成交在 `min(open, stop)` 而非走不到的止损价；入场 bar 在自己这根 bar 内即受保护；`force_liquidate` 与 `EndOfBacktest` 先取消常驻止损单，保证唯一权威 close；产出 `stop_order_audit.csv` 与 report.txt 的 Protective Stop Execution 分节 |
-| REG-01～04 | 保持通过 | 健康闸门只拦新仓；全量测试 529 passed |
+| REG-01～04 | 保持通过 | 健康闸门只拦新仓；全量测试 537 passed、1 skipped、46 subtests passed |
 
 测试入口：`tests/test_sr1_strategy_health.py`（19）、`tests/test_sr2_protective_stops.py`（19）、`tests/test_sr2_protective_orders.py`（25）、`tests/test_sr2_backtest_intrabar_stops.py`（15）、`tests/test_sr3_portfolio_risk.py`（27）。
 
