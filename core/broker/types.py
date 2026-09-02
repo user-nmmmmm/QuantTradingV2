@@ -77,6 +77,12 @@ class Order:
     id: str = ""
     intent: Optional[OrderIntent] = None
     last_event_id: Optional[str] = None
+    # B-01: how many distinct bars this order has been matchable against
+    # without filling anything, and the last bar counted. Tracked per bar
+    # rather than per matching pass because the engine matches each bar more
+    # than once (general book, then resident stops).
+    idle_bars: int = 0
+    last_counted_bar: Any = None
 
     @property
     def accepted(self) -> bool:

@@ -46,8 +46,9 @@ class MatchingMixin:
     Expects ``self`` to carry ``event_pipeline``, ``exchange_id``,
     ``account_id``, ``timeframe``, ``_intent_sequence``, ``pending_orders``,
     ``active_orders``, ``last_prices``, ``max_participation_rate``,
-    ``execution_audit``, ``reservation_projection``, and
-    ``_execute_trade`` (from ``FillServiceMixin``).
+    ``_volume_budget``/``_volume_budget_bar``, ``opening_order_ttl_bars``,
+    ``execution_audit``, ``reservation_projection``, and ``_execute_trade``
+    (from ``FillServiceMixin``).
     """
 
     def submit_order(
@@ -244,10 +245,7 @@ class MatchingMixin:
             self.active_orders.append(order)
         self.pending_orders = []
 
-        volume_budget = {
-            symbol: max(float(bar.get("volume", 0.0)), 0.0) * self.max_participation_rate
-            for symbol, bar in current_bar.items()
-        }
+        volume_budget = self._bar_volume_budget(current_bar)
 
         for order in self.active_orders:
             if order_filter is not None and not order_filter(order):
@@ -270,6 +268,8 @@ class MatchingMixin:
                 and current_time.date() > order.submitted_date
             ):
                 self._set_status(order, BacktestOrderStatus.EXPIRED, current_time)
+                continue
+            if self._expire_idle_opening_order(order, current_time):
                 continue
 
             open_price = float(bar_data["open"])
@@ -358,6 +358,69 @@ class MatchingMixin:
 
         self.active_orders = next_active_orders
         return executed_trades
+
+    def _expire_idle_opening_order(self, order: Order, current_time: Any) -> bool:
+        """Retire an opening order that has rested this long without a fill (B-01).
+
+        A GTC limit or stop entry whose price is never touched used to work
+        forever. Two things then never end: the risk reservation it holds
+        (``core/risk/reservation.py`` only releases on a terminal status, and
+        a working order has none), and ``has_active_open_order``, which stops
+        the strategy from entering that symbol again. One untouched limit
+        order therefore removed a symbol from the run permanently while
+        quietly consuming portfolio risk capacity.
+
+        Only *opening* orders are subject to this. Exits must not be dropped
+        because a position would be left unmanaged, and venue-resident
+        protective stops are meant to rest until their position closes - both
+        are sell/cover, so neither is reachable here.
+
+        Any fill resets the counter: an order being sliced by the
+        participation cap is making progress, not idling, so a large entry
+        legitimately spanning many bars is never cut short.
+        """
+        ttl = self.opening_order_ttl_bars
+        if ttl <= 0 or order.side not in {"buy", "short"}:
+            return False
+        if order.filled_qty > 0:
+            order.idle_bars = 0
+            order.last_counted_bar = current_time
+            return False
+        if order.last_counted_bar != current_time:
+            order.last_counted_bar = current_time
+            order.idle_bars += 1
+        if order.idle_bars <= ttl:
+            return False
+        self._audit_order(
+            order, current_time, "expired", "opening_order_ttl",
+            idle_bars=order.idle_bars, ttl_bars=ttl,
+        )
+        self._set_status(order, BacktestOrderStatus.EXPIRED, current_time)
+        return True
+
+    def _bar_volume_budget(self, current_bar: Dict[str, pd.Series]) -> Dict[str, float]:
+        """Volume still fillable per symbol on *this* bar, shared by every pass.
+
+        ``process_orders`` runs more than once against the same bar - the
+        general book at the open, then the resident-stop filter (STR-P1-01) -
+        so the participation cap has to be tracked per bar, not per call.
+        Rebuilding the allowance on each call handed every extra pass a fresh
+        budget, which made the effective cap a multiple of
+        ``max_participation_rate`` rather than the configured value.
+
+        The returned mapping *is* the tracking state, so the caller decrements
+        it in place as it fills.
+        """
+        tracked = self._volume_budget_bar
+        for symbol, bar in current_bar.items():
+            bar_time = getattr(bar, "name", None)
+            if symbol in tracked and tracked[symbol] == bar_time:
+                continue
+            tracked[symbol] = bar_time
+            self._volume_budget[symbol] = (
+                max(float(bar.get("volume", 0.0)), 0.0) * self.max_participation_rate
+            )
+        return self._volume_budget
 
     def _audit_order(
         self,

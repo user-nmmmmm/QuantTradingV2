@@ -58,7 +58,7 @@ def _overview_page(metrics, risk, active, metadata):
     subtitle = " | ".join(f"{k}: {v}" for k, v in (metadata or {}).items())
     fig.text(0.055, 0.925, subtitle[:180], fontsize=8.5, color="#5f6f7c")
     gs = fig.add_gridspec(1, 3, left=0.05, right=0.97, bottom=0.08, top=0.87, wspace=0.12)
-    core_keys = ("TotalReturn", "CAGR", "MaxDrawdownPct", "SharpeRatio", "TotalTrades", "WinRate", "ProfitFactor", "NetPnL", "EndEquity")
+    core_keys = ("TotalReturn", "CAGR", "MaxDrawdownPct", "SharpeRatio", "TotalTrades", "ClosedTradeLegs", "WinRate", "ProfitFactor", "NetPnL", "EndEquity")
     _table(fig.add_subplot(gs[0]), "Performance", {k: metrics.get(k) for k in core_keys}, METRIC_LABELS)
     _table(fig.add_subplot(gs[1]), "Portfolio risk", risk, METRIC_LABELS)
     _table(fig.add_subplot(gs[2]), "Benchmark-relative", active, METRIC_LABELS)

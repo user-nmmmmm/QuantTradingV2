@@ -40,6 +40,7 @@ from core.metrics.validation import (
     walk_forward_windows,
     bootstrap_return_distribution,
     monte_carlo_trade_sequence,
+    one_sided_bootstrap_p_value,
     benjamini_hochberg,
 )
 
@@ -51,6 +52,7 @@ __all__ = [
     "calculate_r_multiple_stats", "calculate_signal_funnel", "calculate_cost_sensitivity",
     "calculate_attribution", "calculate_benchmark_comparison", "calculate_rolling_returns",
     "calculate_segment_returns", "train_test_split_returns", "walk_forward_windows",
-    "bootstrap_return_distribution", "monte_carlo_trade_sequence", "benjamini_hochberg",
+    "bootstrap_return_distribution", "monte_carlo_trade_sequence",
+    "one_sided_bootstrap_p_value", "benjamini_hochberg",
 ]
 

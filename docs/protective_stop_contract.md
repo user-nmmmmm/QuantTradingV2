@@ -192,6 +192,18 @@ open -> 不利极值 -> 有利极值 -> close
 不是留到下一根 bar 触发。期望止损价在 (3) 之前读取，因此生效的永远是上一根
 已完成 bar 推出的价位——无前视。
 
+这个分工由订单过滤器强制：(1) 走
+`SimulatedExecutionAdapter.on_market_data`，它用 `_is_not_protective_stop`
+把常驻止损排除在外；(2) 用 `order_filter=is_protective_stop` 只撮合止损。缺少
+(1) 的过滤器时，**在更早的 bar 挂出、此后一直静止的止损**会在 (1) 里成交——净
+持仓结果相同，但成交既不进 `stop_order_audit` 也不计入 `triggered_stops`，而且
+绕过了 (2) 的撤单对账。因为移动止损每根 bar 都会 cancel-replace、静态止损不会，
+这个漏记是按策略类型有偏的。回归见
+`tests/test_backtest_stop_pass_and_liquidity.py`。
+
+两遍撮合共用同一份 bar 成交量预算（`MatchingMixin._bar_volume_budget`），止损
+那一遍不会拿到新的参与率额度。
+
 ### 唯一权威 close
 
 `force_liquidate`（DailyLoss / Drawdown / 强平）与 `EndOfBacktest` 现在都会先

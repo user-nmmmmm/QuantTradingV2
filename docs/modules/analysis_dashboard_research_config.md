@@ -5,7 +5,33 @@
 ## analysis/ — 离线分析工具
 
 ### `analysis/optimize.py`
-趋势跟踪策略的参数网格搜索工具。`run_grid_search(symbols, data_source, days, start_date, end_date, initial_capital)` 用 `core.data_fetcher.DataFetcher` 只拉一次数据，然后遍历 `sma_periods=[20,30,50,100]` × `atr_multipliers=[1.5,2.0,2.5,3.0]` 的笛卡尔积，为每个组合实例化 `TrendUpStrategy`/`TrendDownStrategy`（`strategies.trend_following`）+ 默认参数的 `RangeStrategy`（`strategies.mean_reversion`），跑 `backtest.engine.BacktestEngine.run(...)`，用 `backtest.reporting.ReportGenerator.generate(...)` 打分（临时报告写到 `reports/temp_opt`）。结果按夏普比率排序，保存为 `reports/optimization_<timestamp>.csv`。CLI（`python -m analysis.optimize`）参数：`--symbols`（默认 `BTC-USDT`）、`--days`（365）、`--start`、`--end`、`--source {synthetic,yahoo,ccxt}`（默认 synthetic）、`--capital`（10000）。是回测引擎之上的批量驱动脚本，`live_trading/` 不使用它。
+参数网格搜索的批量驱动脚本，两种模式：
+
+**全样本网格（默认）**：`run_grid_search(...)` 用 `core.data_fetcher.DataFetcher` 只拉一次数据，遍历 `ENTRY_WINDOWS=(20,30,50,100)` × `EXIT_WINDOWS=(5,10,15,20)`，每个组合实例化 `TrendBreakoutStrategy`/`TrendBreakdownStrategy` + 默认参数的 `RangeStrategy` / `VolatilityReversionStrategy`，跑 `BacktestEngine.run(...)` 并用 `ReportGenerator.generate(metrics_only=True)` 打分，按夏普排序存到 `reports/optimization_<timestamp>.csv`。
+
+`--oos` 追加一份 `validate_parameter_candidates` 证据。**注意这是事后切分**：排序发生在全样本上，"测试"半段在选参时已经被看过。它现在会为每个候选算一个 bootstrap p 值喂给 BH 校正（此前传的是空列表，等于 16 组候选一个都没校正），产物里也写了这条 caveat，但口径上的弱点是无法靠 p 值补救的。
+
+**Walk-forward（`--walk-forward`）**：调 `analysis/walk_forward.py`，每个窗口在自己的测试段之前选参。窗口几何由 `--wf-train / --wf-validation / --wf-test / --wf-purge` 控制。
+
+`--jobs N` 用 `ProcessPoolExecutor` 并行跑全样本网格（各候选彼此独立）。worker 函数 `evaluate_one_candidate` 是模块级函数而非闭包——Windows 用 spawn 而不是 fork，可调用对象必须能按名字导入；它只回传标量与一条收益 Series，不回传引擎结果（那里面挂着整个事件流和订单簿）。结果按 `param_grid` 顺序重排，所以表格和 CSV 不受调度顺序影响；实测 `jobs=1` 与 `jobs=4` 输出逐位相同。
+
+指标**没有**跨候选缓存：实测 5 年 3 标的下重算一次指标约 17ms，而一次 bar 循环约 3s（占 0.6%），为此把开关穿过两层抽象换不到可测量的收益，时间在循环里。
+
+CLI（`python -m analysis.optimize`）：`--symbols`、`--days`、`--start`、`--end`、`--source {synthetic,yahoo,ccxt}`、`--capital`、`--oos`、`--jobs`、`--walk-forward` 及四个 `--wf-*`。`live_trading/` 不使用它。
+
+### `analysis/walk_forward.py`
+把 `analysis/research_validation.py` 的窗口几何真正绑到引擎重跑上——在此之前，`walk_forward_splits`、`benjamini_hochberg`、`deflated_sharpe_ratio` 全都只吃别人产出的收益序列，没有任何东西驱动回测。
+
+`run_walk_forward(data_map, candidates, config)` 对每个 split、每个候选跑**两次**引擎：
+
+1. `[train_start, validation_end)` —— 选参样本。返回的收益序列在 `validation_start` 处切开，train 与 validation 分别打分，**选参只用 validation 半段**（紧邻 purge 间隔、离测试段最近的那一半）；train 的最优者也一并报出，两者不一致（`selection_agrees=False`）就是数据不支持这个选择的信号。
+2. `[test_start, test_end)` —— 选参从未触及。
+
+`candidates` 的值必须是**零参工厂**而不是策略实例：策略带健康/冷却状态，复用实例会让上一个窗口的生命周期决定下一个窗口能不能开仓。
+
+两条口径：`procedure` 把每个窗口胜出者的测试收益拼成一条序列（这是"跑这套选参规则实际能赚到的"，也是应该被引用的数字）；`candidates` 把**每个**候选在所有测试窗口的收益汇总，这样 `benjamini_hochberg` 才有 N 个假设可校正——N 个候选的搜索本来就做了 N 次检验。p 值用 `core.metrics.one_sided_bootstrap_p_value`（`(k+1)/(n+1)`，永远不会给出 0，否则任何 FDR 阈值都拦不住）。`deflated_sharpe_ratio` 的 `trials` 传候选数而不是 1。
+
+三条必须知道的约定：每次运行都喂 `warmup_period` 根前置 bar 并把 warmup 设成同一个数，**路由从窗口第一根开始**；前置历史不够的窗口进 `skipped_windows` 而不是被缩短（缩短会让该窗口的指标与其他窗口不同口径）；每个窗口都从同一笔 `initial_capital` 起步，跨窗口不复利——复利会让总结果变成"第一个窗口的故事"。
 
 > `analysis/plot_performance.py` 已删除：它画的权益曲线 + 回撤双联图，
 > `backtest/reporting/render/charts.py` 产出的 `equity.png` 已完整覆盖（并额外含日收益与资金占用）。

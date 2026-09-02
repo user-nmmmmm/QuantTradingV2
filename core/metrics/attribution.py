@@ -16,7 +16,25 @@ from core.strategy_health import (
 from core.metrics.performance import _clean_equity
 
 _FUNNEL_STAGES = ("risk_evaluated", "risk_approved", "order_created", "order_accepted", "filled")
-_ORDER_ACCEPTED_STATUSES = {"accepted", "partially_filled", "filled"}
+_ORDER_ACCEPTED_STATUSES = {"accepted", "partially_filled", "filled", "partial"}
+
+
+def _payload_field(payload: Any, name: str) -> Any:
+    """Read one field from an event payload, mapping or object alike.
+
+    Real pipeline payloads are dataclasses (``RiskDecision``, ``OrderEvent``,
+    ``FillEvent``); serialised ones are plain dicts. Assuming only the mapping
+    form made this function raise ``AttributeError`` on every real event log,
+    which is part of why it had no production caller.
+    """
+    if isinstance(payload, Mapping):
+        return payload.get(name)
+    return getattr(payload, name, None)
+
+
+def _status_text(value: Any) -> str:
+    """Enum members compare by value here; ``str(SomeEnum.X)`` would not."""
+    return str(getattr(value, "value", value)).lower()
 
 
 def calculate_signal_funnel(events: Iterable[Any]) -> Dict[str, Any]:
@@ -33,12 +51,14 @@ def calculate_signal_funnel(events: Iterable[Any]) -> Dict[str, Any]:
     Events are duck-typed (``correlation_id``/``event_type``/``payload``
     attributes), so this accepts ``EventEnvelope`` instances or any
     equivalent lightweight record without importing the events module.
+    Payloads may be dataclasses or plain mappings; both are read the same way.
 
-    Note: as of this writing, ``RiskDecision`` is a domain object but is not
-    yet published as a ``risk_decision`` event by the live/backtest
-    pipelines, so ``risk_evaluated``/``risk_approved`` will read 0 against a
-    real run's event log until that publishing is wired up. This function
-    only counts what it is given; it does not assume unpublished events.
+    Scope note: the backtest publishes a ``risk_decision`` only for *opening*
+    intents (``core.risk.reservation.ensure_opening_reservation`` reserves
+    capacity for buys and shorts alone), so this funnel describes the entry
+    chain. Exit orders appear from ``order_created`` onwards, which is why
+    ``order_created`` can exceed ``risk_evaluated``; the per-stage
+    ``pct_of_previous_stage`` is reported for exactly that reason.
     """
     groups: Dict[Any, Dict[str, bool]] = {}
     for event in events:
@@ -47,15 +67,15 @@ def calculate_signal_funnel(events: Iterable[Any]) -> Dict[str, Any]:
             continue
         group = groups.setdefault(key, {stage: False for stage in _FUNNEL_STAGES})
         event_type = getattr(event, "event_type", None)
-        payload = getattr(event, "payload", None) or {}
+        payload = getattr(event, "payload", None)
         if event_type == "risk_decision":
             group["risk_evaluated"] = True
-            if bool(payload.get("approved")):
+            if bool(_payload_field(payload, "approved")):
                 group["risk_approved"] = True
         elif event_type == "order_intent":
             group["order_created"] = True
         elif event_type == "order":
-            if str(payload.get("status", "")).lower() in _ORDER_ACCEPTED_STATUSES:
+            if _status_text(_payload_field(payload, "status")) in _ORDER_ACCEPTED_STATUSES:
                 group["order_accepted"] = True
         elif event_type == "fill":
             group["filled"] = True

@@ -28,6 +28,7 @@ from core.broker import Broker
 from core.events import TradingEventPipeline
 from core.logger import get_logger
 from core.market_data import HistoricalMarketDataAdapter, normalize_market_frame
+from core.metrics import calculate_exposure
 from core.portfolio import Portfolio
 from core.runtime import EventProcessor
 from core.protective_stops import EntryRiskPolicy, evaluate_fill_risk
@@ -175,6 +176,9 @@ class BacktestEngine:
             liquidation_penalty_bps=self.config_account.get(
                 "liquidation_penalty_bps", 0.0
             ),
+            opening_order_ttl_bars=self.config_execution.get(
+                "opening_order_ttl_bars", 0
+            ),
             event_pipeline=event_pipeline,
             timeframe=self.timeframe,
         )
@@ -287,6 +291,13 @@ class BacktestEngine:
 
         logger.info("Starting backtest on %s bars", len(timestamps))
         equity_curve = []
+        # BM3: the book behind every equity point. Without it a Sharpe cannot
+        # be read - a flat stretch of equity means one thing at 2x gross and
+        # another thing flat in cash, and the equity curve alone cannot say
+        # which. Only non-flat symbols and their marks are kept, which is what
+        # calculate_exposure counts anyway.
+        exposure_positions: Dict[Any, Dict[str, float]] = {}
+        exposure_prices: Dict[Any, Dict[str, float]] = {}
         accounting = AccountingReconciler(self.initial_capital)
         bar_index = -1
         last_event_timestamp = None
@@ -517,6 +528,10 @@ class BacktestEngine:
                     "cash": result.cash,
                 }
             )
+            self._sample_exposure(
+                portfolio, result.prices, event.timestamp,
+                exposure_positions, exposure_prices,
+            )
             # T-1.8: accounting-identity check (Gate G2), one lightweight pass
             # per bar using the same equity/prices the loop already computed.
             accounting.check_bar(
@@ -558,6 +573,8 @@ class BacktestEngine:
             self._close_tail_positions(
                 portfolio, broker, execution, strategies, equity_curve, accounting,
                 last_event_timestamp, bar_index,
+                exposure_positions=exposure_positions,
+                exposure_prices=exposure_prices,
             )
             lifecycle["active_end"] = last_event_timestamp
         else:
@@ -597,12 +614,21 @@ class BacktestEngine:
                 lifecycle["suppressed_setups_after_termination"] = suppressed
             # Preserve the full capital-period experience as an explicit flat
             # cash tail while active-strategy metrics stop at active_end.
+            frozen_prices = (
+                dict(self.event_processor.last_prices) if self.event_processor else {}
+            )
             for inactive_timestamp in timestamps[bar_index + 1:]:
                 equity_curve.append({
                     "timestamp": inactive_timestamp,
                     "equity": terminal_equity,
                     "cash": terminal_cash,
                 })
+                # The book is frozen too, so record it rather than leaving a
+                # hole that would read as "exposure unknown" in equity.csv.
+                self._sample_exposure(
+                    portfolio, frozen_prices, inactive_timestamp,
+                    exposure_positions, exposure_prices,
+                )
         # SR1-4: fold the strategy health lifecycle into the run lifecycle so
         # a strategy that stopped trading years ago cannot be reported as an
         # uneventful "completed" run.
@@ -668,7 +694,9 @@ class BacktestEngine:
         )
         return {
             "trades": broker.trades,
-            "equity_curve": pd.DataFrame(equity_curve).set_index("timestamp"),
+            "equity_curve": self._equity_frame(
+                equity_curve, exposure_positions, exposure_prices
+            ),
             "benchmark": selected_benchmark.equity if selected_benchmark else None,
             "benchmark_fixed": fixed_benchmark.equity if fixed_benchmark else None,
             "benchmark_dynamic": dynamic_benchmark.equity if dynamic_benchmark else None,
@@ -769,6 +797,57 @@ class BacktestEngine:
             ]),
         }
 
+    @staticmethod
+    def _sample_exposure(
+        portfolio: Portfolio,
+        prices: Dict[str, float],
+        timestamp: Any,
+        positions_by_time: Dict[Any, Dict[str, float]],
+        prices_by_time: Dict[Any, Dict[str, float]],
+    ) -> None:
+        """Record the non-flat book and its marks for one equity-curve row.
+
+        Flat symbols are dropped because :func:`core.metrics.calculate_exposure`
+        skips them anyway, and carrying the whole universe for every bar would
+        make this the largest object the run holds.
+        """
+        held: Dict[str, float] = {}
+        marks: Dict[str, float] = {}
+        for symbol in portfolio.positions:
+            qty = float(portfolio.get_position(symbol).get("qty", 0.0))
+            if qty == 0.0:
+                continue
+            held[symbol] = qty
+            price = prices.get(symbol)
+            if price is not None:
+                marks[symbol] = float(price)
+        positions_by_time[timestamp] = held
+        prices_by_time[timestamp] = marks
+
+    @staticmethod
+    def _equity_frame(
+        equity_rows: list,
+        positions_by_time: Dict[Any, Dict[str, float]],
+        prices_by_time: Dict[Any, Dict[str, float]],
+    ) -> pd.DataFrame:
+        """The equity curve with its exposure columns joined on (BM3).
+
+        Exposure ships as columns of the curve rather than as a separate
+        result key so every consumer that already has the curve - equity.csv,
+        the workbook's Equity sheet, the charts - gets it without a new
+        parameter, and so a row can never be paired with another row's book.
+        """
+        frame = pd.DataFrame(equity_rows)
+        if frame.empty:
+            return frame
+        frame = frame.set_index("timestamp")
+        exposure = calculate_exposure(
+            positions_by_time, prices_by_time, frame["equity"].to_dict()
+        )
+        if exposure.empty:
+            return frame
+        return frame.join(exposure)
+
     def _recheck_entry_risk(
         self,
         *,
@@ -860,6 +939,8 @@ class BacktestEngine:
         accounting: AccountingReconciler,
         last_event_timestamp: Any,
         bar_index: int,
+        exposure_positions: Optional[Dict[Any, Dict[str, float]]] = None,
+        exposure_prices: Optional[Dict[Any, Dict[str, float]]] = None,
     ) -> None:
         """T-1.11: EndOfBacktest - close whatever is still open when the data
         runs out, through the same Broker/CloseEvent path as every other exit
@@ -924,6 +1005,13 @@ class BacktestEngine:
         equity_curve.append(
             {"timestamp": synthetic_time, "equity": final_equity, "cash": portfolio.cash}
         )
+        if exposure_positions is not None and exposure_prices is not None:
+            # Everything closed above, so this row is flat by construction -
+            # sampling it anyway keeps the exposure columns hole-free.
+            self._sample_exposure(
+                portfolio, final_prices, synthetic_time,
+                exposure_positions, exposure_prices,
+            )
         accounting.check_bar(
             bar_index + 1, synthetic_time, final_equity, portfolio,
             final_prices, broker.close_events,

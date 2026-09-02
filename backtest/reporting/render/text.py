@@ -61,6 +61,8 @@ class ReportWritersMixin:
                 f.write(f"{display_key:<45}: {self._format_metric_value(v)}\n")
             f.write("\n")
 
+            self._write_exposure_section(f, analysis.get("exposure"))
+            self._write_signal_funnel_section(f, analysis.get("signal_funnel"))
             self._write_drawdown_events_section(f, analysis.get("drawdown_events"))
             self._write_trade_quality_section(f, analysis.get("trade_quality"))
             self._write_attribution_section(f, analysis.get("attribution"))
@@ -78,7 +80,12 @@ class ReportWritersMixin:
             f.write("2. equity.csv (净值曲线数据)\n")
             f.write("   - timestamp: Date (日期)\n")
             f.write("   - equity: Total Account Equity (总权益 = 现金 + 持仓市值)\n")
-            f.write("   - cash: Available Cash (可用现金)\n\n")
+            f.write("   - cash: Available Cash (可用现金)\n")
+            f.write("   - gross_exposure / net_exposure: Notional held at that\n")
+            f.write("     bar, absolute and signed (该 bar 的名义敞口，总额/净额)\n")
+            f.write("   - priced_symbols: Symbols contributing to it (计入的标的数)\n")
+            f.write("   - gross/net_exposure_pct_equity: The same over that\n")
+            f.write("     bar's equity, i.e. leverage (同一 bar 的杠杆倍数)\n\n")
 
             f.write("3. trades.csv (交易明细记录 - Execution Log)\n")
             f.write("   - signal_time: Time signal was generated (信号产生时间)\n")
@@ -195,6 +202,104 @@ class ReportWritersMixin:
                 "(STR-P1-01).\n"
             )
         f.write("\n")
+
+    @staticmethod
+    def _write_signal_funnel_section(f, funnel: Optional[Dict[str, Any]]) -> None:
+        """Where the signal-to-fill chain loses candidates (BM3).
+
+        Built from the run's own event stream by correlation id, so a stage
+        that drops to zero names the component that swallowed the chain -
+        something neither the trade list nor the equity curve can show.
+        """
+        if not funnel:
+            return
+        total = funnel.get("total_correlation_chains") or 0
+        f.write("Signal Funnel (信号漏斗):\n")
+        f.write("-----------------\n")
+        if not total:
+            f.write(
+                "No correlated event chains in this run's event log.\n"
+                "本次运行的事件流中没有可关联的信号链。\n\n"
+            )
+            return
+        labels = {
+            "risk_evaluated": "Risk evaluated (风控已评估)",
+            "risk_approved": "Risk approved (风控已放行)",
+            "order_created": "Order created (订单已生成)",
+            "order_accepted": "Order accepted (订单已受理)",
+            "filled": "Filled (已成交)",
+        }
+        f.write(f"{'Total signal chains (信号链总数)':<45}: {total}\n")
+        for stage, entry in (funnel.get("stages") or {}).items():
+            label = labels.get(stage, stage)
+            share = entry.get("pct_of_total")
+            step = entry.get("pct_of_previous_stage")
+            f.write(
+                f"{label:<45}: {entry.get('count')}"
+                + (f"  ({share * 100:.1f}% of all" if share is not None else "  (n/a")
+                + (f", {step * 100:.1f}% of previous)" if step is not None else ")")
+                + "\n"
+            )
+        f.write(
+            "\nEach count includes every chain that reached that stage, so the\n"
+            "column only falls. A large drop names the component that rejected\n"
+            "the chain - risk sizing, the venue, or liquidity at the fill.\n"
+            "每级计数包含所有到达该级的信号链，因此只会递减；某一级骤降即指向\n"
+            "吞掉信号链的环节（风控定仓 / 交易所受理 / 成交时的流动性）。\n\n"
+        )
+
+    @staticmethod
+    def _write_exposure_section(f, exposure: Optional[Dict[str, Any]]) -> None:
+        """How invested the book was - the context every return statistic needs."""
+        if not exposure:
+            return
+        f.write("Exposure (敞口与杠杆):\n")
+        f.write("-----------------\n")
+        status = exposure.get("status")
+        if status == "not_recorded":
+            f.write(
+                "This equity curve carries no exposure columns (it was recorded\n"
+                "by a backtest older than BM3); leverage and time in market are\n"
+                "unknown here, not zero.\n"
+                "该权益曲线不含敞口列，杠杆与在市时间未知（不是 0）。\n\n"
+            )
+            return
+        if status != "ok":
+            f.write(f"status: {status}\n\n")
+            return
+
+        def _pct(key: str) -> str:
+            value = exposure.get(key)
+            return "n/a" if value is None else f"{value * 100:.2f}%"
+
+        def _num(key: str) -> str:
+            value = exposure.get(key)
+            return "n/a" if value is None else f"{value:.2f}"
+
+        rows = [
+            ("Time in market (在市时间占比)", _pct("time_in_market_ratio")),
+            ("Invested periods (在市周期数)", str(exposure.get("invested_periods"))),
+            ("Mean gross leverage (平均总杠杆)", _pct("mean_gross_leverage")),
+            ("  ... while invested (仅在市周期)", _pct("mean_gross_leverage_invested")),
+            ("Max gross leverage (最大总杠杆)", _pct("max_gross_leverage")),
+            ("Mean net leverage (平均净杠杆)", _pct("mean_net_leverage")),
+            ("Max net long (最大净多头)", _pct("max_net_long_leverage")),
+            ("Max net short (最大净空头)", _pct("max_net_short_leverage")),
+            ("Long periods (净多头周期占比)", _pct("long_period_ratio")),
+            ("Short periods (净空头周期占比)", _pct("short_period_ratio")),
+            ("Mean open positions (平均持仓标的数)", _num("mean_open_positions")),
+            ("Max open positions (最大持仓标的数)",
+             str(exposure.get("max_open_positions"))),
+        ]
+        for label, value in rows:
+            f.write(f"{label:<45}: {value}\n")
+        f.write(
+            "\nA Sharpe or CAGR computed over periods that are mostly flat\n"
+            "describes only the invested ones. Read the two mean-leverage rows\n"
+            "together before comparing against a fully-invested benchmark.\n"
+            "夏普/CAGR 覆盖的周期若多数为空仓，实际刻画的只是少数在市周期；\n"
+            "与满仓基准比较前请同时看这两行平均杠杆。\n\n"
+        )
 
     @staticmethod
     def _write_drawdown_events_section(f, events: Optional[List[Dict[str, Any]]]) -> None:

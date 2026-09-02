@@ -97,6 +97,43 @@ def bootstrap_return_distribution(
             "upper": float(np.quantile(stat_values, 1 - alpha))}
 
 
+def one_sided_bootstrap_p_value(
+    returns: Iterable[float], *, n_samples: int = 2000, seed: int = 42,
+) -> Dict[str, Any]:
+    """P(mean return <= 0) by bootstrap, for feeding ``benjamini_hochberg`` (BM8).
+
+    A multiple-testing correction needs one p-value per hypothesis tested.
+    "This candidate's out-of-sample mean return is greater than zero" is the
+    hypothesis a parameter search is implicitly making N times, so this
+    resamples the candidate's own OOS returns and reports the share of
+    resamples whose mean is not positive.
+
+    The estimate is ``(k + 1) / (n_samples + 1)`` rather than ``k /
+    n_samples``: a bootstrap can never justify p == 0, and handing a literal
+    zero to an FDR correction would make the candidate unconditionally
+    significant no matter how many were tried.
+
+    Same i.i.d. caveat as :func:`bootstrap_return_distribution` — serial
+    correlation is not modelled, so this understates the true p-value for
+    autocorrelated returns and must not be read as an exact test.
+    """
+    values = np.asarray(list(returns), dtype=float)
+    values = values[np.isfinite(values)]
+    if len(values) < 2:
+        return {"status": "insufficient", "sample_size": int(len(values)),
+                "p_value": None, "mean": None}
+    rng = np.random.default_rng(seed)
+    means = rng.choice(values, size=(n_samples, len(values)), replace=True).mean(axis=1)
+    failures = int(np.count_nonzero(means <= 0.0))
+    return {
+        "status": "ok",
+        "sample_size": int(len(values)),
+        "n_samples": int(n_samples),
+        "mean": float(values.mean()),
+        "p_value": float((failures + 1) / (n_samples + 1)),
+    }
+
+
 def monte_carlo_trade_sequence(
     trade_pnls: Iterable[float], n_simulations: int = 2000, seed: int = 42,
 ) -> Dict[str, Any]:

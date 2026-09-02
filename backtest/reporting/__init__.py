@@ -14,6 +14,7 @@ import os
 from collections import deque
 from typing import Deque, List, Dict, Any, Optional, Tuple
 
+from backtest.reporting.risk_metrics import summarize_exposure
 from core.diagnostics import build_diagnostics
 from core.logger import get_logger
 from core.metric_result import MetricResult
@@ -25,6 +26,7 @@ from core.metrics import (
     calculate_equity_metrics,
     calculate_profit_factor,
     calculate_r_multiple_stats,
+    calculate_signal_funnel,
     calculate_trade_quality,
     infer_periods_per_year,
     monthly_returns,
@@ -44,7 +46,9 @@ logger = get_logger(__name__)
 
 指标计算：
 - 权益曲线：CAGR、最大回撤、月均收益、夏普（按 252 日年化）
-- 交易明细：基于 FIFO 重建已平仓交易，计算胜率、盈亏比、期望值等
+- 交易明细：先用 FIFO 重建成交腿，再按 position_id 折叠成往返交易（一次持仓
+  从建仓到清零），胜率/盈亏比/期望值一律按**往返**统计；成交腿数另以
+  ``ClosedTradeLegs`` 报出，两个口径都可见
 """
 
 
@@ -116,7 +120,8 @@ METRIC_NAMES = {
     "EndEquity": "End Equity (最终净值)",
     "TotalReturn": "Total Return (总收益率)",
     "MetricsFormulaVersion": "Metrics Formula Version (指标公式版本)",
-    "TotalTrades": "Total Trades (总交易次数)",
+    "TotalTrades": "Total Trades (往返交易次数)",
+    "ClosedTradeLegs": "Closed Trade Legs (成交腿配对数)",
     "WinRate": "Win Rate (胜率)",
     "ProfitFactor": "Profit Factor (盈亏比)",
     "ProfitFactorStatus": "Profit Factor Status (盈亏比计算状态)",
@@ -172,6 +177,7 @@ class ReportGenerator(
         protective_stops: Optional[Dict[str, Any]] = None,
         report_profile: str = "full",
         data_quality: Optional[Dict[str, Any]] = None,
+        event_log: Optional[Any] = None,
     ):
         """
         生成报告并返回指标字典。
@@ -203,11 +209,20 @@ class ReportGenerator(
                 trades_df.to_csv(os.path.join(self.output_dir, "trades.csv"), index=False)
 
         # 2. Calculate Metrics
-        closed_trades = self._reconstruct_closed_trades(trades_df)
+        # Legs are the raw FIFO open/close matches; round trips fold the legs
+        # of one position back together. Everything below reports round trips
+        # (what a trader calls "a trade") except lifecycle_coverage, whose
+        # counterpart counter is leg-level. See backtest/reporting/trades.py.
+        closed_legs = self._reconstruct_closed_trades(trades_df)
+        closed_trades = self._aggregate_round_trips(closed_legs)
         trade_metrics = self._trade_metrics_from_closed(closed_trades)
         equity_metrics = self._calculate_equity_metrics(equity_curve)
 
         metrics = {**equity_metrics, **trade_metrics}
+        # Both counting conventions stay visible: TotalTrades is round trips,
+        # this is the fill-leg count behind them. A large gap means the
+        # participation cap is splitting orders heavily.
+        metrics["ClosedTradeLegs"] = len(closed_legs)
         lifecycle_provided = lifecycle is not None
         lifecycle = dict(lifecycle or {})
         active_end = lifecycle.get("active_end")
@@ -224,6 +239,14 @@ class ReportGenerator(
 
         extended = dict(metrics.get("ExtendedAnalytics") or {})
         extended["drawdown_events"] = calculate_drawdown_events(equity_curve["equity"])
+        # BM3: the book behind the returns. Reports "not_recorded" for curves
+        # that predate the engine's exposure columns rather than guessing.
+        extended["exposure"] = summarize_exposure(equity_curve)
+        if event_log is not None:
+            # BM3: where the signal chain leaks. Only computable from the
+            # engine's event pipeline, so it is absent (not zero) when a caller
+            # has trades and a curve but no run context.
+            extended["signal_funnel"] = calculate_signal_funnel(event_log)
         if benchmark_curve is not None:
             extended["benchmark_comparison"] = calculate_benchmark_comparison(
                 equity_curve["equity"], benchmark_curve
@@ -236,7 +259,8 @@ class ReportGenerator(
         # believed and whether the system behaves as its code claims. Kept in
         # its own key so consumers can tell "performance" from "credibility".
         metrics["Diagnostics"] = build_diagnostics(
-            closed_trades, equity_curve["equity"], close_events, strategy_health
+            closed_trades, equity_curve["equity"], close_events, strategy_health,
+            closed_legs=closed_legs,
         )
         # SR1-4: the lifecycle section must state the health status alongside
         # the run status, so "completed" can never stand alone next to a

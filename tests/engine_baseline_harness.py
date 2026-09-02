@@ -184,8 +184,10 @@ def run_engine(
             close_events=result.get("close_events"),
         )
 
-    equity_curve = result["equity_curve"].reset_index()
-    equity_curve.columns = ["timestamp", "equity", "cash"]
+    # Renamed, not reassigned positionally: the curve carries exposure columns
+    # beyond equity/cash, and overwriting the whole column list would either
+    # raise or mislabel them.
+    equity_curve = result["equity_curve"].rename_axis("timestamp").reset_index()
     benchmark = result["benchmark"]
 
     return {

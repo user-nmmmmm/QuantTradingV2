@@ -21,20 +21,20 @@
 
 | ID | 问题 | 根因位置 | 影响 | 优先级 |
 | --- | --- | --- | --- | --- |
-| B-01 | GTC 限价单永不失效，reservation 泄漏 → 标的锁死 | `core/broker/__init__.py:152-153`、`core/risk/reservation.py:22-27` | 策略长期不交易，结果失真 | **P0** |
+| B-01 | ~~GTC 限价单永不失效，reservation 泄漏 → 标的锁死~~（已修：`execution.opening_order_ttl_bars`） | `core/broker/matching.py`、`core/risk/reservation.py` | 策略长期不交易，结果失真 | **P0** |
 | B-02 | 无现金充足校验，账户可为负现金 | `core/risk/__init__.py:128-216`、`core/portfolio.py:59-67` | 产生真实中不可能的结果 | **P0** |
 | B-03 | 做空免费（无抵押/借券/资金费） | `core/portfolio.py` 符号化多空 | 空头 alpha 被高估 | P1 |
 | B-04 | 止损不按触发价成交，延迟一整根 bar | `strategies/*` `should_exit` + `core/broker/__init__.py:348-352`（STOP 未用） | 回撤/盈亏失真 | P1 |
 | B-05 | 熔断强平是 Next-Bar 且被成交量限速 | `backtest/engine.py:115-128` | 极端行情回撤被低估 | P1 |
 | B-06 | 成交量双重 1% 限速，大单被拆 100+ 根 | `backtest/engine.py:72-75`、`core/risk/__init__.py:161-166` | 成交价系统性偏离信号价 | P1 |
-| B-07 | 部分成交把一次往返算成多笔交易 | `backtest/reporting/__init__.py:143-276` | TotalTrades/WinRate 失真 | P2 |
+| B-07 | ~~部分成交把一次往返算成多笔交易~~（已修） | `backtest/reporting/trades.py` | TotalTrades/WinRate 失真 | P2 |
 | B-08 | 多标的用"最近已知价"估值 | `core/runtime.py:118-123` | 指标/熔断轻微失真 | P2 |
 | B-09 | 基准时间轴不齐用 fillna(0) 近似 | `backtest/engine.py:146-164` | 超额收益不可比 | P2 |
 | B-10 | 部分成交卖单在持仓耗尽后标 REJECTED | `core/broker/__init__.py:434-442,378-380` | 成交统计含假拒单 | P2 |
-| B-11 | `metrics.py` 约 30 个指标函数未接入报告 | `backtest/reporting/__init__.py:71-74` | 研究能力闲置 | P2 |
+| B-11 | ~~`metrics.py` 指标函数未接入报告~~（已修：exposure / signal_funnel / drawdown_events / trade_quality / attribution / r_multiple / cost_sensitivity 全部接线） | `backtest/reporting/` | 研究能力闲置 | P2 |
 | B-12 | 只跑日线，`resample_ohlcv` 未接线 | `main.py:51`、`core/data.py:81-108` | 无法多周期验证 | P2 |
 | B-13 | 合成数据不可控/无极端场景模板 | `core/data_fetcher.py:332-401` | 压力测试缺失 | P2 |
-| B-14 | `optimize.py` 无样本外/稳健性校验 | `analysis/optimize.py:68-119` | 参数过拟合 | P1 |
+| B-14 | ~~`optimize.py` 无样本外/稳健性校验~~（已修：`analysis/walk_forward.py` + `--walk-forward`） | `analysis/optimize.py` | 参数过拟合 | P1 |
 | B-15 | 无本地数据缓存 | `main.py:240-253` | 重复拉取、不可复现 | P3 |
 
 ## 3. 阶段总览与依赖
