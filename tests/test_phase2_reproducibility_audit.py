@@ -183,6 +183,16 @@ def test_t2_12_point_in_time_universe_retains_pre_delisting_history():
     assert universe.active_symbols("2024-01-02") == ["OLD"]
 
 
+def test_frozen_binance_universe_uses_true_pair_listing_boundaries():
+    universe = PointInTimeUniverse.from_csv(
+        "config/universe_binance_spot_1d.csv"
+    )
+    assert "SUI-USDT" not in universe.active_symbols("2023-05-02")
+    assert "SUI-USDT" in universe.active_symbols("2023-05-03")
+    assert "MATIC-USDT" in universe.active_symbols("2025-03-24")
+    assert "MATIC-USDT" not in universe.active_symbols("2025-03-25")
+
+
 def test_t2_13_same_input_produces_identical_trade_equity_benchmark_report_digest():
     index = pd.date_range("2024-01-01", periods=80, freq="D")
     frame = _frame(index, pd.Series(range(80), index=index) + 100.0)

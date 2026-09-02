@@ -189,10 +189,10 @@
     },
     "SUI/USDT": {
       "file": "SUI_USDT.csv",
-      "rows": 1501,
-      "first": "2022-03-18T00:00:00",
+      "rows": 1213,
+      "first": "2023-05-03T00:00:00",
       "last": "2026-08-27T00:00:00",
-      "sha256": "ceacbfbd7fde85fb27066660b88e30be43debf069254d36353ee7be677604485"
+      "sha256": "bd8f2b17e46d01e43f5314f63294a6baac331d3faabf7001df08279ad017fb68"
     },
     "SEI/USDT": {
       "file": "SEI_USDT.csv",
@@ -214,6 +214,12 @@
       "first": "2022-05-09T00:00:00",
       "last": "2026-08-27T00:00:00",
       "sha256": "d8b9e6d1456c3ecca20762ffa28b5991eb710214f9b39c461886fa9b90fd1860"
+    }
+  },
+  "data_corrections": {
+    "SUI/USDT": {
+      "removed_before": "2023-05-03",
+      "reason": "exclude non-Binance/pre-listing series"
     }
   }
 }
