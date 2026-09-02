@@ -269,7 +269,7 @@ class MatchingMixin:
             ):
                 self._set_status(order, BacktestOrderStatus.EXPIRED, current_time)
                 continue
-            if self._expire_idle_opening_order(order, current_time):
+            if self._expire_aged_opening_order(order, current_time):
                 continue
 
             open_price = float(bar_data["open"])
@@ -359,8 +359,8 @@ class MatchingMixin:
         self.active_orders = next_active_orders
         return executed_trades
 
-    def _expire_idle_opening_order(self, order: Order, current_time: Any) -> bool:
-        """Retire an opening order that has rested this long without a fill (B-01).
+    def _expire_aged_opening_order(self, order: Order, current_time: Any) -> bool:
+        """Retire an opening order after its total matchable-bar age (B-01).
 
         A GTC limit or stop entry whose price is never touched used to work
         forever. Two things then never end: the risk reservation it holds
@@ -375,25 +375,25 @@ class MatchingMixin:
         protective stops are meant to rest until their position closes - both
         are sell/cover, so neither is reachable here.
 
-        Any fill resets the counter: an order being sliced by the
-        participation cap is making progress, not idling, so a large entry
-        legitimately spanning many bars is never cut short.
+        Age never resets on a fill.  Otherwise a negligible partial fill can
+        renew the order forever and preserve both its reservation and symbol
+        lock.  The configured TTL is therefore a hard upper bound on the
+        opening order's total working lifetime.
         """
         ttl = self.opening_order_ttl_bars
         if ttl <= 0 or order.side not in {"buy", "short"}:
             return False
-        if order.filled_qty > 0:
-            order.idle_bars = 0
-            order.last_counted_bar = current_time
-            return False
-        if order.last_counted_bar != current_time:
-            order.last_counted_bar = current_time
-            order.idle_bars += 1
-        if order.idle_bars <= ttl:
+        if order.last_age_bar != current_time:
+            order.last_age_bar = current_time
+            order.age_bars += 1
+            if order.filled_qty <= 0:
+                order.idle_bars += 1
+                order.last_counted_bar = current_time
+        if order.age_bars <= ttl:
             return False
         self._audit_order(
             order, current_time, "expired", "opening_order_ttl",
-            idle_bars=order.idle_bars, ttl_bars=ttl,
+            age_bars=order.age_bars, idle_bars=order.idle_bars, ttl_bars=ttl,
         )
         self._set_status(order, BacktestOrderStatus.EXPIRED, current_time)
         return True

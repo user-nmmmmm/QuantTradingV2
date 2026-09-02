@@ -123,9 +123,9 @@ class TestUnreachableEntryExpires:
         assert rows[0]["ttl_bars"] == 2
 
 
-class TestProgressResetsTheClock:
-    def test_a_partially_filled_entry_is_never_cut_short(self):
-        """The participation cap slices large entries across many bars."""
+class TestPartialFillsDoNotResetTheClock:
+    def test_a_partially_filled_entry_expires_at_its_total_age_limit(self):
+        """Even repeated tiny fills cannot renew an opening order forever."""
         # 0.1% of 1e6 volume = 1000 units a bar, against a 20k order.
         broker = _broker(ttl=2, max_participation_rate=0.001)
         order = broker.submit_order(
@@ -133,11 +133,25 @@ class TestProgressResetsTheClock:
             timestamp=pd.Timestamp("2024-01-01"),
         )
 
-        _drain(broker, range(2, 9))  # seven bars, far more than the TTL
+        _drain(broker, range(2, 5))  # third matchable bar is beyond the TTL
 
-        assert order.status is not BacktestOrderStatus.EXPIRED
+        assert order.status is BacktestOrderStatus.EXPIRED
         assert 0 < order.filled_qty < 20_000.0
-        assert order.idle_bars == 0  # every bar made progress
+        assert order.age_bars == 3
+
+    def test_multiple_matching_passes_on_one_bar_age_once(self):
+        broker = _broker(ttl=1, max_participation_rate=0.001)
+        order = broker.submit_order(
+            SYMBOL, "buy", 20_000.0, price=100.0, order_type="market",
+            timestamp=pd.Timestamp("2024-01-01"),
+        )
+
+        bar = {SYMBOL: _bar(2)}
+        broker.process_orders(bar)
+        broker.process_orders(bar)
+
+        assert order.age_bars == 1
+        assert order.status is not BacktestOrderStatus.EXPIRED
 
 
 class TestWhatTheRuleMustNotTouch:

@@ -19,13 +19,10 @@ execution:
   impact_coefficient: 0.10
   impact_exponent: 1.5
   max_participation_rate: 0.05  # Split fills across bars above 5% participation
-  # B-01: bars an opening order may rest without filling anything before it
-  # expires. A GTC limit entry whose price is never touched otherwise works
-  # forever, holding its risk reservation and blocking that symbol from ever
-  # being entered again (has_active_open_order). Any fill resets the counter,
-  # so an entry legitimately sliced across bars by the participation cap is
-  # never cut short. 0 disables the rule. Exits and resident protective stops
-  # are exempt by construction - they are sell/cover, never opening orders.
+  # B-01: hard limit on an opening order's total matchable-bar age. Partial
+  # fills do not reset it, so a negligible fill cannot renew a GTC reservation
+  # and symbol lock forever. 0 disables the rule. Exits and resident protective
+  # stops are exempt by construction (sell/cover, never opening orders).
   opening_order_ttl_bars: 10
   reconciliation_interval_seconds: 300  # Independent order reconciliation cadence
   strategy_failure_threshold: 3         # Consecutive strategy failures before HALTED
