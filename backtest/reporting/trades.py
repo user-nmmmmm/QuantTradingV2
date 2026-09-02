@@ -1,11 +1,41 @@
-"""FIFO trade reconstruction and trade-metric aggregation."""
+"""FIFO trade reconstruction, round-trip folding, and trade-metric aggregation.
+
+Two granularities live here and must not be confused:
+
+**Leg** - one FIFO match between an opening fill and a closing fill, produced
+by :meth:`_reconstruct_closed_trades`. A position opened over five
+participation-limited fills and closed over three produces up to seven legs.
+
+**Round trip** - one position from flat to flat, produced by
+:meth:`_aggregate_round_trips` by folding the legs that share a
+``position_id``. This is the unit a trader means by "a trade", and the unit
+every headline count (``TotalTrades``, ``WinRate``, ``ProfitFactor``,
+``Expectancy``) is computed on.
+
+Counting legs as trades inflated the trade count and skewed win rate and
+profit factor exactly in proportion to how often the participation cap split
+an order - i.e. worst for the large-capital runs that ``backtest/capacity.py``
+exists to evaluate. The one metric that stays leg-level is
+``lifecycle_coverage``, whose counterpart (``Strategy.observed_close_events``)
+counts lot closes.
+"""
 
 from collections import deque
-from typing import Any, Deque, Dict, List, Tuple
+from typing import Any, Deque, Dict, List, Optional, Tuple
 
 import pandas as pd
 
 from core.metrics import calculate_profit_factor
+
+
+def _is_missing(value: Any) -> bool:
+    """True for None/NaN, which pandas hands back for absent numeric fields."""
+    if value is None:
+        return True
+    try:
+        return bool(pd.isna(value))
+    except (TypeError, ValueError):
+        return False
 
 
 class TradeReconstructionMixin:
@@ -15,8 +45,10 @@ class TradeReconstructionMixin:
         raise NotImplementedError
 
     def _analyze_trades(self, trades_df: pd.DataFrame) -> Dict[str, Any]:
-        """基于 trades.csv 重建已平仓交易并统计交易级指标（薄封装，见下两个方法）。"""
-        return self._trade_metrics_from_closed(self._reconstruct_closed_trades(trades_df))
+        """基于 trades.csv 重建往返交易并统计交易级指标（薄封装，见下三个方法）。"""
+        return self._trade_metrics_from_closed(
+            self._aggregate_round_trips(self._reconstruct_closed_trades(trades_df))
+        )
 
     def _reconstruct_closed_trades(self, trades_df: pd.DataFrame) -> List[Dict[str, Any]]:
         """
@@ -295,10 +327,101 @@ class TradeReconstructionMixin:
 
         return closed_trades
 
+    def _aggregate_round_trips(
+        self, closed_legs: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """Fold FIFO legs into one record per position (flat -> flat).
+
+        Legs are grouped by ``(symbol, position_id)`` - ``core.lots`` mints a
+        ``position_id`` when a symbol goes from flat to held and retires it
+        when the symbol is flat again, so that grouping *is* the round trip.
+        Legs without one (fills recorded before ``lot_closes`` existed) stay
+        one-leg round trips, which preserves the previous behaviour for old
+        trade files rather than silently merging unrelated positions.
+        """
+        groups: Dict[Any, List[Dict[str, Any]]] = {}
+        ordered_keys: List[Any] = []
+        for index, leg in enumerate(closed_legs):
+            position_id = leg.get("position_id")
+            key = (
+                (leg.get("symbol"), position_id)
+                if not _is_missing(position_id) else ("", index)
+            )
+            if key not in groups:
+                groups[key] = []
+                ordered_keys.append(key)
+            groups[key].append(leg)
+        return [self._fold_round_trip(groups[key]) for key in ordered_keys]
+
+    @staticmethod
+    def _fold_round_trip(legs: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Collapse one position's legs into a single closed-trade record.
+
+        ``_reconstruct_closed_trades`` appends legs in closing-fill order and,
+        within one closing fill, in FIFO order of the lots it retires. So for
+        one position ``legs[0]`` holds the earliest entry and ``legs[-1]`` the
+        fill that finally flattened it - which is why the opening side is read
+        off the first leg and the closing side off the last.
+        """
+        first, last = legs[0], legs[-1]
+        # Each partial close of one lot repeats that lot's *whole* initial
+        # risk (core.lots keeps ``initial_risk`` a whole-lot value and tracks
+        # the retired portion separately), so summing legs would double count.
+        # Summing one value per distinct lot gives the risk the position
+        # actually put at stake, which is what an R-multiple divides by.
+        risk_by_lot: Dict[Any, float] = {}
+        for index, leg in enumerate(legs):
+            risk = leg.get("initial_risk")
+            if _is_missing(risk):
+                continue
+            lot_id = leg.get("lot_id")
+            risk_by_lot.setdefault(
+                lot_id if not _is_missing(lot_id) else ("leg", index), float(risk)
+            )
+        entry_strategies = {leg.get("strategy") for leg in legs}
+
+        def _extreme(field: str) -> Optional[float]:
+            values = [
+                float(leg[field]) for leg in legs
+                if not _is_missing(leg.get(field))
+            ]
+            return max(values) if values else None
+
+        def _total(field: str) -> float:
+            return sum(
+                float(leg.get(field) or 0.0) for leg in legs
+                if not _is_missing(leg.get(field))
+            )
+
+        return {
+            "gross_pnl": _total("gross_pnl"),
+            "gross_pnl_theoretical": _total("gross_pnl_theoretical"),
+            "net_pnl": _total("net_pnl"),
+            "commission": _total("commission"),
+            "slippage": _total("slippage"),
+            "strategy": first.get("strategy"),
+            "symbol": first.get("symbol"),
+            "entry_time": first.get("entry_time"),
+            "exit_time": last.get("exit_time"),
+            "exit_reason": last.get("exit_reason"),
+            "exit_strategy": last.get("exit_strategy"),
+            "position_id": first.get("position_id"),
+            # A position can be pyramided into by more than one strategy, in
+            # which case attributing the whole round trip to the first entry
+            # is a choice, not a fact - say so instead of hiding it.
+            "mixed_entry_strategies": len(entry_strategies) > 1,
+            "legs": len(legs),
+            "initial_risk": sum(risk_by_lot.values()) if risk_by_lot else None,
+            # MAE/MFE are per-unit price excursions, so the position's worst
+            # excursion is the worst any of its lots saw, not their sum.
+            "mae": _extreme("mae"),
+            "mfe": _extreme("mfe"),
+        }
+
     def _trade_metrics_from_closed(
         self, closed_trades: List[Dict[str, Any]]
     ) -> Dict[str, Any]:
-        """把 `_reconstruct_closed_trades` 的输出聚合为控制台/report.txt 用的扁平指标字典。"""
+        """把往返交易（`_aggregate_round_trips` 的输出）聚合为扁平指标字典。"""
         if not closed_trades:
             return {
                 "TotalTrades": 0,

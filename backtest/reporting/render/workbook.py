@@ -15,6 +15,7 @@ from openpyxl.chart import AreaChart, LineChart, Reference
 from openpyxl.chart.series import SeriesLabel
 from openpyxl.formatting.rule import ColorScaleRule
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
 from backtest.reporting.risk_metrics import (
@@ -24,6 +25,11 @@ from backtest.reporting.risk_metrics import (
     calculate_portfolio_risk_metrics,
 )
 from core.metrics import monthly_returns
+
+
+def _letter(index: int) -> str:
+    """1-based column index -> Excel column letter."""
+    return get_column_letter(index)
 
 
 NAVY = "17324D"
@@ -174,7 +180,7 @@ def write_workbook_report(
 
     risk = calculate_portfolio_risk_metrics(equity_curve["equity"])
     active = calculate_active_risk_metrics(equity_curve["equity"], benchmark_curve)
-    core_keys = ("TotalReturn", "CAGR", "MaxDrawdownPct", "SharpeRatio", "TotalTrades", "WinRate", "ProfitFactor", "NetPnL", "EndEquity")
+    core_keys = ("TotalReturn", "CAGR", "MaxDrawdownPct", "SharpeRatio", "TotalTrades", "ClosedTradeLegs", "WinRate", "ProfitFactor", "NetPnL", "EndEquity")
     _write_metric_block(dashboard, 4, 1, "Performance", {key: metrics.get(key) for key in core_keys}, METRIC_LABELS, PERCENT_METRIC_KEYS)
     _write_metric_block(dashboard, 4, 4, "Portfolio risk", risk, METRIC_LABELS, PERCENT_METRIC_KEYS)
     _write_metric_block(dashboard, 4, 7, "Benchmark-relative", active, METRIC_LABELS, PERCENT_METRIC_KEYS)
@@ -201,23 +207,43 @@ def write_workbook_report(
     equity["chart_drawdown"] = equity["drawdown"]
     equity_ws = wb.create_sheet("Equity")
     _write_frame(equity_ws, equity, "EquityTable")
-    for cell in equity_ws["A"][1:]:
+    # Resolved by name, never by a literal index: the engine appends exposure
+    # columns to the curve, and a hardcoded column number would silently point
+    # the charts and number formats at whatever landed in that slot.
+    column = {name: index + 1 for index, name in enumerate(equity.columns)}
+    for cell in equity_ws[_letter(column["timestamp"])][1:]:
         cell.number_format = "yyyy-mm-dd hh:mm"
-    for col in ("B", "C", "D"):
-        for cell in equity_ws[col][1:]:
+    for name in ("equity", "cash", "benchmark", "gross_exposure", "net_exposure"):
+        if name not in column:
+            continue
+        for cell in equity_ws[_letter(column[name])][1:]:
             cell.number_format = "#,##0.00"
-    for col in ("E", "F", "J"):
-        for cell in equity_ws[col][1:]:
+    for name in (
+        "drawdown", "period_return", "chart_drawdown",
+        "gross_exposure_pct_equity", "net_exposure_pct_equity",
+    ):
+        if name not in column:
+            continue
+        for cell in equity_ws[_letter(column[name])][1:]:
             cell.number_format = "0.00%"
 
     max_row = equity_ws.max_row
     if max_row >= 3:
+        categories = Reference(
+            equity_ws, min_col=column["date_label"], min_row=2, max_row=max_row
+        )
         line = LineChart()
         line.title = "Strategy vs Benchmark"
         line.y_axis.title = "Equity"
         line.x_axis.title = "Date"
-        line.add_data(Reference(equity_ws, min_col=8, max_col=9, min_row=1, max_row=max_row), titles_from_data=True)
-        line.set_categories(Reference(equity_ws, min_col=7, min_row=2, max_row=max_row))
+        line.add_data(
+            Reference(
+                equity_ws, min_col=column["chart_strategy"],
+                max_col=column["chart_benchmark"], min_row=1, max_row=max_row,
+            ),
+            titles_from_data=True,
+        )
+        line.set_categories(categories)
         line.series[0].tx = SeriesLabel(v="Strategy")
         line.series[1].tx = SeriesLabel(v="Benchmark")
         line.height, line.width = 8.0, 17.0
@@ -225,8 +251,13 @@ def write_workbook_report(
         area = AreaChart()
         area.title = "Underwater Drawdown"
         area.y_axis.title = "Drawdown"
-        area.add_data(Reference(equity_ws, min_col=10, min_row=1, max_row=max_row), titles_from_data=True)
-        area.set_categories(Reference(equity_ws, min_col=7, min_row=2, max_row=max_row))
+        area.add_data(
+            Reference(
+                equity_ws, min_col=column["chart_drawdown"], min_row=1, max_row=max_row
+            ),
+            titles_from_data=True,
+        )
+        area.set_categories(categories)
         area.series[0].tx = SeriesLabel(v="Drawdown")
         area.y_axis.numFmt = "0.0%"
         area.height, area.width = 7.5, 17.0

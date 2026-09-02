@@ -21,6 +21,17 @@
     - 买入: 若 $High_{t+1} \ge Stop$ 则触发。按 $\max(Open_{t+1}, Stop)$ 成交 (Taker)。
     - 卖出: 若 $Low_{t+1} \le Stop$ 则触发。按 $\min(Open_{t+1}, Stop)$ 成交 (Taker)。
 
+### 开仓单存活期（TTL）
+
+`execution.opening_order_ttl_bars`（默认 10，0 表示关闭）：**开仓**单（buy/short）连续这么多根 bar 一笔都没成交就置为 `EXPIRED`。
+
+理由不是"挂太久不合理"，而是两处会永久卡死的状态：未成交的开仓单一直持有它的风险预留（`core/risk/reservation.py` 只在终态释放，而工作中的订单没有终态），并且 `has_active_open_order` 会一直阻止该标的再次入场——一张永远触不到价的限价单等于把这个标的从整轮回测里永久摘除，同时还在占用组合风险额度。
+
+三条边界：
+- **任何成交都会重置计数**——被参与率限速拆到多根 bar 的大单是在推进而不是在空转，不会被误杀；
+- **平仓单豁免**：过期会留下无人管理的持仓；
+- **常驻保护性止损豁免**：它本来就该挂到持仓关闭为止。后两者都是 sell/cover，按定义不属于开仓单，所以是结构性豁免而非特判。
+
 ## 2. 费率与佣金
 
 回测支持自定义费率结构 (在 `params.yaml` 中配置)。
@@ -43,6 +54,8 @@
 - **非线性市场冲击**：$impact = coefficient × participation^{exponent}$，默认指数 1.5。
 - **分批成交**：所有订单共享每个 symbol/bar 的成交量预算；超过
   `max_participation_rate` 的剩余数量进入下一根 K 线，FOK/IOC 按各自语义取消。
+  预算按 **bar** 计而不是按撮合调用计——引擎每根 bar 撮合两遍（普通订单簿 +
+  常驻止损），两遍共用同一份额度，否则实际参与率会是配置值的倍数。
 - 每笔成交记录 `spread_slippage_rate`、`volatility_slippage_rate`、
   `impact_slippage_rate` 和 `participation_rate`，拒单/分批原因写入 `execution_audit`。
 

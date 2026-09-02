@@ -70,6 +70,7 @@ class Broker(MatchingMixin, FillServiceMixin, FinancingMixin, LiquidationMixin):
         borrow_availability_required: bool = False,
         default_borrow_limit_qty: float = float("inf"),
         liquidation_penalty_bps: float = 0.0,
+        opening_order_ttl_bars: int = 0,
         event_pipeline: Optional[TradingEventPipeline] = None,
         exchange_id: str = "backtest",
         account_id: str = "backtest",
@@ -108,7 +109,20 @@ class Broker(MatchingMixin, FillServiceMixin, FinancingMixin, LiquidationMixin):
         self.borrow_availability_required = bool(borrow_availability_required)
         self.default_borrow_limit_qty = float(default_borrow_limit_qty)
         self.liquidation_penalty_bps = float(liquidation_penalty_bps)
+        if opening_order_ttl_bars < 0:
+            raise ValueError("opening_order_ttl_bars cannot be negative")
+        # B-01: bars an unfilled opening order may rest before it expires and
+        # releases its risk reservation. 0 disables the rule, which is the
+        # default so constructing a Broker directly keeps the old behaviour;
+        # BacktestEngine passes the configured value.
+        self.opening_order_ttl_bars = int(opening_order_ttl_bars)
         self.last_prices: Dict[str, float] = {}
+        # Participation cap state: the bar each symbol's budget was sized on
+        # and how much of it is left. Tracked on the broker rather than inside
+        # process_orders because that runs several times per bar (see
+        # MatchingMixin._bar_volume_budget).
+        self._volume_budget: Dict[str, float] = {}
+        self._volume_budget_bar: Dict[str, Any] = {}
         self._last_funding_bucket: Dict[str, int] = {}
         self._last_borrow_time: Dict[str, pd.Timestamp] = {}
         self.execution_audit: List[Dict[str, Any]] = []

@@ -111,6 +111,27 @@ class ReportChartsMixin:
                 ax4.legend(loc="upper left")
                 ax4.grid(True, which="both", linestyle="--", alpha=0.6)
 
+            # BM3: gross leverage on a twin axis. The stack above shows where
+            # the money sits; this shows how much risk it carries, which is
+            # the difference between a flat curve run in cash and one run at
+            # 2x. Only drawn when the engine recorded exposure columns.
+            if "gross_exposure_pct_equity" in equity_curve.columns:
+                leverage = pd.to_numeric(
+                    equity_curve["gross_exposure_pct_equity"], errors="coerce"
+                )
+                if leverage.notna().any():
+                    ax4b = ax4.twinx()
+                    ax4b.plot(
+                        equity_curve.index,
+                        leverage,
+                        color="purple",
+                        linewidth=1.0,
+                        label="Gross Leverage (总杠杆)",
+                    )
+                    ax4b.set_ylabel("Gross / Equity")
+                    ax4b.set_ylim(bottom=0)
+                    ax4b.legend(loc="upper right")
+
             ax4.set_xlabel("Date")
 
             # Save through the figure object, not the pyplot global "current

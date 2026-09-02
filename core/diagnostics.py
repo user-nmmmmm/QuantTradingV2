@@ -482,9 +482,23 @@ def build_diagnostics(
     equity: pd.Series,
     observed_close_events: Optional[Mapping[str, int]] = None,
     strategy_health: Optional[Mapping[str, Mapping[str, Any]]] = None,
+    closed_legs: Optional[Iterable[Mapping[str, Any]]] = None,
 ) -> Dict[str, Any]:
-    """Run the full diagnostic suite over one backtest's closed trades/equity."""
+    """Run the full diagnostic suite over one backtest's closed trades/equity.
+
+    ``closed_trades`` are round trips (one position, flat to flat), which is
+    the unit every diagnostic here reasons about. ``closed_legs`` are the
+    finer FIFO open/close matches, and exist as a separate argument for
+    ``lifecycle_coverage`` alone: its counterpart counter,
+    ``Strategy.observed_close_events``, increments once per *lot close*, so
+    comparing it against round trips would report coverage above 1.0 on any
+    run whose orders were split by the participation cap. It defaults to
+    ``closed_trades`` for callers that only have the one granularity.
+    """
     records = [dict(trade) for trade in closed_trades]
+    leg_records = (
+        records if closed_legs is None else [dict(leg) for leg in closed_legs]
+    )
     suite: Dict[str, Any] = {
         "pnl_concentration": calculate_pnl_concentration(records),
         "exit_attribution": calculate_exit_attribution(records),
@@ -498,6 +512,6 @@ def build_diagnostics(
     }
     if observed_close_events is not None:
         suite["lifecycle_coverage"] = calculate_lifecycle_coverage(
-            records, observed_close_events
+            leg_records, observed_close_events
         )
     return suite

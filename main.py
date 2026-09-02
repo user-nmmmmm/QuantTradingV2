@@ -524,6 +524,9 @@ def main(argv=None) -> int:
         protective_stops=results.get("protective_stop_summary"),
         report_profile=args.report_profile,
         data_quality=quality_report,
+        # BM3: the signal->fill funnel is only derivable from the run's own
+        # event stream, which nothing outside the engine has.
+        event_log=results.get("event_log"),
     )
 
     artifact_failures = []

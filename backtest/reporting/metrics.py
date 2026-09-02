@@ -90,12 +90,15 @@ class ReportMetricsMixin:
         safe to call unconditionally, including on an empty closed_trades
         list.
 
-        calculate_exposure/calculate_signal_funnel are deliberately not
-        included here: they need per-timestamp position/price snapshots and
-        the event pipeline's correlation-id stream respectively, neither of
-        which is currently passed to ReportGenerator. Wiring those in would
-        require threading extra state through backtest/engine.py and is out
-        of scope for this pass.
+        calculate_exposure is not called here because it is not a trade-level
+        statistic: BacktestEngine samples the book on every bar and joins the
+        exposure columns onto the equity curve itself, and generate() derives
+        ExtendedAnalytics["exposure"] from those columns
+        (backtest/reporting/risk_metrics.py:summarize_exposure).
+
+        calculate_signal_funnel is still unwired: it needs the event
+        pipeline's correlation-id stream, which is returned by the engine as
+        ``event_log`` but not passed to ReportGenerator.
         """
         return {
             "trade_quality": calculate_trade_quality(closed_trades),
