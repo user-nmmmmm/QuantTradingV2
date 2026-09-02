@@ -270,6 +270,11 @@ class StrategyHealthMachine:
         self.trigger_event_id: Optional[str] = None
         self.trigger_reason: Optional[str] = None
         self.probation_started_at: Optional[datetime] = None
+        # Cohorts that already existed when the current health epoch entered
+        # probation.  They are an immutable boundary: probation may only be
+        # judged on cohorts created after this snapshot, and the losing streak
+        # cannot leak across the cooldown/probation boundary.
+        self._streak_baseline_cohort_ids: set[str] = set()
         self.failed_probation_cycles = 0
         self.manual_lock_reason: Optional[str] = None
         self.resume_count = 0
@@ -375,33 +380,33 @@ class StrategyHealthMachine:
                 )
             return self.status
 
+        if self.status is HealthStatus.PROBATION:
+            # A probation verdict is deliberately sample-gated.  In
+            # particular, the negative cohorts that caused the preceding
+            # cooldown must never make a brand-new probation fail immediately.
+            closed = self.probation_closed_cohorts
+            if closed < self.policy.probation_required_cohorts:
+                return self.status
+            if self.probation_total_r > self.policy.probation_min_total_r:
+                self.resume_count += 1
+                self._transition(
+                    HealthStatus.ACTIVE, moment,
+                    reason="probation_passed",
+                )
+                self.failed_probation_cycles = 0
+            else:
+                self._fail_probation(moment, reason="probation_total_r_below_gate")
+            return self.status
+
         consecutive = self.consecutive_negative_cohorts
         if consecutive >= self.policy.consecutive_negative_cohorts:
             trigger = self._last_counted_cohort()
-            if self.status is HealthStatus.PROBATION:
-                self._fail_probation(moment, reason="probation_negative_cohorts")
-            else:
-                self._enter_cooldown(
-                    moment,
-                    reason=(
-                        f"consecutive_negative_cohorts>={consecutive}"
-                    ),
-                    trigger_event_id=trigger.cohort_id if trigger else None,
-                )
+            self._enter_cooldown(
+                moment,
+                reason=f"consecutive_negative_cohorts>={consecutive}",
+                trigger_event_id=trigger.cohort_id if trigger else None,
+            )
             return self.status
-
-        if self.status is HealthStatus.PROBATION:
-            closed = self.probation_closed_cohorts
-            if closed >= self.policy.probation_required_cohorts:
-                if self.probation_total_r > self.policy.probation_min_total_r:
-                    self.resume_count += 1
-                    self._transition(
-                        HealthStatus.ACTIVE, moment,
-                        reason="probation_passed",
-                    )
-                    self.failed_probation_cycles = 0
-                else:
-                    self._fail_probation(moment, reason="probation_total_r_below_gate")
         return self.status
 
     def _enter_cooldown(
@@ -439,6 +444,9 @@ class StrategyHealthMachine:
         self.trigger_reason = reason
         if target is HealthStatus.PROBATION:
             self.probation_started_at = moment
+            self._streak_baseline_cohort_ids = {
+                cohort.cohort_id for cohort in self.counted_cohorts()
+            }
         if target is HealthStatus.ACTIVE:
             self.cooldown_started_at = None
             self.cooldown_until = None
@@ -466,7 +474,11 @@ class StrategyHealthMachine:
     @property
     def consecutive_negative_cohorts(self) -> int:
         count = 0
-        for cohort in reversed(self.counted_cohorts()):
+        cohorts = [
+            cohort for cohort in self.counted_cohorts()
+            if cohort.cohort_id not in self._streak_baseline_cohort_ids
+        ]
+        for cohort in reversed(cohorts):
             if cohort.is_negative:
                 count += 1
             else:
@@ -485,7 +497,8 @@ class StrategyHealthMachine:
             return []
         return [
             cohort for cohort in self.counted_cohorts()
-            if cohort.closed_at is not None
+            if cohort.cohort_id not in self._streak_baseline_cohort_ids
+            and cohort.closed_at is not None
             and cohort.closed_at >= self.probation_started_at
         ]
 
@@ -570,6 +583,9 @@ class StrategyHealthMachine:
             "trigger_event_id": self.trigger_event_id,
             "trigger_reason": self.trigger_reason,
             "probation_started_at": _iso(self.probation_started_at),
+            "streak_baseline_cohort_ids": sorted(
+                self._streak_baseline_cohort_ids
+            ),
             "failed_probation_cycles": self.failed_probation_cycles,
             "manual_lock_reason": self.manual_lock_reason,
             "resume_count": self.resume_count,
@@ -605,6 +621,19 @@ class StrategyHealthMachine:
         self.cohorts = [
             HealthCohort.from_dict(item) for item in (data.get("cohorts") or [])
         ]
+        if "streak_baseline_cohort_ids" in data:
+            self._streak_baseline_cohort_ids = set(
+                data.get("streak_baseline_cohort_ids") or []
+            )
+        elif self.probation_started_at is not None:
+            # Best-effort migration for v2 payloads written before the cohort
+            # boundary was explicit. Same-timestamp cohorts remain new; all
+            # strictly earlier observations are isolated as pre-probation.
+            self._streak_baseline_cohort_ids = {
+                cohort.cohort_id for cohort in self.counted_cohorts()
+                if cohort.closed_at is None
+                or cohort.closed_at < self.probation_started_at
+            }
         self._cohort_index = {cohort.cohort_id: cohort for cohort in self.cohorts}
         self.transitions = list(data.get("transitions") or [])
         self._consumed_close_event_ids = set(

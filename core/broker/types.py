@@ -77,10 +77,14 @@ class Order:
     id: str = ""
     intent: Optional[OrderIntent] = None
     last_event_id: Optional[str] = None
-    # B-01: how many distinct bars this order has been matchable against
-    # without filling anything, and the last bar counted. Tracked per bar
-    # rather than per matching pass because the engine matches each bar more
-    # than once (general book, then resident stops).
+    # B-01: total number of distinct bars this order has been matchable
+    # against, regardless of fills, and the last bar counted.  A tiny partial
+    # fill must not renew a GTC opening order forever.  Tracked per bar rather
+    # than matching pass because the engine may match a bar more than once.
+    age_bars: int = 0
+    last_age_bar: Any = None
+    # Legacy diagnostics retained for compatibility. They count truly idle
+    # bars but no longer control expiry.
     idle_bars: int = 0
     last_counted_bar: Any = None
 
