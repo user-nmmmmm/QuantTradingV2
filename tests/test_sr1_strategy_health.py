@@ -58,7 +58,7 @@ def _machine(**policy) -> StrategyHealthMachine:
 def _ingest_losses(machine: StrategyHealthMachine, count: int, *, start_day: int = 1):
     for offset in range(count):
         machine.ingest_close(
-            close_event_id=f"loss-{offset}",
+            close_event_id=f"loss-{start_day + offset}",
             symbol="BTC/USDT",
             realized_pnl=-50.0,
             exit_reason="signal",
@@ -168,6 +168,37 @@ class TestLifecycleTransitions(unittest.TestCase):
         self.assertEqual(machine.status, HealthStatus.ACTIVE)
         self.assertEqual(machine.risk_multiplier, 1.0)
         self.assertEqual(machine.resume_count, 1)
+
+    def test_probation_waits_for_required_new_cohorts_before_any_verdict(self):
+        machine = _machine(
+            consecutive_negative_cohorts=2, cooldown_days=10,
+            probation_required_cohorts=3,
+        )
+        _ingest_losses(machine, 2, start_day=1)
+        machine.evaluate("2021-09-02T00:00:00Z")
+        machine.evaluate("2021-09-20T00:00:00Z")
+
+        self.assertEqual(machine.status, HealthStatus.PROBATION)
+        self.assertEqual(machine.consecutive_negative_cohorts, 0)
+        self.assertEqual(machine.probation_closed_cohorts, 0)
+
+        for day in (21, 22):
+            machine.ingest_close(
+                close_event_id=f"probation-loss-{day}", symbol="BTC/USDT",
+                realized_pnl=-50.0, exit_reason="signal", initial_risk=100.0,
+                timestamp=f"2021-09-{day:02d}T00:00:00Z",
+            )
+            machine.evaluate(f"2021-09-{day:02d}T12:00:00Z")
+            self.assertEqual(machine.status, HealthStatus.PROBATION)
+
+        machine.ingest_close(
+            close_event_id="probation-loss-23", symbol="BTC/USDT",
+            realized_pnl=-50.0, exit_reason="signal", initial_risk=100.0,
+            timestamp="2021-09-23T00:00:00Z",
+        )
+        machine.evaluate("2021-09-23T12:00:00Z")
+        self.assertEqual(machine.status, HealthStatus.COOLDOWN)
+        self.assertEqual(machine.failed_probation_cycles, 1)
 
     def test_two_failed_probation_cycles_reach_manual_lock_and_stay_there(self):
         machine = _machine(
