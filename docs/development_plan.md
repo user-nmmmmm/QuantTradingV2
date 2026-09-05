@@ -13,6 +13,16 @@
 
 ## 2. Batch 0：文档与固定基线
 
+### 本轮专项补充（2026-09-05）
+
+- [x] P0 组合 BLOCK_NEW 永久冻结修复：冷静期、低风险试运行、状态持久化和退出管理；
+- [x] 同数据/同配置开关 A/B，以及关闭策略健康门控的独立隔离诊断；验收见 [`p0_drawdown_recovery.md`](p0_drawdown_recovery.md)。
+- [ ] 当前策略 MANUAL_LOCK 的研究解释与重新准入，仍按策略专项路线图推进；本轮不解除。
+- [x] 后续锁定排查：修复止损棘轮跨仓位残留，保存触发当时的退出批次证据并重跑历史回测；
+  见 [`strategy_health_lock_investigation.md`](strategy_health_lock_investigation.md)。修复后仍有策略锁定，重新准入未完成。
+
+### 原 Batch 0 清单
+
 - [x] 建立唯一总路线图和统一执行计划；
 - [x] 保留回测指标详细计划作为领域权威文档；
 - [x] 建立无交易、可手算、固定历史/合成三类 fixtures；

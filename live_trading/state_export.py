@@ -71,6 +71,10 @@ class StateExportMixin:
                 (name, entry.get("status"))
                 for name, entry in self._strategy_health().items()
             )),
+            self.risk_manager.breaker_action.value,
+            self.risk_manager.current_transition_id,
+            self.risk_manager.blocked_until,
+            self.risk_manager.daily_loss_triggered,
         )
 
     def _maybe_export_state(self, *, force: bool = False) -> bool:
@@ -129,22 +133,14 @@ class StateExportMixin:
                     if self.health_assessment else None
                 ),
                 "strategy_health": self._strategy_health(),
+                "portfolio_breaker": self.risk_manager.breaker_checkpoint(),
                 # SR2-5: what protection currently exists, per symbol.
                 "protective_orders": self._protective_order_state(),
                 "fill_risk_audit": list(
                     getattr(self, "_live_fill_risk_audit", [])
                 ),
             }
-            critical_state = (
-                state_data["healthy"],
-                state_data["operational_state"],
-                state_data["unresolved_unknown_order"],
-                tuple(state_data["health_reason_codes"]),
-                tuple(sorted(
-                    (name, entry.get("status"))
-                    for name, entry in state_data["strategy_health"].items()
-                )),
-            )
+            critical_state = self._critical_state_signature()
             needs_fsync = critical_state != self._last_exported_critical_state
             with open(tmp_path, "w", encoding="utf-8") as handle:
                 json.dump(state_data, handle, indent=2)

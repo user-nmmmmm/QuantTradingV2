@@ -37,7 +37,8 @@ risk:
   max_pos_size_pct: 0.30        # 30% max per position (was 20% — allows meaningful sizing)
 
 # 2a. Portfolio drawdown control. Daily loss resets at a UTC day boundary;
-# high-water actions are sticky and require RiskManager.manual_resume().
+# Terminal high-water actions require RiskManager.manual_resume().
+# BLOCK_NEW may recover through the bounded cooldown/probation policy below.
 drawdown:
   daily_loss_limit: 0.05
   reduce_threshold: 0.10
@@ -45,6 +46,13 @@ drawdown:
   liquidate_threshold: 0.20
   lock_threshold: 0.25
   reduced_risk_multiplier: 0.50
+  # P0: time-limited block, followed by reduced-risk re-entry. The original
+  # high-water mark and the liquidation/lock thresholds are never reset.
+  recovery:
+    enabled: true
+    cooldown_days: 30
+    probation_risk_multiplier: 0.25
+    probation_loss_limit: 0.03
 
 # 2b. Explicit selected account mode: spot | spot_margin | perpetual.
 account:

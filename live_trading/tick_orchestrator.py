@@ -203,8 +203,9 @@ class TickOrchestratorMixin:
             state_store.set(day_key, daily_start)
         was_already_triggered = bool(self.risk_manager.circuit_breaker_triggered)
         breaker = self.risk_manager.check_circuit_breaker(
-            self._snapshot.equity, float(daily_start)
+            self._snapshot.equity, float(daily_start), occurred_at=now
         )
+        state_store.set("portfolio_breaker_checkpoint", self.risk_manager.breaker_checkpoint())
         breaker_day = now.date().isoformat()
         if bool(breaker) != self._last_written_breaker:
             state_store.set("circuit_breaker", bool(breaker))
@@ -214,7 +215,7 @@ class TickOrchestratorMixin:
             self._last_written_breaker_day = breaker_day
         if breaker:
             self._operational_state = "RISK_HALTED"
-            logger.critical("Trading disabled: daily circuit breaker active")
+            logger.critical("New entries disabled by circuit breaker: %s", breaker.reason_codes)
             # Alert only on the trip itself, not every tick the halt stays
             # active: equity moves every tick, which would otherwise defeat
             # HysteresisAlertSink's dedup key and page on every interval.
@@ -223,8 +224,11 @@ class TickOrchestratorMixin:
                     "equity": self._snapshot.equity,
                     "daily_start_equity": float(daily_start),
                 })
-            self._maybe_export_state()
-            return
+            # A portfolio BLOCK_NEW cooldown must keep strategy exits running.
+            # Daily/terminal halts retain their existing execution behavior.
+            if breaker.action.value != "block_new" or breaker.daily_loss_triggered:
+                self._maybe_export_state()
+                return
 
         strategy_failures = []
         for symbol in self.symbols:
@@ -253,7 +257,12 @@ class TickOrchestratorMixin:
                 source="live",
             )
             try:
-                self.event_processor.process_symbol(event, symbol)
+                if breaker:
+                    self.event_processor.process_symbol(
+                        event, symbol, allow_position_management=True, allow_new_entries=False,
+                    )
+                else:
+                    self.event_processor.process_symbol(event, symbol)
                 if self._has_unresolved_unknown(refresh=True):
                     state_store.release_bar(bar_key)
                     self._assess_health(now, HealthReason(
@@ -515,7 +524,8 @@ class TickOrchestratorMixin:
                 "error": type(exc).__name__,
             })
             return
-        symbols = set(portfolio.positions) | {order.symbol for order in venue_orders}
+        symbols = (set(portfolio.positions) | {order.symbol for order in venue_orders}
+                   | manager.tracked_symbols)
         for symbol in sorted(symbols):
             qty = float(portfolio.get_position(symbol).get("qty", 0.0))
             plan = manager.evaluate(

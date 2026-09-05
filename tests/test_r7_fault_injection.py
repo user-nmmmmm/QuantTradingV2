@@ -176,6 +176,32 @@ class CircuitBreakerRecoveryFaultInjectionTests(unittest.TestCase):
             self.assertEqual(len(trip_calls), 1)
             store.close()
 
+    def test_portfolio_cooldown_keeps_exit_path_and_restart_deadline(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "portfolio_state.db")
+            store = StateStore(path)
+            risk = RiskManager(recovery_policy={"enabled": True})
+            risk.check_circuit_breaker(8300, 8300, occurred_at=NOW - timedelta(days=1))
+            engine = self._engine(store, risk)
+            engine.event_processor.process_symbol = MagicMock()
+            engine._tick()
+            self.assertEqual(risk.breaker_action.value, "block_new")
+            engine.event_processor.process_symbol.assert_called_once()
+            self.assertFalse(engine.event_processor.process_symbol.call_args.kwargs["allow_new_entries"])
+            self.assertTrue(engine.event_processor.process_symbol.call_args.kwargs["allow_position_management"])
+            saved = store.get("portfolio_breaker_checkpoint")
+            self.assertEqual(saved["high_water_equity"], 8300)
+            store.close()
+            restarted_store = StateStore(path)
+            restored = RiskManager(recovery_policy={"enabled": True})
+            restarted = self._engine(restarted_store, restored)
+            restarted._ensure_state_store()
+            self.assertEqual(restored.breaker_checkpoint(), saved)
+            self.assertFalse(restored.check_circuit_breaker(7000, 7000, occurred_at=NOW + timedelta(days=29)).allow_new_entries)
+            self.assertTrue(restored.check_circuit_breaker(7000, 7000, occurred_at=NOW + timedelta(days=30)).allow_new_entries)
+            self.assertEqual(restored.risk_multiplier, 0.25)
+            restarted_store.close()
+
 
 if __name__ == "__main__":
     unittest.main()

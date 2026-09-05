@@ -221,6 +221,11 @@ open -> 不利极值 -> 有利极值 -> close
 
 ### 产物
 
+2026-09-05 生命周期补充：止损棘轮仅在同一未平仓生命周期内单调。对账必须遍历管理器
+记忆中的币种，即使该币种已不在持仓/订单快照；确认 flat 时清理。回测止损完全成交后
+立即清理，以防下一根 bar 的新仓位继承旧价；部分平仓不清理。详见
+[`strategy_health_lock_investigation.md`](strategy_health_lock_investigation.md)。
+
 `reports/.../stop_order_audit.csv`：每一次 place / replace(上移或数量对齐) /
 cancel / fill，带当时生效的止损价、实际成交价与路径假设；`report.txt` 的
 Protective Stop Execution 分节声明本次运行用的是常驻 intrabar 口径还是旧的

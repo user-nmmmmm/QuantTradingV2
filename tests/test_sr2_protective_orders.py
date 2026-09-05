@@ -49,6 +49,12 @@ class TestProtectionCreation(unittest.TestCase):
         self.assertEqual(plan.state, ProtectiveState.PENDING_ENTRY)
         self.assertEqual(plan.intents, [])
 
+    def test_rebuild_visits_remembered_symbols_missing_from_flat_account(self):
+        self.manager.evaluate(symbol="BTC/USDT", position_qty=1, desired_stop=95)
+        self.manager.reconcile_after_restart(positions={}, desired_stops={}, venue_orders=[])
+        next_position = self.manager.evaluate(symbol="BTC/USDT", position_qty=1, desired_stop=70)
+        self.assertEqual(next_position.effective_stop, 70)
+
     def test_a_filled_entry_places_a_reduce_only_stop_for_the_net_position(self):
         plan = self.manager.evaluate(
             symbol="BTC/USDT", position_qty=2.5, desired_stop=90.0,
@@ -349,6 +355,20 @@ class _StubEngine(TickOrchestratorMixin):
 
 
 class TestLiveWiring(unittest.TestCase):
+    def test_flat_account_retires_ratchet_even_without_remaining_order(self):
+        broker = _StubBroker(self._portfolio(1.0), [])
+        strategy = self._strategy(95)
+        engine = _StubEngine(broker, {"TrendBreakout": strategy})
+        engine._reconcile_protective_orders()
+        self.assertIn("BTC/USDT", engine._protective_manager().tracked_symbols)
+        broker.portfolio = self._portfolio(0)
+        engine._reconcile_protective_orders()
+        self.assertNotIn("BTC/USDT", engine._protective_manager().tracked_symbols)
+        broker.portfolio = self._portfolio(1)
+        strategy.context["BTC/USDT"]["effective_stop"] = 70
+        engine._reconcile_protective_orders()
+        self.assertEqual(broker.submitted[-1][3]["price"], 70)
+
     def _portfolio(self, qty: float) -> Portfolio:
         portfolio = Portfolio(initial_capital=100_000.0)
         if qty:

@@ -76,7 +76,10 @@
 资金费和借币费分别写入 `financing_ledger`，并计入权益与会计恒等式。
 
 组合风控另以历史权益高水位计算永久性回撤，依次执行降仓、停止开仓、强平与锁定。
-这些状态不会随自然日自动恢复；只有带审批人的 `RiskManager.manual_resume()` 可以恢复。
+LIQUIDATE/LOCKED 不会随自然日自动恢复；必须通过带审批人的 `RiskManager.manual_resume()` 恢复。
+启用 `drawdown.recovery` 后，BLOCK_NEW 在 30 天冷静期后可进入 0.25 风险乘数的试运行，
+试运行权益再亏 3% 则重新冷静；原高水位不变。回到原高水位 10% 回撤以内后，回归 REDUCE，
+而非自动解除全部风控。具体条件、持久化与 A/B 证据见 [`p0_drawdown_recovery.md`](p0_drawdown_recovery.md)。
 `drawdown.daily_loss_limit` 是独立的日内限制，仅该日内状态会跨日复位。
 
 ### 4.1 仓位削减（Clamp）语义

@@ -70,6 +70,18 @@ class TestLiveStatusExport(unittest.TestCase):
         # Equity = 10000 + 1.0 * 50000 = 60000
         self.assertEqual(data["equity"], 60000.0)
 
+    def test_portfolio_transition_forces_export_without_waiting_for_interval(self):
+        self.engine._tick_count = 1
+        self.assertTrue(self.engine._maybe_export_state())
+        self.assertFalse(self.engine._maybe_export_state())
+        self.risk_manager.current_transition_id = "epoch-0-recovery-2"
+        with patch("live_trading.state_export.os.fsync") as sync:
+            self.assertTrue(self.engine._maybe_export_state())
+            sync.assert_called_once()
+        with open(self.engine.state_file, encoding="utf-8") as handle:
+            state = json.load(handle)
+        self.assertEqual(state["portfolio_breaker"]["current_transition_id"], "epoch-0-recovery-2")
+
     def test_state_export_reuses_authoritative_snapshot(self):
         # Once a tick has produced a valuation snapshot, the exported
         # status must match it rather than re-deriving equity from raw

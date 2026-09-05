@@ -28,6 +28,12 @@ unified_roadmap.md
 
 项目阶段状态只在 `unified_roadmap.md` 维护；当前批次勾选只在对应领域计划维护；指标公式和边界只在回测详细计划维护。`backtest_assumptions.md` 和 `deployment.md` 只描述当前代码已经支持的行为，不把未来计划写成现有能力。
 
+## 最新行为变更
+
+- [`strategy_health_lock_investigation.md`](strategy_health_lock_investigation.md)：人工锁定根因、旧止损残留修复与更新回测；后续仓位模块草案见 [`position_management_plan.md`](position_management_plan.md)。
+
+- [`p0_drawdown_recovery.md`](p0_drawdown_recovery.md)：2026-09-05 组合 BLOCK_NEW 冷静期恢复契约、重启兼容性与两组历史 A/B 回测；不代表策略重新准入或实盘放行。
+
 ## 历史资料
 
 - 已停止独立排期的旧路线图、架构审计和旧基线位于 [`archive/2026-08-roadmap-consolidation/`](archive/2026-08-roadmap-consolidation/README.md)，其中也包含旧任务编号到 R0–R8、BM0–BM8 的映射表。

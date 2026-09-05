@@ -255,10 +255,15 @@ class EventProcessor:
             terminal=action in {BreakerAction.LIQUIDATE, BreakerAction.LOCKED},
         )
 
-    def process_symbol(self, event: MarketDataSlice, symbol: str) -> bool:
+    def process_symbol(self, event: MarketDataSlice, symbol: str, *,
+                       allow_position_management: bool = True,
+                       allow_new_entries: bool = True) -> bool:
         """Run the shared state/strategy/risk path for one real bar."""
 
-        candidate, processed = self._collect_symbol_candidate(event, symbol)
+        candidate, processed = self._collect_symbol_candidate(
+            event, symbol, allow_position_management=allow_position_management,
+            allow_new_entries=allow_new_entries,
+        )
         if candidate is not None:
             self.allocator.allocate(
                 [candidate], portfolio=self.portfolio, broker=self.execution,
