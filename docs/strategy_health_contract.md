@@ -143,3 +143,30 @@ strategy_health:
 
 - SR1-3 的阈值搜索本身（本契约只提供可搜索的机器与注册表）；
 - SR2-5 的保护单生命周期（见 [`protective_stop_contract.md`](protective_stop_contract.md)）。
+
+## 9. 默认关闭的延长冷却研究选项（2026-09-06）
+
+60 币种回测确认：原方案于 2022-08-20 因两次试运行失败进入永久人工锁定。
+新增 `repeated_failure_action`，默认仍为 `manual_lock`，上文生产默认契约不变。
+研究候选 `extended_cooldown` 只替换**未来自动触发的失败次数达限动作**：
+
+1. 两次失败后进入 90 天 COOLDOWN，不产生 MANUAL_LOCK。
+2. 到期进入 PROBATION，风险乘数从普通试运行 0.25 降到 0.10。
+3. 仅使用本次试运行边界后的新退出 cohort 评判；3 个 cohort 总 R > 0 后恢复 ACTIVE。
+4. 再次失败仍冷却完整 90 天，失败计数不会因冷却/重启清零；只有通过后清零。
+5. 显式人工锁定和已经持久化的 MANUAL_LOCK 都不会被此选项解锁。
+
+新增研究配置（未写入正式 params.yaml）：
+
+```yaml
+repeated_failure_action: extended_cooldown
+extended_cooldown_days: 90
+recovery_risk_multiplier: 0.10
+```
+
+延长冷却不得短于普通冷却，恢复风险必须为正且不大于普通试运行风险。截止日期和失败计数沿用既有 v2 状态持久化；重启必须加载同一策略配置。
+
+风险乘数沿用现有仓位计算及成交后风险核验链路，不新增第二套仓位账本。基础单笔风险 2% × 恢复乘数 10% = 0.2% 的权益风险预算上限（未考虑其他更严限额）；它**不是**仓位市值固定为权益 10%。组合恢复、总风险、相关性簇预算、保护止损、退出权限及实盘准入规则均不改动。
+
+本轮是固定候选工程对照，不是参数寻优或独立样本外验证。重复试运行仍可能持续亏损，不能因为不再永久锁定就认定可以实盘。
+脚本：`scripts/run_health_recovery_experiment.py`；测试：`tests/test_health_extended_recovery.py`。
