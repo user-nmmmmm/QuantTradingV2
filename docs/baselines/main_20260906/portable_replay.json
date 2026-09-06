@@ -1,0 +1,44 @@
+{
+  "schema": "portable-replay/v1",
+  "commit": "8a89116ecaa0f6d4ae41354dacf4629ca806af75",
+  "archive_sha256": "95450541417d70e9b4f71e2215b2e0ef57f9ce14073a9cf9c36af3a37324d558",
+  "passed": true,
+  "source": "extracted source.zip",
+  "inputs": "extracted inputs/data_inputs",
+  "python_environment": "existing Windows Python 3.13.2 venv; not a clean-room dependency install",
+  "original_reports_path_used": false,
+  "arms": {
+    "baseline": {
+      "expected": {
+        "benchmark": "571a7b5330ab06ac3e463fc8f99ac7058eeb12fcee196800f24760b727ddd822",
+        "equity": "6a15a2ebfd496a35fe56b89d741389aa9ed86b4636d8175600189a8cbcc96ac3",
+        "report_payload": "fa0d97c2943be4ff16d75a3a9797baefa34de7d6fc4ce6dda6f4b00e986977ed",
+        "trades": "4b71a415e81d423a4456451c75338299ffa94a1220b29d111559ea8e62e48772"
+      },
+      "observed": {
+        "benchmark": "571a7b5330ab06ac3e463fc8f99ac7058eeb12fcee196800f24760b727ddd822",
+        "equity": "6a15a2ebfd496a35fe56b89d741389aa9ed86b4636d8175600189a8cbcc96ac3",
+        "report_payload": "fa0d97c2943be4ff16d75a3a9797baefa34de7d6fc4ce6dda6f4b00e986977ed",
+        "trades": "4b71a415e81d423a4456451c75338299ffa94a1220b29d111559ea8e62e48772"
+      },
+      "passed": true,
+      "reference": "..\\evidence\\current_1"
+    },
+    "recovery": {
+      "expected": {
+        "benchmark": "571a7b5330ab06ac3e463fc8f99ac7058eeb12fcee196800f24760b727ddd822",
+        "equity": "6a15a2ebfd496a35fe56b89d741389aa9ed86b4636d8175600189a8cbcc96ac3",
+        "report_payload": "fa0d97c2943be4ff16d75a3a9797baefa34de7d6fc4ce6dda6f4b00e986977ed",
+        "trades": "4b71a415e81d423a4456451c75338299ffa94a1220b29d111559ea8e62e48772"
+      },
+      "observed": {
+        "benchmark": "571a7b5330ab06ac3e463fc8f99ac7058eeb12fcee196800f24760b727ddd822",
+        "equity": "6a15a2ebfd496a35fe56b89d741389aa9ed86b4636d8175600189a8cbcc96ac3",
+        "report_payload": "fa0d97c2943be4ff16d75a3a9797baefa34de7d6fc4ce6dda6f4b00e986977ed",
+        "trades": "4b71a415e81d423a4456451c75338299ffa94a1220b29d111559ea8e62e48772"
+      },
+      "passed": true,
+      "reference": "..\\evidence\\current_1"
+    }
+  }
+}
