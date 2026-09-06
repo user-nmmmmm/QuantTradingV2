@@ -68,6 +68,25 @@ def _open_long(broker, *, ts, entry_bar, qty=1.0, price=100.0, stop=95.0):
 
 
 class TestResidentStopIsArmedFromTheFill:
+    @pytest.mark.parametrize("flat_gap_days", [0, 5])
+    def test_fully_stopped_position_cannot_lend_its_stop_to_reentry(self, flat_gap_days):
+        portfolio, broker, strategy, sim = _harness(stop=95.0)
+        first = _bar("2024-01-02", 100, 101, 94, 96)
+        _open_long(broker, ts="2024-01-01", entry_bar=first)
+        sim.step(_event("2024-01-02", first))
+        assert SYMBOL not in portfolio.positions
+        for offset in range(flat_gap_days):
+            now = pd.Timestamp("2024-01-03") + pd.Timedelta(days=offset)
+            sim.step(_event(now, _bar(now, 80, 82, 79, 81)))
+        now = pd.Timestamp("2024-01-03") + pd.Timedelta(days=flat_gap_days)
+        reentry = _bar(now, 80, 82, 79, 81)
+        strategy.set_stop(70)
+        _open_long(broker, ts=now - pd.Timedelta(days=1), entry_bar=reentry, price=80, stop=70)
+        assert sim.step(_event(now, reentry)) == []
+        assert portfolio.get_position(SYMBOL)["qty"] == pytest.approx(1)
+        stops = [o for o in broker.pending_orders + broker.active_orders if is_protective_stop(o)]
+        assert len(stops) == 1 and stops[0].price == pytest.approx(70)
+
     def test_entry_bar_is_protected_within_its_own_bar(self):
         """Live arms the stop on the fill, so the entry bar cannot be naked."""
         portfolio, broker, _, sim = _harness(stop=95.0)

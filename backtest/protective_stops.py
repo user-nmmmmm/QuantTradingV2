@@ -144,6 +144,11 @@ class ResidentStopSimulator:
                 "cancel_order_id": None,
                 "note": CONSERVATIVE_BAR_PATH,
             })
+            # The position can disappear from the account AND order book in
+            # this very pass. Retire its ratchet before a next-bar re-entry;
+            # partial exits must retain the existing monotone protection.
+            if float(self.broker.portfolio.get_position(trade["symbol"])["qty"]) == 0.0:
+                self.manager.forget(trade["symbol"])
         return trades
 
     def cancel_all(self, symbols: Optional[Iterable[str]] = None) -> int:
@@ -161,7 +166,8 @@ class ResidentStopSimulator:
     def _sync(self, bars: Dict[str, pd.Series], *, timestamp: Any, bar_index: int) -> None:
         portfolio = self.broker.portfolio
         venue_orders = self._resident_orders()
-        symbols = set(portfolio.positions) | {order.symbol for order in venue_orders}
+        symbols = (set(portfolio.positions) | {order.symbol for order in venue_orders}
+                   | self.manager.tracked_symbols)
         for symbol in sorted(symbols):
             qty = float(portfolio.get_position(symbol).get("qty", 0.0))
             has_resident = any(order.symbol == symbol for order in venue_orders)

@@ -54,6 +54,7 @@ class RiskManager(CircuitBreakerMixin, PositionSizingMixin, EntryPolicyMixin):
         portfolio_drawdown_liquidate: Optional[float] = None,
         portfolio_drawdown_lock: Optional[float] = None,
         reduced_risk_multiplier: float = 0.5,
+        recovery_policy: Optional[Dict] = None,
     ):
         """
         初始化风控参数。
@@ -105,6 +106,13 @@ class RiskManager(CircuitBreakerMixin, PositionSizingMixin, EntryPolicyMixin):
         if not 0 < reduced_risk_multiplier <= 1:
             raise ValueError("reduced_risk_multiplier must be in (0, 1]")
         self.reduced_risk_multiplier = float(reduced_risk_multiplier)
+        from core.risk.recovery import DrawdownRecoveryPolicy
+        self.recovery_policy = DrawdownRecoveryPolicy(**(recovery_policy or {}))
+        if self.recovery_policy.probation_risk_multiplier > self.reduced_risk_multiplier:
+            raise ValueError("probation risk must not exceed reduced risk")
+        self.blocked_until = None
+        self.probation_equity = None
+        self.recovery_count = 0
         self.liquidity_limit_pct = liquidity_limit_pct
         self.max_pos_size_pct = max_pos_size_pct
         self.min_entry_notional_pct = min_entry_notional_pct

@@ -192,6 +192,15 @@ class ProtectiveOrderManager:
     def forget(self, symbol: str) -> None:
         self._accepted_stop.pop(symbol, None)
 
+    @property
+    def tracked_symbols(self) -> frozenset[str]:
+        """Symbols whose ratchet must be retired once flat is confirmed.
+
+        Account snapshots often omit flat symbols; iterating only current
+        positions/orders would keep old stop levels alive indefinitely.
+        """
+        return frozenset(self._accepted_stop)
+
     def evaluate(
         self,
         *,
@@ -367,7 +376,7 @@ class ProtectiveOrderManager:
         cancelled instead of waiting to fire into the next one.
         """
         orders = list(venue_orders)
-        symbols = set(positions) | {order.symbol for order in orders}
+        symbols = set(positions) | {order.symbol for order in orders} | self.tracked_symbols
         plans = []
         for symbol in sorted(symbols):
             plans.append(self.evaluate(

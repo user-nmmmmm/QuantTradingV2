@@ -16,6 +16,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
+import math
+import pandas as pd
 
 from core.logger import get_logger
 
@@ -103,10 +105,12 @@ class CircuitBreakerMixin:
 
     @property
     def risk_multiplier(self) -> float:
-        if self.portfolio_breaker_action is BreakerAction.REDUCE:
-            return self.reduced_risk_multiplier
         if self._blocks_new_risk():
             return 0.0
+        if self.probation_equity is not None:
+            return self.recovery_policy.probation_risk_multiplier
+        if self.portfolio_breaker_action is BreakerAction.REDUCE:
+            return self.reduced_risk_multiplier
         return 1.0
 
     def _blocks_new_risk(self) -> bool:
@@ -128,6 +132,8 @@ class CircuitBreakerMixin:
         if not approved_by or not approved_by.strip():
             raise ValueError("approved_by is required for manual recovery")
         previous = self.portfolio_breaker_action
+        self.blocked_until = None
+        self.probation_equity = None
         if rebase_high_water or self.high_water_equity is None:
             self.high_water_equity = float(current_equity)
         self.portfolio_breaker_action = BreakerAction.NORMAL
@@ -173,8 +179,12 @@ class CircuitBreakerMixin:
         返回结构化决策；其布尔值为 True 时表示禁止新增风险。
         """
         current_equity = float(current_equity)
+        if not math.isfinite(current_equity):
+            raise ValueError("breaker equity must be finite")
         if self.high_water_equity is None or current_equity > self.high_water_equity:
-            self.high_water_equity = current_equity
+            # Insolvency must produce a terminal decision, not bypass risk
+            # handling by raising before liquidation can be requested.
+            self.high_water_equity = max(current_equity, 1e-12)
         if self.high_water_equity > 0:
             self.last_drawdown = max(
                 0.0, 1.0 - current_equity / self.high_water_equity
@@ -190,11 +200,58 @@ class CircuitBreakerMixin:
         elif self.last_drawdown >= self.portfolio_drawdown_reduce:
             target = BreakerAction.REDUCE
 
-        # Portfolio protection is sticky: only manual_resume may reduce the
-        # action level.  A new high-water mark cannot silently re-enable risk.
+        # Recovery changes only the opening-risk policy. Absolute liquidation
+        # and manual-lock thresholds always use the original high-water mark.
+        now = None if occurred_at is None else pd.Timestamp(occurred_at)
+        if now is not None:
+            if pd.isna(now):
+                raise ValueError("invalid breaker timestamp")
+            now = now.tz_localize("UTC") if now.tzinfo is None else now.tz_convert("UTC")
+        terminal = self.portfolio_breaker_action in {BreakerAction.LIQUIDATE, BreakerAction.LOCKED}
+        if self.recovery_policy.enabled and not terminal and target not in {
+            BreakerAction.LIQUIDATE, BreakerAction.LOCKED
+        }:
+            if self.portfolio_breaker_action is BreakerAction.BLOCK_NEW:
+                # Old snapshots without a deadline start a full cooldown.
+                if self.blocked_until is None and now is not None:
+                    self.blocked_until = (now + pd.Timedelta(days=self.recovery_policy.cooldown_days)).isoformat()
+                if now is not None and now >= pd.Timestamp(self.blocked_until):
+                    healthy = self.health_assessment is None or bool(
+                        getattr(self.health_assessment, "allows_new_risk", False)
+                    )
+                    daily_safe = (daily_start_equity > 0 and
+                                  1 - current_equity / daily_start_equity < self.daily_loss_limit)
+                    if healthy and daily_safe and not self.daily_loss_triggered:
+                        self.probation_equity = current_equity
+                        self.blocked_until = None
+                        self.recovery_count += 1
+                        self._recovery_transition(BreakerAction.REDUCE, "cooldown_expired", now, current_equity, bar_index)
+            if self.probation_equity is not None:
+                loss = 1 - current_equity / self.probation_equity
+                if loss >= self.recovery_policy.probation_loss_limit:
+                    target = BreakerAction.BLOCK_NEW
+                    self.probation_equity = None
+                elif self.last_drawdown < self.portfolio_drawdown_reduce:
+                    self.probation_equity = None
+                    self._recovery_transition(BreakerAction.REDUCE, "probation_recovered", now, current_equity, bar_index)
+                    target = BreakerAction.REDUCE
+                else:
+                    # Still underwater: permit bounded new risk rather than
+                    # immediately re-entering BLOCK_NEW on the same drawdown.
+                    target = BreakerAction.REDUCE
+
+        # Escalations stay sticky except for the explicit, audited BLOCK_NEW
+        # recovery above. Terminal actions still require manual approval.
         if _BREAKER_RANK[target] > _BREAKER_RANK[self.portfolio_breaker_action]:
             previous = self.portfolio_breaker_action
             self.portfolio_breaker_action = target
+            if target is BreakerAction.BLOCK_NEW:
+                self.blocked_until = (
+                    (now + pd.Timedelta(days=self.recovery_policy.cooldown_days)).isoformat()
+                    if now is not None and self.recovery_policy.enabled else None
+                )
+            if target in {BreakerAction.BLOCK_NEW, BreakerAction.LIQUIDATE, BreakerAction.LOCKED}:
+                self.probation_equity = None
             self._breaker_transition_sequence += 1
             self.current_transition_id = (
                 f"epoch-{self.breaker_epoch}-transition-"
@@ -224,6 +281,7 @@ class CircuitBreakerMixin:
                 "breaker_epoch": self.breaker_epoch,
                 "positions_before": None,
                 "positions_after": None,
+                "blocked_until": self.blocked_until,
             })
             logger.error(
                 "Portfolio drawdown action %s at %.2f%% (high-water %.2f, equity %.2f)",
@@ -284,7 +342,8 @@ class CircuitBreakerMixin:
             ),
             force_reduce_fraction=(
                 self.reduced_risk_multiplier
-                if action is BreakerAction.REDUCE else None
+                if (action is BreakerAction.REDUCE and self.probation_equity is None
+                    and "recovery" not in (self.current_transition_id or "")) else None
             ),
             force_liquidate=action in {
                 BreakerAction.LIQUIDATE, BreakerAction.LOCKED
@@ -299,6 +358,68 @@ class CircuitBreakerMixin:
             breaker_epoch=self.breaker_epoch,
             daily_loss_triggered=daily_block,
         )
+
+    def _recovery_transition(self, action, reason, now, equity, bar_index):
+        previous = self.portfolio_breaker_action
+        self.portfolio_breaker_action = action
+        self.circuit_breaker_triggered = self.daily_loss_triggered
+        self._breaker_transition_sequence += 1
+        self.current_transition_id = f"epoch-{self.breaker_epoch}-recovery-{self._breaker_transition_sequence}"
+        self.breaker_audit.append({
+            "event": "portfolio_recovery", "from": previous.value, "to": action.value,
+            "reason_codes": [reason], "occurred_at": now, "bar_index": bar_index,
+            "action_id": self.current_transition_id, "breaker_epoch": self.breaker_epoch,
+            "equity": equity, "high_water_equity": self.high_water_equity,
+            "drawdown": self.last_drawdown, "rebase_high_water": False,
+            "probation_equity": self.probation_equity, "risk_multiplier": self.risk_multiplier,
+        })
+
+    def breaker_checkpoint(self):
+        """Durable control state, separate from the operator-facing summary."""
+        return {
+            "schema_version": 1,
+            "action": self.portfolio_breaker_action.value,
+            "high_water_equity": self.high_water_equity,
+            "last_drawdown": self.last_drawdown,
+            "daily_loss_triggered": self.daily_loss_triggered,
+            "circuit_breaker_triggered": self.circuit_breaker_triggered,
+            "blocked_until": self.blocked_until,
+            "probation_equity": self.probation_equity,
+            "recovery_count": self.recovery_count,
+            "breaker_epoch": self.breaker_epoch,
+            "transition_sequence": self._breaker_transition_sequence,
+            "current_transition_id": self.current_transition_id,
+            "current_daily_action_id": self.current_daily_action_id,
+        }
+
+    def restore_breaker_checkpoint(self, state):
+        if state.get("schema_version") != 1:
+            raise ValueError("unsupported breaker checkpoint schema")
+        action = BreakerAction(state["action"])
+        for name in ("high_water_equity", "probation_equity"):
+            value = state[name]
+            if value is not None and (not math.isfinite(value) or value <= 0):
+                raise ValueError(f"invalid breaker checkpoint {name}")
+        if state["blocked_until"] is not None:
+            point = pd.Timestamp(state["blocked_until"])
+            if pd.isna(point) or point.tzinfo is None:
+                raise ValueError("invalid recovery deadline")
+        if state["probation_equity"] is not None and action is not BreakerAction.REDUCE:
+            raise ValueError("probation must use reduced action")
+        for name in ("recovery_count", "breaker_epoch", "transition_sequence"):
+            if type(state[name]) is not int or state[name] < 0:
+                raise ValueError(f"invalid breaker checkpoint {name}")
+        for name in ("daily_loss_triggered", "circuit_breaker_triggered"):
+            if type(state[name]) is not bool:
+                raise ValueError(f"invalid breaker checkpoint {name}")
+        if not math.isfinite(state["last_drawdown"]) or state["last_drawdown"] < 0:
+            raise ValueError("invalid checkpoint drawdown")
+        self.portfolio_breaker_action = action
+        for name in ("high_water_equity", "last_drawdown", "daily_loss_triggered",
+                     "circuit_breaker_triggered", "blocked_until", "probation_equity",
+                     "recovery_count", "breaker_epoch", "current_transition_id", "current_daily_action_id"):
+            setattr(self, name, state[name])
+        self._breaker_transition_sequence = state["transition_sequence"]
 
     def record_breaker_action_result(
         self,

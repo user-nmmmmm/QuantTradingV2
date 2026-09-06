@@ -112,6 +112,7 @@ def build_risk_manager(configuration: Configuration) -> RiskManager:
         portfolio_drawdown_liquidate=drawdown.get("liquidate_threshold"),
         portfolio_drawdown_lock=drawdown.get("lock_threshold"),
         reduced_risk_multiplier=drawdown.get("reduced_risk_multiplier", 0.5),
+        recovery_policy=drawdown.get("recovery"),
     )
     # SR3-2: the cluster budgets live inside _entry_notional_caps, the single
     # source both clamp_entry_qty and check_entry_risk read.

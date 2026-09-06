@@ -410,6 +410,8 @@ class BacktestEngine:
                     )
                 )
             elif result.breaker_action == "reduce" and (
+                decision is None or decision.force_reduce_fraction is not None
+            ) and (
                 transition_id or f"epoch-{getattr(risk_manager, 'breaker_epoch', 0)}-reduce"
             ) not in applied_breaker_actions and not (
                 decision is not None and decision.daily_loss_triggered
@@ -736,6 +738,7 @@ class BacktestEngine:
             "execution_audit": list(broker.execution_audit),
             "breaker_audit": list(risk_manager.breaker_audit),
             "breaker_state": {
+                "recovery": risk_manager.breaker_checkpoint() if hasattr(risk_manager, "breaker_checkpoint") else None,
                 "action": risk_manager.breaker_action.value,
                 "high_water_equity": risk_manager.high_water_equity,
                 "drawdown": risk_manager.last_drawdown,
@@ -1024,4 +1027,3 @@ class BacktestEngine:
             processed_data, self.initial_capital, start_idx=start_idx
         )
         return result.equity if result else None
-

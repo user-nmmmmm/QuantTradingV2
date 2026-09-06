@@ -259,6 +259,9 @@ class LiveTradingEngine(TickOrchestratorMixin, RecoveryMixin, StateExportMixin):
         if self.state_store is None:
             self.state_store = StateStore(self._state_db_path)
         if not self._strategies_state_bound:
+            checkpoint = self.state_store.get("portfolio_breaker_checkpoint")
+            if checkpoint is not None:
+                self.risk_manager.restore_breaker_checkpoint(checkpoint)
             for strategy in self.strategies.values():
                 binder = getattr(strategy, "bind_state_store", None)
                 if callable(binder):
@@ -291,11 +294,21 @@ class LiveTradingEngine(TickOrchestratorMixin, RecoveryMixin, StateExportMixin):
             state_store = self._ensure_state_store()
             persisted_day = state_store.get("circuit_breaker_day")
             persisted_breaker = state_store.get("circuit_breaker", False)
-            if persisted_day == trading_day.isoformat() and bool(persisted_breaker):
+            checkpoint = state_store.get("portfolio_breaker_checkpoint")
+            if checkpoint is not None:
+                if persisted_day != trading_day.isoformat():
+                    self.risk_manager.reset_daily_breaker()
+                    state_store.set("portfolio_breaker_checkpoint", self.risk_manager.breaker_checkpoint())
+                state_store.set("circuit_breaker", self.risk_manager._blocks_new_risk())
+                state_store.set("circuit_breaker_day", trading_day.isoformat())
+                if self.risk_manager._blocks_new_risk():
+                    self._operational_state = "RISK_HALTED"
+            elif persisted_day == trading_day.isoformat() and bool(persisted_breaker):
                 # A process restart must not clear an intraday halt. The
                 # operator-visible JSON file is deliberately not authoritative;
                 # only the integrity-checked transactional store is restored.
                 self.risk_manager.circuit_breaker_triggered = True
+                self.risk_manager.daily_loss_triggered = True
                 self._operational_state = "RISK_HALTED"
                 logger.critical(
                     "Restored active circuit breaker for trading_day=%s",
