@@ -1,6 +1,7 @@
 """Backtest engine composed from the shared runtime and historical adapters."""
 
 from __future__ import annotations
+from core.entry_audit import forced_trade_cost
 
 import os
 from typing import Any, Dict, Optional
@@ -284,6 +285,7 @@ class BacktestEngine:
             allocator=router.allocator,
             warmup_period=self.warmup_period,
             initial_equity=self.initial_capital,
+            entry_audit_enabled=bool((config.get("research") or {}).get("entry_audit", False)),
         )
         self.market_data_adapter = market_data
         self.execution_adapter = execution
@@ -302,6 +304,9 @@ class BacktestEngine:
         bar_index = -1
         last_event_timestamp = None
         applied_breaker_actions: set[str] = set()
+        block_remaining = (config.get("research") or {}).get("block_remaining_fraction")
+        if block_remaining is not None and not 0 < float(block_remaining) < 1:
+            raise ValueError("Research block remaining fraction must be in (0, 1)")
         entry_risk_policy = EntryRiskPolicy.from_mapping(
             config.get("entry_risk") if isinstance(config.get("entry_risk"), dict)
             else None
@@ -431,6 +436,13 @@ class BacktestEngine:
                 applied_breaker_actions.add(
                     transition_id or f"epoch-{getattr(risk_manager, 'breaker_epoch', 0)}-reduce"
                 )
+            elif (result.breaker_action == "block_new" and block_remaining is not None
+                  and not (decision is not None and decision.daily_loss_triggered)
+                  and portfolio_action_id not in applied_breaker_actions):
+                forced_trades.extend(broker.force_liquidate(
+                    dict(event.bars), timestamp=event.timestamp, reason="DrawdownReduce",
+                    remaining_fraction=float(block_remaining), risk_action_id=portfolio_action_id))
+                applied_breaker_actions.add(portfolio_action_id)
             elif result.breaker_action in {"liquidate", "locked"}:
                 action_key = transition_id or (
                     f"epoch-{getattr(risk_manager, 'breaker_epoch', 0)}-"
@@ -477,11 +489,7 @@ class BacktestEngine:
                 portfolio.margin_snapshot(
                     result.prices, timestamp=event.timestamp, record=True
                 )
-                action_cost = sum(
-                    float(item.get("commission", 0.0) or 0.0)
-                    + abs(float(item.get("slip", 0.0) or 0.0))
-                    for item in forced_trades
-                )
+                action_cost = forced_trade_cost(forced_trades)
                 processor._previous_session_close_equity = result.equity
             # SR2-4: the real fill, not the signal close, decides how much is
             # at stake. A breakout that gapped through the open is resized down
@@ -729,6 +737,7 @@ class BacktestEngine:
             # checked every bar and summarized here for the report/roadmap gate.
             "accounting_check": accounting.result().to_dict(),
             "event_log": tuple(event_pipeline.events),
+            "entry_observations": processor.entry_audit,
             "run_id": self.run_id,
             "alignment_mode": self.alignment_mode,
             "account_mode": self.account_mode.value,

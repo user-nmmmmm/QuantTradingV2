@@ -19,6 +19,7 @@
 from typing import Dict, Any, Optional
 import pandas as pd
 from core.state import MarketState
+from core.entry_audit import note
 from core.portfolio import Portfolio
 from core.factors import VolumeFactors
 from core.candidate_scoring import (
@@ -461,6 +462,9 @@ class TrendBreakoutStrategy(
         now = _bar_time(df, i)
         signal = self._raw_entry_signal(symbol, i, df, portfolio)
         allowed = self.check_health(now)
+        note(raw_setup=signal is not None, health_status=self.health.status.value)
+        if signal is not None and not allowed:
+            note("strategy_health_block")
         if signal is not None:
             self.record_raw_setup(now, suppressed=not allowed)
         return signal if allowed else None
@@ -472,6 +476,7 @@ class TrendBreakoutStrategy(
         self._ensure_indicators(df)
 
         if i < self.entry_window:
+            note("signal_warmup")
             return None
 
         close = df["close"].iat[i]
@@ -479,6 +484,7 @@ class TrendBreakoutStrategy(
 
         # Check Entry Signal
         if pd.notna(high_max) and close > high_max:
+            note("breakout_detected", breakout=True)
             # Volume Confirmation: OBV must have net-accumulated over the
             # entry window, otherwise the breakout lacks volume support.
             # Skipped (not required) when the data source has no volume.
@@ -486,6 +492,7 @@ class TrendBreakoutStrategy(
                 obv_now = df["OBV"].iat[i]
                 obv_prior = df["OBV"].iat[i - self.entry_window]
                 if pd.isna(obv_now) or pd.isna(obv_prior) or obv_now <= obv_prior:
+                    note("obv_filter")
                     return None
 
             # Breakout!
@@ -500,6 +507,7 @@ class TrendBreakoutStrategy(
                 structural_stop=df[self.col_low_min].iat[i], df=df, i=i,
             )
             if not plan.accepted:
+                note("invalid_stop", stop_rejection=plan.reject_reason)
                 return None
             stop_loss = plan.stop_price
             breakdown = self._score_signal(

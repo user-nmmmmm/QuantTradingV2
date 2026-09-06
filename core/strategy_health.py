@@ -123,6 +123,8 @@ class StrategyHealthPolicy:
     repeated_failure_action: str = "manual_lock"
     extended_cooldown_days: float = 90.0
     recovery_risk_multiplier: float = 0.10
+    recovery_stages: tuple[float, ...] = ()
+    recovery_stage_min_days: float = 30.0
     rolling_cohort_window: int = 20
     max_retained_cohorts: int = 500
     max_retained_transitions: int = 200
@@ -153,10 +155,22 @@ class StrategyHealthPolicy:
                 raise ValueError("Extended cooldown cannot shorten ordinary cooldown")
             if not 0 < self.probation_risk_multiplier or self.recovery_risk_multiplier > self.probation_risk_multiplier:
                 raise ValueError("Recovery risk must be positive and no larger than probation risk")
+        if self.recovery_stages:
+            if self.repeated_failure_action != "extended_cooldown":
+                raise ValueError("Staged recovery requires extended_cooldown")
+            values = self.recovery_stages
+            if (values[0] != self.recovery_risk_multiplier or values[-1] != 1.0
+                    or any(not 0 < x <= 1 for x in values)
+                    or any(a >= b for a, b in zip(values, values[1:]))):
+                raise ValueError("Recovery stages must increase from recovery risk to 1.0")
+        if not math.isfinite(self.recovery_stage_min_days) or self.recovery_stage_min_days <= 0:
+            raise ValueError("Recovery stage duration must be finite and positive")
 
     @classmethod
     def from_mapping(cls, mapping: Optional[Dict[str, Any]]) -> "StrategyHealthPolicy":
         data = dict(mapping or {})
+        if "recovery_stages" in data:
+            data["recovery_stages"] = tuple(data["recovery_stages"])
         controllers = data.pop("counted_controllers", None)
         kwargs = {
             key: value for key, value in data.items()
@@ -292,6 +306,7 @@ class StrategyHealthMachine:
         # cannot leak across the cooldown/probation boundary.
         self._streak_baseline_cohort_ids: set[str] = set()
         self.failed_probation_cycles = 0
+        self.recovery_stage = -1
         self.manual_lock_reason: Optional[str] = None
         self.resume_count = 0
         self.cohorts: List[HealthCohort] = []
@@ -403,7 +418,20 @@ class StrategyHealthMachine:
             closed = self.probation_closed_cohorts
             if closed < self.policy.probation_required_cohorts:
                 return self.status
+            if self.recovery_stage >= 0 and (
+                moment is None or self.probation_started_at is None
+                or moment < self.probation_started_at + timedelta(days=self.policy.recovery_stage_min_days)
+            ):
+                # Negative evidence never waits for a minimum-time gate.
+                if self.probation_total_r <= self.policy.probation_min_total_r:
+                    self._fail_probation(moment, reason="probation_total_r_below_gate")
+                return self.status
             if self.probation_total_r > self.policy.probation_min_total_r:
+                if self.recovery_stage >= 0 and self.recovery_stage < len(self.policy.recovery_stages) - 2:
+                    self.recovery_stage += 1
+                    self._transition(HealthStatus.PROBATION, moment, reason="recovery_stage_passed")
+                    return self.status
+                self.recovery_stage = -1
                 self.resume_count += 1
                 self._transition(
                     HealthStatus.ACTIVE, moment,
@@ -443,6 +471,7 @@ class StrategyHealthMachine:
         self.failed_probation_cycles += 1
         if self.failed_probation_cycles >= self.policy.max_failed_probation_cycles:
             if self.policy.repeated_failure_action == "extended_cooldown":
+                self.recovery_stage = 0 if self.policy.recovery_stages else -1
                 self._enter_cooldown(moment, reason=f"{reason}; extended_recovery")
                 return
             self.manual_lock_reason = (
@@ -480,6 +509,7 @@ class StrategyHealthMachine:
             "cooldown_until": _iso(self.cooldown_until),
             "consecutive_negative_cohorts": self.consecutive_negative_cohorts,
             "risk_multiplier": self.risk_multiplier,
+            **({"recovery_stage": self.recovery_stage} if self.policy.recovery_stages else {}),
         })
         overflow = len(self.transitions) - self.policy.max_retained_transitions
         if overflow > 0:
@@ -549,6 +579,8 @@ class StrategyHealthMachine:
         if self.status is HealthStatus.ACTIVE:
             return 1.0
         if self.status is HealthStatus.PROBATION:
+            if self.recovery_stage >= 0:
+                return float(self.policy.recovery_stages[self.recovery_stage])
             if self._extended_recovery:
                 return float(self.policy.recovery_risk_multiplier)
             return float(self.policy.probation_risk_multiplier)
@@ -568,6 +600,7 @@ class StrategyHealthMachine:
         moment = _as_utc(at)
         self.manual_lock_reason = None
         self.failed_probation_cycles = 0
+        self.recovery_stage = -1
         self.trigger_event_id = None
         self._transition(
             HealthStatus.PROBATION, moment,
@@ -594,6 +627,7 @@ class StrategyHealthMachine:
             "failed_probation_cycles": self.failed_probation_cycles,
             "manual_lock_reason": self.manual_lock_reason,
             "risk_multiplier": self.risk_multiplier,
+            **({"recovery_stage": self.recovery_stage} if self.policy.recovery_stages else {}),
             "resume_count": self.resume_count,
             "total_cohorts": len(self.cohorts),
             "counted_cohorts": len(self.counted_cohorts()),
@@ -607,6 +641,7 @@ class StrategyHealthMachine:
     def to_dict(self) -> Dict[str, Any]:
         return {
             "schema": "strategy_health/v2",
+            "recovery_stage": self.recovery_stage,
             "strategy": self.strategy_name,
             "status": self.status.value,
             "status_changed_at": _iso(self.status_changed_at),
@@ -647,6 +682,9 @@ class StrategyHealthMachine:
         self.trigger_reason = data.get("trigger_reason")
         self.probation_started_at = _as_utc(data.get("probation_started_at"))
         self.failed_probation_cycles = int(data.get("failed_probation_cycles", 0))
+        self.recovery_stage = int(data.get("recovery_stage", -1))
+        if self.recovery_stage >= len(self.policy.recovery_stages) or self.recovery_stage < -1:
+            raise ValueError("Checkpoint recovery stage does not match configured policy")
         self.manual_lock_reason = data.get("manual_lock_reason")
         self.resume_count = int(data.get("resume_count", 0))
         self._last_close_at = _as_utc(data.get("last_close_at"))
