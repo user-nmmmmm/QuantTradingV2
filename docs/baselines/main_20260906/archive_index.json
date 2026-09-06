@@ -1,0 +1,835 @@
+{
+  "schema": "acceptance-archive-index/v1",
+  "commit": "8a89116ecaa0f6d4ae41354dacf4629ca806af75",
+  "local_passed": true,
+  "remote_ci_passed": true,
+  "remote_ci_url": "https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/34023399998",
+  "engineering_acceptance_passed": true,
+  "publication": "local_only_not_uploaded",
+  "archive_name": "main_8a89116_20260906.zip",
+  "verification": {
+    "passed": true,
+    "members_verified": 203,
+    "zip_sha256": "95450541417d70e9b4f71e2215b2e0ef57f9ce14073a9cf9c36af3a37324d558",
+    "bytes": 11907550
+  },
+  "manifest": {
+    "schema": "acceptance-bundle/v1",
+    "commit": "8a89116ecaa0f6d4ae41354dacf4629ca806af75",
+    "local_passed": true,
+    "files": {
+      "README.md": {
+        "sha256": "c174a9841e9cce51f26e904a88234ede42d7bbc71881357793be96491626f4b3",
+        "bytes": 1041
+      },
+      "evidence/acceptance.json": {
+        "sha256": "a153d89f55eba8dcf3558627dba335ea3ccb790b935df144e8b3d0989ac487db",
+        "bytes": 5148
+      },
+      "evidence/archive_tool_validation.json": {
+        "sha256": "6ebaa792536fdcc5b2c003f2bdefe95645715ffe0a5e17b6f5cf56208eb632cd",
+        "bytes": 162
+      },
+      "evidence/checks.json": {
+        "sha256": "6008345e0a3f3961275712ee1a42b494e2464157fecf067ad735dcfaf6f35476",
+        "bytes": 4766
+      },
+      "evidence/current_1/baseline/account_cost_contract.json": {
+        "sha256": "fd624f916d26fd0f31ad22ac9543b2118c93c8923d7481382dd62bfc9ae2cf8b",
+        "bytes": 302
+      },
+      "evidence/current_1/baseline/accounting_check.json": {
+        "sha256": "f62a1171c2bb4c78b4c2cc04b1e11b9346678cc7a1bae56e48df742571f0da53",
+        "bytes": 149
+      },
+      "evidence/current_1/baseline/breaker_audit.csv": {
+        "sha256": "3aa1293fee1d1aca0416706cd4fd349fbb039b18b6b850f547eab3d618f4e935",
+        "bytes": 865
+      },
+      "evidence/current_1/baseline/breaker_state.json": {
+        "sha256": "5058b7d236487b9b376874d72ef44f02b81105492fb82d69a9615a43c1cc9035",
+        "bytes": 719
+      },
+      "evidence/current_1/baseline/equity.csv": {
+        "sha256": "b3133221bfb37d7bf06b3d66ed37427fb8038655f988a1ebe037e4003f0c8888",
+        "bytes": 253474
+      },
+      "evidence/current_1/baseline/execution_audit.csv": {
+        "sha256": "99dfac80ceaac9ef2a5d7d14de2d1a179577fbd014949d9dc4e00d2be959ffc5",
+        "bytes": 24616
+      },
+      "evidence/current_1/baseline/financing_ledger.csv": {
+        "sha256": "cbf3440bf1254f4a081438fbf89bc7d7e0b6d67e4d83d74a0a533dceab15efd2",
+        "bytes": 1034
+      },
+      "evidence/current_1/baseline/lifecycle.json": {
+        "sha256": "fdcc678ffb33a0ce2a46a156fdb284fe908c6f8af145d9e250b7db25c00420e0",
+        "bytes": 5349
+      },
+      "evidence/current_1/baseline/metrics.json": {
+        "sha256": "65bf4c880bc0a89ac481e25a703f8d2feec67000d65c749752d4a9583fba7b2f",
+        "bytes": 45098
+      },
+      "evidence/current_1/baseline/replay_verification.json": {
+        "sha256": "c6f07b9189c89d124a4daa30f69c970abf6391c2f021dde11ecdaef7df73dd4e",
+        "bytes": 845
+      },
+      "evidence/current_1/baseline/resolved_config.json": {
+        "sha256": "ae0d1eda5cd7bb0e2b0a2c9e7c00ab6861af210c88222c6c664fc32878a7c55f",
+        "bytes": 5157
+      },
+      "evidence/current_1/baseline/result_digest.json": {
+        "sha256": "f65f7e973e566300785db00964596e7490c99c09a1d07ac267e15f3677e42123",
+        "bytes": 340
+      },
+      "evidence/current_1/baseline/risk_budget_reconciliation.csv": {
+        "sha256": "ec7972783459e920deea15d7b7af89b0493972976cc57bd2d1582e7cc416b5db",
+        "bytes": 18979
+      },
+      "evidence/current_1/baseline/stop_order_audit.csv": {
+        "sha256": "859a94a19a1d49de6e1747bf16f2bba613f5174124b78a270262d340fbae3698",
+        "bytes": 20149
+      },
+      "evidence/current_1/baseline/strategy_health.json": {
+        "sha256": "2cc846242ddd4ef9b4fc491ac4e2df6c001e54cf020ecc447258c96a45aafff6",
+        "bytes": 1719
+      },
+      "evidence/current_1/baseline/strategy_health_cohorts.csv": {
+        "sha256": "87109fc9e1450a9142837e8c35252b7904bfa5fe7b137884a5db30b4f3a43892",
+        "bytes": 11349
+      },
+      "evidence/current_1/baseline/strategy_health_transitions.csv": {
+        "sha256": "f72f59d64f1a140a4bc12db5fd9c093a60ddd084768a215d7a58eb9f74155c0c",
+        "bytes": 1777
+      },
+      "evidence/current_1/baseline/trades.csv": {
+        "sha256": "48ec0dad1ad848cfa8d34f8778b0f2ce9837961a3f4b3bd8fcf2cd063db149f0",
+        "bytes": 132036
+      },
+      "evidence/current_1/comparison.json": {
+        "sha256": "4f91d89f484d7dc8c0657426a40067adcbcc654f177e84a4b0c57f701c86c71c",
+        "bytes": 103877
+      },
+      "evidence/current_1/experiment.json": {
+        "sha256": "39063ec5aa3c12ebf2a3b42ad1bcbaccbf85a58c8321575638fbe2feb20f541b",
+        "bytes": 18881
+      },
+      "evidence/current_1/recovery/account_cost_contract.json": {
+        "sha256": "fd624f916d26fd0f31ad22ac9543b2118c93c8923d7481382dd62bfc9ae2cf8b",
+        "bytes": 302
+      },
+      "evidence/current_1/recovery/accounting_check.json": {
+        "sha256": "f62a1171c2bb4c78b4c2cc04b1e11b9346678cc7a1bae56e48df742571f0da53",
+        "bytes": 149
+      },
+      "evidence/current_1/recovery/breaker_audit.csv": {
+        "sha256": "3aa1293fee1d1aca0416706cd4fd349fbb039b18b6b850f547eab3d618f4e935",
+        "bytes": 865
+      },
+      "evidence/current_1/recovery/breaker_state.json": {
+        "sha256": "5058b7d236487b9b376874d72ef44f02b81105492fb82d69a9615a43c1cc9035",
+        "bytes": 719
+      },
+      "evidence/current_1/recovery/equity.csv": {
+        "sha256": "b3133221bfb37d7bf06b3d66ed37427fb8038655f988a1ebe037e4003f0c8888",
+        "bytes": 253474
+      },
+      "evidence/current_1/recovery/execution_audit.csv": {
+        "sha256": "99dfac80ceaac9ef2a5d7d14de2d1a179577fbd014949d9dc4e00d2be959ffc5",
+        "bytes": 24616
+      },
+      "evidence/current_1/recovery/financing_ledger.csv": {
+        "sha256": "cbf3440bf1254f4a081438fbf89bc7d7e0b6d67e4d83d74a0a533dceab15efd2",
+        "bytes": 1034
+      },
+      "evidence/current_1/recovery/lifecycle.json": {
+        "sha256": "fdcc678ffb33a0ce2a46a156fdb284fe908c6f8af145d9e250b7db25c00420e0",
+        "bytes": 5349
+      },
+      "evidence/current_1/recovery/metrics.json": {
+        "sha256": "65bf4c880bc0a89ac481e25a703f8d2feec67000d65c749752d4a9583fba7b2f",
+        "bytes": 45098
+      },
+      "evidence/current_1/recovery/replay_verification.json": {
+        "sha256": "c6f07b9189c89d124a4daa30f69c970abf6391c2f021dde11ecdaef7df73dd4e",
+        "bytes": 845
+      },
+      "evidence/current_1/recovery/resolved_config.json": {
+        "sha256": "df8e9a77e901744af5af1883711fed86412a7357074dcc8a5e0b9c32deed4641",
+        "bytes": 5156
+      },
+      "evidence/current_1/recovery/result_digest.json": {
+        "sha256": "f65f7e973e566300785db00964596e7490c99c09a1d07ac267e15f3677e42123",
+        "bytes": 340
+      },
+      "evidence/current_1/recovery/risk_budget_reconciliation.csv": {
+        "sha256": "ec7972783459e920deea15d7b7af89b0493972976cc57bd2d1582e7cc416b5db",
+        "bytes": 18979
+      },
+      "evidence/current_1/recovery/stop_order_audit.csv": {
+        "sha256": "859a94a19a1d49de6e1747bf16f2bba613f5174124b78a270262d340fbae3698",
+        "bytes": 20149
+      },
+      "evidence/current_1/recovery/strategy_health.json": {
+        "sha256": "2cc846242ddd4ef9b4fc491ac4e2df6c001e54cf020ecc447258c96a45aafff6",
+        "bytes": 1719
+      },
+      "evidence/current_1/recovery/strategy_health_cohorts.csv": {
+        "sha256": "87109fc9e1450a9142837e8c35252b7904bfa5fe7b137884a5db30b4f3a43892",
+        "bytes": 11349
+      },
+      "evidence/current_1/recovery/strategy_health_transitions.csv": {
+        "sha256": "f72f59d64f1a140a4bc12db5fd9c093a60ddd084768a215d7a58eb9f74155c0c",
+        "bytes": 1777
+      },
+      "evidence/current_1/recovery/trades.csv": {
+        "sha256": "48ec0dad1ad848cfa8d34f8778b0f2ce9837961a3f4b3bd8fcf2cd063db149f0",
+        "bytes": 132036
+      },
+      "evidence/current_2/baseline/account_cost_contract.json": {
+        "sha256": "fd624f916d26fd0f31ad22ac9543b2118c93c8923d7481382dd62bfc9ae2cf8b",
+        "bytes": 302
+      },
+      "evidence/current_2/baseline/accounting_check.json": {
+        "sha256": "f62a1171c2bb4c78b4c2cc04b1e11b9346678cc7a1bae56e48df742571f0da53",
+        "bytes": 149
+      },
+      "evidence/current_2/baseline/breaker_audit.csv": {
+        "sha256": "3aa1293fee1d1aca0416706cd4fd349fbb039b18b6b850f547eab3d618f4e935",
+        "bytes": 865
+      },
+      "evidence/current_2/baseline/breaker_state.json": {
+        "sha256": "5058b7d236487b9b376874d72ef44f02b81105492fb82d69a9615a43c1cc9035",
+        "bytes": 719
+      },
+      "evidence/current_2/baseline/equity.csv": {
+        "sha256": "b3133221bfb37d7bf06b3d66ed37427fb8038655f988a1ebe037e4003f0c8888",
+        "bytes": 253474
+      },
+      "evidence/current_2/baseline/execution_audit.csv": {
+        "sha256": "99dfac80ceaac9ef2a5d7d14de2d1a179577fbd014949d9dc4e00d2be959ffc5",
+        "bytes": 24616
+      },
+      "evidence/current_2/baseline/financing_ledger.csv": {
+        "sha256": "cbf3440bf1254f4a081438fbf89bc7d7e0b6d67e4d83d74a0a533dceab15efd2",
+        "bytes": 1034
+      },
+      "evidence/current_2/baseline/lifecycle.json": {
+        "sha256": "fdcc678ffb33a0ce2a46a156fdb284fe908c6f8af145d9e250b7db25c00420e0",
+        "bytes": 5349
+      },
+      "evidence/current_2/baseline/metrics.json": {
+        "sha256": "65bf4c880bc0a89ac481e25a703f8d2feec67000d65c749752d4a9583fba7b2f",
+        "bytes": 45098
+      },
+      "evidence/current_2/baseline/replay_verification.json": {
+        "sha256": "3d37791264b7feb2bf0493e03f92a41e87cb0514ff68ff3ad10e8a32b9efc089",
+        "bytes": 847
+      },
+      "evidence/current_2/baseline/resolved_config.json": {
+        "sha256": "ae0d1eda5cd7bb0e2b0a2c9e7c00ab6861af210c88222c6c664fc32878a7c55f",
+        "bytes": 5157
+      },
+      "evidence/current_2/baseline/result_digest.json": {
+        "sha256": "f65f7e973e566300785db00964596e7490c99c09a1d07ac267e15f3677e42123",
+        "bytes": 340
+      },
+      "evidence/current_2/baseline/risk_budget_reconciliation.csv": {
+        "sha256": "ec7972783459e920deea15d7b7af89b0493972976cc57bd2d1582e7cc416b5db",
+        "bytes": 18979
+      },
+      "evidence/current_2/baseline/stop_order_audit.csv": {
+        "sha256": "859a94a19a1d49de6e1747bf16f2bba613f5174124b78a270262d340fbae3698",
+        "bytes": 20149
+      },
+      "evidence/current_2/baseline/strategy_health.json": {
+        "sha256": "2cc846242ddd4ef9b4fc491ac4e2df6c001e54cf020ecc447258c96a45aafff6",
+        "bytes": 1719
+      },
+      "evidence/current_2/baseline/strategy_health_cohorts.csv": {
+        "sha256": "87109fc9e1450a9142837e8c35252b7904bfa5fe7b137884a5db30b4f3a43892",
+        "bytes": 11349
+      },
+      "evidence/current_2/baseline/strategy_health_transitions.csv": {
+        "sha256": "f72f59d64f1a140a4bc12db5fd9c093a60ddd084768a215d7a58eb9f74155c0c",
+        "bytes": 1777
+      },
+      "evidence/current_2/baseline/trades.csv": {
+        "sha256": "48ec0dad1ad848cfa8d34f8778b0f2ce9837961a3f4b3bd8fcf2cd063db149f0",
+        "bytes": 132036
+      },
+      "evidence/current_2/comparison.json": {
+        "sha256": "4f91d89f484d7dc8c0657426a40067adcbcc654f177e84a4b0c57f701c86c71c",
+        "bytes": 103877
+      },
+      "evidence/current_2/experiment.json": {
+        "sha256": "e0c46ab2ff4dde026f30a4e20d17ee0ec49b178e2e156b7f0f8f8346d23283a3",
+        "bytes": 18931
+      },
+      "evidence/current_2/recovery/account_cost_contract.json": {
+        "sha256": "fd624f916d26fd0f31ad22ac9543b2118c93c8923d7481382dd62bfc9ae2cf8b",
+        "bytes": 302
+      },
+      "evidence/current_2/recovery/accounting_check.json": {
+        "sha256": "f62a1171c2bb4c78b4c2cc04b1e11b9346678cc7a1bae56e48df742571f0da53",
+        "bytes": 149
+      },
+      "evidence/current_2/recovery/breaker_audit.csv": {
+        "sha256": "3aa1293fee1d1aca0416706cd4fd349fbb039b18b6b850f547eab3d618f4e935",
+        "bytes": 865
+      },
+      "evidence/current_2/recovery/breaker_state.json": {
+        "sha256": "5058b7d236487b9b376874d72ef44f02b81105492fb82d69a9615a43c1cc9035",
+        "bytes": 719
+      },
+      "evidence/current_2/recovery/equity.csv": {
+        "sha256": "b3133221bfb37d7bf06b3d66ed37427fb8038655f988a1ebe037e4003f0c8888",
+        "bytes": 253474
+      },
+      "evidence/current_2/recovery/execution_audit.csv": {
+        "sha256": "99dfac80ceaac9ef2a5d7d14de2d1a179577fbd014949d9dc4e00d2be959ffc5",
+        "bytes": 24616
+      },
+      "evidence/current_2/recovery/financing_ledger.csv": {
+        "sha256": "cbf3440bf1254f4a081438fbf89bc7d7e0b6d67e4d83d74a0a533dceab15efd2",
+        "bytes": 1034
+      },
+      "evidence/current_2/recovery/lifecycle.json": {
+        "sha256": "fdcc678ffb33a0ce2a46a156fdb284fe908c6f8af145d9e250b7db25c00420e0",
+        "bytes": 5349
+      },
+      "evidence/current_2/recovery/metrics.json": {
+        "sha256": "65bf4c880bc0a89ac481e25a703f8d2feec67000d65c749752d4a9583fba7b2f",
+        "bytes": 45098
+      },
+      "evidence/current_2/recovery/replay_verification.json": {
+        "sha256": "3d37791264b7feb2bf0493e03f92a41e87cb0514ff68ff3ad10e8a32b9efc089",
+        "bytes": 847
+      },
+      "evidence/current_2/recovery/resolved_config.json": {
+        "sha256": "df8e9a77e901744af5af1883711fed86412a7357074dcc8a5e0b9c32deed4641",
+        "bytes": 5156
+      },
+      "evidence/current_2/recovery/result_digest.json": {
+        "sha256": "f65f7e973e566300785db00964596e7490c99c09a1d07ac267e15f3677e42123",
+        "bytes": 340
+      },
+      "evidence/current_2/recovery/risk_budget_reconciliation.csv": {
+        "sha256": "ec7972783459e920deea15d7b7af89b0493972976cc57bd2d1582e7cc416b5db",
+        "bytes": 18979
+      },
+      "evidence/current_2/recovery/stop_order_audit.csv": {
+        "sha256": "859a94a19a1d49de6e1747bf16f2bba613f5174124b78a270262d340fbae3698",
+        "bytes": 20149
+      },
+      "evidence/current_2/recovery/strategy_health.json": {
+        "sha256": "2cc846242ddd4ef9b4fc491ac4e2df6c001e54cf020ecc447258c96a45aafff6",
+        "bytes": 1719
+      },
+      "evidence/current_2/recovery/strategy_health_cohorts.csv": {
+        "sha256": "87109fc9e1450a9142837e8c35252b7904bfa5fe7b137884a5db30b4f3a43892",
+        "bytes": 11349
+      },
+      "evidence/current_2/recovery/strategy_health_transitions.csv": {
+        "sha256": "f72f59d64f1a140a4bc12db5fd9c093a60ddd084768a215d7a58eb9f74155c0c",
+        "bytes": 1777
+      },
+      "evidence/current_2/recovery/trades.csv": {
+        "sha256": "48ec0dad1ad848cfa8d34f8778b0f2ce9837961a3f4b3bd8fcf2cd063db149f0",
+        "bytes": 132036
+      },
+      "evidence/current_3/baseline/account_cost_contract.json": {
+        "sha256": "fd624f916d26fd0f31ad22ac9543b2118c93c8923d7481382dd62bfc9ae2cf8b",
+        "bytes": 302
+      },
+      "evidence/current_3/baseline/accounting_check.json": {
+        "sha256": "f62a1171c2bb4c78b4c2cc04b1e11b9346678cc7a1bae56e48df742571f0da53",
+        "bytes": 149
+      },
+      "evidence/current_3/baseline/breaker_audit.csv": {
+        "sha256": "3aa1293fee1d1aca0416706cd4fd349fbb039b18b6b850f547eab3d618f4e935",
+        "bytes": 865
+      },
+      "evidence/current_3/baseline/breaker_state.json": {
+        "sha256": "5058b7d236487b9b376874d72ef44f02b81105492fb82d69a9615a43c1cc9035",
+        "bytes": 719
+      },
+      "evidence/current_3/baseline/equity.csv": {
+        "sha256": "b3133221bfb37d7bf06b3d66ed37427fb8038655f988a1ebe037e4003f0c8888",
+        "bytes": 253474
+      },
+      "evidence/current_3/baseline/execution_audit.csv": {
+        "sha256": "99dfac80ceaac9ef2a5d7d14de2d1a179577fbd014949d9dc4e00d2be959ffc5",
+        "bytes": 24616
+      },
+      "evidence/current_3/baseline/financing_ledger.csv": {
+        "sha256": "cbf3440bf1254f4a081438fbf89bc7d7e0b6d67e4d83d74a0a533dceab15efd2",
+        "bytes": 1034
+      },
+      "evidence/current_3/baseline/lifecycle.json": {
+        "sha256": "fdcc678ffb33a0ce2a46a156fdb284fe908c6f8af145d9e250b7db25c00420e0",
+        "bytes": 5349
+      },
+      "evidence/current_3/baseline/metrics.json": {
+        "sha256": "65bf4c880bc0a89ac481e25a703f8d2feec67000d65c749752d4a9583fba7b2f",
+        "bytes": 45098
+      },
+      "evidence/current_3/baseline/replay_verification.json": {
+        "sha256": "3d37791264b7feb2bf0493e03f92a41e87cb0514ff68ff3ad10e8a32b9efc089",
+        "bytes": 847
+      },
+      "evidence/current_3/baseline/resolved_config.json": {
+        "sha256": "ae0d1eda5cd7bb0e2b0a2c9e7c00ab6861af210c88222c6c664fc32878a7c55f",
+        "bytes": 5157
+      },
+      "evidence/current_3/baseline/result_digest.json": {
+        "sha256": "f65f7e973e566300785db00964596e7490c99c09a1d07ac267e15f3677e42123",
+        "bytes": 340
+      },
+      "evidence/current_3/baseline/risk_budget_reconciliation.csv": {
+        "sha256": "ec7972783459e920deea15d7b7af89b0493972976cc57bd2d1582e7cc416b5db",
+        "bytes": 18979
+      },
+      "evidence/current_3/baseline/stop_order_audit.csv": {
+        "sha256": "859a94a19a1d49de6e1747bf16f2bba613f5174124b78a270262d340fbae3698",
+        "bytes": 20149
+      },
+      "evidence/current_3/baseline/strategy_health.json": {
+        "sha256": "2cc846242ddd4ef9b4fc491ac4e2df6c001e54cf020ecc447258c96a45aafff6",
+        "bytes": 1719
+      },
+      "evidence/current_3/baseline/strategy_health_cohorts.csv": {
+        "sha256": "87109fc9e1450a9142837e8c35252b7904bfa5fe7b137884a5db30b4f3a43892",
+        "bytes": 11349
+      },
+      "evidence/current_3/baseline/strategy_health_transitions.csv": {
+        "sha256": "f72f59d64f1a140a4bc12db5fd9c093a60ddd084768a215d7a58eb9f74155c0c",
+        "bytes": 1777
+      },
+      "evidence/current_3/baseline/trades.csv": {
+        "sha256": "48ec0dad1ad848cfa8d34f8778b0f2ce9837961a3f4b3bd8fcf2cd063db149f0",
+        "bytes": 132036
+      },
+      "evidence/current_3/comparison.json": {
+        "sha256": "4f91d89f484d7dc8c0657426a40067adcbcc654f177e84a4b0c57f701c86c71c",
+        "bytes": 103877
+      },
+      "evidence/current_3/experiment.json": {
+        "sha256": "c5f70e9c63dcdf766e0489429bc8738d4b1a0990b3f97907cc82bfc55d9d848c",
+        "bytes": 18932
+      },
+      "evidence/current_3/recovery/account_cost_contract.json": {
+        "sha256": "fd624f916d26fd0f31ad22ac9543b2118c93c8923d7481382dd62bfc9ae2cf8b",
+        "bytes": 302
+      },
+      "evidence/current_3/recovery/accounting_check.json": {
+        "sha256": "f62a1171c2bb4c78b4c2cc04b1e11b9346678cc7a1bae56e48df742571f0da53",
+        "bytes": 149
+      },
+      "evidence/current_3/recovery/breaker_audit.csv": {
+        "sha256": "3aa1293fee1d1aca0416706cd4fd349fbb039b18b6b850f547eab3d618f4e935",
+        "bytes": 865
+      },
+      "evidence/current_3/recovery/breaker_state.json": {
+        "sha256": "5058b7d236487b9b376874d72ef44f02b81105492fb82d69a9615a43c1cc9035",
+        "bytes": 719
+      },
+      "evidence/current_3/recovery/equity.csv": {
+        "sha256": "b3133221bfb37d7bf06b3d66ed37427fb8038655f988a1ebe037e4003f0c8888",
+        "bytes": 253474
+      },
+      "evidence/current_3/recovery/execution_audit.csv": {
+        "sha256": "99dfac80ceaac9ef2a5d7d14de2d1a179577fbd014949d9dc4e00d2be959ffc5",
+        "bytes": 24616
+      },
+      "evidence/current_3/recovery/financing_ledger.csv": {
+        "sha256": "cbf3440bf1254f4a081438fbf89bc7d7e0b6d67e4d83d74a0a533dceab15efd2",
+        "bytes": 1034
+      },
+      "evidence/current_3/recovery/lifecycle.json": {
+        "sha256": "fdcc678ffb33a0ce2a46a156fdb284fe908c6f8af145d9e250b7db25c00420e0",
+        "bytes": 5349
+      },
+      "evidence/current_3/recovery/metrics.json": {
+        "sha256": "65bf4c880bc0a89ac481e25a703f8d2feec67000d65c749752d4a9583fba7b2f",
+        "bytes": 45098
+      },
+      "evidence/current_3/recovery/replay_verification.json": {
+        "sha256": "3d37791264b7feb2bf0493e03f92a41e87cb0514ff68ff3ad10e8a32b9efc089",
+        "bytes": 847
+      },
+      "evidence/current_3/recovery/resolved_config.json": {
+        "sha256": "df8e9a77e901744af5af1883711fed86412a7357074dcc8a5e0b9c32deed4641",
+        "bytes": 5156
+      },
+      "evidence/current_3/recovery/result_digest.json": {
+        "sha256": "f65f7e973e566300785db00964596e7490c99c09a1d07ac267e15f3677e42123",
+        "bytes": 340
+      },
+      "evidence/current_3/recovery/risk_budget_reconciliation.csv": {
+        "sha256": "ec7972783459e920deea15d7b7af89b0493972976cc57bd2d1582e7cc416b5db",
+        "bytes": 18979
+      },
+      "evidence/current_3/recovery/stop_order_audit.csv": {
+        "sha256": "859a94a19a1d49de6e1747bf16f2bba613f5174124b78a270262d340fbae3698",
+        "bytes": 20149
+      },
+      "evidence/current_3/recovery/strategy_health.json": {
+        "sha256": "2cc846242ddd4ef9b4fc491ac4e2df6c001e54cf020ecc447258c96a45aafff6",
+        "bytes": 1719
+      },
+      "evidence/current_3/recovery/strategy_health_cohorts.csv": {
+        "sha256": "87109fc9e1450a9142837e8c35252b7904bfa5fe7b137884a5db30b4f3a43892",
+        "bytes": 11349
+      },
+      "evidence/current_3/recovery/strategy_health_transitions.csv": {
+        "sha256": "f72f59d64f1a140a4bc12db5fd9c093a60ddd084768a215d7a58eb9f74155c0c",
+        "bytes": 1777
+      },
+      "evidence/current_3/recovery/trades.csv": {
+        "sha256": "48ec0dad1ad848cfa8d34f8778b0f2ce9837961a3f4b3bd8fcf2cd063db149f0",
+        "bytes": 132036
+      },
+      "evidence/isolated/baseline/account_cost_contract.json": {
+        "sha256": "fd624f916d26fd0f31ad22ac9543b2118c93c8923d7481382dd62bfc9ae2cf8b",
+        "bytes": 302
+      },
+      "evidence/isolated/baseline/accounting_check.json": {
+        "sha256": "2e457f81e22e1d6a6600f0b1069da5e044e14ece88503e5e90fd72b862156db6",
+        "bytes": 149
+      },
+      "evidence/isolated/baseline/breaker_audit.csv": {
+        "sha256": "7066f4a234b017ab0aa1470fce2c5f0a8d455cc521a61dc06c33fe465a5e72b4",
+        "bytes": 1682
+      },
+      "evidence/isolated/baseline/breaker_state.json": {
+        "sha256": "c82982aad95825358e0aac388cf36c4632568e1a4eac225f9abf2a8debee8011",
+        "bytes": 723
+      },
+      "evidence/isolated/baseline/equity.csv": {
+        "sha256": "5e92fc72482a5547ee9ce88a688128f796ea25a153914e8b31530b1f42695daf",
+        "bytes": 257666
+      },
+      "evidence/isolated/baseline/execution_audit.csv": {
+        "sha256": "be18d46e2fd22cecd32d2afef9ccdd7778b5b2126690855071cff5477ae0873a",
+        "bytes": 37126
+      },
+      "evidence/isolated/baseline/financing_ledger.csv": {
+        "sha256": "cbf3440bf1254f4a081438fbf89bc7d7e0b6d67e4d83d74a0a533dceab15efd2",
+        "bytes": 1034
+      },
+      "evidence/isolated/baseline/lifecycle.json": {
+        "sha256": "a27437443d5bd43b7a65c2069ab02a30a7e25792e5e489c0149ca5698795ef61",
+        "bytes": 633
+      },
+      "evidence/isolated/baseline/metrics.json": {
+        "sha256": "ab88998700c484e533a4c80b319aaec1aa69b6b4fc32dd3dce87d3494665f9b3",
+        "bytes": 46375
+      },
+      "evidence/isolated/baseline/replay_verification.json": {
+        "sha256": "0ba87058e8d1c4bfd26263be442bd7820dbfdc441629e916c811b59551b21aa7",
+        "bytes": 847
+      },
+      "evidence/isolated/baseline/resolved_config.json": {
+        "sha256": "cf4b9db571fcc21d895c48ca95a128b6f75929c034c0b44a0e571a794f082ebd",
+        "bytes": 5158
+      },
+      "evidence/isolated/baseline/result_digest.json": {
+        "sha256": "74568b2f57e96da3acc5d53e07eda9c639e3b99b9d0b6dd7ba63d07f3a5de3b1",
+        "bytes": 340
+      },
+      "evidence/isolated/baseline/risk_budget_reconciliation.csv": {
+        "sha256": "e28e4f6e1f505deeb50669eecc515a57f23612f65c7c7b7c7b4061eb5bbfac64",
+        "bytes": 27344
+      },
+      "evidence/isolated/baseline/stop_order_audit.csv": {
+        "sha256": "c8ec8c2e0b996e4c88a9557e7673a0ec2403995099e5da4853c3b0d6a2cb10d2",
+        "bytes": 27083
+      },
+      "evidence/isolated/baseline/strategy_health.json": {
+        "sha256": "0dff9284f52c78a126a06ea0da1be613dc72e535787e4c5d103e68202033668d",
+        "bytes": 1551
+      },
+      "evidence/isolated/baseline/strategy_health_cohorts.csv": {
+        "sha256": "34cc071b825efa9affa889dd60a5e84e43bcb528c7e1180af76d12043c70fa39",
+        "bytes": 15065
+      },
+      "evidence/isolated/baseline/strategy_health_transitions.csv": {
+        "sha256": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
+        "bytes": 2
+      },
+      "evidence/isolated/baseline/trades.csv": {
+        "sha256": "ddade41f1e9217dd8d28ac5177fc34431637adc76b5c0c8506d38fea03f48a0a",
+        "bytes": 190320
+      },
+      "evidence/isolated/comparison.json": {
+        "sha256": "04a5faaf434ca1aa36dfce6713134909b0f9c72972f5aaa29db4d03c0e587ced",
+        "bytes": 113264
+      },
+      "evidence/isolated/experiment.json": {
+        "sha256": "e4b42fb27fc33bc5901d7235982f1ef4631872b5af9e201ee73297a97824088b",
+        "bytes": 18931
+      },
+      "evidence/isolated/recovery/account_cost_contract.json": {
+        "sha256": "fd624f916d26fd0f31ad22ac9543b2118c93c8923d7481382dd62bfc9ae2cf8b",
+        "bytes": 302
+      },
+      "evidence/isolated/recovery/accounting_check.json": {
+        "sha256": "2e457f81e22e1d6a6600f0b1069da5e044e14ece88503e5e90fd72b862156db6",
+        "bytes": 149
+      },
+      "evidence/isolated/recovery/breaker_audit.csv": {
+        "sha256": "5c857b09800c8fb79dc033db8f5dbb6ee4bdd8febfb728177f2f6274f0808c4a",
+        "bytes": 3953
+      },
+      "evidence/isolated/recovery/breaker_state.json": {
+        "sha256": "35853459cc0a414d8da19de61762506e1dc162e8533cb1011b6df343966c85e6",
+        "bytes": 730
+      },
+      "evidence/isolated/recovery/equity.csv": {
+        "sha256": "bdca0caff38fdc8912aa1b0dc720d514753c65a35254665a8042a7d43dce171c",
+        "bytes": 289266
+      },
+      "evidence/isolated/recovery/execution_audit.csv": {
+        "sha256": "556f001c7402ae34d075c10f5ecab00477db32d8036e90da76df3462c1b3ba5c",
+        "bytes": 66128
+      },
+      "evidence/isolated/recovery/financing_ledger.csv": {
+        "sha256": "cbf3440bf1254f4a081438fbf89bc7d7e0b6d67e4d83d74a0a533dceab15efd2",
+        "bytes": 1034
+      },
+      "evidence/isolated/recovery/lifecycle.json": {
+        "sha256": "1e59ddacfe50b00cd1c7599f1416105dbd1958bce53dd1faac820243ad16d5cb",
+        "bytes": 633
+      },
+      "evidence/isolated/recovery/metrics.json": {
+        "sha256": "767879fa4495ef26abb3278627094cdd9081ae6db1afa49f4dc70efdf4ab4c2c",
+        "bytes": 52156
+      },
+      "evidence/isolated/recovery/replay_verification.json": {
+        "sha256": "a2e17f6cf11ed1f9439ce96e42813a9bf3e097b2954c3b4dea3331f45b11a34a",
+        "bytes": 847
+      },
+      "evidence/isolated/recovery/resolved_config.json": {
+        "sha256": "fefa83ce6e50772258093b7f0a582e9c9c0db9d4c7d7793c8d280bd9d8c9a12f",
+        "bytes": 5157
+      },
+      "evidence/isolated/recovery/result_digest.json": {
+        "sha256": "01bb23b01c633224934f26fc813c05cf675693778e565b6b1369e90ab2718f32",
+        "bytes": 340
+      },
+      "evidence/isolated/recovery/risk_budget_reconciliation.csv": {
+        "sha256": "46d4bcb49433b1784292af338eeb4e9bbee69089e90986221447a333ca5c1080",
+        "bytes": 50537
+      },
+      "evidence/isolated/recovery/stop_order_audit.csv": {
+        "sha256": "0016c2ae224f2a66da47df13375f449393308ae36534cc1d9d21d65ca566303c",
+        "bytes": 51763
+      },
+      "evidence/isolated/recovery/strategy_health.json": {
+        "sha256": "303c3012de0abc5cb017a2daa9a769fdb548ac3a8fd59ffc0d16a3a22fbf0b2c",
+        "bytes": 1553
+      },
+      "evidence/isolated/recovery/strategy_health_cohorts.csv": {
+        "sha256": "a34a33b338a3702140efeca2bfc767cb5ca47df87aa6a97eef2d60e146c09059",
+        "bytes": 27808
+      },
+      "evidence/isolated/recovery/strategy_health_transitions.csv": {
+        "sha256": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
+        "bytes": 2
+      },
+      "evidence/isolated/recovery/trades.csv": {
+        "sha256": "0144b90a5c0ecef92e7b79a8b1357d886f83b365547918bb604c2471897e6a26",
+        "bytes": 350622
+      },
+      "evidence/logs/archive_lint.log": {
+        "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+        "bytes": 19
+      },
+      "evidence/logs/archive_tests.log": {
+        "sha256": "2e65b3621e8c6c72717bda321cab6d37a08e5177d2b725aa3f3f222e035fcf28",
+        "bytes": 100
+      },
+      "evidence/logs/coverage.log": {
+        "sha256": "6333eab99d703f82fbe631f6718f1555b0cc9cd59f3a9993786b4a91756f1e75",
+        "bytes": 8556
+      },
+      "evidence/logs/current_1.log": {
+        "sha256": "e6387135a822ae969f6db1d8d80771f16e2e04b95f666519d0bb054f8ca4c01d",
+        "bytes": 616
+      },
+      "evidence/logs/current_2.log": {
+        "sha256": "ca5f6ee14aae25f270e9d66d90584699e4b702c8c1b8be93e12244c16588e0e0",
+        "bytes": 616
+      },
+      "evidence/logs/current_3.log": {
+        "sha256": "992803ef02f5d04cdb8dd5f9f785d7146a4622f10288970b09d20b99bf9c601b",
+        "bytes": 616
+      },
+      "evidence/logs/environment.log": {
+        "sha256": "8f6ddfe7ae5f13ea485e2bcde85946c7a0927c56de70ebf546f276761cf462e9",
+        "bytes": 140
+      },
+      "evidence/logs/isolated.log": {
+        "sha256": "ba9a33863f802a8bd6627c4a1b6586d361cb017bb2b502c40b54509c6b1d14a4",
+        "bytes": 618
+      },
+      "evidence/logs/lint.log": {
+        "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+        "bytes": 19
+      },
+      "evidence/logs/lock.log": {
+        "sha256": "8961ae2fdf23db681d97fc4d577fff20d2bec159a6a7bef8341301ea8966c094",
+        "bytes": 56
+      },
+      "evidence/logs/sandbox_discovery.log": {
+        "sha256": "50d17a80548098285c5760a3a01b8f5e365a35120eff98ca79c488c03b96c5f4",
+        "bytes": 101
+      },
+      "evidence/logs/types.log": {
+        "sha256": "281a094c39385b4d7b53e5db635f52158036861433c2a4975b9039e77a627a24",
+        "bytes": 44
+      },
+      "evidence/remote_ci.json": {
+        "sha256": "8842cbaf952f021ebdf0c79ee59a18965fda631ac2b9fd71f86c46da475165d1",
+        "bytes": 2617
+      },
+      "inputs/data_inputs/AAVE-USDT.csv": {
+        "sha256": "bf61f62a0b3f31737dcd0f7a83f8ad1b3fd334b96ef3f6de8b6d5690b4b467eb",
+        "bytes": 283647
+      },
+      "inputs/data_inputs/ADA-USDT.csv": {
+        "sha256": "44cdafa85117db9ad9fcf1766d0e2139051cbd5d4344a98b1d53e54bfaaf8578",
+        "bytes": 430831
+      },
+      "inputs/data_inputs/APT-USDT.csv": {
+        "sha256": "ce1b0be17e98fee7b659a291e07c82f4b9583e6075491e1e53fb916174c99890",
+        "bytes": 190045
+      },
+      "inputs/data_inputs/ARB-USDT.csv": {
+        "sha256": "0ec9809f78528545347cb23d076627001756dea4423d52531227b3ad8a22752e",
+        "bytes": 166700
+      },
+      "inputs/data_inputs/ATOM-USDT.csv": {
+        "sha256": "121bd002f209d596b864fd975ad5b14e6790fa053ca839a8dd6e993f1329ff1d",
+        "bytes": 359562
+      },
+      "inputs/data_inputs/AVAX-USDT.csv": {
+        "sha256": "07fc4ea102215027f7ff3c6ee9209958e5ce5e1640fec44b02b294c592eb03a0",
+        "bytes": 284389
+      },
+      "inputs/data_inputs/BCH-USDT.csv": {
+        "sha256": "dbc62898de023f9c3544c0fac079bf645acd7fb34f77887aeafe8b83c82f168c",
+        "bytes": 324516
+      },
+      "inputs/data_inputs/BNB-USDT.csv": {
+        "sha256": "0da6a490bb8ddc476f7d1ca14c95a6359dc874a6fa6e5c9bf2f171b2f59cf3ad",
+        "bytes": 431243
+      },
+      "inputs/data_inputs/BTC-USDT.csv": {
+        "sha256": "dca78a46a2a82d70b9e20db7b7dc385a8e93aa51cfdeca12ac618020c536d056",
+        "bytes": 427556
+      },
+      "inputs/data_inputs/DOGE-USDT.csv": {
+        "sha256": "e5e4b220a13a089b5e42b882f1453b0a4f1766cd0262631aa2b7c7bc78367bff",
+        "bytes": 353596
+      },
+      "inputs/data_inputs/DOT-USDT.csv": {
+        "sha256": "2a4b1686f98522bf9733a35458f28e28ce832c48840825c2678c016bcbc44486",
+        "bytes": 299500
+      },
+      "inputs/data_inputs/ETC-USDT.csv": {
+        "sha256": "2376a769a72c7a946667e73da4737c37af3658bb58002254e6f73194453e44d4",
+        "bytes": 403349
+      },
+      "inputs/data_inputs/ETH-USDT.csv": {
+        "sha256": "59268e5f52f7dae01d8f1b7769183dfa1dd449bc7cdf677fa2a774ddc0bc0b5c",
+        "bytes": 430283
+      },
+      "inputs/data_inputs/FIL-USDT.csv": {
+        "sha256": "d3b17e8d265396aa859951c881347fbeb442c4ade2713ecce0c1f8da614ec507",
+        "bytes": 293501
+      },
+      "inputs/data_inputs/ICP-USDT.csv": {
+        "sha256": "565e9df22f0432235e1789d2c9b7772e28cb5d30020d91c6e49b911a9032e9b4",
+        "bytes": 260142
+      },
+      "inputs/data_inputs/INJ-USDT.csv": {
+        "sha256": "ed7ad2d8b3b5ea82b2b20f559c4c5bfe4eef438d30a463fd742d8d15c3a1d553",
+        "bytes": 279892
+      },
+      "inputs/data_inputs/LDO-USDT.csv": {
+        "sha256": "d63bd1efeacaf1c6d053dec2e82f51a70c8e2f46f9e2ff6bf4cc9a347f332c25",
+        "bytes": 205476
+      },
+      "inputs/data_inputs/LINK-USDT.csv": {
+        "sha256": "d30cbc02654e8f274be5ed8d87d11141c6a20a532cea8670966f50383d33e26d",
+        "bytes": 366986
+      },
+      "inputs/data_inputs/LTC-USDT.csv": {
+        "sha256": "c10e5151c550838a8a6415a165154fc346d079e1247b1807b75541cfc2d3dad2",
+        "bytes": 433802
+      },
+      "inputs/data_inputs/MATIC-USDT.csv": {
+        "sha256": "af8cf80e5dad66693c9bd2b4b0b0cb452da47c99e252ecb3e8001b8abdc7fd0f",
+        "bytes": 287127
+      },
+      "inputs/data_inputs/NEAR-USDT.csv": {
+        "sha256": "a0eec6c876bf19c854568597a7119e70f1e6061abbae1a972743da59df4ae412",
+        "bytes": 281365
+      },
+      "inputs/data_inputs/OP-USDT.csv": {
+        "sha256": "efb1ce09e366732683eb4294902e01e588c4d3ffc22eabd9b8586124ccb2e432",
+        "bytes": 201541
+      },
+      "inputs/data_inputs/SEI-USDT.csv": {
+        "sha256": "39335a0aa2c6662f3ab1c4af33f8b29771c30aaa7f5aab3f400d3eb9c1c0e646",
+        "bytes": 149179
+      },
+      "inputs/data_inputs/SOL-USDT.csv": {
+        "sha256": "0dd43b3b928fddab3cafffd151efa3dddd9eb3b9fc8a2bd58438a84cabcba2e6",
+        "bytes": 289150
+      },
+      "inputs/data_inputs/SUI-USDT.csv": {
+        "sha256": "2d196334935e5d43dcc0ed57b273f33a9f4bec2e4c39198fe131d60346938066",
+        "bytes": 161339
+      },
+      "inputs/data_inputs/TIA-USDT.csv": {
+        "sha256": "263f314ab2c61ac406e4bba235111cef08de63541f927ad83946372abbc37f85",
+        "bytes": 134771
+      },
+      "inputs/data_inputs/TRX-USDT.csv": {
+        "sha256": "c067bef7dac72153c84110eef2a5e83a064709ad2ca35e3b9d182d4ad5f9e10e",
+        "bytes": 419359
+      },
+      "inputs/data_inputs/UNI-USDT.csv": {
+        "sha256": "4f80f647214c4cbc59aa5c1c91086f95594dfb1934da6158a9be094ac02187b8",
+        "bytes": 294145
+      },
+      "inputs/data_inputs/XLM-USDT.csv": {
+        "sha256": "6408c67ff8546bf45bd3f4363a15e7af1a23af7c89032151dca70963a735c046",
+        "bytes": 398532
+      },
+      "inputs/data_inputs/XRP-USDT.csv": {
+        "sha256": "c90963f6ad787f2118b2785924188571edfc0f95a392701adff321a19e59eaff",
+        "bytes": 416084
+      },
+      "inputs/run_manifest.json": {
+        "sha256": "f28ce38113801ebd1eba7aedc45bb1fd6642bde48cb0d6690f658f58ffefb440",
+        "bytes": 45310
+      },
+      "source.zip": {
+        "sha256": "2c338ab029a9f3b89601bf906fbdb39b443043c979864547c0dcc5b52f29047a",
+        "bytes": 9215905
+      },
+      "tools/main_acceptance.py": {
+        "sha256": "385ec0dc18bcf386b690495b138ae3ebbc2c84cf3b17df4ab337b44beabb91ef",
+        "bytes": 11094
+      },
+      "tools/test_main_acceptance_archive.py": {
+        "sha256": "8bcd28e6fc82ecc3060095caf46defb657d6940c9fdd38437976c3d78df78cdb",
+        "bytes": 1980
+      }
+    }
+  }
+}

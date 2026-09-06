@@ -30,6 +30,8 @@ unified_roadmap.md
 
 ## 最新行为变更
 
+- [`baselines/main_20260906/README.md`](baselines/main_20260906/README.md)：合并提交 `8a89116` 的主分支 CI、本地覆盖率、三次固定历史回测与本地证据归档索引。
+
 - [`strategy_health_lock_investigation.md`](strategy_health_lock_investigation.md)：人工锁定根因、旧止损残留修复与更新回测；后续仓位模块草案见 [`position_management_plan.md`](position_management_plan.md)。
 
 - [`p0_drawdown_recovery.md`](p0_drawdown_recovery.md)：2026-09-05 组合 BLOCK_NEW 冷静期恢复契约、重启兼容性与两组历史 A/B 回测；不代表策略重新准入或实盘放行。
