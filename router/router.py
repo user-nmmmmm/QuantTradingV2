@@ -8,6 +8,7 @@ from core.risk import RiskManager
 from core.state import MarketState
 from strategies.base import Strategy
 from core.allocation import EntryCandidate, PortfolioSignalAllocator
+from core.entry_audit import note
 
 
 class Router:
@@ -115,10 +116,12 @@ class Router:
         del risk_manager, current_prices
         current_time = df.index[i]
         if float(portfolio.get_position(symbol)["qty"]) != 0:
+            note("position_held")
             return None
 
         if symbol in self.cooldowns:
             if i <= self.cooldowns[symbol]:
+                note("router_cooldown")
                 self._log_routing(current_time, symbol, state.name, "COOLDOWN", 0.0,
                                   route_event="cooldown", strategy_changed=False)
                 return None
@@ -129,6 +132,7 @@ class Router:
         strategy_name = self._map_state_to_strategy(state)
         changed = last_state is not None and previous_name != strategy_name
         if changed:
+            note("router_switch_cooldown")
             # State transition means cancel stale *entry* intent and temporarily
             # stop new risk.  It does not grant Router authority to close lots.
             broker.cancel_symbol_orders(symbol)
@@ -139,16 +143,19 @@ class Router:
             return None
         self.symbol_states[symbol] = state
         if not strategy_name or strategy_name == "Cash":
+            note("market_state_cash")
             self._log_routing(current_time, symbol, state.name, "CASH", 0.0,
                               route_event="cash", strategy_changed=False)
             return None
         strategy = self.strategies.get(strategy_name)
         if strategy is None or state not in strategy.allowed_states:
+            note("strategy_unavailable")
             self._log_routing(current_time, symbol, state.name, "MISSING_STRATEGY", 0.0,
                               route_event="missing_strategy", strategy_changed=False)
             return None
         self._log_routing(current_time, symbol, state.name, strategy_name, 0.0,
                           route_event="candidate", strategy_changed=False)
+        note(strategy=strategy_name)
         return strategy.build_entry_candidate(symbol, i, df, state, portfolio)
 
     @staticmethod

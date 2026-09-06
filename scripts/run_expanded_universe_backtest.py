@@ -25,6 +25,7 @@ from backtest.engine import BacktestEngine
 from backtest.reporting import ReportGenerator
 from config.config import config
 from core.data import DataHandler
+from core.entry_audit import reconcile
 from core.reproducibility import canonical_json, code_identity, deterministic_result_digest, sha256_file
 from scripts.fetch_binance_data import DEFAULT_SYMBOLS
 
@@ -103,6 +104,12 @@ def run_arm(name, symbols, root, inventory, capital, start, end):
     engine = BacktestEngine(initial_capital=capital, timeframe="1d", alignment_mode="union",
                             benchmark_mode="fixed", run_id="expanded-universe-2016-20260831")
     result = engine.run(frames, routing_log_enabled=False)
+    if (config.get("research") or {}).get("entry_audit"):
+        rows, funnel = reconcile(result["entry_observations"], result["trades"], result["execution_audit"])
+        pd.DataFrame(rows).to_csv(folder / "entry_observations.csv", index=False)
+        save(folder / "entry_funnel.json", funnel)
+        if not funnel["partition_ok"] or not funnel["linkage_ok"]:
+            raise ValueError("Entry audit reconciliation failed")
     reporter = ReportGenerator(str(folder))
     metrics = reporter.generate(result["trades"], result["equity_curve"], metrics_only=True,
                                 benchmark_curve=result["benchmark"], close_events=result["close_events"],
@@ -110,7 +117,8 @@ def run_arm(name, symbols, root, inventory, capital, start, end):
                                 protective_stops=result["protective_stop_summary"])
     result["equity_curve"].to_csv(folder / "equity.csv")
     for key in ("trades", "breaker_audit", "strategy_health_transitions", "strategy_health_cohorts",
-                "stop_order_audit", "risk_budget_reconciliation", "financing_ledger", "execution_audit"):
+                "stop_order_audit", "risk_budget_reconciliation", "financing_ledger", "execution_audit",
+                "allocation_audit", "correlated_risk_audit"):
         pd.DataFrame(result[key]).to_csv(folder / f"{key}.csv", index=False)
     for key in ("strategy_health", "breaker_state", "accounting_check", "lifecycle", "account_cost_contract"):
         save(folder / f"{key}.json", result[key])

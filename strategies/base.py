@@ -9,6 +9,7 @@ from core.execution_port import ExecutionPort
 from core.events import Signal
 from core.risk import RiskManager
 from core.allocation import EntryCandidate
+from core.entry_audit import note
 
 """
 Strategy（策略基类）模块
@@ -439,11 +440,14 @@ class Strategy(ABC):
         if portfolio.get_position(symbol)["qty"] != 0:
             return None
         if self.get_context(symbol).get("entry_pending") or state not in self.allowed_states:
+            note("entry_pending_or_disallowed_state")
             return None
+        note("no_signal")
         signal = self.should_enter(symbol, i, df, state, portfolio)
         if not signal:
             return None
         score = float(signal.get("score", signal.get("priority", 0.0)))
+        note("candidate", raw_setup=True)
         return EntryCandidate(symbol, self, i, df, state, dict(signal), score)
 
     def submit_entry_candidate(
@@ -472,6 +476,9 @@ class Strategy(ABC):
         else:
             size = risk_manager.calculate_position_size_fixed_pct(equity, current_price, pct=0.10)
         size *= self.health_risk_multiplier()  # SR1-3 probation scaling
+        note("zero_sizing", sized_qty=size, health_multiplier=self.health_risk_multiplier(),
+             portfolio_multiplier=risk_manager.risk_multiplier, reference_price=current_price,
+             equity=equity, stop_loss=stop_loss, sized_notional=size * current_price)
         pending_provider = getattr(broker, "pending_open_notional", None)
         pending = pending_provider(current_prices) if callable(pending_provider) else {}
         clamp = getattr(risk_manager, "clamp_entry_qty", None)
@@ -482,6 +489,7 @@ class Strategy(ABC):
                 action=action,
             )
         budget_decision = None
+        note(clamped_qty=size)
         if risk_governor is not None and size > 0 and stop_loss > 0:
             planned_risk = size * abs(current_price - stop_loss)
             budget_decision = risk_governor.evaluate(
@@ -489,6 +497,8 @@ class Strategy(ABC):
                 equity=equity, portfolio=portfolio,
             )
             size *= budget_decision.scale
+            note("correlated_budget" if size <= 0 else "entry_risk_check",
+                 correlated_budget=budget_decision.to_dict(), budgeted_qty=size)
         if size <= 0 or not risk_manager.check_entry_risk(
             portfolio, symbol, size, current_price, current_volume=0.0,
             current_prices=current_prices, pending_open_notional=pending,

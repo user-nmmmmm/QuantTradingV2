@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import Dict, Optional
 
 from core.accounts import AccountMode
+from core.entry_audit import note
 from core.logger import get_logger
 from core.portfolio import Portfolio
 from core.risk.portfolio_governor import exposure_by_cluster
@@ -211,9 +212,11 @@ class PositionSizingMixin:
             return 0.0
 
         budget = min(caps.values())
+        note(notional_caps=dict(caps), binding_cap=min(caps, key=lambda key: caps[key]))
         if current_volume > 0:
             budget = min(budget, current_volume * self.liquidity_limit_pct * price)
         if budget <= 0:
+            note("notional_budget_exhausted")
             return 0.0
 
         # Stay strictly inside the caps: qty*price can round just above budget,
@@ -257,6 +260,7 @@ class PositionSizingMixin:
         if equity > 0:
             min_notional = equity * self.min_entry_notional_pct
             if clamped * price < min_notional:
+                note("below_minimum_notional", minimum_notional=min_notional)
                 logger.info(
                     "Entry skipped: clamped notional %.2f below minimum %.2f "
                     "(%.2f%% of equity) for %s",

@@ -170,3 +170,13 @@ recovery_risk_multiplier: 0.10
 
 本轮是固定候选工程对照，不是参数寻优或独立样本外验证。重复试运行仍可能持续亏损，不能因为不再永久锁定就认定可以实盘。
 脚本：`scripts/run_health_recovery_experiment.py`；测试：`tests/test_health_extended_recovery.py`。
+
+## 10. P0 分级恢复与信号归因（默认关闭）
+
+`recovery_stages: [0.10, 0.25, 0.50, 1.0]` 配合 `recovery_stage_min_days: 30`，
+在延长冷却恢复中每次只允许晋升一级；晋级须同时满足新退出 cohort 门槛、正总 R 和最低时间。
+每级重置判定样本边界，失败回最低级并冷却；人工锁定不受自动晋级影响。阶段索引随 v2 checkpoint 保存，恢复须使用相同配置。
+
+首次阻断归因与四组固定研究的完整口径、验收、未解决事项见
+[`P0 归因与仓位恢复联合报告`](research/p0_attribution_recovery_20260906.md)。
+特别注意：风险预算乘数不能替代实际名义仓位准入；小风险恢复与当前 1% 权益最小开仓规则的冲突已经被审计定位，尚未更改生产规则。

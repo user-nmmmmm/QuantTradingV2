@@ -7,7 +7,8 @@ than which roadmap phase asked for it.
 from __future__ import annotations
 
 from collections import Counter, defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from core.entry_audit import capture, note
 from enum import Enum
 from typing import Any, Iterable, Mapping, Optional, Sequence
 
@@ -34,6 +35,7 @@ class EntryCandidate:
     state: Any
     signal: Mapping[str, Any]
     score: float
+    audit: Optional[dict] = field(default=None, compare=False, repr=False)
 
     @property
     def strategy_name(self) -> str:
@@ -111,11 +113,18 @@ class PortfolioSignalAllocator:
         self.risk_governor.begin_session(session)
         decisions = []
         for rank, candidate in enumerate(ordered, start=1):
-            result = candidate.strategy.submit_entry_candidate(
-                candidate, portfolio=portfolio, broker=broker,
-                risk_manager=risk_manager, current_prices=dict(current_prices),
-                risk_governor=self.risk_governor,
-            )
+            with capture(candidate.audit):
+                note("allocation_rejected", rank=rank, score=float(candidate.score))
+                result = candidate.strategy.submit_entry_candidate(
+                    candidate, portfolio=portfolio, broker=broker,
+                    risk_manager=risk_manager, current_prices=dict(current_prices),
+                    risk_governor=self.risk_governor,
+                )
+                if result is not None:
+                    order_id = getattr(result, "client_order_id", None) or getattr(result, "id", None)
+                    note("order_accepted" if result.accepted else "execution_rejected",
+                         order_id=str(order_id) if order_id else None,
+                         submission_status=str(getattr(result, "status", "unknown")))
             accepted = bool(getattr(result, "accepted", False))
             budget = getattr(result, "risk_budget", None)
             decision = AllocationDecision(

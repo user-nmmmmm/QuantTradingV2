@@ -10,6 +10,7 @@ from dataclasses import replace
 from typing import Dict, Optional, Tuple
 
 from core.domain import OrderIntent, RiskDecision, RiskReservation
+from core.entry_audit import note
 from core.events import TradingEventPipeline, stable_uuid5
 from core.logger import get_logger
 from core.portfolio import Portfolio
@@ -58,18 +59,22 @@ class EntryPolicyMixin:
         上限内，本方法作为最后一道防线（含实盘路径）。
         """
         if self._blocks_new_risk():
+            note("portfolio_block")
             logger.warning("Trade Rejected: Circuit Breaker Active")
             return False
         if not self._health_allows_new_risk():
+            note("account_health_block")
             return False
 
         if qty <= 0 or price <= 0:
+            note("invalid_order_size_or_price")
             return False
 
         # 1. Liquidity Check
         if current_volume > 0:
             max_qty = current_volume * self.liquidity_limit_pct
             if qty > max_qty:
+                note("liquidity_limit")
                 logger.warning(f"Trade Rejected: Liquidity Limit. Qty {qty:.4f} > Max {max_qty:.4f} (1% of {current_volume})")
                 return False
 
@@ -83,6 +88,7 @@ class EntryPolicyMixin:
             portfolio, symbol, price, current_prices, reserved_by_symbol, action
         )
         if caps is None:
+            note("unverifiable_exposure")
             return False
 
         context = self._last_entry_context
@@ -90,6 +96,7 @@ class EntryPolicyMixin:
 
         # 2. Cash Sufficiency Check
         if "cash" in caps and trade_value > caps["cash"]:
+            note("cash_limit")
             logger.warning(
                 f"Trade Rejected: Insufficient Cash. Need {trade_value:.2f}, "
                 f"free cash {caps['cash']:.2f} (cash={portfolio.cash:.2f}, "
@@ -99,6 +106,7 @@ class EntryPolicyMixin:
 
         # 3. Leverage Check
         if trade_value > caps["leverage"]:
+            note("leverage_limit")
             projected_leverage = (
                 context["exposure"] + context["reserved"] + trade_value
             ) / equity
@@ -107,6 +115,7 @@ class EntryPolicyMixin:
 
         # 4. Concentration Check (Max Position Size)
         if trade_value > caps["concentration"]:
+            note("concentration_limit")
             new_pos_value = context["position_value"] + trade_value
             logger.warning(f"Trade Rejected: Concentration Limit. Symbol {symbol} would be {new_pos_value/equity:.1%} > Max {self.max_pos_size_pct:.1%}")
             return False
@@ -115,6 +124,7 @@ class EntryPolicyMixin:
         # correlated majors are one position with fifteen tickers.
         for cap_name in ("cluster_exposure", "crypto_beta_exposure"):
             if cap_name in caps and trade_value > caps[cap_name]:
+                note(cap_name)
                 logger.warning(
                     "Trade Rejected: %s budget. Need %.2f, headroom %.2f (%s)",
                     cap_name, trade_value, caps[cap_name], symbol,

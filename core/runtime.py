@@ -15,6 +15,8 @@ import pandas as pd
 from core.execution_port import ExecutionPort
 from core.portfolio import Portfolio
 from core.risk import BreakerAction, RiskControlDecision, RiskManager
+from core.entry_audit import capture, note
+from dataclasses import replace
 
 
 @dataclass(frozen=True)
@@ -120,6 +122,7 @@ class EventProcessor:
         allocator: CandidateAllocator,
         warmup_period: int = 0,
         initial_equity: Optional[float] = None,
+        entry_audit_enabled: bool = False,
     ) -> None:
         self.portfolio = portfolio
         self.execution = execution
@@ -135,6 +138,8 @@ class EventProcessor:
         )
         self._previous_session_close_equity = self._daily_start_equity
         self._bar_index = -1
+        self.entry_audit_enabled = entry_audit_enabled
+        self.entry_audit: list[dict[str, Any]] = []
 
     @staticmethod
     def _utc_datetime(value: Any) -> datetime:
@@ -273,6 +278,26 @@ class EventProcessor:
 
     def _collect_symbol_candidate(
         self, event: MarketDataSlice, symbol: str, *,
+        allow_position_management: bool = True, allow_new_entries: bool = True,
+    ):
+        if not self.entry_audit_enabled:
+            return self._collect_symbol_candidate_impl(
+                event, symbol, allow_position_management=allow_position_management,
+                allow_new_entries=allow_new_entries)
+        row = {"observation_id": f"{event.timestamp.isoformat()}|{symbol}",
+               "timestamp": event.timestamp, "symbol": symbol, "reason": "not_evaluated",
+               "portfolio_action": self.risk_manager.breaker_action.value}
+        with capture(row):
+            candidate, processed = self._collect_symbol_candidate_impl(
+                event, symbol, allow_position_management=allow_position_management,
+                allow_new_entries=allow_new_entries)
+        if candidate is not None:
+            candidate = replace(candidate, audit=row)
+        self.entry_audit.append(row)
+        return candidate, processed
+
+    def _collect_symbol_candidate_impl(
+        self, event: MarketDataSlice, symbol: str, *,
         allow_position_management: bool = True,
         allow_new_entries: bool = True,
     ):
@@ -280,16 +305,20 @@ class EventProcessor:
 
         df = event.histories.get(symbol)
         if df is None or df.empty or symbol not in event.bars:
+            note("missing_data")
             return None, False
         location = event.positions.get(symbol)
         if location is None:
             try:
                 location = df.index.get_loc(event.timestamp)
             except KeyError:
+                note("missing_timestamp")
                 return None, False
         if not isinstance(location, int) or location < self.warmup_period:
+            note("warmup")
             return None, False
         state = self.state_machine.get_state(df, location)
+        note("no_candidate", market_state=getattr(state, "name", str(state)))
         router_type = type(self.router)
         legacy_override = "collect_candidate" in vars(self.router)
         manager = (
@@ -307,6 +336,7 @@ class EventProcessor:
                     symbol, location, df, state, self.portfolio, self.execution,
                 ))
             if held or not allow_new_entries:
+                note("position_held" if held else "portfolio_block")
                 candidate = None
             else:
                 candidate = entry_collector(
