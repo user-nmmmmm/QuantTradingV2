@@ -33,6 +33,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
+import math
 from typing import Any, Dict, List, Optional, Sequence
 
 import pandas as pd
@@ -118,6 +119,10 @@ class StrategyHealthPolicy:
     probation_required_cohorts: int = 3
     probation_min_total_r: float = 0.0
     max_failed_probation_cycles: int = 2
+    # Opt-in research alternative; explicit/previous manual locks never expire.
+    repeated_failure_action: str = "manual_lock"
+    extended_cooldown_days: float = 90.0
+    recovery_risk_multiplier: float = 0.10
     rolling_cohort_window: int = 20
     max_retained_cohorts: int = 500
     max_retained_transitions: int = 200
@@ -137,6 +142,17 @@ class StrategyHealthPolicy:
             raise ValueError("probation_required_cohorts must be >= 1")
         if self.max_failed_probation_cycles < 1:
             raise ValueError("max_failed_probation_cycles must be >= 1")
+        if self.repeated_failure_action not in ("manual_lock", "extended_cooldown"):
+            raise ValueError("Unknown repeated_failure_action")
+        if not math.isfinite(self.extended_cooldown_days) or self.extended_cooldown_days <= 0:
+            raise ValueError("extended_cooldown_days must be finite and positive")
+        if not 0 < self.recovery_risk_multiplier <= 1:
+            raise ValueError("recovery_risk_multiplier must be in (0, 1]")
+        if self.repeated_failure_action == "extended_cooldown":
+            if self.extended_cooldown_days < self.cooldown_days:
+                raise ValueError("Extended cooldown cannot shorten ordinary cooldown")
+            if not 0 < self.probation_risk_multiplier or self.recovery_risk_multiplier > self.probation_risk_multiplier:
+                raise ValueError("Recovery risk must be positive and no larger than probation risk")
 
     @classmethod
     def from_mapping(cls, mapping: Optional[Dict[str, Any]]) -> "StrategyHealthPolicy":
@@ -370,7 +386,7 @@ class StrategyHealthMachine:
                 # anchor it to the first real time we observe rather than
                 # letting it become the permanent kill switch SR1-1 removes.
                 self.cooldown_started_at = moment
-                self.cooldown_until = moment + timedelta(days=self.policy.cooldown_days)
+                self.cooldown_until = moment + timedelta(days=self._cooldown_days)
             if self.cooldown_until is not None and moment is not None and (
                 moment >= self.cooldown_until
             ):
@@ -416,7 +432,7 @@ class StrategyHealthMachine:
         started = moment or self._last_close_at
         self.cooldown_started_at = started
         self.cooldown_until = (
-            started + timedelta(days=self.policy.cooldown_days)
+            started + timedelta(days=self._cooldown_days)
             if started is not None else None
         )
         self.trigger_event_id = trigger_event_id
@@ -426,6 +442,9 @@ class StrategyHealthMachine:
     def _fail_probation(self, moment: Optional[datetime], *, reason: str) -> None:
         self.failed_probation_cycles += 1
         if self.failed_probation_cycles >= self.policy.max_failed_probation_cycles:
+            if self.policy.repeated_failure_action == "extended_cooldown":
+                self._enter_cooldown(moment, reason=f"{reason}; extended_recovery")
+                return
             self.manual_lock_reason = (
                 f"{reason}; failed_probation_cycles="
                 f"{self.failed_probation_cycles}"
@@ -467,6 +486,17 @@ class StrategyHealthMachine:
             del self.transitions[:overflow]
 
     # --------------------------------------------------------------- readouts
+
+    @property
+    def _extended_recovery(self) -> bool:
+        return (
+            self.policy.repeated_failure_action == "extended_cooldown"
+            and self.failed_probation_cycles >= self.policy.max_failed_probation_cycles
+        )
+
+    @property
+    def _cooldown_days(self) -> float:
+        return self.policy.extended_cooldown_days if self._extended_recovery else self.policy.cooldown_days
 
     def counted_cohorts(self) -> List[HealthCohort]:
         return [cohort for cohort in self.cohorts if cohort.counts_toward_health]
@@ -519,6 +549,8 @@ class StrategyHealthMachine:
         if self.status is HealthStatus.ACTIVE:
             return 1.0
         if self.status is HealthStatus.PROBATION:
+            if self._extended_recovery:
+                return float(self.policy.recovery_risk_multiplier)
             return float(self.policy.probation_risk_multiplier)
         return 0.0
 
