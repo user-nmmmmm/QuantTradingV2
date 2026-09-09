@@ -175,6 +175,8 @@ class LiveTradingEngine(TickOrchestratorMixin, RecoveryMixin, StateExportMixin):
             timeframe=timeframe,
             lookback=max(lookback_days, 100),
             close_grace_seconds=close_grace_seconds,
+            exchange_id=getattr(broker, "exchange_id", None),
+            market_type=str(getattr(broker, "market_type", "spot")),
         )
         self.execution_adapter = RecordedExecutionAdapter(broker)
         self.event_processor = EventProcessor(
@@ -259,6 +261,9 @@ class LiveTradingEngine(TickOrchestratorMixin, RecoveryMixin, StateExportMixin):
         if self.state_store is None:
             self.state_store = StateStore(self._state_db_path)
         if not self._strategies_state_bound:
+            governor = getattr(self.router.allocator, "risk_governor", None)
+            if governor is not None:
+                governor.bind_state_store(self.state_store, getattr(self.broker, "order_store", None))
             checkpoint = self.state_store.get("portfolio_breaker_checkpoint")
             if checkpoint is not None:
                 self.risk_manager.restore_breaker_checkpoint(checkpoint)
@@ -266,6 +271,10 @@ class LiveTradingEngine(TickOrchestratorMixin, RecoveryMixin, StateExportMixin):
                 binder = getattr(strategy, "bind_state_store", None)
                 if callable(binder):
                     binder(self.state_store)
+                saved = self.state_store.get(f"strategy_runtime:{strategy.name}")
+                if saved:
+                    strategy.context = saved.get("context", {})
+                    strategy._consumed_close_event_ids = set(saved.get("consumed_close_event_ids", []))
             self._strategies_state_bound = True
         if self.snapshot_manager is None:
             source_path = getattr(self.state_store, "path", self._state_db_path)
@@ -344,7 +353,9 @@ class LiveTradingEngine(TickOrchestratorMixin, RecoveryMixin, StateExportMixin):
         for symbol in self.symbols:
             logger.info("Warming up data for %s...", symbol)
             frame = self.fetcher.fetch_ccxt(
-                symbol, timeframe=self.timeframe, limit=max(self.lookback_days, 100)
+                symbol, timeframe=self.timeframe, limit=max(self.lookback_days, 100),
+                exchange_id=getattr(self.broker, "exchange_id", None),
+                **({"market_type": self.market_data_adapter.market_type} if self.market_data_adapter.market_type not in {"spot", "margin"} else {}),
             )
             if not frame.empty:
                 self.data_map[symbol] = frame

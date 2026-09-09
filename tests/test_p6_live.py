@@ -201,6 +201,7 @@ class TestLiveTrading(unittest.TestCase):
             "BTC/USDT",
             timeframe="1d",
             limit=100,
+            exchange_id="binance",
         )
 
     @patch("core.live_broker.ccxt")

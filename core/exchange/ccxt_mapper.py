@@ -39,8 +39,14 @@ class CCXTRequestMapper:
         params: Dict[str, Any] = {}
         if capabilities.supports_client_order_id:
             params["clientOrderId"] = intent.client_order_id
-        if intent.reduce_only:
+        if intent.reduce_only and capabilities.supports_reduce_only:
             params["reduceOnly"] = True
+        if capabilities.market_type == "margin":
+            params["type"] = "margin"
+            # AUTO_REPAY is financing behavior, not an exchange reduce-only guarantee.
+            params["sideEffectType"] = "AUTO_REPAY" if intent.action in {"sell", "cover"} else "MARGIN_BUY"
+        if intent.order_type == "stop":
+            params["stopLossPrice"] = intent.trigger_price
         if intent.position_side:
             params["positionSide"] = intent.position_side
         if intent.time_in_force:
@@ -48,9 +54,9 @@ class CCXTRequestMapper:
         side = {"short": "sell", "cover": "buy"}.get(intent.action, intent.action)
         return CCXTOrderRequest(
             symbol=intent.symbol,
-            type=str(intent.order_type).lower(),
+            type="market" if intent.order_type == "stop" else str(intent.order_type).lower(),
             side=side,
             amount=float(intent.requested_qty),
-            price=None if intent.price is None else float(intent.price),
+            price=None if intent.order_type in {"market", "stop"} or intent.price is None else float(intent.price),
             params=params,
         )

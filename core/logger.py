@@ -2,6 +2,7 @@ import logging
 import os
 import re
 from typing import Optional, Union
+from core.redaction import sanitize_text
 
 
 _DEFAULT_FORMAT = "%(asctime)s %(levelname)s %(name)s %(message)s"
@@ -25,10 +26,19 @@ class SensitiveDataFilter(logging.Filter):
             value = os.getenv(name)
             if value:
                 message = message.replace(value, "[REDACTED]")
-        for pattern in self._patterns:
-            message = pattern.sub(r"\1[REDACTED]", message)
-        record.msg = message
+        record.msg = sanitize_text(message)
         record.args = ()
+        if record.exc_info:
+            record.exc_text = logging.Formatter().formatException(record.exc_info)
+            record.exc_info = None
+        for name in ("exc_text", "stack_info"):
+            value = getattr(record, name, None)
+            if value:
+                for key in ("EXCHANGE_API_KEY", "EXCHANGE_SECRET", "EXCHANGE_PASSWORD"):
+                    secret = os.getenv(key)
+                    if secret:
+                        value = value.replace(secret, "[REDACTED]")
+                setattr(record, name, sanitize_text(value))
         return True
 
 

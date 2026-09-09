@@ -304,6 +304,8 @@ class EventProcessor:
         """Return ``(candidate, processed)`` without allocating capital."""
 
         df = event.histories.get(symbol)
+        if symbol in event.bars and bool(event.bars[symbol].get("entry_blocked", False)):
+            allow_new_entries = False
         if df is None or df.empty or symbol not in event.bars:
             note("missing_data")
             return None, False

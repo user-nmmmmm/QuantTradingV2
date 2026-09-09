@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 
 from core.portfolio import Portfolio
+from core.domain import OrderStatus
 from core.protective_orders import (
     ProtectiveAction,
     ProtectiveOrder,
@@ -53,13 +54,15 @@ class TestProtectionCreation(unittest.TestCase):
         self.manager.evaluate(symbol="BTC/USDT", position_qty=1, desired_stop=95)
         self.manager.reconcile_after_restart(positions={}, desired_stops={}, venue_orders=[])
         next_position = self.manager.evaluate(symbol="BTC/USDT", position_qty=1, desired_stop=70)
-        self.assertEqual(next_position.effective_stop, 70)
+        self.assertEqual(next_position.intents[0].stop_price, 70)
+        self.assertEqual(next_position.protected_qty, 0)
 
     def test_a_filled_entry_places_a_reduce_only_stop_for_the_net_position(self):
         plan = self.manager.evaluate(
             symbol="BTC/USDT", position_qty=2.5, desired_stop=90.0,
         )
-        self.assertEqual(plan.state, ProtectiveState.ARMED)
+        self.assertEqual(plan.state, ProtectiveState.UNPROTECTED)
+        self.assertEqual(plan.protected_qty, 0)
         self.assertEqual(len(plan.intents), 1)
         intent = plan.intents[0]
         self.assertEqual(intent.action, ProtectiveAction.PLACE)
@@ -294,8 +297,15 @@ class TestAudit(unittest.TestCase):
 class _StubOrderStore:
     def __init__(self, records):
         self._records = records
+        self.sequences = {}
+
+    def action_sequence(self, key):
+        return self.sequences.setdefault(key, len(self.sequences) + 1)
 
     def list_non_terminal(self):
+        return list(self._records)
+
+    def list_all(self):
         return list(self._records)
 
     def list_with_fills(self):
@@ -325,11 +335,26 @@ class _StubBroker:
 
     def submit_order(self, symbol, side, qty, **kwargs):
         self.submitted.append((symbol, side, qty, kwargs))
-        return SimpleNamespace(accepted=True)
+        if kwargs.get("order_type") == "stop":
+            self.order_store._records.append({
+                "client_order_id": f"stub:{len(self.submitted)}", "symbol": symbol,
+                "side": side, "order_type": "stop", "price": kwargs.get("trigger_price"),
+                "requested_qty": qty, "remaining_qty": qty, "status": "accepted",
+                "intent": {"reduce_only": True, "trigger_price": kwargs.get("trigger_price")},
+            })
+        else:
+            held = self.portfolio.get_position(symbol)["qty"]
+            remaining = max(abs(held) - qty, 0)
+            self.portfolio.positions[symbol] = {"qty": remaining if held >= 0 else -remaining, "avg_price": 100}
+        return SimpleNamespace(accepted=True, status=OrderStatus.ACCEPTED)
+
+    def sync(self):
+        return True
 
     def cancel_order(self, client_order_id):
         self.cancelled.append(client_order_id)
-        return SimpleNamespace(accepted=True)
+        self.order_store._records[:] = [row for row in self.order_store._records if row["client_order_id"] != client_order_id]
+        return SimpleNamespace(accepted=True, status=OrderStatus.CANCELED)
 
 
 class _StubEngine(TickOrchestratorMixin):
@@ -367,7 +392,7 @@ class TestLiveWiring(unittest.TestCase):
         broker.portfolio = self._portfolio(1)
         strategy.context["BTC/USDT"]["effective_stop"] = 70
         engine._reconcile_protective_orders()
-        self.assertEqual(broker.submitted[-1][3]["price"], 70)
+        self.assertEqual(broker.submitted[-1][3]["trigger_price"], 70)
 
     def _portfolio(self, qty: float) -> Portfolio:
         portfolio = Portfolio(initial_capital=100_000.0)
@@ -392,7 +417,7 @@ class TestLiveWiring(unittest.TestCase):
         self.assertAlmostEqual(qty, 1.0)
         self.assertEqual(kwargs["order_type"], "stop")
         self.assertTrue(kwargs["reduce_only"])
-        self.assertAlmostEqual(kwargs["price"], 92.0)
+        self.assertAlmostEqual(kwargs["trigger_price"], 92.0)
 
     def test_a_ratchet_cancels_then_replaces(self):
         records = [{
@@ -404,7 +429,7 @@ class TestLiveWiring(unittest.TestCase):
         engine = _StubEngine(broker, {"TrendBreakout": self._strategy(95.0)})
         engine._reconcile_protective_orders()
         self.assertEqual(broker.cancelled, ["P1"])
-        self.assertAlmostEqual(broker.submitted[0][3]["price"], 95.0)
+        self.assertAlmostEqual(broker.submitted[0][3]["trigger_price"], 95.0)
 
     def test_an_orphan_stop_on_a_flat_symbol_is_cancelled(self):
         records = [{

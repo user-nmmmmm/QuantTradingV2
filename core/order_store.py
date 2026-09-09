@@ -33,15 +33,22 @@ class _ClosedConnection:
 class OrderStore:
     """Authoritative, restart-safe order and fill ledger."""
 
-    def __init__(self, path: str):
+    def __init__(self, path: str, *, identity=None):
         self.path = path
         parent = os.path.dirname(os.path.abspath(path))
         os.makedirs(parent, exist_ok=True)
         self._lock = RLock()
         self._connection = open_durable_connection(path)
         self._connection.row_factory = sqlite3.Row
+        if path != ":memory:" and self._connection.execute("SELECT 1 FROM sqlite_master WHERE name='orders'").fetchone():
+            version = self._connection.execute("SELECT version FROM schema_metadata WHERE component='order_store'").fetchone() if self._connection.execute("SELECT 1 FROM sqlite_master WHERE name='schema_metadata'").fetchone() else None
+            if version is None or version[0] < 2:
+                SQLiteSnapshotManager(path).create_snapshot()
         with self._connection:
-            ensure_schema_version(self._connection, "order_store", 1)
+            if identity is not None:
+                from core.runtime_identity import bind_database_identity
+                bind_database_identity(self._connection, identity)
+            ensure_schema_version(self._connection, "order_store", 2)
             self._connection.execute(
                 """CREATE TABLE IF NOT EXISTS orders (
                     client_order_id TEXT PRIMARY KEY,
@@ -103,6 +110,10 @@ class OrderStore:
                 '''CREATE INDEX IF NOT EXISTS idx_order_resolutions_client
                    ON operator_order_resolutions(client_order_id, resolved_at)'''
             )
+            self._connection.execute(
+                "CREATE TABLE IF NOT EXISTS risk_action_sequences ("
+                "sequence INTEGER PRIMARY KEY AUTOINCREMENT, action_key TEXT NOT NULL UNIQUE)"
+            )
         self._snapshot_manager = (
             None if path == ":memory:" else SQLiteSnapshotManager(path)
         )
@@ -128,6 +139,22 @@ class OrderStore:
                 self._connection.execute(
                     f"ALTER TABLE orders ADD COLUMN {name} {declaration}"
                 )
+
+    def action_sequence(self, action_key: str) -> int:
+        """One durable sequence per named action; retries return the same value."""
+        if not action_key:
+            raise ValueError("action identity is required")
+        with self._lock, self._connection:
+            self._connection.execute("INSERT OR IGNORE INTO risk_action_sequences(action_key) VALUES(?)", (action_key,))
+            return int(self._connection.execute(
+                "SELECT sequence FROM risk_action_sequences WHERE action_key=?", (action_key,)
+            ).fetchone()[0])
+
+    def list_all(self):
+        with self._lock:
+            return [self._decode_order(row) for row in self._connection.execute(
+                "SELECT * FROM orders ORDER BY updated_at, client_order_id"
+            ).fetchall()]
 
     def create_intent(self, intent: OrderIntent, now: str) -> bool:
         record = {
@@ -359,7 +386,7 @@ class OrderStore:
     def fills_for(self, client_order_id: str) -> List[Dict[str, Any]]:
         with self._lock:
             rows = self._connection.execute(
-                "SELECT * FROM fills WHERE client_order_id=? ORDER BY timestamp, fill_id",
+                "SELECT rowid AS ledger_sequence, * FROM fills WHERE client_order_id=? ORDER BY timestamp, rowid",
                 (client_order_id,),
             ).fetchall()
         return [self._decode_fill(row) for row in rows]

@@ -56,10 +56,12 @@ ACCOUNT_RISK_EXIT_REASONS = frozenset({
     "AccountLiquidation",
     "MarginLiquidation",
     "DrawdownReduce",
+    "GapRiskResize",
+    "unprotected_flatten",
 })
 
 #: Exits forced by the run itself, never a statement about the alpha.
-SYSTEM_EXIT_REASONS = frozenset({"EndOfBacktest"})
+SYSTEM_EXIT_REASONS = frozenset({"EndOfBacktest", "AnnouncedMarginDelisting"})
 
 #: Exits owned by the router/allocator rather than by the strategy's own signal.
 ROUTER_EXIT_REASONS = frozenset({"MaxHoldingPeriod", "StateSwitch"})

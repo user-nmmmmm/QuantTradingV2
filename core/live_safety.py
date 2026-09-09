@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import os
+import math
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Any, Callable, Iterable, Mapping, Optional
 
 
@@ -23,9 +24,13 @@ def _positive_float(value: Optional[str], name: str) -> float:
         parsed = float(value)
     except (TypeError, ValueError) as exc:
         raise SafetyConfigurationError(f"{name} must be a number") from exc
-    if parsed <= 0:
+    if not math.isfinite(parsed) or parsed <= 0:
         raise SafetyConfigurationError(f"{name} must be greater than zero")
     return parsed
+
+
+def utc_date() -> date:
+    return datetime.now(timezone.utc).date()
 
 
 def credentials_from_environment() -> Mapping[str, str]:
@@ -92,6 +97,8 @@ class StartupSafetyPolicy:
         return policy
 
     def validate(self) -> None:
+        _positive_float(str(self.max_order_notional), "max_order_notional")
+        _positive_float(str(self.max_daily_new_risk), "max_daily_new_risk")
         if not self.allowed_exchanges or self.exchange_id not in self.allowed_exchanges:
             raise SafetyConfigurationError("exchange is not allowlisted")
         if not self.allowed_account_types or self.account_type not in self.allowed_account_types:
@@ -119,7 +126,7 @@ class OrderSafetyGuard:
         self,
         policy: StartupSafetyPolicy,
         *,
-        clock: Callable[[], date] = date.today,
+        clock: Callable[[], date] = utc_date,
     ) -> None:
         self.policy = policy
         self._clock = clock
@@ -127,13 +134,19 @@ class OrderSafetyGuard:
         self._daily_new_risk = 0.0
 
     def assert_order_allowed(self, symbol: str, side: str, qty: float, price: Optional[float]) -> None:
-        if self.policy.kill_switch_active():
+        if self.policy.kill_switch_active() and side.lower() in {"buy", "short"}:
             raise SafetyConfigurationError("global kill switch is active")
         if symbol not in self.policy.allowed_symbols or symbol not in self.policy.symbols:
             raise SafetyConfigurationError("order symbol is not allowlisted for this run")
-        if price is None or price <= 0:
+        if not math.isfinite(qty) or qty <= 0:
+            raise SafetyConfigurationError("quantity must be finite and positive")
+        if price is None or not math.isfinite(price) or price <= 0:
             raise SafetyConfigurationError("a positive reference price is required for safety limits")
         notional = abs(qty * price)
+        if not math.isfinite(notional):
+            raise SafetyConfigurationError("notional must be finite")
+        if side.lower() in {"sell", "cover"}:
+            return  # Inventory constraints are enforced by the broker.
         if notional > self.policy.max_order_notional:
             raise SafetyConfigurationError("order exceeds maximum notional")
 

@@ -82,7 +82,7 @@ class TestRemainingP1LiveSafety(unittest.TestCase):
             strategy_failure_threshold=2,
         )
         engine.data_map["BTC/USDT"] = frame
-        engine.event_processor.process_symbol = MagicMock(
+        engine.event_processor._collect_symbol_candidate = MagicMock(
             side_effect=RuntimeError("strategy exploded")
         )
         return engine, store
@@ -164,7 +164,7 @@ class TestRemainingP1PersistenceAndStrategies(unittest.TestCase):
                     ).fetchone()
                 finally:
                     connection.close()
-                self.assertEqual(row, (1,))
+                self.assertEqual(row, (2 if component == "order_store" else 1,))
 
             self.assertIsNotNone(orders.snapshot_if_due())
             self.assertIsNotNone(risk.snapshot_if_due())

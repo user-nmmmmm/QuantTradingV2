@@ -5,7 +5,6 @@ Depends on core.events.types for the payload/value types it round-trips.
 """
 from __future__ import annotations
 
-import importlib
 import json
 import math
 from collections.abc import Mapping
@@ -16,7 +15,8 @@ from enum import Enum
 from typing import Any, Dict, Type, Union
 from uuid import UUID
 
-from core.events.types import StructuredPayload, _aware_utc, _normalize_value
+from core.events.types import PAYLOAD_EVENT_TYPES, StructuredPayload, _aware_utc, _normalize_value
+from core.domain import FillRecord, OrderSubmissionResult, SyncResult, OrderStatus, OrderErrorCode
 
 
 def _qualified_name(value: Union[Type[Any], Any]) -> str:
@@ -25,17 +25,20 @@ def _qualified_name(value: Union[Type[Any], Any]) -> str:
 
 
 def _resolve_type(name: str) -> Type[Any]:
-    if not isinstance(name, str) or ":" not in name:
-        raise ValueError("Invalid qualified type name")
-    module_name, qualname = name.split(":", 1)
-    if not module_name or not qualname or "<locals>" in qualname:
-        raise ValueError(f"Unsupported qualified type: {name!r}")
-    value: Any = importlib.import_module(module_name)
-    for part in qualname.split("."):
-        value = getattr(value, part)
-    if not isinstance(value, type):
-        raise TypeError(f"Resolved value is not a type: {name!r}")
-    return value
+    # Fixed imports are delayed only to avoid the ledger/event facade cycle.
+    from research.audit.ledger import CashEvent, MarkPriceEvent
+    # Only statically imported domain types may be constructed from stored data.
+    # Preserve historical facade names without importing any supplied module.
+    registry = {}
+    for cls in (*PAYLOAD_EVENT_TYPES, StructuredPayload, FillRecord,
+                OrderSubmissionResult, SyncResult, OrderStatus, OrderErrorCode,
+                CashEvent, MarkPriceEvent):
+        registry[_qualified_name(cls)] = cls
+        if cls in PAYLOAD_EVENT_TYPES or cls is StructuredPayload:
+            registry[f"core.events:{cls.__name__}"] = cls
+    if not isinstance(name, str) or name not in registry:
+        raise ValueError("Unregistered event type")
+    return registry[name]
 
 
 def _encode_value(value: Any) -> Any:
@@ -67,6 +70,7 @@ def _encode_value(value: Any) -> Any:
             "data": _encode_value(value.data),
         }
     if is_dataclass(value) and not isinstance(value, type):
+        _resolve_type(_qualified_name(value))
         return {
             "__qt_type__": "dataclass",
             "class": _qualified_name(value),

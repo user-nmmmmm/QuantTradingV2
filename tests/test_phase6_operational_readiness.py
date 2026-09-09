@@ -6,6 +6,8 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from core.gray_release import GrayReleasePolicy
+from core.runtime_identity import RuntimeIdentity
+from core.state_store_v2 import StateStore
 from core.live_safety import StartupSafetyPolicy
 from core.admission_gates import (
     EXPANSION_DIMENSIONS,
@@ -181,7 +183,9 @@ class Phase6EvidenceTests(unittest.TestCase):
                 json.dumps({"passed": False, "admission_passed": True}),
                 encoding="utf-8",
             )
-            snapshot.write_bytes(b"snapshot")
+            identity = RuntimeIdentity("binance", "live", "test", "spot")
+            snapshot_store = StateStore(str(snapshot), identity=identity)
+            snapshot_store.close()
             startup = StartupSafetyPolicy(
                 False, "binance", "spot", ("BTC/USDT",),
                 ("binance",), ("spot",), ("BTC/USDT",), "USDT", 10, 20,
@@ -192,7 +196,7 @@ class Phase6EvidenceTests(unittest.TestCase):
                 "enableSpotAndMarginTrading": True,
             }
             policy = GrayReleasePolicy(
-                "binance", "BTC/USDT", 10, 20, str(evidence), str(snapshot),
+                "binance", "BTC/USDT", 10, 20, str(evidence), str(snapshot), runtime_identity=identity,
             )
             with patch.dict("os.environ", {"QUANT_R8_APPROVED": "approved"}):
                 policy.validate(startup, exchange)

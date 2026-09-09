@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import os
+import math
 import sqlite3
 from datetime import date
 from threading import RLock
 from typing import Callable, Optional
 
-from core.live_safety import SafetyConfigurationError, StartupSafetyPolicy
+from core.live_safety import SafetyConfigurationError, StartupSafetyPolicy, utc_date
 from core.sqlite_backup import SQLiteSnapshotManager
 from core.sqlite_utils import ensure_schema_version, open_durable_connection
 
@@ -21,7 +22,8 @@ class PersistentOrderSafetyGuard:
         policy: StartupSafetyPolicy,
         path: str = "reports/live_safety_state.db",
         *,
-        clock: Callable[[], date] = date.today,
+        clock: Callable[[], date] = utc_date,
+        identity=None,
     ) -> None:
         self.policy = policy
         self._clock = clock
@@ -29,6 +31,9 @@ class PersistentOrderSafetyGuard:
         os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
         self._connection = open_durable_connection(path)
         with self._connection:
+            if identity is not None:
+                from core.runtime_identity import bind_database_identity
+                bind_database_identity(self._connection, identity)
             ensure_schema_version(self._connection, "persistent_risk_guard", 1)
             self._connection.execute(
                 "CREATE TABLE IF NOT EXISTS daily_risk "
@@ -45,13 +50,19 @@ class PersistentOrderSafetyGuard:
         qty: float,
         price: Optional[float],
     ) -> None:
-        if self.policy.kill_switch_active():
+        if self.policy.kill_switch_active() and side.lower() in {"buy", "short"}:
             raise SafetyConfigurationError("global kill switch is active")
         if symbol not in self.policy.allowed_symbols or symbol not in self.policy.symbols:
             raise SafetyConfigurationError("order symbol is not allowlisted for this run")
-        if price is None or price <= 0:
+        if not math.isfinite(qty) or qty <= 0:
+            raise SafetyConfigurationError("quantity must be finite and positive")
+        if price is None or not math.isfinite(price) or price <= 0:
             raise SafetyConfigurationError("a positive reference price is required for safety limits")
         notional = abs(qty * price)
+        if not math.isfinite(notional):
+            raise SafetyConfigurationError("notional must be finite")
+        if side.lower() in {"sell", "cover"}:
+            return
         if notional > self.policy.max_order_notional:
             raise SafetyConfigurationError("order exceeds maximum notional")
         if side.lower() not in {"buy", "short"}:
@@ -60,6 +71,7 @@ class PersistentOrderSafetyGuard:
 
         risk_day = self._clock().isoformat()
         with self._lock, self._connection:
+            self._connection.execute("BEGIN IMMEDIATE")
             current = self._connection.execute(
                 "SELECT notional FROM daily_risk WHERE risk_day=?", (risk_day,)
             ).fetchone()

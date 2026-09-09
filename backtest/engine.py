@@ -32,6 +32,7 @@ from core.market_data import HistoricalMarketDataAdapter, normalize_market_frame
 from core.metrics import calculate_exposure
 from core.portfolio import Portfolio
 from core.runtime import EventProcessor
+from core.risk.actions import plan_risk_action
 from core.protective_stops import EntryRiskPolicy, evaluate_fill_risk
 from core.strategy_health import cohort_rows, transition_rows
 
@@ -57,6 +58,7 @@ class BacktestEngine:
         run_id: Optional[str] = None,
         account_mode: Optional[str] = None,
         breaker_policy: Optional[Dict[str, Any]] = None,
+        trading_start: Optional[Any] = None,
     ) -> None:
         config_data = config.require("data")
         config_benchmark = config.require("benchmark")
@@ -75,6 +77,7 @@ class BacktestEngine:
         if benchmark_rebalance_cost_bps < 0:
             raise ValueError("benchmark_rebalance_cost_bps cannot be negative")
         self.initial_capital = initial_capital
+        self.trading_start = None if trading_start is None else pd.Timestamp(trading_start)
         self.config_execution = config.require("execution")
         self.config_risk = config.require("risk")
         self.config_account = config.get("account") or {}
@@ -339,6 +342,8 @@ class BacktestEngine:
         health_bars = 0
         waiting_for_recovery = False
         for bar_index, event in enumerate(market_data.stream()):
+            if self.trading_start is not None and event.timestamp < self.trading_start:
+                continue  # History only: no cashflows, orders or health state before the window.
             last_event_timestamp = event.timestamp
             if lifecycle["active_start"] is None:
                 lifecycle["active_start"] = event.timestamp
@@ -377,6 +382,13 @@ class BacktestEngine:
             # what puts the resident stop between (1) and (3).
             execution.on_market_data(event)
             stop_simulator.step(event, bar_index=bar_index)
+            for symbol, bar in event.bars.items():
+                if bool(bar.get("scheduled_exit", False)):
+                    broker.force_liquidate({symbol: bar}, timestamp=event.timestamp,
+                                           reason="AnnouncedMarginDelisting",
+                                           risk_action_id=f"delist:{symbol}:{event.timestamp}", scope_symbols={symbol})
+                    if abs(portfolio.get_position(symbol)["qty"]) > 1e-9:
+                        raise ValueError(f"Insufficient real liquidity to exit {symbol} before announced cutoff")
             result = processor.process(event, execute_market_event=False)
             # T-1.10: sample this bar's high/low against every open lot so
             # MAE/MFE (adverse/favorable excursion) are available at close,
@@ -414,70 +426,15 @@ class BacktestEngine:
                         ),
                     )
                 )
-            elif result.breaker_action == "reduce" and (
-                decision is None or decision.force_reduce_fraction is not None
-            ) and (
-                transition_id or f"epoch-{getattr(risk_manager, 'breaker_epoch', 0)}-reduce"
-            ) not in applied_breaker_actions and not (
-                decision is not None and decision.daily_loss_triggered
-            ):
-                forced_trades.extend(
-                    broker.force_liquidate(
-                        dict(event.bars),
-                        timestamp=event.timestamp,
-                        reason="DrawdownReduce",
-                        remaining_fraction=risk_manager.reduced_risk_multiplier,
-                        risk_action_id=(
-                            transition_id
-                            or f"epoch-{getattr(risk_manager, 'breaker_epoch', 0)}-reduce"
-                        ),
-                    )
-                )
-                applied_breaker_actions.add(
-                    transition_id or f"epoch-{getattr(risk_manager, 'breaker_epoch', 0)}-reduce"
-                )
-            elif (result.breaker_action == "block_new" and block_remaining is not None
-                  and not (decision is not None and decision.daily_loss_triggered)
-                  and portfolio_action_id not in applied_breaker_actions):
-                forced_trades.extend(broker.force_liquidate(
-                    dict(event.bars), timestamp=event.timestamp, reason="DrawdownReduce",
-                    remaining_fraction=float(block_remaining), risk_action_id=portfolio_action_id))
-                applied_breaker_actions.add(portfolio_action_id)
-            elif result.breaker_action in {"liquidate", "locked"}:
-                action_key = transition_id or (
-                    f"epoch-{getattr(risk_manager, 'breaker_epoch', 0)}-"
-                    f"{result.breaker_action}"
-                )
-                if action_key not in applied_breaker_actions:
-                    forced_trades.extend(
-                        broker.force_liquidate(
-                            dict(event.bars),
-                            timestamp=event.timestamp,
-                            reason="AccountLiquidation",
-                            risk_action_id=action_key,
-                        )
-                    )
-                    applied_breaker_actions.add(action_key)
-            elif result.circuit_breaker and result.breaker_action in {"normal", "reduce"} and (
-                transition_id or f"daily-{event.timestamp.date()}"
-            ) not in applied_breaker_actions:
-                forced_trades.extend(
-                    broker.force_liquidate(
-                        dict(event.bars),
-                        timestamp=event.timestamp,
-                        reason="DailyLossLimit",
-                        # One daily-loss action = one health cohort, no matter
-                        # how many correlated symbols it closes (STR-P0-02).
-                        risk_action_id=(
-                            getattr(risk_manager, "current_daily_action_id", None)
-                            or transition_id
-                            or f"daily-{event.timestamp.date()}"
-                        ),
-                    )
-                )
-                applied_breaker_actions.add(
-                    transition_id or f"daily-{event.timestamp.date()}"
-                )
+            else:
+                risk_plan = plan_risk_action(decision, event.timestamp.date(), block_remaining=block_remaining)
+                if risk_plan is not None and (risk_plan.action_id not in applied_breaker_actions or
+                                              (risk_plan.remaining_fraction == 0 and portfolio.positions)):
+                    forced_trades.extend(broker.force_liquidate(
+                        dict(event.bars), timestamp=event.timestamp, reason=risk_plan.reason,
+                        remaining_fraction=risk_plan.remaining_fraction, risk_action_id=risk_plan.action_id,
+                    ))
+                    applied_breaker_actions.add(risk_plan.action_id)
             if forced_trades:
                 for strategy in strategies.values():
                     for symbol in event.bars:
@@ -551,6 +508,11 @@ class BacktestEngine:
             terminal_action = result.breaker_action in {"liquidate", "locked"}
             policy_key = "on_locked" if result.breaker_action == "locked" else "on_liquidate"
             if terminal_action and self.breaker_policy.get(policy_key, "terminate") == "terminate":
+                if any(abs(float(pos["qty"])) > 1e-9 for pos in portfolio.positions.values()):
+                    lifecycle.setdefault("risk_halt_started_at", event.timestamp)
+                    lifecycle["unresolved_risk_positions"] = dict(portfolio.positions)
+                    continue  # Keep risk-only execution alive until the book is flat.
+                lifecycle.pop("unresolved_risk_positions", None)
                 lifecycle.update({
                     "status": "locked" if result.breaker_action == "locked" else "terminated_by_risk",
                     "active_end": event.timestamp,
@@ -971,6 +933,8 @@ class BacktestEngine:
         # EndOfBacktest is now the authoritative close: a resident stop left
         # armed would otherwise also match the synthetic bar and sell twice.
         broker.cancel_protective_stops()
+        for symbol in {order.symbol for order in broker.pending_orders + broker.active_orders}:
+            broker.cancel_symbol_orders(symbol)
 
         eob_mode = config.get("backtest", "end_of_backtest_mode") or "mark_to_market"
         zero_cost = eob_mode == "mark_to_market"
@@ -999,10 +963,19 @@ class BacktestEngine:
                 },
                 name=synthetic_time,
             )
+            if not zero_cost:
+                frame = self.market_data_adapter.data_map.get(symbol) if self.market_data_adapter else None
+                if frame is None or last_event_timestamp not in frame.index:
+                    raise ValueError(f"Cannot cost an end-window exit without a real bar for {symbol}")
+                synthetic_bars[symbol] = frame.loc[last_event_timestamp].copy()
+                synthetic_bars[symbol].name = synthetic_time
+                synthetic_bars[symbol]["open"] = mark_price
         if not synthetic_bars:
             return
 
         broker.process_orders(synthetic_bars)
+        if not zero_cost and any(abs(float(pos["qty"])) > 1e-9 for pos in portfolio.positions.values()):
+            raise ValueError("End-window exit cannot fill within actual liquidity")
         # No more routing will happen this run, so nothing else will ever
         # deliver these tail CloseEvents - flush them explicitly (T-1.4/T-1.5
         # still apply: dedup by close_event_id keeps this idempotent).

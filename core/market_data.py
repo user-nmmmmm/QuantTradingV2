@@ -104,12 +104,16 @@ class LiveMarketDataAdapter:
         timeframe: str = "1d",
         lookback: int = 100,
         close_grace_seconds: float = 2.0,
+        exchange_id: Optional[str] = None,
+        market_type: str = "spot",
     ) -> None:
         self.symbols = list(symbols)
         self.fetcher = fetcher
         self.timeframe = timeframe
         self.lookback = max(int(lookback), 1)
         self.close_grace_seconds = close_grace_seconds
+        self.exchange_id = exchange_id
+        self.market_type = market_type
         self.data_map: Dict[str, pd.DataFrame] = {}
         self._watermarks: Dict[str, pd.Timestamp] = {}
         self._last_fetched_latest: Dict[str, pd.Timestamp] = {}
@@ -120,7 +124,9 @@ class LiveMarketDataAdapter:
         for symbol in self.symbols:
             fetched = normalize_market_frame(
                 self.fetcher.fetch_ccxt(
-                    symbol, timeframe=self.timeframe, limit=self.lookback
+                    symbol, timeframe=self.timeframe, limit=self.lookback,
+                    **({"exchange_id": self.exchange_id} if self.exchange_id else {}),
+                    **({"market_type": self.market_type} if self.market_type not in {"spot", "margin"} else {}),
                 )
             )
             if fetched.empty:

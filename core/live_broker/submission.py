@@ -12,6 +12,7 @@ into a file-size cleanup.
 """
 from __future__ import annotations
 
+import math
 from typing import Any, Dict, Optional
 
 from core.domain import OrderErrorCode, OrderIntent, OrderStatus, OrderSubmissionResult
@@ -57,11 +58,25 @@ class SubmissionServiceMixin:
         sequence: int = 0,
         stop_loss: float = 0.0,
         zero_cost: bool = False,
+        reference_price: Optional[float] = None,
+        trigger_price: Optional[float] = None,
+        risk_action_id: Optional[str] = None,
     ) -> OrderSubmissionResult:
-        del slippage, exit_reason, stop_loss, zero_cost
+        del slippage, zero_cost
+        canceled_protection = False
+        if side in {"sell", "cover"} and order_type != "stop":
+            for pending in self.order_store.list_non_terminal():
+                if pending["symbol"] == symbol and (pending.get("intent") or {}).get("order_type") == "stop":
+                    canceled_protection = True
+                    self.cancel_order(pending["client_order_id"])
+            # A stop may fill while cancellation is in flight. Recompute the
+            # executable inventory from the venue before constructing the exit.
+            if canceled_protection and not self.sync():
+                qty = 0.0
         intent = self._build_intent(
             symbol, side, qty, price, order_type, timestamp, strategy_id,
             time_in_force, position_side, reduce_only, sequence,
+            reference_price, trigger_price, stop_loss, exit_reason, risk_action_id,
         )
         return self.submit_intent(intent)
 
@@ -98,10 +113,15 @@ class SubmissionServiceMixin:
         try:
             prepared = self._retry_exchange_call(
                 lambda: self.exchange_boundary.prepare(
-                    intent, reference_price=intent.price
+                    intent, reference_price=intent.reference_price or intent.price
                 )
             )
             intent = prepared.intent
+            if self.require_resident_protection and intent.action in {"buy", "short"}:
+                market = prepared.market
+                conditional = "stop_market" if market and market.is_derivative else "stop_loss"
+                if "stop" not in self.exchange_boundary.capabilities.order_types or market is None or conditional not in market.order_types:
+                    raise ExchangeBoundaryError("verified resident stop capability is required before new risk")
         except ExchangeBoundaryError as exc:
             return self.record_local_rejection(
                 intent, str(exc), OrderErrorCode.TRADING_RULE
@@ -117,7 +137,7 @@ class SubmissionServiceMixin:
         intent, _ = ensure_opening_reservation(
             self.event_pipeline,
             intent,
-            reference_price=intent.price or 0,
+            reference_price=intent.reference_price or intent.price or 0,
             occurred_at=self._event_time(intent.created_at or intent.bar_time),
             source="live",
         )
@@ -204,6 +224,11 @@ class SubmissionServiceMixin:
         current = OrderStatus(record["status"])
         if current in TERMINAL_STATUSES:
             return self._result(client_order_id)
+        if current is OrderStatus.UNKNOWN:
+            resolved = self.reconcile_order(client_order_id)
+            if resolved.status is OrderStatus.UNKNOWN or resolved.status in TERMINAL_STATUSES:
+                return resolved
+            record = self.order_store.get(client_order_id)
         self.order_store.transition(
             client_order_id, OrderStatus.CANCEL_PENDING, self._now_iso()
         )
@@ -216,7 +241,7 @@ class SubmissionServiceMixin:
 
     def cancel_symbol_orders(self, symbol: str) -> None:
         for record in self.order_store.list_non_terminal():
-            if record["symbol"] == symbol and record.get("exchange_order_id"):
+            if record["symbol"] == symbol and record["side"] in {"buy", "short"} and record.get("exchange_order_id"):
                 self.cancel_order(record["client_order_id"])
 
     def _build_intent(
@@ -224,17 +249,28 @@ class SubmissionServiceMixin:
         order_type: str, timestamp: Any, strategy_id: str,
         time_in_force: Optional[str], position_side: Optional[str],
         reduce_only: Optional[bool], sequence: int,
+        reference_price: Optional[float] = None,
+        trigger_price: Optional[float] = None,
+        stop_loss: float = 0.0,
+        exit_reason: Optional[str] = None,
+        risk_action_id: Optional[str] = None,
     ) -> OrderIntent:
         held = self.portfolio.get_position(symbol)["qty"]
         derivative = self.market_type in DERIVATIVE_TYPES
         requested_reduce = reduce_only if reduce_only is not None else side in {"sell", "cover"}
         # reduceOnly is a derivatives-only exchange parameter. Spot sells still
         # clamp to owned inventory, but their canonical intent must not encode it.
-        is_reduce = bool(derivative and requested_reduce)
+        is_reduce = bool((derivative or self.market_type == "margin") and requested_reduce)
         if side == "sell":
             qty = min(qty, max(held, 0.0))
-        elif derivative and side == "cover":
+        elif (derivative or self.market_type == "margin") and side == "cover":
             qty = min(qty, max(-held, 0.0))
+        if side in {"sell", "cover"}:
+            # Spot margin offers no native reduce-only guarantee. Reserve inventory
+            # against every unresolved exit, including unknown and pending cancel.
+            pending = sum(float(row.get("remaining_qty") or 0) for row in self.order_store.list_non_terminal()
+                          if row["symbol"] == symbol and row["side"] == side)
+            qty = min(qty, max(abs(held) - pending, 0.0))
         bar_time = self._bar_time if self._bar_time != "unknown" else self._iso(timestamp or self._clock())
         return OrderIntent(
             exchange=self.exchange_id, account=self.account_id, symbol=symbol,
@@ -243,15 +279,29 @@ class SubmissionServiceMixin:
             requested_qty=qty, order_type=order_type.lower(), price=price,
             time_in_force=time_in_force, reduce_only=bool(is_reduce),
             position_side=position_side, position_mode=self.position_mode,
+            reference_price=reference_price if reference_price is not None else price,
+            trigger_price=(trigger_price if trigger_price is not None else price) if order_type.lower() == "stop" else trigger_price,
+            initial_stop=stop_loss if stop_loss else None,
+            exit_reason=exit_reason, risk_action_id=risk_action_id,
         )
 
     def _validate_intent(self, intent: OrderIntent) -> Optional[str]:
-        if intent.requested_qty <= 0:
+        if intent.action in {"buy", "short"} and getattr(self, "projection_issues", []):
+            return "fill attribution recovery is required before new risk"
+        if not math.isfinite(intent.requested_qty) or intent.requested_qty <= 0:
             return "quantity must be positive and reducible"
-        if self.market_type not in DERIVATIVE_TYPES and intent.action in {"short", "cover"}:
+        if self.market_type not in DERIVATIVE_TYPES | {"margin"} and intent.action in {"short", "cover"}:
             return f"{intent.action} is not supported for account type {self.market_type}"
         if intent.action not in {"buy", "sell", "short", "cover"}:
             return "unsupported order side"
+        if intent.action in {"sell", "cover"}:
+            held = float(self.portfolio.get_position(intent.symbol)["qty"])
+            available = max(held if intent.action == "sell" else -held, 0.0)
+            reserved = sum(float(row.get("remaining_qty") or 0) for row in self.order_store.list_non_terminal()
+                           if row["symbol"] == intent.symbol and row["side"] == intent.action
+                           and row["client_order_id"] != intent.client_order_id)
+            if intent.requested_qty > max(available - reserved, 0.0) + 1e-9:
+                return "exit exceeds verified position after outstanding exits"
         return None
 
     @staticmethod

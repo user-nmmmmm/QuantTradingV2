@@ -109,7 +109,7 @@ class TestP0Blockers(unittest.TestCase):
             engine._tick()
             self.assertFalse(engine._healthy)
             self.assertIn("MARKET_DATA_UPDATE_FAILED", engine.health_assessment.reason_codes)
-            broker.sync.assert_not_called()
+            broker.sync.assert_called_once()
             events = [call.args[1] for call in alerts.notify.call_args_list]
             self.assertIn("tick_unhealthy", events)
             store.close()
@@ -208,6 +208,7 @@ class TestP0Blockers(unittest.TestCase):
                 unknown.client_order_id,
                 error_code=OrderErrorCode.UNKNOWN.value,
                 error_message='order_not_found_by_client_id',
+                payload={'authoritative_absence': True, 'evidence': 'offline-authoritative-test'},
                 updated_at=(NOW - timedelta(minutes=6)).isoformat(),
             )
 
@@ -243,7 +244,7 @@ class TestP0Blockers(unittest.TestCase):
             self.assertEqual(recovered.status, OrderStatus.UNKNOWN)
             self.assertTrue(broker.has_unresolved_unknown())
             record = broker.order_store.get(unknown.client_order_id)
-            self.assertEqual(record['error_message'], 'order_not_found_by_client_id')
+            self.assertEqual(record['error_message'], 'order_lookup_inconclusive')
             events = [call.args[1] for call in alerts.notify.call_args_list]
             self.assertNotIn('stale_unknown_confirmed_absent_expired', events)
             broker.close()

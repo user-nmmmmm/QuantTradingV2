@@ -190,8 +190,8 @@ def main():
     if any(symbol not in inventory["symbols"] for symbol in base):
         raise ValueError("Original basket incomplete; inspect failures before comparing")
     expanded = [symbol.replace("/", "-") for symbol in requested if symbol.replace("/", "-") in inventory["symbols"]]
-    if len(expanded) <= len(base):
-        raise ValueError("No additional usable symbols")
+    if len(expanded) != 60:
+        raise ValueError("Strict 60/60 gate failed; inspect download failures")
     comparisons = {}
     for name, symbols in (("original_30", base), ("expanded", expanded)):
         comparisons[name] = run_arm(name, symbols, root, inventory, args.capital, args.start, args.end)

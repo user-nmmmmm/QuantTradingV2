@@ -31,6 +31,7 @@ class LiquidationMixin:
         reason: str = "MarginLiquidation",
         remaining_fraction: float = 0.0,
         risk_action_id: Optional[str] = None,
+        scope_symbols: Optional[set[str]] = None,
     ) -> List[Dict]:
         """Reduce marked positions immediately through the canonical fill path."""
         if not 0 <= remaining_fraction < 1:
@@ -41,7 +42,8 @@ class LiquidationMixin:
         # that is being liquidated is exactly the double-sell SR2-5 forbids.
         # Whatever survives a partial reduce is re-armed by the next sync.
         def _superseded(order) -> bool:
-            return order.side in {"buy", "short"} or is_protective_stop(order)
+            return (scope_symbols is None or order.symbol in scope_symbols) and (
+                order.side in {"buy", "short", "sell", "cover"} or is_protective_stop(order))
 
         for order in list(self.pending_orders) + list(self.active_orders):
             if _superseded(order):
@@ -74,10 +76,7 @@ class LiquidationMixin:
             forced_bar = bar.copy()
             forced_bar.name = pd.Timestamp(timestamp)
             forced_bar["open"] = mark
-            forced_bar["volume"] = max(
-                float(forced_bar.get("volume", 0.0)),
-                reduce_qty / self.max_participation_rate * 2.0,
-            )
+            # Preserve actual liquidity. An emergency does not create volume.
             liquidation_bars[symbol] = forced_bar
         if not liquidation_bars:
             return []

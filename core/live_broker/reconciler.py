@@ -7,6 +7,8 @@ rather than a standalone collaborator object.
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from dataclasses import dataclass
+from enum import Enum
 from typing import Any, Dict, Mapping, Optional
 
 from core.domain import FillRecord, OrderErrorCode, OrderStatus, OrderSubmissionResult
@@ -19,6 +21,22 @@ from core.orders import TERMINAL_STATUSES, classify_order_exception
 logger = get_logger("core.live_broker")
 
 CONFIRMED_ABSENT_ERROR_MESSAGE = "order_not_found_by_client_id"
+INCONCLUSIVE_LOOKUP_ERROR_MESSAGE = "order_lookup_inconclusive"
+
+
+class LookupDisposition(str, Enum):
+    FOUND = "found"
+    AUTHORITATIVE_ABSENCE = "authoritative_absence"
+    TEMPORARILY_NOT_FOUND = "temporarily_not_found"
+    UNSUPPORTED = "unsupported"
+    INCOMPLETE_LIST = "incomplete_list"
+
+
+@dataclass(frozen=True)
+class OrderLookupResult:
+    disposition: LookupDisposition
+    payload: Optional[Dict[str, Any]] = None
+    evidence: Optional[str] = None
 
 
 class OrderReconcilerMixin:
@@ -36,7 +54,9 @@ class OrderReconcilerMixin:
         record = self.order_store.get(client_order_id)
         if record is None:
             raise KeyError(client_order_id)
-        if OrderStatus(record["status"]) in TERMINAL_STATUSES:
+        if OrderStatus(record["status"]) in TERMINAL_STATUSES and not any(
+            (f.get("payload") or {}).get("synthetic_from_order") for f in self.order_store.fills_for(client_order_id)
+        ):
             return self._result(client_order_id)
         if not record["submission_attempted"]:
             return self._result(client_order_id)
@@ -60,6 +80,13 @@ class OrderReconcilerMixin:
                 "poll": self._unknown_reconcile_attempts[client_order_id],
             })
             return self._result(client_order_id)
+        if isinstance(payload, OrderLookupResult):
+            if payload.disposition is LookupDisposition.AUTHORITATIVE_ABSENCE and payload.evidence:
+                self.order_store.transition(client_order_id, OrderStatus.UNKNOWN, record["updated_at"],
+                                            error_message=CONFIRMED_ABSENT_ERROR_MESSAGE,
+                                            payload={"authoritative_absence": True, "evidence": payload.evidence})
+                return self._result(client_order_id)
+            payload = payload.payload if payload.disposition is LookupDisposition.FOUND else None
         if not isinstance(payload, Mapping):
             payload = None
         if payload is None:
@@ -75,9 +102,9 @@ class OrderReconcilerMixin:
                 self.order_store.transition(
                     client_order_id, OrderStatus.UNKNOWN, self._now_iso(),
                     error_code=OrderErrorCode.UNKNOWN.value,
-                    error_message=CONFIRMED_ABSENT_ERROR_MESSAGE,
+                    error_message=INCONCLUSIVE_LOOKUP_ERROR_MESSAGE,
                 )
-            elif record.get("error_message") != CONFIRMED_ABSENT_ERROR_MESSAGE:
+            elif record.get("error_message") != INCONCLUSIVE_LOOKUP_ERROR_MESSAGE:
                 # Already UNKNOWN from an earlier ambiguous failure (e.g. a
                 # submission timeout). This poll independently confirmed the
                 # exchange has no record of the order, which is strictly
@@ -90,7 +117,7 @@ class OrderReconcilerMixin:
                 self.order_store.update(
                     client_order_id,
                     error_code=OrderErrorCode.UNKNOWN.value,
-                    error_message=CONFIRMED_ABSENT_ERROR_MESSAGE,
+                    error_message=INCONCLUSIVE_LOOKUP_ERROR_MESSAGE,
                 )
             return self._result(client_order_id)
         result = self._persist_exchange_payload(client_order_id, payload)
@@ -128,6 +155,7 @@ class OrderReconcilerMixin:
             elif (
                 record['status'] == OrderStatus.UNKNOWN.value
                 and record.get('error_message') == CONFIRMED_ABSENT_ERROR_MESSAGE
+                and (record.get('payload') or {}).get('authoritative_absence') is True
                 and not record.get('exchange_order_id')
                 and float(record.get('filled_qty') or 0.0) <= 0
                 and self._unattempted_submission_expired(record)
@@ -216,6 +244,23 @@ class OrderReconcilerMixin:
         record = self.order_store.get(client_order_id)
         if record is None:
             raise KeyError(client_order_id)
+        intent = record.get("intent") or {}
+        expected_side = {"short": "sell", "cover": "buy"}.get(record["side"], record["side"])
+        identity_mismatch = (
+            payload.get("clientOrderId") not in (None, client_order_id)
+            or payload.get("symbol") not in (None, record["symbol"])
+            or payload.get("side") not in (None, expected_side)
+        )
+        if record.get("order_type") == "stop" and str(payload.get("status")) not in {"rejected", "canceled", "cancelled", "expired"}:
+            trigger = payload.get("stopLossPrice") or payload.get("triggerPrice") or payload.get("stopPrice") or (payload.get("info") or {}).get("stopPrice")
+            identity_mismatch = identity_mismatch or not all((payload.get("id"), payload.get("symbol"), payload.get("side"), trigger))
+            if trigger and intent.get("trigger_price"):
+                identity_mismatch = identity_mismatch or abs(float(trigger) - float(intent["trigger_price"])) > 1e-8
+            identity_mismatch = identity_mismatch or abs(float(payload.get("amount") or 0) - float(record["requested_qty"])) > 1e-8
+        if identity_mismatch:
+            self.order_store.transition(client_order_id, OrderStatus.UNKNOWN, self._now_iso(),
+                                        error_message="venue_order_identity_or_protection_unverified", payload=payload)
+            return self._result(client_order_id)
         parsed = self.exchange_boundary.order_parser.parse(
             payload, requested_qty=record["requested_qty"]
         )
@@ -235,6 +280,9 @@ class OrderReconcilerMixin:
         )
 
         self._persist_fills(client_order_id, exchange_order_id, payload, filled, average)
+        if filled < float(record.get("filled_qty") or 0):
+            # An older exchange snapshot must not reverse an observed fill.
+            return self._result(client_order_id)
         current_status = OrderStatus(record["status"])
         if current_status != status:
             self.order_store.transition(
@@ -265,10 +313,14 @@ class OrderReconcilerMixin:
         if trades:
             for index, trade in enumerate(trades):
                 fee = trade.get("fee") or {}
-                fill_id = str(
+                venue_fill_id = str(
                     trade.get("id")
                     or f"{exchange_order_id}:{trade.get('timestamp')}:{index}"
                 )
+                # Venue trade numbers are not globally unique across symbols.
+                fill_id = f"{client_order_id}:{venue_fill_id}"
+                if any(f["fill_id"] in {venue_fill_id, fill_id} for f in self.order_store.fills_for(client_order_id)):
+                    continue
                 record = self.order_store.get(client_order_id) or {}
                 fill_record = FillRecord(
                     fill_id=fill_id, client_order_id=client_order_id,
@@ -297,14 +349,18 @@ class OrderReconcilerMixin:
                         "strategy_id": intent.get("strategy_id"),
                     })
             return
-        existing_qty = sum(fill["qty"] for fill in self.order_store.fills_for(client_order_id))
+        existing = self.order_store.fills_for(client_order_id)
+        existing_qty = sum(fill["qty"] for fill in existing)
         delta = max(cumulative_filled - existing_qty, 0.0)
         if delta > 0 and average:
+            delta_price = (cumulative_filled * average - sum(f["qty"] * f["price"] for f in existing)) / delta
+            if delta_price <= 0:
+                return
             fill_id = f"{exchange_order_id}:cumulative:{cumulative_filled:.12f}"
             record = self.order_store.get(client_order_id) or {}
             fill_record = FillRecord(
                 fill_id=fill_id, client_order_id=client_order_id,
-                exchange_order_id=exchange_order_id, qty=delta, price=average,
+                exchange_order_id=exchange_order_id, qty=delta, price=delta_price,
                 timestamp=self._now_iso(), payload={"synthetic_from_order": True},
                 symbol=record.get("symbol"), side=record.get("side"),
             )
@@ -328,7 +384,15 @@ class OrderReconcilerMixin:
             return self.exchange.fetch_order(record["exchange_order_id"], record["symbol"])
         fetch_by_client = getattr(self.exchange, "fetch_order_by_client_order_id", None)
         if callable(fetch_by_client):
-            return fetch_by_client(record["client_order_id"], record["symbol"])
+            try:
+                return fetch_by_client(record["client_order_id"], record["symbol"])
+            except Exception as exc:
+                if type(exc).__name__ != "NotSupported":
+                    raise
+        if self.exchange_id == "binance":
+            # Pinned CCXT Binance supports origClientOrderId on its exact-order
+            # endpoint. A recent not-found response is still inconclusive.
+            return self.exchange.fetch_order(None, record["symbol"], params={"origClientOrderId": record["client_order_id"]})
         fetch_orders = getattr(self.exchange, "fetch_orders", None)
         if callable(fetch_orders):
             orders = fetch_orders(record["symbol"], params={"clientOrderId": record["client_order_id"]}) or []
@@ -336,4 +400,5 @@ class OrderReconcilerMixin:
                 candidate = payload.get("clientOrderId") or payload.get("client_order_id")
                 if candidate == record["client_order_id"]:
                     return payload
-        return None
+            return OrderLookupResult(LookupDisposition.INCOMPLETE_LIST)
+        return OrderLookupResult(LookupDisposition.UNSUPPORTED)
