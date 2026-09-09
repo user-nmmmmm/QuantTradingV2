@@ -7,6 +7,9 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from composition.factory import build_risk_manager, build_strategy_registry
 from config.config import config
 from core.portfolio import Portfolio
+from core.order_store import OrderStore
+from core.state_store_v2 import StateStore
+from core.runtime_identity import RuntimeIdentity
 from core.logger import configure_logging, get_logger
 from core.live_safety import (
     SafetyConfigurationError,
@@ -38,6 +41,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="QuantTrading exchange engine")
     parser.add_argument("--symbols", nargs="+", default=["BTC/USDT", "ETH/USDT"])
     parser.add_argument("--interval", type=int, default=60)
+    parser.add_argument("--account-id", default=os.getenv("QUANT_ACCOUNT_ID"),
+                        help="Non-secret stable account identifier for state isolation")
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument(
         "--sandbox", dest="live", action="store_false",
@@ -107,9 +112,18 @@ def main() -> int:
     except AccountCostContractError as exc:
         parser.error(str(exc))
 
-    portfolio = Portfolio()
+    if not args.account_id:
+        parser.error("--account-id or QUANT_ACCOUNT_ID is required for account state isolation")
+    identity = RuntimeIdentity(args.exchange, "live" if args.live else "sandbox", args.account_id, args.market_type)
+    identity.directory.mkdir(parents=True, exist_ok=True)
+    account = config.get("account") or {}
+    portfolio = Portfolio(account_mode=account["mode"],
+                          initial_margin_rate=account.get("initial_margin_rate", 1.0),
+                          maintenance_margin_rate=account.get("maintenance_margin_rate", 0.05))
     risk_manager = build_risk_manager(config)
-    safety_guard = PersistentOrderSafetyGuard(policy)
+    safety_guard = PersistentOrderSafetyGuard(policy, str(identity.directory / "safety.db"), identity=identity)
+    from core.alerting import build_default_alert_sink
+    from core.logger import get_logger
     broker = SafeLiveBroker(
         portfolio=portfolio,
         exchange_id=args.exchange,
@@ -117,7 +131,11 @@ def main() -> int:
         market_type=args.market_type,
         base_currency=args.base_currency,
         safety_guard=safety_guard,
+        alert_sink=build_default_alert_sink(get_logger("live_runtime"), record_path=str(identity.directory / "alerts.jsonl")),
         require_market_metadata=True,
+        require_resident_protection=True,
+        account_id=identity.key,
+        order_store=OrderStore(str(identity.directory / "orders.db"), identity=identity),
     )
     if args.live:
         # SR0-2: a strategy without current admission evidence may run in
@@ -137,6 +155,7 @@ def main() -> int:
                 args.r8_max_daily_risk,
                 args.r8_evidence,
                 args.rollback_snapshot,
+                runtime_identity=identity,
             )
             gray_policy.validate(policy, broker.exchange)
             write_release_record(
@@ -166,6 +185,8 @@ def main() -> int:
         risk_manager=risk_manager,
         configuration=config,
         interval_seconds=args.interval,
+        state_file=str(identity.directory / "live_status.json"),
+        state_store=StateStore(str(identity.directory / "state.db"), identity=identity),
         reconciliation_interval_seconds=config.require(
             "execution", "reconciliation_interval_seconds"
         ),

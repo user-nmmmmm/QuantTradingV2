@@ -49,6 +49,12 @@ class OrderValidator:
             raise OrderValidationError("limit order requires a price")
         if intent.price is not None and _decimal(intent.price, "price") <= 0:
             raise OrderValidationError("price must be positive")
+        for name in ("reference_price", "trigger_price", "initial_stop"):
+            value = getattr(intent, name)
+            if value is not None and _decimal(value, name) <= 0:
+                raise OrderValidationError(f"{name} must be positive")
+        if order_type == "stop" and intent.trigger_price is None:
+            raise OrderValidationError("stop order requires a trigger_price")
         tif = str(intent.time_in_force).upper() if intent.time_in_force else None
         if tif and tif not in capabilities.time_in_force:
             raise OrderValidationError(f"unsupported time in force: {tif}")
@@ -62,9 +68,12 @@ class OrderValidator:
             return ValidationResult(intent, None)
         if not market.active:
             raise OrderValidationError(f"market is inactive: {intent.symbol}")
-        if action in {"short", "cover"} and not market.is_derivative:
+        if action in {"short", "cover"} and not market.is_derivative and capabilities.market_type != "margin":
             raise OrderValidationError(f"{action} is not supported for spot market {intent.symbol}")
-        if market.order_types and order_type not in market.order_types:
+        venue_type = ("stop_market" if market.is_derivative else "stop_loss") if order_type == "stop" else order_type
+        if order_type == "stop" and not market.order_types:
+            raise OrderValidationError("conditional order capability is unverified for this market")
+        if market.order_types and venue_type not in market.order_types:
             raise OrderValidationError(f"market does not support order type: {order_type}")
         if tif and market.time_in_force and tif not in market.time_in_force:
             raise OrderValidationError(f"market does not support time in force: {tif}")
@@ -72,7 +81,7 @@ class OrderValidator:
         price = _decimal(intent.price, "price", optional=True)
         if price is not None:
             self._range(price, market.min_price, market.max_price, "price")
-        notional_price = price or _decimal(reference_price, "reference_price", optional=True)
+        notional_price = price or _decimal(intent.reference_price or reference_price, "reference_price", optional=True)
         if notional_price is not None:
             notional = qty * notional_price * market.contract_size
             self._range(notional, market.min_notional, market.max_notional, "notional")

@@ -13,12 +13,26 @@ from typing import Optional
 from core.sqlite_utils import DatabaseIntegrityError
 
 
-def validate_database(path: str | Path) -> None:
-    connection = sqlite3.connect(str(path))
+def validate_database(path: str | Path, *, expected_identity=None) -> None:
+    path = Path(path)
+    if not path.is_file():
+        raise FileNotFoundError(path)
+    connection = sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True)
     try:
         result = connection.execute("PRAGMA integrity_check").fetchone()
         if result is None or str(result[0]).lower() != "ok":
             raise DatabaseIntegrityError(f"invalid SQLite snapshot: {path}")
+        tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        if expected_identity is not None:
+            row = connection.execute("SELECT identity FROM runtime_identity WHERE id=1").fetchone() if "runtime_identity" in tables else None
+            expected = getattr(expected_identity, "canonical", expected_identity)
+            if row is None or row[0] != expected:
+                raise DatabaseIntegrityError("snapshot account identity mismatch or missing")
+        if "schema_metadata" in tables:
+            supported = {"order_store": 2, "state_store": 1, "persistent_risk_guard": 1, "event_store": 1}
+            for component, version in connection.execute("SELECT component, version FROM schema_metadata"):
+                if component in supported and not 0 < version <= supported[component]:
+                    raise DatabaseIntegrityError("snapshot schema is incompatible")
     finally:
         connection.close()
 
@@ -86,11 +100,21 @@ class SQLiteSnapshotManager:
             obsolete.unlink()
 
 
-def restore_snapshot(snapshot_path: str, target_path: str) -> Path:
+def restore_snapshot(snapshot_path: str, target_path: str, *, expected_identity=None) -> Path:
     """Restore a validated snapshot using an atomic target replacement."""
     snapshot = Path(snapshot_path)
     target = Path(target_path)
-    validate_database(snapshot)
+    if target.is_file():
+        current = sqlite3.connect(target.resolve().as_uri() + "?mode=ro", uri=True)
+        try:
+            if current.execute("SELECT 1 FROM sqlite_master WHERE name='runtime_identity'").fetchone():
+                target_identity = current.execute("SELECT identity FROM runtime_identity WHERE id=1").fetchone()[0]
+                if expected_identity is not None and getattr(expected_identity, "canonical", expected_identity) != target_identity:
+                    raise ValueError("Target identity differs from requested restore identity")
+                expected_identity = target_identity
+        finally:
+            current.close()
+    validate_database(snapshot, expected_identity=expected_identity)
     target.parent.mkdir(parents=True, exist_ok=True)
     temporary = target.with_name(f".{target.name}.{os.getpid()}.restore")
     if temporary.exists():

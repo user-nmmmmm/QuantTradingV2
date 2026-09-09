@@ -17,7 +17,7 @@ from threading import RLock
 from typing import Any, Callable, Dict, Iterable, Mapping, Optional
 
 
-DERIVATIVE_MARKET_TYPES = frozenset({"future", "futures", "swap", "margin"})
+DERIVATIVE_MARKET_TYPES = frozenset({"future", "futures", "swap", "perpetual"})
 
 
 class ExchangeBoundaryError(ValueError):
@@ -76,6 +76,7 @@ class ExchangeCapabilities:
     supports_fetch_positions: bool = False
     supports_market_orders: bool = True
     supports_limit_orders: bool = True
+    market_type: str = "spot"
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "order_types", frozenset(str(v).lower() for v in self.order_types))
@@ -93,6 +94,10 @@ class ExchangeCapabilities:
         if limit:
             types.add("limit")
         options = _mapping(getattr(exchange, "options", {}))
+        # CCXT 4.5.35 maps market + stopLossPrice to Binance STOP_LOSS /
+        # STOP_MARKET. Per-symbol orderTypes must independently confirm it.
+        if venue_id == "binance" and has.get("createStopLossOrder") is True:
+            types.add("stop")
         return cls(
             exchange_id=venue_id,
             order_types=frozenset(types),
@@ -106,6 +111,7 @@ class ExchangeCapabilities:
             supports_fetch_positions=bool(has.get("fetchPositions")),
             supports_market_orders=market,
             supports_limit_orders=limit,
+            market_type=str(options.get("defaultType", "spot")),
         )
 
 

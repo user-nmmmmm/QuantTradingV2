@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import math
 from typing import Any, Dict, Optional, Tuple
 
 import yaml
@@ -85,6 +86,16 @@ class ConfigLoader:
             ) from exc
         if not isinstance(loaded, dict):
             raise ConfigLoadError("params.yaml is empty or not a valid mapping")
+        def finite(value):
+            if isinstance(value, float) and not math.isfinite(value):
+                raise ConfigLoadError("configuration rejects NaN and Infinity")
+            if isinstance(value, dict):
+                for child in value.values():
+                    finite(child)
+            elif isinstance(value, list):
+                for child in value:
+                    finite(child)
+        finite(loaded)
         self._migrate_legacy_phase4(loaded)
         self._validate_required(loaded)
         self._config = loaded

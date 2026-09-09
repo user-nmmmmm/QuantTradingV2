@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from core.live_safety import SafetyConfigurationError, StartupSafetyPolicy, verify_live_permissions
+from core.sqlite_backup import validate_database
 
 
 @dataclass(frozen=True)
@@ -21,6 +22,7 @@ class GrayReleasePolicy:
     r7_evidence_path: str
     rollback_snapshot: str
     approval_env: str = "QUANT_R8_APPROVED"
+    runtime_identity: Any = None
 
     def validate(self, startup: StartupSafetyPolicy, exchange_client: Any) -> None:
         if startup.sandbox:
@@ -48,6 +50,12 @@ class GrayReleasePolicy:
             raise SafetyConfigurationError("startup daily risk exceeds R8 approval")
         if not Path(self.rollback_snapshot).is_file():
             raise SafetyConfigurationError("validated rollback snapshot is missing")
+        if self.runtime_identity is None:
+            raise SafetyConfigurationError("rollback snapshot account identity is required")
+        try:
+            validate_database(self.rollback_snapshot, expected_identity=self.runtime_identity)
+        except Exception as exc:
+            raise SafetyConfigurationError("rollback snapshot failed integrity, identity or schema validation") from exc
         verify_live_permissions(exchange_client, startup.account_type)
 
 

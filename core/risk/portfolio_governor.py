@@ -26,6 +26,7 @@ candidate is visible at once.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from math import isfinite
 from typing import Any, Dict, Mapping, Optional, Tuple
 
 DEFAULT_CLUSTER = "crypto_beta"
@@ -65,7 +66,7 @@ class CorrelationClusterPolicy:
             "max_same_session_entry_risk", "max_correlated_stop_risk",
         ):
             value = getattr(self, name)
-            if value is not None and float(value) <= 0:
+            if value is not None and (not isfinite(float(value)) or float(value) <= 0):
                 raise ValueError(f"{name} must be positive or None")
 
     @classmethod
@@ -73,7 +74,7 @@ class CorrelationClusterPolicy:
         cls, mapping: Optional[Mapping[str, Any]],
     ) -> "CorrelationClusterPolicy":
         data = dict(mapping or {})
-        clusters = data.pop("clusters", None) or {}
+        clusters = dict(data.pop("clusters", None) or {})
         default_cluster = str(clusters.pop("default", DEFAULT_CLUSTER)) if isinstance(
             clusters, dict
         ) else DEFAULT_CLUSTER
@@ -187,11 +188,39 @@ class PortfolioRiskGovernor:
         self._session: Any = None
         self._session_risk = 0.0
         self.audit: list[Dict[str, Any]] = []
+        self._state_store = None
+        self._order_store = None
+
+    def bind_state_store(self, state_store, order_store=None):
+        self._state_store = state_store
+        self._order_store = order_store
 
     def begin_session(self, session: Any) -> None:
         if session != self._session:
             self._session = session
             self._session_risk = 0.0
+            if self._state_store is not None:
+                self._session_risk = float(self._state_store.get(f"session_risk:{session}", 0.0))
+            if self._order_store is not None and session is not None:
+                import pandas as pd
+                from core.timeframes import timeframe_delta
+                reserved = 0.0
+                for row in self._order_store.list_all():
+                    intent = row.get("intent") or {}
+                    if row["side"] not in {"buy", "short"}:
+                        continue
+                    try:
+                        bar = pd.Timestamp(intent["bar_time"]) - timeframe_delta(intent["timeframe"])
+                        expected = pd.Timestamp(session)
+                        if bar.tzinfo:
+                            bar = bar.tz_convert("UTC").tz_localize(None)
+                        if expected.tzinfo:
+                            expected = expected.tz_convert("UTC").tz_localize(None)
+                        if bar == expected:
+                            reserved += abs(float(intent["reference_price"]) - float(intent["initial_stop"])) * float(row["requested_qty"])
+                    except (KeyError, ValueError, TypeError):
+                        continue
+                self._session_risk = max(self._session_risk, reserved)
 
     def evaluate(
         self, *, symbol: str, planned_risk: float, equity: float,
@@ -234,6 +263,8 @@ class PortfolioRiskGovernor:
         """Record risk that was actually opened against the session budget."""
         if decision.allowed and decision.allowed_risk > 0:
             self._session_risk += decision.allowed_risk
+            if self._state_store is not None:
+                self._state_store.set(f"session_risk:{self._session}", self._session_risk)
         self.audit.append({
             "session": str(self._session),
             "symbol": symbol,

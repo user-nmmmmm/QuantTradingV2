@@ -6,6 +6,7 @@ rather than a standalone collaborator object.
 """
 from __future__ import annotations
 
+import math
 from typing import Any, Dict, Optional
 
 from core.domain import SyncResult
@@ -16,7 +17,7 @@ from core.logger import get_logger
 # and must keep catching records logged from this mixin too.
 logger = get_logger("core.live_broker")
 
-DERIVATIVE_TYPES = {"future", "futures", "swap", "margin"}
+DERIVATIVE_TYPES = {"future", "futures", "swap", "perpetual"}
 
 
 class AccountSyncMixin:
@@ -33,6 +34,12 @@ class AccountSyncMixin:
             next_cash, positions = self._retry_exchange_call(self._load_portfolio_fact)
             self.portfolio.cash = next_cash
             self.portfolio.positions = positions
+            self._rebuild_fill_projection()
+            for symbol in set(positions) | set(self.portfolio.lot_books):
+                position = positions.get(symbol, {"qty": 0.0})
+                book = self.portfolio.lot_books.get(symbol)
+                if abs(float(position["qty"]) - (book.net_qty if book else 0.0)) > 1e-8:
+                    self.projection_issues.append(f"unowned_position:{symbol}")
             self.last_account_sync_at = self._clock()
             return SyncResult(True, self.last_account_sync_at)
         except Exception as exc:
@@ -45,6 +52,8 @@ class AccountSyncMixin:
 
     def _load_portfolio_fact(self):
         balance = self.exchange.fetch_balance()
+        if self.market_type == "margin":
+            return self._sync_margin_account(balance)
         free = balance.get("free", {}) if isinstance(balance, dict) else {}
         total = balance.get("total", {}) if isinstance(balance, dict) else {}
         next_cash = self._as_float(
@@ -56,6 +65,36 @@ class AccountSyncMixin:
             else self._sync_spot_positions(balance)
         )
         return next_cash, positions
+
+    def _sync_margin_account(self, balance):
+        # Binance cross-margin userAssets are assets less principal and interest,
+        # unlike derivatives position contracts. Never infer liabilities as zero.
+        assets = (balance.get("info") or {}).get("userAssets")
+        if not isinstance(assets, list):
+            raise ValueError("Binance margin assets/liabilities are unavailable")
+        positions, facts, net_cash = {}, {}, 0.0
+        for asset in assets:
+            currency = asset["asset"]
+            free, locked, debt, interest = (float(asset[key]) for key in ("free", "locked", "borrowed", "interest"))
+            if not all(math.isfinite(v) and v >= 0 for v in (free, locked, debt, interest)):
+                raise ValueError("invalid margin balance fact")
+            net = free + locked - debt - interest
+            if "netAsset" in asset and abs(net - float(asset["netAsset"])) > 1e-8:
+                raise ValueError("margin asset liability identity failed")
+            facts[currency] = {"assets": free + locked, "liabilities": debt, "interest": interest, "net": net}
+            if currency == self.base_currency:
+                net_cash = net
+            elif abs(net) > 1e-12:
+                symbol = f"{currency}/{self.base_currency}"
+                lots = self.portfolio.open_lots(symbol)
+                denom = sum(lot.qty_open for lot in lots)
+                avg = sum(lot.entry_price * lot.qty_open for lot in lots) / denom if denom else 0.0
+                positions[symbol] = {"qty": net, "avg_price": avg}
+        # Portfolio margin cash is capital plus realized PnL; convert net asset
+        # balances to that representation so cash + unrealized equals NAV.
+        cash = net_cash + sum(pos["qty"] * pos["avg_price"] for pos in positions.values())
+        self.account_balance_facts = facts
+        return cash, positions
 
     def _sync_spot_positions(self, balance: Dict[str, Any]) -> Dict[str, Dict[str, float]]:
         positions: Dict[str, Dict[str, float]] = {}

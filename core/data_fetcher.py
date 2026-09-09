@@ -1,3 +1,4 @@
+from core.redaction import safe_url
 import os
 import time
 from datetime import datetime
@@ -58,7 +59,7 @@ class DataFetcher:
         self._tz = ZoneInfo(data_timezone)
 
         if self.proxy_url:
-            logger.info("Using outbound proxy for data fetches: %s", self.proxy_url)
+            logger.info("Using outbound proxy for data fetches: %s", safe_url(self.proxy_url))
 
     def _local_date_to_utc_ms(self, date_str: str) -> int:
         """将 'YYYY-MM-DD' 按 self._tz 解释为当天 00:00:00，返回对应 UTC 毫秒时间戳。"""
@@ -186,6 +187,7 @@ class DataFetcher:
         end_date: Optional[str] = None,
         limit: int = 1000,
         exchange_id: Optional[str] = None,
+        market_type: str = "spot",
     ) -> pd.DataFrame:
         """
         通过 CCXT 从交易所拉取历史 K 线（当前默认 binance）。
@@ -215,6 +217,7 @@ class DataFetcher:
                             start_date,
                             end_date,
                             limit,
+                            **({"market_type": market_type} if market_type != "spot" else {}),
                         )
                         if df is None:
                             break  # 该交易所无此标的数据，换下一个交易所
@@ -231,6 +234,8 @@ class DataFetcher:
                         if attempt < self.CCXT_MAX_RETRIES:
                             time.sleep(self.CCXT_RETRY_BACKOFF_S * attempt)
 
+            if exchange_id:
+                return pd.DataFrame()
             fallback_df = self._fallback_to_yahoo_crypto(symbol, start_date, end_date)
             if not fallback_df.empty:
                 return fallback_df
@@ -241,6 +246,8 @@ class DataFetcher:
             return pd.DataFrame()
         except Exception as e:
             logger.error(f"Error fetching {symbol} from CCXT: {e}")
+            if exchange_id:
+                return pd.DataFrame()
             fallback_df = self._fallback_to_yahoo_crypto(symbol, start_date, end_date)
             if not fallback_df.empty:
                 return fallback_df
@@ -254,6 +261,7 @@ class DataFetcher:
         start_date: Optional[str],
         end_date: Optional[str],
         limit: int,
+        market_type: str = "spot",
     ) -> Optional[pd.DataFrame]:
         """
         从单个交易所拉取一次 K 线（内部不做重试）。
@@ -270,10 +278,16 @@ class DataFetcher:
                 "enableRateLimit": True,
                 "proxies": self._build_ccxt_proxies(),
                 "timeout": self.request_timeout_ms,
+                "options": {"defaultType": "future" if market_type in {"future", "futures", "perpetual", "swap"} else "spot"},
             }
         )
         if hasattr(exchange, "session") and hasattr(exchange.session, "trust_env"):
             exchange.session.trust_env = True
+        if market_type not in {"spot", "margin"}:
+            exchange.load_markets()
+            market = exchange.market(ccxt_symbol)
+            if not market.get("contract"):
+                raise ValueError("Requested derivative symbol resolved to a spot market")
 
         since = None
         if start_date:

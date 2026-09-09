@@ -38,6 +38,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
+from math import isfinite
 from typing import Any, Dict, Iterable, List, Mapping, Optional
 
 _QTY_EPS = 1e-9
@@ -66,11 +67,11 @@ class ProtectiveState(str, Enum):
 
 
 #: Venue order states that still protect the position.
-LIVE_ORDER_STATUSES = frozenset({"open", "new", "accepted", "submitted", "partially_filled"})
+LIVE_ORDER_STATUSES = frozenset({"open", "new", "accepted", "partial", "partially_filled"})
 #: Venue order states that mean the order is gone.
 DEAD_ORDER_STATUSES = frozenset({"canceled", "cancelled", "rejected", "expired", "filled"})
 #: Venue states that are not a fact yet: fail closed on them.
-INDETERMINATE_ORDER_STATUSES = frozenset({"unknown", "submitting", "pending_cancel"})
+INDETERMINATE_ORDER_STATUSES = frozenset({"unknown", "submitting", "submitted", "pending_cancel", "cancel_pending", "created"})
 
 
 @dataclass(frozen=True)
@@ -187,10 +188,12 @@ class ProtectiveOrderManager:
     def __init__(self, *, price_tolerance: float = 1e-9) -> None:
         self.price_tolerance = float(price_tolerance)
         self._accepted_stop: Dict[str, float] = {}
+        self._requested_stop: Dict[str, float] = {}
         self.audit: List[Dict[str, Any]] = []
 
     def forget(self, symbol: str) -> None:
         self._accepted_stop.pop(symbol, None)
+        self._requested_stop.pop(symbol, None)
 
     @property
     def tracked_symbols(self) -> frozenset[str]:
@@ -199,7 +202,7 @@ class ProtectiveOrderManager:
         Account snapshots often omit flat symbols; iterating only current
         positions/orders would keep old stop levels alive indefinitely.
         """
-        return frozenset(self._accepted_stop)
+        return frozenset(self._accepted_stop) | frozenset(self._requested_stop)
 
     def evaluate(
         self,
@@ -273,24 +276,25 @@ class ProtectiveOrderManager:
             live = [keeper]
 
         if not live:
+            self._requested_stop[symbol] = target
             intents.append(ProtectiveIntent(
                 ProtectiveAction.PLACE, symbol, "missing_protection",
                 side=side, qty=abs(qty), stop_price=target,
-                state=ProtectiveState.ARMED,
+                state=ProtectiveState.UNPROTECTED,
             ))
             plan = ProtectivePlan(
-                symbol, ProtectiveState.ARMED, intents,
-                effective_stop=target, protected_qty=abs(qty),
-                note="protection created",
+                symbol, ProtectiveState.UNPROTECTED, intents,
+                effective_stop=None, protected_qty=0.0,
+                note="protection awaiting venue confirmation",
             )
-            self._accepted_stop[symbol] = target
             return self._record(plan, record)
 
         current = live[0]
-        qty_mismatch = abs(current.qty - abs(qty)) > _QTY_EPS
+        qty_mismatch = abs(current.qty - abs(qty)) > _QTY_EPS or current.side != side
         level_moved = _is_tighter(target, current.stop_price, long_side)
         not_reduce_only = not current.reduce_only
         if qty_mismatch or level_moved or not_reduce_only:
+            self._requested_stop[symbol] = target
             reason = (
                 "qty_mismatch" if qty_mismatch
                 else "ratchet_up" if level_moved
@@ -302,7 +306,6 @@ class ProtectiveOrderManager:
                 cancel_order_id=current.order_id,
                 state=ProtectiveState.REPLACING,
             ))
-            self._accepted_stop[symbol] = target
             plan = ProtectivePlan(
                 symbol, ProtectiveState.REPLACING, intents,
                 effective_stop=target, protected_qty=abs(qty),
@@ -349,9 +352,10 @@ class ProtectiveOrderManager:
             float(value) for value in (
                 desired_stop,
                 self._accepted_stop.get(symbol),
+                self._requested_stop.get(symbol),
                 *(order.stop_price for order in live),
             )
-            if value is not None and float(value) > 0
+            if value is not None and isfinite(float(value)) and float(value) > 0
         ]
         if not levels:
             return None

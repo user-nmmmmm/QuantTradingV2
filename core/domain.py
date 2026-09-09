@@ -135,6 +135,11 @@ class OrderIntent:
     reservation_id: Optional[str] = None
     causation_id: Optional[str] = None
     created_at: Optional[str] = None
+    reference_price: Optional[float] = None
+    trigger_price: Optional[float] = None
+    initial_stop: Optional[float] = None
+    exit_reason: Optional[str] = None
+    risk_action_id: Optional[str] = None
 
     @property
     def identity(self) -> Dict[str, Any]:

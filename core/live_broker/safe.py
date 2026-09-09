@@ -31,6 +31,8 @@ class SafeLiveBroker(LiveBroker):
         account_id: Optional[str] = None,
         position_mode: str = "one_way",
         require_market_metadata: bool = False,
+        require_resident_protection: bool = False,
+        alert_sink=None,
     ) -> None:
         self.safety_guard = safety_guard
         super().__init__(
@@ -44,32 +46,9 @@ class SafeLiveBroker(LiveBroker):
             account_id=account_id,
             position_mode=position_mode,
             require_market_metadata=require_market_metadata,
+            require_resident_protection=require_resident_protection,
+            alert_sink=alert_sink,
         )
-
-    def submit_order(
-        self,
-        symbol: str,
-        side: str,
-        qty: float,
-        price: float = None,
-        order_type: str = "market",
-        timestamp: Any = None,
-        slippage: float = 0.0,
-        strategy_id: str = "Manual",
-        exit_reason: str = "signal",
-        time_in_force: Optional[str] = None,
-        position_side: Optional[str] = None,
-        reduce_only: Optional[bool] = None,
-        sequence: int = 0,
-        stop_loss: float = 0.0,
-        zero_cost: bool = False,
-    ) -> OrderSubmissionResult:
-        del slippage, exit_reason, stop_loss, zero_cost
-        intent = self._build_intent(
-            symbol, side, qty, price, order_type, timestamp, strategy_id,
-            time_in_force, position_side, reduce_only, sequence,
-        )
-        return self.submit_intent(intent)
 
     def submit_intent(self, intent: OrderIntent) -> OrderSubmissionResult:
         """Apply the same safety gate to canonical and legacy submissions."""
@@ -91,7 +70,7 @@ class SafeLiveBroker(LiveBroker):
                     intent.symbol,
                     intent.action,
                     intent.requested_qty,
-                    intent.price,
+                    intent.reference_price or intent.price,
                 )
             except ValueError as exc:
                 logger.critical(

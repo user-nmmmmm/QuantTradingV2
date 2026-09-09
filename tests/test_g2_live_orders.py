@@ -172,7 +172,7 @@ class TestG2LiveOrders(unittest.TestCase):
         self.assertEqual(final.status, OrderStatus.FILLED)
         self.assertEqual(final.remaining_qty, 0)
         fills = broker.order_store.fills_for(final.client_order_id)
-        self.assertEqual([fill["fill_id"] for fill in fills], ["f1", "f2"])
+        self.assertEqual([fill["fill_id"] for fill in fills], [f"{final.client_order_id}:f1", f"{final.client_order_id}:f2"])
         self.assertEqual(sum(fill["qty"] for fill in fills), 2)
         broker.close()
 

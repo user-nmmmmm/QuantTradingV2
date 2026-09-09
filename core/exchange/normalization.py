@@ -26,10 +26,16 @@ class OrderNormalizer:
             raise OrderValidationError("quantity normalizes to zero")
         if price is not None and price <= 0:
             raise OrderValidationError("price normalizes to zero")
+        trigger = _decimal(intent.trigger_price, "trigger_price", optional=True)
+        if trigger is not None:
+            trigger = self._floor(trigger, market.price_step)
+            if trigger <= 0:
+                raise OrderValidationError("trigger price normalizes to zero")
         return replace(
             intent,
             requested_qty=float(qty),
             price=None if price is None else float(price),
+            trigger_price=None if trigger is None else float(trigger),
             order_type=str(intent.order_type).lower(),
             time_in_force=(str(intent.time_in_force).upper() if intent.time_in_force else None),
         )

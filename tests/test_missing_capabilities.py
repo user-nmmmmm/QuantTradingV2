@@ -9,6 +9,8 @@ import pandas as pd
 from analysis.validation import ValidationConfig, validate_parameter_candidates
 from core.broker.cost_model import CostModel
 from core.gray_release import GrayReleasePolicy
+from core.runtime_identity import RuntimeIdentity
+from core.state_store_v2 import StateStore
 from core.live_safety import StartupSafetyPolicy
 from core.metric_result import MetricResult
 from core.supervisor import RestartPolicy, supervise
@@ -51,11 +53,13 @@ class MissingCapabilityAcceptanceTests(unittest.TestCase):
             root = Path(directory)
             evidence, snapshot = root / "r7.json", root / "state.db"
             evidence.write_text(json.dumps({"passed": True}), encoding="utf-8")
-            snapshot.write_bytes(b"snapshot")
+            identity = RuntimeIdentity("binance", "live", "test", "spot")
+            snapshot_store = StateStore(str(snapshot), identity=identity)
+            snapshot_store.close()
             startup = StartupSafetyPolicy(False, "binance", "spot", ("BTC/USDT",), ("binance",), ("spot",), ("BTC/USDT",), "USDT", 10, 20)
             exchange = MagicMock()
             exchange.fetch_api_permissions.return_value = {"enableWithdrawals": False, "enableSpotAndMarginTrading": True}
-            policy = GrayReleasePolicy("binance", "BTC/USDT", 10, 20, str(evidence), str(snapshot))
+            policy = GrayReleasePolicy("binance", "BTC/USDT", 10, 20, str(evidence), str(snapshot), runtime_identity=identity)
             with patch.dict("os.environ", {"QUANT_R8_APPROVED": "approved"}):
                 policy.validate(startup, exchange)
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import math
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Dict, Optional
 
@@ -76,6 +77,7 @@ class LiveBroker(SubmissionServiceMixin, OrderReconcilerMixin, AccountSyncMixin)
         event_pipeline: Optional[TradingEventPipeline] = None,
         exchange_boundary: Optional[ExchangeBoundary] = None,
         require_market_metadata: bool = False,
+        require_resident_protection: bool = False,
         metadata_ttl: timedelta = timedelta(hours=1),
         metadata_change_policy: Optional[MetadataChangeHaltPolicy] = None,
         alert_sink: Optional[AlertSink] = None,
@@ -86,6 +88,7 @@ class LiveBroker(SubmissionServiceMixin, OrderReconcilerMixin, AccountSyncMixin)
         submitting_ttl: timedelta = timedelta(minutes=5),
     ) -> None:
         self.portfolio = portfolio
+        self.require_resident_protection = require_resident_protection
         self.exchange_id = exchange_id
         self.market_type = market_type
         self.base_currency = base_currency
@@ -100,6 +103,9 @@ class LiveBroker(SubmissionServiceMixin, OrderReconcilerMixin, AccountSyncMixin)
         self._bar_timeframe = "unknown"
         self._bar_time = "unknown"
         self.trades = []  # Compatibility projection only; OrderStore is authoritative.
+        self.close_events = []
+        self.projection_issues = []
+        self._rebuild_fill_projection()
         self.health_assessment = None
         self.last_account_sync_at: Optional[datetime] = None
         self.last_order_sync_at: Optional[datetime] = None
@@ -175,12 +181,39 @@ class LiveBroker(SubmissionServiceMixin, OrderReconcilerMixin, AccountSyncMixin)
         self._bar_timeframe = str(timeframe)
         self._bar_time = self._iso(bar_time)
 
+    def _rebuild_fill_projection(self):
+        from core.live_broker.fill_projection import replay_fill_projection
+        books, events, issues = replay_fill_projection(self.order_store, self.base_currency)
+        self.portfolio.lot_books = books
+        self.close_events = events
+        self.projection_issues = issues
+
     def set_health_assessment(self, assessment) -> None:
         self.health_assessment = assessment
+
+    def risk_price_facts(self, symbols, *, max_age_seconds=90.0):
+        """Realtime execution-venue marks; a closed signal bar is not a risk mark."""
+        now = self._clock()
+        facts = {}
+        for symbol in sorted(set(symbols)):
+            ticker = self.exchange.fetch_ticker(symbol)
+            price = float(ticker.get("last") or 0.0)
+            timestamp = ticker.get("timestamp")
+            if timestamp is None or not math.isfinite(price) or price <= 0:
+                raise ValueError("ticker price/timestamp is unavailable")
+            observed = datetime.fromtimestamp(float(timestamp) / 1000, tz=timezone.utc)
+            age = (now - observed).total_seconds()
+            if not 0 <= age <= max_age_seconds:
+                raise ValueError("ticker mark is stale or from the future")
+            facts[symbol] = {"price": price, "timestamp": observed, "source": self.exchange_id,
+                             "expires_at": observed + timedelta(seconds=max_age_seconds)}
+        self.last_risk_price_facts = facts
+        return facts
 
     def _publish_fill_event(
         self, fill: FillRecord, record: Dict[str, Any]
     ) -> None:
+        self._rebuild_fill_projection()
         intent_data = record.get("intent") or {}
         intent = OrderIntent(**intent_data)
         envelope = self.event_pipeline.publish(

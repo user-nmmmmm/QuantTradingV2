@@ -1,4 +1,5 @@
 from datetime import datetime
+from math import isfinite
 from typing import Dict
 
 from core.domain import PortfolioSnapshot
@@ -11,10 +12,12 @@ def build_portfolio_snapshot(
     price_times: Dict[str, datetime],
     synced_at: datetime,
 ) -> PortfolioSnapshot:
-    missing = [symbol for symbol in portfolio.positions if symbol not in prices or prices[symbol] <= 0]
+    missing = [symbol for symbol in portfolio.positions if symbol not in prices or not isfinite(prices[symbol]) or prices[symbol] <= 0]
     if missing:
         raise ValueError(f"Missing fresh prices for positions: {', '.join(sorted(missing))}")
     equity = portfolio.get_equity(prices)
+    if not isfinite(equity):
+        raise ValueError("Non-finite portfolio equity")
     gross = portfolio.get_total_exposure(prices)
     net = sum(pos["qty"] * prices[symbol] for symbol, pos in portfolio.positions.items())
     return PortfolioSnapshot(portfolio.cash, equity, gross, net, dict(prices), dict(price_times), synced_at)

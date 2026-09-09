@@ -12,12 +12,15 @@ from core.sqlite_utils import ensure_schema_version, open_durable_connection
 
 
 class StateStore:
-    def __init__(self, path: str):
+    def __init__(self, path: str, *, identity=None):
         self.path = path
         os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
         self._lock = RLock()
         self._connection = open_durable_connection(path)
         with self._connection:
+            if identity is not None:
+                from core.runtime_identity import bind_database_identity
+                bind_database_identity(self._connection, identity)
             ensure_schema_version(self._connection, "state_store", 1)
             self._connection.execute(
                 "CREATE TABLE IF NOT EXISTS state (key TEXT PRIMARY KEY, value TEXT NOT NULL)"

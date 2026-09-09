@@ -13,6 +13,9 @@ from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, Optional, Protocol
 
 
+from core.redaction import sanitize, sanitize_text
+
+
 class AlertSink(Protocol):
     def notify(self, level: str, event: str, context: Dict[str, Any]) -> None:
         """Publish a structured operational event."""
@@ -34,8 +37,8 @@ class LoggingAlertSink:
         log_method = getattr(self.logger, level.lower(), self.logger.error)
         log_method(
             "operational_alert event=%s context=%s",
-            event,
-            json.dumps(context, sort_keys=True, default=str),
+            sanitize_text(event),
+            json.dumps(sanitize(context), sort_keys=True, default=str),
         )
 
 class JsonlAlertSink:
@@ -50,8 +53,8 @@ class JsonlAlertSink:
         record = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "level": level.lower(),
-            "event": event,
-            "context": context,
+            "event": sanitize_text(event),
+            "context": sanitize(context),
         }
         line = json.dumps(record, sort_keys=True, default=str) + "\n"
         with self._lock:
@@ -72,7 +75,7 @@ class WebhookAlertSink:
 
     def notify(self, level: str, event: str, context: Dict[str, Any]) -> None:
         payload = json.dumps(
-            {"level": level.lower(), "event": event, "context": context},
+            {"level": level.lower(), "event": sanitize_text(event), "context": sanitize(context)},
             default=str,
         ).encode("utf-8")
         request = urllib.request.Request(
@@ -105,7 +108,8 @@ class TelegramAlertSink:
 
 
 def format_telegram_alert(level: str, event: str, context: Dict[str, Any]) -> str:
-    lines = [f"[{level.upper()}] {event}"]
+    context = sanitize(context)
+    lines = [f"[{sanitize_text(level.upper())}] {sanitize_text(event)}"]
     for key, value in sorted(context.items()):
         lines.append(f"{key}: {value}")
     return "\n".join(lines)
@@ -120,7 +124,7 @@ def send_telegram_message(
     context containing Markdown/HTML-special characters (e.g. "_", "<")
     cannot break formatting or be misinterpreted as markup.
     """
-    payload = json.dumps({"chat_id": chat_id, "text": text}).encode("utf-8")
+    payload = json.dumps({"chat_id": chat_id, "text": sanitize_text(text)}).encode("utf-8")
     request = urllib.request.Request(
         f"https://api.telegram.org/bot{bot_token}/sendMessage",
         data=payload, headers={"Content-Type": "application/json"}, method="POST",
