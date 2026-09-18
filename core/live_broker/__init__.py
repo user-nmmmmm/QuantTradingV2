@@ -167,7 +167,7 @@ class LiveBroker(SubmissionServiceMixin, OrderReconcilerMixin, AccountSyncMixin)
                     record.get("client_order_id"),
                 )
                 continue
-            reference_price = intent.price or record.get("price") or 0
+            reference_price = intent.reference_price or intent.price or record.get("price") or 0
             ensure_opening_reservation(
                 self.event_pipeline,
                 intent,

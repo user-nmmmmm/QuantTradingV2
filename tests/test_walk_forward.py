@@ -42,7 +42,7 @@ class _SpyStrategy(Strategy):
     def should_enter(self, symbol, i, df, state, portfolio):
         self._seen.append(pd.Timestamp(df.index[i]))
         if self._enter_every and i % self._enter_every == 0:
-            return {"action": "buy", "order_type": "market", "stop_loss": None}
+            return {"action": "buy", "order_type": "market", "stop_loss": float(df['close'].iat[i]) * .9}
         return None
 
     def should_exit(self, symbol, i, df, state, portfolio):

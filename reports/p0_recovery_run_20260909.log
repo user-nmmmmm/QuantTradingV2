@@ -1,0 +1,7 @@
+2026-09-09 13:46:05,657 INFO config.config Config loaded from D:\QuantTradingV1\config\params.yaml: taker=0.0010 maker=0.0010 slippage_bps=5.00 risk_per_trade=0.0200 max_leverage=3.0 max_dd=0.20 liquidity_limit_pct=0.0100 max_pos_size_pct=0.3000 routing={'TREND_UP': 'TrendBreakout', 'TREND_DOWN': 'Cash', 'SIDEWAYS': 'Cash', 'VOLATILE': 'Cash'}
+RUN legacy_policy 2016-01-01..2026-06-30 cost=1
+DONE legacy_policy: equity=21336.20
+RUN recovery 2016-01-01..2026-06-30 cost=1
+DONE recovery: equity=19972.92
+RUN recovery_replay 2016-01-01..2026-06-30 cost=1
+DONE recovery_replay: equity=19972.92

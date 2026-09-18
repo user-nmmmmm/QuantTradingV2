@@ -478,6 +478,8 @@ class TestLiveFillRiskRecheck(unittest.TestCase):
                 "action": "buy",
                 "strategy_id": "TrendBreakout",
                 "reduce_only": False,
+                "approved_risk_amount": 2000.0,
+                "initial_stop": 90.0,
             },
         }
 

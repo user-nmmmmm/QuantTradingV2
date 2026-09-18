@@ -123,6 +123,7 @@ class EventProcessor:
         warmup_period: int = 0,
         initial_equity: Optional[float] = None,
         entry_audit_enabled: bool = False,
+        signal_observer: Any = None,
     ) -> None:
         self.portfolio = portfolio
         self.execution = execution
@@ -138,8 +139,12 @@ class EventProcessor:
         )
         self._previous_session_close_equity = self._daily_start_equity
         self._bar_index = -1
-        self.entry_audit_enabled = entry_audit_enabled
+        self.signal_observer = signal_observer
+        self.entry_audit_enabled = entry_audit_enabled or signal_observer is not None
         self.entry_audit: list[dict[str, Any]] = []
+        budget = getattr(self.risk_manager, "drawdown_budget", None)
+        if budget is not None:
+            budget.bind(execution, getattr(router, "strategies", {}))
 
     @staticmethod
     def _utc_datetime(value: Any) -> datetime:
@@ -162,6 +167,8 @@ class EventProcessor:
 
         if not isinstance(event, MarketDataSlice):
             raise TypeError("event must be MarketDataSlice")
+        if self.signal_observer is not None:
+            self.signal_observer.advance(event)
         if execute_market_event:
             hook = getattr(self.execution, "on_market_data", None)
             if callable(hook):
@@ -197,6 +204,9 @@ class EventProcessor:
                     equity, self._daily_start_equity
                 )
         decision = self._normalize_risk_decision(raw_decision)
+        budget = getattr(self.risk_manager, "drawdown_budget", None)
+        if budget is not None:
+            budget.update(self.last_prices, event.bars, event.timestamp)
 
         routed: list[str] = []
         selected = set(symbols) if symbols is not None else None
@@ -222,6 +232,8 @@ class EventProcessor:
             )
 
         self._previous_session_close_equity = equity
+        if self.signal_observer is not None:
+            self.signal_observer.settle_decisions()
 
         return RuntimeResult(
             equity=equity,
@@ -265,6 +277,9 @@ class EventProcessor:
                        allow_new_entries: bool = True) -> bool:
         """Run the shared state/strategy/risk path for one real bar."""
 
+        if self.signal_observer is not None:
+            self.signal_observer.advance(event)
+
         candidate, processed = self._collect_symbol_candidate(
             event, symbol, allow_position_management=allow_position_management,
             allow_new_entries=allow_new_entries,
@@ -274,6 +289,8 @@ class EventProcessor:
                 [candidate], portfolio=self.portfolio, broker=self.execution,
                 risk_manager=self.risk_manager, current_prices=self.last_prices,
             )
+        if self.signal_observer is not None:
+            self.signal_observer.settle_decisions()
         return processed
 
     def _collect_symbol_candidate(
@@ -287,6 +304,9 @@ class EventProcessor:
         row = {"observation_id": f"{event.timestamp.isoformat()}|{symbol}",
                "timestamp": event.timestamp, "symbol": symbol, "reason": "not_evaluated",
                "portfolio_action": self.risk_manager.breaker_action.value}
+        if self.signal_observer is not None:
+            self.signal_observer.observe(event, symbol, portfolio=self.portfolio,
+                risk_manager=self.risk_manager, router=self.router, audit=row)
         with capture(row):
             candidate, processed = self._collect_symbol_candidate_impl(
                 event, symbol, allow_position_management=allow_position_management,
@@ -338,7 +358,8 @@ class EventProcessor:
                     symbol, location, df, state, self.portfolio, self.execution,
                 ))
             if held or not allow_new_entries:
-                note("position_held" if held else "portfolio_block")
+                note("position_held" if held else "symbol_entry_blocked"
+                     if bool(event.bars[symbol].get("entry_blocked", False)) else "portfolio_block")
                 candidate = None
             else:
                 candidate = entry_collector(

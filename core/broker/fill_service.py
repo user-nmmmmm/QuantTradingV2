@@ -14,7 +14,7 @@ import pandas as pd
 
 from core.accounts import AccountMode
 from core.broker.types import BacktestOrderStatus, Order, OrderType
-from core.broker.cost_model import CostBreakdown
+from core.broker.cost_model import CostBreakdown, market_slippage_components
 from core.events import FillEvent
 from core.logger import get_logger
 from core.lots import CloseEvent
@@ -47,30 +47,17 @@ class FillServiceMixin:
     ) -> Optional[Dict]:
         base_slip = order.slippage if order.slippage > 0 else self.slippage
         slip_rate = random.uniform(0, base_slip) if self.random_slip and base_slip > 0 else base_slip
-        quoted_spread_bps = (
-            float(bar_context.get("spread_bps"))
-            if bar_context is not None and pd.notna(bar_context.get("spread_bps"))
-            else self.spread_bps
+        components = market_slippage_components(
+            price=price, quantity=fill_qty, volume=volume, bar=bar_context,
+            spread_bps=self.spread_bps, volatility_factor=self.volatility_slippage_factor,
+            use_impact=self.use_impact_cost, impact_coefficient=self.impact_coefficient,
+            impact_exponent=self.impact_exponent,
         )
-        spread_slip = max(quoted_spread_bps, 0.0) / 20000.0
-        volatility_slip = 0.0
-        if bar_context is not None and price > 0:
-            if pd.notna(bar_context.get("volatility")):
-                bar_volatility = max(float(bar_context.get("volatility")), 0.0)
-            else:
-                bar_volatility = max(
-                    float(bar_context.get("high", price))
-                    - float(bar_context.get("low", price)),
-                    0.0,
-                ) / price
-            volatility_slip = self.volatility_slippage_factor * bar_volatility
-        impact_slip = 0.0
-        participation = 0.0
-        if self.use_impact_cost and volume > 0:
-            participation = fill_qty / volume
-            impact_slip = self.impact_coefficient * (
-                max(participation, 0.0) ** self.impact_exponent
-            )
+        quoted_spread_bps = components["quoted_spread_bps"]
+        spread_slip = components["spread"]
+        volatility_slip = components["volatility"]
+        impact_slip = components["impact"]
+        participation = components["participation"]
         liquidation_penalty = (
             self.liquidation_penalty_bps / 10000.0
             if order.exit_reason in {"MarginLiquidation", "AccountLiquidation"}

@@ -163,11 +163,26 @@ def replay_manifest(manifest_path: str) -> int:
         path.parent / "data_inputs", manifest["data_snapshots"], verify=True
     )
     execution = manifest["execution"]
+    # An old manifest must not inherit a subsequently enabled research model.
+    meta_policy = execution.get("signal_meta_layer") or {"enabled": False}
+    if meta_policy.get("enabled", False) and not execution.get("signal_meta_layer_digest"):
+        print("Replay refused: enabled P1 policy has no recorded research digest.", file=sys.stderr)
+        return 7
+    symbol_order = execution.get("data_symbol_order")
+    if symbol_order is not None:
+        if len(symbol_order) != len(snapshots) or set(symbol_order) != set(snapshots):
+            print("Replay refused: input symbol order does not match snapshots.", file=sys.stderr)
+            return 7
+        # Snapshot filenames/JSON keys are canonicalised alphabetically, but
+        # the original event stream and audit lists preserve input order.
+        snapshots = {symbol: snapshots[symbol] for symbol in symbol_order}
     seed = int(execution["seed"])
     np.random.seed(seed)
     random.seed(seed)
     engine = BacktestEngine(
-        initial_capital=float(execution["capital"]),
+        # Preserve the recorded numeric type too: early flat-account audit
+        # rows distinguish JSON 10000 from 10000.0 in byte-exact digests.
+        initial_capital=execution["capital"],
         slippage=execution.get("slippage"),
         random_slip=bool(execution.get("random_slip", False)),
         warmup_period=int(execution.get("warmup_period", 30)),
@@ -177,14 +192,31 @@ def replay_manifest(manifest_path: str) -> int:
         timeframe=execution["timeframe"],
         run_id=manifest["run_id"],
         account_mode=execution.get("account_mode"),
+        signal_observation=execution.get("signal_observation") or {"enabled": False},
+        signal_meta_layer=meta_policy,
     )
     result = engine.run(snapshots, routing_log_enabled=False)
     observed = deterministic_result_digest(result)
     expected = execution["result_digest"]
+    research_expected = execution.get("signal_observation_digest")
+    research_observed = None
+    if research_expected is not None:
+        from backtest.reporting.signal_observation import signal_observation_digest
+        research_observed = signal_observation_digest(result.get("signal_observation"))
+    meta_expected = execution.get("signal_meta_layer_digest")
+    meta_observed = None
+    if meta_expected is not None or result.get("signal_meta_layer") is not None:
+        from backtest.reporting.signal_meta_layer import signal_meta_layer_digest
+        meta_observed = signal_meta_layer_digest(result.get("signal_meta_layer"))
     report = {
-        "status": "passed" if observed == expected else "failed",
+        "status": "passed" if (observed == expected and research_expected == research_observed
+                               and meta_expected == meta_observed) else "failed",
         "expected": expected,
         "observed": observed,
+        "signal_observation_expected": research_expected,
+        "signal_observation_observed": research_observed,
+        "signal_meta_layer_expected": meta_expected,
+        "signal_meta_layer_observed": meta_observed,
         "code_identity_expected": expected_code,
     }
     print(json.dumps(report, ensure_ascii=False, indent=2))
@@ -245,6 +277,14 @@ def _build_parser() -> argparse.ArgumentParser:
         "--disable-routing-log",
         action="store_true",
         help="Disable per-bar routing CSV output for optimization runs.",
+    )
+    parser.add_argument(
+        "--observe-signals", action="store_true",
+        help="Export passive raw candidates, future outcomes, ghost replays and gate diagnostics.",
+    )
+    parser.add_argument(
+        "--signal-meta-layer", action="store_true",
+        help="Enable passive P1 walk-forward EV research; implies --observe-signals without changing orders.",
     )
     parser.add_argument(
         "--exchange", default="binance",
@@ -372,6 +412,8 @@ def _execute_backtest(args, data_map):
         benchmark_rebalance_cost_bps=args.benchmark_rebalance_cost_bps,
         timeframe=args.timeframe,
         account_mode=("spot_margin" if args.market_type == "margin" else args.market_type),
+        signal_observation={"enabled": True} if getattr(args, "observe_signals", False) else None,
+        signal_meta_layer={"enabled": True} if getattr(args, "signal_meta_layer", False) else None,
     )
     print("Running Backtest...")
     reports_dir = os.path.join(os.getcwd(), "reports")
@@ -475,6 +517,19 @@ def main(argv=None) -> int:
 
     output_path = Path(output_dir)
     reporter = ReportGenerator(output_dir)
+    artifact_failures = []
+    signal_summary = {}
+    if results.get("signal_observation") is not None:
+        from backtest.reporting.signal_observation import write_signal_observation_report
+        signal_summary = write_signal_observation_report(results["signal_observation"], output_path)
+        if signal_summary["status"] != "complete":
+            artifact_failures.append("signal_observation_incomplete")
+    meta_summary = {}
+    if results.get("signal_meta_layer") is not None:
+        from backtest.reporting.signal_meta_layer import write_signal_meta_layer_report
+        meta_summary = write_signal_meta_layer_report(results["signal_meta_layer"], output_path)
+        if meta_summary["status"] != "complete":
+            artifact_failures.append("signal_meta_layer_incomplete")
 
     effective_timestamps = engine.market_data_adapter.timestamps
     effective_period = {
@@ -529,7 +584,6 @@ def main(argv=None) -> int:
         event_log=results.get("event_log"),
     )
 
-    artifact_failures = []
 
     # Daily research runs should be easy to inspect and cheap to retain.  The
     # full profile below remains the promotion/validation path with immutable
@@ -551,6 +605,9 @@ def main(argv=None) -> int:
         )
         print(f"\n{args.report_profile.title()} report saved to: {output_path / report_name}")
         print("Use --report-profile full for ledgers, event logs and replay artifacts.")
+        if artifact_failures:
+            print("Research artifacts incomplete: " + ", ".join(artifact_failures), file=sys.stderr)
+            return 5
         return 0
 
     # Phase 3 account/risk/cost ledgers are first-class mandatory audit
@@ -739,13 +796,21 @@ def main(argv=None) -> int:
             "margin_ledger.csv", "financing_ledger.csv", "execution_audit.csv",
             "breaker_audit.csv", "breaker_state.json", "backtest_lifecycle.json",
         ]
+        artifact_names.extend(signal_summary.get("artifacts", []))
+        artifact_names.extend(meta_summary.get("artifacts", []))
         execution_identity = {
             **runtime_identity(),
             "capital": args.capital,
+            "data_symbol_order": list(data_map),
             "seed": args.seed,
             "slippage": engine.slippage,
             "random_slip": args.random_slip,
             "warmup_period": engine.warmup_period,
+            "signal_observation": results["signal_observation"]["policy"] if results.get("signal_observation") else None,
+            "signal_observation_digest": signal_summary.get("research_payload_sha256"),
+            "signal_meta_layer": engine.signal_meta_policy.to_dict(),
+            "signal_meta_layer_digest": meta_summary.get("research_payload_sha256"),
+            "signal_meta_layer_artifacts": meta_summary.get("artifacts", []),
             "alignment_mode": args.alignment_mode,
             "benchmark_mode": args.benchmark_mode,
             "benchmark_rebalance_cost_bps": args.benchmark_rebalance_cost_bps,

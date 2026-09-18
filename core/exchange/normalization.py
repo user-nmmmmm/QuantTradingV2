@@ -34,6 +34,11 @@ class OrderNormalizer:
         return replace(
             intent,
             requested_qty=float(qty),
+            approved_risk_amount=(
+                float(_decimal(intent.approved_risk_amount, "approved_risk_amount")
+                      * qty / _decimal(intent.requested_qty, "quantity"))
+                if intent.approved_risk_amount is not None else None
+            ),
             price=None if price is None else float(price),
             trigger_price=None if trigger is None else float(trigger),
             order_type=str(intent.order_type).lower(),

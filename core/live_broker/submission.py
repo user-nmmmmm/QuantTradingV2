@@ -19,7 +19,7 @@ from core.domain import OrderErrorCode, OrderIntent, OrderStatus, OrderSubmissio
 from core.exchange import ExchangeBoundaryError
 from core.logger import get_logger
 from core.orders import TERMINAL_STATUSES, classify_order_exception, is_ambiguous_error
-from core.risk.reservation import ensure_opening_reservation
+from core.risk.reservation import OpeningRiskRejected, ensure_opening_reservation
 
 # Same logger name as core.live_broker (logging.getLogger caches by name, so
 # this is the identical object) -- tests use assertLogs("core.live_broker")
@@ -61,6 +61,7 @@ class SubmissionServiceMixin:
         reference_price: Optional[float] = None,
         trigger_price: Optional[float] = None,
         risk_action_id: Optional[str] = None,
+        approved_risk_amount: Optional[float] = None,
     ) -> OrderSubmissionResult:
         del slippage, zero_cost
         canceled_protection = False
@@ -77,6 +78,7 @@ class SubmissionServiceMixin:
             symbol, side, qty, price, order_type, timestamp, strategy_id,
             time_in_force, position_side, reduce_only, sequence,
             reference_price, trigger_price, stop_loss, exit_reason, risk_action_id,
+            approved_risk_amount,
         )
         return self.submit_intent(intent)
 
@@ -134,13 +136,15 @@ class SubmissionServiceMixin:
                 'retry_attempts': self.retry_max_attempts,
             })
             return self.record_local_rejection(intent, type(exc).__name__, code)
-        intent, _ = ensure_opening_reservation(
-            self.event_pipeline,
-            intent,
-            reference_price=intent.reference_price or intent.price or 0,
-            occurred_at=self._event_time(intent.created_at or intent.bar_time),
-            source="live",
-        )
+        try:
+            intent, _ = ensure_opening_reservation(
+                self.event_pipeline, intent,
+                reference_price=intent.reference_price or intent.price or 0,
+                occurred_at=self._event_time(intent.created_at or intent.bar_time),
+                source="live", guard=getattr(self, "opening_risk_guard", None),
+            )
+        except OpeningRiskRejected as exc:
+            return self.record_local_rejection(intent, str(exc), OrderErrorCode.SAFETY_POLICY)
         now = self._now_iso()
         created = self.order_store.create_intent(intent, now)
         existing = self.order_store.get(intent.client_order_id)
@@ -254,6 +258,7 @@ class SubmissionServiceMixin:
         stop_loss: float = 0.0,
         exit_reason: Optional[str] = None,
         risk_action_id: Optional[str] = None,
+        approved_risk_amount: Optional[float] = None,
     ) -> OrderIntent:
         held = self.portfolio.get_position(symbol)["qty"]
         derivative = self.market_type in DERIVATIVE_TYPES
@@ -283,6 +288,7 @@ class SubmissionServiceMixin:
             trigger_price=(trigger_price if trigger_price is not None else price) if order_type.lower() == "stop" else trigger_price,
             initial_stop=stop_loss if stop_loss else None,
             exit_reason=exit_reason, risk_action_id=risk_action_id,
+            approved_risk_amount=approved_risk_amount,
         )
 
     def _validate_intent(self, intent: OrderIntent) -> Optional[str]:

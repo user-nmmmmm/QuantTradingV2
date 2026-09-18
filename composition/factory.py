@@ -9,7 +9,7 @@ from core.candidate_scoring import CandidateScorePolicy
 from core.risk.portfolio_governor import CorrelationClusterPolicy, PortfolioRiskGovernor
 from core.protective_stops import ProtectiveStopPolicy
 from core.strategy_health import StrategyHealthPolicy
-from core.state import MarketStateMachine
+from core.state import MarketState, MarketStateMachine
 from router.router import Router
 from strategies.base import Strategy
 from strategies.mean_reversion import RangeStrategy
@@ -56,6 +56,13 @@ def build_strategy_registry(
             configure_score = getattr(strategy, "configure_score_policy", None)
             if callable(configure_score):
                 configure_score(build_candidate_score_policy(configuration))
+        ablation = (configuration.get('research') or {}).get('strategy_ablation')
+        if ablation not in (None, 'no_obv_confirmation', 'no_regime_restrictions', 'no_health'):
+            raise ValueError('Unknown strategy ablation')
+        if ablation == 'no_obv_confirmation':
+            registry['TrendBreakout'].use_obv = False
+        elif ablation == 'no_regime_restrictions':
+            registry['TrendBreakout'].allowed_states = set(MarketState)
     return registry
 
 
@@ -113,6 +120,9 @@ def build_risk_manager(configuration: Configuration) -> RiskManager:
         portfolio_drawdown_lock=drawdown.get("lock_threshold"),
         reduced_risk_multiplier=drawdown.get("reduced_risk_multiplier", 0.5),
         recovery_policy=drawdown.get("recovery"),
+        minimum_entry_policy=configuration.get("risk", "minimum_entry"),
+        drawdown_budget_policy=configuration.get("drawdown_budget"),
+        execution_costs=configuration.get("execution"),
     )
     # SR3-2: the cluster budgets live inside _entry_notional_caps, the single
     # source both clamp_entry_qty and check_entry_risk read.

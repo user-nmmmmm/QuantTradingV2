@@ -223,6 +223,11 @@ class PositionSizingMixin:
         # which check_entry_risk would then reject as a limit breach.
         return budget * self.risk_multiplier * (1.0 - self.CAP_SAFETY_MARGIN)
 
+    def minimum_entry_notional(self, equity: float, health_multiplier: float = 1.0, *, live: bool = False) -> float:
+        scale = self.risk_multiplier * health_multiplier if self.scale_minimum_with_risk else 1.0
+        floor = 0.0 if live else self.research_notional_floor
+        return max(equity * self.min_entry_notional_pct * scale, floor)
+
     def clamp_entry_qty(
         self,
         portfolio: Portfolio,
@@ -235,6 +240,7 @@ class PositionSizingMixin:
         pending_open_notional: Optional[Dict[str, float]] = None,
         reservation_projection: Optional[RiskReservationProjection] = None,
         action: str = "buy",
+        health_multiplier: float = 1.0,
     ) -> float:
         """把 ``qty`` 削减到风控上限内；低于最小开仓门槛时返回 0。
 
@@ -258,7 +264,8 @@ class PositionSizingMixin:
         clamped = min(qty, allowed_notional / price)
         equity = float(self._last_entry_context.get("equity", 0.0))
         if equity > 0:
-            min_notional = equity * self.min_entry_notional_pct
+            min_notional = self.minimum_entry_notional(
+                equity, health_multiplier, live=self.drawdown_budget.live)
             if clamped * price < min_notional:
                 note("below_minimum_notional", minimum_notional=min_notional)
                 logger.info(

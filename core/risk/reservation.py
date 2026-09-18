@@ -9,6 +9,7 @@ from threading import RLock
 from typing import Any, Dict, Iterator, Optional, Set, Tuple
 
 from core.domain import OrderIntent, OrderStatus, RiskDecision, RiskReservation
+from core.entry_risk import resolve_approved_risk
 from core.events import (
     EventEnvelope,
     FillEvent,
@@ -19,6 +20,11 @@ from core.events import (
 
 
 OPENING_ACTIONS = {"buy", "short"}
+
+
+class OpeningRiskRejected(ValueError):
+    """A final, atomic admission check rejected a new order."""
+
 RELEASING_STATUSES = {
     OrderStatus.CANCELED,
     OrderStatus.REJECTED,
@@ -137,6 +143,29 @@ class RiskReservationProjection:
             state = self._states.get(reservation_id)
             return Decimal("0") if state is None else state.remaining_qty
 
+    def pending_stop_risk(self, execution_cost=None, *, exclude_intent_id=None) -> Dict[str, float]:
+        """Remaining approved risk only; fills transfer it into open lot risk.
+
+        UNKNOWN and CANCEL_PENDING keep occupying capacity until an
+        authoritative terminal event. Missing approvals are never zero risk.
+        """
+        totals: Dict[str, float] = {}
+        with self._lock:
+            for state in self._states.values():
+                if state.released or state.remaining_qty <= 0:
+                    continue
+                item = state.reservation
+                if item.intent_id == exclude_intent_id:
+                    continue
+                if item.approved_risk_amount is None:
+                    raise ValueError(f"missing_approval:{item.intent_id}")
+                qty = float(state.remaining_qty)
+                risk = float(item.approved_risk_amount * state.remaining_qty / item.reserved_qty)
+                if execution_cost is not None:
+                    risk += execution_cost(item.symbol, qty, float(item.reference_price))
+                totals[item.symbol] = totals.get(item.symbol, 0.0) + risk
+        return totals
+
     def rebuild(self, events) -> "RiskReservationProjection":
         with self._lock:
             self._states.clear()
@@ -155,8 +184,16 @@ def ensure_opening_reservation(
     occurred_at,
     source: str,
     reason: str = "restored_from_durable_intent",
+    guard=None,
 ) -> Tuple[OrderIntent, EventEnvelope]:
     """Idempotently enrich and publish an opening intent with its reservation."""
+    if guard is not None and intent.action in OPENING_ACTIONS and not intent.reduce_only:
+        with guard.broker.reservation_projection.transaction():
+            rejection = guard.check_intent(intent)
+            if rejection:
+                raise OpeningRiskRejected(rejection)
+            return ensure_opening_reservation(pipeline, intent, reference_price=reference_price,
+                occurred_at=occurred_at, source=source, reason=reason)
     if (
         intent.action not in OPENING_ACTIONS
         or intent.reduce_only
@@ -179,9 +216,23 @@ def ensure_opening_reservation(
         stable_uuid5("risk-reservation", intent.account, intent.intent_id)
     )
     enriched = replace(
-        intent, risk_decision_id=decision_id, reservation_id=reservation_id
+        intent, risk_decision_id=decision_id, reservation_id=reservation_id,
+        approved_risk_amount=(
+            resolve_approved_risk({
+                "approved_risk_amount": intent.approved_risk_amount,
+                "requested_qty": intent.requested_qty,
+                "reference_price": intent.reference_price or float(price),
+                "initial_stop": intent.initial_stop,
+            })[0]
+            if intent.approved_risk_amount is not None or intent.initial_stop
+            else None
+        ),
     )
     qty = as_decimal(enriched.requested_qty, "requested_qty")
+    approved_risk = (
+        as_decimal(enriched.approved_risk_amount, "approved_risk_amount")
+        if enriched.approved_risk_amount is not None else None
+    )
     decision = RiskDecision(
         decision_id=decision_id,
         account=enriched.account,
@@ -193,6 +244,7 @@ def ensure_opening_reservation(
         approved=True,
         reason=reason,
         intent_id=enriched.intent_id,
+        approved_risk_amount=approved_risk,
     )
     reservation = RiskReservation(
         reservation_id=reservation_id,
@@ -203,6 +255,7 @@ def ensure_opening_reservation(
         action=enriched.action,
         reserved_qty=qty,
         reference_price=price,
+        approved_risk_amount=approved_risk,
     )
     _, _, intent_event = pipeline.publish_approved_intent(
         decision, reservation, enriched, occurred_at=occurred_at, source=source

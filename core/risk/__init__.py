@@ -22,6 +22,7 @@ the exact same ``self`` attributes as before the split — behavior-identical,
 mechanical. ``BreakerAction`` is re-exported here unchanged since it's part
 of this module's public API.
 """
+import math
 from typing import Dict, Optional
 
 from core.risk.circuit_breaker import (
@@ -55,6 +56,9 @@ class RiskManager(CircuitBreakerMixin, PositionSizingMixin, EntryPolicyMixin):
         portfolio_drawdown_lock: Optional[float] = None,
         reduced_risk_multiplier: float = 0.5,
         recovery_policy: Optional[Dict] = None,
+        minimum_entry_policy: Optional[Dict] = None,
+        drawdown_budget_policy: Optional[Dict] = None,
+        execution_costs: Optional[Dict] = None,
     ):
         """
         初始化风控参数。
@@ -116,6 +120,13 @@ class RiskManager(CircuitBreakerMixin, PositionSizingMixin, EntryPolicyMixin):
         self.liquidity_limit_pct = liquidity_limit_pct
         self.max_pos_size_pct = max_pos_size_pct
         self.min_entry_notional_pct = min_entry_notional_pct
+        minimum = minimum_entry_policy or {}
+        self.scale_minimum_with_risk = bool(minimum.get("scale_with_risk", False))
+        self.research_notional_floor = float(minimum.get("research_notional_floor", 0.0))
+        if not math.isfinite(self.research_notional_floor) or self.research_notional_floor < 0:
+            raise ValueError("research_notional_floor must be non-negative")
+        from core.risk.drawdown_budget import DrawdownBudget
+        self.drawdown_budget = DrawdownBudget(self, drawdown_budget_policy, execution_costs)
 
         self.circuit_breaker_triggered = False
         self.daily_loss_triggered = False

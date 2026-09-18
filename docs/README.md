@@ -30,6 +30,10 @@ unified_roadmap.md
 
 ## 最新行为变更
 
+- [`p1_signal_meta_layer.md`](p1_signal_meta_layer.md)：2026-09-18 P1 条件 EV、时间衰减、收缩、有效样本与冻结滚动研究；默认关闭，不影响正式账户或准入。
+
+- [`p0_signal_observation.md`](p0_signal_observation.md)：2026-09-18 P0 原始候选、因果标签、实际成交关联与 Ghost 诊断；默认关闭，不改变策略准入。
+
 - [`baselines/main_20260906/README.md`](baselines/main_20260906/README.md)：合并提交 `8a89116` 的主分支 CI、本地覆盖率、三次固定历史回测与本地证据归档索引。
 
 - [`strategy_health_lock_investigation.md`](strategy_health_lock_investigation.md)：人工锁定根因、旧止损残留修复与更新回测；后续仓位模块草案见 [`position_management_plan.md`](position_management_plan.md)。

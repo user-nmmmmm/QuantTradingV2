@@ -35,6 +35,13 @@ risk:
   max_drawdown_limit: 0.20      # Compatibility alias: portfolio liquidation threshold
   liquidity_limit_pct: 0.01     # Max order size as % of bar volume
   max_pos_size_pct: 0.30        # 30% max per position (was 20% — allows meaningful sizing)
+  minimum_entry:
+    scale_with_risk: true
+    research_notional_floor: 10.0  # USDT assumption, not historical venue metadata
+
+drawdown_budget:
+  enabled: true
+  headroom_fraction: 0.50
 
 # 2a. Portfolio drawdown control. Daily loss resets at a UTC day boundary;
 # Terminal high-water actions require RiskManager.manual_resume().
@@ -96,6 +103,33 @@ router:
 
 allocation:
   order: score_strategy_symbol
+
+# P0 passive candidate measurement. Research notionals are not order budgets.
+# Enable per run with main.py --observe-signals; never gates/sizes real orders.
+signal_observation:
+  enabled: false
+  horizons: [1, 3, 5, 20]
+  reference_notional: 1000.0
+  ghost_horizon: 5
+  ghost_capital: 10000.0
+
+# P1 passive conditional-EV research. No order, routing, health or sizing use.
+# --signal-meta-layer also enables P0 collection, with a separate model identity.
+signal_meta_layer:
+  enabled: false
+  half_life_days: 90.0
+  prior_strength: 20.0
+  min_effective_samples: 20.0
+  min_effective_blocks: 8.0
+  min_weight_mass: 5.0
+  confidence_z: 1.96
+  min_std_bps: 50.0
+  min_ev_bps: 0.0
+  train_days: 365
+  test_days: 90
+  embargo_days: 20
+  block_days: 5
+  schema: signal_ev/v1
 
 # SR3-1 (STR-P1-03): candidate ranking must have economic meaning. With every
 # score at 0 the allocator fell through to the alphabetical tie-break whenever
@@ -175,9 +209,19 @@ strategy_health:
   consecutive_negative_cohorts: 3   # candidates [2, 3, 4]
   cooldown_days: 30                 # candidates [14, 30, 60]
   probation_risk_multiplier: 0.25   # candidates [0.25, 0.50]
-  probation_required_cohorts: 3     # candidates [3, 5, 10]
+  probation_required_cohorts: 5     # fixed remediation protocol, not a tuned optimum
   probation_min_total_r: 0.0
   max_failed_probation_cycles: 2
+  # Automatic performance failures remain recoverable; explicit/legacy manual
+  # locks and account liquidation still require separate authorized recovery.
+  repeated_failure_action: extended_cooldown
+  extended_cooldown_days: 90
+  recovery_risk_multiplier: 0.10
+  unified_recovery: true
+  recovery_stages: [0.10, 0.25, 0.50, 1.00]
+  recovery_stage_min_days: 30
+  probation_min_distinct_symbols: 3
+  probation_require_positive_without_best: true
   rolling_cohort_window: 20
   # STR-P0-04 / SR3-3: account-level risk exits (DailyLossLimit,
   # AccountLiquidation, ...) are recorded as cohorts and reported, but do not

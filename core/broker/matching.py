@@ -21,7 +21,7 @@ from core.broker.types import BacktestOrderStatus, Order, OrderType, TimeInForce
 from core.domain import OrderIntent
 from core.events import OrderEvent
 from core.logger import get_logger
-from core.risk.reservation import ensure_opening_reservation
+from core.risk.reservation import OpeningRiskRejected, ensure_opening_reservation
 
 logger = get_logger(__name__)
 
@@ -69,6 +69,7 @@ class MatchingMixin:
         stop_loss: float = 0.0,
         zero_cost: bool = False,
         risk_action_id: Optional[str] = None,
+        approved_risk_amount: Optional[float] = None,
     ) -> Order:
         """
         提交订单（进入撮合队列）。
@@ -98,14 +99,23 @@ class MatchingMixin:
             strategy_id=strategy_id, action=side, sequence=resolved_sequence,
             requested_qty=qty, order_type=order_type.lower(), price=price,
             time_in_force=time_in_force,
+            reference_price=price,
+            initial_stop=stop_loss or None,
+            approved_risk_amount=approved_risk_amount,
         )
-        intent, intent_envelope = ensure_opening_reservation(
-            self.event_pipeline,
-            intent,
-            reference_price=price or 0,
-            occurred_at=self._event_time(timestamp),
-            source="backtest",
-        )
+        if intent.client_order_id in self.opening_orders:
+            return self.opening_orders[intent.client_order_id]
+        rejection = None
+        try:
+            intent, intent_envelope = ensure_opening_reservation(
+                self.event_pipeline, intent, reference_price=price or 0,
+                occurred_at=self._event_time(timestamp), source="backtest",
+                guard=getattr(self, "opening_risk_guard", None),
+            )
+        except OpeningRiskRejected as exc:
+            rejection = str(exc)
+            intent_envelope = self.event_pipeline.publish_intent(
+                intent, occurred_at=self._event_time(timestamp), source="backtest")
 
         order = Order(
             symbol=symbol,
@@ -131,6 +141,11 @@ class MatchingMixin:
             zero_cost=zero_cost,
             risk_action_id=risk_action_id,
         )
+        if rejection is not None:
+            self._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
+            self.execution_audit.append({"timestamp": timestamp, "order_id": order.id,
+                "symbol": symbol, "outcome": "rejected", "reason": rejection})
+            return order
         if qty <= 0:
             logger.warning(
                 "Order rejected: quantity must be positive for %s %s %.8f",
@@ -151,6 +166,8 @@ class MatchingMixin:
             return order
 
         self.pending_orders.append(order)
+        if side in {"buy", "short"}:
+            self.opening_orders[order.id] = order
         self._publish_order_event(order, timestamp)
         return order
 
@@ -169,6 +186,9 @@ class MatchingMixin:
             time_in_force=intent.time_in_force or "GTC",
             sequence=intent.sequence,
             _intent=intent,
+            stop_loss=intent.initial_stop or 0.0,
+            exit_reason=intent.exit_reason or "signal",
+            risk_action_id=intent.risk_action_id,
         )
 
     @staticmethod
@@ -452,6 +472,22 @@ class MatchingMixin:
         self, current_prices: Optional[Dict[str, float]] = None
     ) -> Dict[str, float]:
         return self.reservation_projection.pending_notional(current_prices)
+
+    def cancel_opening_orders(
+        self, symbols: Optional[Iterable[str]] = None, *, timestamp: Any = None,
+    ) -> int:
+        """Retire entry remainders without canceling protective/reducing exits."""
+        wanted = None if symbols is None else set(symbols)
+        def targeted(order: Order) -> bool:
+            return order.side in {"buy", "short"} and (wanted is None or order.symbol in wanted)
+        cancelled = [order for order in self.pending_orders + self.active_orders if targeted(order)]
+        self.pending_orders = [order for order in self.pending_orders if not targeted(order)]
+        self.active_orders = [order for order in self.active_orders if not targeted(order)]
+        for order in cancelled:
+            if order.status not in {BacktestOrderStatus.CANCELED, BacktestOrderStatus.REJECTED,
+                                    BacktestOrderStatus.EXPIRED, BacktestOrderStatus.FILLED}:
+                self._set_status(order, BacktestOrderStatus.CANCELED, timestamp)
+        return len(cancelled)
 
     def cancel_protective_stops(self, symbols: Optional[Iterable[str]] = None) -> int:
         """Cancel venue-resident protective stops, optionally for some symbols.

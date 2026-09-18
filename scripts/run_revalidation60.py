@@ -18,6 +18,7 @@ import pandas as pd
 from analysis.research_validation import walk_forward_splits
 from backtest.engine import BacktestEngine
 from backtest.reporting import ReportGenerator
+from backtest.reporting.operating_periods import requested_period_curve, split_execution_records
 from config.config import config
 from core.data import DataHandler
 from core.lots import CloseEvent
@@ -150,30 +151,30 @@ def run_one(name, root, all_frames, frozen, *, start=START, end=END, multiplier=
                                      lifecycle=result["lifecycle"], strategy_health=result["strategy_health"],
                                      protective_stops=result["protective_stop_summary"])
         save(folder / "metrics.json", metrics)
+        pd.DataFrame(result.get("strategy_activity", [])).to_csv(folder / "strategy_activity.csv", index=False)
         closed_legs = reporter._reconstruct_closed_trades(pd.DataFrame(result["trades"]))
         pd.DataFrame(reporter._aggregate_round_trips(closed_legs)).to_csv(folder / "closed_trades.csv", index=False)
         save(folder / "digest.json", deterministic_result_digest(result))
         for key in ("lifecycle", "accounting_check", "strategy_health", "breaker_state", "account_cost_contract"):
             save(folder / f"{key}.json", result[key])
-        for key in ("trades", "financing_ledger", "execution_audit", "stop_order_audit", "allocation_audit", "breaker_audit",
-                    "risk_budget_reconciliation", "correlated_risk_audit", "strategy_health_cohorts", "strategy_health_transitions"):
-            pd.DataFrame(result[key]).to_csv(folder / f"{key}.csv", index=False)
+        for key in ("financing_ledger", "execution_audit", "stop_order_audit", "allocation_audit", "breaker_audit",
+                    "risk_budget_reconciliation", "correlated_risk_audit", "strategy_health_cohorts", "strategy_health_transitions",
+                    "drawdown_budget_audit", "entry_observations"):
+            pd.DataFrame(result.get(key, [])).to_csv(folder / f"{key}.csv", index=False)
+        actual_trades, valuation_transfers = split_execution_records(result['trades'], mark_to_market=not forced)
+        pd.DataFrame(result['trades']).to_csv(folder / 'engine_trades.csv', index=False)
+        columns = pd.DataFrame(result['trades']).columns
+        pd.DataFrame(actual_trades, columns=columns).to_csv(folder / 'trades.csv', index=False)
+        pd.DataFrame(valuation_transfers, columns=columns).to_csv(folder / 'valuation_transfers.csv', index=False)
         pd.DataFrame([event_row(event) for event in result["close_event_records"]]).to_csv(folder / "close_events.csv", index=False)
         save(folder / "close_events.json", [event_row(event) for event in result["close_event_records"]])
         result["equity_curve"].to_csv(folder / "equity_engine.csv")
-        curve = result["equity_curve"].groupby(result["equity_curve"].index.normalize()).last()
-        full = curve.reindex(pd.date_range(start, end)).ffill()
-        for column in full:
-            full[column] = full[column].fillna(10000 if column in {"equity", "cash"} else 0)
-        full["phase"] = "market_evaluation"
-        full.loc[full.index < curve.index.min(), "phase"] = "pre_market_cash"
-        termination = result["lifecycle"].get("termination_timestamp")
-        if termination is not None:
-            full.loc[full.index > pd.Timestamp(termination), "phase"] = "risk_halted_cash"
+        full = requested_period_curve(result['equity_curve'], start, end, capital=10000,
+            lifecycle=result['lifecycle'], activity=result.get('strategy_activity', []))
         full.to_csv(folder / "equity_requested_period.csv", index_label="timestamp")
         period_metrics = {}
-        active_start = min((pd.Timestamp(t.get("fill_time", t.get("timestamp"))).tz_localize(None) for t in result["trades"]), default=None)
-        active_end = max((pd.Timestamp(t.get("fill_time", t.get("timestamp"))).tz_localize(None) for t in result["trades"]), default=None)
+        active_start = min((pd.Timestamp(t.get("fill_time", t.get("timestamp"))).tz_localize(None) for t in actual_trades), default=None)
+        active_end = max((pd.Timestamp(t.get("fill_time", t.get("timestamp"))).tz_localize(None) for t in actual_trades), default=None)
         market_start = max(start, min(f.index.min() for f in all_frames.values()))
         for label, subset in {"requested": full, "market": full.loc[market_start:],
                               "active": full.loc[active_start:active_end] if active_start is not None else full.iloc[:0]}.items():
@@ -187,7 +188,8 @@ def run_one(name, root, all_frames, frozen, *, start=START, end=END, multiplier=
             values.update(start=subset.index[0], end=subset.index[-1],
                           SortinoRatio=float(returns.mean() / downside * np.sqrt(365.25)) if downside else None,
                           MeanGrossExposure=float(subset.get("gross_exposure_pct_equity", pd.Series([0])).mean()),
-                          Turnover=sum(abs(float(t["qty"]) * float(t["fill_price"])) for t in result["trades"]) / float(subset.equity.mean()))
+                          Turnover=sum(abs(float(t["qty"]) * float(t["fill_price"])) for t in actual_trades
+                              if subset.index[0] <= pd.Timestamp(t.get('fill_time', t.get('timestamp'))).tz_localize(None).normalize() <= subset.index[-1]) / float(subset.equity.mean()))
             period_metrics[label] = values
         save(folder / "period_metrics.json", period_metrics)
         yearly = []
@@ -201,7 +203,8 @@ def run_one(name, root, all_frames, frozen, *, start=START, end=END, multiplier=
                    "initial_capital": 10000, "final_equity": float(full.equity.iloc[-1]),
                    "return_pct": (float(full.equity.iloc[-1]) / 10000 - 1) * 100,
                    "max_drawdown_pct": float((1 - full.equity / full.equity.cummax()).max()) * 100,
-                   "fill_count": len(result["trades"]), "closed_event_count": len(result["close_event_records"]),
+                   "fill_count": len(actual_trades), "valuation_transfer_count": len(valuation_transfers),
+                   "closed_event_count": len(result["close_event_records"]),
                    "profit_factor": metrics.get("ProfitFactor"), "lifecycle": result["lifecycle"],
                    "accounting_ok": True}
         save(folder / "summary.json", summary)
@@ -212,10 +215,11 @@ def run_one(name, root, all_frames, frozen, *, start=START, end=END, multiplier=
         config._config = prior
 
 
-def concentration(result):
+def concentration(result, *, mark_to_market=True):
     # Preserve all close facts rather than the health machine's retained tail.
-    rows = [event_row(event) for event in result.get("close_event_records", result["close_events"])]
-    rows = [row for row in rows if row["exit_reason"] != "EndOfBacktest"]
+    rows = [event_row(event) for event in result.get("close_event_records", result.get("close_events", []))]
+    if mark_to_market:
+        rows = [row for row in rows if row["exit_reason"] != "EndOfBacktest"]
     grouped = {}
     for row in rows:
         key = (row["opening_strategy_id"], str(pd.Timestamp(row["timestamp"]).date()),
@@ -224,7 +228,7 @@ def concentration(result):
     values = np.array([grouped[key] for key in sorted(grouped, key=lambda key: (key[1], key[0], key[2]))])
     output = {"cohort_count": len(values), "block_length": 5, "seed": 42, "iterations": 2000,
               "sample_status": "sufficient_for_estimation" if len(values) >= 30 else "insufficient",
-              "tail_mark_events_excluded": True, "scenarios": {}}
+              "tail_mark_events_excluded": mark_to_market, "scenarios": {}}
     for top in (0, 5, 10):
         retained = values.copy()
         positive = np.flatnonzero(values > 0)

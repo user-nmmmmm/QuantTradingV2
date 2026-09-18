@@ -300,14 +300,14 @@ def evaluate_fill_risk(
     fill_price: float,
     protective_stop: Optional[float],
     filled_qty: float,
-    equity_at_fill: float,
-    base_risk_per_trade: float,
-    health_risk_multiplier: float = 1.0,
+    approved_risk_amount: float,
     policy: Optional[EntryRiskPolicy] = None,
 ) -> Optional[FillRiskAssessment]:
-    """Recompute risk from the real fill and name the action to take.
+    """Recompute risk from cumulative real fills and name the action to take.
 
-    ``risk_budget = equity_at_fill * base_risk_per_trade * health_multiplier``.
+    ``risk_budget = approved_risk_amount`` for the entire opening order.
+    Cumulative fills share this fixed approval; current equity, health and
+    account multipliers cannot enlarge it after submission.
     Returns ``None`` when the check does not apply (disabled, no stop, no
     quantity) - a missing stop is reported by the caller's own contract, not
     silently treated as "within budget".
@@ -320,12 +320,8 @@ def evaluate_fill_risk(
     if risk_per_unit <= 0:
         return None
     actual_total_risk = risk_per_unit * float(filled_qty)
-    risk_budget = (
-        float(equity_at_fill) * float(base_risk_per_trade)
-        * float(health_risk_multiplier)
-    )
-    if risk_budget <= 0:
-        return None
+    from core.entry_risk import resolve_approved_risk
+    risk_budget, _ = resolve_approved_risk({"approved_risk_amount": approved_risk_amount})
     ratio = actual_total_risk / risk_budget
     affordable_qty = risk_budget / risk_per_unit
     breached = ratio > 1.0 + policy.tolerance

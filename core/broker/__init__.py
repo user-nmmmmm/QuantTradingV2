@@ -134,6 +134,9 @@ class Broker(MatchingMixin, FillServiceMixin, FinancingMixin, LiquidationMixin):
         self.close_events: List[CloseEvent] = []
         self._close_event_sequence = 0
         self.pending_orders: List[Order] = []
+        # Retain cumulative opening fills and their immutable approvals even
+        # after an order leaves the matching queues.
+        self.opening_orders: Dict[str, Order] = {}
         self.active_orders: List[
             Order
         ] = []  # Orders that persist across bars (Limit/Stop)

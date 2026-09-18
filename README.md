@@ -4,8 +4,9 @@
 > Canonical repository directory: `QuantTradingV1`. The deprecated `QauntTradingV1`
 > spelling must not be used by deployment scripts or documentation.
 >
-> **能力边界声明**：本仓库未实现任何机器学习训练或预测子系统；曾经的占位包 `models/` 已被移除。
-> This repository has no machine-learning training or prediction subsystem implemented.
+> **能力边界声明**：本仓库没有机器学习分类器或自动学习的状态模型；曾经的占位包 `models/` 已被移除。
+> 现有 P1 条件 EV 是默认关闭的统计研究层，使用固定分桶与因果历史估计，不参与正式下单或策略准入。
+> This repository has no machine-learning training or prediction subsystem. P1 is an opt-in, research-only statistical estimator with fixed context bins.
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![Status: Alpha](https://img.shields.io/badge/Status-Alpha-orange.svg)]()
@@ -560,6 +561,8 @@ python -m dashboard --status reports/live_status.json --alerts reports/live_aler
 | `--secondary-data-dir` | — | 头部盈亏交易第二数据源核对用的独立 CSV 目录 |
 | `--require-secondary-audit` | `False` | 第二数据源核对不通过时返回非零退出码 |
 | `--replay-manifest` | — | 重跑已有 `run_manifest.json` 并比对确定性输出 |
+| `--observe-signals` | `False` | P0 原始候选、上下文、固定周期结果、实际成交关联与 Ghost 诊断；不改变正式下单 |
+| `--signal-meta-layer` | `False` | P1 条件 EV、时间衰减、收缩与冻结滚动诊断；自动启用 P0，不改变正式下单 |
 | `--disable-routing-log` | `False` | 关闭逐 bar 路由 CSV，用于批量参数优化 |
 
 ### 5.2 实盘入口 `run_live.py`
@@ -768,6 +771,8 @@ python -m pytest -q
 | [`docs/development_plan.md`](docs/development_plan.md) | 当前开发批次、任务顺序和验收产物 |
 | [`docs/backtest_assumptions.md`](docs/backtest_assumptions.md) | 执行模型、费率/滑点、数据对齐与局限性 |
 | [`docs/authoritative_ledger.md`](docs/authoritative_ledger.md) | 权威账本与会计口径 |
+| [`docs/p0_signal_observation.md`](docs/p0_signal_observation.md) | P0 信号观察契约、门控诊断、有限本金影子回放与验收 |
+| [`docs/p1_signal_meta_layer.md`](docs/p1_signal_meta_layer.md) | P1 条件 EV 账本、支持门槛、冻结滚动验证与复现证据 |
 | [`docs/canonical_trading_events.md`](docs/canonical_trading_events.md) | 规范交易事件模型 |
 | [`docs/g1_live_safety.md`](docs/g1_live_safety.md) / [`docs/g2_order_lifecycle.md`](docs/g2_order_lifecycle.md) | 实盘安全与订单生命周期门槛 |
 | [`docs/deployment.md`](docs/deployment.md) / [`docs/r6_operations.md`](docs/r6_operations.md) / [`docs/r7_sandbox_runbook.md`](docs/r7_sandbox_runbook.md) | 部署、运维与 sandbox 手册 |

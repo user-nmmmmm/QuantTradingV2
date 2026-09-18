@@ -66,6 +66,7 @@ class TestBacktestEngine(unittest.TestCase):
         portfolio = Portfolio(initial_capital=10000.0)
         broker = MagicMock()
         risk_manager = MagicMock()
+        risk_manager.drawdown_budget = None  # Isolate execution-bar liquidity here.
         risk_manager.calculate_position_size.return_value = 1.0
         risk_manager.check_entry_risk.return_value = False
         # Pass sizing through unclamped so this test isolates the liquidity arg.

@@ -1,0 +1,871 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Still Water QuantTrading 系统架构",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "output": "quant_trading_architecture.html",
+    "viewBox": [
+      1320,
+      732
+    ],
+    "repository": {
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2",
+      "provider": "github",
+      "link_mode": "local-only",
+      "revision": "82e0c8f8aac264a8705d11ccadbf511c707f979e"
+    }
+  },
+  "components": [
+    {
+      "id": "entry_backtest",
+      "type": "frontend",
+      "label": "main.py",
+      "sublabel": "回测 CLI",
+      "pos": [
+        40,
+        26
+      ],
+      "size": [
+        220,
+        38
+      ],
+      "sources": [
+        {
+          "path": "main.py"
+        }
+      ]
+    },
+    {
+      "id": "entry_scripts",
+      "type": "frontend",
+      "label": "scripts/",
+      "sublabel": "数据抓取 / 批量矩阵 / 自检",
+      "pos": [
+        300,
+        26
+      ],
+      "size": [
+        200,
+        38
+      ]
+    },
+    {
+      "id": "entry_live",
+      "type": "frontend",
+      "label": "run_live.py",
+      "sublabel": "实盘轮询入口",
+      "pos": [
+        560,
+        26
+      ],
+      "size": [
+        200,
+        38
+      ],
+      "sources": [
+        {
+          "path": "run_live.py"
+        }
+      ]
+    },
+    {
+      "id": "entry_resolve",
+      "type": "frontend",
+      "label": "resolve_live_order.py",
+      "sublabel": "UNKNOWN 订单人工恢复",
+      "pos": [
+        840,
+        26
+      ],
+      "size": [
+        200,
+        38
+      ],
+      "sources": [
+        {
+          "path": "resolve_live_order.py"
+        }
+      ]
+    },
+    {
+      "id": "entry_dashboard",
+      "type": "frontend",
+      "label": "dashboard",
+      "sublabel": "只读运维视图",
+      "pos": [
+        1080,
+        26
+      ],
+      "size": [
+        180,
+        38
+      ],
+      "sources": [
+        {
+          "path": "dashboard/__main__.py"
+        }
+      ]
+    },
+    {
+      "id": "adapter_fetcher",
+      "type": "cloud",
+      "label": "DataFetcher",
+      "sublabel": "synthetic / yahoo / ccxt / local",
+      "pos": [
+        40,
+        100
+      ],
+      "size": [
+        220,
+        42
+      ],
+      "sources": [
+        {
+          "path": "core/data_fetcher.py"
+        }
+      ]
+    },
+    {
+      "id": "adapter_market",
+      "type": "cloud",
+      "label": "MarketDataAdapter",
+      "sublabel": "Historical / Live 行情适配",
+      "pos": [
+        340,
+        100
+      ],
+      "size": [
+        280,
+        42
+      ],
+      "sources": [
+        {
+          "path": "core/market_data.py"
+        }
+      ]
+    },
+    {
+      "id": "adapter_exchange",
+      "type": "security",
+      "label": "ExchangeBoundary",
+      "sublabel": "元数据 / 精度 / 能力校验",
+      "pos": [
+        700,
+        100
+      ],
+      "size": [
+        240,
+        42
+      ],
+      "sources": [
+        {
+          "path": "core/exchange/__init__.py"
+        }
+      ]
+    },
+    {
+      "id": "core_ep",
+      "type": "backend",
+      "label": "EventProcessor",
+      "sublabel": "模式无关的单 bar 内核",
+      "pos": [
+        340,
+        172
+      ],
+      "size": [
+        280,
+        42
+      ],
+      "tag": "共享内核",
+      "sources": [
+        {
+          "path": "core/runtime.py"
+        }
+      ]
+    },
+    {
+      "id": "core_sm",
+      "type": "backend",
+      "label": "MarketStateMachine",
+      "sublabel": "Regime 判定（SMA / ADX / ATR）",
+      "pos": [
+        340,
+        242
+      ],
+      "size": [
+        280,
+        42
+      ],
+      "sources": [
+        {
+          "path": "core/state.py"
+        }
+      ]
+    },
+    {
+      "id": "core_router",
+      "type": "backend",
+      "label": "Router + Allocator",
+      "sublabel": "Regime 路由 + 组合级分配",
+      "pos": [
+        340,
+        312
+      ],
+      "size": [
+        280,
+        42
+      ],
+      "sources": [
+        {
+          "path": "router/router.py"
+        },
+        {
+          "path": "core/allocation.py"
+        }
+      ]
+    },
+    {
+      "id": "core_strats",
+      "type": "backend",
+      "label": "Strategies",
+      "sublabel": "TrendBreakout 等 4 个策略插件",
+      "pos": [
+        40,
+        312
+      ],
+      "size": [
+        210,
+        42
+      ],
+      "sources": [
+        {
+          "path": "strategies/base.py"
+        }
+      ]
+    },
+    {
+      "id": "core_risk",
+      "type": "security",
+      "label": "RiskManager",
+      "sublabel": "杠杆 / 集中度 / 分级熔断",
+      "pos": [
+        340,
+        382
+      ],
+      "size": [
+        280,
+        42
+      ],
+      "sources": [
+        {
+          "path": "core/risk/__init__.py"
+        }
+      ]
+    },
+    {
+      "id": "exec_broker",
+      "type": "backend",
+      "label": "Broker 撮合模拟",
+      "sublabel": "Next-Bar / 费用 / 冲击成本",
+      "pos": [
+        40,
+        466
+      ],
+      "size": [
+        210,
+        42
+      ],
+      "sources": [
+        {
+          "path": "core/broker/__init__.py"
+        }
+      ]
+    },
+    {
+      "id": "adapter_execution",
+      "type": "cloud",
+      "label": "ExecutionPort",
+      "sublabel": "执行端口协议（Protocol）",
+      "pos": [
+        340,
+        466
+      ],
+      "size": [
+        280,
+        42
+      ],
+      "sources": [
+        {
+          "path": "core/execution_port.py"
+        }
+      ]
+    },
+    {
+      "id": "exec_live",
+      "type": "backend",
+      "label": "SafeLiveBroker → LiveBroker",
+      "sublabel": "幂等下单 + 重试 + 对账",
+      "pos": [
+        700,
+        466
+      ],
+      "size": [
+        240,
+        42
+      ],
+      "sources": [
+        {
+          "path": "core/live_broker/__init__.py"
+        }
+      ]
+    },
+    {
+      "id": "ext_exchange",
+      "type": "external",
+      "label": "交易所（CCXT）",
+      "sublabel": "binance sandbox / live",
+      "pos": [
+        1020,
+        466
+      ],
+      "size": [
+        180,
+        42
+      ]
+    },
+    {
+      "id": "core_pf",
+      "type": "database",
+      "label": "Portfolio / LotBook",
+      "sublabel": "权益 / 保证金 / FIFO 批次账本",
+      "pos": [
+        340,
+        550
+      ],
+      "size": [
+        280,
+        42
+      ],
+      "sources": [
+        {
+          "path": "core/portfolio.py"
+        },
+        {
+          "path": "core/lots.py"
+        }
+      ]
+    },
+    {
+      "id": "gov_gates",
+      "type": "security",
+      "label": "R7 / Phase 6 准入",
+      "sublabel": "--r8-evidence / 灰度放量",
+      "pos": [
+        40,
+        648
+      ],
+      "size": [
+        210,
+        42
+      ],
+      "sources": [
+        {
+          "path": "core/r7_acceptance.py"
+        },
+        {
+          "path": "core/admission_gates.py"
+        }
+      ]
+    },
+    {
+      "id": "gov_metrics",
+      "type": "backend",
+      "label": "metrics / diagnostics",
+      "sublabel": "绩效 / 归因 / 可信度诊断",
+      "pos": [
+        290,
+        648
+      ],
+      "size": [
+        210,
+        42
+      ],
+      "sources": [
+        {
+          "path": "core/metrics/__init__.py"
+        },
+        {
+          "path": "core/diagnostics.py"
+        }
+      ]
+    },
+    {
+      "id": "gov_repro",
+      "type": "backend",
+      "label": "reproducibility / audit",
+      "sublabel": "run_manifest / 回放校验",
+      "pos": [
+        540,
+        648
+      ],
+      "size": [
+        210,
+        42
+      ],
+      "sources": [
+        {
+          "path": "core/reproducibility.py"
+        },
+        {
+          "path": "core/backtest_audit.py"
+        }
+      ]
+    },
+    {
+      "id": "gov_events",
+      "type": "database",
+      "label": "events + SQLite 存储",
+      "sublabel": "order_store / state_store_v2",
+      "pos": [
+        790,
+        648
+      ],
+      "size": [
+        210,
+        42
+      ],
+      "sources": [
+        {
+          "path": "core/events/__init__.py"
+        },
+        {
+          "path": "core/order_store.py"
+        }
+      ]
+    },
+    {
+      "id": "gov_health",
+      "type": "backend",
+      "label": "health / alerting",
+      "sublabel": "健康评估 / 心跳 / Webhook",
+      "pos": [
+        1040,
+        648
+      ],
+      "size": [
+        210,
+        42
+      ],
+      "sources": [
+        {
+          "path": "core/health.py"
+        },
+        {
+          "path": "core/alerting.py"
+        }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "入口层 Entrypoints",
+      "wraps": [
+        "entry_backtest",
+        "entry_scripts",
+        "entry_live",
+        "entry_resolve",
+        "entry_dashboard"
+      ],
+      "pad": 10
+    },
+    {
+      "kind": "region",
+      "label": "边界层 Adapters",
+      "wraps": [
+        "adapter_fetcher",
+        "adapter_market",
+        "adapter_exchange"
+      ],
+      "pad": 10
+    },
+    {
+      "kind": "region",
+      "label": "领域内核 Domain Core（模式无关）",
+      "wraps": [
+        "core_ep",
+        "core_sm",
+        "core_router",
+        "core_strats",
+        "core_risk"
+      ],
+      "pad": 10
+    },
+    {
+      "kind": "region",
+      "label": "执行层 Execution（含执行端口）",
+      "wraps": [
+        "exec_broker",
+        "adapter_execution",
+        "exec_live",
+        "ext_exchange"
+      ],
+      "pad": 10
+    },
+    {
+      "kind": "region",
+      "label": "组合账本",
+      "wraps": [
+        "core_pf"
+      ],
+      "pad": 10
+    },
+    {
+      "kind": "region",
+      "label": "治理与观测 Governance & Observability",
+      "wraps": [
+        "gov_gates",
+        "gov_metrics",
+        "gov_repro",
+        "gov_events",
+        "gov_health"
+      ],
+      "pad": 10
+    }
+  ],
+  "connections": [
+    {
+      "from": "entry_backtest",
+      "to": "adapter_fetcher",
+      "label": "回测参数",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        150,
+        82
+      ]
+    },
+    {
+      "from": "entry_scripts",
+      "to": "adapter_fetcher",
+      "label": "本地缓存行情",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "right",
+      "labelAt": [
+        275,
+        74
+      ],
+      "via": [
+        [
+          400,
+          94
+        ],
+        [
+          280,
+          94
+        ],
+        [
+          280,
+          121
+        ]
+      ]
+    },
+    {
+      "from": "adapter_fetcher",
+      "to": "adapter_market",
+      "label": "归一化 OHLCV",
+      "labelAt": [
+        300,
+        138
+      ]
+    },
+    {
+      "from": "entry_live",
+      "to": "adapter_market",
+      "label": "轮询驱动",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        570,
+        74
+      ]
+    },
+    {
+      "from": "entry_live",
+      "to": "adapter_exchange",
+      "label": "启动预检 / 白名单",
+      "variant": "security",
+      "fromSide": "right",
+      "toSide": "top",
+      "via": [
+        [
+          820,
+          45
+        ]
+      ],
+      "labelAt": [
+        872,
+        78
+      ]
+    },
+    {
+      "from": "adapter_market",
+      "to": "core_ep",
+      "label": "已收盘 bar",
+      "variant": "emphasis",
+      "labelAt": [
+        520,
+        157
+      ]
+    },
+    {
+      "from": "core_ep",
+      "to": "core_sm",
+      "label": "Regime 判定",
+      "variant": "emphasis",
+      "labelAt": [
+        520,
+        228
+      ]
+    },
+    {
+      "from": "core_sm",
+      "to": "core_router",
+      "label": "按状态路由",
+      "variant": "emphasis",
+      "labelAt": [
+        520,
+        298
+      ]
+    },
+    {
+      "from": "core_router",
+      "to": "core_strats",
+      "label": "候选收集",
+      "labelAt": [
+        295,
+        324
+      ]
+    },
+    {
+      "from": "core_router",
+      "to": "core_risk",
+      "label": "组合级分配",
+      "variant": "emphasis",
+      "labelAt": [
+        520,
+        368
+      ]
+    },
+    {
+      "from": "core_risk",
+      "to": "adapter_execution",
+      "label": "定量后下单",
+      "variant": "emphasis",
+      "labelAt": [
+        520,
+        445
+      ]
+    },
+    {
+      "from": "adapter_execution",
+      "to": "exec_broker",
+      "label": "Simulated",
+      "labelAt": [
+        295,
+        487
+      ]
+    },
+    {
+      "from": "adapter_execution",
+      "to": "exec_live",
+      "label": "Recorded",
+      "labelAt": [
+        660,
+        487
+      ]
+    },
+    {
+      "from": "adapter_exchange",
+      "to": "exec_live",
+      "label": "精度量化 / 下单校验",
+      "variant": "security",
+      "labelAt": [
+        872,
+        200
+      ]
+    },
+    {
+      "from": "exec_live",
+      "to": "ext_exchange",
+      "label": "CCXT REST 下单",
+      "variant": "emphasis",
+      "labelAt": [
+        980,
+        470
+      ]
+    },
+    {
+      "from": "exec_broker",
+      "to": "core_pf",
+      "label": "成交回写",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "via": [
+        [
+          145,
+          529
+        ],
+        [
+          480,
+          529
+        ]
+      ],
+      "labelAt": [
+        118,
+        535
+      ]
+    },
+    {
+      "from": "exec_live",
+      "to": "core_pf",
+      "label": "成交回写",
+      "fromSide": "bottom",
+      "toSide": "right",
+      "via": [
+        [
+          820,
+          529
+        ],
+        [
+          700,
+          529
+        ],
+        [
+          700,
+          571
+        ]
+      ],
+      "labelAt": [
+        736,
+        550
+      ]
+    },
+    {
+      "from": "core_pf",
+      "to": "gov_metrics",
+      "label": "绩效与诊断",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "via": [
+        [
+          480,
+          620
+        ],
+        [
+          395,
+          620
+        ]
+      ],
+      "labelAt": [
+        437,
+        620
+      ]
+    },
+    {
+      "from": "entry_resolve",
+      "to": "gov_events",
+      "label": "人工核实写入审计账本",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "via": [
+        [
+          940,
+          80
+        ],
+        [
+          1230,
+          80
+        ],
+        [
+          1230,
+          620
+        ],
+        [
+          895,
+          620
+        ]
+      ],
+      "labelAt": [
+        1085,
+        80
+      ]
+    },
+    {
+      "from": "gov_events",
+      "to": "gov_repro",
+      "label": "回放校验",
+      "variant": "dashed",
+      "labelAt": [
+        770,
+        620
+      ]
+    },
+    {
+      "from": "gov_health",
+      "to": "entry_dashboard",
+      "label": "live_status.json 只读",
+      "variant": "dashed",
+      "fromSide": "right",
+      "toSide": "right",
+      "via": [
+        [
+          1280,
+          669
+        ],
+        [
+          1280,
+          45
+        ]
+      ],
+      "labelAt": [
+        1168,
+        340
+      ]
+    },
+    {
+      "from": "gov_gates",
+      "to": "entry_live",
+      "label": "--r8-evidence 强制校验",
+      "variant": "security",
+      "fromSide": "top",
+      "toSide": "top",
+      "via": [
+        [
+          145,
+          612
+        ],
+        [
+          8,
+          612
+        ],
+        [
+          8,
+          8
+        ],
+        [
+          660,
+          8
+        ]
+      ],
+      "labelAt": [
+        64,
+        290
+      ]
+    }
+  ]
+}

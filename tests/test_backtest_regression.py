@@ -16,7 +16,7 @@ from tests.engine_baseline_harness import (
 )
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures" / "backtest"
-ENGINE_BASELINE_PATH = FIXTURE_DIR / "engine" / "engine_baseline_v1.json"
+ENGINE_BASELINE_PATH = FIXTURE_DIR / "engine" / "engine_baseline_v2.json"
 
 class TestBacktestFixedBaselines(unittest.TestCase):
     def bundles(self):

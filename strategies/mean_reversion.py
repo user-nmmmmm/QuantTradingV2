@@ -6,6 +6,7 @@ from core.portfolio import Portfolio
 from core.indicators import Indicators
 from core.factors import MomentumFactors
 from strategies.base import Strategy
+from core.entry_audit import note
 
 """
 震荡均值回归策略（Range Mean Reversion）模块
@@ -87,8 +88,13 @@ class RangeStrategy(Strategy):
         
         # Check Cooldown
         if i <= ts['cooldown_until']:
+            note("strategy_cooldown")
             return None
-            
+
+        return self.raw_entry_signal(symbol, i, df)
+
+    def raw_entry_signal(self, symbol: str, i: int, df: pd.DataFrame):
+        self._ensure_indicators(df)
         if i < 1: return None
         if pd.isna(df['BB_UPPER'].iat[i]) or pd.isna(df['ATR_14'].iat[i]): return None
         
