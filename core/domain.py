@@ -65,6 +65,7 @@ class RiskDecision:
     approved: bool
     reason: str
     intent_id: Optional[str] = None
+    approved_risk_amount: Optional[Decimal] = None
 
     def __post_init__(self) -> None:
         if not self.decision_id or not self.symbol or not self.action:
@@ -83,6 +84,11 @@ class RiskDecision:
         object.__setattr__(self, "requested_qty", requested)
         object.__setattr__(self, "approved_qty", approved)
         object.__setattr__(self, "reference_price", price)
+        if self.approved_risk_amount is not None:
+            risk = _finite_decimal(self.approved_risk_amount, "approved_risk_amount")
+            if risk <= 0:
+                raise ValueError("approved_risk_amount must be positive")
+            object.__setattr__(self, "approved_risk_amount", risk)
 
 
 @dataclass(frozen=True)
@@ -97,6 +103,7 @@ class RiskReservation:
     action: str
     reserved_qty: Decimal
     reference_price: Decimal
+    approved_risk_amount: Optional[Decimal] = None
 
     def __post_init__(self) -> None:
         if not all((self.reservation_id, self.risk_decision_id, self.intent_id, self.symbol)):
@@ -107,6 +114,11 @@ class RiskReservation:
             raise ValueError("reserved_qty and reference_price must be positive")
         object.__setattr__(self, "reserved_qty", qty)
         object.__setattr__(self, "reference_price", price)
+        if self.approved_risk_amount is not None:
+            risk = _finite_decimal(self.approved_risk_amount, "approved_risk_amount")
+            if risk <= 0:
+                raise ValueError("approved_risk_amount must be positive")
+            object.__setattr__(self, "approved_risk_amount", risk)
 
     @property
     def reserved_notional(self) -> Decimal:
@@ -140,6 +152,16 @@ class OrderIntent:
     initial_stop: Optional[float] = None
     exit_reason: Optional[str] = None
     risk_action_id: Optional[str] = None
+    # Whole-order stop-loss budget after account/health/allocation clamps.
+    # Optional for old ledgers; never reconstructed from fill-time equity.
+    approved_risk_amount: Optional[float] = None
+
+    def __post_init__(self) -> None:
+        if self.approved_risk_amount is not None:
+            amount = _finite_decimal(self.approved_risk_amount, "approved_risk_amount")
+            if amount <= 0:
+                raise ValueError("approved_risk_amount must be positive")
+            object.__setattr__(self, "approved_risk_amount", float(amount))
 
     @property
     def identity(self) -> Dict[str, Any]:

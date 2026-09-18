@@ -56,6 +56,7 @@ ACCOUNT_RISK_EXIT_REASONS = frozenset({
     "AccountLiquidation",
     "MarginLiquidation",
     "DrawdownReduce",
+    "DrawdownBudgetReduce",
     "GapRiskResize",
     "unprotected_flatten",
 })
@@ -127,6 +128,9 @@ class StrategyHealthPolicy:
     recovery_risk_multiplier: float = 0.10
     recovery_stages: tuple[float, ...] = ()
     recovery_stage_min_days: float = 30.0
+    unified_recovery: bool = False
+    probation_min_distinct_symbols: int = 1
+    probation_require_positive_without_best: bool = False
     rolling_cohort_window: int = 20
     max_retained_cohorts: int = 500
     max_retained_transitions: int = 200
@@ -144,6 +148,10 @@ class StrategyHealthPolicy:
             raise ValueError("probation_risk_multiplier must be in [0, 1]")
         if self.probation_required_cohorts < 1:
             raise ValueError("probation_required_cohorts must be >= 1")
+        if self.probation_min_distinct_symbols < 1:
+            raise ValueError("probation_min_distinct_symbols must be >= 1")
+        if self.unified_recovery and not self.recovery_stages:
+            raise ValueError("Unified recovery requires explicit recovery stages")
         if self.max_failed_probation_cycles < 1:
             raise ValueError("max_failed_probation_cycles must be >= 1")
         if self.repeated_failure_action not in ("manual_lock", "extended_cooldown"):
@@ -414,6 +422,10 @@ class StrategyHealthMachine:
             return self.status
 
         if self.status is HealthStatus.PROBATION:
+            if self.probation_started_at is None and moment is not None:
+                # A migrated checkpoint starts a fresh observation clock at the
+                # first actual evaluation, never at an invented wall-clock time.
+                self.probation_started_at = moment
             # A probation verdict is deliberately sample-gated.  In
             # particular, the negative cohorts that caused the preceding
             # cooldown must never make a brand-new probation fail immediately.
@@ -429,6 +441,11 @@ class StrategyHealthMachine:
                     self._fail_probation(moment, reason="probation_total_r_below_gate")
                 return self.status
             if self.probation_total_r > self.policy.probation_min_total_r:
+                if len(self.probation_symbols) < self.policy.probation_min_distinct_symbols:
+                    return self.status
+                if (self.policy.probation_require_positive_without_best
+                        and self.probation_r_without_best <= 0):
+                    return self.status
                 if self.recovery_stage >= 0 and self.recovery_stage < len(self.policy.recovery_stages) - 2:
                     self.recovery_stage += 1
                     self._transition(HealthStatus.PROBATION, moment, reason="recovery_stage_passed")
@@ -489,6 +506,17 @@ class StrategyHealthMachine:
         self, target: HealthStatus, moment: Optional[datetime], *, reason: str,
     ) -> None:
         previous = self.status
+        if self.policy.unified_recovery and target is HealthStatus.COOLDOWN:
+            self.recovery_stage = 0
+        if (self.policy.unified_recovery and target is HealthStatus.PROBATION
+                and previous is not HealthStatus.PROBATION):
+            self.recovery_stage = 0
+        evidence = {
+            "evidence_cohorts": self.probation_closed_cohorts,
+            "evidence_symbols": sorted(self.probation_symbols),
+            "evidence_total_r": self.probation_total_r,
+            "evidence_r_without_best": self.probation_r_without_best,
+        }
         self.status = target
         self.status_changed_at = moment
         self.trigger_reason = reason
@@ -502,6 +530,7 @@ class StrategyHealthMachine:
             self.cooldown_until = None
             self.probation_started_at = None
         self.transitions.append({
+            **evidence,
             "strategy": self.strategy_name,
             "at": _iso(moment),
             "from": previous.value,
@@ -572,12 +601,23 @@ class StrategyHealthMachine:
     def probation_total_r(self) -> float:
         return sum(cohort.r for cohort in self._probation_cohorts())
 
+    @property
+    def probation_symbols(self) -> set[str]:
+        return {symbol for cohort in self._probation_cohorts() for symbol in cohort.symbols}
+
+    @property
+    def probation_r_without_best(self) -> float:
+        values = [cohort.r for cohort in self._probation_cohorts()]
+        return sum(values) - max([0.0, *values])
+
     def _last_counted_cohort(self) -> Optional[HealthCohort]:
         counted = self.counted_cohorts()
         return counted[-1] if counted else None
 
     @property
     def risk_multiplier(self) -> float:
+        if not self.policy.enabled:
+            return 1.0
         if self.status is HealthStatus.ACTIVE:
             return 1.0
         if self.status is HealthStatus.PROBATION:
@@ -623,11 +663,16 @@ class StrategyHealthMachine:
             "rolling_cohort_r": self.rolling_cohort_r,
             "probation_closed_cohorts": self.probation_closed_cohorts,
             "probation_total_r": self.probation_total_r,
+            "probation_symbols": sorted(self.probation_symbols),
+            "probation_r_without_best": self.probation_r_without_best,
             "probation_risk_multiplier": float(
                 self.policy.probation_risk_multiplier
             ),
             "failed_probation_cycles": self.failed_probation_cycles,
             "manual_lock_reason": self.manual_lock_reason,
+            "automatic_failure_action": self.policy.repeated_failure_action,
+            "next_recovery_at": _iso(self.cooldown_until) if self.status is HealthStatus.COOLDOWN else None,
+            "recovery_requires_operator": self.status is HealthStatus.MANUAL_LOCK,
             "risk_multiplier": self.risk_multiplier,
             **({"recovery_stage": self.recovery_stage} if self.policy.recovery_stages else {}),
             "resume_count": self.resume_count,
@@ -642,7 +687,8 @@ class StrategyHealthMachine:
 
     def to_dict(self) -> Dict[str, Any]:
         return {
-            "schema": "strategy_health/v2",
+            "schema": "strategy_health/v3" if self.policy.unified_recovery else "strategy_health/v2",
+            "risk_multiplier": self.risk_multiplier,
             "recovery_stage": self.recovery_stage,
             "strategy": self.strategy_name,
             "status": self.status.value,
@@ -670,7 +716,7 @@ class StrategyHealthMachine:
         ``cooldown_until`` is stored as an absolute UTC timestamp precisely so a
         restart cannot shorten or extend a cooldown (SR1-1).
         """
-        if not isinstance(data, dict) or data.get("schema") != "strategy_health/v2":
+        if not isinstance(data, dict) or data.get("schema") not in {"strategy_health/v2", "strategy_health/v3"}:
             return
         self.reset()
         try:
@@ -711,6 +757,29 @@ class StrategyHealthMachine:
         self._consumed_close_event_ids = set(
             data.get("consumed_close_event_ids") or []
         )
+        if (self.policy.unified_recovery and data.get("schema") == "strategy_health/v2"
+                and self.status is HealthStatus.PROBATION):
+            prior = data.get("risk_multiplier")
+            if prior is None:
+                prior = (self.policy.recovery_risk_multiplier if self._extended_recovery
+                         else self.policy.probation_risk_multiplier)
+                for transition in reversed(self.transitions):
+                    if transition.get("to") == HealthStatus.PROBATION.value:
+                        prior = transition.get("risk_multiplier", prior)
+                        break
+            eligible = [i for i, value in enumerate(self.policy.recovery_stages[:-1])
+                        if value <= float(prior)]
+            if not eligible:
+                # An older, still smaller multiplier cannot be increased by migration.
+                self.status = HealthStatus.COOLDOWN
+                self.cooldown_started_at = None
+                self.cooldown_until = None
+                self.recovery_stage = 0
+            else:
+                self.recovery_stage = max(eligible)
+            self.probation_started_at = None
+            self._streak_baseline_cohort_ids = {c.cohort_id for c in self.counted_cohorts()}
+            self.trigger_reason = "legacy_probation_migrated_new_evidence_required"
 
 
 def cohort_rows(machines: Sequence[StrategyHealthMachine]) -> List[Dict[str, Any]]:

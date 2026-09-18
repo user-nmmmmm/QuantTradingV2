@@ -1,4 +1,4 @@
-"""Regenerate tests/fixtures/backtest/engine_baseline_v1.json.
+"""Regenerate tests/fixtures/backtest/engine/engine_baseline_v2.json.
 
 Only run this after a deliberate, reviewed behavior change to the backtest
 engine (data adapters, EventProcessor, Router, strategies, or Broker).
@@ -25,7 +25,7 @@ from tests.engine_baseline_harness import (
     run_engine,
 )
 
-FIXTURE_PATH = Path(__file__).parent / "fixtures" / "backtest" / "engine" / "engine_baseline_v1.json"
+FIXTURE_PATH = Path(__file__).parent / "fixtures" / "backtest" / "engine" / "engine_baseline_v2.json"
 
 
 def main() -> None:
@@ -56,6 +56,7 @@ def main() -> None:
     bundle = {
         "schema_version": SCHEMA_VERSION,
         "metadata": {
+            "behavior_contract": "approved_entry_risk/v1",
             "seed": DEFAULT_SEED,
             "symbols": list(DEFAULT_SYMBOLS),
             "bars_per_symbol": DEFAULT_BARS,

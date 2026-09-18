@@ -62,6 +62,7 @@ class TestNoLookahead(unittest.TestCase):
         engine = BacktestEngine(initial_capital=10000.0, slippage=0.0, warmup_period=20)
 
         risk_manager = MagicMock()
+        risk_manager.drawdown_budget = None  # This fixture isolates next-bar timing.
         risk_manager.circuit_breaker_triggered = False
         risk_manager.check_circuit_breaker.return_value = False
         risk_manager.calculate_position_size.return_value = 1.0

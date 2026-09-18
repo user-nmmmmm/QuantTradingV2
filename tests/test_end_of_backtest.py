@@ -25,7 +25,7 @@ class _AlwaysLongStrategy(Strategy):
 
     def should_enter(self, symbol, i, df, state, portfolio):
         if i == 30:
-            return {"action": "buy", "order_type": "market"}
+            return {"action": "buy", "order_type": "market", "stop_loss": 90.0}
         return None
 
     def should_exit(self, symbol, i, df, state, portfolio):

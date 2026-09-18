@@ -75,6 +75,11 @@ class _PersistentHealthMixin:
         self.health_stats = self._new_health_stats()
         self._reset_setup_counters()
 
+    def raw_entry_signal(self, symbol: str, i: int, df: pd.DataFrame):
+        # Neither raw Donchian implementation reads the portfolio. Health
+        # evaluation and setup counters remain exclusively in should_enter.
+        return self._raw_entry_signal(symbol, i, df, None)
+
     def _reset_setup_counters(self) -> None:
         # SR1-4: how many setups the alpha actually produced, and how many of
         # them the health gate suppressed. Without this a gated strategy is
@@ -617,6 +622,9 @@ class TrendBreakdownStrategy(
         now = _bar_time(df, i)
         signal = self._raw_entry_signal(symbol, i, df, portfolio)
         allowed = self.check_health(now)
+        note(raw_setup=signal is not None, health_status=self.health.status.value)
+        if signal is not None and not allowed:
+            note("strategy_health_block")
         if signal is not None:
             self.record_raw_setup(now, suppressed=not allowed)
         return signal if allowed else None

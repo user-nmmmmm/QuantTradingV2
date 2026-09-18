@@ -63,6 +63,8 @@ def assert_live_admission(
     A strategy with no entry in ``strategy_governance`` is treated as not
     admitted: silence is never evidence.
     """
+    if (config_obj.get('research') or {}).get('strategy_ablation'):
+        raise GovernanceError('Strategy ablations are research-only')
     statuses = governance_map(config_obj)
     blocked = {}
     for name in strategy_names:

@@ -1,6 +1,6 @@
 # 保护性止损契约（Protective Stop Contract）
 
-> 文档状态：Active v1.0
+> 文档状态：Active v1.1（2026-09-12 批准风险预算契约）
 > 生效日期：2026-09-01
 > 实现：[`core/protective_stops.py`](../core/protective_stops.py)、[`strategies/trend_breakout.py`](../strategies/trend_breakout.py)、[`backtest/engine.py`](../backtest/engine.py)
 > 测试：[`tests/test_sr2_protective_stops.py`](../tests/test_sr2_protective_stops.py)
@@ -72,12 +72,14 @@ context / 持久状态记录：`highest_high_since_fill`（空头 `lowest_low_si
 
 ## 5. 成交后风险重核（SR2-4）
 
-仓位是按**信号收盘价**定的，成交发生在下一根 bar 的开盘，可能跳空。因此每个新开的 lot 都要重算一次：
+仓位按信号时已知价格定仓，成交可能跳空。预算在账户风险乘数、策略健康乘数、
+仓位上限和组合分配缩放全部完成后冻结；复核按订单累计成交更新，不能按 lot 只检查一次：
 
 ```text
-actual_risk_per_unit = |actual_fill_price - protective_stop|
-actual_total_risk    = actual_risk_per_unit * filled_qty
-risk_budget          = fill_time_equity * base_risk_per_trade * health_risk_multiplier
+approved_risk_amount = final_approved_qty * |sizing_reference_price - initial_stop|
+actual_risk_per_unit = |cumulative_average_fill_price - order_initial_stop|
+actual_total_risk    = actual_risk_per_unit * cumulative_filled_qty
+risk_budget          = order.approved_risk_amount
 ```
 
 - `actual_total_risk <= risk_budget * (1 + tolerance)`：通过，只记录；
@@ -86,13 +88,23 @@ risk_budget          = fill_time_equity * base_risk_per_trade * health_risk_mult
   直接平掉整个 lot（不留灰尘仓位）；
 - 超限且 `action=audit_only`：只记录不交易（研究模式）。
 
-每次检查（无论是否超限）都记录 reserved 与实际风险、比值、动作与原因。
-回测写入 `risk_budget_reconciliation.csv`；实盘写入持久状态库并通过
-`live_status.json.fill_risk_audit` 导出。回测按 lot 幂等，实盘按持久订单的累计
-成交数量幂等；部分成交增加时只提交新增的缩量数量。
+`approved_risk_amount` 为整个订单的报价币风险金额。它随 `RiskDecision`、
+`RiskReservation`、`OrderIntent` 进入事件链，实盘订单账本的 intent JSON 持久化该值。
+交易所数量精度向下取整时，批准金额按数量比例同步缩小。后续权益增长、账户解除
+REDUCE 或健康状态恢复都不能扩大已有订单的批准金额。初始止损用于入场预算核验；
+后续追踪保护单的止损上移由保护单生命周期独立管理。
 
-`health_risk_multiplier` 来自策略健康生命周期，因此 PROBATION 的 0.25 乘数
-会同时收紧 sizing 与这里的预算，两处口径一致。
+每次检查（无论是否超限）都记录订单 ID、批准金额、预算来源、累计成交风险、比值、动作与原因。
+回测写入 `risk_budget_reconciliation.csv`；实盘写入持久状态库并通过
+`live_status.json.fill_risk_audit` 导出。回测和实盘都按订单累计成交数量与均价幂等；
+部分成交增加或权威均价修正后重新核验。已执行或仍在途的减仓不能重复提交；
+拒绝或取消的减仓需要重试。风险超限时先取消剩余开仓意图，保护单和其他退出仍须管理。
+
+旧订单缺少批准金额时，仅允许以原订单持久化的 requested_qty、reference_price
+（旧限价单可用 price）和 initial_stop 重建，审计来源为 `legacy_order_reference`。
+已有金额为零、负数或非有限值时禁止回退。缺少原始事实的实盘持仓进入 DEGRADED、
+发出 `entry_risk_approval_missing` 并阻止该 tick 新开仓；不得使用当前权益补造预算。
+旧版成交复核检查点在首次读取时按新契约重新核验，已平仓订单不能影响后来同币种的新仓。
 
 减仓单走普通订单通道。回测在下一根 bar 成交；实盘在同步到权威 fill 后立即提交
 reduce-only `GapRiskResize`。实盘扫描持久订单账本而不是只监听内存 callback，

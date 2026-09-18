@@ -22,6 +22,7 @@ from core.protective_orders import (
     ProtectiveOrderManager,
 )
 from core.protective_stops import evaluate_fill_risk
+from core.entry_risk import resolve_approved_risk
 from core.runtime import MarketDataSlice
 from core.risk.actions import plan_risk_action
 from core.timeframes import as_utc_timestamp, closed_bars, timeframe_delta
@@ -209,6 +210,10 @@ class TickOrchestratorMixin:
             self._snapshot.equity, float(daily_start), occurred_at=now
         )
         state_store.set("portfolio_breaker_checkpoint", self.risk_manager.breaker_checkpoint())
+        budget = getattr(self.risk_manager, "drawdown_budget", None)
+        if budget is not None:
+            budget.update(self._snapshot.prices,
+                {symbol: frame.iloc[-1] for symbol, frame in closed_map.items() if not frame.empty}, now)
         action_plan = plan_risk_action(breaker, now.date())
         if breaker:
             for pending in self.broker.order_store.list_non_terminal():
@@ -224,6 +229,10 @@ class TickOrchestratorMixin:
             for symbol, target in targets.items():
                 self._submit_risk_exit(symbol, action_plan.reason, target, action_plan.action_id,
                                        self._snapshot.prices.get(symbol))
+        if action_plan is None and not self._reconcile_drawdown_budget():
+            self._reconcile_protective_orders()
+            self._maybe_export_state(force=True)
+            return
         self._reconcile_protective_orders()
         if self._operational_state == "DEGRADED" or not self._recheck_live_entry_risk():
             self._maybe_export_state(force=True)
@@ -469,23 +478,44 @@ class TickOrchestratorMixin:
             if filled_qty <= 0 or average_fill_price <= 0:
                 continue
 
+            symbol = str(record["symbol"])
+            owned_lots = [lot for lot in self.broker.portfolio.open_lots(symbol)
+                          if lot.order_id == client_order_id]
+            if not owned_lots:
+                # An old closed entry must never resize a newer position in
+                # the same symbol when a checkpoint is absent or upgraded.
+                continue
+
             checkpoint_key = f"entry_risk_check:{client_order_id}"
             checkpoint = state_store.get(checkpoint_key) or {}
             checked_qty = float(checkpoint.get("checked_filled_qty", 0.0) or 0.0)
-            if filled_qty <= checked_qty + 1e-12:
+            if (checkpoint.get("budget_contract_version") == 1
+                    and abs(filled_qty - checked_qty) <= 1e-12
+                    and checkpoint.get("checked_average_fill_price") == average_fill_price):
                 continue
 
-            symbol = str(record["symbol"])
-            stop = self._desired_protective_stop(symbol, strategy_id)
+            stop = intent.get("initial_stop")
             if not stop:
-                # The protective-order reconciler owns the fail-closed action
-                # for an open position without a usable stop.
+                # Old closed orders need no action. An open position without
+                # its original stop cannot manufacture an approval from today.
+                if abs(float(self.broker.portfolio.get_position(symbol).get("qty", 0.0))) > 1e-12:
+                    all_accepted = False
+                    self._operational_state = "DEGRADED"
+                    self._alert("critical", "entry_risk_approval_missing", {
+                        "client_order_id": client_order_id, "symbol": symbol,
+                        "reason": "original_initial_stop_missing",
+                    })
                 continue
-            strategy = getattr(self, "strategies", {}).get(strategy_id)
-            multiplier_getter = getattr(strategy, "health_risk_multiplier", None)
-            multiplier = (
-                float(multiplier_getter()) if callable(multiplier_getter) else 1.0
-            )
+            try:
+                budget, budget_source = resolve_approved_risk(intent)
+            except ValueError as exc:
+                all_accepted = False
+                self._operational_state = "DEGRADED"
+                self._alert("critical", "entry_risk_approval_missing", {
+                    "client_order_id": client_order_id, "symbol": symbol,
+                    "reason": str(exc),
+                })
+                continue
             assessment = evaluate_fill_risk(
                 symbol=symbol,
                 lot_id=client_order_id,
@@ -493,11 +523,7 @@ class TickOrchestratorMixin:
                 fill_price=average_fill_price,
                 protective_stop=stop,
                 filled_qty=filled_qty,
-                equity_at_fill=float(self._snapshot.equity),
-                base_risk_per_trade=float(
-                    getattr(self.risk_manager, "risk_per_trade", 0.0)
-                ),
-                health_risk_multiplier=multiplier,
+                approved_risk_amount=budget,
                 policy=policy,
             )
             if assessment is None:
@@ -507,7 +533,8 @@ class TickOrchestratorMixin:
                 "timestamp": self._now().isoformat(),
                 "client_order_id": client_order_id,
                 "strategy_id": strategy_id,
-                "health_risk_multiplier": multiplier,
+                "approved_risk_amount": budget,
+                "budget_source": budget_source,
                 "source": "live",
             })
             audit.append(row)
@@ -525,9 +552,10 @@ class TickOrchestratorMixin:
                 held_qty = abs(float(
                     self.broker.portfolio.get_position(symbol).get("qty", 0.0)
                 ))
-                resize_qty = min(additional_resize, held_qty)
+                resize_qty = min(additional_resize, held_qty,
+                                 sum(lot.qty_open for lot in owned_lots))
                 if resize_qty > 1e-12:
-                    action_id = f"gap:{client_order_id}:{filled_qty}"
+                    action_id = f"gap:v1:{client_order_id}:{filled_qty}:{average_fill_price}"
                     target_key = f"gap_target:{action_id}"
                     target = state_store.get(target_key)
                     if target is None:
@@ -537,7 +565,11 @@ class TickOrchestratorMixin:
                         symbol, "GapRiskResize", target, action_id, average_fill_price
                     )
                     if accepted:
-                        requested_total += resize_qty
+                        # Reaching a persisted target also completes reductions
+                        # filled before a retry/restart. Counting only today's
+                        # remaining quantity would forget those fills and
+                        # over-reduce when a later opening fill arrives.
+                        requested_total = max(requested_total, float(assessment.resize_qty))
                     else:
                         all_accepted = False
                         self._operational_state = "DEGRADED"
@@ -550,7 +582,9 @@ class TickOrchestratorMixin:
 
             if accepted:
                 checkpoint = {
+                    "budget_contract_version": 1,
                     "checked_filled_qty": filled_qty,
+                    "checked_average_fill_price": average_fill_price,
                     "requested_resize_qty": requested_total,
                     "last_assessment": row,
                 }
@@ -650,6 +684,73 @@ class TickOrchestratorMixin:
                 "symbol": symbol, "action": action.value,
                 "reason": intent.reason, "error": type(exc).__name__,
             })
+
+    def _reconcile_drawdown_budget(self):
+        budget = getattr(getattr(self, "risk_manager", None), "drawdown_budget", None)
+        if budget is None or not budget.policy.enabled:
+            return True
+        # Observe delayed fills before comparing the lot ledger with the venue
+        # balance. A balance-only sync can otherwise look like missing lots.
+        for order in self.broker.order_store.list_non_terminal():
+            if (order.get('intent') or {}).get('exit_reason') == 'DrawdownBudgetReduce':
+                self.broker.reconcile_order(order['client_order_id'])
+        snap = budget.snapshot()
+        row = {"timestamp": str(self._now()), "event": "budget_review", **snap.to_dict()}
+        budget.audit.append(row)
+        self.state_store.set("drawdown_budget_snapshot", row)
+        if snap.issues:
+            self._operational_state = "DEGRADED"
+            self._alert("error", "drawdown_budget_unverifiable", {"issues": snap.issues})
+            return False
+        checkpoint = self.state_store.get("drawdown_budget_action")
+        if snap.over_budget or checkpoint:
+            for order in self.broker.order_store.list_non_terminal():
+                if order['side'] in {'buy', 'short'}:
+                    result = self.broker.cancel_order(order['client_order_id'])
+                    if result.status not in {OrderStatus.CANCELED, OrderStatus.FILLED, OrderStatus.EXPIRED, OrderStatus.REJECTED}:
+                        self._operational_state = "DEGRADED"
+                        return False
+            if not self.broker.sync():
+                self._operational_state = "DEGRADED"
+                return False
+            snap = budget.snapshot()
+            if snap.issues:
+                self._operational_state = "DEGRADED"
+                return False
+        if checkpoint is None and snap.over_budget:
+            fraction = budget.reduction_fraction(snap)
+            sequence = int(self.state_store.get('drawdown_budget_sequence') or 0) + 1
+            self.state_store.set('drawdown_budget_sequence', sequence)
+            checkpoint = {'action_id': f'drawdown-budget-{self._now().isoformat()}-{sequence}',
+                'targets': {s: abs(float(p['qty'])) * fraction
+                            for s, p in self.broker.portfolio.positions.items() if p['qty']},
+                'positions': {s: [lot.position_id for lot in book.open_lots]
+                              for s, book in self.broker.portfolio.lot_books.items()},
+                'snapshot': snap.to_dict()}
+            self.state_store.set("drawdown_budget_action", checkpoint)
+        if checkpoint:
+            done = True
+            for symbol, target in checkpoint['targets'].items():
+                book = self.broker.portfolio.lot_books.get(symbol)
+                current_ids = {lot.position_id for lot in book.open_lots} if book else set()
+                original_ids = set(checkpoint['positions'].get(symbol, []))
+                if current_ids and not current_ids.issubset(original_ids):
+                    self._operational_state = "DEGRADED"
+                    self._alert('error', 'drawdown_budget_position_changed', {'symbol': symbol})
+                    done = False
+                    continue
+                if not self._submit_risk_exit(symbol, 'DrawdownBudgetReduce', target,
+                        checkpoint['action_id'], self._snapshot.prices.get(symbol)):
+                    done = False
+            row.update(action='reduce', action_id=checkpoint['action_id'], completed=done,
+                       after=budget.snapshot().to_dict())
+            self.state_store.set("drawdown_budget_snapshot", row)
+            if done:
+                self.state_store.set("drawdown_budget_action", None)
+            # A risk-action tick never also opens new risk, including when all
+            # fills completed immediately. The next tick recomputes the budget.
+            return False
+        return True
 
     def _submit_risk_exit(self, symbol, reason, target_qty, action_id, reference):
         # Cancel every competing exit and opening request before a market risk

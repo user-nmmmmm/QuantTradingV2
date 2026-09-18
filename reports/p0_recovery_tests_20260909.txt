@@ -1,0 +1,148 @@
+.................................................................. [  9%]
+..............................s......................................... [ 19%]
+............................................................ [ 27%]
+............................................................... [ 36%]
+................................................................. [ 45%]
+................................................................... [ 55%]
+........................................................................ [ 65%]
+..................................................................... [ 75%]
+........................................................................ [ 85%]
+.................................................................... [ 94%]
+......................................                                   [100%]
+============================== warnings summary ===============================
+tests/test_p6_live.py::TestLiveTrading::test_engine_maps_trend_down_to_cash_for_spot
+  C:\Users\mnm79\AppData\Local\Programs\Python\Python313\Lib\unittest\mock.py:2245: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x0000020312C7E110>
+    def __init__(self, name, parent):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_revalidation_security.py::test_public_alert_masks_configured_secret_in_free_text
+  C:\Users\mnm79\AppData\Local\Programs\Python\Python313\Lib\unittest\mock.py:2245: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x0000020312D3CE50>
+    def __init__(self, name, parent):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=============================== tests coverage ================================
+_______________ coverage: platform win32, python 3.13.2-final-0 _______________
+
+Name                                    Stmts   Miss  Cover
+-----------------------------------------------------------
+backtest\__init__.py                        0      0   100%
+backtest\capacity.py                       82      8    90%
+backtest\engine.py                        369     46    88%
+backtest\execution_adapter.py              19      0   100%
+backtest\protective_stops.py              110     15    86%
+backtest\reporting\__init__.py            111      9    92%
+backtest\reporting\metrics.py              28      3    89%
+backtest\reporting\render\__init__.py       0      0   100%
+backtest\reporting\render\charts.py       166      9    95%
+backtest\reporting\render\pdf.py           98      1    99%
+backtest\reporting\render\text.py         313     46    85%
+backtest\reporting\render\workbook.py     241     10    96%
+backtest\reporting\risk_metrics.py         63      4    94%
+backtest\reporting\trades.py              178     19    89%
+core\__init__.py                            0      0   100%
+core\account_cost_contract.py              56      5    91%
+core\accounting_check.py                   65      3    95%
+core\accounts.py                           38      0   100%
+core\admission_gates.py                   265     62    77%
+core\alerting.py                          165     13    92%
+core\allocation.py                        119      4    97%
+core\backtest_audit.py                     83     12    86%
+core\benchmarks.py                         85      9    89%
+core\broker\__init__.py                    63      5    92%
+core\broker\cost_model.py                  27      1    96%
+core\broker\fill_service.py               124     10    92%
+core\broker\financing.py                   91     11    88%
+core\broker\liquidation.py                 37      3    92%
+core\broker\matching.py                   207     11    95%
+core\broker\types.py                       47      0   100%
+core\candidate_scoring.py                  62      1    98%
+core\clock.py                              27      3    89%
+core\data.py                               73     41    44%
+core\data_fetcher.py                      267    140    48%
+core\diagnostics.py                       191     10    95%
+core\domain.py                            196     12    94%
+core\entry_audit.py                        49      0   100%
+core\events\__init__.py                   232     61    74%
+core\events\codec.py                      112     24    79%
+core\events\ids.py                         28      2    93%
+core\events\store.py                      101      8    92%
+core\events\types.py                      148     29    80%
+core\exchange\__init__.py                  42      2    95%
+core\exchange\ccxt_mapper.py               33      2    94%
+core\exchange\metadata.py                 213     21    90%
+core\exchange\normalization.py             30      4    87%
+core\exchange\parsers.py                  104     10    90%
+core\exchange\validation.py                72     15    79%
+core\execution_port.py                      8      0   100%
+core\factors\__init__.py                   17      0   100%
+core\factors\capital_flow.py               20      1    95%
+core\factors\momentum.py                   61      0   100%
+core\factors\support_resistance.py         42      0   100%
+core\factors\trend.py                      18      0   100%
+core\factors\volatility.py                 17      0   100%
+core\factors\volume.py                     83      7    92%
+core\gray_release.py                       50     16    68%
+core\health.py                            119     13    89%
+core\incident_journal.py                   33     33     0%
+core\indicators.py                         65      0   100%
+core\live_broker\__init__.py              173     32    82%
+core\live_broker\account_sync.py          120     42    65%
+core\live_broker\fill_projection.py        59      9    85%
+core\live_broker\reconciler.py            191     28    85%
+core\live_broker\retry.py                  24      3    88%
+core\live_broker\safe.py                   25      2    92%
+core\live_broker\submission.py            146     20    86%
+core\live_safety.py                       116     14    88%
+core\logger.py                             55      8    85%
+core\lots.py                              139      4    97%
+core\market_data.py                       119     12    90%
+core\metric_result.py                      26      3    88%
+core\metrics\__init__.py                    6      0   100%
+core\metrics\attribution.py               115      5    96%
+core\metrics\performance.py               137     12    91%
+core\metrics\trade_quality.py              91      4    96%
+core\metrics\validation.py                 85     15    82%
+core\order_store.py                       172     19    89%
+core\orders.py                             56     15    73%
+core\portfolio.py                         112     13    88%
+core\protective_orders.py                 144      0   100%
+core\protective_stops.py                  143      8    94%
+core\r7_acceptance.py                     119     45    62%
+core\redaction.py                          36      3    92%
+core\reproducibility.py                   137     39    72%
+core\risk\__init__.py                      49      4    92%
+core\risk\actions.py                       20      1    95%
+core\risk\circuit_breaker.py              195     10    95%
+core\risk\entry_policy.py                  74     19    74%
+core\risk\persistent_guard.py              58      8    86%
+core\risk\portfolio_governor.py           140     29    79%
+core\risk\position_sizing.py               97     13    87%
+core\risk\recovery.py                      17      0   100%
+core\risk\reservation.py                  117     18    85%
+core\runtime.py                           166     23    86%
+core\runtime_identity.py                   34      3    91%
+core\sqlite_backup.py                     121     24    80%
+core\sqlite_utils.py                       25      3    88%
+core\startup_preflight.py                  26      0   100%
+core\state.py                              83      4    95%
+core\state_store_v2.py                     62      0   100%
+core\status_snapshot.py                    45      7    84%
+core\strategy_governance.py                35     22    37%
+core\strategy_health.py                   375     25    93%
+core\supervisor.py                         35      9    74%
+core\telegram_heartbeat.py                 45     14    69%
+core\timeframes.py                         34      7    79%
+core\universe.py                           58      6    90%
+core\valuation.py                          15      2    87%
+live_trading\engine.py                    219     32    85%
+live_trading\execution_adapter.py          50     14    72%
+live_trading\recovery.py                   25      1    96%
+live_trading\state_export.py               64     10    84%
+live_trading\tick_orchestrator.py         427     83    81%
+-----------------------------------------------------------
+TOTAL                                   11020   1520    86%
+Required test coverage of 55% reached. Total coverage: 86.21%
+711 passed, 1 skipped, 2 warnings, 46 subtests passed in 79.63s (0:01:19)

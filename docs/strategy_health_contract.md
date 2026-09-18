@@ -1,5 +1,28 @@
 # 策略健康生命周期契约（Strategy Health Contract）
 
+> 2026-09-14 修订：当前应用配置启用统一分级恢复，所有自动冷却后从 0.10 起步，
+> 晋级要求每级至少 30 天、5 个新退出事件组、3 个币种、正总 R 且去掉最大正 R 后仍为正。
+> 新规则、v2→v3 迁移与组合预算见 [本轮完整契约](research/strategy_remediation_contract_20260914.md)。
+> 下文 9 月 9 日及更早描述作为历史契约保留，不再代表本轮默认配置；准入保持暂停。
+
+> 2026-09-09 P0 修订：当前应用主配置已显式启用 `extended_cooldown`。
+> 两次自动试运行失败后冷却 90 天，再以正常风险预算的 10% 进入 PROBATION；
+> 达到新的 cohort 证据门槛后才能恢复 ACTIVE，再次失败重新冷却。
+> 以下 v1.0 及“默认关闭”章节记录历史行为，不再描述当前 params.yaml 的有效默认。
+> `StrategyHealthPolicy()` 的无配置构造仍保留兼容默认 manual_lock；正式应用必须加载主配置。
+> 人工主动锁定和已有持久化 MANUAL_LOCK 不会因更换配置而自动解除；组合清算同样保持约束。
+> 本次启用用于解决自动暂停后没有恢复路径的工程问题，未构成研究准入，仍为 paused_revalidation。
+
+当前回测新增逐 bar 的 `strategy_activity`，并在 lifecycle 中导出
+`strategy_inactive_days/bars`、`account_inactive_days`、`operating_status`、
+`last_fill_at`、`strategy_recovery`。`health_gated_days` 按实际阻止开仓的
+观测日计数，不再把某次暂停到数据结束的全部时间都记成停机。
+`status=completed` 仅表示引擎完成请求；交易运行状态以 `operating_status`
+及逐 bar 状态为准。策略快照给出 `next_recovery_at` 和
+`recovery_requires_operator`，区分有期限冷却和人工处置。
+终止后的账户现金尾段与被处理 bar 内的策略暂停分别计量；普通账户 BLOCK_NEW
+在逐 bar 的 `account_blocks_new_risk` 中单列，不能误认作策略健康锁定。
+
 > 文档状态：Active v1.0
 > 生效日期：2026-09-01
 > 实现：[`core/strategy_health.py`](../core/strategy_health.py)、[`strategies/trend_breakout.py`](../strategies/trend_breakout.py)

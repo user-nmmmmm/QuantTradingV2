@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 from core.entry_audit import forced_trade_cost
+from core.entry_risk import resolve_approved_risk
+from core.orders import TERMINAL_STATUSES
+from dataclasses import asdict
 
 import os
 from typing import Any, Dict, Optional
@@ -33,8 +36,16 @@ from core.metrics import calculate_exposure
 from core.portfolio import Portfolio
 from core.runtime import EventProcessor
 from core.risk.actions import plan_risk_action
+from backtest.drawdown_budget import BacktestDrawdownReducer
 from core.protective_stops import EntryRiskPolicy, evaluate_fill_risk
 from core.strategy_health import cohort_rows, transition_rows
+from core.signal_observation import SignalObserver
+from core.signal_observation_types import ObservationPolicy
+from core.signal_outcomes import ObservationCosts
+from core.signal_actuals import reconcile_actuals
+from core.signal_ev_types import EVPolicy
+from core.signal_meta_layer import build_signal_meta_layer
+from backtest.signal_ghost import replay_ghosts
 
 logger = get_logger(__name__)
 
@@ -59,6 +70,8 @@ class BacktestEngine:
         account_mode: Optional[str] = None,
         breaker_policy: Optional[Dict[str, Any]] = None,
         trading_start: Optional[Any] = None,
+        signal_observation: Optional[Dict[str, Any]] = None,
+        signal_meta_layer: Optional[Dict[str, Any] | EVPolicy] = None,
     ) -> None:
         config_data = config.require("data")
         config_benchmark = config.require("benchmark")
@@ -78,6 +91,17 @@ class BacktestEngine:
             raise ValueError("benchmark_rebalance_cost_bps cannot be negative")
         self.initial_capital = initial_capital
         self.trading_start = None if trading_start is None else pd.Timestamp(trading_start)
+        self.signal_meta_policy = EVPolicy.from_mapping({
+            **(config.get("signal_meta_layer") or {}),
+            **(signal_meta_layer.to_dict() if isinstance(signal_meta_layer, EVPolicy)
+               else (signal_meta_layer or {}))})
+        observation_settings = {
+            **(config.get("signal_observation") or {}), **(signal_observation or {})}
+        if self.signal_meta_policy.enabled:
+            # P1 depends on P0 facts, but its parameters never enter the P0
+            # snapshot identity or the official decision path.
+            observation_settings["enabled"] = True
+        self.observation_policy = ObservationPolicy.from_mapping(observation_settings)
         self.config_execution = config.require("execution")
         self.config_risk = config.require("risk")
         self.config_account = config.get("account") or {}
@@ -187,6 +211,8 @@ class BacktestEngine:
             timeframe=self.timeframe,
         )
         risk_manager = build_risk_manager(config)
+        budget = getattr(risk_manager, 'drawdown_budget', None)
+        drawdown_reducer = BacktestDrawdownReducer(budget) if budget is not None else None
         state_machine = build_state_machine(config)
         strategies = strategies or build_strategy_registry(config)
         for strategy in strategies.values():
@@ -217,6 +243,8 @@ class BacktestEngine:
         # callers that read close_events/benchmark silently get None and the
         # diagnostics that depend on them are dropped without explanation.
         empty_result = {
+            "signal_observation": None,
+            "signal_meta_layer": None,
             "trades": [],
             "equity_curve": pd.DataFrame(),
             "benchmark": None,
@@ -279,6 +307,13 @@ class BacktestEngine:
             enabled=bool(protective_config.get("backtest_resident", True)),
         )
         self.stop_simulator = stop_simulator
+        observer = None
+        if self.observation_policy.enabled:
+            observer = SignalObserver(policy=self.observation_policy,
+                costs=ObservationCosts.from_broker(broker), strategies=strategies,
+                state_machine=state_machine,
+                config_identity={name: config.get(name) for name in (
+                    "state", "routing", "router", "risk", "strategy_health", "research")})
         processor = EventProcessor(
             portfolio=portfolio,
             execution=execution,
@@ -289,6 +324,7 @@ class BacktestEngine:
             warmup_period=self.warmup_period,
             initial_equity=self.initial_capital,
             entry_audit_enabled=bool((config.get("research") or {}).get("entry_audit", False)),
+            signal_observer=observer,
         )
         self.market_data_adapter = market_data
         self.execution_adapter = execution
@@ -315,7 +351,7 @@ class BacktestEngine:
             else None
         )
         risk_budget_audit: list[Dict[str, Any]] = []
-        checked_lot_ids: set[str] = set()
+        checked_entries: dict[str, dict] = {}
         lifecycle = {
             "status": "completed",
             "active_start": None,
@@ -341,6 +377,8 @@ class BacktestEngine:
         flat_bars = 0
         health_bars = 0
         waiting_for_recovery = False
+        health_activity = []
+        routed_names = set((config.get("routing") or {}).values()) - {"Cash"}
         for bar_index, event in enumerate(market_data.stream()):
             if self.trading_start is not None and event.timestamp < self.trading_start:
                 continue  # History only: no cashflows, orders or health state before the window.
@@ -435,6 +473,8 @@ class BacktestEngine:
                         remaining_fraction=risk_plan.remaining_fraction, risk_action_id=risk_plan.action_id,
                     ))
                     applied_breaker_actions.add(risk_plan.action_id)
+            if drawdown_reducer is not None and not margin.liquidation_required and not (decision and decision.force_liquidate):
+                forced_trades.extend(drawdown_reducer.step(event))
             if forced_trades:
                 for strategy in strategies.values():
                     for symbol in event.bars:
@@ -448,6 +488,10 @@ class BacktestEngine:
                 )
                 action_cost = forced_trade_cost(forced_trades)
                 processor._previous_session_close_equity = result.equity
+                # Re-arm against the actual remaining inventory without a
+                # second intrabar matching pass or invented fills.
+                if drawdown_reducer is not None and budget.policy.enabled and stop_simulator.enabled:
+                    stop_simulator._sync(dict(event.bars), timestamp=event.timestamp, bar_index=bar_index)
             # SR2-4: the real fill, not the signal close, decides how much is
             # at stake. A breakout that gapped through the open is resized down
             # under an explicit ``GapRiskResize``, never left silently over
@@ -455,14 +499,11 @@ class BacktestEngine:
             self._recheck_entry_risk(
                 portfolio=portfolio,
                 execution=execution,
-                strategies=strategies,
-                risk_manager=risk_manager,
-                equity=result.equity,
                 prices=result.prices,
                 timestamp=event.timestamp,
                 bar_index=bar_index,
                 policy=entry_risk_policy,
-                checked_lot_ids=checked_lot_ids,
+                checked_entries=checked_entries,
                 audit=risk_budget_audit,
             )
             risk_manager.record_breaker_action_result(
@@ -506,6 +547,16 @@ class BacktestEngine:
                 result.prices, broker.close_events,
             )
             terminal_action = result.breaker_action in {"liquidate", "locked"}
+            routed_health = {name: strategy.health for name, strategy in strategies.items()
+                             if name in routed_names and getattr(strategy, "health", None) is not None}
+            health_activity.append({
+                "timestamp": event.timestamp,
+                "strategy_states": {name: machine.status.value for name, machine in routed_health.items()},
+                "account_action": result.breaker_action,
+                "all_routed_strategies_blocked": bool(routed_health) and all(
+                    machine.status.value in {"cooldown", "manual_lock"} for machine in routed_health.values()),
+                "account_blocks_new_risk": bool(result.breaker_action in {"block_new", "liquidate", "locked"}),
+            })
             policy_key = "on_locked" if result.breaker_action == "locked" else "on_liquidate"
             if terminal_action and self.breaker_policy.get(policy_key, "terminate") == "terminate":
                 if any(abs(float(pos["qty"])) > 1e-9 for pos in portfolio.positions.values()):
@@ -552,6 +603,19 @@ class BacktestEngine:
         else:
             terminal_equity = float(equity_curve[-1]["equity"])
             terminal_cash = float(equity_curve[-1]["cash"])
+            if observer is not None:
+                # Passive research continues over real tail bars. The stopped
+                # account is not resumed and its strategy state is not advanced.
+                for tail_event in market_data.stream():
+                    if tail_event.timestamp <= pd.Timestamp(lifecycle["termination_timestamp"]):
+                        continue
+                    observer.advance(tail_event)
+                    for symbol in tail_event.bars:
+                        observer.observe(tail_event, symbol, portfolio=portfolio,
+                            risk_manager=risk_manager, router=router,
+                            audit={"reason": "account_terminated",
+                                   "account_state_as_of": lifecycle["termination_timestamp"]})
+                    observer.settle_decisions()
             if bool(self.breaker_policy.get("shadow_diagnostics", True)):
                 shadow_router = build_router(strategies, config, log_path=None)
                 shadow_processor = EventProcessor(
@@ -664,7 +728,41 @@ class BacktestEngine:
         selected_benchmark = (
             dynamic_benchmark if self.benchmark_mode == "dynamic" else fixed_benchmark
         )
+        health_blocked = [row for row in health_activity if row["all_routed_strategies_blocked"]]
+        lifecycle["account_inactive_days"] = lifecycle["inactive_days"]
+        lifecycle["strategy_inactive_days"] = len({pd.Timestamp(row["timestamp"]).normalize() for row in health_blocked})
+        lifecycle["strategy_inactive_bars"] = len(health_blocked)
+        lifecycle["inactive_days"] += lifecycle["strategy_inactive_days"]
+        lifecycle["inactive_bars"] += len(health_blocked)
+        lifecycle["health_gated_days"] = lifecycle["strategy_inactive_days"]
+        lifecycle["operating_status"] = (
+            "account_risk_halted" if lifecycle["status"] in {"terminated_by_risk", "locked"}
+            else "strategy_health_paused" if health_activity and health_activity[-1]["all_routed_strategies_blocked"]
+            else "evaluating_with_health_recovery"
+        )
+        lifecycle["last_fill_at"] = max((trade["fill_time"] for trade in broker.trades), default=None)
+        lifecycle["strategy_recovery"] = {name: strategy.health.snapshot() for name, strategy in strategies.items()
+                                           if name in routed_names and getattr(strategy, "health", None) is not None}
+        signal_observation_result = None
+        if observer is not None:
+            observer.finish()
+            signal_observation_result = observer.export()
+            signal_observation_result["actual"] = reconcile_actuals(
+                signal_observation_result, broker.trades, broker.opening_orders, broker.execution_audit,
+                mark_to_market=(config.require("backtest", "end_of_backtest_mode") == "mark_to_market"))
+            signal_observation_result["actual_financing"] = [item.to_dict() for item in portfolio.financing_ledger]
+            signal_observation_result["ghost"] = replay_ghosts(market_data, signal_observation_result, broker)
+            if (signal_observation_result["actual"]["unmatched"]
+                    or signal_observation_result["ghost"]["errors"]):
+                signal_observation_result["status"] = "incomplete"
+        signal_meta_layer_result = (
+            build_signal_meta_layer(signal_observation_result, self.signal_meta_policy)
+            if self.signal_meta_policy.enabled and signal_observation_result is not None else None
+        )
         return {
+            "signal_observation": signal_observation_result,
+            "signal_meta_layer": signal_meta_layer_result,
+            "strategy_activity": health_activity,
             "trades": broker.trades,
             "equity_curve": self._equity_frame(
                 equity_curve, exposure_positions, exposure_prices
@@ -765,6 +863,7 @@ class BacktestEngine:
             ],
             "degenerate_ranking_batches": router.allocator.degenerate_batches,
             "correlated_risk_audit": list(router.allocator.risk_governor.audit),
+            "drawdown_budget_audit": list(budget.audit) if budget is not None else [],
             "strategy_health_cohorts": cohort_rows([
                 strategy.health for strategy in strategies.values()
                 if getattr(strategy, "health", None) is not None
@@ -827,81 +926,71 @@ class BacktestEngine:
         *,
         portfolio: Portfolio,
         execution: SimulatedExecutionAdapter,
-        strategies: Dict[str, Any],
-        risk_manager: Any,
-        equity: float,
         prices: Dict[str, float],
         timestamp: Any,
         bar_index: int,
         policy: EntryRiskPolicy,
-        checked_lot_ids: set,
+        checked_entries: dict,
         audit: list,
     ) -> None:
-        """SR2-4: re-derive each entry's real risk and act when it exceeds budget.
+        """Check cumulative opening fills against their frozen order approval.
 
-        The reservation was made from the signal bar's close; the fill happens
-        at the next bar's open and can gap. Every newly opened lot is measured
-        once, against the equity at that moment and the strategy's current
-        health multiplier, and a breach produces a named reduce order through
-        the ordinary order path (filling on the next bar, which is the earliest
-        a real system could act on a fill it has just learned about).
+        Queued reductions reserve only their remaining quantity. Rejected or
+        canceled reductions release it and are retried, while filled reductions
+        remain accounted for. New partial fills can never inherit a lot-level
+        'already checked' flag. Orders execute on subsequent matchable bars.
         """
         if not policy.enabled:
             return
-        for symbol, lot_book in portfolio.lot_books.items():
-            for lot in lot_book.open_lots:
-                if lot.lot_id in checked_lot_ids:
-                    continue
-                checked_lot_ids.add(lot.lot_id)
-                strategy = strategies.get(lot.strategy_id)
-                multiplier = 1.0
-                if strategy is not None:
-                    getter = getattr(strategy, "health_risk_multiplier", None)
-                    if callable(getter):
-                        multiplier = float(getter())
-                assessment = evaluate_fill_risk(
-                    symbol=symbol,
-                    lot_id=lot.lot_id,
-                    side=lot.side,
-                    fill_price=float(lot.entry_price),
-                    protective_stop=lot.stop_price,
-                    filled_qty=float(lot.qty_open),
-                    equity_at_fill=float(equity),
-                    base_risk_per_trade=float(
-                        getattr(risk_manager, "risk_per_trade", 0.0)
-                    ),
-                    health_risk_multiplier=multiplier,
-                    policy=policy,
-                )
-                if assessment is None:
-                    continue
-                row = assessment.to_dict()
-                row.update({
-                    "timestamp": timestamp,
-                    "bar_index": bar_index,
-                    "strategy_id": lot.strategy_id,
-                    "health_risk_multiplier": multiplier,
-                })
-                audit.append(row)
-                if assessment.action != "resize" or assessment.resize_qty <= 0:
-                    continue
-                mark = prices.get(symbol) or float(lot.entry_price)
-                execution.submit_order(
-                    symbol,
-                    "sell" if lot.side == "long" else "cover",
-                    assessment.resize_qty,
-                    mark,
-                    timestamp=timestamp,
-                    strategy_id=lot.strategy_id,
-                    exit_reason="GapRiskResize",
-                )
-                logger.warning(
-                    "GapRiskResize %s lot=%s risk=%.2f budget=%.2f (%.2fx) "
-                    "reducing %.8f",
-                    symbol, lot.lot_id, assessment.actual_total_risk,
-                    assessment.risk_budget, assessment.risk_ratio,
-                    assessment.resize_qty,
-                )
+        for order_id, order in execution.opening_orders.items():
+            if order.filled_qty <= 0 or order.intent is None or not order.intent.initial_stop:
+                continue
+            lots = [lot for lot in portfolio.open_lots(order.symbol) if lot.order_id == order_id]
+            if not lots:
+                continue
+            checkpoint = checked_entries.setdefault(order_id, {"resize_orders": []})
+            resized = sum(
+                resize.filled_qty + (
+                    resize.remaining_qty if resize.status not in TERMINAL_STATUSES else 0.0
+                ) for resize in checkpoint["resize_orders"]
+            )
+            fingerprint = (order.filled_qty, order.avg_fill_price, resized)
+            if checkpoint.get("fingerprint") == fingerprint:
+                continue
+            budget, budget_source = resolve_approved_risk(asdict(order.intent))
+            assessment = evaluate_fill_risk(
+                symbol=order.symbol, lot_id=lots[0].lot_id,
+                side="long" if order.side == "buy" else "short",
+                fill_price=order.avg_fill_price, protective_stop=order.intent.initial_stop,
+                filled_qty=order.filled_qty, approved_risk_amount=budget, policy=policy,
+            )
+            if assessment is None:
+                continue
+            row = assessment.to_dict()
+            row.update({
+                "timestamp": timestamp, "bar_index": bar_index,
+                "client_order_id": order_id, "strategy_id": order.strategy_id,
+                "approved_risk_amount": budget, "budget_source": budget_source,
+                "source": "backtest",
+            })
+            audit.append(row)
+            if assessment.action == "resize":
+                execution.cancel_opening_orders([order.symbol], timestamp=timestamp)
+                held = sum(lot.qty_open for lot in lots)
+                additional = min(held, max(0.0, assessment.resize_qty - resized))
+                if additional > 1e-12:
+                    resize = execution.submit_order(
+                        order.symbol, "sell" if order.side == "buy" else "cover",
+                        additional, prices.get(order.symbol) or order.avg_fill_price,
+                        timestamp=timestamp, strategy_id=order.strategy_id,
+                        exit_reason="GapRiskResize",
+                    )
+                    if not resize.accepted:
+                        # Do not checkpoint a failed action: next bar retries.
+                        continue
+                    checkpoint["resize_orders"].append(resize)
+                    resized += additional
+            checkpoint["fingerprint"] = (order.filled_qty, order.avg_fill_price, resized)
 
     def _close_tail_positions(
         self,

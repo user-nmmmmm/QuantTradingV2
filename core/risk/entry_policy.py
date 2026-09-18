@@ -11,6 +11,7 @@ from typing import Dict, Optional, Tuple
 
 from core.domain import OrderIntent, RiskDecision, RiskReservation
 from core.entry_audit import note
+from core.entry_risk import resolve_approved_risk
 from core.events import TradingEventPipeline, stable_uuid5
 from core.logger import get_logger
 from core.portfolio import Portfolio
@@ -159,6 +160,9 @@ class EntryPolicyMixin:
             stable_uuid5("risk-reservation", intent.account, intent.intent_id)
         )
         with reservation_projection.transaction():
+            if intent.approved_risk_amount is not None or intent.initial_stop:
+                amount, _ = resolve_approved_risk({**intent.__dict__, 'reference_price': reference_price})
+                intent = replace(intent, approved_risk_amount=amount)
             reserved = reservation_projection.pending_notional(current_prices)
             approved = self.check_entry_risk(
                 portfolio,
@@ -170,6 +174,9 @@ class EntryPolicyMixin:
                 pending_open_notional=reserved,
                 action=intent.action,
             )
+            budget = self.drawdown_budget
+            if approved and (budget.policy.enabled or self.scale_minimum_with_risk):
+                approved = budget.broker is not None and budget.check_intent(intent) is None
             decision = RiskDecision(
                 decision_id=decision_id,
                 account=intent.account,
@@ -181,6 +188,7 @@ class EntryPolicyMixin:
                 approved=approved,
                 reason="approved" if approved else "risk_limit",
                 intent_id=intent.intent_id,
+                approved_risk_amount=intent.approved_risk_amount if approved else None,
             )
             if not approved:
                 event_pipeline.publish(
@@ -208,6 +216,7 @@ class EntryPolicyMixin:
                 action=enriched.action,
                 reserved_qty=enriched.requested_qty,
                 reference_price=reference_price,
+                approved_risk_amount=enriched.approved_risk_amount,
             )
             event_pipeline.publish_approved_intent(
                 decision,

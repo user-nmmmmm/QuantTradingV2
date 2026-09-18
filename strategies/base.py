@@ -76,6 +76,16 @@ class Strategy(ABC):
     def bind_state_store(self, _state_store) -> None:
         """Optional live-state binding for strategies with durable health state."""
 
+    def raw_entry_signal(self, symbol: str, i: int, df: pd.DataFrame):
+        """Observe intrinsic entry conditions without touching trading state.
+
+        The observer supplies a private, trailing-only frame. Implementations
+        may cache indicators on that frame, but must not change context,
+        health, counters, orders or portfolio state. Unknown plugins are
+        reported as unsupported, never probed through ``should_enter``.
+        """
+        raise NotImplementedError(f"{self.name} has no passive signal provider")
+
     def hard_stop_exit(
         self, symbol: str, i: int, df: pd.DataFrame, portfolio: Portfolio,
     ) -> Optional[Dict[str, Any]]:
@@ -348,7 +358,14 @@ class Strategy(ABC):
                                 current_prices=price_map,
                                 pending_open_notional=pending_open_notional,
                                 action=action,
+                                health_multiplier=self.health_risk_multiplier(),
                             )
+                        budget = getattr(risk_manager, "drawdown_budget", None)
+                        if budget is not None:
+                            size = budget.clamp(symbol, size, current_price, stop_loss)
+                            minimum = risk_manager.minimum_entry_notional(equity, self.health_risk_multiplier(), live=budget.live)
+                            if size * current_price + 1e-9 < minimum:
+                                size = 0.0
                     if size > 0:
                         # Pre-trade Risk Check (final gate; clamp already applied)
                         if risk_manager.check_entry_risk(
@@ -382,6 +399,10 @@ class Strategy(ABC):
                                 # Persisted onto the opened lot as initial_risk
                                 # = |entry - stop| * qty (T-1.9).
                                 stop_loss=stop_loss,
+                                approved_risk_amount=(
+                                    size * abs(current_price - stop_loss)
+                                    if stop_loss > 0 else None
+                                ),
                             )
                             if not submission.accepted:
                                 return submission
@@ -487,6 +508,7 @@ class Strategy(ABC):
                 portfolio, symbol, size, current_price, current_volume=0.0,
                 current_prices=current_prices, pending_open_notional=pending,
                 action=action,
+                health_multiplier=self.health_risk_multiplier(),
             )
         budget_decision = None
         note(clamped_qty=size)
@@ -499,6 +521,17 @@ class Strategy(ABC):
             size *= budget_decision.scale
             note("correlated_budget" if size <= 0 else "entry_risk_check",
                  correlated_budget=budget_decision.to_dict(), budgeted_qty=size)
+        drawdown_budget = getattr(risk_manager, "drawdown_budget", None)
+        if drawdown_budget is not None and size > 0:
+            size = drawdown_budget.clamp(symbol, size, current_price, stop_loss)
+            minimum = risk_manager.minimum_entry_notional(
+                equity, self.health_risk_multiplier(), live=drawdown_budget.live)
+            if size * current_price + 1e-9 < minimum:
+                note("below_minimum_notional", minimum_notional=minimum)
+                size = 0.0
+            if budget_decision is not None:
+                budget_decision = replace(budget_decision, allowed=size > 0,
+                    allowed_risk=size * abs(current_price-stop_loss))
         if size <= 0 or not risk_manager.check_entry_risk(
             portfolio, symbol, size, current_price, current_volume=0.0,
             current_prices=current_prices, pending_open_notional=pending,
@@ -518,6 +551,9 @@ class Strategy(ABC):
             symbol, action, size, price=order_price,
             order_type=signal.get("order_type", "market"), timestamp=df.index[i],
             strategy_id=self.name, exit_reason="signal", stop_loss=stop_loss,
+            approved_risk_amount=(
+                size * abs(current_price - stop_loss) if stop_loss > 0 else None
+            ),
         )
         if result.accepted:
             self.context[symbol] = {

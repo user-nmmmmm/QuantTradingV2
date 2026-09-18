@@ -33,6 +33,7 @@ class ExecutionPort(Protocol):
         exit_reason: str = "signal",
         stop_loss: float = 0.0,
         zero_cost: bool = False,
+        approved_risk_amount: Optional[float] = None,
     ) -> ExecutionResult:
         ...
 

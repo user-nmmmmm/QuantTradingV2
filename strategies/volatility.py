@@ -51,6 +51,11 @@ class VolatilityReversionStrategy(Strategy):
     def should_enter(self, symbol: str, i: int, df: pd.DataFrame, state: MarketState, portfolio: Portfolio) -> Optional[Dict[str, Any]]:
         if state not in self.allowed_states or i < self.window:
             return None
+        return self.raw_entry_signal(symbol, i, df)
+
+    def raw_entry_signal(self, symbol: str, i: int, df: pd.DataFrame):
+        if i < self.window:
+            return None
         mean, std, atr = self._indicators(df)
         close, center, sigma, risk = map(float, (df["close"].iat[i], mean.iat[i], std.iat[i], atr.iat[i]))
         if not all(pd.notna(value) and value > 0 for value in (close, center, sigma, risk)):

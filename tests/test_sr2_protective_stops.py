@@ -221,7 +221,7 @@ class TestFillRiskRecheck(unittest.TestCase):
         return evaluate_fill_risk(
             symbol="BTC/USDT", lot_id="LOT-1", side="long",
             fill_price=fill_price, protective_stop=stop, filled_qty=qty,
-            equity_at_fill=100_000.0, base_risk_per_trade=0.02,
+            approved_risk_amount=2000.0,
             policy=EntryRiskPolicy(**kwargs),
         )
 
@@ -254,12 +254,11 @@ class TestFillRiskRecheck(unittest.TestCase):
         self.assertEqual(assessment.action, "audit_only")
         self.assertEqual(assessment.resize_qty, 0.0)
 
-    def test_health_multiplier_shrinks_the_budget(self):
+    def test_preapproved_probation_budget_is_used(self):
         assessment = evaluate_fill_risk(
             symbol="BTC/USDT", lot_id="LOT-1", side="long",
             fill_price=105.0, protective_stop=100.0, filled_qty=300.0,
-            equity_at_fill=100_000.0, base_risk_per_trade=0.02,
-            health_risk_multiplier=0.25,
+            approved_risk_amount=500.0,
         )
         self.assertAlmostEqual(assessment.risk_budget, 500.0)
         self.assertTrue(assessment.breached)
@@ -285,24 +284,26 @@ class TestEngineEmitsGapRiskResize(unittest.TestCase):
         timestamp = pd.Timestamp("2021-05-19T00:00:00Z")
 
         # A breakout sized on a 5-wide stop, filled 20 wide after a gap.
-        portfolio.update_position(
-            "BTC/USDT", qty_delta=300.0, price=120.0, time=timestamp,
-            strategy_id="TrendBreakout", order_id="ORD-1", stop_price=100.0,
+        broker.submit_order(
+            "BTC/USDT", "buy", 300.0, price=105.0,
+            timestamp=timestamp - pd.Timedelta(days=1),
+            strategy_id="TrendBreakout", stop_loss=100.0, approved_risk_amount=2000.0,
         )
+        broker.process_orders({"BTC/USDT": pd.Series(
+            {"open": 120., "high": 120., "low": 120., "close": 120., "volume": 1000},
+            name=timestamp,
+        )})
 
         engine = BacktestEngine()
         audit: list = []
         engine._recheck_entry_risk(
             portfolio=portfolio,
             execution=execution,
-            strategies={},
-            risk_manager=risk_manager,
-            equity=100_000.0,
             prices={"BTC/USDT": 120.0},
             timestamp=timestamp,
             bar_index=7,
             policy=EntryRiskPolicy(),
-            checked_lot_ids=set(),
+            checked_entries={},
             audit=audit,
         )
 
@@ -317,7 +318,7 @@ class TestEngineEmitsGapRiskResize(unittest.TestCase):
         self.assertAlmostEqual(reduce_orders[0].qty, 200.0)
         self.assertEqual(reduce_orders[0].side, "sell")
 
-    def test_each_lot_is_only_rechecked_once(self):
+    def test_unchanged_cumulative_fill_is_only_rechecked_once(self):
         from backtest.engine import BacktestEngine
         from backtest.execution_adapter import SimulatedExecutionAdapter
         from core.broker import Broker
@@ -327,20 +328,24 @@ class TestEngineEmitsGapRiskResize(unittest.TestCase):
         broker = Broker(portfolio)
         execution = SimulatedExecutionAdapter(broker)
         timestamp = pd.Timestamp("2021-05-19T00:00:00Z")
-        portfolio.update_position(
-            "BTC/USDT", qty_delta=300.0, price=120.0, time=timestamp,
-            strategy_id="TrendBreakout", order_id="ORD-1", stop_price=100.0,
+        broker.submit_order(
+            "BTC/USDT", "buy", 300.0, price=105.0,
+            timestamp=timestamp - pd.Timedelta(days=1),
+            strategy_id="TrendBreakout", stop_loss=100.0, approved_risk_amount=2000.0,
         )
+        broker.process_orders({"BTC/USDT": pd.Series(
+            {"open": 120., "high": 120., "low": 120., "close": 120., "volume": 1000},
+            name=timestamp,
+        )})
         engine = BacktestEngine()
         audit: list = []
-        seen: set = set()
+        seen: dict = {}
         for _ in range(3):
             engine._recheck_entry_risk(
-                portfolio=portfolio, execution=execution, strategies={},
-                risk_manager=RiskManager(risk_per_trade=0.02),
-                equity=100_000.0, prices={"BTC/USDT": 120.0},
+                portfolio=portfolio, execution=execution,
+                prices={"BTC/USDT": 120.0},
                 timestamp=timestamp, bar_index=7, policy=EntryRiskPolicy(),
-                checked_lot_ids=seen, audit=audit,
+                checked_entries=seen, audit=audit,
             )
         self.assertEqual(len(audit), 1)
 
