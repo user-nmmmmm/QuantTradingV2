@@ -58,12 +58,16 @@ class CorrelationClusterPolicy:
     max_same_session_entry_risk: Optional[float] = None
     #: Open initial risk inside one cluster / equity.
     max_correlated_stop_risk: Optional[float] = None
+    #: Optional parent budget across major and all other crypto subclusters.
+    #: Disabled by default so legacy research/account policies are unchanged.
+    max_crypto_beta_stop_risk: Optional[float] = None
     enabled: bool = True
 
     def __post_init__(self) -> None:
         for name in (
             "max_cluster_exposure_pct", "max_crypto_beta_exposure",
             "max_same_session_entry_risk", "max_correlated_stop_risk",
+            "max_crypto_beta_stop_risk",
         ):
             value = getattr(self, name)
             if value is not None and (not isfinite(float(value)) or float(value) <= 0):
@@ -103,6 +107,7 @@ class CorrelationClusterPolicy:
         return self.enabled and (
             self.max_same_session_entry_risk is not None
             or self.max_correlated_stop_risk is not None
+            or self.max_crypto_beta_stop_risk is not None
         )
 
 
@@ -150,6 +155,36 @@ def open_risk_by_cluster(
             share = float(risk) * (float(lot.qty_open) / float(lot.qty_original))
             totals[cluster] = totals.get(cluster, 0.0) + max(share, 0.0)
     return totals
+
+
+def crypto_beta_open_stop_risk(portfolio: Any) -> float:
+    """Conservative filled risk for the optional parent crypto budget.
+
+    Lot.initial_risk is an approved accounting amount, which can understate
+    the filled entry-to-stop distance after a gap or a risk-reducing partial
+    close. Keep that approval floor and also measure the actual remaining
+    units. A held position without verifiable protection exhausts this budget.
+    Existing subgroup/account risk accounting remains unchanged.
+    """
+    total = 0.0
+    for book in getattr(portfolio, "lot_books", {}).values():
+        for lot in book.open_lots:
+            qty = abs(float(lot.qty_open))
+            if qty == 0:
+                continue
+            entry = getattr(lot, "entry_price", None)
+            stop = getattr(lot, "stop_price", None)
+            if entry is None or stop is None or not all(
+                isfinite(float(value)) and float(value) > 0 for value in (entry, stop)
+            ):
+                return float("inf")
+            approved = (float(lot.initial_risk) * qty / abs(float(lot.qty_original))
+                        if lot.initial_risk is not None and lot.qty_original else 0.0)
+            actual = abs(float(entry) - float(stop)) * qty
+            if not isfinite(approved) or not isfinite(actual):
+                return float("inf")
+            total += max(approved, actual, 0.0)
+    return total
 
 
 @dataclass(frozen=True)
@@ -224,7 +259,7 @@ class PortfolioRiskGovernor:
 
     def evaluate(
         self, *, symbol: str, planned_risk: float, equity: float,
-        portfolio: Any,
+        portfolio: Any, pending_stop_risk: Optional[Mapping[str, float]] = None,
     ) -> RiskBudgetDecision:
         """Scale or reject one candidate against the correlated-risk budgets."""
         cluster = self.policy.cluster_for(symbol)
@@ -244,6 +279,20 @@ class PortfolioRiskGovernor:
             headrooms.append((
                 "correlated_stop_risk",
                 equity * float(self.policy.max_correlated_stop_risk) - open_risk,
+            ))
+        if self.policy.max_crypto_beta_stop_risk is not None:
+            # A reservation transfers to the lot ledger on each fill; summing
+            # both therefore covers accepted, partially filled and held risk
+            # without treating major and altcoins as independent portfolios.
+            pending_values = ([self._session_risk] if pending_stop_risk is None else
+                              [float(value) for value in pending_stop_risk.values()])
+            pending = (sum(pending_values) if all(isfinite(value) and value >= 0
+                                                  for value in pending_values)
+                       else float("inf"))
+            aggregate = crypto_beta_open_stop_risk(portfolio)
+            headrooms.append((
+                "crypto_beta_stop_risk",
+                equity * float(self.policy.max_crypto_beta_stop_risk) - aggregate - pending,
             ))
         binding, headroom = min(headrooms, key=lambda item: item[1])
         if headroom <= 0:

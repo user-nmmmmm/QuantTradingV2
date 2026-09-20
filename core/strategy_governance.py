@@ -68,7 +68,7 @@ def assert_live_admission(
         raise GovernanceError("research must be a mapping")
     research_only_keys = {
         "experiment_id", "strategy_review", "review_overrides",
-        "trend_breakout_parameters",
+        "trend_breakout_parameters", "trend_portfolio_v2",
     }
     if research_only_keys.intersection(research):
         raise GovernanceError("Research experiment identities and overrides are research-only")
