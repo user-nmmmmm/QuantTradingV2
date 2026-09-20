@@ -14,6 +14,7 @@ from router.router import Router
 from strategies.base import Strategy
 from strategies.mean_reversion import RangeStrategy
 from strategies.trend_breakout import TrendBreakdownStrategy, TrendBreakoutStrategy
+from strategies.trend_portfolio_v2 import TrendPortfolioV2Strategy
 from strategies.volatility import VolatilityReversionStrategy
 
 
@@ -62,6 +63,21 @@ def build_strategy_registry(
         "RangeMeanReversion": RangeStrategy(),
         "VolatilityReversion": VolatilityReversionStrategy(),
     }
+    # Opt in through the effective routing configuration. Keeping V2 out of
+    # the default registry also preserves the baseline's passive observers.
+    if configuration is not None and "TrendPortfolioV2" in (
+        configuration.get("routing") or {}
+    ).values():
+        v2_parameters = (configuration.get("research") or {}).get("trend_portfolio_v2", {})
+        if not isinstance(v2_parameters, Mapping):
+            raise ValueError("research.trend_portfolio_v2 must be a mapping")
+        if v2_parameters and not str(
+            (configuration.get("research") or {}).get("experiment_id") or ""
+        ).strip():
+            raise ValueError("trend_portfolio_v2 parameters require research.experiment_id")
+        registry["TrendPortfolioV2"] = TrendPortfolioV2Strategy(
+            **{**breakout_parameters, **dict(v2_parameters)}
+        )
     if configuration is not None:
         health_policy = build_strategy_health_policy(configuration)
         stop_policy = build_protective_stop_policy(configuration)
@@ -168,7 +184,9 @@ def build_router(
     allow_short: bool = True,
 ) -> Router:
     routing_config = dict(configuration.require("routing"))
-    if not allow_short:
+    # Preserve V2's explicit routing identity across normal regimes. Its
+    # TREND_DOWN multiplier blocks new longs while owned positions retain exits.
+    if not allow_short and routing_config.get("TREND_DOWN") != "TrendPortfolioV2":
         routing_config["TREND_DOWN"] = "Cash"
 
     return Router(

@@ -26,6 +26,8 @@
 
 ## 最新行为变更
 
+- [TrendPortfolioV2 研究策略](trend_portfolio_v2.md)：20/60/120 趋势分数、状态风险倍率、波动率目标仓位、ATR 退出及双交易所五组固定对照；工程验证和策略准入分开记录。
+
 - [Roadmap 第7节验收记录](section7_acceptance_20260920.md)：优先级和依赖阻断、七项完成定义、24项历史本地验收的显式证据适配，以及完整证据检查与CI结构检查的区别；[完成定义契约](roadmap_completion_contract.md)。
 
 - [Roadmap 第5、6节执行记录](section56_acceptance_20260920.md)：九规则验证入口、连续观察与前瞻协议校验、S2/S3隔离能力、新候选登记及未完成边界；[选币契约](s2_selection_contract.md)、[仓位能力契约](s3_position_capabilities.md)。

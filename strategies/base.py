@@ -192,6 +192,28 @@ class Strategy(ABC):
         """Report-facing lifecycle state; empty when health is not modelled."""
         return {}
 
+    def entry_risk_multiplier(self, state: MarketState) -> float:
+        """Strategy risk preference, separate from health and portfolio limits.
+
+        The neutral default preserves existing strategies. A regime-aware
+        strategy may reduce its proposed size before the unchanged risk caps.
+        """
+        return 1.0
+
+    def initial_entry_quantity(
+        self, *, signal: Dict[str, Any], equity: float, current_price: float,
+        stop_loss: float, risk_manager: RiskManager,
+    ) -> float:
+        """Propose a quantity before shared health, regime and account limits.
+
+        Strategies may supply a causal sizing model through this hook. The
+        default preserves the existing stop-risk/fixed-allocation behaviour;
+        both execution entry paths then apply the same downstream controls.
+        """
+        if stop_loss > 0:
+            return risk_manager.calculate_position_size(equity, current_price, stop_loss)
+        return risk_manager.calculate_position_size_fixed_pct(equity, current_price, pct=0.10)
+
     def _consume_execution_trades(
         self, symbol: str, bar_index: int,
         portfolio: Portfolio, broker: ExecutionPort,
@@ -430,19 +452,15 @@ class Strategy(ABC):
                     )
                     equity = portfolio.get_equity(price_map)
 
-                    if stop_loss > 0:
-                        size = risk_manager.calculate_position_size(
-                            equity, current_price, stop_loss
-                        )
-                    else:
-                        # Fallback: Use Fixed Percentage (e.g. 10% of Equity)
-                        size = risk_manager.calculate_position_size_fixed_pct(
-                            equity, current_price, pct=0.10
-                        )
+                    size = self.initial_entry_quantity(
+                        signal=entry_signal, equity=equity, current_price=current_price,
+                        stop_loss=stop_loss, risk_manager=risk_manager,
+                    )
                     # SR1-3: PROBATION re-enters at reduced size. Applied here,
                     # before the caps and the entry gate, so the clamp, the
                     # reservation and the order all see the same number.
                     size *= self.health_risk_multiplier()
+                    size *= self.entry_risk_multiplier(state)
 
                     if size > 0:
                         # Liquidity is enforced by the execution venue against the
@@ -609,12 +627,15 @@ class Strategy(ABC):
         order_price = float(signal.get("price", current_price))
         stop_loss = float(signal.get("stop_loss", 0.0) or 0.0)
         equity = portfolio.get_equity(current_prices)
-        if stop_loss > 0:
-            size = risk_manager.calculate_position_size(equity, current_price, stop_loss)
-        else:
-            size = risk_manager.calculate_position_size_fixed_pct(equity, current_price, pct=0.10)
+        size = self.initial_entry_quantity(
+            signal=signal, equity=equity, current_price=current_price,
+            stop_loss=stop_loss, risk_manager=risk_manager,
+        )
         size *= self.health_risk_multiplier()  # SR1-3 probation scaling
+        market_multiplier = self.entry_risk_multiplier(candidate.state)
+        size *= market_multiplier
         note("zero_sizing", sized_qty=size, health_multiplier=self.health_risk_multiplier(),
+             market_multiplier=market_multiplier,
              portfolio_multiplier=risk_manager.risk_multiplier, reference_price=current_price,
              equity=equity, stop_loss=stop_loss, sized_notional=size * current_price)
         pending_provider = getattr(broker, "pending_open_notional", None)
@@ -631,9 +652,15 @@ class Strategy(ABC):
         note(clamped_qty=size)
         if risk_governor is not None and size > 0 and stop_loss > 0:
             planned_risk = size * abs(current_price - stop_loss)
+            parent_budget_options = {}
+            if getattr(getattr(risk_governor, "policy", None), "max_crypto_beta_stop_risk", None) is not None:
+                projection = getattr(broker, "reservation_projection", None)
+                if projection is not None:
+                    parent_budget_options["pending_stop_risk"] = projection.pending_stop_risk()
             budget_decision = risk_governor.evaluate(
                 symbol=symbol, planned_risk=planned_risk,
                 equity=equity, portfolio=portfolio,
+                **parent_budget_options,
             )
             size *= budget_decision.scale
             note("correlated_budget" if size <= 0 else "entry_risk_check",
