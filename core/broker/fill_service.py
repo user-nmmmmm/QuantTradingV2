@@ -95,12 +95,32 @@ class FillServiceMixin:
             self._set_status(order, BacktestOrderStatus.NO_POSITION, timestamp)
             return None
 
+        target_controller = getattr(self, "portfolio_target_controller", None)
+        if target_controller is not None and order.exit_reason == "v3_rebalance":
+            capped = target_controller.fill_quantity_cap(
+                broker=self, order=order, price=fill_price, requested=fill_qty, timestamp=timestamp)
+            if capped < fill_qty-1e-12:
+                if capped <= 1e-12 or order.time_in_force.value == "FOK":
+                    self._audit_order(order, timestamp, "rejected", "weekly_turnover_fill_limit")
+                    self._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
+                    return None
+                self._audit_order(order, timestamp, "resized", "weekly_turnover_fill_limit", fill_qty=capped)
+                fill_qty = capped
+                qty_delta = fill_qty if order.side in {"buy", "cover"} else -fill_qty
+
         value = fill_qty * fill_price
         fee_rate = 0.0 if order.zero_cost else (
             self.commission_rate_maker if is_maker else self.commission_rate
         )
         commission = value * fee_rate
         is_opening = order.side in {"buy", "short"}
+        quote_policy = getattr(self, "quote_borrow_policy", None)
+        if quote_policy is not None and self.portfolio.account_mode is AccountMode.SPOT_MARGIN:
+            # Settle OLD principal before admission: accrued interest consumes
+            # collateral and quote credit too. The adapter's later same-time
+            # accrual is a no-op under the shared clock.
+            carry_bar = pd.Series({"close": price}, name=pd.Timestamp(timestamp))
+            self._accrue_quote_borrow({order.symbol: carry_bar})
         if order.side == "short" and not self.portfolio.account_mode.allows_short:
             self._audit_order(order, timestamp, "rejected", "spot_short_forbidden")
             self._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
@@ -152,6 +172,36 @@ class FillServiceMixin:
                 )
                 self._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
                 return None
+        if (quote_policy is not None and order.side == "buy"
+                and self.portfolio.account_mode is AccountMode.SPOT_MARGIN):
+            # Account-level quote evidence is distinct from coin-short borrow
+            # availability. Recheck at the ACTUAL fill price, including fees.
+            evidence = quote_policy.resolve(account=self.account_id, as_of=timestamp)
+            eligibility = quote_policy.market_eligibility(symbol=order.symbol, as_of=timestamp,
+                metadata=getattr(self, "quote_borrow_market_metadata", {}))
+            marks = dict(self.last_prices)
+            marks[order.symbol] = fill_price
+            long_notional = sum(max(0., position["qty"])*marks.get(symbol, position["avg_price"])
+                                for symbol, position in self.portfolio.positions.items())
+            # In this ledger cash is collateral, not spendable quote balance;
+            # each earlier long has already consumed equity-funded capacity.
+            quote_limit = evidence.limit if eligibility.allowed else 0.
+            capacity = max(0., self.portfolio.get_equity(marks)-long_notional+quote_limit)
+            affordable = capacity / (fill_price * (1 + fee_rate))
+            if fill_qty > affordable + 1e-12:
+                if order.time_in_force.value == "FOK" or affordable <= 1e-12:
+                    self._audit_order(order, timestamp, "rejected", "quote_borrow_limit",
+                                      borrow_status=evidence.status, quote_borrow_limit=quote_limit,
+                                      market_financing_reason=eligibility.reason)
+                    self._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
+                    return None
+                fill_qty = min(fill_qty, affordable * (1 - 1e-12))
+                qty_delta = fill_qty
+                value = fill_qty * fill_price
+                commission = value * fee_rate
+                self._audit_order(order, timestamp, "resized", "quote_borrow_limit",
+                                  borrow_status=evidence.status, fill_qty=fill_qty,
+                                  market_financing_reason=eligibility.reason)
         if (
             is_opening
             and self.portfolio.account_mode is AccountMode.SPOT

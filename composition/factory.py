@@ -15,6 +15,7 @@ from strategies.base import Strategy
 from strategies.mean_reversion import RangeStrategy
 from strategies.trend_breakout import TrendBreakdownStrategy, TrendBreakoutStrategy
 from strategies.trend_portfolio_v2 import TrendPortfolioV2Strategy
+from strategies.trend_portfolio_v3 import TrendPortfolioV3Strategy
 from strategies.volatility import VolatilityReversionStrategy
 
 
@@ -78,6 +79,16 @@ def build_strategy_registry(
         registry["TrendPortfolioV2"] = TrendPortfolioV2Strategy(
             **{**breakout_parameters, **dict(v2_parameters)}
         )
+    if configuration is not None and "TrendPortfolioV3" in (
+        configuration.get("routing") or {}
+    ).values():
+        research = configuration.get("research") or {}
+        parameters = research.get("trend_portfolio_v3", {})
+        if not isinstance(parameters, Mapping):
+            raise ValueError("research.trend_portfolio_v3 must be a mapping")
+        if not str(research.get("experiment_id") or "").strip():
+            raise ValueError("TrendPortfolioV3 requires research.experiment_id")
+        registry["TrendPortfolioV3"] = TrendPortfolioV3Strategy(**dict(parameters))
     if configuration is not None:
         health_policy = build_strategy_health_policy(configuration)
         stop_policy = build_protective_stop_policy(configuration)

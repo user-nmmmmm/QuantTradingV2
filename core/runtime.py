@@ -124,6 +124,7 @@ class EventProcessor:
         initial_equity: Optional[float] = None,
         entry_audit_enabled: bool = False,
         signal_observer: Any = None,
+        portfolio_controller: Any = None,
     ) -> None:
         self.portfolio = portfolio
         self.execution = execution
@@ -133,6 +134,8 @@ class EventProcessor:
         self.allocator = allocator
         self.warmup_period = max(int(warmup_period), 0)
         self.last_prices: Dict[str, float] = {}
+        self._last_market_states: Dict[str, Any] = {}
+        self._portfolio_management_symbols: set[str] = set()
         self._current_day = None
         self._daily_start_equity = float(
             initial_equity if initial_equity is not None else portfolio.cash
@@ -140,6 +143,7 @@ class EventProcessor:
         self._previous_session_close_equity = self._daily_start_equity
         self._bar_index = -1
         self.signal_observer = signal_observer
+        self.portfolio_controller = portfolio_controller
         self.entry_audit_enabled = entry_audit_enabled or signal_observer is not None
         self.entry_audit: list[dict[str, Any]] = []
         budget = getattr(self.risk_manager, "drawdown_budget", None)
@@ -167,6 +171,8 @@ class EventProcessor:
 
         if not isinstance(event, MarketDataSlice):
             raise TypeError("event must be MarketDataSlice")
+        if self.portfolio_controller is not None:
+            self.portfolio_controller.bind(self.execution)
         if self.signal_observer is not None:
             self.signal_observer.advance(event)
         if execute_market_event:
@@ -210,22 +216,37 @@ class EventProcessor:
 
         routed: list[str] = []
         selected = set(symbols) if symbols is not None else None
+        portfolio_symbols = None
+        if self.portfolio_controller is not None:
+            portfolio_symbols = self.portfolio_controller.prepare(
+                event=event, portfolio=self.portfolio, broker=self.execution, current_prices=self.last_prices)
+            self._portfolio_management_symbols = set(self.portfolio_controller.management_symbols)
         candidates = []
         # Position management and entry collection are deliberately separate:
         # BLOCK_NEW must never disable stops or strategy exits.
         for symbol in event.bars:
-            if selected is not None and symbol not in selected:
+            held = bool(self.portfolio.get_position(symbol).get("qty", 0.))
+            if portfolio_symbols is not None and symbol not in portfolio_symbols:
+                continue
+            if selected is not None and symbol not in selected and not held:
                 continue
             candidate, processed = self._collect_symbol_candidate(
                 event, symbol,
                 allow_position_management=decision.allow_position_management,
-                allow_new_entries=decision.allow_new_entries,
+                allow_new_entries=decision.allow_new_entries and self.portfolio_controller is None,
             )
             if processed:
                 routed.append(symbol)
             if candidate is not None:
                 candidates.append(candidate)
-        if decision.allow_new_entries:
+        if self.portfolio_controller is not None:
+            self.portfolio_controller.process(
+                event=event, portfolio=self.portfolio, broker=self.execution,
+                risk_manager=self.risk_manager, current_prices=self.last_prices,
+                risk_decision=decision, risk_governor=getattr(self.allocator, "risk_governor", None),
+                market_states=self._last_market_states,
+            )
+        elif decision.allow_new_entries:
             self.allocator.allocate(
                 candidates, portfolio=self.portfolio, broker=self.execution,
                 risk_manager=self.risk_manager, current_prices=self.last_prices,
@@ -336,10 +357,15 @@ class EventProcessor:
             except KeyError:
                 note("missing_timestamp")
                 return None, False
-        if not isinstance(location, int) or location < self.warmup_period:
+        held_position = (bool(self.portfolio.get_position(symbol).get("qty", 0.))
+                         or symbol in self._portfolio_management_symbols)
+        if not isinstance(location, int) or (location < self.warmup_period and not held_position):
             note("warmup")
             return None, False
+        if location < self.warmup_period:
+            allow_new_entries = False
         state = self.state_machine.get_state(df, location)
+        self._last_market_states[symbol] = state
         note("no_candidate", market_state=getattr(state, "name", str(state)))
         router_type = type(self.router)
         legacy_override = "collect_candidate" in vars(self.router)

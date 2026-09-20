@@ -74,8 +74,14 @@ class HistoricalMarketDataAdapter:
                 timeline = timeline.union(frame.index)
         return timeline.sort_values()
 
-    def stream(self) -> Iterable[MarketDataSlice]:
-        for timestamp in self.timestamps:
+    def stream(self, *, start_at=None) -> Iterable[MarketDataSlice]:
+        timeline = self.timestamps
+        if start_at is not None:
+            point = pd.Timestamp(start_at)
+            if point.tzinfo is not None:
+                point = point.tz_convert("UTC").tz_localize(None)
+            timeline = timeline[timeline >= point]
+        for timestamp in timeline:
             bars: Dict[str, pd.Series] = {}
             positions: Dict[str, int] = {}
             for symbol, frame in self.data_map.items():

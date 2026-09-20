@@ -186,7 +186,18 @@ class Portfolio:
                     del self.positions[symbol]
             else:
                 self.positions[symbol]["qty"] = new_qty
-                # avg_price remains same
+                if self.account_mode is not AccountMode.SPOT:
+                    # Collateral realised PnL above follows FIFO lot closes.
+                    # Its remaining unrealised PnL must use the SAME remaining
+                    # lots, otherwise a partial reduction after adding at a
+                    # different price creates or destroys account equity.
+                    remaining = self.get_lot_book(symbol).open_lots
+                    remaining_qty = sum(abs(lot.qty_open) for lot in remaining)
+                    self.positions[symbol]["avg_price"] = (
+                        sum(abs(lot.qty_open)*lot.entry_price for lot in remaining) / remaining_qty
+                    )
+                # Spot equity values owned inventory directly, so retain its
+                # historical weighted-average position display semantics.
 
         return lot_closes
 

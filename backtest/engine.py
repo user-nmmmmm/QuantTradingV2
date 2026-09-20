@@ -34,7 +34,7 @@ from core.logger import get_logger
 from core.market_data import HistoricalMarketDataAdapter, normalize_market_frame
 from core.metrics import calculate_exposure
 from core.portfolio import Portfolio
-from core.runtime import EventProcessor
+from core.runtime import EventProcessor, MarketDataSlice
 from core.risk.actions import plan_risk_action
 from backtest.drawdown_budget import BacktestDrawdownReducer
 from core.protective_stops import EntryRiskPolicy, evaluate_fill_risk
@@ -77,6 +77,9 @@ class BacktestEngine:
         signal_meta_layer: Optional[Dict[str, Any] | EVPolicy] = None,
         signal_adaptive: Optional[Dict[str, Any] | AdaptiveEVPolicy] = None,
         signal_meta_replay: Optional[Dict[str, Any] | MetaReplayPolicy] = None,
+        portfolio_controller: Any = None,
+        terminal_policy: Optional[str] = None,
+        calculate_benchmarks: bool = True,
     ) -> None:
         config_data = config.require("data")
         config_benchmark = config.require("benchmark")
@@ -150,6 +153,15 @@ class BacktestEngine:
         self.benchmark_rebalance_cost_bps = benchmark_rebalance_cost_bps
         self.timeframe = timeframe
         self.universe = universe
+        self.portfolio_controller = portfolio_controller
+        self.calculate_benchmarks = bool(calculate_benchmarks)
+        self._terminal_policy_override = terminal_policy
+        self.terminal_policy = terminal_policy or config.get("backtest", "end_of_backtest_mode") or "mark_to_market"
+        if self.terminal_policy not in {"mark_to_market", "forced_liquidation", "valuation_only"}:
+            raise ValueError("unsupported backtest terminal policy")
+        self.terminal_valuation: Dict[str, Any] = {}
+        self.valuation_quality: list[Dict[str, Any]] = []
+        self._last_mark_times: Dict[str, Any] = {}
         self.run_id = run_id or str(uuid4())
         self.market_data_adapter: Optional[HistoricalMarketDataAdapter] = None
         self.execution_adapter: Optional[SimulatedExecutionAdapter] = None
@@ -167,6 +179,12 @@ class BacktestEngine:
         routing_log_path: Optional[str] = None,
         routing_log_enabled: bool = True,
     ) -> Dict[str, Any]:
+        self.terminal_policy = self._terminal_policy_override or config.get("backtest", "end_of_backtest_mode") or "mark_to_market"
+        if self.terminal_policy not in {"mark_to_market", "forced_liquidation", "valuation_only"}:
+            raise ValueError("unsupported backtest terminal policy")
+        self.terminal_valuation = {}
+        self.valuation_quality = []
+        self._last_mark_times = {}
         initial_margin_rate = float(
             self.config_account.get(
                 "initial_margin_rate",
@@ -227,6 +245,8 @@ class BacktestEngine:
             event_pipeline=event_pipeline,
             timeframe=self.timeframe,
         )
+        if self.portfolio_controller is not None:
+            self.portfolio_controller.bind(broker)
         risk_manager = build_risk_manager(config)
         budget = getattr(risk_manager, 'drawdown_budget', None)
         drawdown_reducer = BacktestDrawdownReducer(budget) if budget is not None else None
@@ -252,6 +272,7 @@ class BacktestEngine:
         market_data = HistoricalMarketDataAdapter(
             data_map,
             timeframe=self.timeframe,
+            calculate_indicators=self.portfolio_controller is None,
             alignment_mode=self.alignment_mode,
             universe=self.universe,
         )
@@ -344,6 +365,7 @@ class BacktestEngine:
             initial_equity=self.initial_capital,
             entry_audit_enabled=bool((config.get("research") or {}).get("entry_audit", False)),
             signal_observer=observer,
+            portfolio_controller=self.portfolio_controller,
         )
         self.market_data_adapter = market_data
         self.execution_adapter = execution
@@ -398,9 +420,16 @@ class BacktestEngine:
         waiting_for_recovery = False
         health_activity = []
         routed_names = set((config.get("routing") or {}).values()) - {"Cash"}
-        for bar_index, event in enumerate(market_data.stream()):
+        stream_start = (self.trading_start if self.portfolio_controller is not None else None)
+        stream = market_data.stream(start_at=stream_start) if stream_start is not None else market_data.stream()
+        stream_offset = int(timestamps.searchsorted(stream_start)) if stream_start is not None else 0
+        for bar_index, event in enumerate(stream, start=stream_offset):
             if self.trading_start is not None and event.timestamp < self.trading_start:
                 continue  # History only: no cashflows, orders or health state before the window.
+            event = self._causal_executable_event(event)
+            for symbol, bar in event.bars.items():
+                if pd.notna(bar.get("close")) and float(bar["close"]) > 0:
+                    self._last_mark_times[symbol] = event.timestamp
             last_event_timestamp = event.timestamp
             if lifecycle["active_start"] is None:
                 lifecycle["active_start"] = event.timestamp
@@ -558,6 +587,14 @@ class BacktestEngine:
                 portfolio, result.prices, event.timestamp,
                 exposure_positions, exposure_prices,
             )
+            if self.terminal_policy == "valuation_only":
+                for symbol, position in portfolio.positions.items():
+                    if abs(float(position.get("qty", 0))) > 1e-12 and symbol not in event.bars:
+                        self.valuation_quality.append({
+                            "timestamp": event.timestamp, "symbol": symbol,
+                            "quantity": float(position["qty"]),
+                            "mark": result.prices.get(symbol), "status": "stale_no_real_bar",
+                        })
             # T-1.8: accounting-identity check (Gate G2), one lightweight pass
             # per bar using the same equity/prices the loop already computed.
             accounting.check_bar(
@@ -619,6 +656,15 @@ class BacktestEngine:
             )
             lifecycle["active_end"] = last_event_timestamp
         else:
+            if self.terminal_policy == "valuation_only":
+                self._close_tail_positions(
+                    portfolio, broker, execution, strategies, equity_curve, accounting,
+                    last_event_timestamp, bar_index,
+                    exposure_positions=exposure_positions, exposure_prices=exposure_prices,
+                )
+                if self.terminal_valuation.get("positions"):
+                    self.terminal_valuation.update(status="insufficient",
+                        reason="risk_halted_with_unresolved_positions; frozen tail is not a current market valuation")
             terminal_equity = float(equity_curve[-1]["equity"])
             terminal_cash = float(equity_curve[-1]["cash"])
             if observer is not None:
@@ -736,13 +782,13 @@ class BacktestEngine:
 
         fixed_benchmark = fixed_equal_weight_buy_hold(
             processed_data, self.initial_capital, start_idx=self.warmup_period
-        )
+        ) if self.calculate_benchmarks else None
         dynamic_benchmark = dynamic_equal_weight_rebalanced(
             processed_data,
             self.initial_capital,
             start_idx=self.warmup_period,
             cost_bps=self.benchmark_rebalance_cost_bps,
-        )
+        ) if self.calculate_benchmarks else None
         selected_benchmark = (
             dynamic_benchmark if self.benchmark_mode == "dynamic" else fixed_benchmark
         )
@@ -787,6 +833,10 @@ class BacktestEngine:
             if self.signal_meta_replay_policy.enabled and signal_adaptive_result is not None else None
         )
         return {
+            "terminal_valuation": self.terminal_valuation,
+            "valuation_quality": self.valuation_quality,
+            "portfolio_controller": (self.portfolio_controller.export()
+                if self.portfolio_controller is not None else None),
             "signal_observation": signal_observation_result,
             "signal_meta_layer": signal_meta_layer_result,
             "signal_adaptive": signal_adaptive_result,
@@ -927,6 +977,35 @@ class BacktestEngine:
         positions_by_time[timestamp] = held
         prices_by_time[timestamp] = marks
 
+    def _causal_executable_event(self, event: MarketDataSlice) -> MarketDataSlice:
+        """V3 only: a publicly closed market cannot execute on later cache bars.
+
+        With a known intraday cutoff the entire daily execution interval is
+        unavailable: daily OHLC cannot establish pre-cutoff fill liquidity.
+        Announcements not known at the opening instant cannot censor that open.
+        """
+        if self.portfolio_controller is None:
+            return event
+        metadata = getattr(self.portfolio_controller, "metadata", {})
+        point = pd.Timestamp(event.timestamp)
+        point = point.tz_localize("UTC") if point.tzinfo is None else point.tz_convert("UTC")
+        excluded = set()
+        for symbol in event.bars:
+            for fact in metadata.get(symbol, {}).get("events", []):
+                if (fact.get("kind", fact.get("action")) not in {"spot_delisted", "spot_delist", "delist"}
+                        or fact.get("source_status", "unverified") != "verified"):
+                    continue
+                available = pd.to_datetime(fact.get("available_at"), utc=True)
+                effective = pd.to_datetime(fact.get("effective_at"), utc=True)
+                if pd.notna(available) and pd.notna(effective) and available <= point and effective < point + pd.Timedelta(days=1):
+                    excluded.add(symbol)
+        if not excluded:
+            return event
+        return MarketDataSlice(timestamp=event.timestamp,
+            bars={s: b for s, b in event.bars.items() if s not in excluded}, histories=event.histories,
+            positions={s: p for s, p in event.positions.items() if s not in excluded},
+            timeframe=event.timeframe, source=event.source)
+
     @staticmethod
     def _equity_frame(
         equity_rows: list,
@@ -1042,6 +1121,38 @@ class BacktestEngine:
         """
         if last_event_timestamp is None:
             return
+        if self.terminal_policy == "valuation_only":
+            marks = dict(self.event_processor.last_prices) if self.event_processor else {}
+            rows = []
+            stale_long_value = 0.0
+            for symbol, position in sorted(portfolio.positions.items()):
+                quantity = float(position.get("qty", 0.0))
+                if abs(quantity) <= 1e-12:
+                    continue
+                last_mark_at = self._last_mark_times.get(symbol)
+                stale = last_mark_at is None or last_mark_at < last_event_timestamp
+                price = marks.get(symbol)
+                if stale and quantity > 0 and price is not None:
+                    stale_long_value += quantity * float(price)
+                identities = sorted({lot.position_id for lot in
+                    getattr(getattr(portfolio, "lot_books", {}).get(symbol), "open_lots", ())})
+                rows.append({"symbol": symbol, "quantity": quantity, "mark_price": price,
+                    "mark_timestamp": last_mark_at, "valuation_status": "stale" if stale else "current",
+                    "position_id": identities[0] if len(identities) == 1 else None,
+                    "position_ids": identities, "realized": False})
+            equity = float(portfolio.get_total_value(marks))
+            self.terminal_valuation = {
+                "policy": "valuation_only", "timestamp": last_event_timestamp,
+                "positions": rows, "equity": equity, "synthetic_fill_count": 0,
+                "status": "insufficient" if any(row["valuation_status"] == "stale" for row in rows) else "ok",
+                "stale_long_zero_recovery_equity": equity - stale_long_value,
+                "stale_long_zero_recovery_loss": stale_long_value,
+                "pending_orders": [{"order_id": order.id, "symbol": order.symbol,
+                    "side": order.side, "remaining_quantity": order.remaining_qty,
+                    "status": order.status.value} for order in broker.pending_orders + broker.active_orders
+                    if order.status not in TERMINAL_STATUSES],
+            }
+            return
         open_symbols = [
             symbol
             for symbol, lot_book in portfolio.lot_books.items()
@@ -1055,7 +1166,7 @@ class BacktestEngine:
         for symbol in {order.symbol for order in broker.pending_orders + broker.active_orders}:
             broker.cancel_symbol_orders(symbol)
 
-        eob_mode = config.get("backtest", "end_of_backtest_mode") or "mark_to_market"
+        eob_mode = self.terminal_policy
         zero_cost = eob_mode == "mark_to_market"
         synthetic_time = last_event_timestamp + pd.Timedelta(microseconds=1)
         synthetic_bars: Dict[str, pd.Series] = {}
