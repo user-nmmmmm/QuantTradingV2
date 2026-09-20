@@ -36,9 +36,28 @@ def _resolve_type(name: str) -> Type[Any]:
         registry[_qualified_name(cls)] = cls
         if cls in PAYLOAD_EVENT_TYPES or cls is StructuredPayload:
             registry[f"core.events:{cls.__name__}"] = cls
+            registry[f"core.event_types:{cls.__name__}"] = cls
+        if cls in (CashEvent, MarkPriceEvent):
+            registry[f"core.ledger:{cls.__name__}"] = cls
     if not isinstance(name, str) or name not in registry:
         raise ValueError("Unregistered event type")
     return registry[name]
+
+
+def canonical_wire_types(value: Any) -> Any:
+    """Normalize only registered encoded type names, without rewriting facts.
+
+    Business mappings may contain arbitrary ``class`` strings; those are not
+    type markers and must continue to participate in idempotency comparison.
+    """
+    if isinstance(value, list):
+        return [canonical_wire_types(item) for item in value]
+    if not isinstance(value, dict):
+        return value
+    result = {key: canonical_wire_types(item) for key, item in value.items()}
+    if result.get("__qt_type__") in {"enum", "dataclass", "structured_payload"}:
+        result["class"] = _qualified_name(_resolve_type(result["class"]))
+    return result
 
 
 def _encode_value(value: Any) -> Any:

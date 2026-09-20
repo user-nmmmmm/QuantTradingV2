@@ -1,4 +1,4 @@
-"""Regenerate tests/fixtures/backtest/engine/engine_baseline_v2.json.
+"""Create tests/fixtures/backtest/engine/engine_baseline_v4.json once.
 
 Only run this after a deliberate, reviewed behavior change to the backtest
 engine (data adapters, EventProcessor, Router, strategies, or Broker).
@@ -11,6 +11,7 @@ Usage:
 from __future__ import annotations
 
 import json
+import hashlib
 from pathlib import Path
 
 from tests.engine_baseline_harness import (
@@ -25,10 +26,11 @@ from tests.engine_baseline_harness import (
     run_engine,
 )
 
-FIXTURE_PATH = Path(__file__).parent / "fixtures" / "backtest" / "engine" / "engine_baseline_v2.json"
+FIXTURE_PATH = Path(__file__).parent / "fixtures" / "backtest" / "engine" / "engine_baseline_v4.json"
+PREVIOUS_FIXTURE_PATH = FIXTURE_PATH.with_name("engine_baseline_v3.json")
 
 
-def main() -> None:
+def build_bundle() -> dict:
     data_map = build_synthetic_data_map(
         seed=DEFAULT_SEED, symbols=DEFAULT_SYMBOLS, bars=DEFAULT_BARS
     )
@@ -56,7 +58,11 @@ def main() -> None:
     bundle = {
         "schema_version": SCHEMA_VERSION,
         "metadata": {
-            "behavior_contract": "approved_entry_risk/v1",
+            "behavior_contract": "roadmap-v4-independent-fact-metric-reporting/v1",
+            "text_hash_policy": "UTF-8 text with CRLF and CR normalized to LF",
+            "supersedes": PREVIOUS_FIXTURE_PATH.name,
+            "previous_baseline_lf_sha256": hashlib.sha256(PREVIOUS_FIXTURE_PATH.read_text(encoding="utf-8").encode("utf-8")).hexdigest(),
+            "config_lf_sha256": hashlib.sha256((Path(__file__).resolve().parents[1] / "config" / "params.yaml").read_text(encoding="utf-8").encode("utf-8")).hexdigest(),
             "seed": DEFAULT_SEED,
             "symbols": list(DEFAULT_SYMBOLS),
             "bars_per_symbol": DEFAULT_BARS,
@@ -70,11 +76,19 @@ def main() -> None:
         },
         "artifacts": artifacts,
     }
+    return bundle
+
+
+def main() -> None:
+    if FIXTURE_PATH.exists():
+        raise SystemExit("Refusing to overwrite a frozen engine baseline; review the diff and select a new version.")
+    bundle = build_bundle()
 
     FIXTURE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    FIXTURE_PATH.write_text(canonical_json(bundle) + "\n", encoding="utf-8")
-    print(f"Wrote {FIXTURE_PATH} ({len(artifacts['trades'])} trades, "
-          f"{artifacts['metrics'].get('TotalTrades')} closed trades)")
+    with FIXTURE_PATH.open("x", encoding="utf-8", newline="\n") as handle:
+        handle.write(canonical_json(bundle) + "\n")
+    print(f"Wrote {FIXTURE_PATH} ({len(bundle['artifacts']['trades'])} trades, "
+          f"{bundle['artifacts']['metrics'].get('TotalTrades')} closed trades)")
 
 
 if __name__ == "__main__":

@@ -182,6 +182,7 @@ def run_engine(
             # regression that stops strategies observing their own closures
             # shows up here as changed lifecycle coverage.
             close_events=result.get("close_events"),
+            max_holding_days=result.get("effective_max_holding_days"),
         )
 
     # Renamed, not reassigned positionally: the curve carries exposure columns

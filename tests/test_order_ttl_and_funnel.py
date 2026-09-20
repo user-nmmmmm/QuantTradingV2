@@ -224,6 +224,7 @@ class TestSignalFunnelReadsRealEvents:
                 requested_qty=1, approved_qty=1, reference_price=100,
                 approved=True, reason="ok", intent_id="i1",
             )),
+            _Envelope("chain-1", "order_intent", {"side": "buy"}),
             _Envelope("chain-1", "order", OrderEvent(
                 client_order_id="i1", status=BacktestOrderStatus.FILLED,
                 requested_qty=1.0, filled_qty=1.0, remaining_qty=0.0,
@@ -258,7 +259,8 @@ class TestSignalFunnelReadsRealEvents:
 
         assert funnel["stages"]["risk_evaluated"]["count"] == 1
         assert funnel["stages"]["risk_approved"]["count"] == 0
-        assert funnel["stages"]["order_created"]["count"] == 1
+        assert funnel["stages"]["order_created"]["count"] == 0
+        assert funnel["incomplete_entry_stages"] == 1
 
     def test_an_engine_run_produces_a_populated_funnel(self):
         import tempfile
@@ -282,11 +284,10 @@ class TestSignalFunnelReadsRealEvents:
         funnel = metrics["ExtendedAnalytics"]["signal_funnel"]
         assert funnel["total_correlation_chains"] > 0
         assert funnel["stages"]["filled"]["count"] > 0
-        # Exits carry no risk_decision (only opening intents reserve capacity),
-        # so order_created legitimately exceeds risk_evaluated here.
+        # Exit chains are excluded; downstream entry stages cannot exceed risk evaluation.
         assert (
             funnel["stages"]["order_created"]["count"]
-            >= funnel["stages"]["risk_evaluated"]["count"]
+            <= funnel["stages"]["risk_evaluated"]["count"]
         )
 
     def test_it_is_absent_rather_than_zero_without_an_event_log(self):

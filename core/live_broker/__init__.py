@@ -105,6 +105,7 @@ class LiveBroker(SubmissionServiceMixin, OrderReconcilerMixin, AccountSyncMixin)
         self.trades = []  # Compatibility projection only; OrderStore is authoritative.
         self.close_events = []
         self.projection_issues = []
+        self.unowned_positions = {}
         self._rebuild_fill_projection()
         self.health_assessment = None
         self.last_account_sync_at: Optional[datetime] = None

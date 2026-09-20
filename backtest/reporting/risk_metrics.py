@@ -102,6 +102,20 @@ def summarize_exposure(equity_curve: pd.DataFrame) -> dict[str, Any]:
         gross.index
     ).fillna(0.0)
     invested = gross > 0
+    # An equity row is the book state until the next observation. The final
+    # sample has no observed holding interval; do not invent another bar.
+    elapsed = None
+    if isinstance(gross.index, pd.DatetimeIndex) and gross.index.is_unique and gross.index.is_monotonic_increasing and len(gross) > 1:
+        seconds = pd.Series(np.r_[np.diff(gross.index.asi8) / 1e9, 0.0], index=gross.index)
+        total_seconds = float(seconds.sum())
+        if total_seconds > 0:
+            elapsed = {"status": "ok", "interval_policy": "left observation until next timestamp; final interval excluded",
+                       "time_in_market_ratio": float(seconds[invested].sum() / total_seconds),
+                       "invested_days": float(seconds[invested].sum() / 86400),
+                       "flat_days": float(seconds[~invested].sum() / 86400),
+                       "mean_open_positions": float((held * seconds).sum() / total_seconds),
+                       "mean_gross_leverage": float((gross_pct * seconds).sum() / total_seconds)
+                       if gross_pct.notna().all() else None}
 
     def _mean(series: pd.Series) -> float | None:
         clean = series.dropna()
@@ -109,6 +123,8 @@ def summarize_exposure(equity_curve: pd.DataFrame) -> dict[str, Any]:
 
     return {
         "status": "ok",
+        "elapsed_time_weighted": elapsed or {"status": "insufficient_data", "reason": "two ordered time observations required"},
+        "gross_leverage_quantiles": {str(q): float(gross_pct.quantile(q)) if gross_pct.notna().any() else None for q in (.05, .5, .95)},
         "sample_size": int(len(gross)),
         "time_in_market_ratio": float(invested.mean()),
         "invested_periods": int(invested.sum()),

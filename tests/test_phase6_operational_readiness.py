@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 from core.gray_release import GrayReleasePolicy
 from core.runtime_identity import RuntimeIdentity
 from core.state_store_v2 import StateStore
-from core.live_safety import StartupSafetyPolicy
+from core.live_safety import SafetyConfigurationError, StartupSafetyPolicy
 from core.admission_gates import (
     EXPANSION_DIMENSIONS,
     MONITORING_DIMENSIONS,
@@ -174,7 +174,7 @@ class Phase6EvidenceTests(unittest.TestCase):
         self.assertFalse(report["passed"])
         self.assertEqual(report["changed_dimensions"], ["capital", "leverage"])
 
-    def test_gray_release_accepts_phase6_admission_but_still_checks_permissions(self):
+    def test_gray_release_rejects_unbound_phase6_summary(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             evidence = root / "phase6.json"
@@ -199,7 +199,8 @@ class Phase6EvidenceTests(unittest.TestCase):
                 "binance", "BTC/USDT", 10, 20, str(evidence), str(snapshot), runtime_identity=identity,
             )
             with patch.dict("os.environ", {"QUANT_R8_APPROVED": "approved"}):
-                policy.validate(startup, exchange)
+                with self.assertRaises(SafetyConfigurationError):
+                    policy.validate(startup, exchange)
 
     def test_dashboard_displays_all_phase6_monitoring_dimensions(self):
         report = evaluate_phase6(passing_bundle())

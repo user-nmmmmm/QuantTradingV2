@@ -85,9 +85,13 @@ class VolumeFactors:
 
         for end in range(window - 1, n):
             start = end - window + 1
+            if not np.isfinite(volumes[start : end + 1]).all():
+                continue
+            if (volumes[start : end + 1] < 0).any():
+                continue
             window_high = highs[start : end + 1].max()
             window_low = lows[start : end + 1].min()
-            if window_high <= window_low:
+            if not np.isfinite([window_high, window_low]).all() or window_high <= window_low:
                 continue
 
             edges = np.linspace(window_low, window_high, bins + 1)
@@ -109,13 +113,13 @@ class VolumeFactors:
                 span = hi_idx - lo_idx + 1
                 bin_volumes[lo_idx : hi_idx + 1] += bar_volume / span
 
-            poc_idx = int(np.argmax(bin_volumes))
-            poc_price = (edges[poc_idx] + edges[poc_idx + 1]) / 2
-            poc.iloc[end] = poc_price
-
             total_volume = bin_volumes.sum()
             if total_volume <= 0:
                 continue
+
+            poc_idx = int(np.argmax(bin_volumes))
+            poc_price = (edges[poc_idx] + edges[poc_idx + 1]) / 2
+            poc.iloc[end] = poc_price
 
             target = 0.7 * total_volume
             lo = hi = poc_idx

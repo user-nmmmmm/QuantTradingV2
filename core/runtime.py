@@ -301,7 +301,7 @@ class EventProcessor:
             return self._collect_symbol_candidate_impl(
                 event, symbol, allow_position_management=allow_position_management,
                 allow_new_entries=allow_new_entries)
-        row = {"observation_id": f"{event.timestamp.isoformat()}|{symbol}",
+        row = {"observation_id": f"{self._utc_datetime(event.timestamp).isoformat()}|{symbol}",
                "timestamp": event.timestamp, "symbol": symbol, "reason": "not_evaluated",
                "portfolio_action": self.risk_manager.breaker_action.value}
         if self.signal_observer is not None:

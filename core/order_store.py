@@ -114,6 +114,19 @@ class OrderStore:
                 "CREATE TABLE IF NOT EXISTS risk_action_sequences ("
                 "sequence INTEGER PRIMARY KEY AUTOINCREMENT, action_key TEXT NOT NULL UNIQUE)"
             )
+        # Projection facts are derived, restartable state. Raw orders/fills
+        # remain authoritative; triggers also cover older call sites.
+        with self._connection:
+            self._connection.execute("CREATE TABLE IF NOT EXISTS projection_order_changes (sequence INTEGER PRIMARY KEY AUTOINCREMENT, client_order_id TEXT NOT NULL)")
+            self._connection.execute("CREATE TABLE IF NOT EXISTS fill_evidence (fill_id TEXT PRIMARY KEY, schema_version TEXT NOT NULL, fee_status TEXT NOT NULL)")
+            self._connection.execute("CREATE TABLE IF NOT EXISTS fill_projection_state (name TEXT PRIMARY KEY, version INTEGER NOT NULL, payload TEXT NOT NULL)")
+            self._connection.execute("CREATE TABLE IF NOT EXISTS projected_close_events (sequence INTEGER PRIMARY KEY AUTOINCREMENT, projection_name TEXT NOT NULL, close_event_id TEXT NOT NULL, payload TEXT NOT NULL, UNIQUE(projection_name, close_event_id))")
+            self._connection.execute("CREATE INDEX IF NOT EXISTS idx_projected_close_stream ON projected_close_events(projection_name, sequence)")
+            if not self._connection.execute("SELECT 1 FROM sqlite_master WHERE type='trigger' AND name='projection_order_insert'").fetchone():
+                self._connection.execute("INSERT INTO projection_order_changes(client_order_id) SELECT client_order_id FROM orders")
+            self._connection.execute("CREATE TRIGGER IF NOT EXISTS projection_order_insert AFTER INSERT ON orders BEGIN INSERT INTO projection_order_changes(client_order_id) VALUES(new.client_order_id); END")
+            self._connection.execute("CREATE TRIGGER IF NOT EXISTS projection_order_update AFTER UPDATE ON orders BEGIN INSERT INTO projection_order_changes(client_order_id) VALUES(new.client_order_id); END")
+        self._fill_projection_cache = {}
         self._snapshot_manager = (
             None if path == ":memory:" else SQLiteSnapshotManager(path)
         )
@@ -381,6 +394,14 @@ class OrderStore:
                     fill.timestamp, json.dumps(fill.payload, default=str),
                 ),
             )
+            if cursor.rowcount == 1:
+                self._connection.execute("INSERT INTO fill_evidence VALUES(?, 'fill-record/v1', ?)",
+                                         (fill.fill_id, fill.fee_evidence_status))
+            else:
+                existing = self._connection.execute("SELECT client_order_id,qty,price,fee,fee_currency,timestamp FROM fills WHERE fill_id=?", (fill.fill_id,)).fetchone()
+                expected = (fill.client_order_id, fill.qty, fill.price, fill.fee, fill.fee_currency, fill.timestamp)
+                if tuple(existing) != expected:
+                    raise ValueError(f"conflicting_fill_identity:{fill.fill_id}")
         return cursor.rowcount == 1
 
     def fills_for(self, client_order_id: str) -> List[Dict[str, Any]]:
@@ -390,6 +411,60 @@ class OrderStore:
                 (client_order_id,),
             ).fetchall()
         return [self._decode_fill(row) for row in rows]
+
+    def projection_checkpoint(self, name):
+        with self._lock:
+            row = self._connection.execute("SELECT version,payload FROM fill_projection_state WHERE name=?", (name,)).fetchone()
+        return (int(row[0]), json.loads(row[1])) if row else (0, None)
+
+    def projection_anchor(self, sequence):
+        """Resolve the immutable fact identity at a saved ledger position."""
+        with self._lock:
+            row = self._connection.execute("SELECT fill_id FROM fills WHERE rowid=?", (sequence,)).fetchone()
+        return str(row[0]) if row else None
+
+    def projection_delta(self, fill_cursor, order_cursor):
+        """Indexed suffix reads; work grows with new fills/changed orders."""
+        with self._lock:
+            fills = [self._decode_fill(row) for row in self._connection.execute(
+                "SELECT rowid AS ledger_sequence,* FROM fills WHERE rowid>? ORDER BY rowid", (fill_cursor,)).fetchall()]
+            for fill in fills:
+                proof = self._connection.execute("SELECT fee_status FROM fill_evidence WHERE fill_id=?", (fill["fill_id"],)).fetchone()
+                fill["fee_evidence"] = proof[0] if proof else "legacy_unverified"
+            changes = self._connection.execute(
+                "SELECT sequence,client_order_id FROM projection_order_changes WHERE sequence>? ORDER BY sequence", (order_cursor,)).fetchall()
+            changed_ids = {row[1] for row in changes} | {fill["client_order_id"] for fill in fills}
+            orders, quantities = {}, {}
+            for order_id in changed_ids:
+                row = self._connection.execute("SELECT * FROM orders WHERE client_order_id=?", (order_id,)).fetchone()
+                if row is not None:
+                    orders[order_id] = self._decode_order(row)
+                    quantities[order_id] = float(self._connection.execute(
+                        "SELECT COALESCE(SUM(qty),0) FROM fills WHERE client_order_id=? AND COALESCE(json_extract(payload,'$.synthetic_from_order'),0)=0", (order_id,)).fetchone()[0])
+            return fills, orders, quantities, int(changes[-1][0]) if changes else order_cursor
+
+    def projection_close_events(self, name, after_sequence=0):
+        with self._lock:
+            rows = self._connection.execute(
+                "SELECT sequence,payload FROM projected_close_events WHERE projection_name=? AND sequence>? ORDER BY sequence", (name, after_sequence)).fetchall()
+        return [(int(row[0]), json.loads(row[1])) for row in rows]
+
+    def save_projection(self, name, expected_version, payload, close_events):
+        """Commit cursor, open lots and generated close facts atomically."""
+        encoded = json.dumps(payload, default=str, allow_nan=False)
+        with self._lock, self._connection:
+            self._connection.execute("BEGIN IMMEDIATE")
+            row = self._connection.execute("SELECT version FROM fill_projection_state WHERE name=?", (name,)).fetchone()
+            if (int(row[0]) if row else 0) != expected_version:
+                raise RuntimeError("projection_checkpoint_conflict")
+            for event in close_events:
+                self._connection.execute(
+                    "INSERT INTO projected_close_events(projection_name,close_event_id,payload) VALUES(?,?,?)",
+                    (name, event["close_event_id"], json.dumps(event, default=str, allow_nan=False)))
+            self._connection.execute(
+                "INSERT INTO fill_projection_state(name,version,payload) VALUES(?,?,?) ON CONFLICT(name) DO UPDATE SET version=excluded.version,payload=excluded.payload",
+                (name, expected_version + 1, encoded))
+        return expected_version + 1
 
     def snapshot_if_due(self):
         if self._snapshot_manager is None:

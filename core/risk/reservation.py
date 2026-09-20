@@ -138,6 +138,20 @@ class RiskReservationProjection:
                 )
         return {symbol: float(value) for symbol, value in totals.items()}
 
+    def pending_cash(self, current_prices=None, *, cost=None) -> float:
+        """Spot cash for pending buys; short notional is exposure, not cash."""
+        prices = current_prices or {}
+        total = 0.0
+        with self._lock:
+            for state in self._states.values():
+                if state.released or state.remaining_qty <= 0 or state.reservation.action != "buy":
+                    continue
+                item = state.reservation
+                price = max(float(item.reference_price), float(prices.get(item.symbol, 0)))
+                qty = float(state.remaining_qty)
+                total += qty * price + (cost(item.symbol, qty, price) if cost else 0.0)
+        return total
+
     def remaining_qty(self, reservation_id: str) -> Decimal:
         with self._lock:
             state = self._states.get(reservation_id)

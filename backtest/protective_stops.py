@@ -69,6 +69,9 @@ from core.protective_orders import (
     ProtectiveOrder,
     ProtectiveOrderManager,
     ProtectiveState,
+    authoritative_position_ids,
+    parse_protective_position_reference,
+    protective_position_reference,
 )
 from core.runtime import MarketDataSlice
 
@@ -170,6 +173,7 @@ class ResidentStopSimulator:
                    | self.manager.tracked_symbols)
         for symbol in sorted(symbols):
             qty = float(portfolio.get_position(symbol).get("qty", 0.0))
+            position_ids = authoritative_position_ids(portfolio, symbol)
             has_resident = any(order.symbol == symbol for order in venue_orders)
             if qty == 0.0 and not has_resident:
                 # Flat with nothing armed: there is no protection question to
@@ -199,6 +203,7 @@ class ResidentStopSimulator:
                 open_protective_orders=venue_orders,
                 entry_pending=bool(self.broker.has_active_open_order(symbol)),
                 record=False,
+                position_ids=position_ids,
             )
             for row in plan.to_rows():
                 self._record(symbol, timestamp, bar_index, row)
@@ -224,6 +229,7 @@ class ResidentStopSimulator:
                 timestamp=pd.Timestamp(timestamp) - pd.Timedelta(microseconds=1),
                 strategy_id=self._owning_strategy(symbol),
                 exit_reason=PROTECTIVE_EXIT_REASON,
+                causation_id=protective_position_reference(intent.position_ids),
             )
             self._levels[str(placed.id)] = float(intent.stop_price)
         if intent.action is ProtectiveAction.FLATTEN:
@@ -273,6 +279,8 @@ class ResidentStopSimulator:
                     else "open"
                 ),
                 reduce_only=True,
+                position_ids=parse_protective_position_reference(
+                    getattr(order.intent, "causation_id", None)),
             ))
         return orders
 

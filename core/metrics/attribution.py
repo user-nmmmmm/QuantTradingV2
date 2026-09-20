@@ -53,21 +53,32 @@ def calculate_signal_funnel(events: Iterable[Any]) -> Dict[str, Any]:
     equivalent lightweight record without importing the events module.
     Payloads may be dataclasses or plain mappings; both are read the same way.
 
-    Scope note: the backtest publishes a ``risk_decision`` only for *opening*
-    intents (``core.risk.reservation.ensure_opening_reservation`` reserves
-    capacity for buys and shorts alone), so this funnel describes the entry
-    chain. Exit orders appear from ``order_created`` onwards, which is why
-    ``order_created`` can exceed ``risk_evaluated``; the per-stage
-    ``pct_of_previous_stage`` is reported for exactly that reason.
+    Only entry chains with opening-risk evidence contribute to the funnel.
+    Exit and unlinked chains remain visible as excluded diagnostics.
     """
     groups: Dict[Any, Dict[str, bool]] = {}
+    exits = set()
+    keyless = 0
+    raw_signals = set()
     for event in events:
         key = getattr(event, "correlation_id", None)
-        if key is None:
-            continue
-        group = groups.setdefault(key, {stage: False for stage in _FUNNEL_STAGES})
         event_type = getattr(event, "event_type", None)
+        # Signal envelopes can begin their own transport correlation. The
+        # intent explicitly references event_id as signal_id; use that causal
+        # identity to join the emitted signal to its downstream entry chain.
+        if event_type == "signal" and getattr(event, "event_id", None) is not None:
+            key = event.event_id
+        if key is None:
+            keyless += 1
+            continue
+        key = str(key)
+        if event_type == "signal":
+            raw_signals.add(key)
+        group = groups.setdefault(key, {stage: False for stage in _FUNNEL_STAGES})
         payload = getattr(event, "payload", None)
+        side = _status_text(_payload_field(payload, "action") or _payload_field(payload, "side"))
+        if side in {"sell", "cover"} or _payload_field(payload, "reduce_only") is True:
+            exits.add(key)
         if event_type == "risk_decision":
             group["risk_evaluated"] = True
             if bool(_payload_field(payload, "approved")):
@@ -80,9 +91,19 @@ def calculate_signal_funnel(events: Iterable[Any]) -> Dict[str, Any]:
         elif event_type == "fill":
             group["filled"] = True
 
-    total = len(groups)
+    entry_groups = {key: group for key, group in groups.items()
+                    if group["risk_evaluated"] and key not in exits}
+    incomplete = 0
+    for group in entry_groups.values():
+        prior = True
+        for stage in _FUNNEL_STAGES:
+            if group[stage] and not prior:
+                incomplete += 1
+            group[stage] = bool(prior and group[stage])
+            prior = group[stage]
+    total = len(entry_groups)
     counts = {
-        stage: sum(1 for group in groups.values() if group[stage])
+        stage: sum(1 for group in entry_groups.values() if group[stage])
         for stage in _FUNNEL_STAGES
     }
     stages: Dict[str, Any] = {}
@@ -96,7 +117,11 @@ def calculate_signal_funnel(events: Iterable[Any]) -> Dict[str, Any]:
             ),
         }
         prior_count = counts[stage]
-    return {"total_correlation_chains": total, "stages": stages}
+    return {"schema_version": "entry-funnel/v2", "total_correlation_chains": total,
+            "raw_entry_signal_chains": len(raw_signals - exits),
+            "stages": stages, "excluded_exit_chains": len(exits),
+            "unclassified_chains": len(set(groups) - set(entry_groups) - exits),
+            "keyless_events": keyless, "incomplete_entry_stages": incomplete}
 
 
 def calculate_cost_sensitivity(
@@ -137,9 +162,31 @@ def calculate_cost_sensitivity(
     if not records:
         return {"status": "insufficient", "sample_size": 0, "grid": []}
 
-    gross_theoretical = float(
-        sum(float(t.get("gross_pnl_theoretical", t.get("gross_pnl", 0.0))) for t in records)
-    )
+    def reference_missing(value):
+        return value is None or pd.isna(value)
+
+    legacy_count = sum(reference_missing(t.get("gross_pnl_theoretical")) for t in records)
+    try:
+        for trade in records:
+            reference = trade.get("gross_pnl_theoretical")
+            gross = trade.get("gross_pnl") if reference_missing(reference) else reference
+            costs = [float(trade.get(key, 0.0)) for key in ("commission", "slippage")]
+            if gross is None or not np.isfinite(float(gross)) or any(not np.isfinite(v) or v < 0 for v in costs):
+                raise ValueError("non-finite or missing gross PnL, or invalid recorded cost")
+        commission_multipliers = tuple(float(v) for v in commission_multipliers)
+        slippage_multipliers = tuple(float(v) for v in slippage_multipliers)
+        if any(not np.isfinite(v) or v < 0 for v in (*commission_multipliers, *slippage_multipliers)):
+            raise ValueError("invalid cost multiplier")
+    except (TypeError, ValueError) as exc:
+        return {"status": "invalid_input", "sample_size": len(records), "grid": [], "reason": str(exc)}
+    # Legacy gross PnL already includes execution-price slippage. Only its
+    # incremental multiplier is chargeable; this reference is not a claim
+    # that a missing theoretical fill price was observed.
+    gross_theoretical = float(sum(
+        float(t["gross_pnl_theoretical"]) if not reference_missing(t.get("gross_pnl_theoretical"))
+        else float(t.get("gross_pnl", 0.0)) + float(t.get("slippage", 0.0))
+        for t in records
+    ))
     total_commission = float(sum(float(t.get("commission", 0.0)) for t in records))
     total_slippage = float(sum(float(t.get("slippage", 0.0)) for t in records))
 
@@ -154,6 +201,8 @@ def calculate_cost_sensitivity(
             })
     return {
         "status": "ok", "sample_size": len(records), "gross_pnl": gross_theoretical,
+        "legacy_count": legacy_count,
+        "cost_semantics": "mixed_or_legacy_incremental_slippage" if legacy_count else "theoretical_reference",
         "baseline_commission": total_commission, "baseline_slippage": total_slippage,
         "baseline_net_pnl": gross_theoretical - total_commission - total_slippage,
         "grid": grid,
@@ -164,7 +213,115 @@ def calculate_cost_sensitivity(
     }
 
 
-def calculate_attribution(trades: Iterable[Mapping[str, Any]]) -> Dict[str, Any]:
+def calculate_group_drawdown_contribution(
+    account_equity: pd.Series | None = None,
+    group_equity: pd.DataFrame | None = None,
+    group_cashflows: pd.DataFrame | None = None,
+    external_cashflows: pd.Series | None = None,
+    *,
+    cashflow_timing: str = "end_of_interval",
+) -> Dict[str, Any]:
+    """Attribute one portfolio drawdown to simultaneous marked group paths.
+
+    All amounts use the same account reporting currency. Group equity includes
+    allocated cash, marked holdings and liabilities; groups must partition the
+    entire account. ``group_cashflows[t]`` are net contributions during (t-1,t],
+    including transfers between groups, and must sum to the independently
+    recorded account ``external_cashflows[t]``. Opening flows must be zero.
+    Explicit zero flows are required when no money moved. Only flows booked at
+    the end of each interval are supported; intrainterval flows require finer
+    marked observations and must not be approximated silently.
+
+    For interval t, group return contribution is (G[t]-G[t-1]-F[t])/E[t-1].
+    Its sum is the account flow-neutral return. Chain these returns into a NAV
+    starting at 1. At the account's deepest peak/trough, each group's linked
+    contribution is sum(NAV[t-1]/NAV[peak] * contribution[t]). Negative values
+    deepen the drawdown; positive values offset it. They sum to NAV[trough] /
+    NAV[peak] - 1, unlike the non-additive standalone group drawdowns.
+
+    This is an ex-post report, never an input to a trading decision. Missing
+    inputs remain null; clocks, coverage and sums are never repaired or filled.
+    """
+    base = {"schema_version": "group-drawdown-attribution/v1", "formula_version": "1.0",
+            "value": None, "unit": "ratio", "sample_size": 0, "by_group": {}, "paths": [],
+            "cashflow_timing": cashflow_timing,
+            "policy": "linked marked-equity contributions at common account TWR peak/trough"}
+    facts = (account_equity, group_equity, group_cashflows, external_cashflows)
+    if any(value is None for value in facts):
+        return {**base, "status": "not_modeled", "reason":
+                "complete simultaneous account/group marked equity and explicit cashflow facts required"}
+    if cashflow_timing != "end_of_interval":
+        return {**base, "status": "not_modeled", "reason":
+                "only explicit end_of_interval cashflows are supported"}
+
+    def clean(value, expected_type):
+        if not isinstance(value, expected_type) or not isinstance(value.index, pd.DatetimeIndex):
+            raise ValueError("facts must be Series/DataFrame with a DatetimeIndex")
+        result = value.copy(deep=True)
+        if result.index.hasnans or not result.index.is_unique or not result.index.is_monotonic_increasing:
+            raise ValueError("timestamps must be unique, ordered and nonmissing")
+        result.index = (result.index.tz_localize("UTC") if result.index.tz is None
+                        else result.index.tz_convert("UTC"))
+        result = result.astype(float)
+        if not np.isfinite(result.to_numpy()).all():
+            raise ValueError("all marked values and cashflows must be finite")
+        return result
+
+    try:
+        account = clean(account_equity, pd.Series)
+        groups = clean(group_equity, pd.DataFrame)
+        flows = clean(group_cashflows, pd.DataFrame)
+        external = clean(external_cashflows, pd.Series)
+        if not groups.columns.is_unique or any(not isinstance(c, str) or not c.strip() for c in groups.columns):
+            raise ValueError("group identities must be unique nonempty strings")
+        if not groups.columns.equals(flows.columns):
+            raise ValueError("group equity and cashflow columns must match exactly")
+        if any(not account.index.equals(value.index) for value in (groups, flows, external)):
+            raise ValueError("all account and group facts must share the exact observation clock")
+        if not np.allclose(groups.sum(axis=1), account, rtol=1e-10, atol=1e-8):
+            raise ValueError("group marked equity does not reconcile to account equity")
+        if not np.allclose(flows.sum(axis=1), external, rtol=1e-10, atol=1e-8):
+            raise ValueError("group cashflows do not reconcile to external account cashflows")
+        if len(account) and ((flows.iloc[0] != 0).any() or external.iloc[0] != 0):
+            raise ValueError("opening cashflows must be zero; opening equity is the capital anchor")
+        if (account <= 0).any() or ((account - external) <= 0).any():
+            raise ValueError("account equity before and after interval-end flows must stay positive")
+        if len(account) < 2 or not len(groups.columns):
+            return {**base, "status": "insufficient_data", "sample_size": len(account),
+                    "reason": "at least two complete marked observations and one group required"}
+        contributions = (groups.diff() - flows).div(account.shift(), axis=0).iloc[1:]
+        returns = contributions.sum(axis=1)
+        nav = pd.Series(1.0, index=account.index)
+        nav.iloc[1:] = (1 + returns).cumprod().to_numpy()
+        if not np.isfinite(nav.to_numpy()).all() or (nav <= 0).any():
+            raise ValueError("flow-neutral NAV must be finite and positive")
+        drawdown = nav / nav.cummax() - 1
+        trough_pos = int(np.argmin(drawdown.to_numpy()))
+        peak_pos = int(np.argmax(nav.iloc[:trough_pos + 1].to_numpy()))
+        linked = contributions.mul(nav.shift().iloc[1:], axis=0).iloc[peak_pos:trough_pos]
+        linked = linked.sum(axis=0) / float(nav.iloc[peak_pos])
+        value = float(drawdown.iloc[trough_pos])
+        if not np.isfinite(linked.to_numpy()).all() or not np.isclose(linked.sum(), value, rtol=1e-10, atol=1e-10):
+            raise ValueError("linked group contributions do not reconcile to portfolio drawdown")
+    except (TypeError, ValueError, OverflowError) as exc:
+        return {**base, "status": "invalid_input", "reason": str(exc)}
+    return {**base, "status": "ok", "reason": None, "value": value,
+            "sample_size": len(account), "peak": account.index[peak_pos].isoformat(),
+            "trough": account.index[trough_pos].isoformat(), "reconciles": True,
+            "by_group": {name: {"contribution": float(linked[name]), "unit": "ratio"}
+                         for name in groups.columns},
+            "paths": [{"timestamp": stamp.isoformat(), "account_equity": float(account.loc[stamp]),
+                       "flow_neutral_nav": float(nav.loc[stamp]),
+                       "external_cashflow": float(external.loc[stamp]),
+                       "group_equity": {name: float(groups.loc[stamp, name]) for name in groups.columns},
+                       "group_cashflows": {name: float(flows.loc[stamp, name]) for name in groups.columns}}
+                      for stamp in account.index]}
+
+
+def calculate_attribution(
+    trades: Iterable[Mapping[str, Any]], *, account_equity=None, group_equity=None,
+    group_cashflows=None, external_cashflows=None, cashflow_timing="end_of_interval",
+) -> Dict[str, Any]:
     """Return-contribution breakdown by strategy, symbol, and month (BM5).
 
     Requires ``net_pnl`` on every trade; ``strategy``/``symbol`` missing on
@@ -208,6 +365,11 @@ def calculate_attribution(trades: Iterable[Mapping[str, Any]]) -> Dict[str, Any]
         "by_strategy": _group_by(lambda t: str(t.get("strategy") or "UNKNOWN")),
         "by_symbol": _group_by(lambda t: str(t.get("symbol") or "UNKNOWN")),
         "by_month": _group_by(_month_key),
+        "by_direction": _group_by(lambda t: str(t.get("side") or t.get("direction") or "UNKNOWN")),
+        "by_exit_reason": _group_by(lambda t: str(t.get("exit_reason") or "UNKNOWN")),
+        "group_drawdown_contribution": calculate_group_drawdown_contribution(
+            account_equity, group_equity, group_cashflows, external_cashflows,
+            cashflow_timing=cashflow_timing),
         "by_exit_controller": by_controller,
         "control_attribution": {
             "alpha_only": alpha_only,
@@ -238,11 +400,14 @@ def calculate_benchmark_comparison(equity: pd.Series, benchmark: pd.Series) -> D
     either series is missing are dropped rather than filled, since filling
     would fabricate a return that never happened.
     """
+    identity = dict(benchmark.attrs.get("benchmark") or {})
+    identity_fields = {"benchmark_id": identity.get("benchmark_id"), "benchmark_policy": identity,
+                       "identity_status": "ok" if identity.get("benchmark_id") else "not_modeled"}
     strategy = _clean_equity(equity)
     bench = _clean_equity(benchmark)
     common_index = strategy.index.intersection(bench.index).sort_values()
     if len(common_index) < 2:
-        return {"status": "insufficient", "sample_size": int(len(common_index)),
+        return {**identity_fields, "status": "insufficient", "sample_size": int(len(common_index)),
                 "strategy_return": None, "benchmark_return": None,
                 "excess_return": None, "correlation": None}
     strategy = strategy.loc[common_index]
@@ -254,10 +419,10 @@ def calculate_benchmark_comparison(equity: pd.Series, benchmark: pd.Series) -> D
     benchmark_return = float(bench.iloc[-1] / bench.iloc[0] - 1)
     correlation = (
         float(strategy_returns.loc[return_index].corr(bench_returns.loc[return_index]))
-        if len(return_index) >= 2 else None
+        if len(return_index) >= 2 and strategy_returns.std() > 0 and bench_returns.std() > 0 else None
     )
     return {
-        "status": "ok", "sample_size": int(len(common_index)),
+        **identity_fields, "status": "ok", "sample_size": int(len(common_index)),
         "strategy_return": strategy_return, "benchmark_return": benchmark_return,
         "excess_return": strategy_return - benchmark_return, "correlation": correlation,
     }

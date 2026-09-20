@@ -39,7 +39,7 @@ class TestP0Metrics(unittest.TestCase):
                 index = pd.date_range("2024-01-01", periods=10, freq=frequency, tz="UTC")
                 self.assertAlmostEqual(infer_periods_per_year(index), expected)
         irregular = pd.DatetimeIndex(["2024-01-01", "2024-01-02", "2024-01-04", "2024-01-05"])
-        self.assertAlmostEqual(infer_periods_per_year(irregular), 365.25)
+        self.assertIsNone(infer_periods_per_year(irregular))
 
     def test_monthly_return_includes_month_boundary(self):
         equity = pd.Series([100.0, 110.0, 121.0, 133.1], index=pd.to_datetime([
@@ -284,8 +284,8 @@ class TestBM4CostSensitivity(unittest.TestCase):
 
     def test_grid_values_and_monotonic_non_increasing_net_pnl(self):
         trades = [
-            {"gross_pnl": 100.0, "commission": 10.0, "slippage": 5.0},
-            {"gross_pnl": -20.0, "commission": 2.0, "slippage": 1.0},
+            {"gross_pnl_theoretical": 100.0, "commission": 10.0, "slippage": 5.0},
+            {"gross_pnl_theoretical": -20.0, "commission": 2.0, "slippage": 1.0},
         ]
         result = calculate_cost_sensitivity(
             trades, commission_multipliers=(1.0, 2.0), slippage_multipliers=(1.0, 2.0),
@@ -398,7 +398,7 @@ class TestBM7RMultipleAndSQN(unittest.TestCase):
     def test_r_multiple_stats_insufficient_without_risk_data(self):
         result = calculate_r_multiple_stats([{"net_pnl": 10.0}])
         self.assertEqual(result["excluded_no_initial_risk"], 1)
-        self.assertEqual(result["r_multiple"]["status"], "insufficient")
+        self.assertEqual(result["r_multiple"]["status"], "not_modeled")
         self.assertEqual(result["mae"]["status"], "insufficient")
 
 

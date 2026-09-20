@@ -25,8 +25,8 @@ from strategies.volatility import VolatilityReversionStrategy
 from strategies.mean_reversion import RangeStrategy
 
 from analysis.validation import ValidationConfig, validate_parameter_candidates
-from analysis.walk_forward import WalkForwardConfig, run_walk_forward
-from core.metrics import one_sided_bootstrap_p_value
+from analysis.walk_forward import WalkForwardConfig, candidate_warmup, run_walk_forward
+from core.metrics import one_sided_bootstrap_p_value, train_test_split_returns
 
 #: The one grid both search modes read, so a walk-forward run and a full-sample
 #: run are always comparing the same candidates.
@@ -54,6 +54,7 @@ def _candidate_factory(entry_window: int, exit_window: int):
     def build():
         return build_optimization_strategies(entry_window, exit_window)
 
+    build.required_history_bars = max(entry_window, exit_window)
     return build
 
 
@@ -106,7 +107,10 @@ def evaluate_one_candidate(task: tuple) -> Dict[str, Any]:
     time actually is.
     """
     data_map, entry_window, exit_window, initial_capital = task
-    engine = BacktestEngine(initial_capital=initial_capital)
+    engine = BacktestEngine(
+        initial_capital=initial_capital,
+        warmup_period=candidate_warmup(_candidate_factory(entry_window, exit_window)),
+    )
     result = engine.run(
         data_map,
         strategies=build_optimization_strategies(entry_window, exit_window),
@@ -204,11 +208,18 @@ def run_grid_search(
     # 3. Display Results
     results_df = pd.DataFrame(results)
 
-    # Sort by Sharpe Ratio
-    results_df = results_df.sort_values(by="Sharpe", ascending=False)
+    # The two-part API declares its second partition final evaluation.
+    # Its results must never select or rank a candidate, even without --oos.
+    training_scores = {
+        row["name"]: float(train_test_split_returns(
+            row["returns"], ValidationConfig().train_fraction
+        )["train"].mean()) for row in evaluations
+    }
+    results_df["TrainingMeanReturn"] = [training_scores[row["name"]] for row in evaluations]
+    results_df = results_df.sort_values(by="TrainingMeanReturn", ascending=False, kind="stable")
 
     print("\n" + "=" * 80)
-    print("Optimization Results (Sorted by Sharpe Ratio)")
+    print("Optimization Results (ranked on training returns only; final results are diagnostic)")
     print("=" * 80)
 
     # Use tabulate if available, else string format
@@ -230,7 +241,8 @@ def run_grid_search(
         # inflation the correction exists to remove.
         p_values = [
             one_sided_bootstrap_p_value(
-                series, n_samples=ValidationConfig().bootstrap_samples,
+                train_test_split_returns(series, ValidationConfig().train_fraction)["train"],
+                n_samples=ValidationConfig().bootstrap_samples,
                 seed=ValidationConfig().seed,
             )["p_value"]
             for series in returns_by_candidate.values()
@@ -243,12 +255,8 @@ def run_grid_search(
         validation["candidate_p_values"] = dict(
             zip(returns_by_candidate, p_values)
         )
-        validation["caveat"] = (
-            "Candidates were ranked on the FULL sample and only then split, so "
-            "the 'test' half was visible to selection. Use "
-            "analysis/walk_forward.py for a selection that never sees its own "
-            "test window."
-        )
+        validation["partition_roles"] = {"train": "selection", "test": "final_evaluation"}
+        validation["caveat"] = "Historical data is retrospective evidence, not a new unseen holdout."
         validation_path = filename.replace(".csv", "_oos.json")
         with open(validation_path, "w", encoding="utf-8") as handle:
             json.dump(validation, handle, ensure_ascii=False, indent=2, default=str)

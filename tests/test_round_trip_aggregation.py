@@ -138,14 +138,15 @@ class TestLegsMustNotSkewWinRate:
 
 
 class TestInitialRiskIsNotDoubleCounted:
-    """Every partial close repeats its lot's *whole* initial risk."""
+    """Partial closes allocate risk and separately preserve the original lot total."""
 
-    def test_legs_each_repeat_the_lots_full_risk(self, reporter):
+    def test_legs_allocate_the_lots_risk_without_repeating(self, reporter):
         broker = _split_round_trip()
         legs = reporter._reconstruct_closed_trades(pd.DataFrame(broker.trades))
 
-        # 25 units, entry 100, stop 90 => 250 of risk, reported on all 3 legs.
-        assert [leg["initial_risk"] for leg in legs] == [250.0, 250.0, 250.0]
+        # 25 units at ten dollars risk each, split 10/10/5 across closes.
+        assert [leg["initial_risk"] for leg in legs] == [100.0, 100.0, 50.0]
+        assert [leg["original_initial_risk"] for leg in legs] == [250.0, 250.0, 250.0]
         assert len({leg["lot_id"] for leg in legs}) == 1
 
     def test_the_round_trip_counts_that_risk_once(self, reporter):

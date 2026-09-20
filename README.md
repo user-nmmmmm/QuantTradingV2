@@ -4,9 +4,9 @@
 > Canonical repository directory: `QuantTradingV1`. The deprecated `QauntTradingV1`
 > spelling must not be used by deployment scripts or documentation.
 >
-> **能力边界声明**：本仓库没有机器学习分类器或自动学习的状态模型；曾经的占位包 `models/` 已被移除。
-> 现有 P1 条件 EV 是默认关闭的统计研究层，使用固定分桶与因果历史估计，不参与正式下单或策略准入。
-> This repository has no machine-learning training or prediction subsystem. P1 is an opt-in, research-only statistical estimator with fixed context bins.
+> **能力边界声明**：曾经的占位包 `models/` 已被移除；新增 P2 分布聚类状态模型仅用于默认关闭的统计研究。
+> P1 固定分桶、P2 软状态与动态轴权重、P3 独立影子账户均不参与正式下单、风险预算或策略准入。
+> P1/P2/P3 are opt-in, research-only components; learned regimes never actuate the production account.
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![Status: Alpha](https://img.shields.io/badge/Status-Alpha-orange.svg)]()
@@ -25,7 +25,7 @@
 | [5. 命令行参考](#5-命令行参考) | `main.py` / `run_live.py` / `scripts/` / 环境变量 |
 | [6. 配置](#6-配置) | `config/params.yaml` 当前生效值 |
 | [7. 输出与报告](#7-输出与报告) | `reports/` 产物清单 |
-| [8. 指标与诊断](#8-指标与诊断) | `core/metrics.py` / `core/diagnostics.py` |
+| [8. 指标与诊断](#8-指标与诊断) | `core/metrics/` / `core/diagnostics.py` |
 | [9. 策略与路由现状](#9-策略与路由现状) | 已注册策略、治理状态、未接入模型 |
 | [10. 能力边界](#10-能力边界) | 现货/衍生品、多标的并发、实盘准入 |
 | [11. 测试](#11-测试) | 测试、文档索引、常见问题、免责声明 |
@@ -328,7 +328,7 @@ QuantTradingV1/
 │   ├── timeframes.py                 # 周期口径与年化因子推断
 │   │
 │   ├── ── 观测与治理 ──
-│   ├── metrics.py / metric_result.py # 绩效、交易质量、归因、稳健性验证
+│   ├── metrics/ / metric_result.py   # 绩效、交易质量、归因、稳健性验证
 │   ├── diagnostics.py                # 「结果该不该信」：盈亏集中度、退出归因等
 │   ├── benchmarks.py                 # 固定/动态等权基准（可审计）
 │   ├── events/                       # 规范事件模型、因果 ID、幂等消费与回放
@@ -563,6 +563,8 @@ python -m dashboard --status reports/live_status.json --alerts reports/live_aler
 | `--replay-manifest` | — | 重跑已有 `run_manifest.json` 并比对确定性输出 |
 | `--observe-signals` | `False` | P0 原始候选、上下文、固定周期结果、实际成交关联与 Ghost 诊断；不改变正式下单 |
 | `--signal-meta-layer` | `False` | P1 条件 EV、时间衰减、收缩与冻结滚动诊断；自动启用 P0，不改变正式下单 |
+| `--adaptive-signal-meta` | `False` | P2 因果分布聚类软状态、冻结历史预测与动态轴权重；自动启用 P1/P0，仅研究 |
+| `--signal-meta-replay` | `False` | P3 独立有限资本基线／门控／受限仓位账户；自动启用 P2/P1/P0，不改变正式账户 |
 | `--disable-routing-log` | `False` | 关闭逐 bar 路由 CSV，用于批量参数优化 |
 
 ### 5.2 实盘入口 `run_live.py`
@@ -619,7 +621,7 @@ Phase 6 准入证据的 fail-closed 评估由 `python -m core.admission_gates` �
 
 | 分组 | 键 | 值 |
 | --- | --- | --- |
-| 执行与费率 | `execution.commission_rate_taker` / `_maker` | `0.0005` / `0.0002` |
+| 执行与费率 | `execution.commission_rate_taker` / `_maker` | `0.001` / `0.001`（均为 0.10%；配置的 Binance spot_margin 费率假设） |
 | | `execution.slippage_bps` / `spread_bps` | `5` / `2` |
 | | `execution.volatility_slippage_factor` | `0.02` |
 | | `execution.use_impact_cost` / `impact_coefficient` / `impact_exponent` | `true` / `0.10` / `1.5` |
@@ -636,7 +638,7 @@ Phase 6 准入证据的 fail-closed 评估由 `python -m core.admission_gates` �
 | 状态机 | `state.ma_fast` / `ma_slow` / `stability_period` | `20` / `60` / `5` |
 | | `state.adx_period` / `adx_threshold` | `14` / `25` |
 | | `state.atr_period` / `atr_pct_threshold` | `14` / `0.025` |
-| 路由 | `routing.*` | 见[第 9 节](#9-策略与路由现状)（当前仅 `TREND_UP` 有活跃策略） |
+| 路由 | `routing.*` | 见[第 9 节](#9-策略与路由现状)（仅 `TREND_UP` 映射到研究策略，尚未取得真实资金准入） |
 | | `router.cooldown_bars` | `2` |
 | | `router.max_holding_days` / `allocation.order` | `365` / `score_strategy_symbol` |
 | 数据 | `data.alignment_mode` / `timeframe` / `timezone` | `union` / `1d` / `UTC` |
@@ -674,7 +676,7 @@ Phase 6 准入证据的 fail-closed 评估由 `python -m core.admission_gates` �
 
 ## 8. 指标与诊断
 
-### 8.1 绩效指标（`core/metrics.py`）
+### 8.1 绩效指标（`core/metrics/`）
 
 全部为纯函数（无副作用、只读输入）；公式、空值语义与边界条件的权威定义见
 [`docs/glossary.md`](docs/glossary.md)。
@@ -692,7 +694,7 @@ Phase 6 准入证据的 fail-closed 评估由 `python -m core.admission_gates` �
 
 ### 8.2 可信度诊断（`core/diagnostics.py`）
 
-`metrics.py` 回答「表现如何」，`diagnostics.py` 回答一个**更前置**的问题：**这个数字该不该信、
+`core/metrics/` 回答「表现如何」，`diagnostics.py` 回答一个**更前置**的问题：**这个数字该不该信、
 系统是不是真在做代码声称的事**。例如盈亏集中度（少数几笔幸运交易 vs 真实边缘）、
 退出归因（策略自己的退出逻辑是否真的触发）、策略 `on_trade_closed` 钩子是否静默失效。
 
@@ -707,20 +709,25 @@ Phase 6 准入证据的 fail-closed 评估由 `python -m core.admission_gates` �
 
 | 策略名 | 实现类 | 文件 | 治理状态（`strategy_governance`） |
 | --- | --- | --- | --- |
-| `TrendBreakout` | `TrendBreakoutStrategy` | `strategies/trend_breakout.py` | `admitted` |
+| `TrendBreakout` | `TrendBreakoutStrategy` | `strategies/trend_breakout.py` | `paused_revalidation` |
 | `TrendBreakdown` | `TrendBreakdownStrategy` | `strategies/trend_breakout.py` | `paused_redesign` |
 | `RangeMeanReversion` | `RangeStrategy` | `strategies/mean_reversion.py` | `paused_redesign` |
 | `VolatilityReversion` | `VolatilityReversionStrategy` | `strategies/volatility.py` | `isolated_research` |
 
 **当前路由映射**（`config/params.yaml` 的 `routing`）——除趋势向上外均已被置为 `Cash`；
-路由到 `Cash` 表示该 regime 下不开新仓，Router 直接返回：
+路由到 `Cash` 表示该 regime 下不开新仓；已有持仓仍先交给开仓策略管理退出：
 
 | Regime | 当前路由 | 说明 |
 | --- | --- | --- |
-| `TREND_UP` | `TrendBreakout` | 唯一活跃策略 |
+| `TREND_UP` | `TrendBreakout` | 保留研究、影子和沙盒路径，等待独立样本重新准入 |
 | `TREND_DOWN` | `Cash` | 空头准入重新设计中（T-4.5） |
 | `SIDEWAYS` | `Cash` | 区间均值回归重新设计中（T-4.6） |
 | `VOLATILE` | `Cash` | 波动反转仅隔离研究（T-4.7） |
+
+`core/strategy_governance.py` 在真实资金入口要求路由策略的治理状态为 `admitted`。
+当前 `TrendBreakout=paused_revalidation`，因此上述映射不表示真实资金可运行。
+状态切换不由 Router 隐式强平：空仓标的切换到不同策略映射时撤销旧入场订单并冷却；
+已有仓位由开仓策略的退出规则、保护性止损、显式 `MaxHoldingPeriod` 或账户风控管理。
 
 此外，当 `--market-type` 不是衍生品类型时，`build_router(allow_short=False)` 会强制把
 `TREND_DOWN` 置为 `Cash`——现货账户不会被路由去做空。
@@ -773,6 +780,7 @@ python -m pytest -q
 | [`docs/authoritative_ledger.md`](docs/authoritative_ledger.md) | 权威账本与会计口径 |
 | [`docs/p0_signal_observation.md`](docs/p0_signal_observation.md) | P0 信号观察契约、门控诊断、有限本金影子回放与验收 |
 | [`docs/p1_signal_meta_layer.md`](docs/p1_signal_meta_layer.md) | P1 条件 EV 账本、支持门槛、冻结滚动验证与复现证据 |
+| [`docs/p23_signal_meta_layer.md`](docs/p23_signal_meta_layer.md) | P2 软状态与动态归因、P3 影子账户、完整验收与论文差异 |
 | [`docs/canonical_trading_events.md`](docs/canonical_trading_events.md) | 规范交易事件模型 |
 | [`docs/g1_live_safety.md`](docs/g1_live_safety.md) / [`docs/g2_order_lifecycle.md`](docs/g2_order_lifecycle.md) | 实盘安全与订单生命周期门槛 |
 | [`docs/deployment.md`](docs/deployment.md) / [`docs/r6_operations.md`](docs/r6_operations.md) / [`docs/r7_sandbox_runbook.md`](docs/r7_sandbox_runbook.md) | 部署、运维与 sandbox 手册 |

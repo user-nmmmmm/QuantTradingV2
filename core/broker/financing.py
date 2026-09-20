@@ -31,6 +31,10 @@ class FinancingMixin:
     def accrue_carry(self, current_bar: Dict[str, pd.Series]) -> List[Dict[str, Any]]:
         """Accrue historical perpetual funding and margin-short borrow costs."""
         entries = []
+        # Also migrate restored clocks whose former short is already flat.
+        for symbol in list(self._last_borrow_time):
+            if symbol != self.QUOTE_BORROW_SYMBOL and self.portfolio.get_position(symbol)["qty"] >= 0:
+                self._last_borrow_time.pop(symbol, None)
         seconds_per_year = 365.0 * 24.0 * 3600.0
         for symbol, position in list(self.portfolio.positions.items()):
             bar = current_bar.get(symbol)
@@ -72,35 +76,33 @@ class FinancingMixin:
                 self.portfolio.account_mode is AccountMode.SPOT_MARGIN
                 and position["qty"] < 0
             ):
-                # Coin borrow for the short leg (the quote borrow that funds
-                # leveraged longs is accrued once per bar, below).
-                previous = self._last_borrow_time.get(symbol)
-                self._last_borrow_time[symbol] = timestamp
-                if previous is None or timestamp <= previous:
-                    continue
-                elapsed_seconds = (timestamp - previous).total_seconds()
-                rate_raw = bar.get("borrow_rate_annual")
-                if rate_raw is None or pd.isna(rate_raw):
-                    rate = self.default_borrow_rate_annual
-                    source = "configured_default"
-                else:
-                    rate = float(rate_raw)
-                    source = "historical_bar"
-                amount = notional * rate * elapsed_seconds / seconds_per_year
-                entry = self.portfolio.apply_financing(
-                    timestamp=timestamp,
-                    symbol=symbol,
-                    kind="borrow",
-                    rate=rate,
-                    notional=notional,
-                    amount=amount,
-                    source=source,
-                )
-                entries.append(entry.to_dict())
+                entry = self._accrue_short_borrow(symbol, position, bar, timestamp)
+                if entry is not None:
+                    entries.append(entry)
         quote_entry = self._accrue_quote_borrow(current_bar)
         if quote_entry is not None:
             entries.append(quote_entry)
         return entries
+
+    def _accrue_short_borrow(self, symbol, position, bar, timestamp):
+        """Settle the old borrowed quantity before a fill changes that quantity."""
+        timestamp = pd.Timestamp(timestamp)
+        previous = self._last_borrow_time.get(symbol)
+        if previous is not None and timestamp <= previous:
+            return None
+        self._last_borrow_time[symbol] = timestamp
+        if previous is None or position["qty"] >= 0:
+            return None
+        mark = float(bar.get("mark_price", bar.get("close", position["avg_price"])))
+        notional = abs(position["qty"]) * mark
+        raw = bar.get("borrow_rate_annual")
+        rate = self.default_borrow_rate_annual if raw is None or pd.isna(raw) else float(raw)
+        source = "configured_default" if raw is None or pd.isna(raw) else "historical_bar"
+        amount = notional * rate * (timestamp - previous).total_seconds() / (365.0 * 24 * 3600)
+        entry = self.portfolio.apply_financing(timestamp=timestamp, symbol=symbol,
+                                               kind="borrow", rate=rate, notional=notional,
+                                               amount=amount, source=source)
+        return entry.to_dict()
 
     #: Ledger symbol for account-level quote-currency borrow.
     QUOTE_BORROW_SYMBOL = "__QUOTE__"
@@ -133,8 +135,10 @@ class FinancingMixin:
         if timestamp is None:
             return None
         previous = self._last_borrow_time.get(self.QUOTE_BORROW_SYMBOL)
+        if previous is not None and timestamp <= previous:
+            return None
         self._last_borrow_time[self.QUOTE_BORROW_SYMBOL] = timestamp
-        if previous is None or timestamp <= previous:
+        if previous is None:
             return None
         long_notional = sum(
             position["qty"] * prices.get(symbol, position["avg_price"])

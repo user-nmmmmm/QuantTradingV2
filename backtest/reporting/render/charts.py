@@ -16,6 +16,15 @@ from core.metrics import infer_periods_per_year, monthly_returns
 logger = get_logger(__name__)
 
 
+def rolling_max_drawdown(equity: pd.Series, window: int) -> pd.Series:
+    """Maximum peak-to-later-trough loss using only each trailing window."""
+    if window < 2:
+        raise ValueError("window must contain at least two observations")
+    return equity.rolling(window, min_periods=window).apply(
+        lambda values: np.min(values / np.maximum.accumulate(values) - 1), raw=True
+    )
+
+
 class ReportChartsMixin:
     output_dir: str
 
@@ -221,9 +230,7 @@ class ReportChartsMixin:
                 rolling_mean / rolling_std * np.sqrt(periods_per_year)
             ).replace([np.inf, -np.inf], np.nan).dropna()
 
-            rolling_max = equity.cummax()
-            rolling_drawdown = (equity - rolling_max) / rolling_max
-            rolling_max_dd = rolling_drawdown.rolling(window).min().dropna()
+            rolling_max_dd = rolling_max_drawdown(equity, window).dropna()
 
             fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 8), sharex=True)
             plt.rcParams["font.sans-serif"] = ["SimHei", "Arial", "DejaVu Sans"]
@@ -263,7 +270,8 @@ class ReportChartsMixin:
                 logger.info("PnL distribution skipped: no closed trades")
                 return
 
-            net_pnls = [t["net_pnl"] for t in closed_trades if t.get("net_pnl") is not None]
+            net_pnls = [t["net_pnl"] for t in closed_trades
+                        if t.get("net_pnl") is not None and np.isfinite(t["net_pnl"])]
             if not net_pnls:
                 return
 
@@ -273,7 +281,7 @@ class ReportChartsMixin:
 
             wins = [p for p in net_pnls if p > 0]
             losses = [p for p in net_pnls if p <= 0]
-            bins = min(30, max(5, len(net_pnls) // 2)) or 5
+            bins = np.histogram_bin_edges(net_pnls, bins=min(30, max(5, len(net_pnls) // 2)))
 
             ax.hist(wins, bins=bins, color="green", alpha=0.6, label=f"Wins (n={len(wins)})")
             ax.hist(losses, bins=bins, color="red", alpha=0.6, label=f"Losses (n={len(losses)})")

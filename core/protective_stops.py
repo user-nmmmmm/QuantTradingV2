@@ -24,6 +24,7 @@ Three problems this closes:
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
 from typing import Any, Dict, Optional
 
 STOP_METHOD_STRUCTURAL = "structural_donchian"
@@ -56,6 +57,18 @@ class ProtectiveStopPolicy:
     #: Estimated round-trip cost, in price units per unit, added to a
     #: breakeven stop so "breakeven" is not a guaranteed small loss.
     breakeven_cost_buffer: float = 0.0
+    #: Explicit research comparison; None preserves the legacy boolean switch.
+    initial_stop_mode: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        if self.initial_stop_mode not in (None, "structural_donchian", "atr", "hybrid"):
+            raise ValueError("Unknown initial_stop_mode")
+
+    @property
+    def resolved_initial_stop_mode(self) -> str:
+        if self.initial_stop_mode is not None:
+            return self.initial_stop_mode
+        return "hybrid" if self.use_atr_initial_stop else "structural_donchian"
 
     @classmethod
     def from_mapping(cls, mapping: Optional[Dict[str, Any]]) -> "ProtectiveStopPolicy":
@@ -75,6 +88,7 @@ class StopPlan:
     structural_stop: Optional[float] = None
     atr_stop: Optional[float] = None
     reject_reason: Optional[str] = None
+    resolved_initial_stop_mode: str = STOP_METHOD_STRUCTURAL
 
     @property
     def accepted(self) -> bool:
@@ -87,6 +101,7 @@ class StopPlan:
             "structural_stop": self.structural_stop,
             "atr_stop": self.atr_stop,
             "reject_reason": self.reject_reason,
+            "resolved_initial_stop_mode": self.resolved_initial_stop_mode,
         }
 
 
@@ -98,18 +113,20 @@ def plan_initial_stop(
     atr: Optional[float],
     policy: ProtectiveStopPolicy,
 ) -> StopPlan:
-    """``max(structural, reference - k*ATR)`` for longs; mirrored for shorts.
+    """Select structural, ATR-only, or the tighter hybrid stop, mirrored for shorts.
 
     Returns a rejection instead of inventing a stop when neither leg produces
     a usable level, so an unmeasurable signal never reaches sizing.
     """
-    if reference_price <= 0:
+    mode = policy.resolved_initial_stop_mode
+    if not math.isfinite(reference_price) or reference_price <= 0:
         return StopPlan(None, STOP_METHOD_REJECTED,
-                        reject_reason="non_positive_reference_price")
+                        reject_reason="non_positive_reference_price",
+                        resolved_initial_stop_mode=mode)
     long_side = side in {"buy", "long"}
     structural = _valid_stop(structural_stop, reference_price, long_side)
     atr_stop = None
-    if policy.use_atr_initial_stop and atr is not None and atr > 0:
+    if mode in {"atr", "hybrid"} and atr is not None and math.isfinite(atr) and atr > 0:
         raw = (
             reference_price - policy.initial_atr_multiple * atr if long_side
             else reference_price + policy.initial_atr_multiple * atr
@@ -117,8 +134,8 @@ def plan_initial_stop(
         atr_stop = _valid_stop(raw, reference_price, long_side)
 
     candidates = {
-        STOP_METHOD_STRUCTURAL: structural,
-        STOP_METHOD_ATR: atr_stop,
+        STOP_METHOD_STRUCTURAL: structural if mode != "atr" else None,
+        STOP_METHOD_ATR: atr_stop if mode != "structural_donchian" else None,
     }
     present = {name: value for name, value in candidates.items() if value is not None}
     if not present:
@@ -126,6 +143,7 @@ def plan_initial_stop(
             None, STOP_METHOD_REJECTED, structural_stop=structural,
             atr_stop=atr_stop,
             reject_reason="no_valid_stop_level",
+            resolved_initial_stop_mode=mode,
         )
     # The tightest of the available levels: for a long that is the highest
     # stop price, for a short the lowest.
@@ -145,6 +163,7 @@ def plan_initial_stop(
             reject_reason=(
                 f"stop_too_close: {distance:.10g} < {min_distance:.10g}"
             ),
+            resolved_initial_stop_mode=mode,
         )
     if distance > max_distance:
         clamped = (
@@ -154,8 +173,10 @@ def plan_initial_stop(
         return StopPlan(
             clamped, "clamped_max_distance", structural_stop=structural,
             atr_stop=atr_stop,
+            resolved_initial_stop_mode=mode,
         )
-    return StopPlan(chosen, method, structural_stop=structural, atr_stop=atr_stop)
+    return StopPlan(chosen, method, structural_stop=structural, atr_stop=atr_stop,
+                    resolved_initial_stop_mode=mode)
 
 
 def _valid_stop(
@@ -167,7 +188,7 @@ def _valid_stop(
         stop = float(value)
     except (TypeError, ValueError):
         return None
-    if stop != stop or stop <= 0:  # NaN or non-positive
+    if not math.isfinite(stop) or stop <= 0:
         return None
     if long_side and stop >= reference_price:
         return None

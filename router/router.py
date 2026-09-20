@@ -113,6 +113,8 @@ class Router:
         current_prices: Optional[Dict[str, float]] = None,
     ) -> Optional[EntryCandidate]:
         """Return an entry proposal for an already confirmed flat symbol."""
+        if "scheduled_exit" in df and bool(df["scheduled_exit"].iat[i]):
+            return None
         del risk_manager, current_prices
         current_time = df.index[i]
         if float(portfolio.get_position(symbol)["qty"]) != 0:

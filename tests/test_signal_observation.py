@@ -379,7 +379,9 @@ def test_ghost_does_not_charge_borrow_for_a_flat_gap_between_trades():
     rows = [r for r in ghost["rows"] if r["mode"] == "isolated_track"]
     assert not ghost["errors"]
     assert [r["status"] for r in rows] == ["closed", "closed"]
-    assert rows[0]["carry"] == rows[1]["carry"] == pytest.approx(1000*.1/365)
+    # horizon=2 spans two real overnight intervals, including the final
+    # interval settled at the exit fill. The flat gap adds no interest.
+    assert rows[0]["carry"] == rows[1]["carry"] == pytest.approx(2*1000*.1/365)
 
 
 def test_ghost_margin_breach_is_unknown_not_an_insolvent_profit_label():

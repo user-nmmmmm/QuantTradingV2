@@ -9,12 +9,21 @@ import numpy as np
 import pandas as pd
 
 from core.logger import get_logger
+from core.timeframes import timeframe_delta as _fixed_timeframe_delta
 
 # 本模块与回测/实盘的数据源解耦：上层只关心返回统一格式的 OHLCV DataFrame
 # （index 为时间戳，列名为 open/high/low/close/volume，均为小写）
 
 logger = get_logger(__name__)
 _UNSET = object()
+
+
+class IncompleteDataError(ValueError):
+    """A strict data request stopped before its requested coverage boundary."""
+
+
+def timeframe_delta(timeframe: str) -> pd.Timedelta:
+    return pd.Timedelta(_fixed_timeframe_delta(timeframe))
 
 
 class DataFetcher:
@@ -170,7 +179,9 @@ class DataFetcher:
                 except IndexError:
                     pass
 
-            return self._normalize(df)
+            normalized = self._normalize(df)
+            normalized.attrs.update(provider="yahoo", symbol=symbol, timeframe="1d", market_type="spot")
+            return normalized
 
         except ImportError:
             logger.error("yfinance not installed. Please run: pip install yfinance")
@@ -188,6 +199,7 @@ class DataFetcher:
         limit: int = 1000,
         exchange_id: Optional[str] = None,
         market_type: str = "spot",
+        strict: bool = True,
     ) -> pd.DataFrame:
         """
         通过 CCXT 从交易所拉取历史 K 线（当前默认 binance）。
@@ -197,10 +209,13 @@ class DataFetcher:
         - timeframe：K 线周期（例如 1m/5m/1h/1d）
         - start_date / end_date：YYYY-MM-DD，可选；用于控制拉取范围（通过 since 分页）
         - limit：单次分页上限（CCXT 通常最大 1000）
+        - strict：默认拒绝安全上限导致的截断；False 仅供读取带不完整标记的诊断数据。
 
         返回：
         - 标准化后的 OHLCV DataFrame（时间戳为 DatetimeIndex）
         """
+        if isinstance(limit, bool) or not isinstance(limit, int) or limit <= 0:
+            raise ValueError("limit must be a positive integer")
         try:
             import ccxt
 
@@ -221,7 +236,13 @@ class DataFetcher:
                         )
                         if df is None:
                             break  # 该交易所无此标的数据，换下一个交易所
+                        if strict and df.attrs.get("pagination_termination") == "safety_limit":
+                            raise IncompleteDataError(
+                                f"OHLCV request truncated at the 10000-bar safety limit: {symbol} {timeframe}"
+                            )
                         return df
+                    except IncompleteDataError:
+                        raise
                     except Exception as exchange_error:
                         logger.error(
                             "Error fetching %s from CCXT exchange %s (attempt %d/%d): %s",
@@ -241,6 +262,8 @@ class DataFetcher:
                 return fallback_df
             return pd.DataFrame()
 
+        except IncompleteDataError:
+            raise
         except ImportError:
             logger.error("ccxt not installed. Please run: pip install ccxt")
             return pd.DataFrame()
@@ -301,6 +324,7 @@ class DataFetcher:
 
         all_ohlcv = []
         current_since = since
+        termination = "source_boundary"
         while True:
             batch_limit = min(limit, 1000)
             ohlcv = exchange.fetch_ohlcv(
@@ -311,17 +335,22 @@ class DataFetcher:
             )
             if not ohlcv:
                 break
-            all_ohlcv.extend(ohlcv)
             last_timestamp = ohlcv[-1][0]
+            if current_since is not None and last_timestamp < current_since:
+                raise ValueError("OHLCV pagination did not advance")
+            all_ohlcv.extend(ohlcv)
             current_since = last_timestamp + 1
 
-            if end_boundary_ms is not None and last_timestamp >= end_boundary_ms:
+            if (end_boundary_ms is not None
+                    and last_timestamp + int(timeframe_delta(timeframe).total_seconds() * 1000) >= end_boundary_ms):
+                termination = "requested_end"
                 break
 
             if len(ohlcv) < batch_limit:
                 break
 
             if len(all_ohlcv) >= 10000:
+                termination = "safety_limit"
                 logger.warning(
                     "Reached safety limit of 10000 candles for %s on %s",
                     ccxt_symbol,
@@ -341,7 +370,14 @@ class DataFetcher:
         df.set_index("timestamp", inplace=True)
         if end_boundary_ms is not None:
             df = df[df.index < pd.Timestamp(end_boundary_ms, unit="ms")]
-        return self._normalize(df)
+        if since is not None:
+            df = df[df.index >= pd.Timestamp(since, unit="ms")]
+        df = df[~df.index.duplicated(keep="last")].sort_index()
+        df = self._normalize(df)
+        df.attrs.update(provider=exchange_id, symbol=ccxt_symbol, timeframe=timeframe,
+                        market_type=market_type, requested_start=start_date, requested_end=end_date,
+                        pagination_termination=termination)
+        return df
 
     def fetch_funding_rate_history(
         self,
@@ -453,18 +489,42 @@ class DataFetcher:
                 return pd.DataFrame()
 
             since = self._local_date_to_utc_ms(start_date) if start_date else None
-            batch = exchange.fetchOpenInterestHistory(
-                symbol, timeframe=timeframe, since=since, limit=limit
-            )
+            end_boundary_ms = self._local_date_to_utc_ms(end_date) + 86_400_000 if end_date else None
+            current_since, records = since, []
+            termination = "source_boundary"
+            interval_ms = int(timeframe_delta(timeframe).total_seconds() * 1000)
+            while True:
+                try:
+                    page = exchange.fetchOpenInterestHistory(
+                        symbol, timeframe=timeframe, since=current_since, limit=min(limit, 500)
+                    )
+                except Exception as exc:
+                    termination = f"error:{type(exc).__name__}"
+                    break
+                if not page:
+                    termination = "empty_page"
+                    break
+                last = max(int(record["timestamp"]) for record in page)
+                if current_since is not None and last < current_since:
+                    termination = "no_progress"
+                    break
+                records.extend(page)
+                current_since = last + 1
+                if end_boundary_ms is None or last + interval_ms >= end_boundary_ms:
+                    termination = "requested_end" if end_boundary_ms else "unbounded_request"
+                    break
+            batch = records
             if not batch:
                 logger.warning("No open interest data returned for %s on %s", symbol, exchange_id)
-                return pd.DataFrame()
+                empty = pd.DataFrame(columns=["open_interest"])
+                empty.attrs["coverage"] = {"status": "incomplete", "termination": termination}
+                return empty
 
             df = pd.DataFrame(
                 [
                     {
                         "timestamp": r["timestamp"],
-                        "open_interest": (r.get("openInterestAmount") or r.get("openInterestValue")),
+                        "open_interest": (r.get("openInterestAmount") if r.get("openInterestAmount") is not None else r.get("openInterestValue")),
                     }
                     for r in batch
                 ]
@@ -476,7 +536,21 @@ class DataFetcher:
                 end_boundary_ms = self._local_date_to_utc_ms(end_date) + 86_400_000
                 df = df[df.index < pd.Timestamp(end_boundary_ms, unit="ms")]
 
-            return df.sort_index()
+            if since is not None:
+                df = df[df.index >= pd.Timestamp(since, unit="ms")]
+            df = df[~df.index.duplicated(keep="last")].sort_index()
+            gaps = bool((df.index.to_series().diff().dropna() != timeframe_delta(timeframe)).any())
+            complete = bool(not df.empty and since is not None and end_boundary_ms is not None
+                            and df.index[0] == pd.Timestamp(since, unit="ms")
+                            and df.index[-1] + timeframe_delta(timeframe) >= pd.Timestamp(end_boundary_ms, unit="ms")
+                            and not gaps and df["open_interest"].notna().all()
+                            and termination == "requested_end")
+            df.attrs.update(provider=exchange_id, symbol=symbol, timeframe=timeframe,
+                            coverage={"status": "complete" if complete else "incomplete",
+                                      "termination": termination, "has_gaps": gaps,
+                                      "actual_start": df.index.min().isoformat() if not df.empty else None,
+                                      "actual_end": df.index.max().isoformat() if not df.empty else None})
+            return df
 
         except ImportError:
             logger.error("ccxt not installed. Please run: pip install ccxt")

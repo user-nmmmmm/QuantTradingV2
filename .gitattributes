@@ -1,2 +1,5 @@
 requirements.lock.txt text eol=lf
 requirements.lock.sha256 text eol=lf
+docs/baseline/phase0/**/*.csv text eol=lf
+docs/baseline/phase0/**/*.json text eol=lf
+docs/baseline/phase0/**/*.txt text eol=lf

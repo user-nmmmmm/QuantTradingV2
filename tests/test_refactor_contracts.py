@@ -27,12 +27,14 @@ def test_cli_contract_is_declared_outside_the_orchestrator():
         "--data-timezone", "--alignment-mode", "--benchmark-mode",
         "--benchmark-rebalance-cost-bps", "--universe-file",
         "--secondary-data-dir", "--require-secondary-audit", "--replay-manifest",
-        "--report-profile", "--observe-signals", "--signal-meta-layer",
+        "--report-profile", "--output-dir", "--observe-signals", "--signal-meta-layer",
+        "--adaptive-signal-meta", "--signal-meta-replay",
     }
     parsed = parser.parse_args([
         "--source", "local", "--data-dir", "prices", "--start", "2025-01-01",
         "--end", "2025-02-01", "--symbols", "BTC-USDT", "ETH-USDT",
         "--report-profile", "full", "--disable-routing-log", "--observe-signals", "--signal-meta-layer",
+        "--adaptive-signal-meta", "--signal-meta-replay",
     ])
     assert parsed.source == "local"
     assert parsed.symbols == ["BTC-USDT", "ETH-USDT"]
@@ -40,8 +42,12 @@ def test_cli_contract_is_declared_outside_the_orchestrator():
     assert parsed.disable_routing_log is True
     assert parsed.observe_signals is True
     assert parsed.signal_meta_layer is True
+    assert parsed.adaptive_signal_meta is True
+    assert parsed.signal_meta_replay is True
     assert parser.parse_args([]).observe_signals is False
     assert parser.parse_args([]).signal_meta_layer is False
+    assert parser.parse_args([]).adaptive_signal_meta is False
+    assert parser.parse_args([]).signal_meta_replay is False
 
 
 def test_workbook_and_pdf_depend_on_shared_metrics_not_each_other():

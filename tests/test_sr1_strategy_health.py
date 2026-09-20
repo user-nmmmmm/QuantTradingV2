@@ -396,8 +396,9 @@ class TestStrategyIntegration(unittest.TestCase):
             )
             for index in range(15)
         ]
-        strategy._consume_execution_trades("SYM0/USDT", 10, portfolio, broker)
-        strategy._consume_execution_trades("SYM0/USDT", 11, portfolio, broker)
+        for index in range(15):
+            strategy._consume_execution_trades(f"SYM{index}/USDT", 10, portfolio, broker)
+            strategy._consume_execution_trades(f"SYM{index}/USDT", 11, portfolio, broker)
 
         self.assertEqual(strategy.observed_close_events, 15)
         self.assertEqual(len(strategy.health.cohorts), 1)

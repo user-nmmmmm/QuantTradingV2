@@ -11,7 +11,7 @@ from core.broker.cost_model import CostModel
 from core.gray_release import GrayReleasePolicy
 from core.runtime_identity import RuntimeIdentity
 from core.state_store_v2 import StateStore
-from core.live_safety import StartupSafetyPolicy
+from core.live_safety import SafetyConfigurationError, StartupSafetyPolicy
 from core.metric_result import MetricResult
 from core.supervisor import RestartPolicy, supervise
 from composition.factory import build_strategy_registry
@@ -48,7 +48,7 @@ class MissingCapabilityAcceptanceTests(unittest.TestCase):
         self.assertEqual(result["selected_candidate"], "overfit")
         self.assertLess(result["oos_mean_return"], 0)
 
-    def test_gray_release_requires_r7_permissions_and_rollback(self):
+    def test_gray_release_rejects_legacy_passed_summary(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             evidence, snapshot = root / "r7.json", root / "state.db"
@@ -61,7 +61,8 @@ class MissingCapabilityAcceptanceTests(unittest.TestCase):
             exchange.fetch_api_permissions.return_value = {"enableWithdrawals": False, "enableSpotAndMarginTrading": True}
             policy = GrayReleasePolicy("binance", "BTC/USDT", 10, 20, str(evidence), str(snapshot), runtime_identity=identity)
             with patch.dict("os.environ", {"QUANT_R8_APPROVED": "approved"}):
-                policy.validate(startup, exchange)
+                with self.assertRaises(SafetyConfigurationError):
+                    policy.validate(startup, exchange)
 
     def test_shared_hard_stop(self):
         strategy = VolatilityReversionStrategy()

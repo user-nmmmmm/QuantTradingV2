@@ -1,4 +1,5 @@
 import json
+import hashlib
 import tempfile
 import unittest
 from pathlib import Path
@@ -16,7 +17,7 @@ from tests.engine_baseline_harness import (
 )
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures" / "backtest"
-ENGINE_BASELINE_PATH = FIXTURE_DIR / "engine" / "engine_baseline_v2.json"
+ENGINE_BASELINE_PATH = FIXTURE_DIR / "engine" / "engine_baseline_v4.json"
 
 class TestBacktestFixedBaselines(unittest.TestCase):
     def bundles(self):
@@ -75,6 +76,34 @@ class TestBacktestEngineEquivalenceBaseline(unittest.TestCase):
     def _load_baseline(self):
         with ENGINE_BASELINE_PATH.open(encoding="utf-8") as stream:
             return json.load(stream)
+
+    def test_v4_preserves_v3_identity_and_records_configuration(self):
+        from tests.generate_engine_baseline import FIXTURE_PATH, main
+        bundle = self._load_baseline()
+        previous = ENGINE_BASELINE_PATH.with_name("engine_baseline_v3.json")
+        self.assertEqual(bundle["metadata"]["supersedes"], previous.name)
+        self.assertEqual(bundle["metadata"]["text_hash_policy"], "UTF-8 text with CRLF and CR normalized to LF")
+        self.assertEqual(bundle["metadata"]["previous_baseline_lf_sha256"], hashlib.sha256(previous.read_text(encoding="utf-8").encode("utf-8")).hexdigest())
+        self.assertEqual(bundle["metadata"]["config_lf_sha256"], hashlib.sha256(
+            (Path(__file__).resolve().parents[1] / "config" / "params.yaml").read_text(encoding="utf-8").encode("utf-8")).hexdigest())
+        previous_bundle = json.loads(previous.read_text(encoding="utf-8"))
+        for name in ("seed", "symbols", "bars_per_symbol", "warmup_period", "data_summary", "data_sha256"):
+            self.assertEqual(bundle["metadata"][name], previous_bundle["metadata"][name])
+        for name in ("trades", "equity_curve", "benchmark"):
+            self.assertEqual(bundle["artifacts"][name], previous_bundle["artifacts"][name])
+        # v4 only expands fact-aware reporting. Existing six scalar contracts
+        # and their values remain exactly the same in both immutable fixtures.
+        old_results = previous_bundle["artifacts"]["metrics"]["MetricResults"]
+        new_results = bundle["artifacts"]["metrics"]["MetricResults"]
+        self.assertEqual(new_results[:len(old_results)], old_results)
+        self.assertEqual(len(new_results), len(old_results) + 4)
+        self.assertTrue(all(item["status"] == "not_modeled" and item["value"] is None
+                            for item in new_results[len(old_results):]))
+        self.assertEqual(FIXTURE_PATH, ENGINE_BASELINE_PATH)
+        before = ENGINE_BASELINE_PATH.read_bytes()
+        with self.assertRaisesRegex(SystemExit, "Refusing to overwrite"):
+            main()
+        self.assertEqual(ENGINE_BASELINE_PATH.read_bytes(), before)
 
     def test_matches_recorded_baseline(self):
         bundle = self._load_baseline()

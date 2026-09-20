@@ -9,6 +9,7 @@ from typing import Iterable, Optional, Tuple
 from uuid import UUID
 
 from core.events import EventCodec, EventEnvelope
+from core.events.codec import canonical_wire_types
 
 
 @dataclass(frozen=True)
@@ -196,8 +197,8 @@ class SQLiteEventStore:
 
     @staticmethod
     def _same_business_event(left: str, right: str) -> bool:
-        left_doc = json.loads(left)
-        right_doc = json.loads(right)
+        left_doc = canonical_wire_types(json.loads(left))
+        right_doc = canonical_wire_types(json.loads(right))
         left_doc["observed_at"] = right_doc.get("observed_at")
         return left_doc == right_doc
 

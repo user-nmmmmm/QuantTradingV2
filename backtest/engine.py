@@ -4,7 +4,7 @@ from __future__ import annotations
 from core.entry_audit import forced_trade_cost
 from core.entry_risk import resolve_approved_risk
 from core.orders import TERMINAL_STATUSES
-from dataclasses import asdict
+from dataclasses import asdict, replace
 
 import os
 from typing import Any, Dict, Optional
@@ -45,7 +45,10 @@ from core.signal_outcomes import ObservationCosts
 from core.signal_actuals import reconcile_actuals
 from core.signal_ev_types import EVPolicy
 from core.signal_meta_layer import build_signal_meta_layer
+from core.signal_adaptive_types import AdaptiveEVPolicy, MetaReplayPolicy
+from core.signal_adaptive import build_adaptive_signal_meta
 from backtest.signal_ghost import replay_ghosts
+from backtest.signal_meta_replay import replay_signal_meta
 
 logger = get_logger(__name__)
 
@@ -72,6 +75,8 @@ class BacktestEngine:
         trading_start: Optional[Any] = None,
         signal_observation: Optional[Dict[str, Any]] = None,
         signal_meta_layer: Optional[Dict[str, Any] | EVPolicy] = None,
+        signal_adaptive: Optional[Dict[str, Any] | AdaptiveEVPolicy] = None,
+        signal_meta_replay: Optional[Dict[str, Any] | MetaReplayPolicy] = None,
     ) -> None:
         config_data = config.require("data")
         config_benchmark = config.require("benchmark")
@@ -95,6 +100,18 @@ class BacktestEngine:
             **(config.get("signal_meta_layer") or {}),
             **(signal_meta_layer.to_dict() if isinstance(signal_meta_layer, EVPolicy)
                else (signal_meta_layer or {}))})
+        self.signal_adaptive_policy = AdaptiveEVPolicy.from_mapping({
+            **(config.get("signal_adaptive") or {}),
+            **(signal_adaptive.to_dict() if isinstance(signal_adaptive, AdaptiveEVPolicy)
+               else (signal_adaptive or {}))})
+        self.signal_meta_replay_policy = MetaReplayPolicy.from_mapping({
+            **(config.get("signal_meta_replay") or {}),
+            **(signal_meta_replay.to_dict() if isinstance(signal_meta_replay, MetaReplayPolicy)
+               else (signal_meta_replay or {}))})
+        if self.signal_meta_replay_policy.enabled:
+            self.signal_adaptive_policy = replace(self.signal_adaptive_policy, enabled=True)
+        if self.signal_adaptive_policy.enabled:
+            self.signal_meta_policy = replace(self.signal_meta_policy, enabled=True)
         observation_settings = {
             **(config.get("signal_observation") or {}), **(signal_observation or {})}
         if self.signal_meta_policy.enabled:
@@ -102,6 +119,9 @@ class BacktestEngine:
             # snapshot identity or the official decision path.
             observation_settings["enabled"] = True
         self.observation_policy = ObservationPolicy.from_mapping(observation_settings)
+        if (self.signal_meta_replay_policy.enabled
+                and self.signal_meta_replay_policy.horizon_bars not in self.observation_policy.horizons):
+            raise ValueError("P3 replay horizon must already exist in the P0 observation horizons")
         self.config_execution = config.require("execution")
         self.config_risk = config.require("risk")
         self.config_account = config.get("account") or {}
@@ -147,9 +167,6 @@ class BacktestEngine:
         routing_log_path: Optional[str] = None,
         routing_log_enabled: bool = True,
     ) -> Dict[str, Any]:
-        if not data_map:
-            return {}
-
         initial_margin_rate = float(
             self.config_account.get(
                 "initial_margin_rate",
@@ -246,6 +263,8 @@ class BacktestEngine:
             "signal_observation": None,
             "signal_meta_layer": None,
             "trades": [],
+            "entry_observations": [],
+            "effective_max_holding_days": getattr(router, "max_holding_days", None),
             "equity_curve": pd.DataFrame(),
             "benchmark": None,
             "benchmark_fixed": None,
@@ -466,8 +485,7 @@ class BacktestEngine:
                 )
             else:
                 risk_plan = plan_risk_action(decision, event.timestamp.date(), block_remaining=block_remaining)
-                if risk_plan is not None and (risk_plan.action_id not in applied_breaker_actions or
-                                              (risk_plan.remaining_fraction == 0 and portfolio.positions)):
+                if risk_plan is not None and (risk_plan.action_id not in applied_breaker_actions or portfolio.positions):
                     forced_trades.extend(broker.force_liquidate(
                         dict(event.bars), timestamp=event.timestamp, reason=risk_plan.reason,
                         remaining_fraction=risk_plan.remaining_fraction, risk_action_id=risk_plan.action_id,
@@ -479,7 +497,7 @@ class BacktestEngine:
                 for strategy in strategies.values():
                     for symbol in event.bars:
                         strategy._consume_execution_trades(
-                            symbol, bar_index, portfolio, execution
+                            symbol, int(processed_data[symbol].index.get_indexer([event.timestamp])[0]), portfolio, execution
                         )
                 result.equity = portfolio.get_equity(result.prices)
                 result.cash = float(portfolio.cash)
@@ -759,10 +777,22 @@ class BacktestEngine:
             build_signal_meta_layer(signal_observation_result, self.signal_meta_policy)
             if self.signal_meta_policy.enabled and signal_observation_result is not None else None
         )
+        signal_adaptive_result = (
+            build_adaptive_signal_meta(signal_observation_result, self.signal_adaptive_policy)
+            if self.signal_adaptive_policy.enabled and signal_observation_result is not None else None
+        )
+        signal_meta_replay_result = (
+            replay_signal_meta(market_data, signal_observation_result, signal_adaptive_result,
+                               broker, self.signal_meta_replay_policy)
+            if self.signal_meta_replay_policy.enabled and signal_adaptive_result is not None else None
+        )
         return {
             "signal_observation": signal_observation_result,
             "signal_meta_layer": signal_meta_layer_result,
+            "signal_adaptive": signal_adaptive_result,
+            "signal_meta_replay": signal_meta_replay_result,
             "strategy_activity": health_activity,
+            "effective_max_holding_days": getattr(router, "max_holding_days", None),
             "trades": broker.trades,
             "equity_curve": self._equity_frame(
                 equity_curve, exposure_positions, exposure_prices
@@ -1045,32 +1075,27 @@ class BacktestEngine:
                 exit_reason="EndOfBacktest",
                 zero_cost=zero_cost,
             )
-            synthetic_bars[symbol] = pd.Series(
-                {
-                    "open": mark_price, "high": mark_price, "low": mark_price,
-                    "close": mark_price, "volume": 1e18,
-                },
-                name=synthetic_time,
-            )
-            if not zero_cost:
-                frame = self.market_data_adapter.data_map.get(symbol) if self.market_data_adapter else None
-                if frame is None or last_event_timestamp not in frame.index:
-                    raise ValueError(f"Cannot cost an end-window exit without a real bar for {symbol}")
-                synthetic_bars[symbol] = frame.loc[last_event_timestamp].copy()
-                synthetic_bars[symbol].name = synthetic_time
-                synthetic_bars[symbol]["open"] = mark_price
+            frame = self.market_data_adapter.data_map.get(symbol) if self.market_data_adapter else None
+            available = frame.loc[frame.index <= last_event_timestamp] if frame is not None else None
+            if available is None or available.empty:
+                raise ValueError(f"Cannot settle end-window exit without a real bar for {symbol}")
+            real_bar = available.iloc[-1]
+            synthetic_bars[symbol] = real_bar.copy()
+            synthetic_bars[symbol].name = synthetic_time
+            synthetic_bars[symbol]["open"] = mark_price
+            synthetic_bars[symbol]["liquidity_source_time"] = real_bar.name
         if not synthetic_bars:
             return
 
         broker.process_orders(synthetic_bars)
-        if not zero_cost and any(abs(float(pos["qty"])) > 1e-9 for pos in portfolio.positions.values()):
+        if any(abs(float(pos["qty"])) > 1e-9 for pos in portfolio.positions.values()):
             raise ValueError("End-window exit cannot fill within actual liquidity")
         # No more routing will happen this run, so nothing else will ever
         # deliver these tail CloseEvents - flush them explicitly (T-1.4/T-1.5
         # still apply: dedup by close_event_id keeps this idempotent).
         for strategy in strategies.values():
             for symbol in synthetic_bars:
-                strategy._consume_execution_trades(symbol, bar_index + 1, portfolio, execution)
+                strategy._consume_execution_trades(symbol, len(self.market_data_adapter.data_map[symbol].loc[:last_event_timestamp]) - 1, portfolio, execution)
 
         final_prices: Dict[str, float] = (
             dict(self.event_processor.last_prices) if self.event_processor else {}

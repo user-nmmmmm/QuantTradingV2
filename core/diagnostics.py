@@ -194,8 +194,16 @@ def calculate_lifecycle_coverage(
     Coverage well below 1.0 means the safeguards are running blind.
     """
     expected: Counter = Counter()
+    seen = set()
     for trade in closed_trades:
-        expected[str(trade.get("strategy") or "Unknown")] += 1
+        strategy = str(trade.get("strategy") or "Unknown")
+        event_id = trade.get("close_event_id")
+        if event_id is not None:
+            key = (strategy, str(event_id))
+            if key in seen:
+                continue
+            seen.add(key)
+        expected[strategy] += 1
 
     if not expected:
         return {"status": "insufficient", "sample_size": 0, "by_strategy": {},
@@ -483,6 +491,7 @@ def build_diagnostics(
     observed_close_events: Optional[Mapping[str, int]] = None,
     strategy_health: Optional[Mapping[str, Mapping[str, Any]]] = None,
     closed_legs: Optional[Iterable[Mapping[str, Any]]] = None,
+    max_holding_days: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Run the full diagnostic suite over one backtest's closed trades/equity.
 
@@ -503,7 +512,13 @@ def build_diagnostics(
         "pnl_concentration": calculate_pnl_concentration(records),
         "exit_attribution": calculate_exit_attribution(records),
         "joint_entry_exit_attribution": joint_entry_exit_attribution(records),
-        "holding_period_audit": holding_period_audit(records, max_holding_days=365),
+        "holding_period_audit": (
+            {**holding_period_audit(records, max_holding_days=max_holding_days),
+             "configured_max_holding_days": max_holding_days, "configuration_status": "recorded"}
+            if max_holding_days is not None else
+            {"status": "not_modeled", "reason": "effective max_holding_days was not supplied",
+             "configured_max_holding_days": None}
+        ),
         "calendar_returns": calculate_calendar_returns(equity, records),
         "streaks": calculate_streaks(records),
         "strategy_activity_consistency": strategy_activity_consistency(

@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
+import shutil
 import sqlite3
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
+from uuid import uuid4
 
 from core.sqlite_utils import DatabaseIntegrityError
 
@@ -104,6 +107,7 @@ def restore_snapshot(snapshot_path: str, target_path: str, *, expected_identity=
     """Restore a validated snapshot using an atomic target replacement."""
     snapshot = Path(snapshot_path)
     target = Path(target_path)
+    corrupt_target = False
     if target.is_file():
         current = sqlite3.connect(target.resolve().as_uri() + "?mode=ro", uri=True)
         try:
@@ -112,22 +116,47 @@ def restore_snapshot(snapshot_path: str, target_path: str, *, expected_identity=
                 if expected_identity is not None and getattr(expected_identity, "canonical", expected_identity) != target_identity:
                     raise ValueError("Target identity differs from requested restore identity")
                 expected_identity = target_identity
+        except sqlite3.DatabaseError as exc:
+            # A damaged target cannot attest its account identity. Recovery is
+            # permitted only against an independently supplied identity, and
+            # the damaged bytes are preserved before any atomic replacement.
+            if expected_identity is None:
+                raise DatabaseIntegrityError(
+                    "corrupt target requires an explicit expected runtime identity"
+                ) from exc
+            corrupt_target = True
         finally:
             current.close()
     validate_database(snapshot, expected_identity=expected_identity)
     target.parent.mkdir(parents=True, exist_ok=True)
-    temporary = target.with_name(f".{target.name}.{os.getpid()}.restore")
-    if temporary.exists():
-        temporary.unlink()
-    source = sqlite3.connect(str(snapshot))
-    restored = sqlite3.connect(str(temporary))
+    temporary = target.with_name(f".{target.name}.{os.getpid()}.{uuid4().hex}.restore")
     try:
-        source.backup(restored)
+        source = sqlite3.connect(str(snapshot))
+        restored = sqlite3.connect(str(temporary))
+        try:
+            source.backup(restored)
+        finally:
+            restored.close()
+            source.close()
+        validate_database(temporary, expected_identity=expected_identity)
+        if corrupt_target:
+            evidence = target.with_name(f"{target.name}.corrupt.{uuid4().hex}")
+            shutil.copy2(target, evidence)
+            for suffix in ("-wal", "-shm"):
+                sidecar = Path(f"{target}{suffix}")
+                if sidecar.exists():
+                    shutil.copy2(sidecar, Path(f"{evidence}{suffix}"))
+        for attempt in range(5):
+            try:
+                os.replace(temporary, target)
+                break
+            except PermissionError:
+                if os.name != "nt" or attempt == 4:
+                    raise
+                time.sleep(.01 * (attempt + 1))
     finally:
-        restored.close()
-        source.close()
-    validate_database(temporary)
-    os.replace(temporary, target)
+        if temporary.exists():
+            temporary.unlink()
     for suffix in ("-wal", "-shm"):
         sidecar = Path(f"{target}{suffix}")
         if sidecar.exists():
@@ -146,6 +175,8 @@ def main() -> int:
     restore = subparsers.add_parser("restore")
     restore.add_argument("snapshot")
     restore.add_argument("database")
+    restore.add_argument("--identity-file", type=Path,
+                         help="JSON exchange/environment/account/market_type identity; required for a corrupt target")
     args = parser.parse_args()
     if args.command == "backup":
         path = SQLiteSnapshotManager(
@@ -154,7 +185,11 @@ def main() -> int:
             retention=args.retention,
         ).create_snapshot()
     else:
-        path = restore_snapshot(args.snapshot, args.database)
+        identity = None
+        if args.identity_file is not None:
+            from core.runtime_identity import RuntimeIdentity
+            identity = RuntimeIdentity(**json.loads(args.identity_file.read_text(encoding="utf-8")))
+        path = restore_snapshot(args.snapshot, args.database, expected_identity=identity)
     print(path)
     return 0
 

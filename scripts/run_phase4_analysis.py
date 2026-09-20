@@ -9,6 +9,7 @@ from pathlib import Path
 import pandas as pd
 
 from backtest.reporting import ReportGenerator
+from config.config import config
 from core.allocation import (
     holding_period_audit,
     joint_entry_exit_attribution,
@@ -134,9 +135,11 @@ def main():
     all_closed = []
     for trades in BASELINE.glob("*/trades.csv"):
         all_closed.extend(_closed_trades(trades))
-    holding = holding_period_audit(all_closed, max_holding_days=365)
+    effective_limit = config.require("router", "max_holding_days")
+    holding = holding_period_audit(all_closed, max_holding_days=effective_limit)
     holding["sources"] = "docs/baseline/phase0/archived_reports/*/trades.csv"
-    holding["configured_max_holding_days"] = 365
+    holding["configured_max_holding_days"] = effective_limit
+    holding["scope"] = "retrospective audit under current configured policy; not historical execution policy"
     _json_dump("holding_tail_report.json", holding)
 
     order_report = {

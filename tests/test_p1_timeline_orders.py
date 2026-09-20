@@ -141,20 +141,23 @@ class TestPartialFillsAndTIF(unittest.TestCase):
         )
         self.assertEqual(self.broker.process_orders({"A": self.bar(self.t1)}), [])
         self.assertEqual(order.status, BacktestOrderStatus.EXPIRED)
-    def test_buy_and_short_require_sufficient_cash(self):
+    def test_cash_clamps_spot_buy_and_forbids_short(self):
         for side in ("buy", "short"):
             with self.subTest(side=side):
                 portfolio = Portfolio(50)
-                broker = Broker(
-                    portfolio,
-                    commission_rate=0,
-                    commission_rate_maker=0,
-                )
+                broker = Broker(portfolio, commission_rate=0, commission_rate_maker=0)
                 order = broker.submit_order("A", side, 1, timestamp=self.t0)
-                self.assertEqual(broker.process_orders({"A": self.bar(self.t1, volume=100)}), [])
-                self.assertEqual(order.status, BacktestOrderStatus.REJECTED)
-                self.assertEqual(portfolio.cash, 50)
-                self.assertEqual(portfolio.get_position("A")["qty"], 0)
+                trades = broker.process_orders({"A": self.bar(self.t1, volume=100)})
+                if side == "short":
+                    self.assertEqual(trades, [])
+                    self.assertEqual(order.status, BacktestOrderStatus.REJECTED)
+                    self.assertEqual(portfolio.cash, 50)
+                    self.assertEqual(portfolio.get_position("A")["qty"], 0)
+                else:
+                    self.assertEqual(len(trades), 1)
+                    self.assertGreaterEqual(portfolio.cash, 0)
+                    self.assertLess(portfolio.get_position("A")["qty"], 1)
+                    self.assertAlmostEqual(trades[0]["qty"] * trades[0]["fill_price"], 50)
 
     def test_no_position_to_close_is_not_a_rejection(self):
         order = self.broker.submit_order("A", "sell", 1, timestamp=self.t0)

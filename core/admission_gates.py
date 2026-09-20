@@ -14,7 +14,7 @@ import argparse
 import json
 import math
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from statistics import mean
 from typing import Any, Mapping, Sequence
@@ -110,6 +110,7 @@ def reconcile_lifecycle(
     actual: Mapping[str, Sequence[Mapping[str, Any]]],
     *,
     numeric_tolerance: float = 1e-8,
+    ignored_fields: Sequence[str] = tuple(sorted(_IGNORED_COMPARISON_FIELDS)),
 ) -> dict[str, Any]:
     """Reconcile signal/order/fill/position/cost/PnL records one by one."""
     if numeric_tolerance < 0:
@@ -135,11 +136,11 @@ def reconcile_lifecycle(
             expected_record = expected_rows[record_id]
             actual_record = actual_rows[record_id]
             differing_fields = []
-            for field, expected_value in expected_record.items():
-                if field == "record_id" or field in _IGNORED_COMPARISON_FIELDS:
+            for field in set(expected_record) | set(actual_record):
+                if field == "record_id" or field in ignored_fields:
                     continue
-                if field not in actual_record or not _values_equal(
-                    expected_value, actual_record.get(field), numeric_tolerance,
+                if field not in expected_record or field not in actual_record or not _values_equal(
+                    expected_record.get(field), actual_record.get(field), numeric_tolerance,
                 ):
                     differing_fields.append(field)
             if differing_fields:
@@ -176,8 +177,9 @@ def reconcile_lifecycle(
         }
     overall_coverage = total_matched / total_expected if total_expected else 0.0
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "task": "T-6.3",
+        "ignored_comparison_fields": sorted(ignored_fields),
         "generated_at": _utc_now(),
         "passed": bool(overall_coverage == 1.0 and all(
             item["passed"] for item in layer_reports.values()
@@ -227,27 +229,61 @@ def audit_paper_run(
     *,
     minimum_days: int = 56,
     minimum_regimes: int = 2,
+    maximum_gap_seconds: float = 86400.0,
+    required_start: str | None = None,
+    required_end: str | None = None,
 ) -> dict[str, Any]:
     """Audit elapsed duration, regime coverage, and unresolved incidents."""
-    if minimum_days < 1 or minimum_regimes < 1:
-        raise ValueError("minimum_days and minimum_regimes must be positive")
+    minimum_days, minimum_regimes = _paper_minimums(minimum_days, minimum_regimes)
+    if not math.isfinite(maximum_gap_seconds) or maximum_gap_seconds <= 0:
+        raise ValueError("maximum_gap_seconds must be finite and positive")
     issues: list[str] = []
     timestamps: list[datetime] = []
     regimes: set[str] = set()
     unresolved = 0
     for number, row in enumerate(observations, 1):
         try:
-            timestamps.append(_parse_timestamp(row.get("timestamp")))
+            timestamp = _parse_timestamp(row.get("timestamp"))
+            if timestamps and timestamp <= timestamps[-1]:
+                issues.append(f"observation_{number}:timestamp_not_strictly_increasing")
+            timestamps.append(timestamp)
         except (TypeError, ValueError):
             issues.append(f"observation_{number}:invalid_timestamp")
         regime = str(row.get("regime", "")).strip()
         if regime:
             regimes.add(regime)
+        else:
+            issues.append(f"observation_{number}:regime_missing")
+        if "incident_status" not in row:
+            issues.append(f"observation_{number}:incident_status_missing")
         if row.get("incident_status") not in (None, "resolved", "explained"):
             unresolved += 1
     elapsed_days = 0
     if timestamps:
         elapsed_days = (max(timestamps).date() - min(timestamps).date()).days + 1
+    ordered = sorted(set(timestamps))
+    gaps = []
+    for before, after in zip(ordered, ordered[1:]):
+        seconds = (after - before).total_seconds()
+        if seconds > maximum_gap_seconds:
+            gaps.append({"start": before.isoformat(), "end": after.isoformat(), "seconds": seconds})
+            issues.append(f"paper_observation_gap:{before.isoformat()}:{after.isoformat()}")
+    start = _parse_timestamp(required_start) if required_start else (min(ordered) if ordered else None)
+    end = _parse_timestamp(required_end) if required_end else (max(ordered) if ordered else None)
+    if start is not None and end is not None and end < start:
+        raise ValueError("required_end must not precede required_start")
+    missing_dates = []
+    if start is not None and end is not None:
+        observed_dates = {point.date() for point in ordered}
+        day = start.date()
+        while day <= end.date():
+            if day not in observed_dates:
+                missing_dates.append(day.isoformat())
+            day += timedelta(days=1)
+        if missing_dates:
+            issues.append("paper_daily_coverage_incomplete:" + ",".join(missing_dates))
+        if not ordered or ordered[0] > start or ordered[-1] < end:
+            issues.append("paper_required_interval_incomplete")
     if elapsed_days < minimum_days:
         issues.append(f"paper_duration_too_short:{elapsed_days}<{minimum_days}")
     if len(regimes) < minimum_regimes:
@@ -257,8 +293,15 @@ def audit_paper_run(
     if not observations:
         issues.append("paper_observations_missing")
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "task": "T-6.2",
+        "evidence_status": "complete" if not issues else "incomplete",
+        "timezone": "UTC",
+        "maximum_gap_seconds": maximum_gap_seconds,
+        "required_start": start.isoformat() if start else None,
+        "required_end": end.isoformat() if end else None,
+        "gaps": gaps,
+        "missing_dates": missing_dates,
         "generated_at": _utc_now(),
         "passed": not issues,
         "observation_count": len(observations),
@@ -378,6 +421,7 @@ def evaluate_monitoring(
                 continue
             dimension_counts[dimension] += 1
             if section["ok"] is False:
+                issues.append(f"snapshot_{number}:{dimension}:unhealthy")
                 alerts.append({
                     "timestamp": timestamp,
                     "dimension": dimension,
@@ -391,8 +435,10 @@ def evaluate_monitoring(
         if count != len(snapshots):
             issues.append(f"{dimension}:coverage_incomplete")
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "task": "T-6.5",
+        "health_issues": sorted(set(issue for issue in issues if issue != "critical_alert_delivery_not_verified")),
+        "delivery_evidence": {"verified": alert_delivery_verified is True},
         "generated_at": _utc_now(),
         "passed": bool(snapshots) and alert_delivery_verified and not issues,
         "snapshot_count": len(snapshots),
@@ -402,6 +448,46 @@ def evaluate_monitoring(
         "latest_snapshot": dict(snapshots[-1]) if snapshots else None,
         "issues": sorted(set(issues)),
     }
+
+
+def _paper_minimums(days: int, regimes: int) -> tuple[int, int]:
+    """A protocol may strengthen, but never lower, the production floor."""
+    if any(isinstance(value, bool) or not isinstance(value, int) or value < 1
+           for value in (days, regimes)):
+        raise ValueError("minimum_days and minimum_regimes must be positive integers")
+    return max(56, days), max(2, regimes)
+
+
+def _paper_report_passes(report: Mapping[str, Any], days: int, regimes: int) -> bool:
+    """Recheck summary evidence so a legacy or weakened pass cannot be inherited."""
+    try:
+        days, regimes = _paper_minimums(days, regimes)
+        declared_days = report["minimum_days"]
+        declared_regimes = report["minimum_regimes"]
+        elapsed = report["elapsed_days"]
+        count = report["observation_count"]
+        if any(isinstance(value, bool) or not isinstance(value, int)
+               for value in (declared_days, declared_regimes, elapsed, count)):
+            return False
+        start, end = _parse_timestamp(report["start"]), _parse_timestamp(report["end"])
+        required_start = _parse_timestamp(report["required_start"])
+        required_end = _parse_timestamp(report["required_end"])
+        observed_regimes = report["regimes"]
+        return bool(
+            _passed(report) and report.get("schema_version") == 2
+            and report.get("evidence_status") == "complete"
+            and declared_days >= days and declared_regimes >= regimes
+            and elapsed >= declared_days and count >= elapsed
+            and elapsed == (end.date() - start.date()).days + 1
+            and start <= required_start <= required_end <= end
+            and isinstance(observed_regimes, list)
+            and all(isinstance(value, str) and value.strip() for value in observed_regimes)
+            and len(set(observed_regimes)) >= declared_regimes
+            and report.get("issues") == [] and report.get("gaps") == []
+            and report.get("missing_dates") == [] and report.get("unresolved_incidents") == 0
+        )
+    except (KeyError, TypeError, ValueError, OverflowError):
+        return False
 
 
 def review_admission(
@@ -414,6 +500,8 @@ def review_admission(
     calibration_report: Mapping[str, Any],
     monitoring_report: Mapping[str, Any],
     approval: Mapping[str, Any],
+    minimum_paper_days: int = 56,
+    minimum_market_regimes: int = 2,
 ) -> dict[str, Any]:
     """Execute the T-6.6 fail-closed production admission review."""
     open_p0 = sorted(
@@ -437,13 +525,15 @@ def review_admission(
         "all_p0_closed": bool(p0_issues) and not open_p0,
         "final_holdout_admitted": holdout_passed,
         "shadow_consistent": _passed(shadow_report),
-        "paper_duration_and_regimes": _passed(paper_report),
+        "paper_duration_and_regimes": _paper_report_passes(
+            paper_report, minimum_paper_days, minimum_market_regimes),
         "lifecycle_reconciliation_100pct": bool(
             _passed(reconciliation_report)
+            and reconciliation_report.get("schema_version") == 2
             and reconciliation_report.get("coverage") == 1.0
         ),
         "execution_model_calibrated": _passed(calibration_report),
-        "monitoring_and_alerting_ready": _passed(monitoring_report),
+        "monitoring_and_alerting_ready": bool(_passed(monitoring_report) and monitoring_report.get("schema_version") == 2),
         "independent_operator_approval": operator_approved,
     }
     failed = sorted(name for name, passed in gates.items() if not passed)
@@ -554,8 +644,11 @@ def evaluate_phase6(bundle: Mapping[str, Any]) -> dict[str, Any]:
     )
     paper = audit_paper_run(
         bundle.get("paper_observations", []),
-        minimum_days=int(bundle.get("minimum_paper_days", 56)),
-        minimum_regimes=int(bundle.get("minimum_market_regimes", 2)),
+        minimum_days=bundle.get("minimum_paper_days", 56),
+        minimum_regimes=bundle.get("minimum_market_regimes", 2),
+        maximum_gap_seconds=float(bundle.get("paper_maximum_gap_seconds", 86400)),
+        required_start=bundle.get("paper_required_start"),
+        required_end=bundle.get("paper_required_end"),
     )
     reconciliation = reconcile_lifecycle(
         bundle.get("expected_lifecycle", {}), bundle.get("actual_lifecycle", {}),
@@ -578,6 +671,8 @@ def evaluate_phase6(bundle: Mapping[str, Any]) -> dict[str, Any]:
         calibration_report=calibration,
         monitoring_report=monitoring,
         approval=bundle.get("admission_approval", {}),
+        minimum_paper_days=paper["minimum_days"],
+        minimum_market_regimes=paper["minimum_regimes"],
     )
     micro = evaluate_micro_live(
         admission_report=admission,

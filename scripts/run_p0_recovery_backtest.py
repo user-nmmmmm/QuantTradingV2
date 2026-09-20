@@ -22,6 +22,7 @@ import pandas as pd
 
 from backtest.engine import BacktestEngine
 from backtest.reporting import ReportGenerator
+from backtest.reporting.serialization import write_metrics_json
 from config.config import config
 from core.reproducibility import (
     canonical_json, code_identity, deterministic_result_digest,
@@ -105,7 +106,7 @@ def main():
                 pd.DataFrame(result[key]).to_csv(folder / f"{key}.csv", index=False)
             for key in ("breaker_state", "strategy_health", "accounting_check", "lifecycle", "account_cost_contract"):
                 save(folder / f"{key}.json", result[key])
-            save(folder / "metrics.json", metrics)
+            write_metrics_json(folder / "metrics.json", metrics, {"resolved_config": config._config})
             digest = deterministic_result_digest(result)
             save(folder / "result_digest.json", digest)
             if args.verify_reference:

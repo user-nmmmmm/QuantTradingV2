@@ -20,6 +20,9 @@ exists to evaluate. The one metric that stays leg-level is
 counts lot closes.
 """
 
+import ast
+import json
+import math
 from collections import deque
 from typing import Any, Deque, Dict, List, Optional, Tuple
 
@@ -38,6 +41,23 @@ def _is_missing(value: Any) -> bool:
         return False
 
 
+def _lot_close_records(value):
+    """Read native facts and old CSV nested literals without executing code."""
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except (ValueError, TypeError):
+            try:
+                value = ast.literal_eval(value)
+            except (ValueError, SyntaxError) as exc:
+                raise ValueError("Invalid lot_closes archive; identity cannot be reconstructed") from exc
+    if not isinstance(value, (list, tuple)) and _is_missing(value):
+        return []
+    if not isinstance(value, (list, tuple)) or any(not isinstance(row, dict) for row in value):
+        raise ValueError("lot_closes must contain structured lot facts")
+    return value
+
+
 class TradeReconstructionMixin:
     def _extended_trade_analytics(
         self, closed_trades: List[Dict[str, Any]]
@@ -51,6 +71,91 @@ class TradeReconstructionMixin:
         )
 
     def _reconstruct_closed_trades(self, trades_df: pd.DataFrame) -> List[Dict[str, Any]]:
+        """Validate historical inputs before applying the compatibility adapter.
+
+        An incomplete symbol stream cannot be safely paired after dropping a
+        bad row. Preserve that entire stream as an explicit invalid record.
+        Modern lot facts remain the authority for entry prices/costs/ownership.
+        """
+        if trades_df.empty:
+            return []
+        result = []
+        working = trades_df.copy()
+        working["_source_row_position"] = range(len(working))
+        if "symbol" not in working:
+            working["symbol"] = None
+        for symbol, group in working.groupby("symbol", dropna=False, sort=False):
+            reasons = []
+            owners_by_order = {}
+            for row in group.to_dict("records"):
+                try:
+                    details = _lot_close_records(row.get("lot_closes"))
+                    for detail in details:
+                        for field in ("qty_closed", "entry_price", "entry_cost_share"):
+                            if field not in detail and not (field == "entry_cost_share" and "entry_price" in detail):
+                                continue
+                            try:
+                                value = float(detail.get(field))
+                                if not math.isfinite(value) or (value < 0 if field == "entry_cost_share" else value <= 0):
+                                    raise ValueError
+                            except (TypeError, ValueError):
+                                reasons.append(f"row:{row['_source_row_position']}:invalid_lot_{field}")
+                        owner = detail.get("strategy_id") or detail.get("strategy")
+                        order_id = detail.get("entry_order_id")
+                        if order_id is not None and isinstance(owner, str) and owner.strip() and owner != "Unknown":
+                            owners_by_order.setdefault(order_id, set()).add(owner)
+                except ValueError as exc:
+                    reasons.append(f"row:{row['_source_row_position']}:invalid_lot_facts:{exc}")
+            net_qty = 0.0
+            normalized = []
+            for row in group.to_dict("records"):
+                source_index = row["_source_row_position"]
+                prefix = f"row:{source_index}:"
+                if _is_missing(symbol) or not str(symbol).strip():
+                    reasons.append(prefix + "missing_symbol")
+                valid_numbers = True
+                for field in ("qty", "fill_price", "commission"):
+                    try:
+                        value = float(row.get(field))
+                        if not math.isfinite(value) or (value <= 0 if field != "commission" else value < 0):
+                            raise ValueError
+                        row[field] = value
+                    except (TypeError, ValueError):
+                        valid_numbers = False
+                        reasons.append(prefix + "invalid_or_missing_" + field)
+                side = row.get("side")
+                if side not in {"buy", "sell", "short", "cover"}:
+                    reasons.append(prefix + "invalid_side")
+                    valid_numbers = False
+                owner = row.get("strategy_id")
+                if not isinstance(owner, str) or not owner.strip() or owner == "Unknown":
+                    owner = row.get("strategy")
+                if not isinstance(owner, str) or not owner.strip() or owner == "Unknown":
+                    primary_owners = owners_by_order.get(row.get("order_id"), set())
+                    owner = next(iter(primary_owners)) if len(primary_owners) == 1 else None
+                row["strategy_id"] = owner
+                if valid_numbers:
+                    signed = row["qty"] if side in {"buy", "cover"} else -row["qty"]
+                    opens = net_qty * signed >= 0 or abs(signed) > abs(net_qty) + 1e-12
+                    if opens and owner is None:
+                        reasons.append(prefix + "missing_opening_ownership")
+                    net_qty += signed
+                normalized.append(row)
+            if reasons:
+                result.append({
+                    "status": "invalid_input", "invalid_reasons": sorted(set(reasons)),
+                    "symbol": None if _is_missing(symbol) else symbol,
+                    "source_row_indices": group["_source_row_position"].tolist(),
+                    "raw_rows": group.drop(columns="_source_row_position").to_dict("records"),
+                    "net_pnl": None, "gross_pnl": None, "gross_pnl_theoretical": None,
+                    "commission": None, "slippage": None, "initial_risk": None,
+                    "position_id": None, "lot_id": None,
+                })
+                continue
+            result.extend(self._reconstruct_valid_closed_trades(pd.DataFrame(normalized)))
+        return result
+
+    def _reconstruct_valid_closed_trades(self, trades_df: pd.DataFrame) -> List[Dict[str, Any]]:
         """
         基于成交明细重建已平仓交易（FIFO 配对开平仓）。
 
@@ -89,10 +194,10 @@ class TradeReconstructionMixin:
                 # Broker stores 'slip' as unit price difference (absolute)
                 unit_slip = row[slip_index] if slip_index is not None else 0.0
                 # T-1.6 cost-field contract: theoretical_price is the zero-cost
-                # reference price (falls back to fill_price for trade records
-                # recorded before this field existed).
+                # reference price. Legacy records without it keep an explicit
+                # unknown theoretical PnL; their fill price already contains slip.
                 theoretical_price = (
-                    row[theoretical_index] if theoretical_index is not None else price
+                    row[theoretical_index] if theoretical_index is not None else None
                 )
 
                 unit_comm = comm / qty if qty > 0 else 0.0
@@ -111,21 +216,31 @@ class TradeReconstructionMixin:
                 # T-1.9/T-1.10: per-lot initial_risk/MAE/MFE for this fill's
                 # closes, consumed positionally in the same FIFO order they
                 # were produced in at fill time (core.broker._execute_trade).
-                lot_closes_list = (
+                lot_closes_list = _lot_close_records(
                     row[lot_closes_index] if lot_closes_index is not None else None
                 )
-                if not isinstance(lot_closes_list, list):
-                    lot_closes_list = []
                 lot_close_ptr = 0
+                lot_close_used = 0.0
 
-                def _next_lot_detail():
-                    nonlocal lot_close_ptr
-                    if lot_close_ptr < len(lot_closes_list):
-                        detail = lot_closes_list[lot_close_ptr]
+                def _next_lot_detail(matched):
+                    nonlocal lot_close_ptr, lot_close_used
+                    if lot_close_ptr >= len(lot_closes_list):
+                        return None
+                    source = lot_closes_list[lot_close_ptr]
+                    detail = dict(source)
+                    total = float(source.get("qty_closed", matched))
+                    share = matched / total if total else 0.0
+                    risk = source.get("initial_risk")
+                    detail["initial_risk"] = float(risk) * share if risk is not None else None
+                    if "entry_cost_share" in source:
+                        detail["entry_cost_share"] = float(source["entry_cost_share"]) * share
+                    detail["original_initial_risk"] = source.get("original_initial_risk", risk)
+                    detail["risk_semantics"] = source.get("risk_semantics", "legacy_whole_lot")
+                    lot_close_used += matched
+                    if lot_close_used >= total - 1e-12:
                         lot_close_ptr += 1
-                        return detail
-                    lot_close_ptr += 1
-                    return None
+                        lot_close_used = 0.0
+                    return detail
 
                 if side == "buy":
                     # Check if covering short
@@ -136,12 +251,20 @@ class TradeReconstructionMixin:
                             s_theoretical,
                         ) = short_stack.popleft()
                         matched = min(remaining, s_qty)
-                        lot_detail = _next_lot_detail()
+                        lot_detail = _next_lot_detail(matched)
 
+                        # Primary lot facts define the account PnL; fill fragments
+                        # retain identity but cannot substitute a second FIFO price.
+                        if lot_detail and "entry_price" in lot_detail:
+                            s_price = lot_detail["entry_price"]
+                            s_theoretical = lot_detail.get("theoretical_entry_price")
+                            s_unit_comm = lot_detail["entry_cost_share"] / matched
+                            s_unit_slip = abs(s_price - s_theoretical) if s_theoretical is not None else s_unit_slip
                         # Short PnL: (Entry - Exit) * qty
                         gross_pnl = (s_price - price) * matched
                         # T-1.6/T-1.7: zero-cost reference PnL for cost-sensitivity.
-                        gross_pnl_theoretical = (s_theoretical - theoretical_price) * matched
+                        gross_pnl_theoretical = ((s_theoretical - theoretical_price) * matched
+                                                 if not _is_missing(s_theoretical) and not _is_missing(theoretical_price) else None)
 
                         # Commission: Entry + Exit
                         trade_comm = (s_unit_comm + unit_comm) * matched
@@ -154,6 +277,8 @@ class TradeReconstructionMixin:
 
                         closed_trades.append(
                             {
+                                "qty": matched,
+                                "cost_semantics": "theoretical_reference" if gross_pnl_theoretical is not None else "legacy_fill_price_includes_slippage",
                                 "gross_pnl": gross_pnl,
                                 "gross_pnl_theoretical": gross_pnl_theoretical,
                                 "net_pnl": net_pnl,
@@ -166,8 +291,11 @@ class TradeReconstructionMixin:
                                 "exit_reason": exit_reason,
                                 "exit_strategy": strategy_id,
                                 "lot_id": lot_detail.get("lot_id") if lot_detail else None,
+                                "close_event_id": lot_detail.get("close_event_id") if lot_detail else None,
                                 "position_id": lot_detail.get("position_id") if lot_detail else None,
                                 "initial_risk": lot_detail.get("initial_risk") if lot_detail else None,
+                                "original_initial_risk": lot_detail.get("original_initial_risk") if lot_detail else None,
+                                "risk_semantics": lot_detail.get("risk_semantics") if lot_detail else "missing_lot_identity",
                                 "mae": lot_detail.get("mae") if lot_detail else None,
                                 "mfe": lot_detail.get("mfe") if lot_detail else None,
                             }
@@ -204,17 +332,25 @@ class TradeReconstructionMixin:
                             l_theoretical,
                         ) = long_stack.popleft()
                         matched = min(remaining, l_qty)
-                        lot_detail = _next_lot_detail()
+                        lot_detail = _next_lot_detail(matched)
 
+                        if lot_detail and "entry_price" in lot_detail:
+                            l_price = lot_detail["entry_price"]
+                            l_theoretical = lot_detail.get("theoretical_entry_price")
+                            l_unit_comm = lot_detail["entry_cost_share"] / matched
+                            l_unit_slip = abs(l_price - l_theoretical) if l_theoretical is not None else l_unit_slip
                         # Long PnL: (Exit - Entry) * qty
                         gross_pnl = (price - l_price) * matched
-                        gross_pnl_theoretical = (theoretical_price - l_theoretical) * matched
+                        gross_pnl_theoretical = ((theoretical_price - l_theoretical) * matched
+                                                 if not _is_missing(l_theoretical) and not _is_missing(theoretical_price) else None)
                         trade_comm = (l_unit_comm + unit_comm) * matched
                         trade_slip = (l_unit_slip + unit_slip) * matched
                         net_pnl = gross_pnl - trade_comm
 
                         closed_trades.append(
                             {
+                                "qty": matched,
+                                "cost_semantics": "theoretical_reference" if gross_pnl_theoretical is not None else "legacy_fill_price_includes_slippage",
                                 "gross_pnl": gross_pnl,
                                 "gross_pnl_theoretical": gross_pnl_theoretical,
                                 "net_pnl": net_pnl,
@@ -227,8 +363,11 @@ class TradeReconstructionMixin:
                                 "exit_reason": exit_reason,
                                 "exit_strategy": strategy_id,
                                 "lot_id": lot_detail.get("lot_id") if lot_detail else None,
+                                "close_event_id": lot_detail.get("close_event_id") if lot_detail else None,
                                 "position_id": lot_detail.get("position_id") if lot_detail else None,
                                 "initial_risk": lot_detail.get("initial_risk") if lot_detail else None,
+                                "original_initial_risk": lot_detail.get("original_initial_risk") if lot_detail else None,
+                                "risk_semantics": lot_detail.get("risk_semantics") if lot_detail else "missing_lot_identity",
                                 "mae": lot_detail.get("mae") if lot_detail else None,
                                 "mfe": lot_detail.get("mfe") if lot_detail else None,
                             }
@@ -274,16 +413,24 @@ class TradeReconstructionMixin:
                             s_theoretical,
                         ) = short_stack.popleft()
                         matched = min(remaining, s_qty)
-                        lot_detail = _next_lot_detail()
+                        lot_detail = _next_lot_detail(matched)
+                        if lot_detail and "entry_price" in lot_detail:
+                            s_price = lot_detail["entry_price"]
+                            s_theoretical = lot_detail.get("theoretical_entry_price")
+                            s_unit_comm = lot_detail["entry_cost_share"] / matched
+                            s_unit_slip = abs(s_price - s_theoretical) if s_theoretical is not None else s_unit_slip
 
                         gross_pnl = (s_price - price) * matched
-                        gross_pnl_theoretical = (s_theoretical - theoretical_price) * matched
+                        gross_pnl_theoretical = ((s_theoretical - theoretical_price) * matched
+                                                 if not _is_missing(s_theoretical) and not _is_missing(theoretical_price) else None)
                         trade_comm = (s_unit_comm + unit_comm) * matched
                         trade_slip = (s_unit_slip + unit_slip) * matched
                         net_pnl = gross_pnl - trade_comm
 
                         closed_trades.append(
                             {
+                                "qty": matched,
+                                "cost_semantics": "theoretical_reference" if gross_pnl_theoretical is not None else "legacy_fill_price_includes_slippage",
                                 "gross_pnl": gross_pnl,
                                 "gross_pnl_theoretical": gross_pnl_theoretical,
                                 "net_pnl": net_pnl,
@@ -296,8 +443,11 @@ class TradeReconstructionMixin:
                                 "exit_reason": exit_reason,
                                 "exit_strategy": strategy_id,
                                 "lot_id": lot_detail.get("lot_id") if lot_detail else None,
+                                "close_event_id": lot_detail.get("close_event_id") if lot_detail else None,
                                 "position_id": lot_detail.get("position_id") if lot_detail else None,
                                 "initial_risk": lot_detail.get("initial_risk") if lot_detail else None,
+                                "original_initial_risk": lot_detail.get("original_initial_risk") if lot_detail else None,
+                                "risk_semantics": lot_detail.get("risk_semantics") if lot_detail else "missing_lot_identity",
                                 "mae": lot_detail.get("mae") if lot_detail else None,
                                 "mfe": lot_detail.get("mfe") if lot_detail else None,
                             }
@@ -351,7 +501,8 @@ class TradeReconstructionMixin:
                 groups[key] = []
                 ordered_keys.append(key)
             groups[key].append(leg)
-        return [self._fold_round_trip(groups[key]) for key in ordered_keys]
+        return [groups[key][0] if groups[key][0].get("status") == "invalid_input"
+                else self._fold_round_trip(groups[key]) for key in ordered_keys]
 
     @staticmethod
     def _fold_round_trip(legs: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -364,14 +515,12 @@ class TradeReconstructionMixin:
         off the first leg and the closing side off the last.
         """
         first, last = legs[0], legs[-1]
-        # Each partial close of one lot repeats that lot's *whole* initial
-        # risk (core.lots keeps ``initial_risk`` a whole-lot value and tracks
-        # the retired portion separately), so summing legs would double count.
-        # Summing one value per distinct lot gives the risk the position
-        # actually put at stake, which is what an R-multiple divides by.
+        # Modern legs contain allocated initial_risk plus the immutable
+        # original_initial_risk. Deduplicate the latter for complete positions;
+        # legacy legs explicitly retain their former whole-lot field.
         risk_by_lot: Dict[Any, float] = {}
         for index, leg in enumerate(legs):
-            risk = leg.get("initial_risk")
+            risk = leg.get("original_initial_risk", leg.get("initial_risk"))
             if _is_missing(risk):
                 continue
             lot_id = leg.get("lot_id")
@@ -395,7 +544,11 @@ class TradeReconstructionMixin:
 
         return {
             "gross_pnl": _total("gross_pnl"),
-            "gross_pnl_theoretical": _total("gross_pnl_theoretical"),
+            "gross_pnl_theoretical": (_total("gross_pnl_theoretical")
+                                      if all(not _is_missing(leg.get("gross_pnl_theoretical")) for leg in legs) else None),
+            "cost_semantics": ("theoretical_reference" if all(not _is_missing(leg.get("gross_pnl_theoretical")) for leg in legs)
+                               else "legacy_fill_price_includes_slippage"),
+            "qty": _total("qty"),
             "net_pnl": _total("net_pnl"),
             "commission": _total("commission"),
             "slippage": _total("slippage"),
@@ -422,6 +575,15 @@ class TradeReconstructionMixin:
         self, closed_trades: List[Dict[str, Any]]
     ) -> Dict[str, Any]:
         """把往返交易（`_aggregate_round_trips` 的输出）聚合为扁平指标字典。"""
+        invalid = [row for row in closed_trades if row.get("status") == "invalid_input"]
+        if invalid:
+            metrics = {key: None for key in (
+                "TotalTrades", "WinRate", "ProfitFactor", "ProfitFactorSamples", "ProfitFactorLosses",
+                "Expectancy", "AvgWin", "AvgLoss", "GrossPnL", "TotalCommission", "TotalSlippage", "NetPnL")}
+            metrics.update({"TradeInputIntegrity": "invalid_input", "ProfitFactorStatus": "invalid_input",
+                            "InvalidClosedTrades": invalid,
+                            "ExtendedAnalytics": {"status": "invalid_input", "reason": "incomplete trade facts"}})
+            return metrics
         if not closed_trades:
             return {
                 "TotalTrades": 0,

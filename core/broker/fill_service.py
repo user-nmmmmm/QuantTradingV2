@@ -157,13 +157,24 @@ class FillServiceMixin:
             and self.portfolio.account_mode is AccountMode.SPOT
             and value + commission > self.portfolio.cash + 1e-12
         ):
-            logger.warning(
-                "Order rejected: insufficient cash for %s %s; required=%.8f available=%.8f",
-                order.side, order.symbol, value + commission, self.portfolio.cash,
-            )
-            self._audit_order(order, timestamp, "rejected", "insufficient_cash")
-            self._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
-            return None
+            if order.time_in_force.value == "FOK":
+                self._audit_order(order, timestamp, "rejected", "insufficient_cash")
+                self._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
+                return None
+            affordable = max(self.portfolio.cash, 0.0) / (fill_price * (1.0 + fee_rate))
+            if affordable <= 1e-12:
+                self._audit_order(order, timestamp, "rejected", "insufficient_cash")
+                self._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
+                return None
+            fill_qty = min(fill_qty, affordable * (1.0 - 1e-12))
+            qty_delta = fill_qty
+            value = fill_qty * fill_price
+            commission = value * fee_rate
+            self._audit_order(order, timestamp, "resized", "cash_affordability", fill_qty=fill_qty)
+        if (self.portfolio.account_mode is AccountMode.SPOT_MARGIN
+                and current_pos["qty"] < 0):
+            carry_bar = bar_context if bar_context is not None else {"close": price}
+            self._accrue_short_borrow(order.symbol, current_pos, carry_bar, timestamp)
         lot_closes = self.portfolio.update_position(
             order.symbol,
             qty_delta,
@@ -173,7 +184,19 @@ class FillServiceMixin:
             order_id=order.id,
             stop_price=(order.stop_loss or None),
             time=timestamp,
+            theoretical_price=price,
+            approved_risk_amount=(
+                float(order.intent.approved_risk_amount) * fill_qty / order.intent.requested_qty
+                if order.intent is not None and order.intent.approved_risk_amount is not None
+                and order.intent.requested_qty > 0 and is_opening else None
+            ),
         )
+        if self.portfolio.account_mode is AccountMode.SPOT_MARGIN:
+            new_qty = self.portfolio.get_position(order.symbol)["qty"]
+            if new_qty >= 0:
+                self._last_borrow_time.pop(order.symbol, None)
+            elif current_pos["qty"] >= 0:
+                self._last_borrow_time[order.symbol] = pd.Timestamp(timestamp)
         costs = CostBreakdown(
             commission=commission,
             slippage=abs(price * (slip_rate + spread_slip + volatility_slip)) * fill_qty,
@@ -245,13 +268,23 @@ class FillServiceMixin:
         lot_close_details = [
             {
                 "lot_id": lot_close.lot_id,
+                "close_event_id": close_event.close_event_id,
                 "position_id": lot_close.position_id,
                 "qty_closed": lot_close.qty_closed,
                 "initial_risk": lot_close.initial_risk,
+                "original_initial_risk": lot_close.original_initial_risk,
+                "risk_semantics": "allocated_close_share",
+                "entry_order_id": lot_close.order_id,
+                "entry_price": lot_close.entry_price,
+                "theoretical_entry_price": lot_close.theoretical_entry_price,
+                "entry_time": str(lot_close.entry_time) if lot_close.entry_time is not None else None,
+                "entry_cost_share": lot_close.entry_cost_share,
+                "strategy_id": lot_close.strategy_id,
+                "side": lot_close.side,
                 "mae": lot_close.mae,
                 "mfe": lot_close.mfe,
             }
-            for lot_close in lot_closes
+            for lot_close, close_event in zip(lot_closes, new_close_events)
         ]
         trade_record = {
             "order_id": order.id,

@@ -16,15 +16,15 @@ from core.metrics import (
 
 
 class ReportMetricsMixin:
-    def _calculate_equity_metrics(self, equity_curve: pd.DataFrame) -> Dict[str, Any]:
+    def _calculate_equity_metrics(self, equity_curve: pd.DataFrame, *, periods_per_year=None) -> Dict[str, Any]:
         """
         根据权益曲线计算绩效指标。
 
         约定：
         - equity_curve.index 为 DatetimeIndex
-        - 根据 DatetimeIndex 的中位正间隔自动推断年化因子
+        - 仅对严格等间隔时钟自动推断；缺 bar / 混频需显式年化尺度
         """
-        return calculate_equity_metrics(equity_curve)
+        return calculate_equity_metrics(equity_curve, periods_per_year=periods_per_year)
 
     def _headline_metric_results(self, metrics: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Wrap the report's headline scalar metrics as MetricResult entries (M-02).
@@ -75,6 +75,19 @@ class ReportMetricsMixin:
                     sample_size=int(sample_size or 0), unit=unit,
                 ).to_dict()
             )
+        execution = extended.get("execution_quality") or {}
+        group_drawdown = ((extended.get("attribution") or {}).get("group_drawdown_contribution") or {})
+        for name, entry in (
+            ("GroupAttributedMaxDrawdownPct", group_drawdown),
+            ("UnfilledOpportunityCostBps", execution.get("opportunity_cost") or {}),
+            ("IndependentQuoteShortfallBps", execution.get("independent_quote_shortfall_bps") or {}),
+            ("IndependentExecutableQuoteShortfallBps", execution.get("independent_executable_quote_shortfall_bps") or {}),
+        ):
+            results.append(MetricResult(
+                name=name, value=entry.get("value"), status=entry.get("status", "not_modeled"),
+                sample_size=entry.get("sample_size", 0), unit=entry.get("unit"),
+                reason=entry.get("reason", "required marked equity or independent market facts not supplied"),
+            ).to_dict())
         return results
 
     def _extended_trade_analytics(

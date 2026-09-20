@@ -13,6 +13,7 @@ import json
 from pathlib import Path
 
 import pandas as pd
+from core.universe import normalize_symbol
 
 
 LISTING_OVERRIDES = {"SUI/USDT": pd.Timestamp("2023-05-03")}
@@ -63,8 +64,8 @@ def repair(data_dir: Path, universe_path: Path) -> None:
     for symbol, record in manifest["symbols"].items():
         last = pd.Timestamp(record["last"])
         rows.append({
-            # main.py keeps the user's symbol spelling as the data-map key.
-            "symbol": symbol.replace("/", "-"),
+            "symbol": normalize_symbol(symbol),
+            "original_symbol": symbol,
             "listed_at": pd.Timestamp(record["first"]).date().isoformat(),
             "delisted_at": (
                 (last + pd.Timedelta(days=1)).date().isoformat()

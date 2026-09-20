@@ -13,6 +13,7 @@ bundled into a file-size cleanup.
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from dataclasses import replace
 from typing import Any, Callable, Dict, Iterable, List, Optional
 
 import pandas as pd
@@ -70,6 +71,8 @@ class MatchingMixin:
         zero_cost: bool = False,
         risk_action_id: Optional[str] = None,
         approved_risk_amount: Optional[float] = None,
+        signal_id: Optional[str] = None,
+        causation_id: Optional[str] = None,
     ) -> Order:
         """
         提交订单（进入撮合队列）。
@@ -102,13 +105,25 @@ class MatchingMixin:
             reference_price=price,
             initial_stop=stop_loss or None,
             approved_risk_amount=approved_risk_amount,
+            signal_id=signal_id, causation_id=causation_id,
         )
         if intent.client_order_id in self.opening_orders:
             return self.opening_orders[intent.client_order_id]
+        reference = intent.reference_price or price
+        if not reference and otype is OrderType.MARKET:
+            guard = getattr(self, "opening_risk_guard", None)
+            bar = guard.bars.get(symbol) if guard is not None else None
+            if (bar is not None and getattr(bar, "name", None) == guard.timestamp
+                    and pd.Timestamp(timestamp) == guard.timestamp):
+                reference = guard.prices.get(symbol)
+            elif self._volume_budget_bar.get(symbol) == timestamp:
+                reference = self.last_prices.get(symbol)
+            if reference:
+                intent = replace(intent, reference_price=float(reference))
         rejection = None
         try:
             intent, intent_envelope = ensure_opening_reservation(
-                self.event_pipeline, intent, reference_price=price or 0,
+                self.event_pipeline, intent, reference_price=reference or 0,
                 occurred_at=self._event_time(timestamp), source="backtest",
                 guard=getattr(self, "opening_risk_guard", None),
             )
@@ -433,7 +448,7 @@ class MatchingMixin:
         """
         tracked = self._volume_budget_bar
         for symbol, bar in current_bar.items():
-            bar_time = getattr(bar, "name", None)
+            bar_time = bar.get("liquidity_source_time", getattr(bar, "name", None))
             if symbol in tracked and tracked[symbol] == bar_time:
                 continue
             tracked[symbol] = bar_time

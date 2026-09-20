@@ -100,6 +100,8 @@ class WalkForwardConfig:
             raise ValueError("warmup_period cannot be negative")
         if self.initial_capital <= 0:
             raise ValueError("initial_capital must be positive")
+        if self.step is not None and self.step < self.test_size:
+            raise ValueError("step must be at least test_size; overlapping test returns are forbidden")
 
 
 #: A candidate is a zero-argument factory returning a fresh strategy registry.
@@ -107,6 +109,28 @@ class WalkForwardConfig:
 #: across bars, and reusing one instance would let an earlier window's
 #: lifecycle decide what a later window is allowed to trade.
 CandidateFactory = Callable[[], Dict[str, Any]]
+
+
+def candidate_warmup(build_strategies: CandidateFactory, minimum: int = 30) -> int:
+    """Resolve declared lookbacks and conventional strategy window parameters."""
+    required = max(minimum, int(getattr(build_strategies, "required_history_bars", 0)))
+    for strategy in build_strategies().values():
+        for name in ("required_history_bars", "entry_window", "exit_window", "window",
+                     "lookback", "period", "rsi_period", "atr_period"):
+            value = getattr(strategy, name, 0)
+            value = value() if callable(value) else value
+            if isinstance(value, (int, float)):
+                required = max(required, int(value))
+        stop_policy = getattr(strategy, "stop_policy", None)
+        required = max(required, int(getattr(stop_policy, "atr_period", 0)))
+    return required
+
+
+def _concat_unique(parts: Sequence[pd.Series]) -> pd.Series:
+    result = pd.concat(list(parts)) if parts else pd.Series(dtype=float)
+    if result.index.has_duplicates or not result.index.is_monotonic_increasing:
+        raise ValueError("out-of-sample returns must have unique increasing timestamps")
+    return result
 
 
 def common_timeline(data_map: Mapping[str, pd.DataFrame]) -> pd.DatetimeIndex:
@@ -128,6 +152,8 @@ def _slice(
     data_map: Mapping[str, pd.DataFrame], start: pd.Timestamp, end: pd.Timestamp,
 ) -> Dict[str, pd.DataFrame]:
     """Every symbol's bars in ``[start, end]``, dropping symbols with none."""
+    start = pd.Timestamp(start).tz_convert("UTC").tz_localize(None) if pd.Timestamp(start).tzinfo else pd.Timestamp(start)
+    end = pd.Timestamp(end).tz_convert("UTC").tz_localize(None) if pd.Timestamp(end).tzinfo else pd.Timestamp(end)
     sliced: Dict[str, pd.DataFrame] = {}
     for symbol, frame in data_map.items():
         prepared = normalize_market_frame(frame)
@@ -163,15 +189,23 @@ def _run_window(
     end: pd.Timestamp,
     warmup_start: pd.Timestamp,
     config: WalkForwardConfig,
+    warmup_period: Optional[int] = None,
 ) -> Dict[str, Any]:
     """One engine run whose routing begins exactly at ``start``."""
+    start = pd.Timestamp(start).tz_convert("UTC").tz_localize(None) if pd.Timestamp(start).tzinfo else pd.Timestamp(start)
+    end = pd.Timestamp(end).tz_convert("UTC").tz_localize(None) if pd.Timestamp(end).tzinfo else pd.Timestamp(end)
+    actual_warmup = config.warmup_period if warmup_period is None else warmup_period
+    window_data = _slice(data_map, warmup_start, end)
+    for symbol, frame in window_data.items():
+        if int((frame.index < start).sum()) < actual_warmup:
+            raise ValueError(f"insufficient candidate warmup history for {symbol}: {actual_warmup} bars required")
     engine = BacktestEngine(
         initial_capital=config.initial_capital,
-        warmup_period=config.warmup_period,
+        warmup_period=config.warmup_period if warmup_period is None else warmup_period,
         **dict(config.engine_kwargs),
     )
     result = engine.run(
-        _slice(data_map, warmup_start, end),
+        window_data,
         strategies=build_strategies(),
         routing_log_enabled=False,
     )
@@ -180,9 +214,10 @@ def _run_window(
         return {"returns": pd.Series(dtype=float), "trades": 0}
     # The warmup prefix is real capital sitting flat; drop it so a window's
     # return series covers the window and nothing else.
-    in_window = curve.loc[curve.index >= start]
+    returns = _returns(curve)
+    in_window = returns.loc[(returns.index >= start) & (returns.index <= end)]
     return {
-        "returns": _returns(in_window),
+        "returns": in_window,
         "trades": len(result.get("trades") or []),
     }
 
@@ -210,6 +245,8 @@ def run_walk_forward(
         expanding=config.expanding,
     )
     names = list(candidates)
+    warmups = {name: candidate_warmup(candidates[name], config.warmup_period) for name in names}
+    required_warmup = max(warmups.values())
     windows: list[Dict[str, Any]] = []
     skipped: list[Dict[str, Any]] = []
     procedure_returns: list[pd.Series] = []
@@ -217,12 +254,12 @@ def run_walk_forward(
 
     for index, split in enumerate(splits):
         selection_start = split["train_start"]
-        if selection_start < config.warmup_period:
+        if selection_start < required_warmup:
             # Shortening the warmup instead would make this window's
             # indicators differ from every other window's.
             skipped.append({
                 "window": index, "reason": "insufficient_warmup_history",
-                "required_bars": config.warmup_period,
+                "required_bars": required_warmup,
                 "available_bars": selection_start,
             })
             continue
@@ -233,8 +270,9 @@ def run_walk_forward(
                 data_map, candidates[name],
                 start=timeline[selection_start],
                 end=timeline[split["validation_end"] - 1],
-                warmup_start=timeline[selection_start - config.warmup_period],
+                warmup_start=timeline[selection_start - warmups[name]],
                 config=config,
+                warmup_period=warmups[name],
             )
             returns = outcome["returns"]
             validation_from = timeline[split["validation_start"]]
@@ -278,8 +316,9 @@ def run_walk_forward(
                 end=timeline[split["test_end"] - 1],
                 # The selection window already required this much history and
                 # sits entirely before the test window, so the prefix exists.
-                warmup_start=timeline[split["test_start"] - config.warmup_period],
+                warmup_start=timeline[split["test_start"] - warmups[name]],
                 config=config,
+                warmup_period=warmups[name],
             )
             test_outcomes[name] = outcome
             if not outcome["returns"].empty:
@@ -302,6 +341,7 @@ def run_walk_forward(
             "train_best": train_best,
             "selection_agrees": train_best == selected,
             "scores": selection_scores,
+            "candidate_warmup_bars": warmups,
             "test_scores": {
                 name: _score(test_outcomes[name]["returns"], config.selection_metric)
                 for name in names
@@ -310,9 +350,7 @@ def run_walk_forward(
             "test_trades": test_outcomes[selected]["trades"],
         })
 
-    procedure = pd.concat(procedure_returns) if procedure_returns else pd.Series(
-        dtype=float
-    )
+    procedure = _concat_unique(procedure_returns)
     per_candidate = {
         name: _candidate_summary(name, pooled[name], config) for name in names
     }
@@ -361,7 +399,7 @@ def _candidate_summary(
     name: str, parts: Sequence[pd.Series], config: WalkForwardConfig,
 ) -> Dict[str, Any]:
     """One candidate's pooled out-of-sample record across every test window."""
-    pooled = pd.concat(list(parts)) if parts else pd.Series(dtype=float)
+    pooled = _concat_unique(parts)
     p_value = one_sided_bootstrap_p_value(
         pooled, n_samples=config.bootstrap_samples, seed=config.seed
     )

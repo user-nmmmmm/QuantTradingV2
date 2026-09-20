@@ -135,6 +135,7 @@ class _PersistentHealthMixin:
         return f"strategy_health:{self.name}"
 
     def bind_state_store(self, state_store) -> None:
+        super().bind_state_store(state_store)
         self._health_state_store = state_store
         loaded = state_store.get(self.health_state_key)
         if isinstance(loaded, dict):
@@ -149,7 +150,7 @@ class _PersistentHealthMixin:
 
     def _persist_health(self) -> None:
         if self._health_state_store is not None:
-            self._health_state_store.set(self.health_state_key, self.health.to_dict())
+            self.health.persist(self._health_state_store, self.health_state_key)
 
     def reset_runtime_state(self) -> None:
         super().reset_runtime_state()
@@ -243,7 +244,7 @@ class _ProtectiveStopMixin:
         # The candidate score measures breakout extent in ATR units, so ATR is
         # computed whenever scoring is on, not only for the ATR stop legs.
         return (
-            self.stop_policy.use_atr_initial_stop
+            self.stop_policy.resolved_initial_stop_mode in {"atr", "hybrid"}
             or self.stop_policy.use_trailing_stop
             or self.stop_policy.breakeven_after_r is not None
             or getattr(self, "score_policy", None) is not None
