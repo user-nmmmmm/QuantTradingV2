@@ -120,7 +120,7 @@ class FinancingMixin:
         prices: Dict[str, float] = {}
         timestamp = None
         rate_override = None
-        for symbol, bar in current_bar.items():
+        for symbol, bar in sorted(current_bar.items()):
             if bar is None:
                 continue
             price = bar.get("mark_price", bar.get("close"))
@@ -157,6 +157,12 @@ class FinancingMixin:
         source = "configured_default" if rate_override is None else "historical_bar"
         elapsed_seconds = (timestamp - previous).total_seconds()
         amount = borrowed * rate * elapsed_seconds / (365.0 * 24.0 * 3600.0)
+        quote_policy = getattr(self, "quote_borrow_policy", None)
+        if quote_policy is not None:
+            amount, segments = quote_policy.interest(
+                account=self.account_id, start=previous, end=timestamp, principal=borrowed)
+            rate = amount * (365.0 * 86400.) / (borrowed * elapsed_seconds)
+            source = ";".join(sorted({item["status"] + ":" + item["source"] for item in segments}))
         if amount == 0:
             return None
         entry = self.portfolio.apply_financing(

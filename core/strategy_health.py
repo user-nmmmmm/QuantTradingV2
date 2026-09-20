@@ -690,7 +690,21 @@ class StrategyHealthMachine:
 
     def snapshot(self) -> Dict[str, Any]:
         """Report-facing view of the current lifecycle state."""
+        blockers = []
+        if self.status is HealthStatus.PROBATION:
+            if self.probation_closed_cohorts < self.policy.probation_required_cohorts:
+                blockers.append("insufficient_closed_cohorts")
+            if self.probation_total_r <= self.policy.probation_min_total_r:
+                blockers.append("nonpositive_probation_r")
+            if len(self.probation_symbols) < self.policy.probation_min_distinct_symbols:
+                blockers.append("insufficient_distinct_symbols")
+            if self.policy.probation_require_positive_without_best and self.probation_r_without_best <= 0:
+                blockers.append("nonpositive_r_without_best")
+            if self.recovery_stage >= 0 and (self._last_seen_now is None or self.probation_started_at is None
+                    or self._last_seen_now < self.probation_started_at + timedelta(days=self.policy.recovery_stage_min_days)):
+                blockers.append("minimum_stage_duration")
         return {
+            "recovery_blockers": blockers,
             "cohort_key_version": COHORT_KEY_VERSION,
             "strategy": self.strategy_name,
             "status": self.status.value,
