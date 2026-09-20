@@ -61,6 +61,7 @@ class Lot:
     order_id: Optional[str] = None
     stop_price: Optional[float] = None
     initial_risk: Optional[float] = None
+    approved_risk_amount: Optional[float] = None
     mae: float = 0.0
     mfe: float = 0.0
     # Total $ cost (commission/slippage/impact) already paid to open this lot
@@ -68,6 +69,7 @@ class Lot:
     # lot's unrealized PnL - and a later close's realized_pnl - correctly
     # nets out the entry-side cost, not just the exit-side cost (T-1.8).
     entry_cost_total: float = 0.0
+    theoretical_entry_price: Optional[float] = None
 
     @property
     def is_closed(self) -> bool:
@@ -78,7 +80,9 @@ class Lot:
         return self.entry_cost_total / self.qty_original if self.qty_original else 0.0
 
     def _recompute_initial_risk(self) -> None:
-        if self.stop_price is not None:
+        if self.approved_risk_amount is not None:
+            self.initial_risk = self.approved_risk_amount
+        elif self.stop_price is not None:
             self.initial_risk = abs(self.entry_price - self.stop_price) * self.qty_open
 
 
@@ -100,10 +104,12 @@ class LotClose:
     fully_closed: bool
     entry_cost_share: float
     # SR1-2: the share of the lot's initial risk that this partial close
-    # retires, so summing closes of one lot never exceeds the risk that lot
-    # actually put at stake. ``initial_risk`` stays the whole-lot value that
-    # trade reconstruction already reports.
+    # retires. initial_risk and initial_risk_share both mean the allocated
+    # close share; original_initial_risk preserves the whole approved lot.
     initial_risk_share: Optional[float] = None
+    original_initial_risk: Optional[float] = None
+    theoretical_entry_price: Optional[float] = None
+    entry_time: Any = None
 
 
 @dataclass(frozen=True)
@@ -166,6 +172,8 @@ class LotBook:
         order_id: Optional[str] = None,
         stop_price: Optional[float] = None,
         fee: float = 0.0,
+        approved_risk_amount: Optional[float] = None,
+        theoretical_price: Optional[float] = None,
     ) -> List[LotClose]:
         """应用一次带符号数量变化的 fill，返回本次核销掉的 LotClose 列表（纯开仓/加仓返回空列表）。
 
@@ -200,7 +208,11 @@ class LotBook:
                     entry_price=lot.entry_price,
                     strategy_id=lot.strategy_id,
                     order_id=lot.order_id,
-                    initial_risk=lot.initial_risk,
+                    initial_risk=(lot.initial_risk * close_qty / lot.qty_original
+                                  if lot.initial_risk is not None and lot.qty_original else None),
+                    original_initial_risk=lot.initial_risk,
+                    theoretical_entry_price=lot.theoretical_entry_price,
+                    entry_time=lot.entry_time,
                     initial_risk_share=(
                         lot.initial_risk * (close_qty / lot.qty_original)
                         if lot.initial_risk is not None and lot.qty_original
@@ -232,9 +244,16 @@ class LotBook:
                 last_lot.entry_price = (
                     last_lot.entry_price * last_lot.qty_open + price * add_qty
                 ) / total_qty
+                if last_lot.theoretical_entry_price is not None and theoretical_price is not None:
+                    last_lot.theoretical_entry_price = (last_lot.theoretical_entry_price * last_lot.qty_open
+                                                        + theoretical_price * add_qty) / total_qty
+                else:
+                    last_lot.theoretical_entry_price = None
                 last_lot.qty_open = total_qty
                 last_lot.qty_original += add_qty
                 last_lot.entry_cost_total += fee_for_open
+                if approved_risk_amount is not None:
+                    last_lot.approved_risk_amount = (last_lot.approved_risk_amount or 0.0) + approved_risk_amount * add_qty / total_fill_qty
                 if stop_price is not None:
                     last_lot.stop_price = stop_price
                 last_lot._recompute_initial_risk()
@@ -256,6 +275,9 @@ class LotBook:
                     order_id=order_id,
                     stop_price=stop_price,
                     entry_cost_total=fee_for_open,
+                    theoretical_entry_price=theoretical_price,
+                    approved_risk_amount=(approved_risk_amount * add_qty / total_fill_qty
+                                          if approved_risk_amount is not None else None),
                 )
                 new_lot._recompute_initial_risk()
                 self._lots.append(new_lot)

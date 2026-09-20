@@ -49,8 +49,12 @@ class SupportResistanceFactors:
         否则为 NaN（供策略识别潜在阻力位）。
         """
         high = df["high"]
-        rolling_max = high.rolling(window=2 * order + 1, center=True).max()
-        return high.where(high == rolling_max)
+        if order < 1:
+            raise ValueError("order must be positive")
+        # Version 2: the pivot becomes available on its confirmation bar.
+        candidate = high.shift(order)
+        rolling_max = high.rolling(window=2 * order + 1).max()
+        return candidate.where(candidate == rolling_max)
 
     @staticmethod
     def SWING_LOW(df: pd.DataFrame, order: int = 5) -> pd.Series:
@@ -59,8 +63,11 @@ class SupportResistanceFactors:
         否则为 NaN（供策略识别潜在支撑位）。
         """
         low = df["low"]
-        rolling_min = low.rolling(window=2 * order + 1, center=True).min()
-        return low.where(low == rolling_min)
+        if order < 1:
+            raise ValueError("order must be positive")
+        candidate = low.shift(order)
+        rolling_min = low.rolling(window=2 * order + 1).min()
+        return candidate.where(candidate == rolling_min)
 
     @staticmethod
     def FIBONACCI_RETRACEMENT(swing_high: float, swing_low: float) -> dict:

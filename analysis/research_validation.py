@@ -132,8 +132,8 @@ def walk_forward_splits(
     if any(size < 1 for size in sizes) or purge_size < 0 or embargo_size < 0:
         raise ValueError("window sizes must be positive and purge/embargo non-negative")
     step = test_size + embargo_size if step is None else step
-    if step < 1:
-        raise ValueError("step must be positive")
+    if step < test_size:
+        raise ValueError("step must be at least test_size; test windows cannot overlap")
     splits: list[dict[str, int]] = []
     origin = 0
     while True:
@@ -276,13 +276,20 @@ def deflated_sharpe_ratio(
     returns: Iterable[float], *, trials: int, periods_per_year: float = 1.0,
 ) -> dict[str, Any]:
     """Probability that observed Sharpe exceeds search-inflated expected maximum."""
-    values = np.asarray([float(value) for value in returns if np.isfinite(value)], dtype=float)
+    values = np.asarray(list(returns), dtype=float)
+    if not np.all(np.isfinite(values)):
+        return {"status": "invalid_input", "sample_size": int(len(values)),
+                "probability": None, "reason": "non-finite return input"}
     if len(values) < 3 or trials < 1:
         return {"status": "insufficient", "sample_size": int(len(values)), "probability": None}
     std = float(values.std(ddof=1))
     if std == 0:
         return {"status": "undefined", "sample_size": int(len(values)), "probability": None}
-    observed = float(values.mean() / std * math.sqrt(periods_per_year))
+    if not math.isfinite(periods_per_year) or periods_per_year <= 0:
+        raise ValueError("periods_per_year must be finite and positive")
+    # The sampling variance is expressed in per-observation Sharpe units.
+    # Annualization is a display conversion applied to both Sharpe values.
+    observed = float(values.mean() / std)
     euler_gamma = 0.5772156649015329
     normal = NormalDist()
     if trials == 1:
@@ -300,8 +307,13 @@ def deflated_sharpe_ratio(
         "status": "ok",
         "sample_size": int(len(values)),
         "trials": int(trials),
-        "observed_sharpe": observed,
-        "expected_max_sharpe": expected_max,
+        "formula_version": "dsr-period-consistent/v2",
+        "periods_per_year": periods_per_year,
+        "sharpe_scale": "annualized",
+        "observed_sharpe": observed * math.sqrt(periods_per_year),
+        "expected_max_sharpe": expected_max * math.sqrt(periods_per_year),
+        "observed_period_sharpe": observed,
+        "expected_max_period_sharpe": expected_max,
         "probability": float(normal.cdf(statistic)),
     }
 
@@ -341,6 +353,7 @@ class ExperimentRegistry:
 
 @dataclass(frozen=True)
 class AdmissionThresholds:
+    minimum_trades: int = 30
     minimum_pf: float = 1.15
     minimum_pf_ci_lower: float = 1.0
     maximum_drawdown: float = 0.20
@@ -356,8 +369,20 @@ def evaluate_holdout_admission(
     thresholds: AdmissionThresholds = AdmissionThresholds(),
 ) -> dict[str, Any]:
     """Evaluate the Phase 5 G12-G15 gates without changing any parameters."""
-    pnls = [float(trade.get("net_pnl", 0.0)) for trade in trades]
-    pf = calculate_profit_factor(pnls, minimum_samples=30, confidence=0.95)
+    invalid_trades = []
+    valid_trades = []
+    pnls = []
+    for index, trade in enumerate(trades):
+        try:
+            pnl = float(trade["net_pnl"])
+            if not math.isfinite(pnl):
+                raise ValueError("net_pnl must be finite")
+        except (KeyError, TypeError, ValueError) as exc:
+            invalid_trades.append({"index": index, "reason": f"missing or invalid net_pnl: {exc}"})
+            continue
+        pnls.append(pnl)
+        valid_trades.append(trade)
+    pf = calculate_profit_factor(pnls, minimum_samples=thresholds.minimum_trades, confidence=0.95)
     overlap = pd.concat([pd.Series(equity, name="strategy"), pd.Series(benchmark, name="benchmark")], axis=1).dropna()
     strategy_return = benchmark_return = excess_return = None
     if len(overlap) >= 2 and overlap.iloc[0].ne(0).all():
@@ -376,28 +401,46 @@ def evaluate_holdout_admission(
         for row in costs.get("grid", [])
     }
     stressed_net = cost_lookup.get((thresholds.required_cost_multiplier, thresholds.required_cost_multiplier))
-    concentration_pass = all(row["positive"] for row in concentration.get("scenarios", []))
+    concentration_pass = bool(concentration.get("scenarios")) and all(
+        row["positive"] for row in concentration.get("scenarios", [])
+    )
     gates = {
+        "input_integrity": not invalid_trades,
         "G12_positive_oos_edge": bool(
             strategy_return is not None
             and excess_return is not None
             and strategy_return > 0
             and excess_return > 0
         ),
-        "G13_pf_significance": bool(pf["value"] is not None and pf["value"] > thresholds.minimum_pf and pf["lower"] is not None and pf["lower"] > thresholds.minimum_pf_ci_lower),
+        "G13_pf_significance": bool(
+            not invalid_trades and pf["status"] == "ok" and pf["sample_size"] >= thresholds.minimum_trades
+            and pf["value"] is not None and pf["value"] > thresholds.minimum_pf
+            and pf["lower"] is not None and pf["lower"] > thresholds.minimum_pf_ci_lower
+        ),
         "G14_not_concentrated": concentration_pass,
         "G15_cost_stress": bool(stressed_net is not None and stressed_net > 0),
         "drawdown_limit": bool(drawdown["max_pct"] is not None and abs(drawdown["max_pct"]) <= thresholds.maximum_drawdown),
     }
     by_strategy = {}
-    for name in sorted({str(trade.get("strategy", "UNKNOWN")) for trade in trades}):
-        values = [float(trade.get("net_pnl", 0.0)) for trade in trades if str(trade.get("strategy", "UNKNOWN")) == name]
-        by_strategy[name] = calculate_profit_factor(values, minimum_samples=30, confidence=0.95)
+    for name in sorted({str(trade.get("strategy", "UNKNOWN")) for trade in valid_trades}):
+        values = [float(trade["net_pnl"]) for trade in valid_trades if str(trade.get("strategy", "UNKNOWN")) == name]
+        by_strategy[name] = calculate_profit_factor(values, minimum_samples=thresholds.minimum_trades, confidence=0.95)
     return {
         "decision": "admit" if all(gates.values()) else "reject",
         "gates": gates,
+        "input_integrity": {"status": "invalid_input" if invalid_trades else "ok",
+                            "invalid_trades": invalid_trades, "valid_sample_size": len(valid_trades)},
         "returns": {"strategy": strategy_return, "benchmark": benchmark_return, "excess": excess_return},
         "profit_factor": pf,
+        "gate_details": {
+            "G13_pf_significance": {
+                "status": ("invalid_input" if invalid_trades else "pass" if gates["G13_pf_significance"] else
+                           "insufficient_data" if pf["status"] != "ok" else "fail"),
+                "metric_status": pf["status"], "sample_size": pf["sample_size"],
+                "minimum_samples": thresholds.minimum_trades,
+                "formula_version": "pf-admission/v2",
+            },
+        },
         "profit_factor_by_strategy": by_strategy,
         "drawdown": drawdown,
         "concentration": concentration,

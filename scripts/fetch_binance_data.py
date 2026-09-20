@@ -4,7 +4,7 @@
 设计要点
 --------
 - 复用 ``core.data_fetcher.DataFetcher``（统一归一化 / 去重 / 时区口径）。
-- 按自然年分块抓取再拼接，绕过 ``fetch_ccxt`` 内部单次 10000 根 K 线的安全上限，
+- 按周期将每块限制为最多约 9000 根，避免 ``fetch_ccxt`` 单次 10000 根安全上限，
   因此 ``1h`` / ``5m`` 这类高频周期跨多年也能完整下载。
 - 增量更新：本地已有缓存时，只补下最后一根 K 线之后的数据。
 - 每个周期目录下写 ``_manifest.json``：记录每个文件的 SHA-256、行数、时间范围和抓取时间，
@@ -54,8 +54,9 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from core.data_fetcher import DataFetcher  # noqa: E402
+from core.data_fetcher import DataFetcher, timeframe_delta  # noqa: E402
 from core.logger import get_logger  # noqa: E402
+from core.universe import normalize_symbol  # noqa: E402
 
 logger = get_logger("fetch_binance_data")
 
@@ -88,18 +89,6 @@ def sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
-def year_chunks(start: str, end: str):
-    """产出 [(chunk_start, chunk_end), ...]，按自然年切，闭区间字符串 YYYY-MM-DD。"""
-    start_ts = pd.Timestamp(start)
-    end_ts = pd.Timestamp(end)
-    cursor = start_ts
-    while cursor <= end_ts:
-        year_end = pd.Timestamp(year=cursor.year, month=12, day=31)
-        chunk_end = min(year_end, end_ts)
-        yield cursor.strftime("%Y-%m-%d"), chunk_end.strftime("%Y-%m-%d")
-        cursor = year_end + pd.Timedelta(days=1)
-
-
 def fetch_ohlcv(
     fetcher: DataFetcher,
     symbol: str,
@@ -108,9 +97,17 @@ def fetch_ohlcv(
     end: str,
     exchange: str,
 ) -> pd.DataFrame:
-    """按年分块抓取并拼接成一个去重、排序后的 OHLCV DataFrame。"""
+    """Bound each inclusive UTC chunk below the fetcher's 10000-bar cap."""
+    if exchange != "binance":
+        raise ValueError("Binance cache requires the Binance provider")
+    delta = timeframe_delta(timeframe)
+    days = max(1, int(pd.Timedelta(days=1) / delta))
+    chunk_days = max(1, 9000 // days)
+    cursor, final_day = pd.Timestamp(start), pd.Timestamp(end)
     frames: list[pd.DataFrame] = []
-    for chunk_start, chunk_end in year_chunks(start, end):
+    while cursor <= final_day:
+        last_day = min(cursor + pd.Timedelta(days=chunk_days - 1), final_day)
+        chunk_start, chunk_end = cursor.strftime("%Y-%m-%d"), last_day.strftime("%Y-%m-%d")
         logger.info("  %s %s..%s", symbol, chunk_start, chunk_end)
         part = fetcher.fetch_ccxt(
             symbol,
@@ -121,13 +118,36 @@ def fetch_ohlcv(
             exchange_id=exchange,
         )
         if part is not None and not part.empty:
+            if (part.attrs.get("provider") != "binance" or part.attrs.get("timeframe") != timeframe
+                    or part.attrs.get("market_type") != "spot"
+                    or normalize_symbol(part.attrs.get("symbol", "")) != normalize_symbol(symbol)):
+                raise ValueError(f"Unverified provider/symbol/timeframe/account for {symbol}")
+            if part.attrs.get("pagination_termination") == "safety_limit":
+                raise ValueError(f"Truncated download for {symbol}")
             frames.append(part)
+        cursor = last_day + pd.Timedelta(days=1)
     if not frames:
         return pd.DataFrame(columns=REQUIRED_COLS)
     df = pd.concat(frames)
     df = df[~df.index.duplicated(keep="last")].sort_index()
     df.index.name = "timestamp"
-    return df[REQUIRED_COLS]
+    df = df[REQUIRED_COLS]
+    df.attrs.update(provider="binance", timeframe=timeframe, market_type="spot", symbol=symbol)
+    return df
+
+
+def validate_coverage(frame: pd.DataFrame, start: str, end: str, timeframe: str, as_of=None) -> dict:
+    """Strict coverage of closed bars; leading history needs separate PIT evidence."""
+    delta = timeframe_delta(timeframe)
+    now = pd.Timestamp(as_of if as_of is not None else datetime.now(timezone.utc))
+    now = now.tz_convert("UTC").tz_localize(None) if now.tzinfo else now
+    boundary = min(pd.Timestamp(end) + pd.Timedelta(days=1), now.floor(delta))
+    expected = pd.date_range(pd.Timestamp(start), boundary, freq=delta, inclusive="left")
+    actual = frame.index[(frame.index >= pd.Timestamp(start)) & (frame.index < boundary)]
+    if expected.empty or not actual.equals(expected):
+        raise ValueError(f"Incomplete requested coverage: {len(actual)}/{len(expected)} closed bars")
+    return {"status": "complete", "effective_end_exclusive": boundary.isoformat(),
+            "end_policy": "closed_bars_only", "expected_rows": len(expected)}
 
 
 def load_existing(path: Path) -> pd.DataFrame | None:
@@ -170,7 +190,11 @@ def main(argv=None) -> int:
     fetcher = DataFetcher(proxy_url=args.proxy, data_timezone="UTC")
 
     manifest_path = out_dir / "_manifest.json"
+    old_manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {}
     manifest = {
+        "schema_version": "binance-cache/v2",
+        "provider": args.exchange,
+        "market_type": "spot",
         "exchange": args.exchange,
         "timeframe": args.timeframe,
         "requested_start": args.start,
@@ -184,7 +208,21 @@ def main(argv=None) -> int:
         logger.info("下载 %s (%s)", symbol, args.timeframe)
         csv_path = out_dir / f"{safe_symbol(symbol)}.csv"
 
-        existing = None if args.no_incremental else load_existing(csv_path)
+        old_record = old_manifest.get("symbols", {}).get(symbol, {})
+        trusted = (old_manifest.get("schema_version") == "binance-cache/v2"
+                   and old_manifest.get("provider") == args.exchange
+                   and old_manifest.get("timeframe") == args.timeframe
+                   and old_manifest.get("market_type") == "spot"
+                   and old_record.get("provider") == args.exchange
+                   and old_record.get("timeframe") == args.timeframe
+                   and old_record.get("market_type") == "spot"
+                   and old_record.get("symbol") == normalize_symbol(symbol)
+                   and old_record.get("file") == csv_path.name
+                   and old_record.get("coverage", {}).get("status") == "complete"
+                   and csv_path.exists() and old_record.get("sha256") == sha256_file(csv_path))
+        existing = load_existing(csv_path) if trusted and not args.no_incremental else None
+        if csv_path.exists() and not trusted:
+            logger.warning("Unverified legacy cache excluded from incremental merge: %s", csv_path)
         fetch_from = args.start
         if existing is not None and not existing.empty:
             last = existing.index.max()
@@ -193,6 +231,8 @@ def main(argv=None) -> int:
 
         try:
             fresh = fetch_ohlcv(fetcher, symbol, args.timeframe, fetch_from, end, args.exchange)
+            if fresh.empty:
+                raise ValueError("Refresh returned no verified data")
         except Exception as exc:
             logger.error("  抓取失败 %s: %s", symbol, exc)
             failures.append(symbol)
@@ -204,8 +244,27 @@ def main(argv=None) -> int:
             failures.append(symbol)
             continue
 
+        try:
+            coverage = validate_coverage(merged, args.start, end, args.timeframe)
+        except ValueError as exc:
+            failures.append(symbol)
+            logger.error("  Coverage rejected %s: %s", symbol, exc)
+            continue
+        merged = merged.loc[merged.index < pd.Timestamp(coverage["effective_end_exclusive"])]
+        legacy_copy = None
+        if csv_path.exists() and not trusted:
+            legacy = out_dir / "_legacy_unverified"
+            legacy.mkdir(exist_ok=True)
+            archived = legacy / f"{csv_path.stem}.{sha256_file(csv_path)}.csv"
+            if not archived.exists():
+                archived.write_bytes(csv_path.read_bytes())
+            legacy_copy = str(archived.relative_to(out_dir))
         merged.to_csv(csv_path)
         manifest["symbols"][symbol] = {
+            "provider": args.exchange, "timeframe": args.timeframe, "market_type": "spot",
+            "symbol": normalize_symbol(symbol), "original_symbol": symbol,
+            "requested_start": args.start, "requested_end": end, "coverage": coverage,
+            "legacy_unverified_copy": legacy_copy,
             "file": csv_path.name,
             "rows": int(len(merged)),
             "first": merged.index.min().isoformat(),
@@ -233,6 +292,7 @@ def main(argv=None) -> int:
             except Exception as exc:
                 logger.warning("  资金费率抓取失败 %s: %s", perp, exc)
 
+    manifest["failures"] = failures
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     logger.info("清单写入 %s", manifest_path)
 

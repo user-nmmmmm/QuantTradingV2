@@ -13,6 +13,7 @@ into a file-size cleanup.
 from __future__ import annotations
 
 import math
+from dataclasses import replace
 from typing import Any, Dict, Optional
 
 from core.domain import OrderErrorCode, OrderIntent, OrderStatus, OrderSubmissionResult
@@ -62,6 +63,8 @@ class SubmissionServiceMixin:
         trigger_price: Optional[float] = None,
         risk_action_id: Optional[str] = None,
         approved_risk_amount: Optional[float] = None,
+        signal_id: Optional[str] = None,
+        causation_id: Optional[str] = None,
     ) -> OrderSubmissionResult:
         del slippage, zero_cost
         canceled_protection = False
@@ -72,13 +75,20 @@ class SubmissionServiceMixin:
                     self.cancel_order(pending["client_order_id"])
             # A stop may fill while cancellation is in flight. Recompute the
             # executable inventory from the venue before constructing the exit.
-            if canceled_protection and not self.sync():
-                qty = 0.0
+            if canceled_protection:
+                sync_result = self.sync()
+                # Full-account provenance/discrepancies block new entries,
+                # while this explicit outcome still carries fresh inventory.
+                # Network/invalid-balance failures never permit the exit to
+                # guess quantity from an old snapshot.
+                if not sync_result and getattr(sync_result, "error", None) != "account_reconciliation_failed":
+                    qty = 0.0
         intent = self._build_intent(
             symbol, side, qty, price, order_type, timestamp, strategy_id,
             time_in_force, position_side, reduce_only, sequence,
             reference_price, trigger_price, stop_loss, exit_reason, risk_action_id,
             approved_risk_amount,
+            signal_id, causation_id,
         )
         return self.submit_intent(intent)
 
@@ -259,6 +269,8 @@ class SubmissionServiceMixin:
         exit_reason: Optional[str] = None,
         risk_action_id: Optional[str] = None,
         approved_risk_amount: Optional[float] = None,
+        signal_id: Optional[str] = None,
+        causation_id: Optional[str] = None,
     ) -> OrderIntent:
         held = self.portfolio.get_position(symbol)["qty"]
         derivative = self.market_type in DERIVATIVE_TYPES
@@ -276,20 +288,40 @@ class SubmissionServiceMixin:
             pending = sum(float(row.get("remaining_qty") or 0) for row in self.order_store.list_non_terminal()
                           if row["symbol"] == symbol and row["side"] == side)
             qty = min(qty, max(abs(held) - pending, 0.0))
-        bar_time = self._bar_time if self._bar_time != "unknown" else self._iso(timestamp or self._clock())
-        return OrderIntent(
+        raw_bar_time = self._bar_time if self._bar_time != "unknown" else self._iso(timestamp or self._clock())
+        point = self._event_time(raw_bar_time)
+        bar_time = point.isoformat().replace("+00:00", "Z")
+        intent = OrderIntent(
             exchange=self.exchange_id, account=self.account_id, symbol=symbol,
             timeframe=self._bar_timeframe, bar_time=bar_time,
             strategy_id=strategy_id, action=side, sequence=sequence,
             requested_qty=qty, order_type=order_type.lower(), price=price,
-            time_in_force=time_in_force, reduce_only=bool(is_reduce),
+            time_in_force=time_in_force or "GTC", reduce_only=bool(is_reduce),
             position_side=position_side, position_mode=self.position_mode,
             reference_price=reference_price if reference_price is not None else price,
             trigger_price=(trigger_price if trigger_price is not None else price) if order_type.lower() == "stop" else trigger_price,
             initial_stop=stop_loss if stop_loss else None,
-            exit_reason=exit_reason, risk_action_id=risk_action_id,
+            exit_reason=exit_reason if side in {"sell", "cover"} else None,
+            risk_action_id=risk_action_id,
             approved_risk_amount=approved_risk_amount,
+            signal_id=signal_id, causation_id=causation_id,
         )
+        # Earlier live adapters used naive UTC or +00:00 bar strings in the
+        # exchange-facing ID. Normalizing new commands must not make an old
+        # durable command look new after an upgrade/restart. Keep that command
+        # byte-for-byte, including its original approval and reservation IDs.
+        known = {}
+        for legacy_time in {raw_bar_time, bar_time, point.isoformat(), point.replace(tzinfo=None).isoformat()}:
+            candidate = replace(intent, bar_time=legacy_time)
+            row = self.order_store.get(candidate.client_order_id)
+            if row is not None:
+                known[candidate.client_order_id] = row
+        if len(known) > 1:
+            raise ValueError("ambiguous legacy time identities require order reconciliation")
+        if known:
+            row = next(iter(known.values()))
+            return OrderIntent(**row["intent"])
+        return intent
 
     def _validate_intent(self, intent: OrderIntent) -> Optional[str]:
         if intent.action in {"buy", "short"} and getattr(self, "projection_issues", []):

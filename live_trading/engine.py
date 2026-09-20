@@ -46,7 +46,7 @@ from core.runtime import EventProcessor
 from core.state_store_v2 import StateStore, default_state_db_path
 from core.sqlite_backup import SQLiteSnapshotManager
 from live_trading.execution_adapter import RecordedExecutionAdapter
-from live_trading.recovery import RecoveryMixin
+from live_trading.recovery import RecoveryMixin, account_new_risk_gate, balance_sync_succeeded
 from live_trading.state_export import StateExportMixin
 from live_trading.tick_orchestrator import TickOrchestratorMixin
 
@@ -178,7 +178,9 @@ class LiveTradingEngine(TickOrchestratorMixin, RecoveryMixin, StateExportMixin):
             exchange_id=getattr(broker, "exchange_id", None),
             market_type=str(getattr(broker, "market_type", "spot")),
         )
-        self.execution_adapter = RecordedExecutionAdapter(broker)
+        self.execution_adapter = RecordedExecutionAdapter(broker, opening_guard=lambda: account_new_risk_gate(
+            broker, self._now(), persistence_failed=getattr(self, "_account_reconciliation_persistence_failed", False)
+        )["allows_new_risk"])
         self.event_processor = EventProcessor(
             portfolio=broker.portfolio,
             execution=self.execution_adapter,
@@ -233,6 +235,12 @@ class LiveTradingEngine(TickOrchestratorMixin, RecoveryMixin, StateExportMixin):
                 self.market_data_adapter, "regressed_symbols", set()
             ),
         )
+        projection_issues = getattr(self.broker, "projection_issues", [])
+        if isinstance(projection_issues, list) and projection_issues:
+            extra = (*extra, HealthReason(
+                "FILL_ATTRIBUTION_UNVERIFIED", "account_sync", "account",
+                ";".join(str(issue) for issue in projection_issues),
+            ))
         if extra:
             assessment = HealthAssessment(
                 assessment.assessed_at, tuple(assessment.reasons) + tuple(extra)
@@ -305,11 +313,24 @@ class LiveTradingEngine(TickOrchestratorMixin, RecoveryMixin, StateExportMixin):
             persisted_breaker = state_store.get("circuit_breaker", False)
             checkpoint = state_store.get("portfolio_breaker_checkpoint")
             if checkpoint is not None:
-                if persisted_day != trading_day.isoformat():
+                atomic_day = checkpoint.get("trading_day")
+                if atomic_day is not None:
+                    # A corrupt/future day is not evidence that a daily halt
+                    # expired. Only a valid, earlier UTC date may reset it.
+                    parsed_day = datetime.strptime(atomic_day, "%Y-%m-%d").date()
+                    if parsed_day.isoformat() != atomic_day or parsed_day > trading_day:
+                        raise ValueError("invalid or future breaker trading_day")
+                if atomic_day is not None and atomic_day != trading_day.isoformat():
                     self.risk_manager.reset_daily_breaker()
-                    state_store.set("portfolio_breaker_checkpoint", self.risk_manager.breaker_checkpoint())
-                state_store.set("circuit_breaker", self.risk_manager._blocks_new_risk())
-                state_store.set("circuit_breaker_day", trading_day.isoformat())
+                elif atomic_day is None and persisted_day != trading_day.isoformat():
+                    # Legacy writes were separate transactions. A stale day
+                    # cannot prove that this checkpoint's daily halt expired.
+                    self._alert("warning", "legacy_breaker_day_unverified", {
+                        "persisted_day": persisted_day,
+                        "adopted_day": trading_day.isoformat(),
+                        "daily_halt_retained": self.risk_manager.daily_loss_triggered,
+                    })
+                self._save_breaker_checkpoint(trading_day.isoformat())
                 if self.risk_manager._blocks_new_risk():
                     self._operational_state = "RISK_HALTED"
             elif persisted_day == trading_day.isoformat() and bool(persisted_breaker):
@@ -332,6 +353,20 @@ class LiveTradingEngine(TickOrchestratorMixin, RecoveryMixin, StateExportMixin):
                 state_store.set("circuit_breaker_day", trading_day.isoformat())
             self._current_trading_day = trading_day
 
+    def _save_breaker_checkpoint(self, trading_day: str) -> None:
+        checkpoint = {
+            **self.risk_manager.breaker_checkpoint(),
+            "checkpoint_version": 2,
+            "trading_day": trading_day,
+        }
+        # The payload carries its own day; the legacy views are also updated
+        # atomically for older consumers and operational tooling.
+        self.state_store.set_many({
+            "portfolio_breaker_checkpoint": checkpoint,
+            "circuit_breaker": self.risk_manager._blocks_new_risk(),
+            "circuit_breaker_day": trading_day,
+        })
+
     def initialize(self):
         logger.info("Initializing Live Trading Engine...")
         self._ensure_state_store()
@@ -343,7 +378,7 @@ class LiveTradingEngine(TickOrchestratorMixin, RecoveryMixin, StateExportMixin):
             logger.info("Recovered %s non-terminal order(s) during startup", len(recovery))
         sync_result = self.broker.sync()
         self._healthy = bool(getattr(sync_result, "ok", sync_result is None))
-        if self._healthy:
+        if balance_sync_succeeded(self.broker, sync_result):
             synced_at = getattr(sync_result, "synced_at", None)
             self._last_account_sync_at = (
                 synced_at if isinstance(synced_at, datetime) else self._now()
@@ -363,7 +398,10 @@ class LiveTradingEngine(TickOrchestratorMixin, RecoveryMixin, StateExportMixin):
             else:
                 logger.warning("Failed to load data for %s", symbol)
         self.market_data_adapter.data_map = dict(self.data_map)
-        self._assess_health(self._now())
+        account_gate = account_new_risk_gate(self.broker, self._now())
+        extra = () if account_gate["allows_new_risk"] else (HealthReason(
+            "ACCOUNT_FACTS_UNVERIFIED", "account_sync", "account", account_gate["reason"]),)
+        self._assess_health(self._now(), *extra)
 
     def run(self):
         logger.info("Starting Main Loop...")

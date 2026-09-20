@@ -9,7 +9,8 @@ of a single tick.
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Dict
+import hashlib
+from typing import Any, Dict, Optional
 
 import pandas as pd
 
@@ -20,6 +21,9 @@ from core.protective_orders import (
     ProtectiveAction,
     ProtectiveOrder,
     ProtectiveOrderManager,
+    authoritative_position_ids,
+    parse_protective_position_reference,
+    protective_position_reference,
 )
 from core.protective_stops import evaluate_fill_risk
 from core.entry_risk import resolve_approved_risk
@@ -27,6 +31,10 @@ from core.runtime import MarketDataSlice
 from core.risk.actions import plan_risk_action
 from core.timeframes import as_utc_timestamp, closed_bars, timeframe_delta
 from core.valuation import build_portfolio_snapshot
+from live_trading.risk_actions import PortfolioRiskActionsMixin
+from live_trading.recovery import (
+    account_new_risk_gate, balance_sync_succeeded, supports_account_reconciliation,
+)
 
 # Same logger name as live_trading.engine (logging.getLogger caches by name,
 # so this is the identical object) -- tests patch "live_trading.engine.logger"
@@ -34,13 +42,20 @@ from core.valuation import build_portfolio_snapshot
 logger = get_logger("live_trading.engine")
 
 
-class TickOrchestratorMixin:
+class TickOrchestratorMixin(PortfolioRiskActionsMixin):
     """The body of one live tick: data, sync, reconciliation, risk, routing.
 
     Expects ``self`` to carry the full ``LiveTradingEngine`` attribute set
     (broker, risk_manager, event_processor, state helpers) plus the
     ``RecoveryMixin``/``StateExportMixin`` methods it calls into.
     """
+
+    data_map: Dict[str, pd.DataFrame]
+    _consecutive_tick_crashes: int
+    _consecutive_strategy_failures: int
+    _last_written_breaker: Optional[bool]
+    _last_written_breaker_day: Optional[str]
+    _last_strategy_error: Optional[str]
 
     def _update_data(self):
         self.market_data_adapter.data_map = dict(self.data_map)
@@ -117,7 +132,11 @@ class TickOrchestratorMixin:
             self._maybe_export_state()
             return
         self._healthy = bool(getattr(sync_result, "ok", sync_result is None))
-        if not self._healthy:
+        # A complete balance observation can expose an independent-account
+        # discrepancy. Preserve protection and exits using those factual
+        # positions; source discrepancies only deny new entries. Network or
+        # malformed balance failures still leave position facts unknown.
+        if not balance_sync_succeeded(self.broker, sync_result):
             self._assess_health(now, HealthReason(
                 "ACCOUNT_SYNC_FAILED", "account_sync", "account",
                 f"account synchronization failed: {getattr(sync_result, 'error', 'unknown')}",
@@ -168,9 +187,22 @@ class TickOrchestratorMixin:
                 prices[symbol] = float(eligible["close"].iloc[-1])
                 price_times[symbol] = as_utc_timestamp(eligible.index[-1]).to_pydatetime()
 
-        self._assess_health(now)
+        account_gate = account_new_risk_gate(self.broker, self._now(),
+            persistence_failed=getattr(self, "_account_reconciliation_persistence_failed", False))
+        self._reconciliation_status["account_entry_gate"] = account_gate
+        self._reconciliation_status["allows_new_risk"] = account_gate["allows_new_risk"] and not self._has_unresolved_unknown()
+        if supports_account_reconciliation(self.broker):
+            self._reconciliation_status["account_reconciliation"] = getattr(self.broker, "account_reconciliation_report", {})
+        extra_health = []
         if data_failure:
-            self._assess_health(now, HealthReason("MARKET_DATA_UPDATE_FAILED", "market_data", "data", data_failure))
+            extra_health.append(HealthReason("MARKET_DATA_UPDATE_FAILED", "market_data", "data", data_failure))
+        if not account_gate["allows_new_risk"]:
+            extra_health.append(HealthReason("ACCOUNT_FACTS_UNVERIFIED", "account_sync", "account", account_gate["reason"]))
+        self._assess_health(now, *extra_health)
+        if self._reconcile_external_positions():
+            self._reconcile_protective_orders()
+            self._maybe_export_state(force=True)
+            return
         mark_loader = getattr(type(self.broker), "risk_price_facts", None)
         if callable(mark_loader):
             try:
@@ -209,27 +241,25 @@ class TickOrchestratorMixin:
         breaker = self.risk_manager.check_circuit_breaker(
             self._snapshot.equity, float(daily_start), occurred_at=now
         )
-        state_store.set("portfolio_breaker_checkpoint", self.risk_manager.breaker_checkpoint())
+        self._save_breaker_checkpoint(now.date().isoformat())
+        # Refresh only the breaker-derived state using this tick's existing
+        # health assessment, preserving account/data failures already found.
+        if self.health_assessment is not None:
+            self._set_health_assessment(self.health_assessment)
         budget = getattr(self.risk_manager, "drawdown_budget", None)
         if budget is not None:
             budget.update(self._snapshot.prices,
                 {symbol: frame.iloc[-1] for symbol, frame in closed_map.items() if not frame.empty}, now)
         action_plan = plan_risk_action(breaker, now.date())
-        if breaker:
+        # REDUCE owns opening cancellation and freezes targets only after the
+        # cancellation facts are durable. A plain BLOCK_NEW still cancels opens.
+        if breaker and action_plan is None:
             for pending in self.broker.order_store.list_non_terminal():
                 if pending["side"] in {"buy", "short"}:
                     self.broker.cancel_order(pending["client_order_id"])
-        if action_plan is not None:
-            key = f"risk_targets:{action_plan.action_id}"
-            targets = state_store.get(key)
-            if targets is None:
-                targets = {symbol: abs(float(pos["qty"])) * action_plan.remaining_fraction
-                           for symbol, pos in self.broker.portfolio.positions.items()}
-                state_store.set(key, targets)
-            for symbol, target in targets.items():
-                self._submit_risk_exit(symbol, action_plan.reason, target, action_plan.action_id,
-                                       self._snapshot.prices.get(symbol))
-        if action_plan is None and not self._reconcile_drawdown_budget():
+        risk_progress = self._reconcile_portfolio_risk_action(action_plan)
+        budget_ready = self._reconcile_drawdown_budget(execute=not risk_progress.blocks_entries)
+        if risk_progress.blocks_entries or not budget_ready:
             self._reconcile_protective_orders()
             self._maybe_export_state(force=True)
             return
@@ -237,13 +267,6 @@ class TickOrchestratorMixin:
         if self._operational_state == "DEGRADED" or not self._recheck_live_entry_risk():
             self._maybe_export_state(force=True)
             return
-        breaker_day = now.date().isoformat()
-        if bool(breaker) != self._last_written_breaker:
-            state_store.set("circuit_breaker", bool(breaker))
-            self._last_written_breaker = bool(breaker)
-        if breaker_day != self._last_written_breaker_day:
-            state_store.set("circuit_breaker_day", breaker_day)
-            self._last_written_breaker_day = breaker_day
         if breaker:
             self._operational_state = "RISK_HALTED"
             logger.critical("New entries disabled by circuit breaker: %s", breaker.reason_codes)
@@ -262,7 +285,7 @@ class TickOrchestratorMixin:
                 return
 
         strategy_failures = []
-        batches = {}
+        batches: Dict[Any, Dict[str, list]] = {}
         for symbol in sorted(self.symbols):
             frame = closed_map.get(symbol)
             if frame is None or frame.empty:
@@ -291,11 +314,12 @@ class TickOrchestratorMixin:
             try:
                 candidate, _ = self.event_processor._collect_symbol_candidate(
                     event, symbol, allow_position_management=True,
-                    allow_new_entries=not bool(breaker) and self._healthy and not data_failure,
+                    allow_new_entries=not bool(breaker) and self._healthy and not data_failure
+                        and account_gate["allows_new_risk"],
                 )
                 batch = batches.setdefault(close_time, {"candidates": [], "keys": []})
                 batch["keys"].append(bar_key)
-                if candidate is not None:
+                if candidate is not None and account_gate["allows_new_risk"]:
                     batch["candidates"].append(candidate)
                 if self._has_unresolved_unknown(refresh=True):
                     state_store.release_bar(bar_key)
@@ -312,7 +336,16 @@ class TickOrchestratorMixin:
 
         for close_time, batch in sorted(batches.items()):
             try:
-                if not self._has_unresolved_unknown(refresh=True):
+                # Price fetches and management may take time. Recheck the
+                # current source immediately before allocating new orders.
+                allocation_gate = account_new_risk_gate(self.broker, self._now(),
+                    persistence_failed=getattr(self, "_account_reconciliation_persistence_failed", False))
+                self._reconciliation_status["account_entry_gate"] = allocation_gate
+                self._reconciliation_status["allows_new_risk"] = allocation_gate["allows_new_risk"] and not self._has_unresolved_unknown()
+                if not allocation_gate["allows_new_risk"] and account_gate["allows_new_risk"]:
+                    self._assess_health(self._now(), HealthReason(
+                        "ACCOUNT_FACTS_UNVERIFIED", "account_sync", "account", allocation_gate["reason"]))
+                if not self._has_unresolved_unknown(refresh=True) and allocation_gate["allows_new_risk"]:
                     self.broker.set_bar_context(self.timeframe, close_time)
                     self.event_processor.allocator.allocate(
                         batch["candidates"], portfolio=self.broker.portfolio,
@@ -388,6 +421,26 @@ class TickOrchestratorMixin:
         manager = getattr(self, "_protective_order_manager", None)
         if manager is None:
             manager = ProtectiveOrderManager()
+            # A crash may follow an acknowledged stop cancellation but precede
+            # replacement. Its immutable attributed intent retains the ratchet.
+            store = getattr(self.broker, "order_store", None)
+            if store is not None:
+                for record in store.list_all():
+                    if str(record.get("order_type", "")).lower() != "stop":
+                        continue
+                    fact = record.get("intent") or {}
+                    ids = parse_protective_position_reference(fact.get("causation_id"))
+                    if ids is None:
+                        continue
+                    symbol = str(record["symbol"])
+                    held = float(self.broker.portfolio.get_position(symbol)["qty"])
+                    current_ids = authoritative_position_ids(self.broker.portfolio, symbol)
+                    manager.restore_confirmed_stop(ProtectiveOrder(
+                        str(record["client_order_id"]), symbol, str(record["side"]),
+                        float(record.get("remaining_qty", record["requested_qty"])),
+                        float(fact.get("trigger_price") or record.get("price") or 0),
+                        str(record["status"]), position_ids=ids),
+                        position_ids=current_ids, position_qty=held)
             self._protective_order_manager = manager
         return manager
 
@@ -400,7 +453,7 @@ class TickOrchestratorMixin:
         for record in store.list_non_terminal():
             if str(record.get("order_type", "")).lower() != "stop":
                 continue
-            intent = record.get("intent")
+            intent = record.get("intent") or {}
             reduce_only = True
             if isinstance(intent, dict):
                 reduce_only = bool(intent.get("reduce_only", True))
@@ -417,6 +470,7 @@ class TickOrchestratorMixin:
                 stop_price=float(intent.get("trigger_price") or record.get("price") or 0.0),
                 status=str(record["status"]).lower(),
                 reduce_only=reduce_only,
+                position_ids=parse_protective_position_reference(intent.get("causation_id")),
             ))
         return orders
 
@@ -592,6 +646,69 @@ class TickOrchestratorMixin:
                 state_store.set("live_fill_risk_audit", list(audit))
         return all_accepted
 
+    def _reconcile_external_positions(self) -> bool:
+        """Persist a named, zero-target exit before touching unknown inventory.
+
+        No historical owner, entry time, cost basis or risk is invented. A
+        mismatched symbol is flattened as a whole: mixed owned/unowned exposure
+        cannot safely be treated as independent inventory at a netted venue.
+        """
+        unowned = getattr(self.broker, "unowned_positions", {})
+        if not isinstance(unowned, dict):
+            return False
+        state = self._ensure_state_store()
+        key = "external_position_actions"
+        actions = state.get(key, {})
+        active = bool(unowned)
+        for symbol, record in list(actions.items()):
+            if record["status"] != "completed" and symbol not in unowned:
+                qty = float(self.broker.portfolio.get_position(symbol).get("qty", 0.0))
+                record.update(status="completed", completed_at=self._now().isoformat(),
+                              completion="flat" if abs(qty) <= 1e-12 else "ownership_restored")
+                state.set(key, actions)
+        if not active:
+            return False
+        # This policy applies even when ordinary protective stops are disabled.
+        self._operational_state = "DEGRADED"
+        for symbol, observation in sorted(unowned.items()):
+            record = actions.get(symbol)
+            if record is None or record["status"] == "completed":
+                previous_action = record.get("action_id") if record else None
+                sequence = self._risk_sequence(
+                    f"external-position:{symbol}:{previous_action}:{self._now().isoformat()}"
+                )
+                record = {
+                    "schema_version": 1, **observation,
+                    "action_id": f"external-position:{symbol}:{sequence}",
+                    "first_detected_at": self._now().isoformat(),
+                    "previous_action_id": previous_action,
+                    "target_qty": 0.0, "status": "pending",
+                }
+                actions[symbol] = record
+                state.set(key, actions)
+                self._alert("critical", "external_position_detected", dict(record, symbol=symbol))
+            reference = None
+            try:
+                if callable(getattr(type(self.broker), "risk_price_facts", None)):
+                    reference = self.broker.risk_price_facts({symbol})[symbol]["price"]
+                completed = self._submit_risk_exit(
+                    symbol, "ExternalPositionExit", 0.0, record["action_id"], reference,
+                )
+                record.update(status="completed" if completed else "pending",
+                              remaining_qty=float(self.broker.portfolio.get_position(symbol).get("qty", 0.0)),
+                              last_checked_at=self._now().isoformat(),
+                              last_error=None if completed else "exit_unconfirmed")
+                if completed:
+                    record.update(completed_at=self._now().isoformat(), completion="flat")
+            except Exception as exc:
+                record.update(status="pending", last_error=type(exc).__name__,
+                              last_checked_at=self._now().isoformat())
+                self._alert("critical", "external_position_exit_failed", {
+                    "symbol": symbol, "action_id": record["action_id"], "error": type(exc).__name__,
+                })
+            state.set(key, actions)
+        return True
+
     def _reconcile_protective_orders(self) -> None:
         """Keep venue-resident protection in step with the real position.
 
@@ -606,8 +723,8 @@ class TickOrchestratorMixin:
         portfolio = getattr(broker, "portfolio", None)
         if portfolio is None:
             return
-        manager = self._protective_manager()
         try:
+            manager = self._protective_manager()
             venue_orders = self._venue_protective_orders()
         except Exception as exc:  # order store unreadable: do not guess
             self._operational_state = "DEGRADED"
@@ -620,11 +737,30 @@ class TickOrchestratorMixin:
                    | manager.tracked_symbols)
         for symbol in sorted(symbols):
             qty = float(portfolio.get_position(symbol).get("qty", 0.0))
+            try:
+                position_ids = authoritative_position_ids(portfolio, symbol)
+            except (ValueError, AttributeError, TypeError) as exc:
+                self._operational_state = "DEGRADED"
+                self._alert("critical", "protective_position_unverifiable", {
+                    "symbol": symbol, "error": str(exc),
+                })
+                continue
+            # In-flight market exits already reserve inventory. Protect only
+            # the remainder, so protection cannot cancel or compete with an
+            # authoritative partial risk reduction (including UNKNOWN orders).
+            reserved = sum(float(row.get("remaining_qty") or 0.0)
+                           for row in broker.order_store.list_non_terminal()
+                           if row["symbol"] == symbol
+                           and row["side"] == ("sell" if qty > 0 else "cover")
+                           and str(row.get("order_type", "")).lower() != "stop")
+            available = max(abs(qty) - reserved, 0.0)
             plan = manager.evaluate(
                 symbol=symbol,
-                position_qty=qty,
+                position_qty=available if qty >= 0 else -available,
                 desired_stop=self._desired_protective_stop(symbol),
                 open_protective_orders=venue_orders,
+                position_ids=position_ids,
+                total_position_qty=qty,
             )
             for intent in plan.intents:
                 self._apply_protective_intent(symbol, intent)
@@ -645,7 +781,7 @@ class TickOrchestratorMixin:
                     self._operational_state = "DEGRADED"
                     return  # No replacement until cancellation is authoritative.
                 if action is ProtectiveAction.REPLACE:
-                    if not self.broker.sync():
+                    if not balance_sync_succeeded(self.broker, self.broker.sync()):
                         self._operational_state = "DEGRADED"
                         return
                     held = abs(self.broker.portfolio.get_position(symbol)["qty"])
@@ -655,12 +791,32 @@ class TickOrchestratorMixin:
             reference = (getattr(snapshot, "prices", {}) or {}).get(symbol) or intent.stop_price
             key = f"{symbol}:{action.value}:{intent.cancel_order_id}:{intent.qty}:{intent.stop_price}:{getattr(self.broker, '_bar_time', '')}"
             if action in (ProtectiveAction.PLACE, ProtectiveAction.REPLACE):
+                current_ids = authoritative_position_ids(self.broker.portfolio, symbol)
+                current_qty = float(self.broker.portfolio.get_position(symbol)["qty"])
+                if (not intent.position_ids or not set(current_ids).intersection(intent.position_ids)
+                        or (current_qty > 0) != (intent.side == "sell")):
+                    self._operational_state = "DEGRADED"
+                    self._alert("critical", "protective_position_changed_before_submit", {
+                        "symbol": symbol, "position_ids": list(current_ids),
+                    })
+                    return
+                position_reference = protective_position_reference(intent.position_ids)
+                key = f"{key}:{position_reference}"
+                if action is ProtectiveAction.PLACE:
+                    # A canceled predecessor in the same bar must not resolve
+                    # to its old immutable client ID after process restart.
+                    predecessors = sorted(str(row["client_order_id"])
+                        for row in self.broker.order_store.list_all()
+                        if row["symbol"] == symbol and str(row.get("order_type", "")).lower() == "stop")
+                    lineage = hashlib.sha256("\n".join(predecessors).encode()).hexdigest()[:24]
+                    key = f"{key}:predecessors:{lineage}"
                 result = self.broker.submit_order(
                     symbol, intent.side, min(intent.qty, abs(self.broker.portfolio.get_position(symbol)["qty"])),
                     trigger_price=intent.stop_price, reference_price=reference, order_type="stop",
                     timestamp=self._now(), strategy_id="ProtectiveStop",
                     exit_reason="protective_stop", reduce_only=True,
                     sequence=self._risk_sequence(key), risk_action_id=key,
+                    causation_id=position_reference,
                 )
                 if not result.accepted:
                     self._operational_state = "DEGRADED"
@@ -676,7 +832,9 @@ class TickOrchestratorMixin:
                 self._alert("critical", "position_unprotected", {
                     "symbol": symbol, "reason": intent.reason, "qty": intent.qty,
                 })
-                self._submit_risk_exit(symbol, "unprotected_flatten", 0.0, key, reference)
+                self._submit_risk_exit(symbol, "unprotected_flatten", 0.0, key, reference,
+                    original_position_ids=intent.position_ids,
+                    original_side="long" if intent.side == "sell" else "short")
         except Exception as exc:
             logger.exception("Protective intent failed: %s %s", symbol, action)
             self._operational_state = "DEGRADED"
@@ -685,7 +843,7 @@ class TickOrchestratorMixin:
                 "reason": intent.reason, "error": type(exc).__name__,
             })
 
-    def _reconcile_drawdown_budget(self):
+    def _reconcile_drawdown_budget(self, *, execute=True):
         budget = getattr(getattr(self, "risk_manager", None), "drawdown_budget", None)
         if budget is None or not budget.policy.enabled:
             return True
@@ -702,6 +860,10 @@ class TickOrchestratorMixin:
             self._operational_state = "DEGRADED"
             self._alert("error", "drawdown_budget_unverifiable", {"issues": snap.issues})
             return False
+        if not execute:
+            row["deferred_to_portfolio_risk_action"] = True
+            self.state_store.set("drawdown_budget_snapshot", row)
+            return False
         checkpoint = self.state_store.get("drawdown_budget_action")
         if snap.over_budget or checkpoint:
             for order in self.broker.order_store.list_non_terminal():
@@ -710,7 +872,7 @@ class TickOrchestratorMixin:
                     if result.status not in {OrderStatus.CANCELED, OrderStatus.FILLED, OrderStatus.EXPIRED, OrderStatus.REJECTED}:
                         self._operational_state = "DEGRADED"
                         return False
-            if not self.broker.sync():
+            if not balance_sync_succeeded(self.broker, self.broker.sync()):
                 self._operational_state = "DEGRADED"
                 return False
             snap = budget.snapshot()
@@ -752,31 +914,67 @@ class TickOrchestratorMixin:
             return False
         return True
 
-    def _submit_risk_exit(self, symbol, reason, target_qty, action_id, reference):
-        # Cancel every competing exit and opening request before a market risk
-        # action. Unknown cancellation keeps the inventory reserved.
+    def _submit_risk_exit(self, symbol, reason, target_qty, action_id, reference,
+                          *, original_position_ids=None, original_side=None):
+        # First reconcile this action's own orders. Completed actions must not
+        # cancel an already-correct protective stop on every subsequent tick.
         store = self.broker.order_store
-        own_pending = []
         for row in store.list_non_terminal():
-            if row["symbol"] == symbol:
-                if (row.get("intent") or {}).get("risk_action_id") == action_id:
-                    own_pending.append(row)
-                    self.broker.reconcile_order(row["client_order_id"])
-                    continue
-                result = self.broker.cancel_order(row["client_order_id"])
-                if result.status not in {OrderStatus.CANCELED, OrderStatus.FILLED, OrderStatus.EXPIRED}:
-                    self._operational_state = "DEGRADED"
-                    return False
-        if not self.broker.sync():
+            if row["symbol"] == symbol and (row.get("intent") or {}).get("risk_action_id") == action_id:
+                self.broker.reconcile_order(row["client_order_id"])
+        if not balance_sync_succeeded(self.broker, self.broker.sync()):
             return False
+
+        def owns_position():
+            if original_position_ids is None:
+                return True
+            try:
+                current = self._risk_action_position(symbol)
+            except ValueError:
+                self._operational_state = "DEGRADED"
+                return None
+            ids = set(current["position_ids"])
+            if not ids.intersection(original_position_ids):
+                return False
+            if not ids.issubset(original_position_ids) or current["side"] != original_side:
+                self._operational_state = "DEGRADED"
+                return None
+            return True
+
+        def pending_owned():
+            return [row for row in store.list_non_terminal()
+                    if row["symbol"] == symbol
+                    and (row.get("intent") or {}).get("risk_action_id") == action_id]
+
+        ownership = owns_position()
+        if ownership is None:
+            return False
+        held = float(self.broker.portfolio.get_position(symbol)["qty"])
+        if not ownership or abs(held) <= target_qty + 1e-12:
+            # A partially filled own order can still overshoot a target reached
+            # by another exit. Cancel only that remainder, never normal stops.
+            if not self._cancel_risk_orders(pending_owned()):
+                return False
+            ownership = owns_position()
+            return ownership is False or (ownership is True and
+                abs(float(self.broker.portfolio.get_position(symbol)["qty"])) <= target_qty + 1e-12)
+        if pending_owned():
+            self._operational_state = "DEGRADED"
+            return False
+
+        competing = [row for row in store.list_non_terminal() if row["symbol"] == symbol]
+        if not self._cancel_risk_orders(competing):
+            return False
+        # Cancellation may itself reveal fills or close the original position.
+        ownership = owns_position()
+        if ownership is None:
+            return False
+        if not ownership:
+            return True
         held = float(self.broker.portfolio.get_position(symbol)["qty"])
         qty = max(abs(held) - target_qty, 0.0)
         if qty <= 1e-12:
             return True
-        for pending in own_pending:
-            if store.get(pending["client_order_id"])["status"] not in {s.value for s in (OrderStatus.CANCELED, OrderStatus.FILLED, OrderStatus.EXPIRED, OrderStatus.REJECTED)}:
-                self._operational_state = "DEGRADED"
-                return False
         previous = [row["client_order_id"] for row in store.list_all()
                     if row["symbol"] == symbol and (row.get("intent") or {}).get("risk_action_id") == action_id]
         key = f"{action_id}:{symbol}:{held}:{target_qty}:{','.join(sorted(previous))}"
@@ -786,11 +984,13 @@ class TickOrchestratorMixin:
             strategy_id="GapRiskResize" if reason == "GapRiskResize" else "PortfolioRiskExit", exit_reason=reason, reduce_only=True,
             sequence=self._risk_sequence(key), risk_action_id=action_id,
         )
-        if not result.accepted or not self.broker.sync():
+        if not result.accepted or not balance_sync_succeeded(self.broker, self.broker.sync()):
             self._operational_state = "DEGRADED"
             return False
         remaining = abs(float(self.broker.portfolio.get_position(symbol)["qty"]))
         if remaining > target_qty + 1e-9:
             self._operational_state = "DEGRADED"
+            return False
+        if not self._cancel_risk_orders(pending_owned()):
             return False
         return True

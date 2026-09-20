@@ -1,0 +1,253 @@
+{
+  "schema_version": "phase0-blob-manifest/v2",
+  "archive_revision": "ab15bc244d54b1161a8b6714d2eb71565c2c1d41",
+  "historical_strategy_revision": "ff14fb8cce57310f1e0828349a0357225ce33956",
+  "migration": "v1 Windows CRLF file hashes retained unchanged; v2 hashes committed Git blob bytes. Verify historical object, not current HEAD.",
+  "files": {
+    "docs/baseline/phase0/archived_reports/20260824_161753_720d_3Syms_Ret101.8pct/benchmark.csv": {
+      "sha256": "ff37867cdd52d6b00936e752d3d1f0602444b1bb7cc594eece79ef9f42a69431",
+      "bytes": 21005,
+      "checkout_policy": "text-lf"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_161753_720d_3Syms_Ret101.8pct/data_quality_report.json": {
+      "sha256": "a0727bb63d4ea8810906bc8c7d393b35e0003ba947bf6d493281ef51cb329d69",
+      "bytes": 1307,
+      "checkout_policy": "text-lf"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_161753_720d_3Syms_Ret101.8pct/equity.csv": {
+      "sha256": "14542045830694dd388453d6e7ee2d76c4efd7c1f2f88dd64ba8824d683fe01d",
+      "bytes": 34073,
+      "checkout_policy": "text-lf"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_161753_720d_3Syms_Ret101.8pct/equity.png": {
+      "sha256": "a8c70655b1b9757b47e13550095c516b801e152ff9ff56304334d932d72cceed",
+      "bytes": 603912,
+      "checkout_policy": "binary"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_161753_720d_3Syms_Ret101.8pct/monthly_returns_heatmap.png": {
+      "sha256": "4f13d1125af0e6b6a3022c962c38a6799d8dc1740238fbb0b5a493f7abc116b8",
+      "bytes": 119521,
+      "checkout_policy": "binary"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_161753_720d_3Syms_Ret101.8pct/pnl_distribution.png": {
+      "sha256": "3e3e5a3dbfdf7bfeeb13b995d58e99629ee94e9a679a99722eb2449bbcf25051",
+      "bytes": 84771,
+      "checkout_policy": "binary"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_161753_720d_3Syms_Ret101.8pct/report.txt": {
+      "sha256": "9ecfb34ecf75508de7e7b563a60b6bd1f2e417fb9565f6220c916cebf35fcd11",
+      "bytes": 34583,
+      "checkout_policy": "text-lf"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_161753_720d_3Syms_Ret101.8pct/rolling_metrics.png": {
+      "sha256": "c0abc3780849f46bb864d34771be75d67595e0c8d94ef054dc03737b06b4785a",
+      "bytes": 375180,
+      "checkout_policy": "binary"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_161753_720d_3Syms_Ret101.8pct/trades.csv": {
+      "sha256": "803f51c288aa350cd2a201456d12a03594d1e7a8e83981d3455eee721c93fbdb",
+      "bytes": 79516,
+      "checkout_policy": "text-lf"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_161807_720d_3Syms_Ret117.7pct/benchmark.csv": {
+      "sha256": "ff37867cdd52d6b00936e752d3d1f0602444b1bb7cc594eece79ef9f42a69431",
+      "bytes": 21005,
+      "checkout_policy": "text-lf"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_161807_720d_3Syms_Ret117.7pct/data_quality_report.json": {
+      "sha256": "a0727bb63d4ea8810906bc8c7d393b35e0003ba947bf6d493281ef51cb329d69",
+      "bytes": 1307,
+      "checkout_policy": "text-lf"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_161807_720d_3Syms_Ret117.7pct/equity.csv": {
+      "sha256": "af46ac23e9d8a3f200bcc21250268b9a30e801c403a34cc215d791558c754883",
+      "bytes": 34144,
+      "checkout_policy": "text-lf"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_161807_720d_3Syms_Ret117.7pct/equity.png": {
+      "sha256": "fdc187a44a4fc3e74909098823728d149aac39132c7792552c3889dee64bd5f1",
+      "bytes": 578276,
+      "checkout_policy": "binary"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_161807_720d_3Syms_Ret117.7pct/monthly_returns_heatmap.png": {
+      "sha256": "3bed1bf09f12687bcebc4657aba06b4ce5dbdda17bd84c74ccd217893559b5c9",
+      "bytes": 116279,
+      "checkout_policy": "binary"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_161807_720d_3Syms_Ret117.7pct/pnl_distribution.png": {
+      "sha256": "a5f8db0ee50e5af443654adb3babb79626d835b41f50554c866cdf8d95a5fd5e",
+      "bytes": 87394,
+      "checkout_policy": "binary"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_161807_720d_3Syms_Ret117.7pct/report.txt": {
+      "sha256": "5ca19c9e64d02a72962282d6543d56e8ccd86ee6428015d5132e67e4bafd2c9d",
+      "bytes": 37024,
+      "checkout_policy": "text-lf"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_161807_720d_3Syms_Ret117.7pct/rolling_metrics.png": {
+      "sha256": "7365cbfe981c9465c4c1c25c0f5960d11a5060b3897e74a36c61942b3d1b46a9",
+      "bytes": 356212,
+      "checkout_policy": "binary"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_161807_720d_3Syms_Ret117.7pct/trades.csv": {
+      "sha256": "fb52ddb44cc2697f18914ebd57145f3b3fee13de113f2f03f7c75551b7c0b825",
+      "bytes": 44521,
+      "checkout_policy": "text-lf"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_163700_3498d_10Syms_Ret17.0pct/benchmark.csv": {
+      "sha256": "38f8edc5346dc2fd0af28ba7b242b7d182511651d9018ebe732ae2f27ca3f411",
+      "bytes": 96200,
+      "checkout_policy": "text-lf"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_163700_3498d_10Syms_Ret17.0pct/data_quality_report.json": {
+      "sha256": "8a0b9a8d4d72bde92d9d6d1b3de13a0ba543e8bd93c9c76a9c72b3005cd96964",
+      "bytes": 4375,
+      "checkout_policy": "text-lf"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_163700_3498d_10Syms_Ret17.0pct/equity.csv": {
+      "sha256": "94758219159171c67178834b52a31b9e8d3725f80220d34ad56ebf93e445440f",
+      "bytes": 155029,
+      "checkout_policy": "text-lf"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_163700_3498d_10Syms_Ret17.0pct/equity.png": {
+      "sha256": "030aa61c504302d261dd3aa28d45a637b11239a4462bad4540d7dd2967db6e17",
+      "bytes": 651869,
+      "checkout_policy": "binary"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_163700_3498d_10Syms_Ret17.0pct/monthly_returns_heatmap.png": {
+      "sha256": "bcaf3e2ec7add897f004302c7bda99d89a8f59c568edc5481e4e7f798c515c14",
+      "bytes": 268462,
+      "checkout_policy": "binary"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_163700_3498d_10Syms_Ret17.0pct/pnl_distribution.png": {
+      "sha256": "d5fab43c46d291c279d90326167e977e92005c4238c84e60c8c61fbd2426ddde",
+      "bytes": 87110,
+      "checkout_policy": "binary"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_163700_3498d_10Syms_Ret17.0pct/report.txt": {
+      "sha256": "e7c2201471ab54978fe4d3a71665ca1a6078775b76150434e19e4bffdf5585ce",
+      "bytes": 28958,
+      "checkout_policy": "text-lf"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_163700_3498d_10Syms_Ret17.0pct/rolling_metrics.png": {
+      "sha256": "fead7b241a4e65c9527ced89bb0006e223347f4ef8cca972fc5abee0bc708c64",
+      "bytes": 485519,
+      "checkout_policy": "binary"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_163700_3498d_10Syms_Ret17.0pct/trades.csv": {
+      "sha256": "4251a97ca4da04d087fe570c806ffd85b13191612a1abe491527a78ae41d2e73",
+      "bytes": 173546,
+      "checkout_policy": "text-lf"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_163836_3498d_10Syms_Ret-15.8pct/benchmark.csv": {
+      "sha256": "38f8edc5346dc2fd0af28ba7b242b7d182511651d9018ebe732ae2f27ca3f411",
+      "bytes": 96200,
+      "checkout_policy": "text-lf"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_163836_3498d_10Syms_Ret-15.8pct/data_quality_report.json": {
+      "sha256": "8a0b9a8d4d72bde92d9d6d1b3de13a0ba543e8bd93c9c76a9c72b3005cd96964",
+      "bytes": 4375,
+      "checkout_policy": "text-lf"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_163836_3498d_10Syms_Ret-15.8pct/equity.csv": {
+      "sha256": "242a423e129100d0649f9aaac670c068a54b56d683071b73b17a4d1828572108",
+      "bytes": 153033,
+      "checkout_policy": "text-lf"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_163836_3498d_10Syms_Ret-15.8pct/equity.png": {
+      "sha256": "4000fc17316e1aa4de8c9ad742481134200b8c2be6109ec37c60b9be96454054",
+      "bytes": 660927,
+      "checkout_policy": "binary"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_163836_3498d_10Syms_Ret-15.8pct/monthly_returns_heatmap.png": {
+      "sha256": "fde748f5f1a67ae4caa83fc7f6c050f30bafb2dfaca4ff8657d7989e1e846c34",
+      "bytes": 278984,
+      "checkout_policy": "binary"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_163836_3498d_10Syms_Ret-15.8pct/pnl_distribution.png": {
+      "sha256": "5d25fc4eb59f44bab0e95d393805dd708f3862bd9aa4ffb0527489c73c37649a",
+      "bytes": 92597,
+      "checkout_policy": "binary"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_163836_3498d_10Syms_Ret-15.8pct/report.txt": {
+      "sha256": "40b370189f8ae2c2d49947478ab35086f21e73f6d1f64d69717800475115d0aa",
+      "bytes": 24782,
+      "checkout_policy": "text-lf"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_163836_3498d_10Syms_Ret-15.8pct/rolling_metrics.png": {
+      "sha256": "fb2e599ae55ae291715e085f4e185c150b725750ccc841605242b8884916f88e",
+      "bytes": 486285,
+      "checkout_policy": "binary"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_163836_3498d_10Syms_Ret-15.8pct/trades.csv": {
+      "sha256": "3b2956f000bd54802f6c3e0ec7985c9d29a84ed7e80ab983a41f7c637860dad9",
+      "bytes": 251600,
+      "checkout_policy": "text-lf"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_170434_3498d_10Syms_Ret18.2pct/benchmark.csv": {
+      "sha256": "fae34332453123d23d3724ea701bfc9754a4a5990ea8ca66e3c82a0d58e6ec83",
+      "bytes": 96296,
+      "checkout_policy": "text-lf"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_170434_3498d_10Syms_Ret18.2pct/data_quality_report.json": {
+      "sha256": "8a0b9a8d4d72bde92d9d6d1b3de13a0ba543e8bd93c9c76a9c72b3005cd96964",
+      "bytes": 4375,
+      "checkout_policy": "text-lf"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_170434_3498d_10Syms_Ret18.2pct/equity.csv": {
+      "sha256": "4f49329d1521715801b42ede29b4d0c11162f3b975e4cf29c8b2bd5126333e9c",
+      "bytes": 155378,
+      "checkout_policy": "text-lf"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_170434_3498d_10Syms_Ret18.2pct/equity.png": {
+      "sha256": "fc62ac159ce1f064ebb943f669cd4d6db6f5a95e89aa5d0070dbf37b4fa15e11",
+      "bytes": 624894,
+      "checkout_policy": "binary"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_170434_3498d_10Syms_Ret18.2pct/monthly_returns_heatmap.png": {
+      "sha256": "2b774d52b1b8934548c6ce68b62ef3be05f17197da16b8a01f1396fa0cfe7e39",
+      "bytes": 275170,
+      "checkout_policy": "binary"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_170434_3498d_10Syms_Ret18.2pct/pnl_distribution.png": {
+      "sha256": "6b50f4ec72267550f03cb98375730aaf5cf06a3d89aae4d3bfa5d08b9f686521",
+      "bytes": 99205,
+      "checkout_policy": "binary"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_170434_3498d_10Syms_Ret18.2pct/report.txt": {
+      "sha256": "f0a5295ec6071a3ebd275b0b9e9910d518fdd6953c8e5fd53a116d1e9b73f409",
+      "bytes": 28617,
+      "checkout_policy": "text-lf"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_170434_3498d_10Syms_Ret18.2pct/rolling_metrics.png": {
+      "sha256": "80965b668dd5828939885527c935287325565aa5b69f5d4cd22f4d266c2be805",
+      "bytes": 491931,
+      "checkout_policy": "binary"
+    },
+    "docs/baseline/phase0/archived_reports/20260824_170434_3498d_10Syms_Ret18.2pct/trades.csv": {
+      "sha256": "e1a008e7744b5397870fb3da2feacee8b8a282d39dd61164c592eb8d8d24a498",
+      "bytes": 204741,
+      "checkout_policy": "text-lf"
+    },
+    "docs/baseline/phase0/config_snapshot/config.py": {
+      "sha256": "a49d9d21b02d249899bc11c73a64414c9de381d5d29fa809749946887b543df5",
+      "bytes": 4633,
+      "checkout_policy": "text-lf"
+    },
+    "docs/baseline/phase0/config_snapshot/config_snapshot_manifest.json": {
+      "sha256": "13f84c49c4d5a93985a54fb822e57f2a1cb46b13a413f7eea3af26912ef965ea",
+      "bytes": 471,
+      "checkout_policy": "text-lf"
+    },
+    "docs/baseline/phase0/config_snapshot/params.yaml": {
+      "sha256": "fa959e7147d096f12b9ef87985ac65183af3ccd7e516ced52397aea79839ef0d",
+      "bytes": 2146,
+      "checkout_policy": "text-lf"
+    },
+    "docs/baseline/phase0/reports_manifest.json": {
+      "sha256": "e9239e8ff986f11bbbb4abc1ebe152650d76efad3ad55d7b7782b4070f045541",
+      "bytes": 7245,
+      "checkout_policy": "text-lf"
+    }
+  }
+}

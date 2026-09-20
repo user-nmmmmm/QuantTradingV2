@@ -81,9 +81,14 @@ class VolatilityReversionStrategy(Strategy):
         qty = portfolio.get_position(symbol)["qty"]
         if not qty:
             return None
+        if state not in self.allowed_states:
+            return {
+                "action": "sell" if qty > 0 else "cover",
+                "reason": f"Regime {state.name} Not Allowed",
+            }
         center = self._indicators(df)[0].iat[i]
         close = float(df["close"].iat[i])
-        if state not in self.allowed_states or (qty > 0 and close >= center):
+        if qty > 0 and close >= center:
             return {"action": "sell", "reason": "Volatility mean reversion complete"}
         if qty < 0 and close <= center:
             return {"action": "cover", "reason": "Volatility mean reversion complete"}

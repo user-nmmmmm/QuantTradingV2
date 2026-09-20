@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
 from typing import Dict, Mapping, Optional
 
 import pandas as pd
@@ -15,6 +16,9 @@ class BenchmarkResult:
     turnover: pd.Series
     costs: pd.Series
     metadata: Dict[str, object]
+
+    def __post_init__(self):
+        self.equity.attrs["benchmark"] = dict(self.metadata)
 
 
 def _close_matrix(data_map: Mapping[str, pd.DataFrame]) -> pd.DataFrame:
@@ -67,6 +71,7 @@ def fixed_equal_weight_buy_hold(
     for symbol in eligible:
         position_value = valued[symbol] * units[symbol]
         weights.loc[:, symbol] = (position_value / equity).fillna(0.0)
+    weights.loc[weights.index < start_time, :] = 0.0
     turnover = pd.Series(0.0, index=closes.index, name="turnover")
     costs = pd.Series(0.0, index=closes.index, name="cost")
     return BenchmarkResult(
@@ -75,6 +80,7 @@ def fixed_equal_weight_buy_hold(
         turnover=turnover,
         costs=costs,
         metadata={
+            "benchmark_id": "equal_weight_initial_close_buy_hold/v1",
             "name": "fixed_equal_weight_buy_and_hold",
             "start_time": start_time,
             "eligible_assets": eligible,
@@ -125,7 +131,11 @@ def dynamic_equal_weight_rebalanced(
             common = previous_prices.notna() & prices.notna() & (previous_prices > 0)
             asset_returns = pd.Series(0.0, index=closes.columns)
             asset_returns.loc[common] = prices.loc[common] / previous_prices.loc[common] - 1.0
-            current_equity *= 1.0 + float((previous_weights * asset_returns).sum())
+            growth = 1.0 + float((previous_weights * asset_returns).sum())
+            current_equity *= growth
+            drifted_weights = previous_weights * (1.0 + asset_returns) / growth
+        else:
+            drifted_weights = previous_weights
 
         active = prices.dropna().index
         target = pd.Series(0.0, index=closes.columns)
@@ -134,11 +144,8 @@ def dynamic_equal_weight_rebalanced(
         # Moving from cash into the initial portfolio trades 100% of capital;
         # subsequent asset-to-asset rebalances use one-way turnover (half the
         # sum of absolute weight changes, avoiding double-counting buy+sell).
-        step_turnover = (
-            float(target.abs().sum())
-            if float(previous_weights.abs().sum()) == 0.0
-            else 0.5 * float((target - previous_weights).abs().sum())
-        )
+        step_turnover = 0.5 * (float((target - drifted_weights).abs().sum())
+                               + abs(float(target.sum() - drifted_weights.sum())))
         step_cost = current_equity * step_turnover * cost_bps / 10000.0
         current_equity -= step_cost
 
@@ -155,18 +162,67 @@ def dynamic_equal_weight_rebalanced(
         turnover=turnover,
         costs=costs,
         metadata={
+            "benchmark_id": "equal_weight_event_rebalanced/v2",
             "name": "dynamic_equal_weight_rebalanced",
             "start_time": index[start_idx],
             "asset_join_rule": "assets with a valid close on each rebalance timestamp",
             "rebalance_rule": "every event timestamp",
-            "turnover_formula": "0.5 * sum(abs(target_weight - previous_weight))",
+            "turnover_formula": "0.5 * sum(abs(target_weight - drifted_weight)) including cash sleeve",
             "cost_bps": float(cost_bps),
         },
     )
+
+
+def btc_eth_first_open_buy_hold(data_map, initial_capital, *, start, end):
+    """9/14 frozen research convention: two fixed cash sleeves, no rebalance."""
+    start, end = pd.Timestamp(start), pd.Timestamp(end)
+    start = start.tz_localize("UTC") if start.tzinfo is None else start.tz_convert("UTC")
+    end = end.tz_localize("UTC") if end.tzinfo is None else end.tz_convert("UTC")
+    if start > end or not math.isfinite(float(initial_capital)) or not float(initial_capital) > 0:
+        raise ValueError("valid benchmark range and positive capital required")
+    dates = pd.date_range(start, end, freq="D")
+    values = pd.DataFrame(index=dates)
+    entries = {}
+    for symbol in ("BTC/USDT", "ETH/USDT"):
+        if symbol not in data_map:
+            raise ValueError(f"benchmark source missing: {symbol}")
+        frame = data_map[symbol].copy()
+        frame.index = frame.index.tz_localize("UTC") if frame.index.tz is None else frame.index.tz_convert("UTC")
+        if not frame.index.is_unique or not frame.index.is_monotonic_increasing:
+            raise ValueError("benchmark timestamps must be ordered and unique")
+        frame = frame.loc[start:end]
+        sleeve = pd.Series(float(initial_capital) / 2, index=dates)
+        if not frame.empty:
+            if not (frame[["open", "close"]].gt(0).all().all()) or not frame[["open", "close"]].map(lambda v: pd.notna(v) and float(v) < float("inf")).all().all():
+                raise ValueError("benchmark prices must be positive and finite")
+            entry = frame.index[0]
+            if not entry == entry.normalize() or not frame.index.isin(dates).all():
+                raise ValueError("research benchmark requires daily UTC bars")
+            units = float(initial_capital) / 2 / float(frame.open.iloc[0])
+            sleeve.loc[entry:] = (units * frame.close).reindex(dates[dates >= entry]).ffill()
+            entries[symbol] = entry.isoformat()
+        else:
+            entries[symbol] = None
+        values[symbol] = sleeve
+    equity = values.sum(axis=1).rename("btc_eth_equal_buy_hold_gross")
+    weights = values.div(equity, axis=0)
+    for symbol, entry in entries.items():
+        if entry is None:
+            weights[symbol] = 0.0
+        else:
+            weights.loc[weights.index < pd.Timestamp(entry), symbol] = 0.0
+    return BenchmarkResult(equity, weights, pd.Series(0.0, index=dates), pd.Series(0.0, index=dates), {
+        "benchmark_id": "btc_eth_50_50_first_open_buy_hold_gross/2026-09-14",
+        "initial_weights": {"BTC/USDT": 0.5, "ETH/USDT": 0.5}, "initial_capital": float(initial_capital),
+        "entry_rule": "first observed UTC daily open in each evaluation period",
+        "entry_times": entries, "rebalance_rule": "never", "pre_listing": "cash per sleeve",
+        "cost_bps": 0.0, "cost_policy": "gross unlevered reference; no trading fees",
+        "missing_mark_policy": "carry last observed close; never backfill before listing"})
 
 
 __all__ = [
     "BenchmarkResult",
     "dynamic_equal_weight_rebalanced",
     "fixed_equal_weight_buy_hold",
+    "btc_eth_first_open_buy_hold",
 ]

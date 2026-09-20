@@ -1,0 +1,25 @@
+{
+  "schema_version": "backtest-automation-config/v1",
+  "output_root": "outputs/automation",
+  "symbols": ["BTC/USDT", "ETH/USDT"],
+  "timeframes": ["1d"],
+  "windows": ["full", "bull2021", "bear2022", "recent"],
+  "start": "2020-01-01",
+  "capital": 100000.0,
+  "seed": 42,
+  "maximum_drawdown": 0.25,
+  "timeout_seconds": 14400,
+  "retain_days": 90,
+  "pinned_runs": [],
+  "universe": {
+    "file": "config/universe_binance_spot_1d.csv",
+    "independent_evidence": null,
+    "maximum_observation_age_days": 45
+  },
+  "research": {
+    "protocol": "reports/roadmap_v3/SYS-11/20260920-followup-successor-03/prospective_protocol.json",
+    "data_dir": "data/binance/1d",
+    "start": "2020-01-01",
+    "end": "2026-09-18"
+  }
+}

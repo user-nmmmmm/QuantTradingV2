@@ -9,6 +9,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from dataclasses import dataclass
 from enum import Enum
+import math
 from typing import Any, Dict, Mapping, Optional
 
 from core.domain import FillRecord, OrderErrorCode, OrderStatus, OrderSubmissionResult
@@ -313,6 +314,12 @@ class OrderReconcilerMixin:
         if trades:
             for index, trade in enumerate(trades):
                 fee = trade.get("fee") or {}
+                try:
+                    fee_amount = float(fee["cost"])
+                    fee_evidence = "recorded" if math.isfinite(fee_amount) else "invalid"
+                except (KeyError, TypeError, ValueError):
+                    fee_amount = 0.0
+                    fee_evidence = "missing" if fee.get("cost") is None else "invalid"
                 venue_fill_id = str(
                     trade.get("id")
                     or f"{exchange_order_id}:{trade.get('timestamp')}:{index}"
@@ -327,7 +334,8 @@ class OrderReconcilerMixin:
                     exchange_order_id=exchange_order_id,
                     qty=self._as_float(trade.get("amount")),
                     price=self._as_float(trade.get("price")),
-                    fee=self._as_float(fee.get("cost")),
+                    fee=fee_amount,
+                    fee_evidence_status=fee_evidence,
                     fee_currency=fee.get("currency"),
                     timestamp=self._iso(trade.get("datetime") or trade.get("timestamp")),
                     payload=trade,

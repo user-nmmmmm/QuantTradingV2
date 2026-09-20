@@ -10,6 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -21,6 +23,10 @@ jobs:
           python scripts/verify_lock.py
       - name: Lint
         run: python -m ruff check .
+      - name: Verify protected historical archive
+        run: python scripts/verify_baseline_archive.py
+      - name: Verify roadmap completion structure
+        run: python scripts/verify_roadmap_completion.py --structure-only
       - name: Type check critical runtime contracts
         run: python -m mypy core/domain.py core/runtime.py live_trading/execution_adapter.py
       - name: Tests and coverage gate

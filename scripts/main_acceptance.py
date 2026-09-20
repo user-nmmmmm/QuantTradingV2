@@ -31,19 +31,50 @@ def git(*args: str) -> str:
     return subprocess.check_output(["git", *args], cwd=ROOT).decode("utf-8").strip()
 
 
+def validate_clean_source(root: Path, output: Path) -> dict:
+    """Reject all unregistered inputs before importing/running any tests.
+
+    Only non-executable evidence inside this exact invocation's output may
+    be untracked. A conftest/module in that directory is still an input.
+    """
+    root, output = root.resolve(), output.resolve()
+    def paths(*args):
+        return subprocess.check_output(["git", args[0], "-z", *args[1:]], cwd=root).decode("utf-8").split("\0")
+    changed = [p for p in paths("diff", "--name-only", "HEAD", "--") if p]
+    untracked = [p for p in paths("ls-files", "--others", "--exclude-standard") if p]
+    # Ignore rules are not authorization to execute unhashed local business
+    # code. Enumerate only controlled roots, so credentials/runtime outputs
+    # and dependency environments are never collected into evidence.
+    controlled = ("analysis", "backtest", "composition", "config", "core", "dashboard", "data",
+                  "live_trading", "research", "router", "scripts", "strategies", "tests")
+    ignored = paths("ls-files", "--others", "--ignored", "--exclude-standard", "--", *controlled,
+                    ":(top,glob)*.py", ":(top,glob)*.toml", ":(top,glob)*.yaml", ":(top,glob)*.json")
+    input_suffixes = {".py", ".json", ".yaml", ".yml", ".toml", ".ini", ".cfg"}
+    untracked += [name for name in ignored if name and Path(name).suffix.lower() in input_suffixes
+                  and "__pycache__" not in Path(name).parts]
+    allowed_evidence = {".json", ".csv", ".log", ".md", ".png", ".pdf", ".zip"}
+    unexpected = []
+    for name in untracked:
+        path = (root / name).resolve()
+        if not path.is_relative_to(output) or path.suffix.lower() not in allowed_evidence:
+            unexpected.append(name)
+    if changed or unexpected:
+        raise ValueError("Acceptance inputs differ from commit: " + ", ".join(changed + unexpected))
+    return {"policy": "clean-source/v2", "untracked_output_files": sorted(untracked)}
+
+
 def run_checks(output: Path) -> int:
+    identity = validate_clean_source(ROOT, output)
     output.mkdir(parents=True, exist_ok=False)
     (output / "logs").mkdir()
     base = git("rev-parse", "HEAD")
-    if git("diff", "--name-only", base, "--", "."):
-        raise ValueError("Tracked files differ from acceptance commit; start from a clean main tree")
     commands = [
         ("environment", ["scripts/check_environment.py"]),
         ("lock", ["scripts/verify_lock.py"]),
         ("lint", ["-m", "ruff", "check", "."]),
         ("types", ["-m", "mypy", "core/domain.py", "core/runtime.py", "live_trading/execution_adapter.py"]),
-        ("coverage", ["-m", "pytest", "-q", "--cov=core", "--cov=backtest", "--cov=live_trading", "--cov-fail-under=55"]),
-        ("sandbox_discovery", ["-m", "pytest", "-q", "tests/test_exchange_sandbox_e2e.py"]),
+        ("coverage", ["scripts/run_portable_tests.py", "-q", "--cov=core", "--cov=backtest", "--cov=live_trading", "--cov-fail-under=55"]),
+        ("sandbox_discovery", ["scripts/run_portable_tests.py", "-q", "tests/test_exchange_sandbox_e2e.py"]),
     ]
     environment = {**os.environ, "PYTHONIOENCODING": "utf-8", "QUANT_SANDBOX_E2E": "0"}
     results = []
@@ -75,6 +106,7 @@ def run_checks(output: Path) -> int:
     write_json(output / "acceptance.json", {
         "schema": "main-acceptance/v1", "commit": base, "tree": git("rev-parse", "HEAD^{tree}"),
         "local_passed": passed, "checks": results, "python": sys.version,
+        "input_policy": identity,
         "sandbox_execution": "not_executed_credentials_disabled", "holdout": "not_opened",
         "scope": "engineering acceptance, not strategy admission or live deployment",
     })
@@ -113,7 +145,7 @@ def package(output: Path, destination: Path) -> int:
                      and remote_ci["branch"] == "main" and remote_ci["conclusion"] == "success")
     tool_checks = []
     for name, arguments in (
-        ("archive_tests", ["-m", "pytest", "-q", "tests/test_main_acceptance_archive.py"]),
+        ("archive_tests", ["scripts/run_portable_tests.py", "-q", "tests/test_main_acceptance_archive.py"]),
         ("archive_lint", ["-m", "ruff", "check", "scripts/main_acceptance.py", "tests/test_main_acceptance_archive.py"]),
     ):
         with (output / "logs" / f"{name}.log").open("wb") as handle:

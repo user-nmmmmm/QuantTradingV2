@@ -41,11 +41,16 @@ class StateStore:
         return default if row is None else json.loads(row[0])
 
     def set(self, key: str, value: Any) -> None:
+        self.set_many({key: value})
+
+    def set_many(self, values: dict[str, Any]) -> None:
+        """Publish related control facts in one transaction or leave all old."""
+        encoded = [(key, json.dumps(value, default=str)) for key, value in values.items()]
         with self._lock, self._connection:
-            self._connection.execute(
+            self._connection.executemany(
                 "INSERT INTO state(key,value) VALUES(?,?) "
                 "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-                (key, json.dumps(value, default=str)),
+                encoded,
             )
 
     def claim_bar(self, bar_key: str, now: str, lease_seconds: float = 300.0) -> bool:

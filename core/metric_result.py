@@ -6,7 +6,7 @@ import math
 from dataclasses import asdict, dataclass
 from typing import Any, Literal, Optional
 
-MetricStatus = Literal["ok", "undefined", "insufficient", "not_modeled"]
+MetricStatus = Literal["ok", "undefined", "insufficient", "insufficient_data", "not_modeled", "invalid_input"]
 
 
 @dataclass(frozen=True)
@@ -19,6 +19,8 @@ class MetricResult:
     reason: Optional[str] = None
 
     def __post_init__(self) -> None:
+        if self.status not in {"ok", "undefined", "insufficient", "insufficient_data", "not_modeled", "invalid_input"}:
+            raise ValueError("unknown metric status")
         if self.sample_size < 0:
             raise ValueError("sample_size cannot be negative")
         if self.status == "ok":
@@ -40,7 +42,7 @@ class MetricResult:
             "properties": {
                 "name": {"type": "string", "minLength": 1},
                 "value": {"type": ["number", "null"]},
-                "status": {"enum": ["ok", "undefined", "insufficient", "not_modeled"]},
+                "status": {"enum": ["ok", "undefined", "insufficient", "insufficient_data", "not_modeled", "invalid_input"]},
                 "sample_size": {"type": "integer", "minimum": 0},
                 "unit": {"type": ["string", "null"]},
                 "reason": {"type": ["string", "null"]},

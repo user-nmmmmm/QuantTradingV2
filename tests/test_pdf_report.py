@@ -39,7 +39,8 @@ class TestPdfReport(unittest.TestCase):
             names = {item.name for item in Path(directory).iterdir()}
             self.assertEqual(
                 names,
-                {"equity.csv", "benchmark.csv", "report.pdf", "dashboard.png"},
+                {"equity.csv", "benchmark.csv", "report.pdf", "dashboard.png", "metrics.json",
+                 "closed_trades.csv", "reconciliation.json", "execution_quality.json", "invalid_closed_trades.json"},
             )
             self.assertGreater((Path(directory) / "report.pdf").stat().st_size, 10_000)
 
@@ -52,7 +53,8 @@ class TestPdfReport(unittest.TestCase):
                 report_profile="workbook",
             )
             names = {item.name for item in Path(directory).iterdir()}
-            self.assertEqual(names, {"backtest_report.xlsx"})
+            self.assertEqual(names, {"backtest_report.xlsx", "metrics.json", "closed_trades.csv",
+                                     "reconciliation.json", "execution_quality.json", "invalid_closed_trades.json"})
             workbook = load_workbook(Path(directory) / "backtest_report.xlsx", read_only=False)
             self.assertEqual(
                 workbook.sheetnames,

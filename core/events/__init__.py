@@ -343,7 +343,7 @@ class TradingEventPipeline:
                 decision,
                 occurred_at=occurred_at,
                 correlation_id=intent.correlation_id,
-                causation_id=metadata.get("causation_id"),
+                causation_id=metadata.get("causation_id", intent.causation_id),
                 idempotency_key=decision.decision_id,
                 account_id=intent.account,
                 symbol=intent.symbol,

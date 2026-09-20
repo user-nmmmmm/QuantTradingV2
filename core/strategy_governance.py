@@ -63,7 +63,16 @@ def assert_live_admission(
     A strategy with no entry in ``strategy_governance`` is treated as not
     admitted: silence is never evidence.
     """
-    if (config_obj.get('research') or {}).get('strategy_ablation'):
+    research = config_obj.get("research") or {}
+    if not isinstance(research, Mapping):
+        raise GovernanceError("research must be a mapping")
+    research_only_keys = {
+        "experiment_id", "strategy_review", "review_overrides",
+        "trend_breakout_parameters",
+    }
+    if research_only_keys.intersection(research):
+        raise GovernanceError("Research experiment identities and overrides are research-only")
+    if research.get('strategy_ablation'):
         raise GovernanceError('Strategy ablations are research-only')
     statuses = governance_map(config_obj)
     blocked = {}

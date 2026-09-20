@@ -88,6 +88,7 @@ class PositionSizingMixin:
         current_prices: Optional[Dict[str, float]],
         reserved_by_symbol: Dict[str, float],
         action: str,
+        reservation_projection=None,
     ) -> Optional[Dict[str, float]]:
         """一次开仓在各项风控约束下允许的**最大名义金额**（trade value）。
 
@@ -161,7 +162,20 @@ class PositionSizingMixin:
         # Spot buys exchange cash for inventory. Leveraged account notional is
         # instead limited by reconciled initial margin.
         if portfolio.account_mode is AccountMode.SPOT and action != "short":
-            caps["cash"] = portfolio.cash - reserved_exposure
+            budget_model = getattr(self, "drawdown_budget", None)
+            cost = budget_model.cost if budget_model is not None else None
+            reserved_cash = (reservation_projection.pending_cash(current_prices, cost=cost)
+                             if reservation_projection is not None else reserved_exposure)
+            available_cash = max(portfolio.cash - reserved_cash, 0.0)
+            # Invert the same cost model used for pending and actual execution.
+            low, high = 0.0, available_cash / price
+            for _ in range(48):
+                mid = (low + high) / 2
+                if mid * price + (cost(symbol, mid, price) if cost else 0.0) <= available_cash:
+                    low = mid
+                else:
+                    high = mid
+            caps["cash"] = low * price
         elif portfolio.account_mode.uses_margin:
             caps["initial_margin"] = (
                 current_equity / portfolio.initial_margin_rate
@@ -206,7 +220,7 @@ class PositionSizingMixin:
             if reservation_projection is not None else pending_open_notional or {}
         )
         caps = self._entry_notional_caps(
-            portfolio, symbol, price, current_prices, reserved_by_symbol, action
+            portfolio, symbol, price, current_prices, reserved_by_symbol, action, reservation_projection
         )
         if caps is None:
             return 0.0

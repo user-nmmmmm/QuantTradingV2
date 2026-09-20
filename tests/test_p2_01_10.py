@@ -24,7 +24,8 @@ class TestP201ToP210(unittest.TestCase):
     def test_placeholder_ml_package_is_absent_and_boundary_is_documented(self):
         self.assertFalse((ROOT / "models").exists())
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
-        self.assertIn("no machine-learning training or prediction subsystem", readme)
+        self.assertIn("research-only components", readme)
+        self.assertIn("learned regimes never actuate the production account", readme)
 
     def test_dashboard_is_a_runnable_read_only_consumer(self):
         with tempfile.TemporaryDirectory() as directory:

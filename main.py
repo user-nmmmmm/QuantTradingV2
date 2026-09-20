@@ -33,7 +33,7 @@ from core.reproducibility import (
     sha256_file,
     write_manifest,
 )
-from core.universe import PointInTimeUniverse, static_universe_manifest
+from core.universe import PointInTimeUniverse, normalize_symbol, static_universe_manifest
 from backtest.engine import BacktestEngine, DEFAULT_INITIAL_CAPITAL
 from backtest.reporting import ReportGenerator, format_primary_metrics
 from core.logger import get_logger
@@ -119,6 +119,7 @@ def get_data(
             start_date=start,
             end_date=end,
             exchange_id=exchange,
+            strict=True,
         )
     elif source == "yahoo":
         return fetcher.fetch_yahoo(symbol, start, end)
@@ -168,6 +169,30 @@ def replay_manifest(manifest_path: str) -> int:
     if meta_policy.get("enabled", False) and not execution.get("signal_meta_layer_digest"):
         print("Replay refused: enabled P1 policy has no recorded research digest.", file=sys.stderr)
         return 7
+    from core.signal_adaptive_types import AdaptiveEVPolicy, MetaReplayPolicy
+    try:
+        adaptive_policy = AdaptiveEVPolicy.from_mapping(execution.get("signal_adaptive") or {"enabled": False})
+        meta_replay_policy = MetaReplayPolicy.from_mapping(execution.get("signal_meta_replay") or {"enabled": False})
+    except (TypeError, ValueError) as exc:
+        print(f"Replay refused: invalid P2/P3 research policy: {exc}", file=sys.stderr)
+        return 7
+    for name, policy in (("signal_adaptive", adaptive_policy), ("signal_meta_replay", meta_replay_policy)):
+        if policy.enabled and not execution.get(f"{name}_digest"):
+            print(f"Replay refused: enabled {name} policy has no recorded research digest.", file=sys.stderr)
+            return 7
+    if ((meta_replay_policy.enabled and not adaptive_policy.enabled)
+            or (adaptive_policy.enabled and not meta_policy.get("enabled", False))):
+        print("Replay refused: P2/P3 research dependencies were not recorded as enabled.", file=sys.stderr)
+        return 7
+    recorded_observation = execution.get("signal_observation") or {}
+    if adaptive_policy.enabled and (not recorded_observation.get("enabled", False)
+                                    or not execution.get("signal_observation_digest")):
+        print("Replay refused: P2 requires a recorded enabled P0 policy and digest.", file=sys.stderr)
+        return 7
+    if (meta_replay_policy.enabled
+            and meta_replay_policy.horizon_bars not in recorded_observation.get("horizons", [])):
+        print("Replay refused: P3 horizon is absent from the recorded P0 horizons.", file=sys.stderr)
+        return 7
     symbol_order = execution.get("data_symbol_order")
     if symbol_order is not None:
         if len(symbol_order) != len(snapshots) or set(symbol_order) != set(snapshots):
@@ -194,6 +219,8 @@ def replay_manifest(manifest_path: str) -> int:
         account_mode=execution.get("account_mode"),
         signal_observation=execution.get("signal_observation") or {"enabled": False},
         signal_meta_layer=meta_policy,
+        signal_adaptive=adaptive_policy.to_dict(),
+        signal_meta_replay=meta_replay_policy.to_dict(),
     )
     result = engine.run(snapshots, routing_log_enabled=False)
     observed = deterministic_result_digest(result)
@@ -208,9 +235,18 @@ def replay_manifest(manifest_path: str) -> int:
     if meta_expected is not None or result.get("signal_meta_layer") is not None:
         from backtest.reporting.signal_meta_layer import signal_meta_layer_digest
         meta_observed = signal_meta_layer_digest(result.get("signal_meta_layer"))
+    additional_research = {}
+    for name in ("signal_adaptive", "signal_meta_replay"):
+        expected_digest = execution.get(f"{name}_digest")
+        observed_digest = None
+        if expected_digest is not None or result.get(name) is not None:
+            from backtest.reporting.signal_adaptive import research_digest
+            observed_digest = research_digest(result.get(name))
+        additional_research[name] = (expected_digest, observed_digest)
     report = {
         "status": "passed" if (observed == expected and research_expected == research_observed
-                               and meta_expected == meta_observed) else "failed",
+                               and meta_expected == meta_observed
+                               and all(pair[0] == pair[1] for pair in additional_research.values())) else "failed",
         "expected": expected,
         "observed": observed,
         "signal_observation_expected": research_expected,
@@ -219,6 +255,9 @@ def replay_manifest(manifest_path: str) -> int:
         "signal_meta_layer_observed": meta_observed,
         "code_identity_expected": expected_code,
     }
+    for name, (expected_digest, observed_digest) in additional_research.items():
+        report[f"{name}_expected"] = expected_digest
+        report[f"{name}_observed"] = observed_digest
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0 if report["status"] == "passed" else 8
 
@@ -234,6 +273,8 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--start", type=str, help="Start date (YYYY-MM-DD)")
     parser.add_argument("--end", type=str, help="End date (YYYY-MM-DD)")
+    parser.add_argument("--output-dir", type=str,
+                        help="New exclusive report directory for supervised automation.")
     parser.add_argument(
         "--capital", type=float, default=DEFAULT_INITIAL_CAPITAL, help="Initial capital (USDT)"
     )
@@ -285,6 +326,14 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--signal-meta-layer", action="store_true",
         help="Enable passive P1 walk-forward EV research; implies --observe-signals without changing orders.",
+    )
+    parser.add_argument(
+        "--adaptive-signal-meta", action="store_true",
+        help="Enable P2 frozen regime and dynamic-axis EV research; implies P0/P1 reporting.",
+    )
+    parser.add_argument(
+        "--signal-meta-replay", action="store_true",
+        help="Enable P3 independent baseline, gate and sizing account replays; implies P2 research.",
     )
     parser.add_argument(
         "--exchange", default="binance",
@@ -378,7 +427,10 @@ def _load_requested_data(args, start_date: datetime, end_date: datetime):
         )
         if not frame.empty and len(frame) > 10:
             print(f"Loaded {symbol}: {len(frame)} bars")
-            data_map[symbol] = DataHandler.annotate_quality(frame)
+            key = normalize_symbol(symbol)
+            if key in data_map:
+                raise ValueError(f"Duplicate normalized symbol: {key}")
+            data_map[key] = DataHandler.annotate_quality(frame)
         else:
             print(f"Failed to load sufficient data for {symbol}")
     if not data_map:
@@ -414,11 +466,14 @@ def _execute_backtest(args, data_map):
         account_mode=("spot_margin" if args.market_type == "margin" else args.market_type),
         signal_observation={"enabled": True} if getattr(args, "observe_signals", False) else None,
         signal_meta_layer={"enabled": True} if getattr(args, "signal_meta_layer", False) else None,
+        signal_adaptive={"enabled": True} if getattr(args, "adaptive_signal_meta", False) else None,
+        signal_meta_replay={"enabled": True} if getattr(args, "signal_meta_replay", False) else None,
     )
     print("Running Backtest...")
     reports_dir = os.path.join(os.getcwd(), "reports")
     os.makedirs(reports_dir, exist_ok=True)
-    temp_routing_log = os.path.join(reports_dir, "temp_routing_log.csv")
+    temp_routing_log = os.path.join(getattr(args, "output_dir", None) or reports_dir,
+                                   "temp_routing_log.csv")
     results = engine.run(
         data_map,
         routing_log_path=temp_routing_log,
@@ -460,6 +515,13 @@ def main(argv=None) -> int:
     except ValueError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 2
+
+    if args.output_dir:
+        try:
+            Path(args.output_dir).mkdir(parents=True, exist_ok=False)
+        except OSError as exc:
+            print(f"Output directory must be new: {exc}", file=sys.stderr)
+            return 2
 
     print(
         f"Config: Capital={args.capital}, Symbols={args.symbols}, Source={args.source}, Slippage={args.slippage if args.slippage is not None else 'config'}, RandomSlip={args.random_slip}"
@@ -513,7 +575,7 @@ def main(argv=None) -> int:
     days_str = f"{args.days}d"
 
     folder_name = f"{timestamp}_{days_str}_{symbols_str}_{return_str}"
-    output_dir = os.path.join(os.getcwd(), "reports", folder_name)
+    output_dir = args.output_dir or os.path.join(os.getcwd(), "reports", folder_name)
 
     output_path = Path(output_dir)
     reporter = ReportGenerator(output_dir)
@@ -530,6 +592,18 @@ def main(argv=None) -> int:
         meta_summary = write_signal_meta_layer_report(results["signal_meta_layer"], output_path)
         if meta_summary["status"] != "complete":
             artifact_failures.append("signal_meta_layer_incomplete")
+    adaptive_summary, meta_replay_summary = {}, {}
+    if results.get("signal_adaptive") is not None:
+        from backtest.reporting.signal_adaptive import write_signal_adaptive_report
+        adaptive_summary = write_signal_adaptive_report(
+            results["signal_adaptive"], output_path, p1_payload=results.get("signal_meta_layer"))
+        if adaptive_summary["status"] != "complete":
+            artifact_failures.append("signal_adaptive_incomplete")
+    if results.get("signal_meta_replay") is not None:
+        from backtest.reporting.signal_adaptive import write_signal_meta_replay_report
+        meta_replay_summary = write_signal_meta_replay_report(results["signal_meta_replay"], output_path)
+        if meta_replay_summary["status"] != "complete":
+            artifact_failures.append("signal_meta_replay_incomplete")
 
     effective_timestamps = engine.market_data_adapter.timestamps
     effective_period = {
@@ -582,6 +656,7 @@ def main(argv=None) -> int:
         # BM3: the signal->fill funnel is only derivable from the run's own
         # event stream, which nothing outside the engine has.
         event_log=results.get("event_log"),
+        max_holding_days=results.get("effective_max_holding_days"),
     )
 
 
@@ -788,6 +863,7 @@ def main(argv=None) -> int:
         identity["download_started_at"] = download_started_at
         identity["universe"] = universe_identity
         artifact_names = [
+            "metrics.json", "closed_trades.csv", "reconciliation.json", "execution_quality.json", "invalid_closed_trades.json",
             "equity.csv", "trades.csv", "report.txt", "benchmark.csv",
             "benchmark_fixed.csv", "benchmark_dynamic.csv", "benchmark_weights.csv",
             "benchmark_turnover_cost.csv", "benchmark_metadata.json",
@@ -798,6 +874,8 @@ def main(argv=None) -> int:
         ]
         artifact_names.extend(signal_summary.get("artifacts", []))
         artifact_names.extend(meta_summary.get("artifacts", []))
+        artifact_names.extend(adaptive_summary.get("artifacts", []))
+        artifact_names.extend(meta_replay_summary.get("artifacts", []))
         execution_identity = {
             **runtime_identity(),
             "capital": args.capital,
@@ -811,6 +889,12 @@ def main(argv=None) -> int:
             "signal_meta_layer": engine.signal_meta_policy.to_dict(),
             "signal_meta_layer_digest": meta_summary.get("research_payload_sha256"),
             "signal_meta_layer_artifacts": meta_summary.get("artifacts", []),
+            "signal_adaptive": engine.signal_adaptive_policy.to_dict(),
+            "signal_adaptive_digest": adaptive_summary.get("research_payload_sha256"),
+            "signal_adaptive_artifacts": adaptive_summary.get("artifacts", []),
+            "signal_meta_replay": engine.signal_meta_replay_policy.to_dict(),
+            "signal_meta_replay_digest": meta_replay_summary.get("research_payload_sha256"),
+            "signal_meta_replay_artifacts": meta_replay_summary.get("artifacts", []),
             "alignment_mode": args.alignment_mode,
             "benchmark_mode": args.benchmark_mode,
             "benchmark_rebalance_cost_bps": args.benchmark_rebalance_cost_bps,

@@ -196,7 +196,12 @@ class CircuitBreakerRecoveryFaultInjectionTests(unittest.TestCase):
             restored = RiskManager(recovery_policy={"enabled": True})
             restarted = self._engine(restarted_store, restored)
             restarted._ensure_state_store()
-            self.assertEqual(restored.breaker_checkpoint(), saved)
+            self.assertEqual(saved["trading_day"], NOW.date().isoformat())
+            self.assertEqual(saved["checkpoint_version"], 2)
+            self.assertEqual(restored.breaker_checkpoint(), {
+                key: value for key, value in saved.items()
+                if key not in {"checkpoint_version", "trading_day"}
+            })
             self.assertFalse(restored.check_circuit_breaker(7000, 7000, occurred_at=NOW + timedelta(days=29)).allow_new_entries)
             self.assertTrue(restored.check_circuit_breaker(7000, 7000, occurred_at=NOW + timedelta(days=30)).allow_new_entries)
             self.assertEqual(restored.risk_multiplier, 0.25)

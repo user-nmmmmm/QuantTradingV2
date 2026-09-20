@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import math
+import pandas as pd
 from typing import Any
 
 from core.entry_audit import note
@@ -64,6 +65,17 @@ class DrawdownBudget:
     def bind(self, execution, strategies):
         self.broker = getattr(execution, "broker", execution)
         self.strategies = strategies
+        # Execution overrides are resolved on the venue, after configuration.
+        for key, attr in {"commission_rate_taker": "commission_rate", "spread_bps": "spread_bps",
+                          "volatility_slippage_factor": "volatility_slippage_factor",
+                          "use_impact_cost": "use_impact_cost", "impact_coefficient": "impact_coefficient",
+                          "impact_exponent": "impact_exponent", "max_participation_rate": "max_participation_rate"}.items():
+            value = getattr(self.broker, attr, None)
+            if isinstance(value, (int, float, bool)):
+                self.costs[key] = value
+        slip = getattr(self.broker, "slippage", None)
+        if isinstance(slip, (int, float)):
+            self.costs["slippage_bps"] = slip * 10000.0
         self.live = getattr(self.broker, "order_store", None) is not None
         if self.policy.enabled or self.manager.scale_minimum_with_risk:
             self.broker.opening_risk_guard = self
@@ -176,6 +188,13 @@ class DrawdownBudget:
         if health <= 0:
             return "strategy_health_block"
         price = float(intent.reference_price or intent.price or 0)
+        if price <= 0:
+            bar = self.bars.get(intent.symbol)
+            # Only this event's bar is a trustworthy market-order reference.
+            if (bar is None or self.timestamp is None or getattr(bar, "name", self.timestamp) != self.timestamp
+                    or pd.Timestamp(intent.bar_time) != self.timestamp):
+                return "missing_current_mark"
+            price = float(self.prices.get(intent.symbol, 0) or 0)
         if price <= 0 or not math.isfinite(price):
             return "missing_sizing_reference"
         equity = self.broker.portfolio.get_equity(self.prices)
@@ -190,7 +209,7 @@ class DrawdownBudget:
         if intent.symbol not in self.bars:
             return "missing_current_mark"
         try:
-            amount, _ = resolve_approved_risk(intent.__dict__)
+            amount, _ = resolve_approved_risk({**intent.__dict__, "reference_price": price})
         except ValueError:
             return "missing_approved_risk"
         stop = intent.initial_stop

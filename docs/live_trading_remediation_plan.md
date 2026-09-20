@@ -1,5 +1,7 @@
 # QuantTrading 实盘交易领域执行计划
 
+> 文档定位（2026-09-20）：领域参考。排期、优先级和当前完成状态统一见[Roadmap](unified_roadmap.md)、[开发计划](development_plan.md)与[开发详情](development_details.md)。本文件的公式、设计依据和未冲突的专项验收要求继续保留；下文旧状态与排期为历史记录。整合前原文见[冻结快照](archive/2026-09-roadmap-rebaseline/sources/docs/live_trading_remediation_plan.md)。
+
 > 文档状态：Active v1.1  
 > 上位路线图：[`unified_roadmap.md`](unified_roadmap.md)（项目级阶段、优先级定义和放行门槛的唯一权威来源）  
 > 回测领域对应文档：[`backtest_metrics_detailed_development_plan.md`](backtest_metrics_detailed_development_plan.md)  

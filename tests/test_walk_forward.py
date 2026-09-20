@@ -217,7 +217,7 @@ class TestWarmupHandling:
 
         returns = outcome["returns"]
         assert not returns.empty
-        assert returns.index.min() > start   # first return needs two points
+        assert returns.index.min() == start  # prefix supplies the prior flat equity point
         assert returns.index.max() >= end
 
 

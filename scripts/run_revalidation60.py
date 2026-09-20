@@ -18,9 +18,11 @@ import pandas as pd
 from analysis.research_validation import walk_forward_splits
 from backtest.engine import BacktestEngine
 from backtest.reporting import ReportGenerator
+from backtest.reporting.serialization import write_metrics_json
 from backtest.reporting.operating_periods import requested_period_curve, split_execution_records
 from config.config import config
 from core.data import DataHandler
+from core.benchmarks import btc_eth_first_open_buy_hold
 from core.lots import CloseEvent
 from core.metrics import calculate_equity_metrics
 from core.strategy_health import classify_exit_controller
@@ -150,7 +152,7 @@ def run_one(name, root, all_frames, frozen, *, start=START, end=END, multiplier=
                                      benchmark_curve=result["benchmark"], close_events=result["close_events"],
                                      lifecycle=result["lifecycle"], strategy_health=result["strategy_health"],
                                      protective_stops=result["protective_stop_summary"])
-        save(folder / "metrics.json", metrics)
+        write_metrics_json(folder / "metrics.json", metrics, {"resolved_config": config._config})
         pd.DataFrame(result.get("strategy_activity", [])).to_csv(folder / "strategy_activity.csv", index=False)
         closed_legs = reporter._reconstruct_closed_trades(pd.DataFrame(result["trades"]))
         pd.DataFrame(reporter._aggregate_round_trips(closed_legs)).to_csv(folder / "closed_trades.csv", index=False)
@@ -260,21 +262,14 @@ def write_research_outputs(root, frames, summaries):
     import matplotlib.pyplot as plt
     from analysis.research_validation import AdmissionThresholds
     def benchmark(start, end):
-        start, end = pd.Timestamp(start).tz_localize(None), pd.Timestamp(end).tz_localize(None)
-        dates = pd.date_range(start, end)
-        basket = pd.Series(0.0, index=dates)
-        for symbol in ("BTC/USDT", "ETH/USDT"):
-            data = frames[symbol].loc[start:end]
-            sleeve = pd.Series(5000.0, index=dates)
-            if not data.empty:
-                entry = data.index[0]
-                sleeve.loc[entry:] = (5000 / float(data.open.iloc[0]) * data.close).reindex(dates[dates >= entry]).ffill()
-            basket += sleeve
+        basket = btc_eth_first_open_buy_hold(frames, 10000.0, start=start, end=end).equity.copy()
+        basket.index = basket.index.tz_localize(None)
         return basket
     benchmarks = pd.DataFrame({"cash": 10000.0, "btc_eth_equal_buy_hold_gross": benchmark(START, END)})
     benchmarks.to_csv(root / "benchmarks.csv", index_label="timestamp")
     save(root / "benchmark_metrics.json", {name: calculate_equity_metrics(series.to_frame("equity")) for name, series in benchmarks.items()})
-    save(root / "benchmark_convention.json", {"entry": "First available daily open in each evaluation period; 50% per sleeve, unrebalanced",
+    save(root / "benchmark_convention.json", {"benchmark_id": "btc_eth_50_50_first_open_buy_hold_gross/2026-09-14",
+         "entry": "First available daily open in each evaluation period; 50% per sleeve, unrebalanced",
          "capital": 10000, "costs": "Gross unlevered reference (no trading fees); not a financed strategy simulation", "pre_listing": "Cash"})
     lookup = {row["name"]: row for row in summaries}
     threshold = AdmissionThresholds()

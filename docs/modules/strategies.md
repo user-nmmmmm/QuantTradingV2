@@ -1,33 +1,33 @@
 # strategies/ 模块说明
 
-策略是可插拔的信号生成器，回测和实盘共用同一套实现。
+策略是可插拔的信号生成器，回测和实盘共用同一套实现。注册与策略政策注入集中在 `composition/factory.py`；是否允许真实资金入场另由 `core/strategy_governance.py` 检查。当前 `TrendBreakout=paused_revalidation`，空头突破与区间均值回归为 `paused_redesign`，波动反转为 `isolated_research`。
 
 ## `strategies/base.py` — Strategy 基类
 
 `Strategy(ABC)` 是所有策略实现的接口。抽象方法 `should_enter`/`should_exit` 返回 `None` 或一个信号字典（`action`、可选 `stop_loss`/`order_type`/`price`/`reason`）。
 
-具体的 `on_bar(...)` 是被 `Router.route` 调用的统一编排逻辑：
-1. 若已有持仓且不是刚开仓（`not just_entered`），检查出场信号并提交平仓单；只有在 `submission.accepted` 时才清空 `context[symbol]`。
-2. 若空仓且 `state in allowed_states`，检查入场信号；若给出 `stop_loss>0` 则用 `risk_manager.calculate_position_size` 计算数量，否则用 `calculate_position_size_fixed_pct`（默认 10% 仓位）兜底；经 `risk_manager.check_entry_risk` 预检（若 broker 暴露了 `pending_open_notional` 会一并考虑）；提交订单，**只有被接受时**才初始化 `context[symbol]`（`stop_loss`/`entry_price`/`trailing_stop`/`entry_bar`）。
+当前主路径分为持仓退出、入场候选和组合分配三个步骤；`on_bar(...)` 保留兼容编排，Router 不再通过 `route()` 调用它：
 
-**关键不变量——一根 bar 的出场冷却**：`just_entered = i <= entry_bar + 1`，防止在刚开仓的那根 bar 上就检查出场。这与"下一 bar 执行"模型相关：信号在 bar N 产生，成交在 N+1 的开盘，`on_bar` 会在 N+1 再次运行——此时绝不能立刻平掉刚开的仓位。
+1. `process_exit_only(...)` 消费成交事件后，先运行统一 `hard_stop_exit`，再按冷却规则调用 `should_exit`。退出单接受后置 `exit_pending=True`，上下文等实际平仓事实确认后才清理。
+2. `build_entry_candidate(...)` 只对空仓、没有待成交入场且状态允许的标的调用 `should_enter`，返回含信号和评分的 `EntryCandidate`，不提交订单。
+3. 组合分配器排序后调用 `submit_entry_candidate(...)`：有有效止损时按风险定仓，否则保留权益 10% 的兼容定仓；再应用策略健康乘数、敞口限额、相关风险及回撤预算，并经 `check_entry_risk` 检查。只有订单被接受时才初始化 `entry_pending`、止损、参考入场价和 `entry_bar` 等上下文。
+
+**关键不变量——普通退出冷却不阻止硬止损**：`just_entered = i <= entry_bar + 1` 只推迟 `should_exit`；`hard_stop_exit` 在此前执行，刚成交仓位仍可因止损退出。常驻保护单也有独立的盘中触发路径。原开仓策略通过权威 `CloseEvent` 接收按持仓身份汇总且去重的 `on_trade_closed`，部分平仓调用 `on_partial_close`；生命周期由实际成交而非提交时估计盈亏驱动。
 
 ## `strategies/mean_reversion.py` — RangeStrategy
 
-注册名 `"RangeMeanReversion"`，只在 `SIDEWAYS` 状态生效。当 `low <= 布林带下轨`（买入）或 `high >= 布林带上轨`（做空）时入场，用 ATR/价格 波动率上限（`atr_threshold_pct`，默认 3%）过滤；止损为 `±1×ATR`。回归到布林带中轨或触及止损（用 bar 的 low/high 检测盘中触及，而非收盘价）时出场。重写了 `on_bar` 以额外追踪 `trade_state`（连续亏损/冷却）：连续 3 笔亏损后强制 24 根 bar 冷却期，期间 `should_enter` 直接返回 `None`。
-
-**代码质量提示**：`should_exit` 中第一个 `return None` 之后存在一段无法到达的重复止损代码块，属于历史遗留死代码，不是当前生效行为，文档中特此标注以免误读。
+注册名 `"RangeMeanReversion"`，允许状态为 `SIDEWAYS`，但当前路由为 `Cash`、策略暂停待重设计。当 `low <= 布林带下轨` 且默认 RSI < 30（买入），或 `high >= 布林带上轨` 且 RSI > 70（做空）时入场，用 ATR/价格上限（默认 3%）过滤；止损为 `±1×ATR`。回归到布林带中轨或触及止损（用 bar 的 low/high 检测）时出场。`on_trade_closed` 使用实际已实现盈亏更新每个标的的 `trade_state`：连续 3 笔亏损后设置 `cooldown_until = bar_index + 24` 并重置连亏计数，`i <= cooldown_until` 时不入场。当前类不重写 `on_bar`。
 
 ## `strategies/trend_breakout.py` — TrendBreakoutStrategy / TrendBreakdownStrategy
 
-`TrendBreakoutStrategy`（`"TrendBreakout"`，允许在 `TREND_UP`/`VOLATILE`）与镜像的 `TrendBreakdownStrategy`（`"TrendBreakdown"`，`TREND_DOWN`）：唐奇安通道突破/破位系统。入场：收盘价突破 `shift(1)` 滞后的 N 根 bar 滚动高/低点（默认 `entry_window=20`）；止损用出场窗口（`exit_window=10`）的唐奇安出场位，无效时回退 5%。出场：价格跌回出场窗口极值，或 regime 不再被允许。
+`TrendBreakoutStrategy`（`"TrendBreakout"`，仅允许 `TREND_UP`）与镜像的 `TrendBreakdownStrategy`（`"TrendBreakdown"`，`TREND_DOWN`）：唐奇安通道突破/破位系统。入场要求收盘价突破 `shift(1)` 滞后的 N 根 bar 滚动高/低点（默认 `entry_window=20`），并在存在成交量数据时通过默认启用的 OBV 同向确认。止损由 `plan_initial_stop` 生成，默认采用出场窗口（`exit_window=10`）的结构位；无法计量或止损距离过近时拒绝信号，超出配置最大距离时裁剪，不再隐式回退 5%。ATR 初始止损和移动止损能力保留，但当前配置均关闭。出场包括统一硬止损、退出通道突破或 regime 不再被允许。
 
-两个类都实现了**健康闸门（"Alpha Death"）**：`check_health()` 在 `连续亏损 > 5` 或最近 20 笔记录交易的平均盈亏为负时，**永久**禁用后续入场（`is_alive=False`）——这是一个不会自动重置的单实例级"死亡开关"。`_record_trade_result` 根据 `context["entry_price"]` 与出场价计算盈亏。
+两个类通过 `_PersistentHealthMixin` 接入 `StrategyHealthMachine` 并持久化状态。健康观察按退出 cohort 合并，以权威平仓净盈亏和初始风险计算 R，当前计入控制方为 `strategy`、`router`；账户风险退出保留报告而不触发健康降级。连续 3 个负 cohort 进入默认 30 天冷静期，再按当前统一恢复配置从 0.10、0.25、0.50 风险阶段逐级恢复，最终回到 1.00；阶段须满足时间、cohort 数、标的分散和剔除最佳 cohort 后仍为正等条件。反复失败进入延长冷静期，显式 `MANUAL_LOCK` 需授权恢复。健康闸门只约束新入场，退出照常管理；`health_stats` 是兼容视图，不再是永久 `is_alive` 死亡开关。这些参数仍是研究候选，详见[健康契约](../strategy_health_contract.md)与[统一规则契约](../roadmap_policy_contract.md)。
 
-## `strategies/trend_following.py` — TrendUpStrategy / TrendDownStrategy
+## `strategies/volatility.py` — VolatilityReversionStrategy
 
-`TrendUpStrategy`（仅 `TREND_UP`）/`TrendDownStrategy`（仅 `TREND_DOWN`）：基于 SMA 的回调/反弹入场策略，用斜率和反转 K 线确认，ATR 初始止损（`atr_multiplier=2.5`）+ 单调收紧的移动止损（只收紧不放松，用 bar 的 low/high 检测盘中触发）。若 `state` 脱离 `allowed_states` 也会防御性出场。代码注释显示这些倍数/带宽是针对加密货币高日内波动率而特意放宽的（相对于偏紧的股票默认值），修复标注为 "Issue3/Issue4 fix"。
+注册名 `"VolatilityReversion"`，允许 `VOLATILE`，当前只保留隔离研究。默认用 20 bar 均值和标准差识别 ±2 倍标准差的扩张，并要求随机指标 `%K` < 20（多头）或 > 80（空头）确认；以平均 bar 高低幅度的 1.5 倍设置初始风险距离。回归均值或 regime 不再允许时退出，并共用基类硬止损。当前仓库没有 `trend_following.py`，也没有注册 `TrendUp`/`TrendDown` 这两个旧策略名。
 
 ## 与其他模块的关系
 
-策略通过名称索引的字典（`Dict[str, Strategy]`）挂载到 `Router`，每个策略自行声明 `allowed_states`。真正接触组合/经纪商/风控的是 `Strategy.on_bar`——它读取 `Portfolio.get_position`/`get_equity`，经 `RiskManager` 计算仓位与预检，再通过 `ExecutionPort`（即当前引擎装配的执行适配器，回测或实盘皆可）提交订单。Regime 切换导致的策略更换完全由 `router.py` 的 `_handle_switch` 处理，策略自身不感知切换风险。
+策略通过名称索引的字典（`Dict[str, Strategy]`）挂载到 `Router`，每个策略自行声明 `allowed_states`。基类读取 `Portfolio`，由 `RiskManager` 和组合分配器约束新入场，再通过 `ExecutionPort` 提交订单。Router 按批次账本保持原开仓策略对持仓的退出管理；空仓后的映射改变只撤销旧入场意图并冷却。策略仍能在 `should_exit` 中读取当前 regime，具体见[路由模块说明](router.md)。`strategies/statistical_arbitrage.py` 的 `PairsTradingModel` 未注册到默认策略表，仅供单独研究使用。

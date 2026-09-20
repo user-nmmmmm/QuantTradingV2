@@ -1,0 +1,38 @@
+name: Backtest automation (offline)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '17 19 * * 0'
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-smoke-and-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install locked dependencies
+        run: python -m pip install -r requirements-dev.txt
+      - name: Engine regression and automation boundary tests
+        run: python -m pytest -q tests/test_backtest_regression.py tests/test_automation_runner.py
+      - name: Fixed synthetic daily bars, full report, manifest replay and verdict
+        run: python scripts/run_automation.py weekly-smoke --pin
+      - name: Expose honest operational day count
+        if: always()
+        run: python scripts/run_automation.py status
+      - name: Preserve receipts, logs and synthetic audit artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: offline-backtest-evidence
+          path: outputs/automation/
+          retention-days: 30

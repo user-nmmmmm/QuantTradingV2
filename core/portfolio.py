@@ -93,6 +93,8 @@ class Portfolio:
         order_id: Optional[str] = None,
         stop_price: Optional[float] = None,
         time: Any = None,
+        approved_risk_amount: Optional[float] = None,
+        theoretical_price: Optional[float] = None,
     ) -> List[LotClose]:
         """
         更新某标的持仓（一次成交/一次撮合的结果）。
@@ -124,6 +126,8 @@ class Portfolio:
             order_id=order_id,
             stop_price=stop_price,
             fee=fee,
+            approved_risk_amount=approved_risk_amount,
+            theoretical_price=theoretical_price,
         )
 
         current_pos = self.get_position(symbol)

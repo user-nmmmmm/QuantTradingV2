@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, Protocol
+from typing import Any, Dict, Mapping, Optional, Protocol
 
 from core.risk import RiskManager
 from core.candidate_scoring import CandidateScorePolicy
@@ -37,8 +37,27 @@ def build_strategy_registry(
     resolved here and pushed into each strategy that models a health
     lifecycle. Without a configuration the registered defaults apply.
     """
+    breakout_parameters: Dict[str, int] = {}
+    if configuration is not None:
+        research = configuration.get("research") or {}
+        if not isinstance(research, Mapping):
+            raise ValueError("research must be a mapping")
+        parameters = research.get("trend_breakout_parameters")
+        if parameters is not None:
+            experiment_id = research.get("experiment_id")
+            if not isinstance(experiment_id, str) or not experiment_id.strip():
+                raise ValueError("trend_breakout_parameters require research.experiment_id")
+            if not isinstance(parameters, Mapping) or set(parameters) != {
+                "entry_window", "exit_window",
+            }:
+                raise ValueError("trend_breakout_parameters require entry_window and exit_window")
+            if any(type(value) is not int or value <= 0 for value in parameters.values()):
+                raise ValueError("trend_breakout_parameters must be positive integers")
+            if parameters["entry_window"] <= parameters["exit_window"]:
+                raise ValueError("entry_window must exceed exit_window")
+            breakout_parameters = dict(parameters)
     registry: Dict[str, Strategy] = {
-        "TrendBreakout": TrendBreakoutStrategy(),
+        "TrendBreakout": TrendBreakoutStrategy(**breakout_parameters),
         "TrendBreakdown": TrendBreakdownStrategy(),
         "RangeMeanReversion": RangeStrategy(),
         "VolatilityReversion": VolatilityReversionStrategy(),

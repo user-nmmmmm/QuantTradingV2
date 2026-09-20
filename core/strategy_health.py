@@ -17,7 +17,11 @@ Two defects in the previous ``is_alive`` gate are closed here:
       cohort_id = opening_strategy
                 + exit_session (UTC date of the closing fill)
                 + exit_controller (who forced the exit)
-                + risk_action_id (breaker action / epoch, when present)
+                + risk_action_id (non-strategy controller action, when present)
+
+  Strategy-owned stops share their daily observation regardless of the venue's
+  per-symbol protective-order identifier. Those identifiers remain in the raw
+  CloseEvents and in ``source_risk_action_ids`` for attribution.
 
   and, by default, cohorts whose controller is *not* the strategy itself do not
   feed the health trigger at all - they are still recorded and reported so the
@@ -30,9 +34,12 @@ families that must be searched before any of these values is called admitted.
 
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
+import hashlib
+import json
 import math
 from typing import Any, Dict, List, Optional, Sequence
 
@@ -59,6 +66,7 @@ ACCOUNT_RISK_EXIT_REASONS = frozenset({
     "DrawdownBudgetReduce",
     "GapRiskResize",
     "unprotected_flatten",
+    "ExternalPositionExit",
 })
 
 #: Exits forced by the run itself, never a statement about the alpha.
@@ -71,6 +79,21 @@ CONTROLLER_STRATEGY = "strategy"
 CONTROLLER_ACCOUNT_RISK = "account_risk"
 CONTROLLER_ROUTER = "router"
 CONTROLLER_SYSTEM = "system"
+COHORT_KEY_VERSION = 2
+
+
+def health_cohort_id(
+    strategy: str, exit_session: str, exit_controller: str,
+    risk_action_id: Optional[str] = None,
+) -> str:
+    """The common health key for backtest and live close facts.
+
+    A strategy's protective-order ID identifies an order, not an independent
+    alpha observation. Account-risk, router and system action identity remains
+    meaningful and retains its existing grouping semantics.
+    """
+    action = None if exit_controller == CONTROLLER_STRATEGY else risk_action_id
+    return ":".join([strategy, exit_session, exit_controller, str(action or "-")])
 
 
 def classify_exit_controller(exit_reason: Optional[str]) -> str:
@@ -200,6 +223,7 @@ class HealthCohort:
     exit_controller: str
     exit_session: str
     risk_action_id: Optional[str] = None
+    source_risk_action_ids: List[str] = field(default_factory=list)
     net_pnl: float = 0.0
     initial_risk: float = 0.0
     trade_count: int = 0
@@ -254,6 +278,7 @@ class HealthCohort:
             "exit_controller": self.exit_controller,
             "exit_session": self.exit_session,
             "risk_action_id": self.risk_action_id,
+            "source_risk_action_ids": list(self.source_risk_action_ids),
             "net_pnl": self.net_pnl,
             "initial_risk": self.initial_risk,
             "r": self.r,
@@ -273,6 +298,10 @@ class HealthCohort:
             exit_controller=str(data.get("exit_controller", CONTROLLER_STRATEGY)),
             exit_session=str(data.get("exit_session", "")),
             risk_action_id=data.get("risk_action_id"),
+            source_risk_action_ids=list(dict.fromkeys([
+                *[str(item) for item in (data.get("source_risk_action_ids") or [])],
+                *([str(data["risk_action_id"])] if data.get("risk_action_id") else []),
+            ])),
             net_pnl=float(data.get("net_pnl", 0.0)),
             initial_risk=float(data.get("initial_risk", 0.0)),
             trade_count=int(data.get("trade_count", 0)),
@@ -325,6 +354,10 @@ class StrategyHealthMachine:
         self._consumed_close_event_ids: set[str] = set()
         self._last_close_at: Optional[datetime] = None
         self._last_seen_now: Optional[datetime] = None
+        self.migration_audit: List[Dict[str, Any]] = []
+        self._checkpoint_extensions: Dict[str, Any] = {}
+        self._pending_cohort_checkpoint: Optional[Dict[str, Any]] = None
+        self._pending_cohort_audit: Optional[Dict[str, Any]] = None
 
     # -------------------------------------------------------------- ingestion
 
@@ -349,9 +382,7 @@ class StrategyHealthMachine:
         moment = _as_utc(timestamp)
         controller = classify_exit_controller(exit_reason)
         session = self._session_of(moment, bar_index)
-        cohort_id = ":".join([
-            self.strategy_name, session, controller, str(risk_action_id or "-"),
-        ])
+        cohort_id = health_cohort_id(self.strategy_name, session, controller, risk_action_id)
         cohort = self._cohort_index.get(cohort_id)
         if cohort is None:
             cohort = HealthCohort(
@@ -359,7 +390,7 @@ class StrategyHealthMachine:
                 strategy=self.strategy_name,
                 exit_controller=controller,
                 exit_session=session,
-                risk_action_id=risk_action_id,
+                risk_action_id=(None if controller == CONTROLLER_STRATEGY else risk_action_id),
                 counts_toward_health=(
                     controller in self.policy.counted_controllers
                 ),
@@ -367,6 +398,8 @@ class StrategyHealthMachine:
             self._cohort_index[cohort_id] = cohort
             self.cohorts.append(cohort)
             self._trim()
+        if risk_action_id and str(risk_action_id) not in cohort.source_risk_action_ids:
+            cohort.source_risk_action_ids.append(str(risk_action_id))
         cohort.add(
             realized_pnl=realized_pnl, initial_risk=initial_risk,
             symbol=symbol, timestamp=moment,
@@ -526,6 +559,12 @@ class StrategyHealthMachine:
                 cohort.cohort_id for cohort in self.counted_cohorts()
             }
         if target is HealthStatus.ACTIVE:
+            # Successful probation evidence belongs to the completed epoch.
+            # Retain the cohorts for reporting, but only new cohorts may start
+            # the next losing streak.
+            self._streak_baseline_cohort_ids = {
+                cohort.cohort_id for cohort in self.counted_cohorts()
+            }
             self.cooldown_started_at = None
             self.cooldown_until = None
             self.probation_started_at = None
@@ -652,6 +691,7 @@ class StrategyHealthMachine:
     def snapshot(self) -> Dict[str, Any]:
         """Report-facing view of the current lifecycle state."""
         return {
+            "cohort_key_version": COHORT_KEY_VERSION,
             "strategy": self.strategy_name,
             "status": self.status.value,
             "status_changed_at": _iso(self.status_changed_at),
@@ -687,7 +727,11 @@ class StrategyHealthMachine:
 
     def to_dict(self) -> Dict[str, Any]:
         return {
+            **deepcopy(self._checkpoint_extensions),
             "schema": "strategy_health/v3" if self.policy.unified_recovery else "strategy_health/v2",
+            "streak_baseline_version": 2,
+            "cohort_key_version": COHORT_KEY_VERSION,
+            "migration_audit": deepcopy(self.migration_audit),
             "risk_multiplier": self.risk_multiplier,
             "recovery_stage": self.recovery_stage,
             "strategy": self.strategy_name,
@@ -718,7 +762,15 @@ class StrategyHealthMachine:
         """
         if not isinstance(data, dict) or data.get("schema") not in {"strategy_health/v2", "strategy_health/v3"}:
             return
+        key_version = int(data.get("cohort_key_version", 1))
+        if key_version not in (1, COHORT_KEY_VERSION):
+            raise ValueError("Unsupported health cohort key version")
         self.reset()
+        known_fields = set(self.to_dict())
+        self._checkpoint_extensions = {
+            key: deepcopy(value) for key, value in data.items() if key not in known_fields
+        }
+        self.migration_audit = deepcopy(data.get("migration_audit") or [])
         try:
             self.status = HealthStatus(str(data.get("status", "active")))
         except ValueError:
@@ -757,6 +809,24 @@ class StrategyHealthMachine:
         self._consumed_close_event_ids = set(
             data.get("consumed_close_event_ids") or []
         )
+        if (int(data.get("streak_baseline_version", 1)) < 2
+                and self.status is HealthStatus.ACTIVE
+                and self.trigger_reason == "probation_passed"):
+            # Old ACTIVE checkpoints may retain the pre-probation baseline.
+            # Consume only evidence already judged at the successful transition;
+            # subsequent losses must remain eligible to trigger a new cooldown.
+            self._streak_baseline_cohort_ids.update(
+                cohort.cohort_id for cohort in self.counted_cohorts()
+                if cohort.closed_at is None or (
+                    self.status_changed_at is not None
+                    and cohort.closed_at <= self.status_changed_at
+                )
+            )
+            self.migration_audit.append({
+                "kind": "probation_streak_baseline_v2",
+                "through": _iso(self.status_changed_at),
+                "baseline_cohort_ids": sorted(self._streak_baseline_cohort_ids),
+            })
         if (self.policy.unified_recovery and data.get("schema") == "strategy_health/v2"
                 and self.status is HealthStatus.PROBATION):
             prior = data.get("risk_multiplier")
@@ -780,6 +850,107 @@ class StrategyHealthMachine:
             self.probation_started_at = None
             self._streak_baseline_cohort_ids = {c.cohort_id for c in self.counted_cohorts()}
             self.trigger_reason = "legacy_probation_migrated_new_evidence_required"
+        # Lifecycle migration must establish its evidence boundary before old
+        # per-order cohorts are collapsed into daily observations.
+        if key_version < COHORT_KEY_VERSION:
+            self._migrate_cohort_keys(data)
+
+    def _migrate_cohort_keys(self, original: Dict[str, Any]) -> None:
+        prior = list(self.cohorts)
+        merged: Dict[str, HealthCohort] = {}
+        mapping: Dict[str, str] = {}
+        for source in prior:
+            key = health_cohort_id(
+                source.strategy, source.exit_session,
+                source.exit_controller, source.risk_action_id,
+            )
+            mapping[source.cohort_id] = key
+            target = merged.get(key)
+            if target is None:
+                target = HealthCohort(
+                    cohort_id=key, strategy=source.strategy,
+                    exit_controller=source.exit_controller,
+                    exit_session=source.exit_session,
+                    risk_action_id=(None if source.exit_controller == CONTROLLER_STRATEGY
+                                    else source.risk_action_id),
+                    counts_toward_health=source.counts_toward_health,
+                )
+                merged[key] = target
+            target.net_pnl += source.net_pnl
+            target.initial_risk += source.initial_risk
+            target.trade_count += source.trade_count
+            target.counts_toward_health |= source.counts_toward_health
+            target.symbols = list(dict.fromkeys([*target.symbols, *source.symbols]))
+            target.source_risk_action_ids = list(dict.fromkeys([
+                *target.source_risk_action_ids, *source.source_risk_action_ids,
+            ]))
+            if source.opened_at is not None and (
+                target.opened_at is None or source.opened_at < target.opened_at
+            ):
+                target.opened_at = source.opened_at
+            if source.closed_at is not None and (
+                target.closed_at is None or source.closed_at > target.closed_at
+            ):
+                target.closed_at = source.closed_at
+
+        old_baseline = set(self._streak_baseline_cohort_ids)
+        self._streak_baseline_cohort_ids = {mapping.get(key, key) for key in old_baseline}
+        self.trigger_event_id = mapping.get(self.trigger_event_id, self.trigger_event_id)
+        self.cohorts = list(merged.values())
+        self._cohort_index = merged
+
+        def totals(cohorts: Sequence[HealthCohort]) -> Dict[str, Any]:
+            return {
+                "net_pnl": math.fsum(cohort.net_pnl for cohort in cohorts),
+                "initial_risk": math.fsum(cohort.initial_risk for cohort in cohorts),
+                "trade_count": sum(cohort.trade_count for cohort in cohorts),
+                "cohort_count": len(cohorts),
+            }
+
+        digest = hashlib.sha256(json.dumps(
+            original, sort_keys=True, separators=(",", ":"), default=str,
+        ).encode("utf-8")).hexdigest()
+        audit = {
+            "migration": "health_cohort_key_v2",
+            "source_schema": original["schema"],
+            "source_sha256": digest,
+            "from_cohort_key_version": int(original.get("cohort_key_version", 1)),
+            "to_cohort_key_version": COHORT_KEY_VERSION,
+            "cohort_id_mapping": mapping,
+            "before": totals(prior), "after": totals(self.cohorts),
+            "baseline_before": sorted(old_baseline),
+            "baseline_after": sorted(self._streak_baseline_cohort_ids),
+            "retained_history_only": True,
+        }
+        self.migration_audit.append(audit)
+        self._pending_cohort_checkpoint = deepcopy(original)
+        self._pending_cohort_audit = deepcopy(audit)
+
+    def persist(self, state_store: Any, key: str) -> None:
+        """Save a checkpoint after durably retaining its migration evidence.
+
+        The store's individual writes are transactional. Backup and mapping are
+        written before the new checkpoint, so interruption at any boundary can
+        safely retry without losing or replacing the original. No lifecycle
+        transition is evaluated here.
+        """
+        if self._pending_cohort_checkpoint is not None:
+            audit = self._pending_cohort_audit
+            if audit is None:
+                raise RuntimeError("Missing health migration audit")
+            prefix = f"{key}:cohort_key_v2:{audit['source_sha256']}"
+            for suffix, value in (
+                ("backup", self._pending_cohort_checkpoint), ("audit", audit),
+            ):
+                archive_key = f"{prefix}:{suffix}"
+                saved = state_store.get(archive_key)
+                if saved is None:
+                    state_store.set(archive_key, deepcopy(value))
+                elif saved != value:
+                    raise ValueError(f"Conflicting health migration archive: {archive_key}")
+        state_store.set(key, self.to_dict())
+        self._pending_cohort_checkpoint = None
+        self._pending_cohort_audit = None
 
 
 def cohort_rows(machines: Sequence[StrategyHealthMachine]) -> List[Dict[str, Any]]:

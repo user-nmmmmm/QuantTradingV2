@@ -49,8 +49,12 @@ class CCXTRequestMapper:
             params["stopLossPrice"] = intent.trigger_price
         if intent.position_side:
             params["positionSide"] = intent.position_side
-        if intent.time_in_force:
-            params["timeInForce"] = str(intent.time_in_force).upper()
+        tif = str(intent.time_in_force).upper() if intent.time_in_force else None
+        # GTC is the canonical default. A market/stop-market has no resting
+        # limit lifetime; omit that default from the venue request (Binance
+        # does not accept a GTC parameter for an ordinary MARKET order).
+        if tif and not (tif == "GTC" and intent.order_type in {"market", "stop"}):
+            params["timeInForce"] = tif
         side = {"short": "sell", "cover": "buy"}.get(intent.action, intent.action)
         return CCXTOrderRequest(
             symbol=intent.symbol,

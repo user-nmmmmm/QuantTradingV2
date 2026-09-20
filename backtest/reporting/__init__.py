@@ -15,6 +15,7 @@ from collections import deque
 from typing import Deque, List, Dict, Any, Optional, Tuple
 
 from backtest.reporting.risk_metrics import summarize_exposure
+from backtest.reporting.serialization import write_metrics_json
 from core.diagnostics import build_diagnostics
 from core.logger import get_logger
 from core.metric_result import MetricResult
@@ -178,6 +179,17 @@ class ReportGenerator(
         report_profile: str = "full",
         data_quality: Optional[Dict[str, Any]] = None,
         event_log: Optional[Any] = None,
+        max_holding_days: Optional[int] = None,
+        periods_per_year: Optional[float] = None,
+        *,
+        group_equity: Optional[pd.DataFrame] = None,
+        group_cashflows: Optional[pd.DataFrame] = None,
+        external_cashflows: Optional[pd.Series] = None,
+        cashflow_timing: str = "end_of_interval",
+        terminal_valuations: Optional[Any] = None,
+        independent_quotes: Optional[Any] = None,
+        execution_as_of: Optional[Any] = None,
+        max_quote_age_seconds: float = 1.0,
     ):
         """
         生成报告并返回指标字典。
@@ -193,6 +205,10 @@ class ReportGenerator(
           ``BacktestEngine.run`` 的 ``close_events``）。传入后诊断会计算
           ``lifecycle_coverage``，用于发现"平仓回调从未触发导致熄火/冷却风控
           失效"这类问题；不传则跳过该项（例如只有成交明细、没有引擎上下文时）。
+        - group_equity/group_cashflows/external_cashflows：同一时钟、同一报告币种的
+          全账户分组估值和显式资金流；仅支持区间末资金流，缺事实不估算回撤贡献。
+        - terminal_valuations/independent_quotes：独立市场事实，字段契约见
+          calculate_execution_quality；终值需 execution_as_of，报价不得晚于成交。
         """
         if report_profile not in {"workbook", "compact", "full"}:
             raise ValueError("report_profile must be 'workbook', 'compact' or 'full'")
@@ -213,12 +229,22 @@ class ReportGenerator(
         # of one position back together. Everything below reports round trips
         # (what a trader calls "a trade") except lifecycle_coverage, whose
         # counterpart counter is leg-level. See backtest/reporting/trades.py.
-        closed_legs = self._reconstruct_closed_trades(trades_df)
+        all_closed_legs = self._reconstruct_closed_trades(trades_df)
+        invalid_trades = [row for row in all_closed_legs if row.get("status") == "invalid_input"]
+        closed_legs = [row for row in all_closed_legs if row.get("status") != "invalid_input"]
         closed_trades = self._aggregate_round_trips(closed_legs)
         trade_metrics = self._trade_metrics_from_closed(closed_trades)
-        equity_metrics = self._calculate_equity_metrics(equity_curve)
+        equity_metrics = self._calculate_equity_metrics(equity_curve, periods_per_year=periods_per_year)
 
         metrics = {**equity_metrics, **trade_metrics}
+        metrics["TradeInputIntegrity"] = {"status": "invalid_input" if invalid_trades else "ok",
+                                         "invalid_records": len(invalid_trades),
+                                         "reason": "legacy ownership/cost facts incomplete" if invalid_trades else None}
+        if invalid_trades:
+            for key in ("ProfitFactor", "ProfitFactorLower95", "ProfitFactorUpper95", "WinRate",
+                        "Expectancy", "AvgWin", "AvgLoss", "GrossPnL", "TotalCommission", "TotalSlippage", "NetPnL"):
+                metrics[key] = None
+            metrics["ProfitFactorStatus"] = "invalid_input"
         # Both counting conventions stay visible: TotalTrades is round trips,
         # this is the fill-leg count behind them. A large gap means the
         # participation cap is splitting orders heavily.
@@ -232,16 +258,43 @@ class ReportGenerator(
         if lifecycle_provided:
             metrics["FullCapitalPeriodMetrics"] = dict(equity_metrics)
             metrics["ActiveStrategyPeriodMetrics"] = (
-                self._calculate_equity_metrics(active_curve)
+                self._calculate_equity_metrics(active_curve, periods_per_year=periods_per_year)
                 if not active_curve.empty else {}
             )
             metrics["BacktestLifecycle"] = lifecycle
 
         extended = dict(metrics.get("ExtendedAnalytics") or {})
         extended["drawdown_events"] = calculate_drawdown_events(equity_curve["equity"])
+        drawdowns = extended["drawdown_events"]
+        extended["drawdown_summary"] = {
+            "status": "ok" if drawdowns else "insufficient_data",
+            "top_n": 5, "top_depth_events": sorted(drawdowns, key=lambda row: row["depth_pct"] or 0.0)[:5],
+            "longest_underwater": max(drawdowns, key=lambda row: row["duration_periods"]) if drawdowns else None,
+            "unrecovered_count": sum(row["is_open"] for row in drawdowns)}
         # BM3: the book behind the returns. Reports "not_recorded" for curves
         # that predate the engine's exposure columns rather than guessing.
         extended["exposure"] = summarize_exposure(equity_curve)
+        from core.metrics.attribution import calculate_group_drawdown_contribution
+        extended.setdefault("attribution", {})["group_drawdown_contribution"] = (
+            calculate_group_drawdown_contribution(
+                equity_curve["equity"], group_equity, group_cashflows, external_cashflows,
+                cashflow_timing=cashflow_timing))
+        from core.metrics.execution import calculate_execution_quality
+        event_log = list(event_log) if event_log is not None else None
+        extended["execution_quality"] = calculate_execution_quality(
+            event_log, terminal_valuations=terminal_valuations, independent_quotes=independent_quotes,
+            as_of=execution_as_of, max_quote_age_seconds=max_quote_age_seconds)
+        elapsed_days = ((equity_curve.index[-1] - equity_curve.index[0]).total_seconds() / 86400
+                        if len(equity_curve) > 1 else 0.0)
+        average_equity = float(equity_curve["equity"].mean()) if not equity_curve.empty else 0.0
+        turnover_notional = (sum(abs(float(row["qty"]) * float(row["fill_price"])) for row in trades)
+                             if not invalid_trades else None)
+        turnover_valid = bool(not invalid_trades and average_equity > 0 and elapsed_days > 0)
+        extended["turnover"] = {"status": "invalid_input" if invalid_trades else "ok" if turnover_valid else "insufficient_data",
+            "policy": "gross two-way executed notional / arithmetic mean observed equity; quote currency of report",
+            "executed_notional": turnover_notional, "observed_days": elapsed_days,
+            "ratio": turnover_notional / average_equity if turnover_valid else None,
+            "annualized_ratio": turnover_notional / average_equity * 365.25 / elapsed_days if turnover_valid else None}
         if event_log is not None:
             # BM3: where the signal chain leaks. Only computable from the
             # engine's event pipeline, so it is absent (not zero) when a caller
@@ -261,6 +314,7 @@ class ReportGenerator(
         metrics["Diagnostics"] = build_diagnostics(
             closed_trades, equity_curve["equity"], close_events, strategy_health,
             closed_legs=closed_legs,
+            max_holding_days=max_holding_days,
         )
         # SR1-4: the lifecycle section must state the health status alongside
         # the run status, so "completed" can never stand alone next to a
@@ -276,8 +330,32 @@ class ReportGenerator(
             metrics["ProtectiveStops"] = dict(protective_stops)
         metrics["ExtendedAnalytics"] = extended
         metrics["MetricResults"] = self._headline_metric_results(metrics)
+        if invalid_trades:
+            for row in metrics["MetricResults"]:
+                if row["name"] in {"ProfitFactor", "WinRate", "SQN"}:
+                    row.update(value=None, status="invalid_input", reason="incomplete legacy trade facts")
 
         if not metrics_only:
+            write_metrics_json(os.path.join(self.output_dir, "metrics.json"), metrics, metadata)
+            exported_trades = [*closed_trades, *invalid_trades]
+            pd.DataFrame(exported_trades, columns=None if exported_trades else
+                         ["position_id", "symbol", "strategy_id", "net_pnl", "initial_risk"]).to_csv(
+                             os.path.join(self.output_dir, "closed_trades.csv"), index=False)
+            legs_pnl = sum(float(row.get("net_pnl", 0.0)) for row in closed_legs)
+            positions_pnl = sum(float(row.get("net_pnl", 0.0)) for row in closed_trades)
+            headline_pnl = float(metrics["NetPnL"]) if metrics.get("NetPnL") is not None else None
+            tolerance = max(1e-8, abs(positions_pnl) * 1e-10)
+            reconciled = (headline_pnl is not None and abs(legs_pnl - positions_pnl) <= tolerance
+                          and abs(headline_pnl - positions_pnl) <= tolerance)
+            write_metrics_json(os.path.join(self.output_dir, "reconciliation.json"), {
+                "schema_version": "closed-trade-reconciliation/v1", "status": "invalid_input" if invalid_trades else "pass" if reconciled else "fail",
+                "scope": "closed lot legs -> position round trips -> report NetPnL",
+                "closed_leg_net_pnl": legs_pnl, "position_net_pnl": positions_pnl, "report_net_pnl": headline_pnl,
+                "tolerance": tolerance, "account_cash_bridge": {"status": "not_modeled",
+                    "reason": "report inputs do not include the capital/transfer ledger"}}, metadata)
+            write_metrics_json(os.path.join(self.output_dir, "execution_quality.json"), extended["execution_quality"], metadata)
+            write_metrics_json(os.path.join(self.output_dir, "invalid_closed_trades.json"),
+                               {"status": "invalid_input" if invalid_trades else "ok", "records": invalid_trades}, metadata)
             # 3. Save Report Text（report.txt 的分析型分节直接读 ExtendedAnalytics，
             # 不重新计算一遍——避免 trade_quality/attribution 等函数在同一次
             # generate() 调用里跑两次）。

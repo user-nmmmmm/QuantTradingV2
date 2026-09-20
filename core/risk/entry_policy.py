@@ -86,7 +86,7 @@ class EntryPolicyMixin:
             if reservation_projection is not None else pending_open_notional or {}
         )
         caps = self._entry_notional_caps(
-            portfolio, symbol, price, current_prices, reserved_by_symbol, action
+            portfolio, symbol, price, current_prices, reserved_by_symbol, action, reservation_projection
         )
         if caps is None:
             note("unverifiable_exposure")
@@ -104,6 +104,11 @@ class EntryPolicyMixin:
                 f"reserved={context['reserved']:.2f})"
             )
             return False
+
+        for mode_cap in ("account_mode", "initial_margin"):
+            if mode_cap in caps and trade_value > caps[mode_cap]:
+                note(mode_cap)
+                return False
 
         # 3. Leverage Check
         if trade_value > caps["leverage"]:

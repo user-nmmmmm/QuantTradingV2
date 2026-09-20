@@ -1,5 +1,8 @@
 from abc import ABC, abstractmethod
-from dataclasses import replace
+from dataclasses import replace, asdict
+from collections import deque
+from copy import deepcopy
+from core.lots import CloseEvent
 from typing import Set, Dict, Any, Optional
 import pandas as pd
 import numpy as np
@@ -53,6 +56,14 @@ class Strategy(ABC):
         # CloseEvent ids already delivered to on_trade_closed (T-1.5): guards
         # against double-counting if the same event is ever observed twice.
         self._consumed_close_event_ids: Set[str] = set()
+        self._position_close_accumulator = {}
+        self._completed_position_ids = set()
+        self._recent_close_ids = deque()
+        self._recent_position_ids = deque()
+        self._close_event_cursor = 0
+        self._close_event_checkpoint_id = None
+        self._pending_close_events = {}
+        self._close_state_store = None
 
     def get_context(self, symbol: str) -> Dict[str, Any]:
         """
@@ -72,9 +83,65 @@ class Strategy(ABC):
         self.context = {}
         self.observed_close_events = 0
         self._consumed_close_event_ids = set()
+        self._position_close_accumulator = {}
+        self._completed_position_ids = set()
+        self._recent_close_ids = deque()
+        self._recent_position_ids = deque()
+        self._close_event_cursor = 0
+        self._close_event_checkpoint_id = None
+        self._pending_close_events = {}
+        self._close_state_store = None
 
-    def bind_state_store(self, _state_store) -> None:
-        """Optional live-state binding for strategies with durable health state."""
+    @property
+    def close_state_key(self):
+        return "strategy_close_cursor:" + self.name
+
+    def bind_state_store(self, state_store) -> None:
+        """Recover the close stream cursor and unfinished position aggregates."""
+        self._close_state_store = state_store
+        checkpoint = state_store.get(self.close_state_key)
+        if checkpoint is not None:
+            self._restore_close_checkpoint(checkpoint)
+
+    def _close_checkpoint(self):
+        return {
+            "schema": "strategy-close-cursor/v1", "cursor": self._close_event_cursor,
+            "last_event_id": self._close_event_checkpoint_id,
+            "observed_close_events": self.observed_close_events,
+            "pending": {symbol: [asdict(event) for event in events]
+                        for symbol, events in self._pending_close_events.items()},
+            "positions": [[list(key), deepcopy(value)] for key, value in self._position_close_accumulator.items()],
+            "recent_close_ids": list(self._recent_close_ids),
+            "recent_position_ids": [list(key) for key in self._recent_position_ids],
+            "context": deepcopy(self.context),
+            "trade_state": deepcopy(getattr(self, "trade_state", None)),
+        }
+
+    def _restore_close_checkpoint(self, row):
+        if row.get("schema") != "strategy-close-cursor/v1":
+            raise ValueError("unsupported_strategy_close_checkpoint")
+        self._close_event_cursor = int(row["cursor"])
+        self._close_event_checkpoint_id = row["last_event_id"]
+        self.observed_close_events = int(row["observed_close_events"])
+        self._pending_close_events = {symbol: [CloseEvent(**event) for event in events]
+                                      for symbol, events in row["pending"].items()}
+        self._position_close_accumulator = {tuple(key): value for key, value in row["positions"]}
+        self._recent_close_ids = deque(row["recent_close_ids"])
+        self._consumed_close_event_ids = set(self._recent_close_ids)
+        self._recent_position_ids = deque(tuple(key) for key in row["recent_position_ids"])
+        self._completed_position_ids = set(self._recent_position_ids)
+        self.context = deepcopy(row["context"])
+        if row.get("trade_state") is not None:
+            self.trade_state = deepcopy(row["trade_state"])
+
+    @staticmethod
+    def _remember_bounded(value, ordered, seen):
+        if value in seen:
+            return
+        ordered.append(value)
+        seen.add(value)
+        while len(ordered) > 2048:
+            seen.discard(ordered.popleft())
 
     def raw_entry_signal(self, symbol: str, i: int, df: pd.DataFrame):
         """Observe intrinsic entry conditions without touching trading state.
@@ -109,6 +176,9 @@ class Strategy(ABC):
     ) -> None:
         """Hook invoked only after authoritative closing fills make a position flat."""
 
+    def on_partial_close(self, symbol, realized_pnl, event, bar_index) -> None:
+        """Optional fragment hook; does not signify a completed trade."""
+
     def health_risk_multiplier(self) -> float:
         """Risk scaling demanded by the strategy's health lifecycle (SR1-3).
 
@@ -139,39 +209,82 @@ class Strategy(ABC):
         dedupe guards idempotency if this is ever called more than once for
         the same event.
         """
-        close_events = getattr(broker, "close_events", None) or []
-        for event in close_events:
-            if event.opening_strategy_id != self.name:
-                continue
-            if event.close_event_id in self._consumed_close_event_ids:
-                continue
-            self._consumed_close_event_ids.add(event.close_event_id)
-            self.observed_close_events += 1
-            trade = {
-                "symbol": event.symbol,
-                "close_event_id": event.close_event_id,
-                "lot_id": event.lot_id,
-                "position_id": event.position_id,
-                "qty": event.qty,
-                "fill_price": event.exit_price,
-                "theoretical_price": event.theoretical_exit_price,
-                "exit_reason": event.exit_reason,
-                "strategy_id": event.opening_strategy_id,
-                # SR1-2 cohort key inputs: when the exit happened, how much
-                # risk it retired, and which portfolio risk action forced it.
-                "timestamp": event.timestamp,
-                "initial_risk": event.initial_risk,
-                "risk_action_id": event.risk_action_id,
-            }
-            self.on_trade_closed(event.symbol, event.realized_pnl, trade, bar_index)
-            if event.is_position_fully_closed:
-                self.context[event.symbol] = {}
+        stream = getattr(broker, "close_events", None) or []
+        count = len(stream)
+        if count < self._close_event_cursor or (self._close_event_cursor and
+                stream[self._close_event_cursor - 1].close_event_id != self._close_event_checkpoint_id):
+            raise ValueError("close_event_stream_replaced_or_truncated")
+        changed = count > self._close_event_cursor or bool(self._pending_close_events.get(symbol))
+        previous = self._close_checkpoint() if changed and self._close_state_store is not None else None
+        try:
+            # Each new event is read once per strategy; another symbol's local
+            # callback waits in its own queue without scanning the full history.
+            for event in stream[self._close_event_cursor:]:
+                if event.opening_strategy_id == self.name or event.is_position_fully_closed:
+                    self._pending_close_events.setdefault(event.symbol, []).append(event)
+            self._close_event_cursor = count
+            self._close_event_checkpoint_id = stream[-1].close_event_id if count else None
+            close_events = self._pending_close_events.pop(symbol, [])
+            self._consume_close_batch(close_events, symbol, bar_index, portfolio)
+            if changed and self._close_state_store is not None:
+                self._close_state_store.set(self.close_state_key, self._close_checkpoint())
+        except Exception:
+            if previous is not None:
+                saved = self._close_state_store.get(self.close_state_key)
+                self._restore_close_checkpoint(saved if saved is not None else previous)
+            raise
 
         ctx = self.get_context(symbol)
         if ctx.get("entry_pending") and not portfolio.get_position(symbol).get("qty", 0.0):
             has_active = getattr(broker, "has_active_open_order", None)
             if callable(has_active) and has_active(symbol) is False:
                 self.context[symbol] = {}
+    def _consume_close_batch(self, close_events, symbol, bar_index, portfolio):
+        completed = set()
+        final_events = {(event.symbol, event.position_id): event for event in close_events
+                        if event.symbol == symbol and event.is_position_fully_closed}
+        for event in close_events:
+            if event.symbol != symbol or event.opening_strategy_id != self.name:
+                continue
+            if event.close_event_id in self._consumed_close_event_ids:
+                continue
+            self._remember_bounded(event.close_event_id, self._recent_close_ids, self._consumed_close_event_ids)
+            self.observed_close_events += 1
+            key = (event.symbol, event.position_id)
+            if key in self._completed_position_ids:
+                continue
+            aggregate = self._position_close_accumulator.setdefault(key, {
+                "qty": 0.0, "realized_pnl": 0.0, "initial_risk": 0.0,
+                "close_event_ids": [], "lot_ids": [],
+            })
+            aggregate["qty"] += event.qty
+            aggregate["realized_pnl"] += event.realized_pnl
+            aggregate["initial_risk"] += event.initial_risk or 0.0
+            aggregate["close_event_ids"].append(event.close_event_id)
+            if event.lot_id not in aggregate["lot_ids"]:
+                aggregate["lot_ids"].append(event.lot_id)
+            aggregate.update({
+                "symbol": event.symbol, "close_event_id": event.close_event_id,
+                "lot_id": event.lot_id, "position_id": event.position_id,
+                "fill_price": event.exit_price,
+                "theoretical_price": event.theoretical_exit_price,
+                "exit_reason": event.exit_reason, "strategy_id": event.opening_strategy_id,
+                "timestamp": event.timestamp, "risk_action_id": event.risk_action_id,
+            })
+            if event.is_position_fully_closed:
+                completed.add(key)
+            else:
+                self.on_partial_close(event.symbol, event.realized_pnl, event, bar_index)
+        # Fold every lot from a final fill before delivering one completion.
+        completed.update(key for key in self._position_close_accumulator if key in final_events)
+        for key in completed:
+            trade = self._position_close_accumulator.pop(key)
+            trade["timestamp"] = final_events[key].timestamp
+            self._remember_bounded(key, self._recent_position_ids, self._completed_position_ids)
+            self.on_trade_closed(key[0], trade["realized_pnl"], trade, bar_index)
+            if not portfolio.get_position(key[0]).get("qty", 0.0):
+                self.context[key[0]] = {}
+
     @abstractmethod
     def should_enter(
         self,
@@ -273,7 +386,7 @@ class Strategy(ABC):
                 # If action matches position direction (sell for long, cover for short)
                 if (qty > 0 and action == "sell") or (qty < 0 and action == "cover"):
                     timestamp = df.index[i]
-                    self._publish_signal(
+                    decision_event = self._publish_signal(
                         broker,
                         symbol=symbol,
                         timestamp=timestamp,
@@ -291,6 +404,7 @@ class Strategy(ABC):
                         timestamp=timestamp,
                         strategy_id=self.name,
                         exit_reason=reason,
+                        **self._signal_links(decision_event),
                     )
 
                     if submission.accepted:
@@ -378,7 +492,7 @@ class Strategy(ABC):
                             pending_open_notional=pending_open_notional,
                             action=action,
                         ):
-                            self._publish_signal(
+                            decision_event = self._publish_signal(
                                 broker,
                                 symbol=symbol,
                                 timestamp=df.index[i],
@@ -396,6 +510,8 @@ class Strategy(ABC):
                                 timestamp=df.index[i],
                                 strategy_id=self.name,
                                 exit_reason="signal",
+                                sequence=0,
+                                **self._signal_links(decision_event),
                                 # Persisted onto the opened lot as initial_risk
                                 # = |entry - stop| * qty (T-1.9).
                                 stop_loss=stop_loss,
@@ -439,7 +555,7 @@ class Strategy(ABC):
             return None
         price = float(signal.get("price", df["close"].iat[i]))
         reason = str(signal.get("reason", "signal"))
-        self._publish_signal(
+        decision_event = self._publish_signal(
             broker, symbol=symbol, timestamp=df.index[i], action=action,
             signal_kind="exit", price=price, reason=reason,
         )
@@ -447,6 +563,7 @@ class Strategy(ABC):
             symbol, action, abs(qty), price=price,
             order_type=signal.get("order_type", "market"), timestamp=df.index[i],
             strategy_id=self.name, exit_reason=reason,
+            **self._signal_links(decision_event),
         )
         if result.accepted:
             ctx["exit_pending"] = True
@@ -543,7 +660,7 @@ class Strategy(ABC):
                     symbol=symbol,
                 )
             return None
-        self._publish_signal(
+        decision_event = self._publish_signal(
             broker, symbol=symbol, timestamp=df.index[i], action=action,
             signal_kind="entry", price=order_price, reason="portfolio_allocation",
         )
@@ -551,6 +668,8 @@ class Strategy(ABC):
             symbol, action, size, price=order_price,
             order_type=signal.get("order_type", "market"), timestamp=df.index[i],
             strategy_id=self.name, exit_reason="signal", stop_loss=stop_loss,
+            sequence=0,
+            **self._signal_links(decision_event),
             approved_risk_amount=(
                 size * abs(current_price - stop_loss) if stop_loss > 0 else None
             ),
@@ -574,6 +693,13 @@ class Strategy(ABC):
                 pass
         return result
 
+    @staticmethod
+    def _signal_links(envelope):
+        if envelope is None:
+            return {}
+        event_id = str(envelope.event_id)
+        return {"signal_id": event_id, "causation_id": event_id}
+
     def _publish_signal(
         self,
         broker: ExecutionPort,
@@ -584,7 +710,7 @@ class Strategy(ABC):
         signal_kind: str,
         price: float,
         reason: str,
-    ) -> None:
+    ) -> Any:
         """Publish the decision fact before the resulting order (T-2.9)."""
 
         pipeline = getattr(broker, "event_pipeline", None)
@@ -595,7 +721,7 @@ class Strategy(ABC):
             point = point.tz_localize("UTC")
         else:
             point = point.tz_convert("UTC")
-        pipeline.publish(
+        return pipeline.publish(
             Signal(
                 strategy_id=self.name,
                 symbol=symbol,

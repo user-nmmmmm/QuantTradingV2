@@ -23,6 +23,7 @@ import pandas as pd
 import requests
 from backtest.engine import BacktestEngine
 from backtest.reporting import ReportGenerator
+from backtest.reporting.serialization import write_metrics_json
 from config.config import config
 from core.data import DataHandler
 from core.entry_audit import reconcile
@@ -37,7 +38,11 @@ def save(path, value):
     path.write_text(json.dumps(json.loads(canonical_json(value)), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
-def fetch_symbol(symbol, folder, start, end):
+def fetch_symbol(symbol, folder, start, end, *, as_of=None):
+    as_of = pd.Timestamp(as_of if as_of is not None else datetime.now(timezone.utc))
+    as_of = as_of.tz_localize("UTC") if as_of.tzinfo is None else as_of.tz_convert("UTC")
+    if pd.Timestamp(end, tz="UTC") + pd.Timedelta(days=1) > as_of:
+        raise ValueError("Requested end includes an unclosed or future UTC daily bar")
     cursor = int(pd.Timestamp(start, tz="UTC").timestamp() * 1000)
     boundary = int((pd.Timestamp(end, tz="UTC") + pd.Timedelta(days=1)).timestamp() * 1000)
     rows, pages = [], []
@@ -71,10 +76,16 @@ def fetch_symbol(symbol, folder, start, end):
     if not rows:
         raise ValueError("No historical klines returned")
     frame = pd.DataFrame([row[:6] for row in rows], columns=["timestamp", "open", "high", "low", "close", "volume"])
+    # Legacy six-column fixtures use the exact daily boundary; native klines
+    # retain the exchange close time (inclusive millisecond).
+    close_times = [int(row[6]) if len(row) > 6 else int(row[0]) + 86_400_000 - 1 for row in rows]
     frame["timestamp"] = pd.to_datetime(frame["timestamp"], unit="ms", utc=True).dt.tz_localize(None)
     frame = frame.set_index("timestamp").astype(float).sort_index()
     if frame.index.has_duplicates or not np.isfinite(frame.to_numpy()).all():
         raise ValueError("Duplicate timestamps or non-finite OHLCV")
+    frame["close_time"] = pd.Series(pd.to_datetime(close_times, unit="ms"),
+                                    index=pd.to_datetime([row[0] for row in rows], unit="ms"))
+    frame = frame.loc[frame["close_time"] < as_of.tz_localize(None)]
     frame = frame.loc[(frame.index >= pd.Timestamp(start)) & (frame.index < pd.Timestamp(end) + pd.Timedelta(days=1))]
     if len(frame) < 31:
         raise ValueError("Fewer than 31 historical bars")
@@ -82,7 +93,13 @@ def fetch_symbol(symbol, folder, start, end):
     path = folder / filename
     frame.to_csv(path, float_format="%.17g")
     gaps = int(((frame.index.to_series().diff().dt.total_seconds() / 86400).fillna(1) - 1).clip(lower=0).sum())
+    complete = gaps == 0 and frame.index.max() == pd.Timestamp(end)
     return {"symbol": symbol.replace("/", "-"), "file": filename, "rows": len(frame),
+            "provider": "binance", "market_type": "spot", "timeframe": "1d",
+            "as_of": as_of.isoformat(), "end_policy": "reject_unclosed_daily_session",
+            "close_time_policy": "exchange_or_explicit_daily_boundary",
+            "coverage_status": "complete_available_history" if complete else "incomplete",
+            "requested_start_covered": frame.index.min() == pd.Timestamp(start),
             "first": frame.index.min(), "last": frame.index.max(), "missing_internal_days": gaps,
             "ends_before_requested_end": frame.index.max() < pd.Timestamp(end),
             "sha256": sha256_file(path), "pages": pages}
@@ -122,7 +139,7 @@ def run_arm(name, symbols, root, inventory, capital, start, end):
         pd.DataFrame(result[key]).to_csv(folder / f"{key}.csv", index=False)
     for key in ("strategy_health", "breaker_state", "accounting_check", "lifecycle", "account_cost_contract"):
         save(folder / f"{key}.json", result[key])
-    save(folder / "metrics.json", metrics)
+    write_metrics_json(folder / "metrics.json", metrics, {"resolved_config": config._config})
     save(folder / "result_digest.json", deterministic_result_digest(result))
     save(folder / "resolved_config.json", config._config)
     metadata = {"RequestedStart": start, "RequestedEnd": end, "Capital": capital,
@@ -192,6 +209,10 @@ def main():
     expanded = [symbol.replace("/", "-") for symbol in requested if symbol.replace("/", "-") in inventory["symbols"]]
     if len(expanded) != 60:
         raise ValueError("Strict 60/60 gate failed; inspect download failures")
+    incomplete = [symbol for symbol in expanded
+                  if inventory["symbols"][symbol].get("coverage_status") != "complete_available_history"]
+    if incomplete:
+        raise ValueError(f"Strict closed-bar coverage gate failed; revalidate or refresh: {incomplete}")
     comparisons = {}
     for name, symbols in (("original_30", base), ("expanded", expanded)):
         comparisons[name] = run_arm(name, symbols, root, inventory, args.capital, args.start, args.end)

@@ -1,0 +1,1791 @@
+# QuantTrading 开发详情 v3.0
+
+> 公开发布视图：保留任务编号、状态、依赖及技术契约；私人邮件正文、逐条审查摘录和邮箱映射未发布。原始本地登记仍是权威资料。`reports/`、`outputs/`、`tmp/`、`docs/archive/` 及邮件审计文件均为仅本地引用，不随源码发布；公开 CI 的 structure-only 结果不代表这些历史证据已验证。
+
+> 2026-09-20。本文件定义41个任务的开发与验收边界（原始40项加本次SYS-19）；顺序和状态维护见[开发计划](development_plan.md)，项目放行见[Roadmap](unified_roadmap.md)。
+> [任务登记JSON](development_task_registry.json) · [历史需求与邮件映射](roadmap_traceability.md) · 历史资料总入口（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/README.md`，不随源码发布）
+
+## 本轮复核说明
+
+原卡片“2026-09-20状态”保留审计基线；新增“本轮复核状态”及证据为本次实现后的判断。完整验证和未闭环事项见[执行报告](r_series_acceptance_20260920.md)。
+
+## 统一开发契约
+
+- 权威成交/lot/position事实贯穿账户、风险、报告与研究；离线研究账本不替代正式交易事实。
+- 订单批准风险预算不可随成交时权益增长；保护止损、组合恢复和策略健康按已有批准契约迁移，不在修复中调参。
+- 前视、未收盘数据、样本不足、缺失业务字段和中断观察必须有可定位失败原因；不能返回成功或以零填充。
+- 研究输出和正式账户隔离；元层全弃权或固定比例仓位不能证明有效；策略研究失败与工程成功可同时成立。
+- 所有“修改范围”是预期触点，开工须确认实际调用链；如果文件接口已变，记录调整，不能机械照抄路径。
+- 保留当前未提交代码与运行证据；需要数据库/schema迁移的任务先保存恢复点，用旧版本输入验证；新证据使用独立run_id。
+
+## 统一交付规范
+
+每个任务的证据目录是**待开发时创建的产物路径**，不是已经存在或已经通过的证据。DOC-01使用本次已有归档与文档校验记录。
+
+必需内容：契约与范围；原始失败样本或现状证据；实现差异；正反例结论；兼容/迁移说明；源码、配置与数据摘要；报告/对账产物；已知限制。测试只覆盖有意义的行为和风险。
+
+第7节已将这些要求接入[完成定义契约](roadmap_completion_contract.md)及[版本化证据清单](roadmap_completion_manifest.json)。新增关闭必须满足七项要求和全部前置，历史回执通过显式适配保留原格式；纯文档任务校验链接、编号、覆盖和哈希。工程关闭不提升研究或运行结论，完整本地检查与CI结构检查的含义分别记录。
+
+建议结构化验收字段：
+
+```json
+{
+  "task_id": "FIX-xx",
+  "run_id": "<unique-id>",
+  "source_revision": "<commit>",
+  "worktree_manifest": "<path-and-sha256>",
+  "resolved_config": "<path-and-sha256>",
+  "data_identity": "<dataset-version-and-sha256>",
+  "contract_version": "<version>",
+  "checks": [{"name": "<criterion>", "status": "pending", "evidence": []}],
+  "engineering_status": "pending",
+  "research_status": "pending",
+  "operational_status": "pending",
+  "limitations": []
+}
+```
+
+check状态用pass/fail/insufficient/pending；不适用须明确标注not_applicable及理由。它与指标MetricResult状态不同：指标统一使用ok/insufficient_data/undefined/not_modeled/invalid_input，数值不可用时为null。旧输出状态映射须版本化。
+
+任务目录：
+
+- [DOC-01](development_details.md#doc-01) 三层计划、历史文档与邮件联合归档（B0 / P1 / 已验收）
+- [SYS-01](development_details.md#sys-01) 当前工作区冻结与三次可复现基线（B0 / P1 / 已验收）
+- [FIX-01](development_details.md#fix-01) 准入检查必须拒绝不健康、不完整和不连续的证据（B1 / P0 / 已验收）
+- [FIX-02](development_details.md#fix-02) 统计准入拒绝不足样本并统一 Sharpe 尺度（B1 / P1 / 已验收）
+- [FIX-03](development_details.md#fix-03) 冻结验收包含未跟踪文件并修复跨平台归档验证（B1 / P1 / 已验收）
+- [FIX-04](development_details.md#fix-04) 下载来源、分页长度与刷新失败贯穿矩阵入口（B2 / P1 / 已验收）
+- [FIX-05](development_details.md#fix-05) 补全持仓量历史并排除未收盘日线（B2 / P1 / 已验收）
+- [FIX-06](development_details.md#fix-06) 因子只使用当时可确认的数据（B2 / P1 / 已验收）
+- [FIX-07](development_details.md#fix-07) 统一币对名称并在成员退出时结束持仓（B2 / P1 / 已验收）
+- [FIX-09](development_details.md#fix-09) Walk-forward 按候选预热并禁止收益窗口重叠（B2 / P1 / 已验收）
+- [SYS-04](development_details.md#sys-04) 数据身份、PIT与独立来源核验（B2 / P1 / 部分实现待验收）
+- [FIX-10](development_details.md#fix-10) 现金、费用、滑点与无价市价单采用同一风险输入（B3 / P1 / 已验收）
+- [FIX-11](development_details.md#fix-11) 平仓回调按持仓聚合并使用所属标的索引（B3 / P1 / 已验收）
+- [FIX-12](development_details.md#fix-12) 报告按主 lot 事实保留分片、风险与成本口径（B3 / P1 / 已验收）
+- [FIX-13](development_details.md#fix-13) 正式 Broker 在空仓时重置借币计息时钟（B3 / P1 / 已验收）
+- [FIX-14](development_details.md#fix-14) 外部同步持仓具有明确接管或退出政策（B3 / P0 / 已验收）
+- [FIX-15](development_details.md#fix-15) 策略通过试运行后重置亏损基线并同步恢复状态（B3 / P1 / 已验收）
+- [FIX-16](development_details.md#fix-16) 风险减仓覆盖缺行情持仓并保留期末真实流动性（B3 / P1 / 已验收）
+- [VER-01](development_details.md#ver-01) 验证流动性不足后的部分减仓是否真正中断（B3 / P1 / 已验收）
+- [FIX-17](development_details.md#fix-17) 熔断检查点原子保存并隔离并发导出临时文件（B4 / P0 / 已验收）
+- [FIX-18](development_details.md#fix-18) 存量事件解码、幂等类型与运维入口兼容（B4 / P1 / 已验收）
+- [FIX-08](development_details.md#fix-08) 统一研究入口、冻结实现与样本外政策（B5 / P1 / 已验收）
+- [FIX-19](development_details.md#fix-19) 常规报告、空结果与 Metrics 兼容共享稳定契约（B5 / P1 / 已验收）
+- [FIX-20](development_details.md#fix-20) 统一分析图表、持有期诊断与入场漏斗口径（B5 / P2 / 已验收）
+- [SYS-02](development_details.md#sys-02) 权威交易事实、账本与报告统一（B5 / P1 / 已验收）
+- [SYS-03](development_details.md#sys-03) 指标契约与BM0–BM8标准结果验收（B5 / P1 / 部分实现待验收）
+- [SYS-05](development_details.md#sys-05) 完整账户事实及周期/日终对账（B5 / P0 / 部分实现待验收）
+- [SYS-06](development_details.md#sys-06) 模式一致性、共享事实与迁移验收（B5 / P1 / 部分实现待验收）
+- [SYS-07](development_details.md#sys-07) 持仓身份与共享管理决策（B5 / P1 / 部分实现待验收）
+- [SYS-08](development_details.md#sys-08) 组合预算与幂等风险转移整体验收（B5 / P0 / 部分实现待验收）
+- [SYS-09](development_details.md#sys-09) 健康裁决证据与隔离影子观察（B5 / P1 / 部分实现待验收）
+- [SYS-10](development_details.md#sys-10) 完成现有研究与元层交付回执（B6 / P1 / 部分实现待验收）
+- [SYS-11](development_details.md#sys-11) 独立策略裁决与重新准入（B6 / P1 / 待证据）
+- [SYS-16](development_details.md#sys-16) 可运行运维、备份与故障演练（B6 / P1 / 部分实现待验收）
+- [SYS-17](development_details.md#sys-17) 连续Shadow/Sandbox/Paper与执行校准（B7 / P1 / 待证据）
+- [SYS-18](development_details.md#sys-18) 小额灰度与单变量扩容（B8 / P1 / 待证据）
+- [SYS-12](development_details.md#sys-12) 动态选币到目标权重执行（BX / P3 / 部分实现待验收）
+- [SYS-13](development_details.md#sys-13) 波动率目标、分批与组合仓位（BX / P3 / 部分实现待验收）
+- [SYS-14](development_details.md#sys-14) 合约账户扩展与候选策略（BX / P3 / 后续扩展）
+- [SYS-15](development_details.md#sys-15) 报告解释、图表与扩展观察能力（BX / P3 / 后续扩展）
+
+- [SYS-19](development_details.md#sys-19) 自动化回测、研究编排与运行留存（B6 / P2 / 部分实现待验收）
+
+<a id="doc-01"></a>
+
+## DOC-01 三层计划、历史文档与邮件联合归档
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | documentation / B0 / P1 |
+| 2026-09-20状态 | 已验收 |
+| 本轮复核状态 | 已验收；验收证据（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/manifest.json`，不随源码发布） |
+| 负责角色 | 文档与工程治理 |
+| 验收依赖 | 无 |
+| 历史编号（结合来源阅读） | DOC、R0 |
+| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 证据目录 | `docs/archive/2026-09-roadmap-rebaseline/` |
+
+**目标契约：** 保留历史原文字节、邮件来源与审计基线，生成唯一三层执行入口，全部邮件及旧能力可追溯。
+
+**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+
+**修改范围：** [docs/unified_roadmap.md](unified_roadmap.md)、[docs/development_plan.md](development_plan.md)、[docs/development_details.md](development_details.md)、[docs/roadmap_traceability.md](roadmap_traceability.md)、[docs/development_task_registry.json](development_task_registry.json)。
+
+**开发步骤：**
+
+1. 冻结34份旧文档/契约，归档45封项目邮件正文与77条意见。
+2. 生成Roadmap、开发计划、开发详情和结构化任务登记；统一旧ID来源上下文。
+3. 检查所有邮件唯一覆盖、任务依赖无环、文档链接和归档hash。
+
+**验收：**
+
+- 52条未完意见各进入一个FIX，1条待核实进入VER，24条已修复进入回归登记。
+- 20个FIX+18个SYS+1个VER+本DOC共40任务，旧能力/邮件有来源，依赖无环。
+- 原文件快照hash匹配，现有用户源码不被覆盖，当前入口无并列有效排期。
+
+**兼容与迁移：** 旧路径保留并提示新入口；原文快照不修改相对链接，通过归档索引阅读。
+
+**交付物：** 三份当前主文档；任务登记表与追溯矩阵；历史归档/邮件正文/manifest。
+
+<a id="sys-01"></a>
+
+## SYS-01 当前工作区冻结与三次可复现基线
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | capability / B0 / P1 |
+| 2026-09-20状态 | 部分实现待验收 |
+| 本轮复核状态 | 已验收；第5/6节追加证据（仅本地引用：`reports/roadmap_v3/SYS-01/20260920-section56-freeze-02/acceptance.json`，不随源码发布）；[完成边界](section56_acceptance_20260920.md) |
+| 负责角色 | 工程验收 |
+| 验收依赖 | [DOC-01](development_details.md#doc-01) |
+| 历史编号（结合来源阅读） | R0、G0、G9、Batch 0、T-0.1–T-0.5 |
+| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 证据目录 | `reports/roadmap_v3/SYS-01/<run_id>/` |
+
+**目标契约：** 固定此次实际工作区，不把HEAD或历史CI当作未提交源码的身份；区分准备基线与每批修复后的新基线。
+
+**来源：** docs/development_plan.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/development_plan.md`，不随源码发布）；docs/live_trading_remediation_plan.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/live_trading_remediation_plan.md`，不随源码发布）；docs/baseline/phase0/README.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/baseline/phase0/README.md`，不随源码发布）。
+
+**修改范围：** [scripts/main_acceptance.py](../scripts/main_acceptance.py)、[scripts/run_portable_tests.py](../scripts/run_portable_tests.py)、[tests/test_backtest_regression.py](../tests/test_backtest_regression.py)、[scripts/verify_lock.py](../scripts/verify_lock.py)。
+
+**开发步骤：**
+
+1. 记录HEAD、tracked diff、untracked受控源码白名单与逐文件hash；排除凭据和不相关运行数据库，不丢弃用户改动。
+2. 冻结无交易、手算、固定历史/合成三类输入及symbols/start/end/seed/resolved config。
+3. 从固定工作区清单运行环境、锁、lint、关键类型和测试；Windows沿用scripts/run_portable_tests.py，不通过删除持久化测试绕过权限问题。
+4. 三个独立进程保存orders/fills/closed trades/equity/health及摘要比较；每次修复改变身份时生成新run_id，不覆盖旧产物。
+
+**验收：**
+
+- 同一冻结身份连续三次结构化事实一致，顺序无关部分规范排序且保留原始文件。
+- 增加/修改未登记源码、配置或数据时验收拒绝；文档或约定输出白名单有明确理由。
+- 历史结果与当前结果分别列示；测试跳过、权限阻断和警告不伪装通过。
+
+**兼容与迁移：** 保留旧基线及补丁；跨平台以Git可重现字节或明示规范化计算hash，不使用chmod宣称不可变。
+
+**交付物：** contract.md（契约及变更边界）；acceptance.json（逐项通过/失败/不足/待证据）；evidence_manifest.json（源码、配置、输入、结果摘要）；tests或运行记录、对账和新旧差异、已知限制。
+
+<a id="fix-01"></a>
+
+## FIX-01 准入检查必须拒绝不健康、不完整和不连续的证据
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | fix / B1 / P0 |
+| 2026-09-20状态 | 待闭环 |
+| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/FIX-01/20260920-r-series/acceptance.json`，不随源码发布） |
+| 负责角色 | 准入与工程验收 |
+| 验收依赖 | [SYS-01](development_details.md#sys-01) |
+| 历史编号（结合来源阅读） | R6、R7、R8 |
+| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 证据目录 | `reports/roadmap_v3/FIX-01/<run_id>/` |
+
+优先级说明：原邮件均为 P1；项目级升级为 P0，因为这些检查可将失效风控或不完整对账错误放行。
+
+**目标契约：** monitoring 的业务健康与告警送达分开判定；对账比较双方业务字段的并集；paper 时长仅基于完整且连续的有效观测，缺失证据不能 passed。
+
+**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+
+**修改范围：** [core/admission_gates.py](../core/admission_gates.py)。
+
+**开发步骤：**
+
+1. 为监控验证拆分 health_issues 与 delivery_evidence，任一必需维度 ok=false 或缺失都写入阻断原因。
+2. 对 expected/actual 的记录键与业务字段取并集，显式配置可忽略的传输元数据；新增或缺失业务字段均产生差异。
+3. 为 paper 证据定义时区、采样频率、允许最大间隔和必需日期覆盖；检查时间排序、重复及中间空洞。
+4. 将细项失败汇总到顶层准入结果，保留可定位的字段/时间段原因及 schema 版本。
+
+**验收：**
+
+- 正例：所有必需维度健康、告警试验送达、双方记录一致且连续覆盖配置区间时才通过。
+- 正例：显式允许的非业务元数据差异不阻断，业务字段顺序变化不造成误差。
+- 反例：ok=false 但告警成功送达仍必须失败。
+- 反例：actual 多出一个余额/仓位业务字段必须失败。
+- 反例：56 天只有首尾两条观测、重复时间戳伪装时长或中间缺日报均不能通过。
+
+**兼容与迁移：** 为旧纸面报告增加 legacy/incomplete 标记，不能自动承继新准入 passed；保留旧原始证据并用新版本复算。
+
+**交付物：** 门控 schema 与失败原因字典；监控/对账/连续性反例夹具；新旧准入对照报告。
+
+**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+
+<a id="fix-02"></a>
+
+## FIX-02 统计准入拒绝不足样本并统一 Sharpe 尺度
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | fix / B1 / P1 |
+| 2026-09-20状态 | 待闭环 |
+| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/FIX-02/20260920-r-series/acceptance.json`，不随源码发布） |
+| 负责角色 | 准入与工程验收 |
+| 验收依赖 | [SYS-01](development_details.md#sys-01) |
+| 历史编号（结合来源阅读） | R3、SR5 |
+| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 证据目录 | `reports/roadmap_v3/FIX-02/<run_id>/` |
+
+优先级说明：保留原 P1；Sharpe 原 P2 随统计准入契约统一提高到 P1，因为其数值直接影响研究结论。
+
+**目标契约：** PF 仅在 status=ok、样本量合格且阈值/置信区间同时满足时可通过；DSR 的 observed、expected maximum 与方差使用同一周期尺度。
+
+**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+
+**修改范围：** [analysis/research_validation.py](../analysis/research_validation.py)、[core/metrics/trade_quality.py](../core/metrics/trade_quality.py)、[scripts/run_phase5_analysis.py](../scripts/run_phase5_analysis.py)。
+
+**开发步骤：**
+
+1. 在研究准入中读取 MetricResult.status 和样本数，区分 fail、insufficient_data、not_applicable，禁止用有利的点估计覆盖不足状态。
+2. 明确 DSR 输入为逐期还是年化 Sharpe，将 expected maximum 与标准误转换到同一口径，并输出 periods_per_year/试验数量。
+3. 保留阈值参数化入口，给每个未通过项记录公式版本与输入身份。
+4. 使用可手算/独立计算夹具覆盖零损失、小样本、年化变换和多试验边界。
+
+**验收：**
+
+- 正例：样本数与 status 合格且 PF/置信下界均满足阈值时通过对应项。
+- 正例：同一收益序列以等价的逐期/年化输入表达得到一致 DSR 判定。
+- 反例：不足 30 笔但 PF 很高或为无穷的样本不得通过默认 G13。
+- 反例：改变 periods_per_year 不得只缩放 observed 而保留 expected maximum。
+
+**兼容与迁移：** 历史研究统计结果保留原版本；新报告标明重算后的门槛结果，禁止静默覆盖原 fail/pending。
+
+**交付物：** 统计口径说明与公式版本；PF/DSR 定向测试；旧报告重算差异清单。
+
+**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+
+<a id="fix-03"></a>
+
+## FIX-03 冻结验收包含未跟踪文件并修复跨平台归档验证
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | fix / B1 / P1 |
+| 2026-09-20状态 | 待闭环 |
+| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/FIX-03/20260920-r-series/acceptance.json`，不随源码发布） |
+| 负责角色 | 准入与工程验收 |
+| 验收依赖 | [SYS-01](development_details.md#sys-01) |
+| 历史编号（结合来源阅读） | R0、SR0 |
+| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 证据目录 | `reports/roadmap_v3/FIX-03/<run_id>/` |
+
+优先级说明：保留主验收/哈希原 P1；其余文档 P2 合并进同一证据身份契约。
+
+**目标契约：** 验收结果明确绑定可重建的提交、配置、输入；未跟踪的可执行源码/配置阻断验收；历史归档按已记录对象和明确字节规范验证，保护不依赖 chmod。
+
+**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+
+**修改范围：** [.gitattributes](../.gitattributes)、[.github/workflows/tests.yml](../.github/workflows/tests.yml)、[scripts/main_acceptance.py](../scripts/main_acceptance.py)。
+
+**开发步骤：**
+
+1. 以包含 untracked 的 Git 状态检查替代只看 diff；精确允许本次验收输出目录，拒绝 conftest.py、模块与配置等未跟踪输入。
+2. 定义归档哈希使用 committed blob 字节或明确二进制保留策略；重新生成版本化清单并记录旧清单为何失效。
+3. 将旧基线说明改为验证被记录提交对象及其产物，不要求当前 HEAD 等于历史提交。
+4. 用 CI 校验受保护归档的清单/内容变更；必要变更走新版本目录及迁移说明，移除 chmod 可持久冻结的错误表述。
+5. 在新检出与不同换行环境检查同一归档身份；输出验收输入清单。
+
+**验收：**
+
+- 正例：干净检出加允许的输出路径可以验收；Windows/Linux 使用相同规范验证同一提交内容。
+- 正例：当前 HEAD 前进后仍可正确验证历史锁定提交。
+- 反例：未跟踪 conftest.py、同名模块或配置文件必须在运行测试前阻断。
+- 反例：修改受保护归档内容但未更新批准的新版本清单时 CI 失败。
+
+**兼容与迁移：** 不把历史归档静默改造成当前结果；保留旧 hash 及修正缘由，重新发布可核验清单。该工作不授权提交或合并当前未提交代码。 本包只修验收污染与归档验证，项目整体 B0 冻结仍由总计划单独验收。
+
+**交付物：** 验收输入身份清单；版本化归档校验方案；跨平台归档验证与污染工作区反例。
+
+**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+
+<a id="fix-04"></a>
+
+## FIX-04 下载来源、分页长度与刷新失败贯穿矩阵入口
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | fix / B2 / P1 |
+| 2026-09-20状态 | 待闭环 |
+| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/FIX-04/20260920-r-series/acceptance.json`，不随源码发布） |
+| 负责角色 | 数据与研究 |
+| 验收依赖 | [SYS-01](development_details.md#sys-01) |
+| 历史编号（结合来源阅读） | R0、R1、SR4 |
+| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 证据目录 | `reports/roadmap_v3/FIX-04/<run_id>/` |
+
+优先级说明：保留邮件 P1；数据污染与截断会直接改变回测。
+
+**目标契约：** Binance 缓存只接受已验证来源和周期；请求区间完整可核验；声明刷新失败时矩阵在任何回测开始前终止。
+
+**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+
+**修改范围：** [scripts/fetch_binance_data.py](../scripts/fetch_binance_data.py)、[core/data_fetcher.py](../core/data_fetcher.py)、[scripts/run_backtest_matrix.py](../scripts/run_backtest_matrix.py)。
+
+**开发步骤：**
+
+1. 给下载结果或伴随 manifest 写入实际 provider、symbol、timeframe、请求/返回区间与完整性；Binance 专用缓存拒绝 Yahoo 回退。
+2. 依据 timeframe 和 fetcher 上限计算分块或游标分页，不再用自然年作为分钟数据固定块；合并时去重并检查缺口。
+3. 矩阵入口检查刷新子进程返回值及输出 manifest；任何失败阻断整批运行并记录失败币种。
+4. 将旧缓存的来源缺失标为 unknown 并排除严格研究输入；保留诊断信息供重新下载。
+
+**验收：**
+
+- 正例：跨年 5m/15m 请求完整覆盖预定区间，分页无漏根、重根，manifest 来源为 Binance。
+- 正例：全部刷新成功后矩阵按冻结缓存身份启动。
+- 反例：模拟 Binance 故障返回 Yahoo 日线时缓存写入与矩阵启动均失败。
+- 反例：任一刷新非零退出、超过 10000 根被截断或末端缺失时不能继续使用旧缓存冒充刷新结果。
+
+**兼容与迁移：** 既有无来源缓存不自动删除；标记待重取并隔离，兼容通用多源 fetcher 但专用 Binance 写入边界必须严格。
+
+**交付物：** 数据来源 manifest；有界分页下载路径；矩阵刷新 fail-closed 反例。
+
+**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+
+<a id="fix-05"></a>
+
+## FIX-05 补全持仓量历史并排除未收盘日线
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | fix / B2 / P1 |
+| 2026-09-20状态 | 待闭环 |
+| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/FIX-05/20260920-r-series/acceptance.json`，不随源码发布） |
+| 负责角色 | 数据与研究 |
+| 验收依赖 | [SYS-01](development_details.md#sys-01)、[FIX-04](development_details.md#fix-04) |
+| 历史编号（结合来源阅读） | R1、R3、SR4 |
+| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 证据目录 | `reports/roadmap_v3/FIX-05/<run_id>/` |
+
+优先级说明：OI 原 P1 保留；未收盘日线原 P2 提至 P1，因为会引入未来时点不可获得的完成值。
+
+**目标契约：** OI 拉取一直分页至请求结束或明确源数据边界；日线只能以已确认收盘时间进入研究输入，实际覆盖范围可见。
+
+**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+
+**修改范围：** [core/data_fetcher.py](../core/data_fetcher.py)、[scripts/run_expanded_universe_backtest.py](../scripts/run_expanded_universe_backtest.py)。
+
+**开发步骤：**
+
+1. 为 fetchOpenInterestHistory 增加 since 游标推进、去重、终止和无进度保护，记录实际可获得的首尾区间。
+2. 保留 Binance kline close time 并用注入的 UTC as_of 检查完成状态，不能仅按开盘时间过滤。
+3. 对未来 end 或当前活动日给出明确拒绝/裁剪政策及有效结束时间，结果 manifest 记录此决定。
+4. 将空页、API 有限历史和中途错误区分为不同完整性状态，严格运行不把不完整区间作为完成。
+
+**验收：**
+
+- 正例：多页 OI 到达 end_date 且边界无重叠遗漏。
+- 正例：刚已收盘日线被接收并具有正确 UTC 截止时间。
+- 反例：重复页、空页提前结束或源历史不足不能报告完整覆盖。
+- 反例：当前未收盘/未来日线即便 OHLCV 完整也必须拒绝或显式剔除。
+
+**兼容与迁移：** 不改变数据源可保留历史的事实；超出可取范围应返回不可满足原因。旧 CSV 缺 close_time 时必须用明确周期边界重验。
+
+**交付物：** OI 分页与覆盖结果；日线完成度契约；时间冻结和分页反例夹具。
+
+**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+
+<a id="fix-06"></a>
+
+## FIX-06 因子只使用当时可确认的数据
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | fix / B2 / P1 |
+| 2026-09-20状态 | 待闭环 |
+| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/FIX-06/20260920-r-series/acceptance.json`，不随源码发布） |
+| 负责角色 | 数据与研究 |
+| 验收依赖 | [SYS-01](development_details.md#sys-01) |
+| 历史编号（结合来源阅读） | R1、R3、S1、SR4 |
+| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 证据目录 | `reports/roadmap_v3/FIX-06/<run_id>/` |
+
+优先级说明：摆动因子原 P1 保留；零量 POC 原 P2 随同因子有效性契约处理。
+
+**目标契约：** SWING_HIGH/LOW 只能在右侧确认窗口成熟时输出可交易标记；全零成交量窗口的 POC 保持不可计算。
+
+**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+
+**修改范围：** [core/factors/support_resistance.py](../core/factors/support_resistance.py)、[core/factors/volume.py](../core/factors/volume.py)。
+
+**开发步骤：**
+
+1. 定义摆动发生时点与确认可用时点，延迟 center=True 计算标记或改为只向后看的确认实现。
+2. 让下游使用 confirmation timestamp，图示可单独标注原摆动位置但不能用于更早信号。
+3. POC 在 total_volume<=0 时先返回缺失/无效状态，再计算价格桶。
+4. 补充前缀不变性与零量边界夹具，记录因子语义版本。
+
+**验收：**
+
+- 正例：追加未来 bars 后，过去已经可用的因子值不改变。
+- 正例：确认窗口成熟后正确输出 swing；正成交量窗口 POC 与手算一致。
+- 反例：右侧确认 bars 尚不存在时不能提前发出 swing。
+- 反例：全零/缺失成交量不能返回伪支撑价。
+
+**兼容与迁移：** 因子时点变化会改变历史交易，不重写旧结果；新基线重跑并在比较报告标注因果修复。
+
+**交付物：** 因子可用时间规范；前缀不变性测试；新旧信号时间差异报告。
+
+**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+
+<a id="fix-07"></a>
+
+## FIX-07 统一币对名称并在成员退出时结束持仓
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | fix / B2 / P1 |
+| 2026-09-20状态 | 待闭环 |
+| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/FIX-07/20260920-r-series/acceptance.json`，不随源码发布） |
+| 负责角色 | 数据与研究 |
+| 验收依赖 | [SYS-01](development_details.md#sys-01) |
+| 历史编号（结合来源阅读） | R1、S2、SR4 |
+| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 证据目录 | `reports/roadmap_v3/FIX-07/<run_id>/` |
+
+优先级说明：保留两条邮件 P1；成员集失效和非交易期持仓使回测事实失真。
+
+**目标契约：** 生成、读取、应用 PIT universe 使用同一规范化币对键；成员终止要进入既有 scheduled_exit 生命周期，退出时间不晚于最后可交易边界。
+
+**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+
+**修改范围：** [core/universe.py](../core/universe.py)、[main.py](../main.py)、[backtest/engine.py](../backtest/engine.py)、[scripts/repair_binance_point_in_time_data.py](../scripts/repair_binance_point_in_time_data.py)。
+
+**开发步骤：**
+
+1. 建立币对规范化函数并在生成 CSV、加载 universe、main 数据键及 apply 查找处共用，拒绝规范化后冲突。
+2. 从 delisted_at/成员区间生成退出计划，不再只裁剪后续 bars。
+3. 将计划接入既有 scheduled_exit/AnnouncedMarginDelisting 入口，并定义缺少最后可交易 bar 时的不可验收状态。
+4. 记录成员结束、退出指令、实际成交和残余持仓的因果关联。
+
+**验收：**
+
+- 正例：BTC/USDT 与 BTC-USDT 混用仍匹配同一成员区间；在最后合法时点触发一次退出。
+- 正例：仅上市后到退市前数据参与信号/成交。
+- 反例：别名冲突、无合法退出行情或成员结束后仍携带持仓不能静默通过研究验收。
+- 反例：不得等组合全局期末才把已退市币种强平。
+
+**兼容与迁移：** 读取旧 slash/hyphen 文件须兼容；输出只用一种规范键并保存原始名称，不能合并实际不同市场类型。
+
+**交付物：** PIT 符号规范与迁移说明；成员结束退出接线；混合名称/退市边界集成测试。
+
+**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+
+<a id="fix-09"></a>
+
+## FIX-09 Walk-forward 按候选预热并禁止收益窗口重叠
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | fix / B2 / P1 |
+| 2026-09-20状态 | 待闭环 |
+| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/FIX-09/20260920-r-series/acceptance.json`，不随源码发布） |
+| 负责角色 | 数据与研究 |
+| 验收依赖 | [SYS-01](development_details.md#sys-01) |
+| 历史编号（结合来源阅读） | R3、S1、SR5 |
+| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 证据目录 | `reports/roadmap_v3/FIX-09/<run_id>/` |
+
+优先级说明：候选预热原 P1 保留；重叠收益原 P2 提至 P1，因为重复样本会污染样本外统计。
+
+**目标契约：** 每个候选测试运行获得其最大所需 lookback 的历史上下文且不计入测试收益；拼接的样本外时间戳唯一且无重叠。
+
+**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+
+**修改范围：** [analysis/optimize.py](../analysis/optimize.py)、[analysis/walk_forward.py](../analysis/walk_forward.py)、[strategies/trend_breakout.py](../strategies/trend_breakout.py)、[analysis/research_validation.py](../analysis/research_validation.py)。
+
+**开发步骤：**
+
+1. 由候选参数及指标依赖计算有效 lookback，不能只使用全局 warmup_period=30。
+2. 为测试窗口补足足量前缀，并严格裁掉预热期收益/交易对测试计量的影响，定义跨窗口持仓政策。
+3. 配置层拒绝 step<test_size 的重叠几何；若未来支持重叠，必须单独定义唯一分配策略而非本次隐式 concat。
+4. 在拼接层再次断言索引唯一、顺序和边界范围，将实际 warmup 记入输出。
+
+**验收：**
+
+- 正例：100-bar 候选配 60-bar 测试获得足够历史上下文，且测试收益只含其正式窗口。
+- 正例：相邻不重叠窗口拼接后交易日唯一，统计与分窗手算一致。
+- 反例：历史不足不能把没预热成熟的候选当作有效零交易策略排序。
+- 反例：step<test_size 或重复收益时间戳必须明确拒绝。
+
+**兼容与迁移：** 原固定 warmup 配置作为最低值保留，实际值取依赖所需上界；重叠配置升级后给清晰错误信息和迁移方法。
+
+**交付物：** 候选 lookback 解析器；窗口几何与拼接校验；预热/重复样本边界测试。
+
+**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+
+<a id="sys-04"></a>
+
+## SYS-04 数据身份、PIT与独立来源核验
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | capability / B2 / P1 |
+| 2026-09-20状态 | 部分实现待验收 |
+| 本轮复核状态 | 部分实现待验收；验收证据（仅本地引用：`reports/roadmap_v3/SYS-04/20260920-local-gates/acceptance.json`，不随源码发布） |
+| 负责角色 | 领域内核与报告 |
+| 验收依赖 | [SYS-01](development_details.md#sys-01)、[FIX-04](development_details.md#fix-04)、[FIX-05](development_details.md#fix-05)、[FIX-06](development_details.md#fix-06)、[FIX-07](development_details.md#fix-07) |
+| 历史编号（结合来源阅读） | SR4-1–SR4-4、S2-1、S2-2、B-12、B-13、B-15、D1、D2 |
+| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 证据目录 | `reports/roadmap_v3/SYS-04/<run_id>/` |
+
+**目标契约：** 每根研究输入可追到交易所/账户类型/标的/周期/获取时间/哈希与PIT可交易区间；已知限制可见。
+
+**来源：** docs/current_strategy_remediation_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/current_strategy_remediation_roadmap.md`，不随源码发布）；docs/strategy_development_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md`，不随源码发布）；docs/backtest_optimization_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/backtest_optimization_roadmap.md`，不随源码发布）。
+
+**修改范围：** [core/data_fetcher.py](../core/data_fetcher.py)、[core/data.py](../core/data.py)、[core/universe.py](../core/universe.py)、[scripts/fetch_binance_data.py](../scripts/fetch_binance_data.py)、[config/universe_binance_spot_1d.csv](../config/universe_binance_spot_1d.csv)。
+
+**开发步骤：**
+
+1. 冻结原始symbol和规范symbol映射，账户/数据源/周期作为cache身份，禁止覆盖为另一个来源。
+2. 补历史上市退市、可交易性和成员时间；保留幸存者偏差与历史借贷资格证据不足，不能用当前60币列表代替完整历史。
+3. 异常点保存原始值、修正值、来源与原因，无法确认则冻结双情景；第二源逐项核对异常及Top20 winners/losers。
+4. 明确多周期重采样时区、闭合时点、缺口和边界；建立固定seed的跳空/停牌/缺价/低流动性合成场景。
+
+**验收：**
+
+- 数据manifest可复算、来源/周期错配拒绝；未闭合bar不作为已知输入。
+- PIT前缀测试及退市退出事件可复现，时间边界不泄漏未来成员。
+- 独立来源不一致不会被均值抹平；无法核实的历史成本/容量标记证据不足。
+- 普通入口timeframe=4h可运行；相同数据请求二次命中缓存且零网络，来源/周期/范围不同不能错命中。
+
+**兼容与迁移：** 不覆盖原数据缓存；新规范生成新目录/manifest，使用显式迁移映射。
+
+**交付物：** contract.md（契约及变更边界）；acceptance.json（逐项通过/失败/不足/待证据）；evidence_manifest.json（源码、配置、输入、结果摘要）；tests或运行记录、对账和新旧差异、已知限制。
+
+<a id="fix-10"></a>
+
+## FIX-10 现金、费用、滑点与无价市价单采用同一风险输入
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | fix / B3 / P1 |
+| 2026-09-20状态 | 待闭环 |
+| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/FIX-10/20260920-r-series/acceptance.json`，不随源码发布） |
+| 负责角色 | 交易与风险 |
+| 验收依赖 | [SYS-01](development_details.md#sys-01) |
+| 历史编号（结合来源阅读） | R1、R2、R4、SR3 |
+| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 证据目录 | `reports/roadmap_v3/FIX-10/<run_id>/` |
+
+优先级说明：保留现金成本原 P1；其它 P2 提至同包 P1，因为共同影响资金可支付性及风险限额。
+
+**目标契约：** 现金占用区分订单方向和账户模式并包含实际费用/滑点；预算使用 Broker 解析后的成本参数；支持有可信当前 mark 的 price=None 市价单。
+
+**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+
+**修改范围：** [core/risk/position_sizing.py](../core/risk/position_sizing.py)、[core/risk/reservation.py](../core/risk/reservation.py)、[core/risk/__init__.py](../core/risk/__init__.py)、[core/broker/fill_service.py](../core/broker/fill_service.py)、[core/risk/drawdown_budget.py](../core/risk/drawdown_budget.py)、[backtest/engine.py](../backtest/engine.py)、[composition/factory.py](../composition/factory.py)、[core/broker/matching.py](../core/broker/matching.py)。
+
+**开发步骤：**
+
+1. 将 pending 预留暴露与实际现金需求分离，按 buy/short、spot/margin 模式计算，禁止把开空名义金额直接扣成现货现金。
+2. 以费用、滑点及精度后的可支付总成本计算买入数量上限，并在执行价格确定时重验不足现金边界。
+3. 在 drawdown budget.bind 读取 Broker 已解析成本模型，确保 CLI slippage 覆盖值传播到预算。
+4. 对缺 price/reference_price 的市场意图使用当前 symbol 的有效 mark；缺失或过期 mark 必须明确拒绝。
+5. 输出统一的 sizing reference、成本来源和预留明细供恢复与审计。
+
+**验收：**
+
+- 正例：手续费非零时订单在现金内支付成功且成交后现金不为负。
+- 正例：Broker 滑点覆盖为 5% 时预算按相同值计成本；有有效 mark 的无价 market 意图可合法进入下一 bar 撮合。
+- 反例：开空预留不得被双重当作全额现金支出；margin 与 spot 的非法方向仍拒绝。
+- 反例：没有任何可信参考价格时不能绕过预算；精度/费用后超现金不得被静默接受。
+
+**兼容与迁移：** 保留旧 submit_order(price=None) 接口；新增预留字段须兼容旧状态，缺字段用显式迁移政策而非假定零成本。
+
+**交付物：** 统一可支付性与成本输入契约；方向/账户模式边界测试；滑点覆盖与无价市场单回归。
+
+**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+
+<a id="fix-11"></a>
+
+## FIX-11 平仓回调按持仓聚合并使用所属标的索引
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | fix / B3 / P1 |
+| 2026-09-20状态 | 待闭环 |
+| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/FIX-11/20260920-r-series/acceptance.json`，不随源码发布） |
+| 负责角色 | 交易与风险 |
+| 验收依赖 | [SYS-01](development_details.md#sys-01) |
+| 历史编号（结合来源阅读） | R1、R4、SR1 |
+| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 证据目录 | `reports/roadmap_v3/FIX-11/<run_id>/` |
+
+优先级说明：保留邮件 P1；重复闭仓和错误索引会改变冷却、持有期与策略健康。
+
+**目标契约：** 每个完整 position 仅触发一次 on_trade_closed；部分退出继续累计，回调使用 event.symbol 对应的本地 bar 索引及完整净收益。
+
+**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+
+**修改范围：** [strategies/base.py](../strategies/base.py)、[router/router.py](../router/router.py)、[backtest/engine.py](../backtest/engine.py)、[strategies/mean_reversion.py](../strategies/mean_reversion.py)、[strategies/trend_breakout.py](../strategies/trend_breakout.py)。
+
+**开发步骤：**
+
+1. 建立按 position_id 聚合的关闭状态，汇总分批 CloseEvent 的数量、费用、净收益与风险。
+2. 仅在 position 完全平仓后触发完成回调并清 context，部分退出可走显式独立通知但不得冒充完整交易。
+3. 让事件消费从 symbol→bar_index 映射取值，覆盖 Router 正常退出与 breaker 强制成交消费路径。
+4. 在策略切换/同标的多 position 情况保留归属，避免将旧事件分给新持仓。
+
+**验收：**
+
+- 正例：多次部分平仓只产生一次完整闭仓回调，汇总 PnL 等于全部事件之和。
+- 正例：union 对齐下不同标的 bar 数量不同时使用正确本地索引。
+- 反例：部分亏损退出不能被健康模块计为多笔失败。
+- 反例：A 标的回调不得使用 B 标的或组合全局 bar_index；重复事件不得重复闭仓。
+
+**兼容与迁移：** 需要给依赖每个 close event 的旧策略提供明确的部分退出钩子/迁移说明；旧 on_trade_closed 名称保留但语义固定为完整持仓。
+
+**交付物：** 平仓生命周期契约；跨标的/部分退出集成测试；策略回调兼容说明。
+
+**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+
+<a id="fix-12"></a>
+
+## FIX-12 报告按主 lot 事实保留分片、风险与成本口径
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | fix / B3 / P1 |
+| 2026-09-20状态 | 待闭环 |
+| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/FIX-12/20260920-r-series/acceptance.json`，不随源码发布） |
+| 负责角色 | 交易与风险 |
+| 验收依赖 | [SYS-01](development_details.md#sys-01)、[FIX-11](development_details.md#fix-11) |
+| 历史编号（结合来源阅读） | R1、R2、R3 |
+| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 证据目录 | `reports/roadmap_v3/FIX-12/<run_id>/` |
+
+优先级说明：邮件原 P2；按项目 R1 账务可信度提升为 P1，避免错误 R 与成本驱动研究决策。
+
+**目标契约：** 多次入场和退出分片均可追溯 lot/position/risk；每个关闭数量只分摊对应初始风险；历史无 theoretical_price 的成交不重复扣除滑点。 原始风险以 2026-09-12/14 已批准且不可变的 approved_risk_amount 为准，不能退回成交时 fill_time_equity 重算。
+
+**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+
+**修改范围：** [backtest/reporting/trades.py](../backtest/reporting/trades.py)、[core/lots.py](../core/lots.py)、[core/broker/fill_service.py](../core/broker/fill_service.py)、[backtest/reporting/__init__.py](../backtest/reporting/__init__.py)、[core/metrics/attribution.py](../core/metrics/attribution.py)、[scripts/run_phase5_analysis.py](../scripts/run_phase5_analysis.py)。
+
+**开发步骤：**
+
+1. 以主 lot ledger 的分配关系重建报告 legs，停止按入场 fill 栈与 lot_closes 位置的一对一假设。
+2. 将一次退出覆盖多个入场分片的 lot_id、position_id、数量和风险传给全部对应 legs。
+3. 以不可变 approved_risk_amount 为原始风险事实，区分原始总额与按关闭数量分配额，统一 LotClose.initial_risk/旧研究消费者，禁止按 fill_time_equity 重新定风险。
+4. 在旧成交缺 theoretical_price 时标识理论毛收益不可得或已含滑点，成本敏感度按基准成本语义计算增量。
+5. 验证 round-trip、legs、CloseEvent 和组合 PnL 之间的加总与风险分配守恒。
+
+**验收：**
+
+- 正例：两次部分入场加一次总退出时所有 legs 保有归属，数量/PnL/风险加总与主账本一致。
+- 正例：多次部分退出的风险分摊总额等于原 lot 风险，完整往返 R 正确。
+- 反例：缺 theoretical_price 的旧档案不能被当作无滑点理论价格再扣一遍既有滑点。
+- 反例：同一 lot 风险不能在每个 leg 重复用为完整分母，缺 position_id 必须可诊断。
+
+**兼容与迁移：** 增加 schema/成本语义标记；旧 CSV 保留原值并显式标为 legacy，无法恢复的字段不编造。旧 legs 研究入口要同时迁移。
+
+**交付物：** lot→leg 事实映射规范；数量/费用/风险守恒测试；旧成本数据迁移与降级规则。
+
+**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+
+<a id="fix-13"></a>
+
+## FIX-13 正式 Broker 在空仓时重置借币计息时钟
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | fix / B3 / P1 |
+| 2026-09-20状态 | 待闭环 |
+| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/FIX-13/20260920-r-series/acceptance.json`，不随源码发布） |
+| 负责角色 | 交易与风险 |
+| 验收依赖 | [SYS-01](development_details.md#sys-01) |
+| 历史编号（结合来源阅读） | R1、S3、SR3 |
+| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 证据目录 | `reports/roadmap_v3/FIX-13/<run_id>/` |
+
+优先级说明：邮件原 P2；按正式账务错误提升为 P1，避免新空仓承担无仓期间利息。
+
+**目标契约：** 借币利息仅按实际借贷/持仓存续时段累积，完全平仓至重新开空之间不继续计息。
+
+**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+
+**修改范围：** [core/broker/financing.py](../core/broker/financing.py)、[backtest/signal_ghost.py](../backtest/signal_ghost.py)、[backtest/signal_meta_replay.py](../backtest/signal_meta_replay.py)。
+
+**开发步骤：**
+
+1. 在正式 Broker 的融资状态更新中处理 short→flat 边界，清除或结算 _last_borrow_time。
+2. 重新开空时以实际借款/开仓时间初始化新计息区间，不能复用上一仓时间。
+3. 对部分平仓保留剩余借贷计息，并核对与 Ghost/P3 影子路径的口径一致。
+
+**验收：**
+
+- 正例：开空—平仓—空窗—再开空的利息等于两段真实持仓利息之和。
+- 正例：部分平仓后只按剩余借贷数量和正确时段计息。
+- 反例：增长空仓间隔不能增加新仓的首笔借币费。
+- 反例：重复 flat 更新不产生额外费用或遗留计息起点。
+
+**兼容与迁移：** 重启状态含旧 last_borrow_time 但仓位为零时迁移为已结清状态并留痕；不覆盖历史已收费用。
+
+**交付物：** 正式计息生命周期修复；分段手算融资夹具；正式/影子口径对照。
+
+**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+
+<a id="fix-14"></a>
+
+## FIX-14 外部同步持仓具有明确接管或退出政策
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | fix / B3 / P0 |
+| 2026-09-20状态 | 待闭环 |
+| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/FIX-14/20260920-r-series/acceptance.json`，不随源码发布） |
+| 负责角色 | 交易与风险 |
+| 验收依赖 | [SYS-01](development_details.md#sys-01) |
+| 历史编号（结合来源阅读） | R4、R6、SR2、SR3 |
+| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 证据目录 | `reports/roadmap_v3/FIX-14/<run_id>/` |
+
+优先级说明：原邮件 P1 升级 P0：未知归属持仓可能没有策略退出与最大持有期控制，符合旧 Roadmap 未知仓位风险定义。
+
+**目标契约：** 每个同步持仓必须是可恢复归属的 managed position，或进入显式 unowned 接管/减险流程；无历史归属不能被静默视作普通可交易持仓。
+
+**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+
+**修改范围：** [core/live_broker/account_sync.py](../core/live_broker/account_sync.py)、[core/live_broker/__init__.py](../core/live_broker/__init__.py)、[core/live_broker/submission.py](../core/live_broker/submission.py)、[router/router.py](../router/router.py)、[live_trading/tick_orchestrator.py](../live_trading/tick_orchestrator.py)。
+
+**开发步骤：**
+
+1. 保留已有成交账本重建 owner/lot 的路径，新增外部仓位接管记录与状态。
+2. 制定可审计政策：无法确定 entry_time/owner 时默认禁止新增风险并保持具名保护/退出，不能编造原策略归属。
+3. 将接管/退出的持有期起点、风险预算和保护数量显式接入 live management，明确人工认领需要的输入。
+4. 在同步、重启和部分退出之间持久化接管决定，核对远端实际数量与本地控制数量。
+
+**验收：**
+
+- 正例：本系统历史仓位恢复原 owner；外部无历史仓位被检测并执行已配置减险/保护政策。
+- 正例：重启后接管状态、剩余退出和保护单连续且不重复。
+- 反例：缺 owner/entry_time 的外部持仓不能成为无退出控制的普通持仓。
+- 反例：保护提交失败仍保持禁止新增风险，并留下可定位的待处理动作。
+
+**兼容与迁移：** 不自动认领为任意策略；持仓历史缺失保持明确 unknown。新增持仓管理状态需兼容已有 owner 重建。
+
+**交付物：** 外部持仓政策及状态机；同步/重启/保护失败集成测试；接管审计记录。
+
+**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+
+<a id="fix-15"></a>
+
+## FIX-15 策略通过试运行后重置亏损基线并同步恢复状态
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | fix / B3 / P1 |
+| 2026-09-20状态 | 待闭环 |
+| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/FIX-15/20260920-r-series/acceptance.json`，不随源码发布） |
+| 负责角色 | 交易与风险 |
+| 验收依赖 | [SYS-01](development_details.md#sys-01)、[FIX-11](development_details.md#fix-11) |
+| 历史编号（结合来源阅读） | R2、R4、R6、SR1 |
+| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 证据目录 | `reports/roadmap_v3/FIX-15/<run_id>/` |
+
+优先级说明：健康生命周期原 P1；状态展示原 P2 随同恢复契约处理。
+
+**目标契约：** probation 成功后已用于验收的交易不会立即再次触发同一亏损串；breaker 自动恢复的同一 tick 中，对外状态与实际风险动作一致。
+
+**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+
+**修改范围：** [core/strategy_health.py](../core/strategy_health.py)、[live_trading/tick_orchestrator.py](../live_trading/tick_orchestrator.py)、[live_trading/engine.py](../live_trading/engine.py)。
+
+**开发步骤：**
+
+1. 在 probation→ACTIVE 转换保存亏损 streak 评估的新基线/事件游标，区分试运行样本和恢复后新样本。
+2. 保留总 R/最少样本等试运行政策，不以简单清空历史掩盖长期统计。
+3. 在 breaker recovery transition 后重新计算 operational state，合并其它仍存在的账户/数据故障。
+4. 使导出快照、风险权限和恢复事件使用同一转换结果。
+
+**验收：**
+
+- 正例：试运行总 R 为正但末尾连续亏损时，通过后不会在下个无新成交 tick 再次冷却。
+- 正例：冷却恢复成功的同 tick 导出与实际允许动作一致。
+- 反例：恢复后的新连续亏损仍能再次触发冷却。
+- 反例：另有数据/账户故障时不能因 breaker 恢复而错误显示 HEALTHY。
+
+**兼容与迁移：** 健康状态版本需保存新 baseline；旧状态恢复需明确从最后已判定交易开始，不能重复消费完整历史。 参数服从 2026-09-14 已冻结健康协议（stage 0.10、30 天、5 个新 cohort、3 个 symbol、去掉最佳样本后仍为正等）；本包修状态消费，不恢复旧 3 cohort/默认 0.25 标准。
+
+**交付物：** 健康基线迁移规则；正总 R/尾部亏损边界测试；同 tick 状态一致性测试。
+
+**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+
+<a id="fix-16"></a>
+
+## FIX-16 风险减仓覆盖缺行情持仓并保留期末真实流动性
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | fix / B3 / P1 |
+| 2026-09-20状态 | 待闭环 |
+| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/FIX-16/20260920-r-series/acceptance.json`，不随源码发布） |
+| 负责角色 | 交易与风险 |
+| 验收依赖 | [SYS-01](development_details.md#sys-01) |
+| 历史编号（结合来源阅读） | R1、R2、SR2、SR3 |
+| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 证据目录 | `reports/roadmap_v3/FIX-16/<run_id>/` |
+
+优先级说明：保留邮件 P1；未完成减险与重复成交量预算会扭曲风险和成交事实。
+
+**目标契约：** 风险动作以每个目标持仓的完成状态为准，缺 bar 时待重试；期末合成时间不能重置最后真实 bar 的剩余成交量预算。 跳空止损与强平保留真实可成交价格和参与率，不能用止损价或即时全部成交制造完成。
+
+**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+
+**修改范围：** [backtest/engine.py](../backtest/engine.py)、[core/broker/liquidation.py](../core/broker/liquidation.py)、[core/broker/matching.py](../core/broker/matching.py)。
+
+**开发步骤：**
+
+1. 将 applied_breaker_actions 的一次性记账细化为每个 symbol/position 的目标数量与待完成状态，缺 bar 的对象保持 pending。
+2. 恢复行情后按剩余目标重试，识别已存在 GTC 减仓单，避免重复下单或过度减仓。
+3. 将期末退出的流动性来源绑定到真实 bar 身份/剩余额度，合成结算时间只用于事件顺序。
+4. 当期末真实流动性不足时保留未完成持仓及清晰估值/失败状态，不伪造成交。
+
+**验收：**
+
+- 正例：A/B 同持仓而 B 在动作时缺 bar，B 恢复后达到原先固定的减仓目标，A 不重复减仓。
+- 正例：最后 bar 常规成交/止损/期末退出共享同一参与率上限。
+- 反例：缺 bar 不能把整项动作标已完成；存在残余 GTC 时不能另造重复退出单。
+- 反例：真实 bar 剩余额度为零时，timestamp+1微秒 的 synthetic bar 不能生成新预算。
+- 反例：跳空超过止损价或缺乏可成交量时，不得编造止损价成交或即时全量退出。
+
+**兼容与迁移：** 目标应固定于风险动作创建时，避免每次重试按当前数量重复乘比例。VER-01 独立验证流动性残单情形，本包不预先认定其缺陷成立。
+
+**交付物：** 逐持仓风险动作状态；期末流动性来源规则；union 缺 bar/尾部多 pass 集成测试。
+
+**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+
+<a id="ver-01"></a>
+
+## VER-01 验证流动性不足后的部分减仓是否真正中断
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | verification / B3 / P1 |
+| 2026-09-20状态 | 待验证 |
+| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/VER-01/20260920-r-series/acceptance.json`，不随源码发布） |
+| 负责角色 | 交易与风险 |
+| 验收依赖 | [SYS-01](development_details.md#sys-01) |
+| 历史编号（结合来源阅读） | R1、R2、SR2、SR3 |
+| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 证据目录 | `reports/roadmap_v3/VER-01/<run_id>/` |
+
+优先级说明：沿用原邮件 P1 作为核验优先级，不能当作已确认缺陷或已修复。
+
+**目标契约：** 先建立真实 BacktestEngine+Broker 集成证据，再判定该邮件主张；已知常规 GTC 残单后续会继续成交，缺 bar 问题属于 FIX-16。
+
+**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+
+**修改范围：** [backtest/engine.py](../backtest/engine.py)、[core/broker/liquidation.py](../core/broker/liquidation.py)、[core/broker/matching.py](../core/broker/matching.py)。
+
+**开发步骤：**
+
+1. 先在B0冻结的原始工作区副本验证邮件原命题并记录残余GTC行为，再在FIX-16完成后重复集成场景；不得只在修复后代码上回溯判定原意见。
+2. 固化原审计已观察到的常规场景：持仓 10、目标 5、每 bar 可成交 1，首次到 9 留 GTC，随后四 bar 到 5。
+3. 在完整引擎中加入保护单干扰、重复 risk action、订单取消/拒绝、union 缺 bar 等独立边界，逐步追踪 active_orders 和目标数量。
+4. 确认已完成/未完成动作的判据，以及重试是否造成重复订单或超额减仓。
+5. 若找到反例，记录最小复现并在本核验记录下形成有界修复任务；若未找到，给出已覆盖边界和不能判定的场景，保留邮件原文。
+
+**验收：**
+
+- 正例：普通流动性不足路径由残余 GTC 持续成交至固定目标，完整事实链可复现。
+- 正例：每个扩展场景有目标数量、残单、实际成交及最终状态证据。
+- 反例：不得仅因 applied_breaker_actions 代码形状就判定永久不重试。
+- 反例：不得用 live 测试代替 backtest 集成结论；不得将 本地审查编号已省略 缺 bar 已确认缺陷重复计为本邮件完成。
+
+**兼容与迁移：** 本项首先是验证，不能预设要修改行为；发现新缺陷后保留同一来源和证据，明确对 FIX-16 的依赖/边界。
+
+**交付物：** 真实引擎集成复现报告；已覆盖与未覆盖边界表；确认缺陷或证据不足的审计结论。
+
+**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+
+<a id="fix-17"></a>
+
+## FIX-17 熔断检查点原子保存并隔离并发导出临时文件
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | fix / B4 / P0 |
+| 2026-09-20状态 | 待闭环 |
+| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/FIX-17/20260920-r-series/acceptance.json`，不随源码发布） |
+| 负责角色 | 运行与持久化 |
+| 验收依赖 | [SYS-01](development_details.md#sys-01) |
+| 历史编号（结合来源阅读） | R4、R6、SR1 |
+| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 证据目录 | `reports/roadmap_v3/FIX-17/<run_id>/` |
+
+优先级说明：熔断日期原 P1 升级 P0：崩溃窗口可错误重置 daily breaker；并发快照原 P2 同时关闭原子状态边界。
+
+**目标契约：** breaker checkpoint 与其交易日属于同一原子版本；快照每次导出使用唯一临时文件，读者只看见完整新旧版本。
+
+**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+
+**修改范围：** [live_trading/tick_orchestrator.py](../live_trading/tick_orchestrator.py)、[live_trading/engine.py](../live_trading/engine.py)、[core/state_store_v2.py](../core/state_store_v2.py)、[live_trading/state_export.py](../live_trading/state_export.py)。
+
+**开发步骤：**
+
+1. 将交易日纳入同一 checkpoint payload，或用单事务批量更新状态并保存 schema/version。
+2. 恢复优先读取原子版本，对旧独立 day/checkpoint 的矛盾组合采用保守恢复并留痕。
+3. 在并发 state_export 中采用每次调用唯一且同目标卷的临时文件，原子替换后清理本次所有物。
+4. 在保存前后与替换前后注入崩溃/异常，覆盖同进程多线程及多个实例。
+
+**验收：**
+
+- 正例：完整保存后重启恢复相同 breaker 和日期；跨日按既定政策正确转换。
+- 正例：并发导出只产生可解析完整快照，无临时文件争抢。
+- 反例：旧两次写入间崩溃的场景不能让 daily breaker 被无依据清除。
+- 反例：一个导出调用失败不得删除另一个调用的临时文件或使目标半写。
+
+**兼容与迁移：** 保留读取旧 checkpoint 的迁移分支；第一次成功保存生成新原子版本。临时文件清理仅针对本次唯一文件，不扫描删除其它会话。
+
+**交付物：** checkpoint 版本与迁移契约；崩溃注入恢复记录；并发导出回归。
+
+**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+
+<a id="fix-18"></a>
+
+## FIX-18 存量事件解码、幂等类型与运维入口兼容
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | fix / B4 / P1 |
+| 2026-09-20状态 | 待闭环 |
+| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/FIX-18/20260920-r-series/acceptance.json`，不随源码发布） |
+| 负责角色 | 运行与持久化 |
+| 验收依赖 | [SYS-01](development_details.md#sys-01) |
+| 历史编号（结合来源阅读） | R5、R6 |
+| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 证据目录 | `reports/roadmap_v3/FIX-18/<run_id>/` |
+
+优先级说明：wire 幂等原 P1；解码与手册原 P2 合并为存量事实可回放契约。
+
+**目标契约：** 旧 core.ledger 与 core.events 事件可用显式别名解码；同一事实迁移模块后仍判定为同一幂等 payload；运行手册指向真实可执行对账入口。
+
+**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+
+**修改范围：** [core/events/codec.py](../core/events/codec.py)、[core/events/store.py](../core/events/store.py)、[research/audit/reconciliation_job.py](../research/audit/reconciliation_job.py)。
+
+**开发步骤：**
+
+1. 为 core.ledger:CashEvent/MarkPriceEvent 注册受控解码 shim，保留必要字段与含义。
+2. 定义稳定 wire type 或 canonical alias 归一化，在幂等比较前规范新旧模块路径。
+3. 对同一幂等键但业务 payload 不同的事件继续报冲突，不可因迁移归一化而放宽。
+4. 把 R6/R7 手册中的 core.reconciliation_job 替换为 research.audit 实际入口，并校验参数/输出。
+5. 以旧数据库复制夹具回放和重投新编码，保留原存储内容或可逆迁移日志。
+
+**验收：**
+
+- 正例：旧审计库两类 ledger 事件可解码；旧类型写入后用新类型重复投递仍幂等。
+- 正例：文档命令在离线夹具上启动真实对账入口并输出约定结果。
+- 反例：相同幂等键但数量/金额不同依然必须冲突。
+- 反例：未知且未登记的类型不得被随意动态导入。
+
+**兼容与迁移：** 不要全库重写 wire name 后丢失原始事实；优先读时兼容和规范比较。保留迁移前数据库与格式说明。
+
+**交付物：** wire 类型兼容表；旧库回放与幂等冲突测试；更新的运维命令。
+
+**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+
+<a id="fix-08"></a>
+
+## FIX-08 统一研究入口、冻结实现与样本外政策
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | fix / B5 / P1 |
+| 2026-09-20状态 | 待闭环 |
+| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/FIX-08/20260920-r-series/acceptance.json`，不随源码发布） |
+| 负责角色 | 报告与研究 |
+| 验收依赖 | [SYS-01](development_details.md#sys-01)、[FIX-02](development_details.md#fix-02)、[FIX-03](development_details.md#fix-03)、[FIX-09](development_details.md#fix-09)、[FIX-19](development_details.md#fix-19) |
+| 历史编号（结合来源阅读） | R0、R3、S1、SR0、SR5、S0-2 |
+| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 证据目录 | `reports/roadmap_v3/FIX-08/<run_id>/` |
+
+优先级说明：保留邮件 P1；配置原 P2 合并进冻结研究契约，不把已见历史重新命名为未见样本。
+
+**目标契约：** 候选只使用预注册train/validation选择；final holdout仅作独立裁决。旧Phase5入口不能用Phase0净值冒充当前实现；所有分区、窗口、压力和门槛来自冻结配置，已见历史与前瞻holdout清楚分开。
+
+**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+
+**修改范围：** [analysis/optimize.py](../analysis/optimize.py)、[scripts/run_phase5_analysis.py](../scripts/run_phase5_analysis.py)、[config/params.yaml](../config/params.yaml)、[analysis/research_validation.py](../analysis/research_validation.py)。
+
+**开发步骤：**
+
+1. 取消按最终OOS排序；显式登记每个分区是train、validation还是final holdout。旧两分区入口的test/OOS默认为最终检验，不可用于排名；需要validation须在查看最终结果前冻结其角色，不能事后重命名已见test。
+2. 将 Phase5 入口迁移到显式 frozen run manifest（源码/配置/数据哈希），或停止旧入口的准入功能并给出可执行替代入口。
+3. 读取并校验 phase5 配置，把分区、walk-forward、压力、AdmissionThresholds 的实际生效值写入结果。
+4. 将旧 Phase0 切片报告标为回顾性分析；保留原始报告并新增失效说明。
+5. 接入已有前瞻窗口登记，记录冻结日期、访问记录及最早验收条件；不得提前宣告前瞻通过。
+6. 用可控有交易夹具验证优化器实际构造的策略集合能被Router解析，候选参数真实进入运行配置；不仅检查注册表名称。
+
+**验收：**
+
+- 正例：预注册train/validation的选择分数改变时可影响候选排名；只有train/test两分区且test是最终检验时只按train选择。冻结的实现、输入和配置可复现相同研究身份。
+- 正例：修改一个受支持配置参数会改变有效配置与对应运行范围，并体现在 manifest。
+- 反例：只改变final holdout结果不能改变候选排名，最终样本不能回流选参、改阈值或选择基准。
+- 反例：Phase0 旧净值、已见切片或未成熟前瞻窗口不能用于宣告当前模型获得独立 holdout 通过。
+- 反例：配置键未读取、来源身份缺失或配置未知字段应明确失败。
+- 正例：可控夹具中每个候选均可路由，改变有效参数会改变预期决策；不要求生产历史必有交易或收益改善。
+
+**兼容与迁移：** 保留旧脚本/报告的来源，但取消错误准入解释；新入口输出含 schema/version 的结果。前瞻时间按既有计划冻结，时间到达不自动代表门槛通过。
+
+**交付物：** 统一研究运行协议；旧报告失效/迁移索引；冻结配置 manifest 与复现实验。
+
+**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+
+<a id="fix-19"></a>
+
+## FIX-19 常规报告、空结果与 Metrics 兼容共享稳定契约
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | fix / B5 / P1 |
+| 2026-09-20状态 | 待闭环 |
+| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/FIX-19/20260920-r-series/acceptance.json`，不随源码发布） |
+| 负责角色 | 报告与研究 |
+| 验收依赖 | [SYS-01](development_details.md#sys-01) |
+| 历史编号（结合来源阅读） | R1、R2、R3 |
+| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 证据目录 | `reports/roadmap_v3/FIX-19/<run_id>/` |
+
+优先级说明：metrics.json 原 P1 保留；其余 P2 合并为结果接口契约，不再依赖报告文本猜测数值。
+
+**目标契约：** 常规 ReportGenerator/main 生成标准 metrics.json；空运行含 entry_observations=[]；受承诺的 Metrics 导出可用；矩阵消费不可计算值有显式状态。
+
+**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+
+**修改范围：** [backtest/reporting/__init__.py](../backtest/reporting/__init__.py)、[scripts/run_revalidation60.py](../scripts/run_revalidation60.py)、[scripts/run_p0_recovery_backtest.py](../scripts/run_p0_recovery_backtest.py)、[scripts/run_backtest_matrix.py](../scripts/run_backtest_matrix.py)、[core/metrics/__init__.py](../core/metrics/__init__.py)、[backtest/engine.py](../backtest/engine.py)、[scripts/run_expanded_universe_backtest.py](../scripts/run_expanded_universe_backtest.py)。
+
+**开发步骤：**
+
+1. 在常规报告路径统一序列化 MetricResult 与运行身份，专项脚本复用同一 schema/写入器。
+2. 禁止输出非标准 JSON NaN/Infinity；使用 null+status/reason 保留无损语义，矩阵优先读取 JSON。
+3. 为仍需解析旧文本的入口处理 inf/nan/负号并记录 legacy 来源，不能悄悄漏掉指标。
+4. 恢复承诺的 Metrics 兼容 export/adapter 并清晰限定旧接口支持范围。
+5. 统一正常/空数据/规范化后空数据结果的必需字段，entry_observations 始终存在。
+
+**验收：**
+
+- 正例：main 常规回测与专项路径均写相同版本 metrics.json；零交易指标状态可机器读取。
+- 正例：旧 from core.metrics import Metrics 按既有接口工作；空数据审计返回空观察数组。
+- 反例：严格 JSON 解析器不得遇到 NaN/Infinity 字面量；非有限指标不得被丢字段冒充不存在。
+- 反例：空数据/清洗后空数据不得引起 run_arm KeyError。
+
+**兼容与迁移：** 保留旧文本解析作为有期限的兼容入口；写入器采用 schema_version，旧 Metrics 适配器避免重建第二套公式。
+
+**交付物：** 统一结果/metrics schema；常规与空运行契约测试；Metrics 兼容与非有限指标迁移说明。
+
+**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+
+<a id="fix-20"></a>
+
+## FIX-20 统一分析图表、持有期诊断与入场漏斗口径
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | fix / B5 / P2 |
+| 2026-09-20状态 | 待闭环 |
+| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/FIX-20/20260920-r-series/acceptance.json`，不随源码发布） |
+| 负责角色 | 报告与研究 |
+| 验收依赖 | [SYS-01](development_details.md#sys-01)、[FIX-12](development_details.md#fix-12)、[FIX-19](development_details.md#fix-19) |
+| 历史编号（结合来源阅读） | R2、R3 |
+| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 证据目录 | `reports/roadmap_v3/FIX-20/<run_id>/` |
+
+优先级说明：保留邮件 P2；这些是分析解释层修复，交付前须防止误导比较。
+
+**目标契约：** 滚动回撤峰值来自本窗口；盈亏直方图共享边界；持有期诊断使用运行生效配置；入场漏斗只统计 entry 因果链。
+
+**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+
+**修改范围：** [backtest/reporting/render/charts.py](../backtest/reporting/render/charts.py)、[core/diagnostics.py](../core/diagnostics.py)、[scripts/run_phase4_analysis.py](../scripts/run_phase4_analysis.py)、[composition/factory.py](../composition/factory.py)、[config/params.yaml](../config/params.yaml)、[core/metrics/attribution.py](../core/metrics/attribution.py)。
+
+**开发步骤：**
+
+1. 按每个 trailing window 内峰值计算回撤，注明窗口单位与最小样本，避免用全历史 cummax。
+2. 用全部 PnL 先计算统一 bin edges，再分别绘制盈利/亏损；处理常数/空样本。
+3. 把 router.max_holding_days 的解析后值传给 build_diagnostics 与 Phase4 分析脚本，报告有效限制。
+4. 按 entry intent/因果关系筛选漏斗组，将退出链单独统计并处理缺关联原因。
+5. 更新误认可退出膨胀漏斗的旧测试，输出可手算小样本解释。
+
+**验收：**
+
+- 正例：高峰离开窗口后滚动回撤不再引用该高峰；各盈亏柱使用完全相同边界。
+- 正例：max_holding_days 非 365 时诊断与实际路由一致；纯入场链漏斗可追溯。
+- 反例：退出订单不能使入场漏斗后级计数凭空增大。
+- 反例：空/单值 PnL 不得制造错误坐标，缺配置不得默默回退为 365 而不说明。
+
+**兼容与迁移：** 图表公式与漏斗口径版本化，旧图保留原版本；更改后数值差异为口径修正，不据此宣称策略变好。
+
+**交付物：** 图表/诊断口径说明；窗口/桶边界/配置传播/漏斗测试；新旧展示差异示例。
+
+**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+
+<a id="sys-02"></a>
+
+## SYS-02 权威交易事实、账本与报告统一
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | capability / B5 / P1 |
+| 2026-09-20状态 | 部分实现待验收 |
+| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/SYS-02/20260920-r-series/acceptance.json`，不随源码发布） |
+| 负责角色 | 领域内核与报告 |
+| 验收依赖 | [SYS-01](development_details.md#sys-01)、[FIX-10](development_details.md#fix-10)、[FIX-11](development_details.md#fix-11)、[FIX-12](development_details.md#fix-12)、[FIX-13](development_details.md#fix-13)、[FIX-16](development_details.md#fix-16) |
+| 历史编号（结合来源阅读） | R1、BM0、G7、Batch 3–6、B-07、BT-04、S0-3、D-04 |
+| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 证据目录 | `reports/roadmap_v3/SYS-02/<run_id>/` |
+
+**目标契约：** fills、lots、position cycle、closed trades与资金投影来自同一可回放事实；报告消费投影，不自建另一套FIFO。
+
+**来源：** docs/development_plan.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/development_plan.md`，不随源码发布）；docs/backtest_optimization_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/backtest_optimization_roadmap.md`，不随源码发布）；[docs/authoritative_ledger.md](authoritative_ledger.md)。
+
+**修改范围：** [core/lots.py](../core/lots.py)、[core/portfolio.py](../core/portfolio.py)、[backtest/reporting/trades.py](../backtest/reporting/trades.py)、[research/audit/ledger.py](../research/audit/ledger.py)。
+
+**开发步骤：**
+
+1. 盘点现有core/lots、Portfolio、CloseEvent及report重建字段，先定义唯一权威和兼容读取契约。
+2. 以稳定fill_id/lot_id/position_id处理多空、分批入出、反向、尾仓、外部同步和费用；不因重放改变ID。
+3. 将报告FIFO迁移为已验证投影或唯一共享聚合器；旧报告字段由显式adapter生成，研究audit账本保留离线用途。
+4. 对齐现金、融资、费用、已实现/未实现PnL和权益；不完整事实输出invalid记录及原因，不进入正常closed sample。
+5. 交易事实采用增量消费及可恢复游标，去重集合有界；恢复位置与权威成交身份一致。
+
+**验收：**
+
+- 手算多空/分批/反向样本逐字段对账；总closed net PnL与账户实现口径桥接一致。
+- 重复fill、乱序、重启、历史数据缺字段有确定结果或明确拒绝，不制造交易。
+- 常规回测和报告消费相同交易事实，退出一次的position不会因分片变成多个独立往返。
+- 增量消费工作量随新增成交增长，历史长度增加不导致每bar全表重扫；游标重启/重复事件不漏记不重记。
+
+**兼容与迁移：** 先双读比较并保存差异；旧表不原地覆写，版本化导出并校验回放。
+
+**交付物：** contract.md（契约及变更边界）；acceptance.json（逐项通过/失败/不足/待证据）；evidence_manifest.json（源码、配置、输入、结果摘要）；tests或运行记录、对账和新旧差异、已知限制。
+
+<a id="sys-03"></a>
+
+## SYS-03 指标契约与BM0–BM8标准结果验收
+
+**今日后续实现：** 同步分组权益/资金流的回撤贡献、未成交机会成本、独立中间价与可执行报价偏差已接入标准报告。缺真实事实时继续输出明确空值状态；数据来源、账户桥接和BM8独立样本仍待验收。分组资金流仅支持区间末发生，报价偏差不代表因果市场冲击。见[后续实现记录](followup_completion_20260920.md)。
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | capability / B5 / P1 |
+| 2026-09-20状态 | 部分实现待验收 |
+| 本轮复核状态 | 部分实现待验收；本轮工程验收（仅本地引用：`reports/roadmap_v3/followup/20260920-implementation/SYS-03/acceptance-final.json`，不随源码发布） |
+| 负责角色 | 领域内核与报告 |
+| 验收依赖 | [SYS-02](development_details.md#sys-02)、[FIX-02](development_details.md#fix-02)、[FIX-09](development_details.md#fix-09)、[FIX-19](development_details.md#fix-19)、[FIX-20](development_details.md#fix-20) |
+| 历史编号（结合来源阅读） | R1、R2、R3、BM0–BM8、Batch 1/2/6–9、G7、G8 |
+| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 证据目录 | `reports/roadmap_v3/SYS-03/<run_id>/` |
+
+**目标契约：** 常规入口统一生成metrics.json、closed_trades、reconciliation；公式、单位、状态、输入身份与展示分离。
+
+**来源：** docs/backtest_metrics_detailed_development_plan.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/backtest_metrics_detailed_development_plan.md`，不随源码发布）；docs/development_plan.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/development_plan.md`，不随源码发布）。
+
+**修改范围：** [core/metric_result.py](../core/metric_result.py)、[core/metrics](../core/metrics)、[backtest/reporting](../backtest/reporting)、[analysis/validation.py](../analysis/validation.py)、[tests/test_metrics.py](../tests/test_metrics.py)。
+
+**开发步骤：**
+
+1. 完成BM0状态与JSON迁移：ok/insufficient_data/undefined/not_modeled/invalid_input，旧insufficient只在兼容输入中映射；保存schema/formula版本与reason。
+2. 固定收益与年化：输入只读、UTC/排序/重复处理；显式年化优先，混频/缺bar不可静默可靠推断；月收益保留零收益与不完整月份。
+3. 按原指标详情逐项建立BM1–BM8验收矩阵，覆盖回撤TopN/最长与未恢复、交易质量、时间资金暴露、执行统计、成本、归因、基准、R/MAE/MFE/SQN和稳健性。 BM4明确保留成交率、部分成交率、拒绝/取消/过期、成交耗时、参与率与implementation shortfall，不以成本总额代替执行质量。
+4. 报告读取标准化结果，N/A带原因；legacy字段及非有限值入口版本化处理，不重复算成本/收益。
+5. 为旧等权再平衡基准与9月14日冻结的BTC/ETH各50%首开盘买入不再平衡基准分配不同benchmark_id，明确费用、上市前现金和再平衡元数据。
+
+**验收：**
+
+- 递归编码Timestamp/NumPy/pd.NA/NaT，最终allow_nan=False；0和不可计算能区分。
+- 分组指标与总体可加总部分对账，交易风险缺失时R类输出not_modeled。
+- 固定订单成本增加净PnL不增；输入未修改；空/单样本/全胜/全败/零波动/缺价场景无误导值。
+- 所有BM原需求有实现、验收、明确未建模或保留待办的逐项记录，不能只以函数数目宣布完成。
+- 两种基准可分别手算且身份不混淆；旧报告基准不被静默覆盖，当前冻结研究沿用9月14日已批准定义。
+
+**兼容与迁移：** 保留旧报告回读；状态和年化语义改变必须提供新旧固定样本差异及版本说明。
+
+**交付物：** contract.md（契约及变更边界）；acceptance.json（逐项通过/失败/不足/待证据）；evidence_manifest.json（源码、配置、输入、结果摘要）；tests或运行记录、对账和新旧差异、已知限制。
+
+<a id="sys-05"></a>
+
+## SYS-05 完整账户事实及周期/日终对账
+
+**今日后续实现：** 只读固定摘要导出适配器、完整账户事实比较、周期/UTC日级观察回执及运行时逐单新增风险阻断已连接。账务未验证时保留已知仓位保护；余额读取失败仍按故障处理。真实导出、可信外部来源证明及连续完整日终证据未取得，不整体关闭。具体输入、限制和启动方法见[账户事实操作](account_fact_operations.md)。
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | capability / B5 / P0 |
+| 2026-09-20状态 | 部分实现待验收 |
+| 本轮复核状态 | 部分实现待验收；本轮工程验收（仅本地引用：`reports/roadmap_v3/followup/20260920-implementation/SYS-05/acceptance-final.json`，不随源码发布） |
+| 负责角色 | 领域内核与报告 |
+| 验收依赖 | [SYS-02](development_details.md#sys-02)、[FIX-01](development_details.md#fix-01)、[FIX-14](development_details.md#fix-14)、[FIX-17](development_details.md#fix-17)、[FIX-18](development_details.md#fix-18) |
+| 历史编号（结合来源阅读） | R4、R6、G3、ACCT-01、ACCT-02、T-6.3 |
+| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 证据目录 | `reports/roadmap_v3/SYS-05/<run_id>/` |
+
+**目标契约：** 周期对账覆盖真实账户全域，不只统计unknown订单；selected account mode的资金与仓位可解释。
+
+**来源：** docs/live_trading_remediation_plan.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/live_trading_remediation_plan.md`，不随源码发布）；docs/phase6_operations.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/phase6_operations.md`，不随源码发布）。
+
+**修改范围：** [core/live_broker/account_sync.py](../core/live_broker/account_sync.py)、[live_trading/recovery.py](../live_trading/recovery.py)、[core/portfolio.py](../core/portfolio.py)、[research/audit/reconciliation_job.py](../research/audit/reconciliation_job.py)。
+
+**开发步骤：**
+
+1. 规范exchange/account/mode身份及cash free/locked/total、positions、orders/fills/fees、equity/margin/PnL和资金流字段。
+2. 外部账户快照与本地事实投影逐层比较，采集元数据白名单外的额外业务字段也纳入差异。
+3. 充值提现单独建资金流；risk-day/日初权益持久化；未知外部仓位标未知并进入受控管理流程。
+4. positions接口失败、缺价、陈旧或币种转换失败保持事实未知，不用空仓/avg price静默替代；周期与日终输出同一schema。
+
+**验收：**
+
+- 注入漏单/重复fill/费用差额/入金/缺价/额外仓位均被检测，配置容差之外禁止新风险。
+- 现金+净持仓估值=权益，初始资本+资金流+PnL-成本桥接一致。
+- 现货、当前spot_margin等实际支持模式独立验收；离线测试账户报告不算真实连续日终证据。
+
+- 估值记录价格来源、实际时间和陈旧阈值；缺bar不伪造OHLCV或成交，陈旧超阈值阻止新增风险，报告明确区分估值与可成交价格。
+
+**兼容与迁移：** 保留原始外部快照和差异；外部无owner仓位不伪造策略来源，账户迁移必须核实。
+
+**交付物：** contract.md（契约及变更边界）；acceptance.json（逐项通过/失败/不足/待证据）；evidence_manifest.json（源码、配置、输入、结果摘要）；tests或运行记录、对账和新旧差异、已知限制。
+
+<a id="sys-06"></a>
+
+## SYS-06 模式一致性、共享事实与迁移验收
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | capability / B5 / P1 |
+| 2026-09-20状态 | 部分实现待验收 |
+| 本轮复核状态 | 部分实现待验收；验收证据（仅本地引用：`reports/roadmap_v3/SYS-06/20260920-local-closure/acceptance.json`，不随源码发布） |
+| 负责角色 | 领域内核与报告 |
+| 验收依赖 | [SYS-02](development_details.md#sys-02)、[SYS-05](development_details.md#sys-05)、[FIX-18](development_details.md#fix-18) |
+| 历史编号（结合来源阅读） | R5、G4、ARCH-01、Batch 10、G2、EXCH-01、B-01、B-10、S0-4 |
+| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 证据目录 | `reports/roadmap_v3/SYS-06/<run_id>/` |
+
+**目标契约：** 同一事件流产生相同signal/intent和因果链，mode差异仅存在边界adapter；迁移不重复消费。
+
+**来源：** docs/unified_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/unified_roadmap.md`，不随源码发布）；docs/live_trading_remediation_plan.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/live_trading_remediation_plan.md`，不随源码发布）；[docs/canonical_trading_events.md](canonical_trading_events.md)。
+
+**修改范围：** [core/runtime.py](../core/runtime.py)、[core/events](../core/events)、[backtest/execution_adapter.py](../backtest/execution_adapter.py)、[live_trading/execution_adapter.py](../live_trading/execution_adapter.py)。
+
+**开发步骤：**
+
+1. 固定MarketEvent/Signal/Intent/Order/Fill/Snapshot语义、OrderStatus与correlation/causation ID。
+2. 以回测/回放/sandbox stub运行同事件流，逐字段比较；陈旧/乱序/重复事件的处置同义。
+3. 为event/订单/checkpoint旧版本保存显式兼容路径，拒绝未知或不安全类型。
+4. 把报告、监控、账本对齐到同一事实投影，检查写前/写后崩溃的消费水位。
+5. 保留订单事务边界：确定性ID绑定账户与意图，submit前写submitting，timeout先按ID查询，订单事实持久化后推进bar；恢复过期processing claim并处理cancel/fill/cancel-reject乱序。
+6. 保留交易前规则检查：markets、步长/精度、min quantity/notional、market type、reduce-only本地拒绝；明确TTL及DAY/IOC/FOK/GTC终态、entry_pending与预留释放。
+
+**验收：**
+
+- 同输入signal/intent一致，允许的执行事实差异有adapter级原因。
+- 每个fill可追溯到批准意图与来源事件；重复输入与重启不额外下单。
+- 旧库拷贝上升级回放成功、幂等冲突不假阳性，新schema拒绝未注册类型。
+- 在提交前、提交后响应前、响应后持久化前、部分成交后分别崩溃恢复；同信号重复消费100次最多一张逻辑订单，数量守恒。
+- 不触价限单到期后预留归零且同标的可再次入场；有active opening order不重复入场；部分卖单耗尽持仓后终态一致、不制造假拒单。
+- 不合法数量/精度/模式/reduce-only在交易所请求前拒绝，拒绝原因可定位。
+
+**兼容与迁移：** 验证迁移副本及回退方案，不在原始库上进行不可逆试验。 G2历史已有完成证据，本任务复验当前冻结版本的既有保证，不将全部能力视作重新开发。
+
+**交付物：** contract.md（契约及变更边界）；acceptance.json（逐项通过/失败/不足/待证据）；evidence_manifest.json（源码、配置、输入、结果摘要）；tests或运行记录、对账和新旧差异、已知限制。
+
+<a id="sys-07"></a>
+
+## SYS-07 持仓身份与共享管理决策
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | capability / B5 / P1 |
+| 2026-09-20状态 | 部分实现待验收 |
+| 本轮复核状态 | 部分实现待验收；第5/6节追加证据（仅本地引用：`reports/roadmap_v3/SYS-07/20260920-section56/acceptance.json`，不随源码发布）；[完成边界](section56_acceptance_20260920.md) |
+| 负责角色 | 领域内核与报告 |
+| 验收依赖 | [SYS-06](development_details.md#sys-06)、[FIX-11](development_details.md#fix-11)、[FIX-14](development_details.md#fix-14)、[FIX-16](development_details.md#fix-16) |
+| 历史编号（结合来源阅读） | PM1、PM4、SR2、S0-1、C2 |
+| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 证据目录 | `reports/roadmap_v3/SYS-07/<run_id>/` |
+
+**目标契约：** account+symbol+side+position_id/epoch绑定HOLD/REDUCE_TO/CLOSE/ENSURE_STOP，复用Portfolio与ExecutionPort。
+
+**来源：** docs/position_management_plan.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/position_management_plan.md`，不随源码发布）；docs/current_strategy_remediation_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/current_strategy_remediation_roadmap.md`，不随源码发布）。
+
+**修改范围：** [strategies/base.py](../strategies/base.py)、[router/router.py](../router/router.py)、[core/protective_stops.py](../core/protective_stops.py)、[live_trading/risk_actions.py](../live_trading/risk_actions.py)、[core/execution_port.py](../core/execution_port.py)。
+
+**开发步骤：**
+
+1. 盘点当前strategy context、resident stop和risk_actions，先做行为保持收敛，明确单一决策优先级。
+2. 将止损棘轮、目标数量、原仓位身份和动作ID绑定同生命周期；只有权威flat后清理。
+3. 显式处理flat→new、long→short、人工仓位、部分退出和重启，未知事实禁止新风险但保留必要保护。
+4. 同一tick各层意图合成一次受约束决策，执行后由事实更新而非内存成功标志推进。
+
+**验收：**
+
+- 相同生命周期事件跨回测/回放输出相同管理目标；新仓位不继承旧止损/减仓。
+- 部分成交和取消未知不重复减仓，不撤掉仍需要的残余保护。
+- 抽取前后在禁用新增能力时固定回测行为保持，差异有归因。
+
+**兼容与迁移：** 不创建第二本资金账；迁移保留原position ID映射和旧checkpoint备份。
+
+**交付物：** contract.md（契约及变更边界）；acceptance.json（逐项通过/失败/不足/待证据）；evidence_manifest.json（源码、配置、输入、结果摘要）；tests或运行记录、对账和新旧差异、已知限制。
+
+<a id="sys-08"></a>
+
+## SYS-08 组合预算与幂等风险转移整体验收
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | capability / B5 / P0 |
+| 2026-09-20状态 | 部分实现待验收 |
+| 本轮复核状态 | 部分实现待验收；验收证据（仅本地引用：`reports/roadmap_v3/SYS-08/20260920-local-closure/acceptance.json`，不随源码发布） |
+| 负责角色 | 领域内核与报告 |
+| 验收依赖 | [SYS-02](development_details.md#sys-02)、[SYS-07](development_details.md#sys-07)、[FIX-10](development_details.md#fix-10)、[FIX-12](development_details.md#fix-12)、[FIX-16](development_details.md#fix-16)、[FIX-17](development_details.md#fix-17)、[VER-01](development_details.md#ver-01) |
+| 历史编号（结合来源阅读） | PM2、SR3-1、SR3-2、SR3-3、S3-5、T-3.1–T-3.3、T-4.9–T-4.10 |
+| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 证据目录 | `reports/roadmap_v3/SYS-08/<run_id>/` |
+
+**目标契约：** 预算在批准、预留、在途订单、真实lot和退出之间守恒，缩量不扩大不可变订单批准风险。
+
+**来源：** docs/portfolio_risk_contract.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/portfolio_risk_contract.md`，不随源码发布）；docs/research/strategy_remediation_contract_20260914.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/research/strategy_remediation_contract_20260914.md`，不随源码发布）。
+
+**修改范围：** [core/risk/drawdown_budget.py](../core/risk/drawdown_budget.py)、[core/risk/portfolio_governor.py](../core/risk/portfolio_governor.py)、[core/risk/reservation.py](../core/risk/reservation.py)、[core/allocation.py](../core/allocation.py)、[live_trading/risk_actions.py](../live_trading/risk_actions.py)。
+
+**开发步骤：**
+
+1. 对同时间候选做确定性评分/分配，退化名称排序显式标记；保持集中度/簇/共同时段风险上限。
+2. 部分成交将未成交风险按比例转入lot，UNKNOWN/cancel pending保留占用，只有权威终态释放。
+3. 超预算先撤开仓再按持久目标减仓，动作包含原仓位ID、数量、成本和原因；后续bar/重启持续收敛。
+4. 减仓与保护止损冲突时统一协调；完成后重新保护残余仓位；测试共同跳空/相关性/低流动性压力。
+
+**验收：**
+
+- 冻结批准风险不随权益/健康恢复扩大；数量取整只能减少批准额度。
+- 每个持久化边界注入崩溃、延迟fill、unknown和新仓位，净减仓不重复。
+- 真实流动性不足保留未达目标及原因，不声称已flat；按风险贡献对账。
+- 过期、取消、拒绝和部分成交的重复/乱序事件只释放对应剩余reservation一次；不释放其他active order的预算。
+
+**兼容与迁移：** 复用9月14日合同，不调整阈值；旧动作迁移先备份再校验目标身份。
+
+**交付物：** contract.md（契约及变更边界）；acceptance.json（逐项通过/失败/不足/待证据）；evidence_manifest.json（源码、配置、输入、结果摘要）；tests或运行记录、对账和新旧差异、已知限制。
+
+<a id="sys-09"></a>
+
+## SYS-09 健康裁决证据与隔离影子观察
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | capability / B5 / P1 |
+| 2026-09-20状态 | 部分实现待验收 |
+| 本轮复核状态 | 部分实现待验收；验收证据（仅本地引用：`reports/roadmap_v3/SYS-09/20260920-local-closure/acceptance.json`，不随源码发布） |
+| 负责角色 | 领域内核与报告 |
+| 验收依赖 | [SYS-02](development_details.md#sys-02)、[SYS-07](development_details.md#sys-07)、[FIX-15](development_details.md#fix-15) |
+| 历史编号（结合来源阅读） | PM3、SR1、SR6-1、P0/P1/P2/P3 |
+| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 证据目录 | `reports/roadmap_v3/SYS-09/<run_id>/` |
+
+**目标契约：** 健康裁决冻结cohort/R/样本边界；独立shadow只采证据，不改正式准入或人工锁定。
+
+**来源：** docs/position_management_plan.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/position_management_plan.md`，不随源码发布）；docs/strategy_health_contract.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/strategy_health_contract.md`，不随源码发布）；docs/p23_signal_meta_layer.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/p23_signal_meta_layer.md`，不随源码发布）。
+
+**修改范围：** [core/strategy_health.py](../core/strategy_health.py)、[core/strategy_governance.py](../core/strategy_governance.py)、[core/signal_observation.py](../core/signal_observation.py)、[backtest/signal_meta_replay.py](../backtest/signal_meta_replay.py)。
+
+**开发步骤：**
+
+1. 按最新批准合同持久化风险级、时钟、新cohort/币种支持及裁决当时证据；晋级后建立新边界。
+2. 分离策略退出与AccountRisk，审查尾部估值/部分退出/同日多币分组，保留迁移前后账。
+3. 冻结主动人工锁定权限；影子账户、元层开关和正式资金/健康/分配隔离。
+4. 收集完整冷静与恢复周期，分层披露弃权、无样本、等权回退、无交易和融资证据缺失。
+
+**验收：**
+
+- 后续平仓不能改写过去裁决证据；通过样本不被再次计为新失败。
+- 开关A/B正式orders/equity/health/allocation一致；shadow没有真实订单通道。
+- 样本不足维持原风险，人工锁定不会被模型或影子盈利自行解除。
+
+**兼容与迁移：** 沿用版本化健康checkpoint迁移，保留旧样本边界与映射审计。
+
+**交付物：** contract.md（契约及变更边界）；acceptance.json（逐项通过/失败/不足/待证据）；evidence_manifest.json（源码、配置、输入、结果摘要）；tests或运行记录、对账和新旧差异、已知限制。
+
+<a id="sys-10"></a>
+
+## SYS-10 完成现有研究与元层交付回执
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | capability / B6 / P1 |
+| 2026-09-20状态 | 部分实现待验收 |
+| 本轮复核状态 | 部分实现待验收；验收证据（仅本地引用：`reports/roadmap_v3/SYS-10/20260920-delivery-recovery/acceptance.json`，不随源码发布） |
+| 负责角色 | 研究与数据 |
+| 验收依赖 | [SYS-03](development_details.md#sys-03)、[SYS-04](development_details.md#sys-04)、[SYS-08](development_details.md#sys-08)、[SYS-09](development_details.md#sys-09)、[FIX-08](development_details.md#fix-08) |
+| 历史编号（结合来源阅读） | SR0、SR4、SR5、Phase 5、P0/P1/P2/P3 |
+| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 证据目录 | `reports/roadmap_v3/SYS-10/<run_id>/` |
+
+**目标契约：** 工程通过、证据完整和策略准入分别出具结果；把既有研究pending内容闭环而不隐藏失败。
+
+**来源：** docs/current_strategy_remediation_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/current_strategy_remediation_roadmap.md`，不随源码发布）；docs/p23_signal_meta_layer.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/p23_signal_meta_layer.md`，不随源码发布）；reports/strategy_review_20260919/README.md（仅本地引用：`reports/strategy_review_20260919/README.md`，不随源码发布）。
+
+**修改范围：** [scripts/complete_strategy_review.py](../scripts/complete_strategy_review.py)、[scripts/package_strategy_review.py](../scripts/package_strategy_review.py)、[scripts/summarize_strategy_review_meta.py](../scripts/summarize_strategy_review_meta.py)、[scripts/publish_strategy_review.py](../scripts/publish_strategy_review.py)。
+
+**开发步骤：**
+
+1. 先核对9月19日批次原始身份、缓存与恢复日志，列出实际缺失分层报告/导出/隔离回执；避免不必要重跑既有626次结果。
+2. 完成可恢复流式导出，逐文件hash/大小/表行数与冻结缓存对应；登记恢复驱动身份和原生产者身份。
+3. 完整保留全部登记配置与失败结果；加入研究限制、费用归属不足、弃权/等权回退及跨市场结果。
+4. 按实际完整性重新发布版本化completion和报告索引；任何新修复改变身份则另建批次，不用旧缓存伪装新引擎结果。
+
+**验收：**
+
+- required_deliverables逐项可打开并核对，成功/失败/不足/pending语义不混用。
+- 开关对照及旧manifest复放有回执；工程通过仍允许research fail与admission paused。
+- 新发布可从manifest查到所有产物与原始来源；恢复不改变冻结策略或样本门槛。
+
+**兼容与迁移：** 原研究目录保留；新发布追加版本或索引，不覆盖失败/中断证据。
+
+**交付物：** contract.md（契约及变更边界）；acceptance.json（逐项通过/失败/不足/待证据）；evidence_manifest.json（源码、配置、输入、结果摘要）；tests或运行记录、对账和新旧差异、已知限制。
+
+<a id="sys-11"></a>
+
+## SYS-11 独立策略裁决与重新准入
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | capability / B6 / P1 |
+| 2026-09-20状态 | 待证据 |
+| 本轮复核状态 | 待证据；第5/6节追加证据（仅本地引用：`reports/roadmap_v3/SYS-11/20260920-section56-successor-02/acceptance.json`，不随源码发布）；[完成边界](section56_acceptance_20260920.md) |
+| 负责角色 | 研究与数据 |
+| 验收依赖 | [SYS-04](development_details.md#sys-04)、[SYS-10](development_details.md#sys-10)、[FIX-01](development_details.md#fix-01)、[FIX-02](development_details.md#fix-02)、[FIX-08](development_details.md#fix-08)、[FIX-09](development_details.md#fix-09) |
+| 历史编号（结合来源阅读） | R3、G8、SR5、G-S1–G-S10、S1-3、S4§9.1、RES-01、BM8 |
+| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 证据目录 | `reports/roadmap_v3/SYS-11/<run_id>/` |
+
+**目标契约：** 候选版本、参数选择与最终未见样本隔离；输出admit/reject/continue_research，不把回顾性最优当准入。
+
+**来源：** docs/current_strategy_remediation_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/current_strategy_remediation_roadmap.md`，不随源码发布）；docs/strategy_development_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md`，不随源码发布）；reports/strategy_review_20260919/prospective_protocol.json（仅本地引用：`reports/strategy_review_20260919/prospective_protocol.json`，不随源码发布）。
+
+**修改范围：** [analysis/walk_forward.py](../analysis/walk_forward.py)、[analysis/research_validation.py](../analysis/research_validation.py)、[scripts/run_strategy_review.py](../scripts/run_strategy_review.py)、[core/strategy_governance.py](../core/strategy_governance.py)。
+
+**开发步骤：**
+
+1. 固定train/validation/final区间、purge/embargo、最大lookback、trials和候选身份；最终区间只执行一次裁决。
+2. 完成预登记消融、参数邻域/平台、trade与cohort双口径、块bootstrap、多重检验、头部移除和成本/相关性压力。
+3. 按来源、周期与市场状态披露一致性；统计支持不足拒绝自动准入，历史已见区间明确回顾性。
+4. 保留现有前瞻协议start,end)与mature_after；修复若改变candidate hash先登记影响并按协议处理，不提前看结果选参。
+
+**验收：**
+
+- 失败、样本不足、证据未成熟均不会通过准入；同holdout不能反复调参再验。
+- 两源/周期/状态与成本敏感性满足预注册条件或明确reject/continue_research。
+- 准入记录包含源码/配置/输入/协议hash及操作者决策；不承诺候选会盈利。
+- 独立裁决记录明确benchmark_id和政策；当前冻结研究使用9月14日基准，不根据结果换成其他基准。
+
+**兼容与迁移：** 旧Phase5证据明确失效范围；保留历史结果，只有新合规证据可改变准入状态。
+
+**交付物：** contract.md（契约及变更边界）；acceptance.json（逐项通过/失败/不足/待证据）；evidence_manifest.json（源码、配置、输入、结果摘要）；tests或运行记录、对账和新旧差异、已知限制。
+
+<a id="sys-16"></a>
+
+## SYS-16 可运行运维、备份与故障演练
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | capability / B6 / P1 |
+| 2026-09-20状态 | 部分实现待验收 |
+| 本轮复核状态 | 部分实现待验收；[验收证据（仅本地引用：`reports/roadmap_v3/SYS-16/20260920-local-closure/acceptance.json`，不随源码发布） |
+| 负责角色 | 运行与运维 |
+| 验收依赖 | [SYS-05](development_details.md#sys-05)、[SYS-06](development_details.md#sys-06)、[SYS-07](development_details.md#sys-07)、[SYS-08](development_details.md#sys-08)、[SYS-09](development_details.md#sys-09)、[FIX-01](development_details.md#fix-01)、[FIX-17](development_details.md#fix-17)、[FIX-18](development_details.md#fix-18) |
+| 历史编号（结合来源阅读） | R6、G5、OBS、MON、ALERT、OPS、FM3、FM4、FM6、G1 |
+| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 证据目录 | `reports/roadmap_v3/SYS-16/<run_id>/` |
+
+**目标契约：** 健康、告警、快照、守护、备份恢复和实际操作形成证据闭环，组件存在不等于演练通过。
+
+**来源：** docs/live_trading_remediation_plan.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/live_trading_remediation_plan.md`，不随源码发布）；[docs/r6_operations.md](r6_operations.md)；docs/r7_sandbox_runbook.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/r7_sandbox_runbook.md`，不随源码发布）。
+
+**修改范围：** [live_trading/state_export.py](../live_trading/state_export.py)、[core/alerting.py](../core/alerting.py)、[core/supervisor.py](../core/supervisor.py)、[core/sqlite_utils.py](../core/sqlite_utils.py)、[dashboard](../dashboard)、[run_live.py](../run_live.py)。
+
+**开发步骤：**
+
+1. 区分health/readiness/trading_enabled，行情/账户/策略错误分类，失败退避和优雅停机可观察。
+2. 告警确认/滞回/恢复/抑制/升级保留事故与投递证据；投递故障不绕过风险停止。
+3. 快照schema/原子写/历史类型兼容、SQLite备份恢复及回滚以副本测试，冻结RTO/RPO验收目标。
+4. 更新runbook，覆盖磁盘满/数据库损坏/断网/unknown/崩溃/告警投递失败/急停及恢复责任步骤。
+5. 保留安全启动能力：默认sandbox、sandbox/live互斥、凭据只由受控环境注入并脱敏，交易所/账户模式/标的/base currency白名单及每单/每日新增风险限额先于连续运行验收。
+
+**验收：**
+
+- 端到端故障矩阵逐项有输入、时间线、状态和恢复结果；无半写快照或假HEALTHY。
+- 备份恢复后的订单/持仓/水位可对账，不重复提交；达到冻结RTO/RPO或标失败。
+- 真实告警投递及人工演练有证据；测试账号与运行账号分离。
+- 默认启动只能sandbox；白名单错误、缺凭据或实盘限额未配置时失败关闭；CLI不能传明文密钥，日志/异常不泄露凭据；kill switch后零新增风险。
+
+**兼容与迁移：** 不改existing数据库权限或删除坏状态规避保护；回滚保留原库、备份和差异。
+
+**交付物：** contract.md（契约及变更边界）；acceptance.json（逐项通过/失败/不足/待证据）；evidence_manifest.json（源码、配置、输入、结果摘要）；tests或运行记录、对账和新旧差异、已知限制。
+
+<a id="sys-17"></a>
+
+## SYS-17 连续Shadow/Sandbox/Paper与执行校准
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | capability / B7 / P1 |
+| 2026-09-20状态 | 待证据 |
+| 本轮复核状态 | 待证据；验收证据（仅本地引用：`reports/roadmap_v3/SYS-17/20260920-r-series/acceptance.json`，不随源码发布） |
+| 负责角色 | 运行与运维 |
+| 验收依赖 | [SYS-11](development_details.md#sys-11)、[SYS-16](development_details.md#sys-16) |
+| 历史编号（结合来源阅读） | R7、G6、SR6-1–SR6-3、PM4、T-6.1–T-6.5 |
+| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 证据目录 | `reports/roadmap_v3/SYS-17/<run_id>/` |
+
+**目标契约：** 精确冻结候选、账户与版本的连续真实观察满足门槛，历史回测和工具测试不得代替。
+
+**来源：** docs/unified_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/unified_roadmap.md`，不随源码发布）；docs/phase6_operations.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/phase6_operations.md`，不随源码发布）；docs/r7_sandbox_runbook.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/r7_sandbox_runbook.md`，不随源码发布）。
+
+**修改范围：** [core/admission_gates.py](../core/admission_gates.py)、[core/r7_acceptance.py](../core/r7_acceptance.py)、[tests/test_exchange_sandbox_e2e.py](../tests/test_exchange_sandbox_e2e.py)、[run_live.py](../run_live.py)。
+
+**开发步骤：**
+
+1. 先完成Shadow同事实signal/intent一致及sandbox故障矩阵，再运行冻结paper协议。
+2. 持续至少56自然日且至少两种市场状态；记录每日观测完整率、缺口、逐笔六层和日终对账，2–4周仅作中检。
+3. 按固定频率演练并对滑点/价差/拒单/延迟做校准，所有P0/P1事故解释和关闭。
+4. 关键修复、代码/配置变更、停机缺口的证据重置/续接规则预先固定；旧14日R7报告不能绕开最终门槛。
+
+**验收：**
+
+- 每日和逐笔coverage达冻结要求，六层对账100%，关键未知事实或未解释P0/P1为零。
+- 56天跨度但中间缺观测、仅单一状态、不健康快照、外部多余字段均不能通过。
+- 最终证据引用原始日志/快照与候选hash，独立评审回执可定位。
+
+**兼容与迁移：** 本任务是未来执行计划，不代表当前授权启动或已发生运行；真实资金仍需SYS-18批准。
+
+**交付物：** contract.md（契约及变更边界）；acceptance.json（逐项通过/失败/不足/待证据）；evidence_manifest.json（源码、配置、输入、结果摘要）；tests或运行记录、对账和新旧差异、已知限制。
+
+<a id="sys-18"></a>
+
+## SYS-18 小额灰度与单变量扩容
+
+**今日后续修复：** 灰度启动不再接受旧报告的总体通过标记；必须提供固定摘要的原始Phase6证据，并重算56日/两状态等准入门槛。批准与实际源码、配置、账户、唯一策略、额度和有效期匹配，每次新增风险前再次检查；旧格式、14日、未来/过期/身份不符证据明确拒绝，保护性退出保留。专项88项通过，真实批准和实际灰度仍未取得。见[Phase6操作说明](phase6_operations.md)及[后续完成记录](followup_completion_20260920.md)。
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | capability / B8 / P1 |
+| 2026-09-20状态 | 待证据 |
+| 本轮复核状态 | 待证据；本轮工程验收（仅本地引用：`reports/roadmap_v3/followup/20260920-implementation/SYS-18/acceptance-final.json`，不随源码发布） |
+| 负责角色 | 运行与运维 |
+| 验收依赖 | [SYS-17](development_details.md#sys-17) |
+| 历史编号（结合来源阅读） | R8、G10、SR6-4、T-6.6–T-6.8 |
+| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 证据目录 | `reports/roadmap_v3/SYS-18/<run_id>/` |
+
+**目标契约：** 准入证据、人工批准与真实小额观察绑定精确版本和范围；扩容每次仅改变一个维度。
+
+**来源：** docs/unified_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/unified_roadmap.md`，不随源码发布）；docs/live_trading_remediation_plan.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/live_trading_remediation_plan.md`，不随源码发布）；docs/phase6_operations.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/phase6_operations.md`，不随源码发布）。
+
+**修改范围：** [core/gray_release.py](../core/gray_release.py)、[core/admission_gates.py](../core/admission_gates.py)、[run_live.py](../run_live.py)。
+
+**开发步骤：**
+
+1. 汇总工程/研究/连续运行/对账门槛，配置最小权限、禁提现、单交易所单标的单策略和预批准资金/损失上限。
+2. 准备急停、备份、回滚和退出方案；人工批准记录候选hash、范围、上限、有效期和责任人。
+3. 小额运行逐笔审核执行/成本/风险偏差，出现unknown或差异立即禁止新增风险。
+4. 扩容资金、标的、杠杆或策略时逐次单变量评审容量/成本/风险，再收集新运行证据。
+
+**验收：**
+
+- 无批准、过期或版本/范围不符均拒绝；不得仅凭总体报告passed字段或历史14天证据上线。
+- 真实逐笔与日终对账完整，急停回滚可验证，未解释事件为零。
+- 每次扩大范围有独立批准和新证据，不因盈利自动扩容。
+
+**兼容与迁移：** 写计划不构成资金运行授权；先交付可审阅方案和已完成前置证据，再由用户批准实际范围。
+
+**交付物：** contract.md（契约及变更边界）；acceptance.json（逐项通过/失败/不足/待证据）；evidence_manifest.json（源码、配置、输入、结果摘要）；tests或运行记录、对账和新旧差异、已知限制。
+
+<a id="sys-12"></a>
+
+## SYS-12 动态选币到目标权重执行
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | capability / BX / P3 |
+| 2026-09-20状态 | 后续扩展 |
+| 本轮复核状态 | 部分实现待验收；第5/6节追加证据（仅本地引用：`reports/roadmap_v3/SYS-12/20260920-section56/acceptance.json`，不随源码发布）；[完成边界](section56_acceptance_20260920.md) |
+| 负责角色 | 研究与数据 |
+| 验收依赖 | [SYS-04](development_details.md#sys-04)、[SYS-07](development_details.md#sys-07)、[SYS-08](development_details.md#sys-08)、[FIX-08](development_details.md#fix-08)、[FIX-09](development_details.md#fix-09) |
+| 历史编号（结合来源阅读） | S2-1–S2-7、C4、FM5-03 |
+| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 证据目录 | `reports/roadmap_v3/SYS-12/<run_id>/` |
+
+**目标契约：** 历史universe→过滤→因子排名→TopN/分层目标权重→换仓/换手→受约束执行完整接线。
+
+**来源：** docs/strategy_development_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md`，不随源码发布）；docs/backtest_optimization_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/backtest_optimization_roadmap.md`，不随源码发布）；docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md`，不随源码发布）。
+
+**修改范围：** [core/universe.py](../core/universe.py)、[core/factors](../core/factors)、[core/allocation.py](../core/allocation.py)、[router/router.py](../router/router.py)。
+
+**开发步骤：**
+
+1. 声明选币器输入as-of时点及缺失数据政策，保留--symbols显式覆盖语义。
+2. 实现可审计rank/zscore、流动性过滤、TopN/分层、权重和换仓缓冲，独立于交易撮合。
+3. 目标权重经持仓管理和风险预算转换为订单，考虑费用、换手、最小名义金额与退出。
+4. 预登记IC/IR、分位收益、coverage/turnover/decay研究，不用全样本排名选择最终参数。
+
+**验收：**
+
+- 前缀不变/PIT成员无前视，缺数据不会被高分填补；Top/Bottom证据在独立样本检验。
+- 目标权重变动产生可对账订单，风险上限不突破，参数与换手差异可解释。
+- 只完成选择器不改变正式路由；进入正式账户须另过SYS-11。
+
+**兼容与迁移：** 默认关闭，新参数及输出schema有版本；保留原固定symbols行为。
+
+**交付物：** contract.md（契约及变更边界）；acceptance.json（逐项通过/失败/不足/待证据）；evidence_manifest.json（源码、配置、输入、结果摘要）；tests或运行记录、对账和新旧差异、已知限制。
+
+<a id="sys-13"></a>
+
+## SYS-13 波动率目标、分批与组合仓位
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | capability / BX / P3 |
+| 2026-09-20状态 | 后续扩展 |
+| 本轮复核状态 | 部分实现待验收；第5/6节追加证据（仅本地引用：`reports/roadmap_v3/SYS-13/20260920-section56/acceptance.json`，不随源码发布）；[完成边界](section56_acceptance_20260920.md) |
+| 负责角色 | 领域内核与报告 |
+| 验收依赖 | [SYS-02](development_details.md#sys-02)、[SYS-07](development_details.md#sys-07)、[SYS-08](development_details.md#sys-08)、[FIX-08](development_details.md#fix-08) |
+| 历史编号（结合来源阅读） | S3-4、S3-5、S3-6、C2、PM2、FM5-04–FM5-06 |
+| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 证据目录 | `reports/roadmap_v3/SYS-13/<run_id>/` |
+
+**目标契约：** 将目标波动与目标权重转换为有预算约束的分批持仓，统计模型失效有保守回退。
+
+**来源：** docs/strategy_development_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md`，不随源码发布）；docs/position_management_plan.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/position_management_plan.md`，不随源码发布）；docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md`，不随源码发布）。
+
+**修改范围：** [core/risk/position_sizing.py](../core/risk/position_sizing.py)、[core/risk/portfolio_governor.py](../core/risk/portfolio_governor.py)、[core/allocation.py](../core/allocation.py)。
+
+**开发步骤：**
+
+1. 定义收益波动估计、目标区间、再平衡周期与风险预算；新上市/协方差缺失不当作零风险。
+2. 对剩余预算分批入出，加仓不松原止损也不重写旧订单批准风险。
+3. 记录组合风险贡献、有效独立头寸及协方差/相关簇假设；测共同跳空、相关性跃迁和容量压力。
+4. 与SYS-12接口约定目标权重差量和换手限制；正式启用前独立研究。
+
+**验收：**
+
+- 固定实验中仓位波动向预注册区间收敛且杠杆/集中度/现金上限始终满足。
+- 无数据或风险估计发散时缩量/拒绝而非扩大，分批失败不重复风险预留。
+- 默认关闭时与现有固定风险策略一致；研究结果与执行成本对账。
+
+**兼容与迁移：** 新策略显式opt-in，不用回测最优参数替换既有生产风险配置。
+
+**交付物：** contract.md（契约及变更边界）；acceptance.json（逐项通过/失败/不足/待证据）；evidence_manifest.json（源码、配置、输入、结果摘要）；tests或运行记录、对账和新旧差异、已知限制。
+
+<a id="sys-14"></a>
+
+## SYS-14 合约账户扩展与候选策略
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | capability / BX / P3 |
+| 2026-09-20状态 | 后续扩展 |
+| 本轮复核状态 | 后续扩展；验收证据（仅本地引用：`reports/roadmap_v3/SYS-14/20260920-status/acceptance.json`，不随源码发布） |
+| 负责角色 | 领域内核与报告 |
+| 验收依赖 | [SYS-04](development_details.md#sys-04)、[SYS-05](development_details.md#sys-05)、[SYS-07](development_details.md#sys-07)、[SYS-08](development_details.md#sys-08)、[FIX-08](development_details.md#fix-08) |
+| 历史编号（结合来源阅读） | S3-1–S3-3、S4-1–S4-4、T-3.4–T-3.12、FM7 |
+| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 证据目录 | `reports/roadmap_v3/SYS-14/<run_id>/` |
+
+**目标契约：** 逐账户类型验证保证金/成本/强平/容量，再独立研究基差、跨期或合约多空候选。
+
+**来源：** docs/strategy_development_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md`，不随源码发布）；docs/phase3_implementation.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/phase3_implementation.md`，不随源码发布）；docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md`，不随源码发布）。
+
+**修改范围：** [core/account_cost_contract.py](../core/account_cost_contract.py)、[core/portfolio.py](../core/portfolio.py)、[core/broker/financing.py](../core/broker/financing.py)、[core/exchange](../core/exchange)、[strategies](../strategies)。
+
+**开发步骤：**
+
+1. 声明spot/spot_margin/perpetual语义、initial/maintenance/free margin、mark/index、position mode与reduce-only。
+2. 验证borrow/funding历史资格和成本、缺失数据状态、强平/穿仓边界；不得假定免费资金。
+3. 按10k/100k/1m/10m等原登记资本档做真实参与率/冲击/成本容量报告，区分可建模与证据不足。
+4. 每个候选单独登记研究与SYS-11准入；需要多空选币/目标仓位的候选另依赖SYS-12/13。
+
+**验收：**
+
+- 手算费用/资金费率/保证金/强平样本对账；高杠杆及价格跳空不会被当作现货现金语义。
+- reduce-only在部分成交/重启后不反向开仓，模式切换不复用错误状态。
+- 账户工程通过与策略有效性、真实运行批准分别验收。
+
+**兼容与迁移：** 当前正在使用的账户正确性已属SYS-02/05/08主线，不能以此扩展待办推迟；只增加新模式/新候选为BX。
+
+**交付物：** contract.md（契约及变更边界）；acceptance.json（逐项通过/失败/不足/待证据）；evidence_manifest.json（源码、配置、输入、结果摘要）；tests或运行记录、对账和新旧差异、已知限制。
+
+<a id="sys-15"></a>
+
+## SYS-15 报告解释、图表与扩展观察能力
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | capability / BX / P3 |
+| 2026-09-20状态 | 后续扩展 |
+| 本轮复核状态 | 后续扩展；验收证据（仅本地引用：`reports/roadmap_v3/SYS-15/20260920-status/acceptance.json`，不随源码发布） |
+| 负责角色 | 领域内核与报告 |
+| 验收依赖 | [SYS-03](development_details.md#sys-03) |
+| 历史编号（结合来源阅读） | S1-1、S1-2、S1-4、S1-5、D3、D4、FM1、FM2、FM5、FM6、C3 |
+| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 证据目录 | `reports/roadmap_v3/SYS-15/<run_id>/` |
+
+**目标契约：** 图表和观察指标来自标准结果；只补研究需要的可解释能力，不让展示重新定义交易事实。
+
+**来源：** docs/strategy_development_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md`，不随源码发布）；docs/backtest_optimization_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/backtest_optimization_roadmap.md`，不随源码发布）；docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md`，不随源码发布）。
+
+**修改范围：** [backtest/reporting/render](../backtest/reporting/render)、[core/factors](../core/factors)、[core/metrics](../core/metrics)、[docs/glossary.md](glossary.md)。
+
+**开发步骤：**
+
+1. 保留术语/公式说明、价格与买卖点、信号价vs成交价、暴露、策略/regime净值和参数敏感性。
+2. 按因子研究需要补技术指标，明确as-of/窗口/样本支持；VaR/CVaR、漂移、IC/IR和执行质量有单位与范围。
+3. 无数据跳过图并给原因，收益/交易/成本统计不在绘图代码中重算。
+4. 新观察指标进入交易动作前另立预登记研究，Metric→Alert→Policy→Action边界可查。
+5. 保留多周期扩展：仅将已收盘HTF状态映射到LTF，可选session与最少连续确认bar过滤；与单纯重采样分开验收。
+
+**验收：**
+
+- 图表样本值与标准结果逐项一致，空样本/未知值不画伪零。
+- 因子前缀与单位测试通过；模型误差和未建模范围同时披露。
+- 必要图表缺陷属于FIX主线，本任务仅覆盖原计划后续扩展。
+- 未来追加数据不能改变过去HTF→LTF入场决定；记录过滤启停差异，不以收益改善为通过条件。
+
+**兼容与迁移：** 不改原报告计算口径；新增字段版本化且旧消费者可识别缺失。
+
+**交付物：** contract.md（契约及变更边界）；acceptance.json（逐项通过/失败/不足/待证据）；evidence_manifest.json（源码、配置、输入、结果摘要）；tests或运行记录、对账和新旧差异、已知限制。
+
+## 历史回归登记范围
+
+本地基线登记的 24 条已修复意见仅用于受影响契约的针对性回归，不构成完整项目验收。逐条评论标题、摘录及邮件映射不包含在公开副本中；当前任务与技术验收要求保持原样。
+
+<a id="sys-19"></a>
+
+## SYS-19 自动化回测、研究编排与运行留存
+
+| 属性 | 内容 |
+| --- | --- |
+| 类型 / 批次 / 优先级 | capability / B6 / P2 |
+| 2026-09-20状态 | 待闭环（今日自动化草案新增范围） |
+| 本轮复核状态 | 部分实现待验收；本轮工程验收（仅本地引用：`reports/roadmap_v3/followup/20260920-implementation/SYS-19/acceptance-final.json`，不随源码发布）、[实现与限制](followup_completion_20260920.md) |
+| 负责角色 | Codex（工程）；项目运行负责人（待指定） |
+| 验收依赖 | [SYS-01](development_details.md#sys-01)、[FIX-08](development_details.md#fix-08)、[FIX-19](development_details.md#fix-19) |
+| 证据目录 | `reports/roadmap_v3/followup/20260920-implementation/SYS-19/` |
+
+**目标契约：** 复用现有回测内核，数据刷新、独占矩阵输出、标准指标裁决、严格重放、研究分段、归档与调度逐步留痕；缺事实和失败不能成为生产或策略准入。
+
+**开发步骤：**
+
+1. 实现自动化总入口、隔离报告目录及矩阵裁决。
+2. 实现只读月度/季度研究、显式Windows调度及离线CI任务。
+3. 保存源/配置/输入身份、失败回执、索引、日志及留存计划。
+
+**验收：**
+
+- 固定合成数据驱动真实主程序，完整报告与重放通过；数据/指标篡改、并发串目录、超时和子进程失败均拒绝。
+- 优化与稳健性过程不读取冻结最终样本、不修改策略配置、不授予实盘许可。
+- 留存只处理有明确归属的自动化产物，保留固定/被引用证据，默认仅预览。
+- 真实调度环境连续至少14个自然日有可核验成功记录；合成、补写和缺日不计入。
+- 隔离的干净提交通过远端回归与weekly_smoke；离线本地通过不能冒充远端CI通过。
+
+**兼容与迁移：** 现有手动CLI继续可用；自动化要求新建独占目录及full报告。历史报告/研究fail/策略锁不改写，合成证据不迁移为真实运行证据。
+
+**来源与操作：** [自动化方案](automated_backtest_plan.md)。六项Windows调度已注册，本轮真实矩阵与研究流程已运行；当前1个真实自然日，14天连续记录、独立标的证据和实际告警送达仍未取得，整体保留待验收。远端CI按具体提交的独立回执判断。

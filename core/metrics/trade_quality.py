@@ -4,6 +4,7 @@ Split out of core/metrics.py (A4) — see docs/architecture_review.md.
 """
 from __future__ import annotations
 from typing import Any, Dict, Iterable, Mapping
+from statistics import NormalDist
 import numpy as np
 import pandas as pd
 
@@ -52,6 +53,8 @@ def calculate_trade_quality(
         }
 
     pnls = np.array([float(t["net_pnl"]) for t in records], dtype=float)
+    if not np.isfinite(pnls).all():
+        raise ValueError("trade quality requires finite net_pnl for every trade")
     wins, losses = pnls[pnls > 0], pnls[pnls < 0]
     win_rate = float(len(wins) / len(pnls))
     loss_rate = float(len(losses) / len(pnls))
@@ -67,11 +70,53 @@ def calculate_trade_quality(
         "breakeven_count": int(len(pnls) - len(wins) - len(losses)),
         "win_rate": win_rate, "avg_win": avg_win, "avg_loss": avg_loss,
         "expectancy": float(expectancy),
+        "distribution": _quality_distribution(records, pnls, confidence),
         "profit_factor": pf["value"], "profit_factor_status": pf["status"],
         "holding_duration_hours": _holding_duration_hours(records),
         "by_strategy": _trade_quality_breakdown(records, "strategy", minimum_samples, confidence),
         "by_symbol": _trade_quality_breakdown(records, "symbol", minimum_samples, confidence),
     }
+
+
+def _quality_distribution(records, pnls, confidence):
+    n = len(pnls)
+    rate = float(np.mean(pnls > 0))
+    z = NormalDist().inv_cdf((1 + confidence) / 2)
+    center = (rate + z * z / (2 * n)) / (1 + z * z / n)
+    margin = z * np.sqrt(rate * (1 - rate) / n + z * z / (4 * n * n)) / (1 + z * z / n)
+    streaks = {}
+    for label, sign in (("wins", 1), ("losses", -1)):
+        best_count = count = 0
+        best_pnl = pnl = 0.0
+        for value in pnls:
+            if value * sign > 0:
+                count, pnl = count + 1, pnl + float(value)
+                if count > best_count:
+                    best_count, best_pnl = count, pnl
+            else:
+                count, pnl = 0, 0.0
+        streaks[label] = {"max_count": best_count, "net_pnl": best_pnl,
+                          "tie_policy": "first longest sequence in supplied chronological order"}
+    notional_returns = []
+    for record, pnl in zip(records, pnls):
+        entry, qty = record.get("entry_price"), record.get("qty")
+        if entry is not None and qty is not None and float(entry) > 0 and float(qty) > 0:
+            notional_returns.append(float(pnl) / (float(entry) * float(qty)))
+    wins, losses = pnls[pnls > 0], pnls[pnls < 0]
+    return {"sample_size": n, "currency_expectancy": float(pnls.mean()),
+            "payoff_ratio": float(wins.mean() / -losses.mean()) if len(wins) and len(losses) else None,
+            "max_win": float(wins.max()) if len(wins) else None,
+            "max_loss": float(losses.min()) if len(losses) else None,
+            "median": float(np.median(pnls)), "std": float(pnls.std(ddof=1)) if n > 1 else None,
+            "quantiles": {str(q): float(np.quantile(pnls, q)) for q in (.05, .25, .75, .95)},
+            "win_rate_interval": {"method": "Wilson", "confidence": confidence,
+                                  "lower": max(0.0, float(center - margin)), "upper": min(1.0, float(center + margin))},
+            "streaks": streaks,
+            "holding_hours_winners": _holding_duration_hours([r for r in records if float(r["net_pnl"]) > 0]),
+            "holding_hours_losers": _holding_duration_hours([r for r in records if float(r["net_pnl"]) < 0]),
+            "expectancy_per_entry_notional": {"value": float(np.mean(notional_returns)) if len(notional_returns) == n else None,
+                "status": "ok" if len(notional_returns) == n else "not_modeled", "sample_size": len(notional_returns),
+                "reason": None if len(notional_returns) == n else "entry notional absent on some trades"}}
 
 
 _EMPTY_DURATION: Dict[str, Any] = {
@@ -139,7 +184,7 @@ def calculate_r_multiple_stats(trades: Iterable[Mapping[str, Any]]) -> Dict[str,
     excluded = 0
     for trade in records:
         risk = trade.get("initial_risk")
-        if risk is None or float(risk) <= 0:
+        if risk is None or not np.isfinite(float(risk)) or float(risk) <= 0:
             excluded += 1
             continue
         r_multiples.append(float(trade["net_pnl"]) / float(risk))
@@ -147,7 +192,9 @@ def calculate_r_multiple_stats(trades: Iterable[Mapping[str, Any]]) -> Dict[str,
 
     if len(r_values) < 2:
         r_stats: Dict[str, Any] = {
-            "status": "insufficient", "sample_size": int(len(r_values)),
+            "status": "not_modeled" if records and not len(r_values) else "insufficient",
+            "reason": "approved initial risk is absent" if records and not len(r_values) else "at least two valid risk observations required",
+            "sample_size": int(len(r_values)),
             "mean_r": float(r_values.mean()) if len(r_values) else None,
             "std_r": None, "sqn": None,
         }

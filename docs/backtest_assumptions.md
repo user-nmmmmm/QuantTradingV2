@@ -1,6 +1,8 @@
 # 回测假设与逻辑
 
-本文档概述了 QuantTrading 回测引擎的核心假设、执行逻辑及局限性。
+本文档概述了 QuantTrading 回测引擎的核心假设、执行逻辑及局限性。当前默认值按
+2026-09-20 的 [`config/params.yaml`](../config/params.yaml) 与运行实现核对；标为历史的
+数值只用于解释旧缺陷，不构成当前版本的研究结论或策略准入证据。
 
 ## 1. 执行逻辑 (无前视偏差)
 
@@ -23,23 +25,27 @@
 
 ### 开仓单存活期（TTL）
 
-`execution.opening_order_ttl_bars`（默认 10，0 表示关闭）：**开仓**单（buy/short）连续这么多根 bar 一笔都没成交就置为 `EXPIRED`。
+`execution.opening_order_ttl_bars`（默认 10，0 表示关闭）限制**开仓**单（buy/short）的
+总可撮合 bar 数：允许前 10 根 bar 撮合，若仍有剩余量，在第 11 根可撮合 bar 撮合前
+置为 `EXPIRED`。同一时间戳的重复撮合不会重复计龄。
 
 理由不是"挂太久不合理"，而是两处会永久卡死的状态：未成交的开仓单一直持有它的风险预留（`core/risk/reservation.py` 只在终态释放，而工作中的订单没有终态），并且 `has_active_open_order` 会一直阻止该标的再次入场——一张永远触不到价的限价单等于把这个标的从整轮回测里永久摘除，同时还在占用组合风险额度。
 
 三条边界：
-- **任何成交都会重置计数**——被参与率限速拆到多根 bar 的大单是在推进而不是在空转，不会被误杀；
+- **部分成交不重置计龄**：超时后只终止订单剩余量，已成交持仓继续受持仓与保护单管理；避免微小成交无限延长风险预留和标的锁；
 - **平仓单豁免**：过期会留下无人管理的持仓；
 - **常驻保护性止损豁免**：它本来就该挂到持仓关闭为止。后两者都是 sell/cover，按定义不属于开仓单，所以是结构性豁免而非特判。
 
 ## 2. 费率与佣金
 
-回测支持自定义费率结构 (在 `params.yaml` 中配置)。
+回测支持自定义费率结构（在 `config/params.yaml` 中配置）。当前费率表身份为
+`venue=binance`、`market_type=spot_margin`，必须与 `account.mode` 一致；这是该回测的
+配置假设，真实账户费率仍须由账户费用证据确认。
 
 - **佣金模式**: 双边收费 (开仓和平仓均收费)。
 - **费率类型**:
-  - **Maker Fee (挂单)**: 适用于日内被动成交的限价单。默认: **0.02% (2 bps)**。
-  - **Taker Fee (吃单)**: 适用于市价单及立即成交的限价单。默认: **0.05% (5 bps)**。
+  - **Maker Fee (挂单)**: 适用于日内被动成交的限价单。默认: **0.10% (10 bps)**。
+  - **Taker Fee (吃单)**: 适用于市价单、立即成交的限价单及触发的止损单。默认: **0.10% (10 bps)**。
 - **计算公式**: $Cost = Price \times Qty \times FeeRate$
 
 ## 3. 滑点与流动性
@@ -50,7 +56,8 @@
 - **买卖价差**：使用 bar 的 `spread_bps`；缺失时使用配置默认值，并按半个价差计入单边成交。
 - **波动率滑点**：`volatility_slippage_factor × (high-low)/reference_price`；若 bar 提供
   `volatility` 列则优先使用该列。
-- **随机滑点 (Random Slippage)** (可选): 在 $[0, MaxSlip]$ 范围内均匀分布，模拟真实波动。
+- **随机滑点 (Random Slippage)**（可选，`--random_slip`）：在 $[0, BaseSlip]$ 范围内
+  均匀抽样基础滑点，价差、波动率和冲击成本仍按各自规则叠加；默认关闭。
 - **非线性市场冲击**：$impact = coefficient × participation^{exponent}$，默认指数 1.5。
 - **分批成交**：所有订单共享每个 symbol/bar 的成交量预算；超过
   `max_participation_rate` 的剩余数量进入下一根 K 线，FOK/IOC 按各自语义取消。
@@ -93,17 +100,19 @@ notional / equity = risk_per_trade ÷ (止损距离 / 价格)
 止损越紧，仓位越大。因此在 `risk_per_trade=0.02`、`max_pos_size_pct=0.30` 下，
 **止损距离小于价格 6.67%（=0.02/0.30）的信号，其仓位必然超过集中度上限**。
 
-- **当前行为**：`RiskManager.clamp_entry_qty` 会把仓位**削减到**现金/杠杆/集中度
-  三项上限中最紧的那一项，再提交订单；`check_entry_risk` 作为最后一道闸门。
+- **当前行为**：`RiskManager.clamp_entry_qty` 会按现金、杠杆、单标的集中度及相关簇敞口等
+  适用上限削减仓位；组合分配还检查同批入场风险、相关止损风险与回撤预算，
+  `check_entry_risk` 作为提交前的最后一道闸门。
 - **历史行为（已修正）**：超限直接整单拒绝。由于加密日线 ATR 中位数约为价格的 4.4%，
   使用 1×ATR 止损的策略（如 `RangeMeanReversion`）100% 的信号都被拒绝，
   该策略在回测中从未成交过——表现为"策略无信号"，实为被风控静默封杀。
 - **削减后风险只会更小**（实际风险敞口低于 `risk_per_trade` 目标），
   因此削减不会放大风险，但会使实际风险预算低于名义设定值。
-- **尘埃过滤**：削减后名义金额低于 `min_entry_notional_pct`（默认权益的 1%）时放弃该笔交易，
-  避免额度将尽时成交出只付手续费的极小仓位。
+- **尘埃过滤**：基础门槛为权益的 1%；当前 `risk.minimum_entry.scale_with_risk=true`，
+  门槛随组合风险乘数和策略健康乘数缩放。研究路径还取配置下限 10 USDT 与缩放门槛的
+  较大值；该下限不是历史交易所最小订单证据，真实账户仍须满足交易所约束。
 
-> 口径变更影响：该修复会显著改变回测结果。在 2017-08~2026-06 六标的样本上，
+> 历史口径变更示例（旧配置）：该修复会显著改变回测结果。在 2017-08~2026-06 六标的样本上，
 > `RangeMeanReversion` 从 0 笔成交变为 83 笔，总收益率从 -60.3% 变为 -71.0%——
 > 变差不代表修复错误，而是此前该策略的负 alpha 被风控掩盖、未能体现在结果中。
 
@@ -114,39 +123,52 @@ notional / equity = risk_per_trade ÷ (止损距离 / 价格)
 | 状态 | 条件 | 路由策略 |
 |---|---|---|
 | `TREND_UP` | ADX > 阈值 且 close > MA_fast > MA_slow | TrendBreakout |
-| `TREND_DOWN` | ADX > 阈值 且 close < MA_fast < MA_slow | TrendBreakdown |
-| `VOLATILE` | ADX > 阈值 且 ATR% > 阈值，**且均线结构未成方向** | VolatilityReversion |
-| `SIDEWAYS` | 其余 | RangeMeanReversion |
+| `TREND_DOWN` | ADX > 阈值 且 close < MA_fast < MA_slow | Cash |
+| `VOLATILE` | ADX > 阈值 且 ATR% > 阈值，**且均线结构未成方向** | Cash |
+| `SIDEWAYS` | 其余 | Cash |
+
+`TrendBreakout` 的治理状态仍为 `paused_revalidation`，上述映射供研究、影子和沙盒使用；
+真实资金入口只允许 `admitted` 策略。`Cash` 仅停止新入场，已有仓位仍受退出控制。
 
 - **`VOLATILE` 的语义是"动得凶但没方向"**（转折/来回扫），不是"强趋势/突破"——
-  干净的突破会被判为 `TREND_UP`/`TREND_DOWN`。这与路由表把它分派给均值回归策略一致。
+  干净的突破会被判为 `TREND_UP`/`TREND_DOWN`。当前 `VOLATILE` 映射到 `Cash`，
+  `VolatilityReversion` 只保留隔离研究实现。
 - **必须排除已成方向的 bar**：三者共用同一个 ADX 门槛且 `VOLATILE` 最后赋值，
   若不排除则会无条件覆盖趋势状态。加密日线 ATR 中位数约为价格的 4.4%，
   远高于 `atr_pct_threshold`（2.5%），实测 BTC 2017-2026 上 96.3% 的 `TREND_UP`
   与 99.8% 的 `TREND_DOWN` 因此被吞掉，趋势策略在整段回测中从未被路由到。
-- **`stability_period`**：设为 1 表示不做去抖，每次原始状态翻转都立即切换。
-  由于相邻状态分派给不同策略，每次切换都会触发 `StateSwitch` 强制平仓 + 路由冷却，
-  调大该值可减少这类摩擦。
+- **`stability_period`**：当前默认 5；设为 1 表示不做去抖，每次原始状态翻转都立即切换。
+  空仓标的只有在状态变化导致策略映射改变时才撤销旧入场订单并进入路由冷却，
+  不同状态均映射到 `Cash` 时不产生该切换事件；已有仓位的策略退出规则仍可读取新状态。
 
-> 口径变更影响：修复互斥后，BTC 状态分布由
+> 历史口径变更示例（旧配置）：修复互斥后，BTC 状态分布由
 > `VOLATILE 55.7% / SIDEWAYS 43.4% / TREND_UP 0.83% / TREND_DOWN 0.03%`
 > 变为 `SIDEWAYS 43.2% / TREND_UP 22.8% / TREND_DOWN 18.0% / VOLATILE 16.0%`；
 > 六标的样本总收益率由 -71.0% 变为 +74.4%（Profit Factor 0.71 → 1.29）。
 
 ### 4.2.1 Regime 切换与策略出场的优先级
 
-当前契约采用 **regime 切换即平仓**：当新状态映射到不同策略时，Router 先取消该标的
-所有未完成订单，再提交全量平仓单，并进入路由冷却；不会等待旧策略的 `should_exit`
-条件或设置额外超时。平仓成交仍在 Next-Bar Execution 模型下发生，成交归因为
-`exit_strategy=Router`、`exit_reason=StateSwitch`。
+当前契约采用 **先管理持仓、再收集新入场候选**：`Router.process_position_management`
+先消费成交与平仓事件；已有仓位先检查显式 `MaxHoldingPeriod`（当前 365 天），否则
+由批次账本记录的开仓策略执行 `process_exit_only`。状态映射变化本身不会产生
+`StateSwitch` 强平；开仓策略可以按自身规则因状态不再允许而退出。
 
-Router/CircuitBreaker 的外部平仓不会绕过策略生命周期：持仓实际归零后，原开仓策略的
-`on_trade_closed` 必须且只会回调一次。因此连续亏损、冷却和熄火闸门使用真实成交结果，
-而不是依赖旧策略在切换后再次被路由。趋势策略的 `health_stats` 当前明确采用
-`scope=cross_symbol_aggregate`，即总交易数、滚动 PnL 与连续亏损是跨标的组合级计数。
+只有确认空仓后才执行 `collect_entry_candidate`。映射改变时撤销旧入场订单，设置
+`cooldown_until = 当前 bar 索引 + cooldown_bars`（默认 2），索引不超过该值时暂停
+新入场。候选由组合分配器统一排序后定仓与提交，普通退出单仍遵循次 bar 撮合。
+常驻保护性止损另按回测的保守盘中路径处理；该模拟不能替代交易所保护单运行证据。
+
+账户风控、持有期等外部退出也按成交生成权威 `CloseEvent`；原开仓策略在持仓实际
+归零后按持仓身份接收一次汇总 `on_trade_closed`，部分平仓另有回调。
+趋势策略健康状态由 `StrategyHealthMachine` 管理，兼容视图为
+`scope=exit_cohort_aggregate`：按开仓策略、UTC 退出日和退出控制方合并观察，
+非策略控制方有风险行动身份时再按该身份区分。当前仅 `strategy`、`router` 控制的
+cohort 计入健康触发；账户风控退出保留归因但不单独证明策略失效。
+自动表现失败进入有期限的冷静期和分阶段恢复；显式人工锁定仍需审计恢复。
+
 ## 4.3 结果可信度诊断（core/diagnostics.py）
 
-`core/metrics.py` 回答"策略表现如何"，`core/diagnostics.py` 回答两个前置问题：
+`core/metrics/` 回答"策略表现如何"，`core/diagnostics.py` 回答两个前置问题：
 **这个业绩数字能不能信**，以及**系统的实际行为是否与代码描述一致**。
 每项指标都对应一个真实存在过、且被现有指标完全掩盖的缺陷：
 
@@ -168,14 +190,16 @@ Router/CircuitBreaker 的外部平仓不会绕过策略生命周期：持仓实�
 
 ## 5. 数据质量与处理
 
-- **缺失值**: 执行时跳过缺失 K 线，但指标计算可能受影响 (采用前值填充)。
+- **缺失值**: 无真实 K 线的标的不参与该时间戳的策略路由；估值使用已知价格的延续值，
+  不合成可交易 K 线，不从未来数据反填。
 - **时区**: 所有数据统一标准化为 UTC 时间。
-- **对齐**: 多标的回测基于时间戳交集 (Intersection) 进行对齐。
+- **对齐**: 默认时间戳并集 (`union`)，也可显式选择交集 (`intersection`)；见下文审计口径。
 
 ## 6. 基准对比
 
 策略表现将与以下基准进行对比:
-- **等权组合 (Equal Weight)**: 等权重持有所有选定标的（当前代码实现）。
+- **固定等权持有**：只在起始时纳入当时可观察的标的，之后不再平衡；当前默认主基准。
+- **动态等权再平衡**：按各时点可观察标的再平衡，保存权重、换手和配置交易成本。
 
 ## 7. 输出文件结构
 

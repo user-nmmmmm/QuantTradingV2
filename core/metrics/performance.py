@@ -8,21 +8,20 @@ import numpy as np
 import pandas as pd
 
 SECONDS_PER_YEAR = 365.25 * 24 * 60 * 60
-METRICS_FORMULA_VERSION = "1.0"
+METRICS_FORMULA_VERSION = "2.0"
 
 
 def infer_periods_per_year(index: pd.Index) -> Optional[float]:
-    """Infer observations/year from median positive spacing (robust to missing bars)."""
+    """Infer only a regular, ordered unique clock; never guess through gaps."""
     if not isinstance(index, pd.DatetimeIndex) or len(index) < 2:
         return None
-    timestamps = pd.DatetimeIndex(index).dropna().unique().sort_values()
-    if len(timestamps) < 2:
+    timestamps = pd.DatetimeIndex(index)
+    if timestamps.hasnans or not timestamps.is_unique or not timestamps.is_monotonic_increasing:
         return None
     deltas = np.diff(timestamps.asi8) / 1_000_000_000.0
-    positive = deltas[deltas > 0]
-    if len(positive) == 0:
+    if not np.all(deltas > 0) or not np.all(deltas == deltas[0]):
         return None
-    seconds = float(np.median(positive))
+    seconds = float(deltas[0])
     return SECONDS_PER_YEAR / seconds if np.isfinite(seconds) and seconds > 0 else None
 
 
@@ -31,7 +30,7 @@ def monthly_returns(equity: pd.Series) -> pd.Series:
     clean = _clean_equity(equity)
     if clean.empty or not isinstance(clean.index, pd.DatetimeIndex):
         return pd.Series(dtype=float, name="monthly_return")
-    result = clean.resample("ME").last().dropna().pct_change(fill_method=None).dropna()
+    result = clean.resample("ME").last().pct_change(fill_method=None).dropna()
     result.name = "monthly_return"
     return result
 
@@ -145,14 +144,23 @@ def calculate_drawdown_events(
     return events
 
 
-def calculate_equity_metrics(equity_curve: pd.DataFrame) -> Dict[str, Any]:
+def calculate_equity_metrics(equity_curve: pd.DataFrame, *, periods_per_year: Optional[float] = None) -> Dict[str, Any]:
     """Calculate P0 equity metrics without changing the input DataFrame."""
     if "equity" not in equity_curve.columns:
         raise ValueError("equity_curve must contain an 'equity' column")
+    index = equity_curve.index
+    if len(index) and (not isinstance(index, pd.DatetimeIndex) or index.hasnans
+                       or not index.is_unique or not index.is_monotonic_increasing):
+        raise ValueError("equity timestamps must be unique, increasing datetimes without NaT")
+    if not np.isfinite(pd.to_numeric(equity_curve["equity"], errors="coerce")).all():
+        raise ValueError("equity values must be finite; missing bars cannot be silently dropped")
+    if periods_per_year is not None and (not np.isfinite(periods_per_year) or periods_per_year <= 0):
+        raise ValueError("periods_per_year must be finite and positive")
     equity = _clean_equity(equity_curve["equity"])
     if equity.empty:
         return {}
-    annualisation = infer_periods_per_year(equity.index)
+    equity.index = equity.index.tz_localize("UTC") if equity.index.tz is None else equity.index.tz_convert("UTC")
+    annualisation = periods_per_year if periods_per_year is not None else infer_periods_per_year(equity.index)
     sharpe = calculate_sharpe(equity.pct_change(fill_method=None).dropna(), annualisation)
     drawdown = calculate_drawdown(equity)
     monthlies = monthly_returns(equity)
@@ -178,7 +186,39 @@ def calculate_equity_metrics(equity_curve: pd.DataFrame) -> Dict[str, Any]:
             "SharpeStatus": sharpe["status"], "SharpeSamples": sharpe["sample_size"],
             "PeriodsPerYear": annualisation, "EndEquity": end,
             "TotalReturn": None if start == 0 else end / start - 1,
-            "MetricsFormulaVersion": METRICS_FORMULA_VERSION}
+            "MetricsFormulaVersion": METRICS_FORMULA_VERSION,
+            "AnnualizationPolicy": "explicit" if periods_per_year is not None else "regular_spacing_only",
+            "AnnualizationReason": None if annualisation is not None else "irregular or insufficient clock; supply explicit periods_per_year",
+            "TimestampPolicy": "UTC; naive legacy timestamps interpreted as UTC",
+            "MonthlyReturns": monthly_return_records(equity)}
+
+
+def monthly_return_records(equity: pd.Series) -> list[Dict[str, Any]]:
+    """Keep absent/partial months visible; never bridge across an absent month."""
+    if equity.empty:
+        return []
+    curve = pd.Series(equity, copy=True)
+    curve.index = (curve.index.tz_localize("UTC") if curve.index.tz is None
+                   else curve.index.tz_convert("UTC"))
+    grouped = curve.resample("ME")
+    end_values, counts = grouped.last(), grouped.count()
+    returns = end_values.pct_change(fill_method=None)
+    records = []
+    for timestamp, value in end_values.items():
+        observed = int(counts.loc[timestamp])
+        month_rows = curve[(curve.index.year == timestamp.year) & (curve.index.month == timestamp.month)]
+        frequency = infer_periods_per_year(month_rows.index)
+        step = pd.Timedelta(seconds=SECONDS_PER_YEAR / frequency) if frequency else None
+        month_start = timestamp.replace(day=1).normalize()
+        complete = bool(observed and step is not None and month_rows.index[0] == month_start
+                        and month_rows.index[-1] + step >= month_start + pd.offsets.MonthBegin(1))
+        result = returns.loc[timestamp]
+        records.append({"month": timestamp.strftime("%Y-%m"), "observations": observed,
+                        "complete_calendar_coverage": complete,
+                        "return": float(result) if pd.notna(result) else None,
+                        "status": "ok" if pd.notna(result) else "insufficient_data",
+                        "reason": None if pd.notna(result) else "missing current or preceding month endpoint"})
+    return records
 
 
 def calculate_exposure(

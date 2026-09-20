@@ -8,13 +8,32 @@ from __future__ import annotations
 
 import json
 import os
+from threading import RLock
+from time import sleep
+from uuid import uuid4
 
 from core.logger import get_logger
+from live_trading.recovery import account_new_risk_gate
 
 # Same logger name as live_trading.engine (logging.getLogger caches by name,
 # so this is the identical object) -- tests patch "live_trading.engine.logger"
 # and must keep catching exceptions logged from this mixin too.
 logger = get_logger("live_trading.engine")
+_REPLACE_LOCK = RLock()
+
+
+def _replace_snapshot(source, target):
+    # Windows can briefly deny replacement while another writer/reader closes
+    # the destination. Serialize local replacements and bound external retries.
+    with _REPLACE_LOCK:
+        for attempt in range(5):
+            try:
+                os.replace(source, target)
+                return
+            except PermissionError:
+                if os.name != "nt" or attempt == 4:
+                    raise
+                sleep(0.01 * (attempt + 1))
 
 
 class StateExportMixin:
@@ -56,6 +75,8 @@ class StateExportMixin:
         return latest
 
     def _critical_state_signature(self):
+        account_gate = account_new_risk_gate(self.broker, self._now(),
+            persistence_failed=getattr(self, "_account_reconciliation_persistence_failed", False))
         return (
             self._healthy,
             self._operational_state,
@@ -75,6 +96,8 @@ class StateExportMixin:
             self.risk_manager.current_transition_id,
             self.risk_manager.blocked_until,
             self.risk_manager.daily_loss_triggered,
+            account_gate["allows_new_risk"],
+            account_gate["reason"],
         )
 
     def _maybe_export_state(self, *, force: bool = False) -> bool:
@@ -94,7 +117,7 @@ class StateExportMixin:
         return False
 
     def _export_state(self):
-        tmp_path = f"{self.state_file}.{os.getpid()}.tmp"
+        tmp_path = f"{self.state_file}.{os.getpid()}.{uuid4().hex}.tmp"
         try:
             if self._snapshot is not None:
                 # Reuse the authoritative valuation already produced this
@@ -122,6 +145,8 @@ class StateExportMixin:
                 "operational_state": self._operational_state,
                 "unresolved_unknown_order": self._has_unresolved_unknown(),
                 "reconciliation": dict(self._reconciliation_status),
+                "account_entry_gate": account_new_risk_gate(self.broker, self._now(),
+                    persistence_failed=getattr(self, "_account_reconciliation_persistence_failed", False)),
                 "consecutive_strategy_failures": self._consecutive_strategy_failures,
                 "last_strategy_error": self._last_strategy_error,
                 "health_reason_codes": (
@@ -136,6 +161,10 @@ class StateExportMixin:
                 "portfolio_breaker": self.risk_manager.breaker_checkpoint(),
                 # SR2-5: what protection currently exists, per symbol.
                 "protective_orders": self._protective_order_state(),
+                "external_position_actions": (
+                    self.state_store.get("external_position_actions", {})
+                    if getattr(self, "state_store", None) is not None else {}
+                ),
                 "fill_risk_audit": list(
                     getattr(self, "_live_fill_risk_audit", [])
                 ),
@@ -147,7 +176,7 @@ class StateExportMixin:
                 handle.flush()
                 if needs_fsync:
                     os.fsync(handle.fileno())
-            os.replace(tmp_path, self.state_file)
+            _replace_snapshot(tmp_path, self.state_file)
             self._last_exported_critical_state = critical_state
             return True
         except Exception:

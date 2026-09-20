@@ -247,6 +247,7 @@ class FillRecord:
     side: Optional[str] = None
     correlation_id: Optional[str] = None
     causation_id: Optional[str] = None
+    fee_evidence_status: str = "recorded"
 
 
 @dataclass(frozen=True)
