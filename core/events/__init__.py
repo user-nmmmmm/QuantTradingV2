@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 from collections import deque
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass
+from dataclasses import InitVar, dataclass, field
 from datetime import datetime, timezone
 from threading import RLock
 from typing import Any, Callable, Dict, List, Optional, Protocol, Tuple, Type, Union
@@ -49,6 +49,7 @@ from core.events.types import (
     StructuredPayload,
     _aware_utc,
     _normalize_value,
+    _restore_dataclass_state,
     event_type_for,
 )
 
@@ -56,7 +57,7 @@ EVENT_SCHEMA_VERSION = "1.0"
 EVENT_CODEC_FORMAT = "quant-trading-event/1"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class EventEnvelope:
     event_id: UUID
     event_type: str
@@ -72,8 +73,12 @@ class EventEnvelope:
     timeframe: Optional[str]
     payload: Any
     idempotency_key: Optional[str] = None
+    # Only publish() supplies this after freezing the payload at its boundary.
+    # InitVar keeps this transport-local flag out of fields(), wire data and
+    # pickle state; replace() uses the safe default and freezes new payloads.
+    _normalized_payload: InitVar[bool] = field(default=False, kw_only=True)
 
-    def __post_init__(self) -> None:
+    def __post_init__(self, _normalized_payload: bool = False) -> None:
         if not isinstance(self.event_type, str) or not self.event_type:
             raise ValueError("event_type is required")
         if not isinstance(self.schema_version, str) or not self.schema_version:
@@ -92,7 +97,10 @@ class EventEnvelope:
             object.__setattr__(self, "causation_id", _coerce_uuid(self.causation_id, "causation"))
         object.__setattr__(self, "occurred_at", _aware_utc(self.occurred_at, "occurred_at"))
         object.__setattr__(self, "observed_at", _aware_utc(self.observed_at, "observed_at"))
-        object.__setattr__(self, "payload", _normalize_value(self.payload))
+        if not _normalized_payload:
+            object.__setattr__(self, "payload", _normalize_value(self.payload))
+
+    __setstate__ = _restore_dataclass_state
 
 
 class EventCodec:
@@ -306,6 +314,7 @@ class TradingEventPipeline:
             timeframe=resolved_timeframe,
             payload=normalized_payload,
             idempotency_key=idempotency_key,
+            _normalized_payload=True,
         )
         return self._accept(event)
 

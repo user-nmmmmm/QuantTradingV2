@@ -214,7 +214,8 @@ class ReportGenerator(
             raise ValueError("report_profile must be 'workbook', 'compact' or 'full'")
         trades_df = pd.DataFrame(trades)
 
-        if not metrics_only:
+        if not metrics_only and report_profile != "workbook":
+            # Workbook embeds raw data directly; avoid writing disposable CSVs.
             # 1. Save CSVs
             equity_curve.to_csv(os.path.join(self.output_dir, "equity.csv"))
 
@@ -356,16 +357,18 @@ class ReportGenerator(
             write_metrics_json(os.path.join(self.output_dir, "execution_quality.json"), extended["execution_quality"], metadata)
             write_metrics_json(os.path.join(self.output_dir, "invalid_closed_trades.json"),
                                {"status": "invalid_input" if invalid_trades else "ok", "records": invalid_trades}, metadata)
-            # 3. Save Report Text（report.txt 的分析型分节直接读 ExtendedAnalytics，
-            # 不重新计算一遍——避免 trade_quality/attribution 等函数在同一次
-            # generate() 调用里跑两次）。
-            self._save_report_text(metrics, metadata, metrics["ExtendedAnalytics"])
+            if report_profile != "workbook":
+                # 3. Save Report Text（report.txt 的分析型分节直接读 ExtendedAnalytics，
+                # 不重新计算一遍——避免 trade_quality/attribution 等函数在同一次
+                # generate() 调用里跑两次）。
+                self._save_report_text(metrics, metadata, metrics["ExtendedAnalytics"])
 
-            # 4. Generate Plots
-            self._plot_equity(equity_curve, benchmark_curve)
-            self._plot_monthly_heatmap(equity_curve)
-            self._plot_rolling_metrics(equity_curve)
-            self._plot_pnl_distribution(closed_trades)
+                # 4. Generate Plots. Workbook builds native Excel charts from
+                # the inputs and does not consume these PNG files.
+                self._plot_equity(equity_curve, benchmark_curve)
+                self._plot_monthly_heatmap(equity_curve)
+                self._plot_rolling_metrics(equity_curve)
+                self._plot_pnl_distribution(closed_trades)
 
             if report_profile == "workbook":
                 from backtest.reporting.render.workbook import write_workbook_report

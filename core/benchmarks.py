@@ -6,6 +6,7 @@ from dataclasses import dataclass
 import math
 from typing import Dict, Mapping, Optional
 
+import numpy as np
 import pandas as pd
 
 
@@ -112,55 +113,62 @@ def dynamic_equal_weight_rebalanced(
         return None
     start_idx = min(max(int(start_idx), 0), len(closes) - 1)
     index = closes.index
-    weights = pd.DataFrame(0.0, index=index, columns=closes.columns)
-    turnover = pd.Series(0.0, index=index, name="turnover")
-    costs = pd.Series(0.0, index=index, name="cost")
-    equity = pd.Series(float(initial_capital), index=index, name="dynamic_equal_weight")
+    prices_matrix = closes.to_numpy(copy=False)
+    if prices_matrix.dtype.kind == "O":
+        # Nullable numeric columns can expose an object array containing pd.NA.
+        row_dtype = closes.iloc[0].dtype
+        numpy_dtype = getattr(row_dtype, "numpy_dtype", np.dtype(float))
+        dtype = numpy_dtype if numpy_dtype.kind == "f" else float
+        prices_matrix = closes.to_numpy(dtype=dtype, na_value=np.nan)
+    weight_values = np.zeros(closes.shape, dtype=float)
+    turnover_values = np.zeros(len(index), dtype=float)
+    cost_values = np.zeros(len(index), dtype=float)
+    equity_values = np.full(len(index), float(initial_capital), dtype=float)
 
-    previous_weights = pd.Series(0.0, index=closes.columns)
+    previous_weights = np.zeros(len(closes.columns), dtype=float)
     current_equity = float(initial_capital)
-    previous_prices: Optional[pd.Series] = None
-    for position, timestamp in enumerate(index):
-        prices = closes.loc[timestamp]
+    previous_prices = None
+    for position, prices in enumerate(prices_matrix):
+        valid = ~np.isnan(prices)
         if position < start_idx:
-            previous_prices = prices.combine_first(previous_prices) if previous_prices is not None else prices
-            equity.iloc[position] = current_equity
+            previous_prices = (np.where(valid, prices, previous_prices)
+                               if previous_prices is not None else prices)
             continue
 
-        if previous_prices is not None:
-            common = previous_prices.notna() & prices.notna() & (previous_prices > 0)
-            asset_returns = pd.Series(0.0, index=closes.columns)
-            asset_returns.loc[common] = prices.loc[common] / previous_prices.loc[common] - 1.0
-            growth = 1.0 + float((previous_weights * asset_returns).sum())
-            current_equity *= growth
-            drifted_weights = previous_weights * (1.0 + asset_returns) / growth
-        else:
-            drifted_weights = previous_weights
+        # Match pandas' skipna reductions, including 0 * inf and inf / inf.
+        with np.errstate(divide="ignore", invalid="ignore", over="ignore"):
+            if previous_prices is not None:
+                common = valid & ~np.isnan(previous_prices) & (previous_prices > 0)
+                asset_returns = np.zeros(len(closes.columns), dtype=float)
+                asset_returns[common] = prices[common] / previous_prices[common] - 1.0
+                growth = 1.0 + float(np.nansum(previous_weights * asset_returns))
+                current_equity *= growth
+                drifted_weights = previous_weights * (1.0 + asset_returns) / growth
+            else:
+                drifted_weights = previous_weights
 
-        active = prices.dropna().index
-        target = pd.Series(0.0, index=closes.columns)
-        if len(active):
-            target.loc[active] = 1.0 / len(active)
-        # Moving from cash into the initial portfolio trades 100% of capital;
-        # subsequent asset-to-asset rebalances use one-way turnover (half the
-        # sum of absolute weight changes, avoiding double-counting buy+sell).
-        step_turnover = 0.5 * (float((target - drifted_weights).abs().sum())
-                               + abs(float(target.sum() - drifted_weights.sum())))
+            target = weight_values[position]
+            active_count = np.count_nonzero(valid)
+            if active_count:
+                target[valid] = 1.0 / active_count
+            # Include the cash sleeve so entering/exiting a portfolio trades
+            # 100% of capital; asset-to-asset rebalances count only one side.
+            step_turnover = 0.5 * (float(np.nansum(np.abs(target - drifted_weights)))
+                                   + abs(float(target.sum() - np.nansum(drifted_weights))))
         step_cost = current_equity * step_turnover * cost_bps / 10000.0
         current_equity -= step_cost
 
-        weights.loc[timestamp] = target
-        turnover.loc[timestamp] = step_turnover
-        costs.loc[timestamp] = step_cost
-        equity.loc[timestamp] = current_equity
+        turnover_values[position] = step_turnover
+        cost_values[position] = step_cost
+        equity_values[position] = current_equity
         previous_weights = target
         previous_prices = prices
 
     return BenchmarkResult(
-        equity=equity,
-        weights=weights,
-        turnover=turnover,
-        costs=costs,
+        equity=pd.Series(equity_values, index=index, name="dynamic_equal_weight"),
+        weights=pd.DataFrame(weight_values, index=index, columns=closes.columns),
+        turnover=pd.Series(turnover_values, index=index, name="turnover"),
+        costs=pd.Series(cost_values, index=index, name="cost"),
         metadata={
             "benchmark_id": "equal_weight_event_rebalanced/v2",
             "name": "dynamic_equal_weight_rebalanced",
