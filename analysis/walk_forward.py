@@ -199,10 +199,14 @@ def _run_window(
     for symbol, frame in window_data.items():
         if int((frame.index < start).sum()) < actual_warmup:
             raise ValueError(f"insufficient candidate warmup history for {symbol}: {actual_warmup} bars required")
+    engine_kwargs = dict(config.engine_kwargs)
+    # Windows return account returns and trade counts, neither of which uses
+    # benchmarks. Keep an explicit caller override available for diagnostics.
+    engine_kwargs.setdefault("calculate_benchmarks", False)
     engine = BacktestEngine(
         initial_capital=config.initial_capital,
         warmup_period=config.warmup_period if warmup_period is None else warmup_period,
-        **dict(config.engine_kwargs),
+        **engine_kwargs,
     )
     result = engine.run(
         window_data,

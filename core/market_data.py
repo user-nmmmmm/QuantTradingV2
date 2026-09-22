@@ -18,17 +18,28 @@ def normalize_market_frame(df: pd.DataFrame) -> pd.DataFrame:
     if df is None or df.empty:
         return pd.DataFrame()
     normalized = df.copy()
-    normalized.index = pd.to_datetime(normalized.index, errors="coerce")
-    normalized = normalized.loc[~pd.isna(normalized.index)].copy()
+    if not isinstance(normalized.index, pd.DatetimeIndex):
+        normalized.index = pd.to_datetime(normalized.index, errors="coerce")
+    if normalized.index.hasnans:
+        normalized = normalized.loc[~pd.isna(normalized.index)]
     if normalized.empty:
         return normalized
     if normalized.index.tz is not None:
         normalized.index = normalized.index.tz_convert("UTC").tz_localize(None)
-    return normalized[~normalized.index.duplicated(keep="last")].sort_index()
+    # Check ordering first: pandas can establish uniqueness of a sorted index
+    # without building a hash table for every timestamp.
+    ordered = normalized.index.is_monotonic_increasing
+    if not normalized.index.is_unique:
+        normalized = normalized.loc[~normalized.index.duplicated(keep="last")]
+    if not ordered:
+        normalized = normalized.sort_index()
+    return normalized
 
 
 class HistoricalMarketDataAdapter:
     """Turns fixed OHLCV frames into an explicit union/intersection timeline."""
+
+    _POSITION_CHUNK_SIZE = 2048
 
     def __init__(
         self,
@@ -56,10 +67,6 @@ class HistoricalMarketDataAdapter:
             if calculate_indicators:
                 Indicators.calculate_all(prepared)
             self.data_map[symbol] = prepared
-        self._positions: Dict[str, Dict[pd.Timestamp, int]] = {
-            symbol: {ts: i for i, ts in enumerate(frame.index)}
-            for symbol, frame in self.data_map.items()
-        }
 
     @property
     def timestamps(self) -> pd.DatetimeIndex:
@@ -80,23 +87,37 @@ class HistoricalMarketDataAdapter:
             point = pd.Timestamp(start_at)
             if point.tzinfo is not None:
                 point = point.tz_convert("UTC").tz_localize(None)
-            timeline = timeline[timeline >= point]
-        for timestamp in timeline:
-            bars: Dict[str, pd.Series] = {}
-            positions: Dict[str, int] = {}
+            # Slice the sorted timeline instead of allocating a full boolean mask.
+            timeline = timeline[timeline.searchsorted(point):]
+        for offset in range(0, len(timeline), self._POSITION_CHUNK_SIZE):
+            chunk = timeline[offset:offset + self._POSITION_CHUNK_SIZE]
+            lookups = []
             for symbol, frame in self.data_map.items():
-                pos = self._positions[symbol].get(timestamp)
-                if pos is not None:
-                    bars[symbol] = frame.iloc[pos]
-                    positions[symbol] = pos
-            yield MarketDataSlice(
-                timestamp=timestamp,
-                bars=bars,
-                histories=self.data_map,
-                positions=positions,
-                timeframe=self.timeframe,
-                source="historical",
-            )
+                # Native position arrays are bounded by the chunk size, even for
+                # sparse universes. searchsorted avoids both Python Timestamp
+                # dictionaries and a retained pandas index hash table.
+                rows = frame.index.searchsorted(chunk)
+                rows[rows == len(frame)] = 0
+                rows[frame.index.take(rows) != chunk] = -1
+                lookups.append((symbol, frame.iloc, rows))
+            for local_pos, timestamp in enumerate(chunk):
+                bars: Dict[str, pd.Series] = {}
+                positions: Dict[str, int] = {}
+                for symbol, row_access, rows in lookups:
+                    pos = int(rows[local_pos])
+                    if pos >= 0:
+                        # Read the current frame on every event so columns added
+                        # by a strategy during a stream are visible immediately.
+                        bars[symbol] = row_access[pos]
+                        positions[symbol] = pos
+                yield MarketDataSlice(
+                    timestamp=timestamp,
+                    bars=bars,
+                    histories=self.data_map,
+                    positions=positions,
+                    timeframe=self.timeframe,
+                    source="historical",
+                )
 
 
 class LiveMarketDataAdapter:

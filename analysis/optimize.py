@@ -110,6 +110,9 @@ def evaluate_one_candidate(task: tuple) -> Dict[str, Any]:
     engine = BacktestEngine(
         initial_capital=initial_capital,
         warmup_period=candidate_warmup(_candidate_factory(entry_window, exit_window)),
+        # Candidate scores use absolute account metrics only. Benchmark curves
+        # and their report comparisons are discarded by this evaluator.
+        calculate_benchmarks=False,
     )
     result = engine.run(
         data_map,

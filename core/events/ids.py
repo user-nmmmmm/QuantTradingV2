@@ -5,6 +5,7 @@ Depends on core.events.codec.canonical_json to hash payload content.
 """
 from __future__ import annotations
 
+from functools import lru_cache
 from typing import Any, Union
 from uuid import UUID, uuid5
 
@@ -43,6 +44,19 @@ def _coerce_uuid(value: Union[str, UUID], purpose: str) -> UUID:
         return value
     if not isinstance(value, str) or not value:
         raise TypeError(f"{purpose} must be UUID or non-empty string")
+    if type(value) is str and type(purpose) is str:
+        return _coerce_uuid_string(value, purpose)
+    # String subclasses may override hashing, equality or UUID parsing
+    # methods. Preserve their original semantics without caching them.
+    return _parse_uuid_string(value, purpose)
+
+
+@lru_cache(maxsize=1024)
+def _coerce_uuid_string(value: str, purpose: str) -> UUID:
+    return _parse_uuid_string(value, purpose)
+
+
+def _parse_uuid_string(value: str, purpose: str) -> UUID:
     try:
         return UUID(value)
     except ValueError:

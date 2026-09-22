@@ -47,6 +47,14 @@ def _normalize_value(value: Any) -> Any:
             raise ValueError("NaN and Infinity are not valid event values")
         return value
     if isinstance(value, StructuredPayload):
+        if (type(value).__init__ is StructuredPayload.__init__
+                and type(value).items is StructuredPayload.items
+                and type(value).__iter__ is StructuredPayload.__iter__
+                and type(value).__getitem__ is StructuredPayload.__getitem__):
+            # This constructor already copies and recursively freezes its
+            # input. Custom constructors and mapping views retain their
+            # original normalization path.
+            return type(value)(value.data)
         return type(value)({key: _normalize_value(item) for key, item in value.items()})
     if is_dataclass(value) and not isinstance(value, type):
         values = {item.name: _normalize_value(getattr(value, item.name)) for item in fields(value)}
@@ -61,6 +69,14 @@ def _normalize_value(value: Any) -> Any:
     if isinstance(value, (list, tuple)):
         return tuple(_normalize_value(item) for item in value)
     raise TypeError(f"Unsupported event value type: {type(value).__name__}")
+
+
+def _restore_dataclass_state(instance: Any, state: Any) -> None:
+    """Read both legacy dict-state and slotted dataclass pickle state."""
+    names = tuple(item.name for item in fields(instance))
+    values = (state[name] for name in names) if isinstance(state, dict) else state
+    for name, value in zip(names, values):
+        object.__setattr__(instance, name, value)
 
 
 @dataclass(frozen=True, init=False)
@@ -128,7 +144,7 @@ def _decimal(value: Any, field_name: str) -> Decimal:
     return result
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class OrderEvent:
     """Canonical order-lifecycle fact shared by simulated and live venues."""
 
@@ -141,6 +157,8 @@ class OrderEvent:
     exchange_order_id: Optional[str] = None
     error_code: Optional[str] = None
     message: Optional[str] = None
+
+    __setstate__ = _restore_dataclass_state
 
     def __post_init__(self) -> None:
         if not self.client_order_id:
@@ -158,7 +176,7 @@ class OrderEvent:
             object.__setattr__(self, "average_fill_price", price)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class FillEvent:
     """Canonical immutable execution fact with exact decimal quantities."""
 
@@ -173,6 +191,8 @@ class FillEvent:
     exchange_order_id: Optional[str] = None
     liquidity: Optional[str] = None
     quote_currency: Optional[str] = None
+
+    __setstate__ = _restore_dataclass_state
 
     def __post_init__(self) -> None:
         if not self.fill_id or not self.client_order_id:
