@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import gc
 import tracemalloc
+from enum import Enum
 
 import numpy as np
 import pandas as pd
@@ -111,6 +112,130 @@ def test_concurrent_streams_see_strategy_columns_without_reusing_bars():
     assert len(list(adapter.stream())) == 9
     assert list(adapter.stream(start_at="2025-01-01")) == []
     assert list(HistoricalMarketDataAdapter({}, calculate_indicators=False).stream()) == []
+
+
+def test_aligned_stream_keeps_original_row_semantics_after_start_and_new_columns():
+    dates = pd.date_range("2024-01-01", periods=6, freq="D")
+    frame = pd.DataFrame({
+        "close": pd.array([1, 2, None, 4, 5, 6], dtype="Int64"),
+        "category": pd.Categorical(list("aabbcc")),
+    }, index=dates)
+    adapter = HistoricalMarketDataAdapter(
+        {"A": frame, "B": frame.copy()}, calculate_indicators=False
+    )
+    adapter._POSITION_CHUNK_SIZE = 2
+    stream = adapter.stream(start_at=dates[1].tz_localize("Asia/Singapore"))
+    first = next(stream)
+    # The UTC-normalized start is before dates[1], so dates[1] is included.
+    assert first.timestamp == dates[1]
+    assert first.positions == {"A": 1, "B": 1}
+    for symbol in ("A", "B"):
+        pd.testing.assert_series_equal(first.bars[symbol], adapter.data_map[symbol].iloc[1])
+        assert first.bars[symbol].name == dates[1]
+
+    for prepared in adapter.data_map.values():
+        prepared["signal"] = range(len(prepared))
+    for position, event in enumerate(stream, start=2):
+        assert event.positions == {"A": position, "B": position}
+        for symbol in ("A", "B"):
+            pd.testing.assert_series_equal(
+                event.bars[symbol], adapter.data_map[symbol].iloc[position]
+            )
+            assert event.bars[symbol] is not first.bars[symbol]
+    assert "signal" not in first.bars["A"].index
+
+
+def test_fast_bars_keep_promoted_values_object_columns_and_snapshot_semantics():
+    class State(Enum):
+        UP = "up"
+        DOWN = "down"
+
+    dates = pd.date_range("2024-01-01", periods=4)
+    frame = pd.DataFrame({
+        "open": [1.0, 2.0, 3.0, 4.0],
+        "high": [2.0, 3.0, 4.0, 5.0],
+        "low": [0.5, 1.5, 2.5, 3.5],
+        "close": [1.5, 2.5, 3.5, 4.5],
+        "volume": np.array([10, 20, 30, 40], dtype=np.int32),
+        "market_state": [State.UP, State.DOWN, State.UP, State.DOWN],
+    }, index=dates)
+    adapter = HistoricalMarketDataAdapter({"A": frame}, calculate_indicators=False)
+    adapter._POSITION_CHUNK_SIZE = 2
+    stream = adapter.stream(fast_bars=True)
+    first = next(stream).bars["A"]
+    pd.testing.assert_series_equal(first.copy(), adapter.data_map["A"].iloc[0])
+    assert first.name == dates[0]
+    assert first.close == first["close"]
+    assert first.get("market_state") is State.UP
+    assert first.get("missing", "default") == "default"
+    assert dict(first.items()) == adapter.data_map["A"].iloc[0].to_dict()
+
+    adapter.data_map["A"]["signal"] = [5.0, 6.0, 7.0, 8.0]
+    adapter.data_map["A"]["gate_state"] = [State.DOWN] * 4
+    adapter.data_map["A"].loc[dates[0], "close"] = 999.0
+    for position, event in enumerate(stream, start=1):
+        bar = event.bars["A"]
+        pd.testing.assert_series_equal(bar.copy(), adapter.data_map["A"].iloc[position])
+        assert bar.get("signal") == float(position + 5)
+    assert "signal" not in first.keys()
+    assert "gate_state" not in first.keys()
+    assert first["close"] == 1.5
+    synthetic = first.copy()
+    synthetic.name = dates[-1]
+    synthetic["open"] = 123.0
+    assert first["open"] == 1.0
+    assert synthetic["open"] == 123.0
+    first.name = dates[-1]
+    assert first.copy().name == dates[-1]
+    _ = first.index  # materialize the fallback Series
+    first.name = dates[0]
+    assert first.copy().name == dates[0]
+
+
+def test_fast_bars_fall_back_for_duplicate_columns_and_preserve_extension_rows():
+    dates = pd.date_range("2024-01-01", periods=2)
+    duplicate = pd.DataFrame([[1.0, 2.0], [3.0, 4.0]],
+                             index=dates, columns=["close", "close"])
+    extension = pd.DataFrame({
+        "close": pd.array([1, None], dtype="Int64"),
+        "category": pd.Categorical(["a", "b"]),
+    }, index=dates)
+    for frame in (duplicate, extension):
+        adapter = HistoricalMarketDataAdapter({"A": frame}, calculate_indicators=False)
+        for position, event in enumerate(adapter.stream(fast_bars=True)):
+            bar = event.bars["A"]
+            pd.testing.assert_series_equal(bar.copy(), adapter.data_map["A"].iloc[position])
+            assert isinstance(bar, pd.Series)
+
+    changing = HistoricalMarketDataAdapter(
+        {"A": pd.DataFrame({"close": [1.0, 2.0]}, index=dates)},
+        calculate_indicators=False,
+    )
+    changing._POSITION_CHUNK_SIZE = 1
+    stream = changing.stream(fast_bars=True)
+    assert not isinstance(next(stream).bars["A"], pd.Series)
+    changing.data_map["A"]["close"] = pd.array([1, None], dtype="Int64")
+    second = next(stream).bars["A"]
+    assert isinstance(second, pd.Series)
+    pd.testing.assert_series_equal(second, changing.data_map["A"].iloc[1])
+
+
+def test_fast_bars_keep_sparse_union_positions_and_row_values():
+    dates = pd.date_range("2024-01-01", periods=4)
+    frame = pd.DataFrame({"close": [1.0, 2.0, 3.0, 4.0]}, index=dates)
+    adapter = HistoricalMarketDataAdapter({
+        "A": frame.iloc[[0, 2, 3]], "B": frame.iloc[[1, 3]],
+    }, calculate_indicators=False)
+    adapter._POSITION_CHUNK_SIZE = 2
+    events = list(adapter.stream(fast_bars=True))
+    assert [event.positions for event in events] == [
+        {"A": 0}, {"B": 0}, {"A": 1}, {"A": 2, "B": 1},
+    ]
+    for event in events:
+        for symbol, position in event.positions.items():
+            pd.testing.assert_series_equal(
+                event.bars[symbol].copy(), adapter.data_map[symbol].iloc[position]
+            )
 
 
 def test_constructor_memory_is_close_to_frame_storage():

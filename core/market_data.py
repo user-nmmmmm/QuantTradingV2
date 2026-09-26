@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Dict, Iterable, List, Optional
 
+import numpy as np
 import pandas as pd
 
 from core.indicators import Indicators
@@ -34,6 +35,95 @@ def normalize_market_frame(df: pd.DataFrame) -> pd.DataFrame:
     if not ordered:
         normalized = normalized.sort_index()
     return normalized
+
+
+class _FastBar:
+    """A row snapshot with fast scalar access for the historical engine.
+
+    ``DataFrame._mgr.fast_xs`` supplies the same promoted row values used by
+    ``iloc``. The copy preserves the row when strategies subsequently add or
+    replace columns in the history frame. Uncommon Series operations can still
+    materialize a genuine Series from that snapshot.
+    """
+
+    __slots__ = ("_name", "_columns", "_locations", "_values", "_series")
+
+    def __init__(self, name, columns, locations, values: np.ndarray) -> None:
+        self._columns = columns
+        self._locations = locations
+        self._values = values.copy()
+        self._series: Optional[pd.Series] = None
+        self._name = name
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, value) -> None:
+        self._name = value
+        if self._series is not None:
+            self._series.name = value
+
+    def _as_series(self) -> pd.Series:
+        if self._series is None:
+            self._series = pd.Series(self._values, index=self._columns, name=self.name)
+        return self._series
+
+    def __getitem__(self, key):
+        if self._series is not None:
+            return self._series[key]
+        try:
+            return self._values[self._locations[key]]
+        except (KeyError, TypeError):
+            return self._as_series()[key]
+
+    def get(self, key, default=None):
+        if self._series is not None:
+            return self._series.get(key, default)
+        try:
+            return self._values[self._locations[key]]
+        except KeyError:
+            return default
+        except TypeError:
+            return self._as_series().get(key, default)
+
+    def __setitem__(self, key, value) -> None:
+        self._as_series()[key] = value
+
+    def __len__(self) -> int:
+        return len(self._series) if self._series is not None else len(self._values)
+
+    def __iter__(self):
+        return iter(self._series) if self._series is not None else iter(self._values)
+
+    def __contains__(self, key) -> bool:
+        return key in self._series if self._series is not None else key in self._locations
+
+    def __getattr__(self, name):
+        if name in self._locations:
+            return self[name]
+        return getattr(self._as_series(), name)
+
+    def __repr__(self) -> str:
+        return repr(self._as_series())
+
+    def __bool__(self) -> bool:
+        return bool(self._as_series())
+
+    def __array__(self, dtype=None, copy=None):
+        return np.asarray(self._as_series(), dtype=dtype, copy=copy)
+
+    def keys(self):
+        return self._series.keys() if self._series is not None else self._columns
+
+    def items(self):
+        return self._series.items() if self._series is not None else zip(self._columns, self._values)
+
+    def copy(self, deep: bool = True) -> pd.Series:
+        if self._series is not None:
+            return self._series.copy(deep=deep)
+        return pd.Series(self._values, index=self._columns, name=self.name).copy(deep=deep)
 
 
 class HistoricalMarketDataAdapter:
@@ -81,25 +171,38 @@ class HistoricalMarketDataAdapter:
                 timeline = timeline.union(frame.index)
         return timeline.sort_values()
 
-    def stream(self, *, start_at=None) -> Iterable[MarketDataSlice]:
+    def stream(self, *, start_at=None, fast_bars: bool = False) -> Iterable[MarketDataSlice]:
         timeline = self.timestamps
+        start_position = 0
+        # Fully aligned frames already have the timeline's row positions.
+        # Retain the index identity so a replaced index uses the lookup path.
+        sources = [
+            (symbol, frame, frame.index, frame.index.equals(timeline), frame._ixs)
+            for symbol, frame in self.data_map.items()
+        ]
+        column_cache = {}
         if start_at is not None:
             point = pd.Timestamp(start_at)
             if point.tzinfo is not None:
                 point = point.tz_convert("UTC").tz_localize(None)
             # Slice the sorted timeline instead of allocating a full boolean mask.
-            timeline = timeline[timeline.searchsorted(point):]
+            start_position = int(timeline.searchsorted(point))
+            timeline = timeline[start_position:]
         for offset in range(0, len(timeline), self._POSITION_CHUNK_SIZE):
             chunk = timeline[offset:offset + self._POSITION_CHUNK_SIZE]
             lookups = []
-            for symbol, frame in self.data_map.items():
-                # Native position arrays are bounded by the chunk size, even for
-                # sparse universes. searchsorted avoids both Python Timestamp
-                # dictionaries and a retained pandas index hash table.
-                rows = frame.index.searchsorted(chunk)
-                rows[rows == len(frame)] = 0
-                rows[frame.index.take(rows) != chunk] = -1
-                lookups.append((symbol, frame.iloc, rows))
+            for symbol, frame, original_index, aligned, row_access in sources:
+                if aligned and frame.index is original_index:
+                    rows = range(start_position + offset,
+                                 start_position + offset + len(chunk))
+                else:
+                    # Native position arrays are bounded by the chunk size,
+                    # even for sparse universes. searchsorted avoids both
+                    # Python Timestamp dictionaries and a retained full matrix.
+                    rows = frame.index.searchsorted(chunk)
+                    rows[rows == len(frame)] = 0
+                    rows[frame.index.take(rows) != chunk] = -1
+                lookups.append((symbol, row_access, rows))
             for local_pos, timestamp in enumerate(chunk):
                 bars: Dict[str, pd.Series] = {}
                 positions: Dict[str, int] = {}
@@ -108,7 +211,39 @@ class HistoricalMarketDataAdapter:
                     if pos >= 0:
                         # Read the current frame on every event so columns added
                         # by a strategy during a stream are visible immediately.
-                        bars[symbol] = row_access[pos]
+                        if fast_bars:
+                            frame = self.data_map[symbol]
+                            columns = frame.columns
+                            manager = getattr(frame, "_mgr", None)
+                            blocks = getattr(manager, "blocks", None)
+                            cached = column_cache.get(symbol)
+                            if (cached is None or cached[0] is not columns
+                                    or cached[1] is not blocks):
+                                if (columns.is_unique and manager is not None
+                                        and not getattr(manager, "any_extension_types", True)):
+                                    locations = {name: i for i, name in enumerate(columns)}
+                                else:
+                                    # Extension arrays and repeated column names
+                                    # retain pandas' full Series behavior.
+                                    locations = None
+                                column_cache[symbol] = (columns, blocks, locations)
+                            else:
+                                locations = cached[2]
+                            fast_xs = getattr(manager, "fast_xs", None)
+                            if locations is not None and callable(fast_xs):
+                                values = fast_xs(pos).array
+                                if isinstance(values, np.ndarray):
+                                    bars[symbol] = _FastBar(
+                                        frame.index[pos], columns, locations, values
+                                    )
+                                else:
+                                    bars[symbol] = row_access(pos)
+                            else:
+                                bars[symbol] = row_access(pos)
+                        else:
+                            # iloc's integer-row branch delegates to _ixs after
+                            # validation; pos is already an in-range row number.
+                            bars[symbol] = row_access(pos)
                         positions[symbol] = pos
                 yield MarketDataSlice(
                     timestamp=timestamp,
