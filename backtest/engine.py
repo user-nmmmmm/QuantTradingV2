@@ -79,6 +79,7 @@ class BacktestEngine:
         portfolio_controller: Any = None,
         terminal_policy: Optional[str] = None,
         calculate_benchmarks: bool = True,
+        fast_bars: bool = True,
     ) -> None:
         config_data = config.require("data")
         config_benchmark = config.require("benchmark")
@@ -154,6 +155,7 @@ class BacktestEngine:
         self.universe = universe
         self.portfolio_controller = portfolio_controller
         self.calculate_benchmarks = bool(calculate_benchmarks)
+        self.fast_bars = bool(fast_bars)
         self._terminal_policy_override = terminal_policy
         self.terminal_policy = terminal_policy or config.get("backtest", "end_of_backtest_mode") or "mark_to_market"
         if self.terminal_policy not in {"mark_to_market", "forced_liquidation", "valuation_only"}:
@@ -415,7 +417,7 @@ class BacktestEngine:
         health_activity = []
         routed_names = set((config.get("routing") or {}).values()) - {"Cash"}
         stream_start = (self.trading_start if self.portfolio_controller is not None else None)
-        stream = market_data.stream(start_at=stream_start) if stream_start is not None else market_data.stream()
+        stream = market_data.stream(start_at=stream_start, fast_bars=self.fast_bars)
         stream_offset = int(timestamps.searchsorted(stream_start)) if stream_start is not None else 0
         for bar_index, event in enumerate(stream, start=stream_offset):
             if self.trading_start is not None and event.timestamp < self.trading_start:
