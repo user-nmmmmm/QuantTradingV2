@@ -203,51 +203,30 @@ cohort 计入健康触发；账户风控退出保留归因但不单独证明策�
 
 ## 7. 输出文件结构
 
-每次回测都会在 `reports/` 目录下生成一个独立的时间戳文件夹 (例如 `reports/20260208_...`)，避免文件在根目录堆积。文件夹内包含：
+CLI 回测会在 `reports/` 下建立独立的时间戳目录。产物取决于 `--report-profile`：
 
-- **report.txt**: 回测配置与核心指标汇总。
-- **equity.csv**: 每日账户净值与现金数据。
-- **trades.csv**: 详细的交易执行记录 (包含成交时间、价格、滑点、手续费)。
-- **benchmark.csv**: 基准策略 (Buy & Hold) 的净值数据。
-- **data_quality_report.json**: 输入数据的质量分析报告 (缺失值、异常值统计)。
-- **routing_log.csv**: 策略路由的详细决策日志。
+| 模式 | 用途与主要产物 |
+| --- | --- |
+| `workbook`（默认） | 日常研究；主要交付 `backtest_report.xlsx`，权益、成交和指标在工作簿中查看。 |
+| `compact` | 轻量分享；交付 `report.pdf`、`dashboard.png` 与核心 CSV。 |
+| `full` | 审计与复现；在报告、权益、成交、基准和路由文件之外，写入事件账本、数据快照与 `run_manifest.json`。 |
 
-## Phase 2: reproducibility, alignment, benchmarks and audit
+某些附加文件取决于是否有成交、基准和相应输入。以当次输出目录和运行结果为准，不应从文件名推断运行或研究已获验收。
 
-Every normal CLI backtest is an immutable report bundle. `run_manifest.json`
-records Git SHA/branch/dirty state, dependency-lock hashes, the complete config
-snapshot and hash, requested/effective periods, data-source identity, per-symbol
-data hashes, seed and execution settings. Exact engine inputs are stored under
-`data_inputs/`; `--replay-manifest` verifies those hashes and compares the
-trade, equity, benchmark and report-payload digests exactly.
+## Phase 2：复现、时间对齐、基准与审计
 
-Multi-asset alignment is explicit:
+只有 `--report-profile full` 生成完整审计包。其 `run_manifest.json` 记录 Git 提交、分支与脏工作树状态、依赖锁摘要、完整配置快照及哈希、请求与实际区间、数据源和逐标的哈希、随机种子及执行设置。引擎实际输入保存在 `data_inputs/`；`--replay-manifest` 会验证这些哈希，并精确比较成交、权益、基准和报告载荷的摘要。
 
-- `union` (default): the event timeline contains every real bar from any asset;
-  only symbols with a real bar at that timestamp are routed.
-- `intersection`: the timeline contains only timestamps present for every asset.
+多标的时间轴有明确的对齐口径：
 
-The report always saves two benchmark definitions. The fixed benchmark buys,
-at equal weights, only assets observable at the benchmark start and never
-rebalances. The dynamic benchmark rebalances equally across assets observable
-at each event timestamp; one-way turnover and the configured transaction cost
-are saved alongside every weight. `benchmark.csv` is the selected primary
-benchmark, while `benchmark_fixed.csv`, `benchmark_dynamic.csv`,
-`benchmark_weights.csv`, and `benchmark_turnover_cost.csv` preserve the audit
-trail.
+- `union`（默认）：事件时间轴包含任一标的的真实 bar；只路由该时间点确实有 bar 的标的。
+- `intersection`：只保留所有标的均有 bar 的时间点。
 
-Data anomalies are marked in the OHLCV frame rather than silently removed.
-Each fill persists the anomaly flags for its execution bar. `event_log.jsonl`
-contains signal, risk-decision, order-intent, order, fill and close events;
-`routing_log.csv` contains routing decisions. If trading occurred and a required
-event family is absent, the CLI returns a failed artifact status. Independent
-second-source verification is written to `top_trade_market_data_audit.json`;
-without a supplied secondary directory it is explicitly `unverified`.
+完整报告保留两种基准：固定等权基准只在起点买入当时可观察的标的，此后不再平衡；动态等权基准按每个时间点可观察的标的再平衡，并记录单向换手和配置成本。`benchmark.csv` 是选定的主基准；`benchmark_fixed.csv`、`benchmark_dynamic.csv`、`benchmark_weights.csv` 与 `benchmark_turnover_cost.csv` 保存审计轨迹。
 
-A point-in-time universe CSV may be supplied with `symbol`, `listed_at`, and
-optional `delisted_at`. Bars before listing and at/after delisting are ineligible,
-while a delisted asset's earlier history remains in the sample. A static symbol
-list is recorded as not controlling survivorship bias.
+数据异常会在 OHLCV 帧中标记，不会悄然删除；成交记录保留执行 bar 的异常标记。`event_log.jsonl` 包含信号、风险决策、订单意图、订单、成交和平仓事件；`routing_log.csv` 保存路由决策。发生交易却缺少必需事件族时，CLI 返回产物失败状态。独立第二数据源核验写入 `top_trade_market_data_audit.json`；没有提供第二来源目录时，状态明确为 `unverified`。
+
+可提供逐时点成员 CSV，包含 `symbol`、`listed_at` 和可选 `delisted_at`。上市前、退市时及退市后的 bar 不可交易，退市标的的更早历史仍保留在样本中。只给静态标的列表时，报告会标明它不能控制幸存者偏差。
 ## 8. 指标统计口径
 
 - **年化因子**：根据权益曲线时间索引的中位正间隔推断 `periods_per_year`；加密日线为 365.25，4 小时、1 小时和 15 分钟周期分别按每日 6、24 和 96 个周期年化。报告同时输出该因子。

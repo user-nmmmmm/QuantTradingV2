@@ -7,14 +7,16 @@
 ## 从哪里开始
 
 1. [统一 Roadmap v3](unified_roadmap.md)：项目当前状态、R0–R8阶段、依赖与放行条件。
-2. [统一开发计划](development_plan.md)：41个任务（原始40项加自动化SYS-19）、B0–B8及扩展批次、优先级、串并行和负责角色。
+2. [统一开发计划](development_plan.md)：当前任务与批次、优先级、串并行和负责角色；数量与状态以计划及登记表为准。
 3. [开发详情](development_details.md)：每个任务的修改范围、开发步骤、正反例验收、兼容迁移和交付物。
 4. [历史需求追溯](roadmap_traceability.md)：旧R/BM/G/S/SR/PM/Phase编号到新任务的技术映射；逐条邮件映射仅保存在本地受限资料中。
 5. 过去的Roadmap、计划与Codex邮件（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/README.md`，不随源码发布）：34份原文快照、45封项目邮件正文、来源与校验摘要。
 6. [结构化任务登记](development_task_registry.json)：开发计划的机器可读副本；2026-09-20审计（仅本地引用：`docs/codex_mail_roadmap_audit_20260920.md`，不随源码发布）保存整合前完成情况与证据。
-7. [今日回顾后续实施](followup_completion_20260920.md)：账户/指标接线、自动化运行、调度部署、验证结果及仍需真实证据的边界。
-7. [指标公式与专项标准](backtest_metrics_detailed_development_plan.md)、[当前回测行为](backtest_assumptions.md)、[部署与运维](deployment.md)：精确定义与当前支持行为。
-8. [固定历史基线](baselines/batch0_fixed_baseline.md)、[代码模块说明](modules/README.md)、[词汇表](glossary.md)：历史证据与开发参考。
+7. [2026-09-20 后续实施记录](followup_completion_20260920.md)：账户/指标接线、自动化运行、调度部署、验证结果及仍需真实证据的边界。
+8. [指标公式与专项标准](backtest_metrics_detailed_development_plan.md)、[当前回测行为](backtest_assumptions.md)、[部署与运维](deployment.md)：精确定义与当前支持行为。
+9. [固定历史基线](baselines/batch0_fixed_baseline.md)、[代码模块说明](modules/README.md)、[词汇表](glossary.md)：历史证据与开发参考。
+10. [工程结构优化路线图](engineering_structure_roadmap.md)：基于当前公开主分支，列出依赖方向、数据身份、CI 安装环境、引擎职责与分阶段验收条件。
+11. [架构边界与拆包说明](architecture_review.md)：解释离线研究账本、核心事件类型的依赖方向和已有的模块拆分边界。
 
 ## 权威顺序
 
@@ -23,6 +25,7 @@
 项目阶段只在Roadmap维护；任务状态在开发计划与结构化登记同步维护；开发详情保留基线及技术要求，关闭时追加验收索引。原实盘、策略、仓位和回测优化计划保留为领域参考，其旧排期与完成标记不再独立维护。已批准的研究、风控、止损、健康等契约继续有效，冲突处理见新Roadmap。
 
 当前行为文档不把计划中的能力写成已实现。工程验收、研究结论、连续运行和真实资金准入分别记录。
+工程结构优化路线图是实施建议，不改写项目阶段、任务登记或历史验收结果。
 
 ## 最新行为变更
 
@@ -30,9 +33,9 @@
 
 - [TrendPortfolioV2 研究策略](trend_portfolio_v2.md)：20/60/120 趋势分数、状态风险倍率、波动率目标仓位、ATR 退出及双交易所五组固定对照；工程验证和策略准入分开记录。
 
-- [Roadmap 第7节验收记录](section7_acceptance_20260920.md)：优先级和依赖阻断、七项完成定义、24项历史本地验收的显式证据适配，以及完整证据检查与CI结构检查的区别；[完成定义契约](roadmap_completion_contract.md)。
+- Roadmap 第7节本地验收记录（`docs/section7_acceptance_20260920.md`，不随源码发布）：优先级和依赖阻断、七项完成定义、历史本地验收的证据适配，以及完整证据检查与 CI 结构检查的区别；公开契约见[完成定义契约](roadmap_completion_contract.md)。
 
-- [Roadmap 第5、6节执行记录](section56_acceptance_20260920.md)：九规则验证入口、连续观察与前瞻协议校验、S2/S3隔离能力、新候选登记及未完成边界；[选币契约](s2_selection_contract.md)、[仓位能力契约](s3_position_capabilities.md)。
+- Roadmap 第5、6节本地执行记录（`docs/section56_acceptance_20260920.md`，不随源码发布）：九规则验证入口、连续观察与前瞻协议校验、S2/S3 隔离能力及未完成边界；公开契约见[选币契约](s2_selection_contract.md)和[仓位能力契约](s3_position_capabilities.md)。
 
 - [`p1_signal_meta_layer.md`](p1_signal_meta_layer.md)：2026-09-18 P1 条件 EV、时间衰减、收缩、有效样本与冻结滚动研究；默认关闭，不影响正式账户或准入。
 - [`p23_signal_meta_layer.md`](p23_signal_meta_layer.md)：P2 因果软状态与动态轴归因、P3 三组有限资本影子账户；默认关闭，包含复现及论文实现差异。
