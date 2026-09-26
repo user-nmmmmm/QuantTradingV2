@@ -1,6 +1,6 @@
 # core/ 模块说明
 
-`core/` 是整个系统的地基：数据获取与校验、市场状态识别、事件驱动运行时、经纪商/执行、订单与风控、账本与对账、以及运维安全设施都在这里。**回测（backtest/）和实盘（live_trading/）都构建在同一套 `core/` 抽象之上**，两者是「共享核心 + 各自外壳」的关系，而不是两套独立实现。
+`core/` 提供行情适配、状态识别、共享决策运行时、经纪商接口及具体实现、订单风控与运维基础设施。回测（`backtest/`）和实盘（`live_trading/`）共用 `EventProcessor`、路由、策略和部分领域类型；各自的调度、执行、持久化和安全流程仍由对应模式实现。部分具体适配器也位于 `core/`，不能把整个 `core/` 视为纯领域层。
 
 本文档按子系统分组说明，每个文件给出：职责、关键类/函数、需要注意的行为。
 
@@ -20,13 +20,13 @@
 - `fetch_ccxt(symbol, timeframe, start_date, end_date, limit, exchange_id)`：CCXT 交易所数据，默认按 `binance → okx → kraken → coinbase` 顺序尝试，每个交易所重试 3 次（2s/4s 指数退避），全部失败后回退到 Yahoo 的加密货币代码。分页上限 10,000 根 K 线。
 - `generate_scenario(symbol, start, end)`：合成三段式行情（趋势上涨→震荡→趋势下跌），用于无网络依赖的回测。
 
-**需要注意**：日期字符串按 `data_timezone`（默认 `Asia/Shanghai`）解释后再换算成 UTC 毫秒边界，是 `[start, end_next_day)` 半开区间，不是字面 UTC 日期；这也是此前修复过的"时区相关日期边界"问题的来源。默认从 `QUANT_PROXY_URL` 读取代理配置（历史上默认指向本机 `127.0.0.1:7897`，本机无代理时需要显式传 `proxy_url=None`）。
+**需要注意**：日期字符串按 `data_timezone`（默认 `Asia/Shanghai`）解释后再换算成 UTC 毫秒边界，是 `[start, end_next_day)` 半开区间，不是字面 UTC 日期。未显式传入 `proxy_url` 时只读取 `QUANT_PROXY_URL`；环境变量未设置就不配置代理，传 `proxy_url=None` 也会禁用代理。
 
 ### `core/market_data.py` — 行情适配器（回测/实盘共用协议）
 把原始数据转换成 `core/runtime.py` 定义的统一时间线 `MarketDataSlice`：
 - `normalize_market_frame(df)`：排序、按最后一条去重、去时区转 naive UTC。
 - `HistoricalMarketDataAdapter(data_map, timeframe, calculate_indicators=True)`：回测用，`.stream()` 构建跨标的的"真实 bar 并集"时间线，预先计算好指标。
-- `LiveMarketDataAdapter(symbols, fetcher, timeframe, lookback, close_grace_seconds)`：实盘用，`.refresh()` 轮询 `fetcher.fetch_ccxt` 拉新数据、重算指标、追踪时间戳倒退的标的（`regressed_symbols`）；`.poll(now)` 通过按标的记录的水位线（watermark）只返回"新收盘且之前没见过"的 bar，避免重复推送同一根 bar。`.stream()` 在这里会直接抛 `RuntimeError`——实盘是轮询模型，必须调用 `.poll(now)`。
+- `LiveMarketDataAdapter(symbols, fetcher, timeframe, lookback, close_grace_seconds)`：实盘用，`.refresh()` 拉新数据、重算指标、追踪时间戳倒退的标的（`regressed_symbols`）；`.poll(now)` 提供按标的水位线筛选新收盘 bar 的接口。当前 `LiveTradingEngine` 在 `tick_orchestrator.py` 内调用 `.refresh()`，再用 `closed_bars(...)` 和 `StateStore` 租约组织处理，未直接调用 `.poll(now)`。`.stream()` 不适用于实盘轮询，会抛 `RuntimeError`。
 
 ### `core/indicators.py` — 指标库
 `Indicators` 静态类，原地给 DataFrame 添加指标列：`SMA_10/30/120`、`ATR_14`、`BB_UPPER/MIDDLE/LOWER`、`ADX_14`。ATR/ADX 用 Wilder 平滑（`ewm(alpha=1/n)`），并**故意**把前 `n-1` 个值强制设为 NaN（尽管 `ewm` 本身会更早给出数值），避免用不可靠的早期值。
@@ -47,11 +47,12 @@
 
 ### `core/runtime.py` — 事件处理核心（EventProcessor）
 **这是整个系统里回测和实盘真正共用的枢纽**，串联行情、状态机、路由、组合、执行、风控。
-- `MarketDataSlice`（frozen dataclass）：`market_data.py` 产出的标准事件，包含 timestamp/bars/histories/timeframe/source。
-- `MarketDataAdapter`（Protocol，`.stream()`）、`RuntimeExecutionAdapter`（Protocol，`ExecutionPort` + `.on_market_data()`）：定义了行情源和执行端必须满足的接口，这也是回测/实盘可以互换的原因。
-- `EventProcessor(portfolio, execution, risk_manager, state_machine, router, warmup_period, initial_equity)`：
-  - `.process(event)`：更新最新价格；按日期滚动重置风控熔断的"当日起始权益"基准；检查熔断；对每个标的调用 `process_symbol`。
-  - `.process_symbol(event, symbol)`：定位该 bar 在历史序列里的位置，若还在预热期（`warmup_period`）内则跳过；否则从状态机取状态，交给 `router.route(...)`。
+- `MarketDataSlice`（frozen dataclass）：标准行情事件，包含 timestamp/bars/histories/positions/timeframe/source；历史适配器直接构建，实盘调度器也会构建。
+- `MarketDataAdapter`（Protocol，`.stream()`）定义历史时间线接口；实盘适配器提供 `.poll(now)`，当前实盘调度器则用 `.refresh()` 和 `StateStore` 组织新 bar。`RuntimeExecutionAdapter`（`ExecutionPort` + `.on_market_data()`）定义共享决策链路所需的执行端接口。
+- `EventProcessor` 构造时必须注入 `portfolio`、`execution`、`risk_manager`、`state_machine`、`router` 和 `allocator`；`warmup_period`、`initial_equity` 等参数可选。
+  - `.process(event, execute_market_event=True, ...)`：按需先调用执行适配器的 `on_market_data`，更新价格与风控状态；逐标的先处理已有仓位，再收集新开仓候选，最后统一调用 `allocator.allocate(...)`。回测引擎会先自行执行撮合与保护单，再以 `execute_market_event=False` 调用此方法。
+  - `._collect_symbol_candidate(...)`：按预热期、持仓、风险决策分开控制仓位管理和新增风险；调用路由器的 `process_position_management(...)` 与 `collect_entry_candidate(...)`，并保留旧 `collect_candidate(...)` 兼容路径。
+  - `.process_symbol(event, symbol)`：单标的入口；收集候选后调用 allocator。实盘调度器会批量收集同一收盘时刻的候选，再统一分配。
 
 ### `core/clock.py` — 时间抽象
 `Clock` 协议 + `SystemClock`（真实 UTC）+ `CallableClock`（包装一个返回时间的可调用对象），让实盘调度/健康检查逻辑可以在测试中做到确定性可控。
@@ -86,12 +87,11 @@
 `ExecutionPort` Protocol（`submit_intent`/`submit_order`/`cancel_symbol_orders`/`has_active_open_order`/`pending_open_notional`），`Broker`/`LiveBroker`/`SafeLiveBroker` 都满足这个接口——这是策略/路由代码能在回测和实盘间无缝切换的结构化类型基础。
 
 ### `core/exchange/` — CCXT 边界隔离层
-全项目唯一理解 CCXT 市场元数据/报文格式的包，用规范化的数据类把其余代码和 CCXT 细节隔离开。
-外部一律通过 `from core.exchange import ...` 消费门面（`core/exchange/__init__.py` 的
-`ExchangeBoundary`/`PreparedOrder`）；下列实现分别落在 `metadata.py`、`validation.py`、
-`normalization.py`、`ccxt_mapper.py`、`parsers.py`：
+负责下单前的市场元数据、能力约束、订单校验与归一化、CCXT 请求映射，以及订单/持仓响应解析。`core/live_broker/` 仍负责交易所调用和账户同步，`core/data_fetcher.py` 仍负责行情抓取；这些职责没有全部迁入此包。
+
+公共门面在 `core/exchange/__init__.py`，下列实现分别落在 `metadata.py`、`validation.py`、`normalization.py`、`ccxt_mapper.py`、`parsers.py`：
 - `ExchangeCapabilities`：交易所能力标志（订单类型、TIF、reduce-only、对冲模式）。
-- `MarketSpecification`：单标的约束（数量/价格步进、最小/最大数量/价格/名义价值、合约乘数），`market_type` 默认 `"spot"`；同时定义了 `DERIVATIVE_TYPES = {"future","futures","swap","margin"}` 和 `is_derivative` 判断——**衍生品相关的骨架已经存在，但目前所有入口默认仍是现货**。
+- `MarketSpecification`：单标的约束（数量/价格步进、最小/最大数量/价格/名义价值、合约乘数），`market_type` 默认 `"spot"`；`metadata.py` 的 `DERIVATIVE_MARKET_TYPES` 包含 `future`、`futures`、`swap`、`perpetual`，不包含 `margin`。具体入口是否允许某种市场类型，还需经过各自的配置与启动校验。
 - `MarketMetadataLoader`：线程安全的 TTL 缓存包装 `load_markets()`；运行期元数据发生变化时，`MetadataChangeHaltPolicy` 可以直接 HALT（失败关闭），需要操作员显式调用 `acknowledge_change()` 才能恢复。
 - `OrderValidator.validate(...)` / `OrderNormalizer.normalize(...)`：前者校验数量/方向/订单类型/TIF/reduce-only/对冲模式及最小最大限制；后者把数量/价格向下取整到步进单位（`ROUND_DOWN`），取整后归零则报错。
 - `CCXTRequestMapper.map(...)`：唯一把规范化 intent 转成 CCXT `create_order` 参数的地方。
@@ -136,17 +136,17 @@
 ## 五、账本、组合与快照
 
 ### `core/portfolio.py` — 轻量组合账本
-`Portfolio(initial_capital)`：`cash` + `positions: Dict[symbol, {"qty","avg_price"}]`（有符号数量，正=多头，负=空头）。`update_position(...)` 在开仓/加仓时按加权平均重算成本，减仓时均价不变，**如果一笔成交让仓位穿越零点（多翻空或空翻多），均价会重置为成交价**。`get_equity`/`get_total_exposure` 在价格缺失时回退用 `avg_price`（这一点和 `risk.py`/`Broker` 的失败关闭策略不同，调用方需注意可能因此误算权益）。
+`Portfolio(initial_capital)`：`cash` + `positions: Dict[symbol, {"qty","avg_price"}]`（有符号数量，正=多头，负=空头）。`update_position(...)` 在开仓/加仓时按加权平均重算成本，减仓时均价不变，**如果一笔成交让仓位穿越零点（多翻空或空翻多），均价会重置为成交价**。`get_equity`/`get_total_exposure` 在价格缺失时回退用 `avg_price`（这一点和 `core/risk/`、`Broker` 的失败关闭策略不同，调用方需注意可能因此误算权益）。
 
 ### `core/valuation.py` — 组合快照
 `build_portfolio_snapshot(portfolio, prices, price_times, synced_at)`：任何持仓缺少新鲜的正价格就抛 `ValueError`，否则计算权益/总敞口/净敞口，生成不可变的 `PortfolioSnapshot`。
 
-### `research/audit/ledger.py` — 权威事件溯源账本
-比 `portfolio.py` 更严格的**平行**实现，全程用 `Decimal`，均价成本法，正确处理平仓穿越零点的语义，面向实盘权威记账和对账场景：
+### `research/audit/ledger.py` — 离线事件账本与对账研究
+这是用于离线重放和对账研究的**平行**实现，全程用 `Decimal`，采用均价成本法处理跨零点成交。它未接入实盘或回测的下单路径；交易时的持仓与账户事实仍由 `core/portfolio.py` 的 `Portfolio` 和 `core/lots.py` 的 `LotBook` 维护。类名 `AuthoritativeLedger` 表示该离线事件流内部以持久化事件为依据，不表示它是实盘账户的事实源。详见 [`../authoritative_ledger.md`](../authoritative_ledger.md)。
 - `AverageCostPositionReducer.reduce(...)`：处理同向加仓（加权均价）、部分平仓（均价不变）、穿越零点的平仓（剩余部分按成交价重新开仓），返回已实现盈亏增量。
 - `FillLedger`/`FeeLedger`/`CashLedger`：按 `event_id` 去重的幂等记账。
 - `PortfolioProjection(base_currency)`：`apply(event, sequence)` 要求序列号严格递增；`snapshot(...)` 把多币种余额/持仓折算成基准货币，若持仓缺少标记价格默认抛错（除非 `require_marks=False`）；`reconcile(external_cash, external_positions, ...)` 比较本地与外部（交易所）状态，标记 `ReconciliationDiscrepancy`（偏差超过 10 倍容差为 critical）。
-- `AuthoritativeLedger`：把 `SQLiteEventStore` + `TradingEventPipeline` + `PortfolioProjection` 组装成一个门面。
+- `AuthoritativeLedger`：把 `SQLiteEventStore` + `TradingEventPipeline` + `PortfolioProjection` 组装成离线研究门面。
 
 ### `core/domain.py` — 核心领域类型
 - `OrderStatus`：注意 `SUBMITTED` 是 `SUBMITTING` 的别名，`OPEN` 是 `ACCEPTED` 的别名（同值不同名，方便可读性）。
@@ -166,7 +166,7 @@
 ## 六、存储与持久化
 
 ### `core/state_store_v2.py` — 实盘 bar 处理租约
-`StateStore`：事务性 SQLite 键值存储 + 带租约的 bar 处理认领机制，用于实盘"近似恰好一次"处理。`claim_bar(bar_key, now, lease_seconds=300)`：若无既有认领则插入"processing"状态；若已是"processed"则拒绝；若既有"processing"认领已超过租约时长则可重新认领（处理崩溃恢复）。`complete_bar`/`release_bar` 配套。线程安全（`RLock`）。
+`StateStore`：事务性 SQLite 键值存储和带租约的 bar 处理认领机制。`claim_bar(bar_key, now, lease_seconds=300)`：若无既有认领则插入“processing”状态；若已是“processed”则拒绝；若既有“processing”认领已超过租约时长则可重新认领。`complete_bar`/`release_bar` 配套。线程安全（`RLock`）。租约支持崩溃恢复，但不单独保证交易所侧“恰好一次”下单。
 
 ### `core/events/store.py` — 事件持久化
 `SQLiteEventStore`：只追加、按 `event_id` 幂等去重的事件日志；若已存在事件的内容（除 `observed_at` 外）与新事件不同则抛 `ValueError`。用 SQLite 触发器（`events_no_update`/`events_no_delete`）在数据库层面强制"只追加"，防止直接 SQL 篡改。`InMemoryEventStore` 是 `:memory:` 变体，供测试用。
@@ -187,14 +187,17 @@
 ### `core/incident_journal.py` — 事故处置记录
 `record_incident(...)` 追加操作员对 R7 熔断/告警事件的处置记录（已解决/已说明）到只追加的 JSONL 日志（fsync）。`event_key` 必须是 `"<timestamp>|<event>"` 格式，被 `r7_acceptance.py` 用来检查未解决的熔断。
 
+### `core/status_snapshot.py` — 只读实盘状态快照
+`load_dashboard(...)` 读取 `live_status.json` 与告警记录，供 Dashboard 等展示层消费；状态文件缺失、损坏或结构无效时返回 `RISK_HALTED`，不返回未经验证的权益和持仓数值。`recent_alerts(...)` 从 JSONL 告警中读取最近的有效记录。
+
 ### `core/logger.py` — 日志
 `configure_logging(level)`（读 `QUANT_LOG_LEVEL`）、`get_logger(name)` 首次使用自动配置。`SensitiveDataFilter` 在日志输出前脱敏 `EXCHANGE_API_KEY/SECRET/PASSWORD` 等环境变量值及 Authorization/api-key/secret/signature 相关模式。
 
-### `core/metrics.py` — 回测指标库
+### `core/metrics/` — 回测指标库
 大型纯函数库：夏普比率、回撤、盈亏比、交易质量、敞口、信号漏斗、成本敏感性、归因、基准对比、滚动/分段收益、R 倍数/SQN、训练测试切分、滚动窗口、bootstrap 置信区间、蒙特卡洛交易序列重排、Benjamini-Hochberg FDR 校正等。多数函数返回带 `status` 字段（`ok`/`insufficient`/`undefined`）的字典而非直接抛错，便于小样本下优雅降级。`walk_forward_windows`/`train_test_split_returns` 严格按时间顺序切分，避免未来函数泄漏；`bootstrap_return_distribution`/`monte_carlo_trade_sequence` 用固定种子 42 保证可复现。
 
 ### `core/telegram_heartbeat.py` — 定期心跳报告
-和 `alerting.py` 的事件触发型告警不同，这是**周期性**（由 cron 驱动）的"系统仍在运行"状态汇报。`build_heartbeat_message(dashboard)` 汇总状态/健康/权益/现金/持仓/告警；若状态文件本身无效会明确报告 `RISK_HALTED`。`send_heartbeat(...)` 通过 `dashboard.__main__.load_dashboard` 加载数据，经 `alerting.send_telegram_message` 发送。
+和 `alerting.py` 的事件触发型告警不同，这是**周期性**（由 cron 驱动）的"系统仍在运行"状态汇报。`build_heartbeat_message(dashboard)` 汇总状态/健康/权益/现金/持仓/告警；若状态文件本身无效会明确报告 `RISK_HALTED`。`send_heartbeat(...)` 通过 `core.status_snapshot.load_dashboard` 加载数据，经 `alerting.send_telegram_message` 发送。
 
 ### `core/live_broker/retry.py` — 重试包装器
 `with_retry(fn, max_attempts=3, base_delay=0.5, max_delay=8.0, retryable=is_ambiguous_error)`：带指数退避的有界重试，默认只重试"不确定"类错误（网络超时等），延迟为 `min(base_delay * 2**attempt, max_delay)`。
@@ -233,7 +236,9 @@ data_fetcher/data → market_data(适配器) → runtime.EventProcessor
                                             │                    │
                                        events.TradingEventPipeline（去重与事件总线）
                                             │
-                          portfolio(轻量) / ledger.PortfolioProjection（权威账本，用于对账）
+                          portfolio/LotBook（交易持仓事实）
+
+    research/audit/ledger.PortfolioProjection（独立的离线重放与对账研究）
 ```
 
-`live_safety.py`、`risk/persistent_guard.py`、`health.py`、`alerting.py`、`startup_preflight.py`、`reconciliation_job.py`、`incident_journal.py`、`r7_acceptance.py` 共同构成实盘运行的"安全护栏"，回测路径基本不涉及这些模块。
+`live_safety.py`、`risk/persistent_guard.py`、`health.py`、`alerting.py`、`startup_preflight.py`、`incident_journal.py` 和 `r7_acceptance.py` 构成实盘运行的安全设施。`research/audit/reconciliation_job.py` 是离线日终证据工具，未接入实盘订单路径。

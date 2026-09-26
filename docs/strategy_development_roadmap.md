@@ -1,6 +1,8 @@
 # 策略能力开发 Roadmap（S0–S4）
 
-> 文档定位（2026-09-20）：领域参考。排期、优先级和当前完成状态统一见[Roadmap](unified_roadmap.md)、[开发计划](development_plan.md)与[开发详情](development_details.md)。本文件的公式、设计依据和未冲突的专项验收要求继续保留；下文旧状态与排期为历史记录。整合前原文见[冻结快照](archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md)。
+> 文档定位（2026-09-20）：领域参考。排期、优先级和当前完成状态统一见[Roadmap](unified_roadmap.md)、[开发计划](development_plan.md)与[开发详情](development_details.md)。本文件的公式、设计依据和未冲突的专项验收要求继续保留；下文旧状态与排期为历史记录。整合前原文仅保存在本地受限归档 `docs/archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md`，不随公开源码发布。
+
+> 当前代码路径提示：下文 2026-08-23 快照中的 `core/metrics.py` 现为 `core/metrics/` 包；历史测试数量和策略表现只对当时样本、配置与提交有效，当前结论以统一 Roadmap 和新证据为准。
 
 > 文档状态：Active v1.0
 > 生效日期：2026-08-23

@@ -9,7 +9,7 @@
 
 ## 0. 阅读前须知
 
-1. 本文只描述**当前代码的真实行为**。仓库中已有的 `docs/modules/strategies.md` 与 `docs/modules/router.md` 部分内容已过时（见 §11.1），以本文为准。
+1. 本文是 2026-08-31 的策略源码分析快照，用于追溯当时的判断。§11.1 所列模块文档偏差已修正；阅读当前路由与策略行为时，应同时核对 [`modules/router.md`](modules/router.md)、[`modules/strategies.md`](modules/strategies.md) 和实际代码。
 2. 本文不评估策略盈利能力。`strategy_development_roadmap.md` §2.2 已给出结论：当前策略组合在 2017–2026 六标的日线上**统计上无法排除“不赚钱”**。
 3. 配置层面，`config/params.yaml` 目前把除 `TrendBreakout` 外的所有 regime 都路由到 `Cash`（见 §10）。也就是说“默认跑起来”只有一个策略在实际下单。
 
@@ -51,7 +51,7 @@ Strategy.on_trade_closed  ── 更新健康度/连亏冷却等跨 bar 状态
 - **策略是纯信号插件**：`Strategy` 子类只实现 `should_enter` / `should_exit`，返回信号字典或 `None`。它不直接接触撮合、账本、事件管线。
 - **编排与调度分离**：真正调用 `Portfolio` / `RiskManager` / `ExecutionPort` 的是基类 `Strategy` 的模板方法（`on_bar` 或两阶段的 `build_entry_candidate` / `submit_entry_candidate`）。
 - **regime 路由与风险处置解耦**：状态识别在 `MarketStateMachine`，策略选择在 `Router`，状态切换时的风险处置也集中在 `Router`（当前实现是“停止新入场 + 冷却”，**不强平**，见 §6.3）。
-- **回测/实盘同源**：`EventProcessor` 是唯一业务路径，两种模式只在“行情如何产生”和“订单如何撮合”这两个适配器上分叉。
+- **回测/实盘共享决策链**：两种模式复用 `EventProcessor` 的策略、路由与风险编排；调度、执行、状态持久化和运行安全流程分别实现。
 
 ---
 
@@ -532,11 +532,13 @@ strategy_governance:
 
 ## 11. 已知缺陷、局限与文档偏差
 
-### 11.1 模块文档已过时
+### 11.1 历史模块文档偏差（已修正）
 
-- `docs/modules/router.md` 描述的 `route()` / `_handle_switch()` / “状态切换在当前 bar 收盘价强制平仓”**是旧实现**。当前 Router 用 `process_position_management` + `collect_entry_candidate`，状态切换**只停不平**（§5.2 步骤 2）。
-- `docs/modules/strategies.md` 引用的 `strategies/trend_following.py`（`TrendUpStrategy` / `TrendDownStrategy`）**文件已不存在**，registry 里也没有。
-- `router.md` 里的默认 regime_map（`TREND_UP → TrendUp` 等）与实际 `params.yaml` 不符。
+以下记录保留 2026-08-31 审查时发现的问题。当前模块文档已按现有 Router、策略注册和配置修正；这些历史发现不再表示两份模块文档仍然过时。
+
+- 审查时的 `docs/modules/router.md` 曾描述 `route()` / `_handle_switch()` / “状态切换在当前 bar 收盘价强制平仓”，那是旧实现；当时的 Router 已使用 `process_position_management` + `collect_entry_candidate`，状态切换**只停不平**（§5.2 步骤 2）。
+- 审查时的 `docs/modules/strategies.md` 曾引用已不存在的 `strategies/trend_following.py`（`TrendUpStrategy` / `TrendDownStrategy`），registry 中也没有这些类。
+- 审查时的 `router.md` 默认 regime_map（`TREND_UP → TrendUp` 等）曾与 `params.yaml` 不符。
 
 ### 11.2 策略层结构性问题（`strategy_development_roadmap.md` §2.3，均有实测证据）
 

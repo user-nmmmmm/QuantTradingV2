@@ -1,6 +1,8 @@
 # 回测优化 Roadmap 与开发计划
 
-> 文档定位（2026-09-20）：领域参考。排期、优先级和当前完成状态统一见[Roadmap](unified_roadmap.md)、[开发计划](development_plan.md)与[开发详情](development_details.md)。本文件的公式、设计依据和未冲突的专项验收要求继续保留；下文旧状态与排期为历史记录。整合前原文见[冻结快照](archive/2026-09-roadmap-rebaseline/sources/docs/backtest_optimization_roadmap.md)。
+> 文档定位（2026-09-20）：领域参考。排期、优先级和当前完成状态统一见[Roadmap](unified_roadmap.md)、[开发计划](development_plan.md)与[开发详情](development_details.md)。本文件的公式、设计依据和未冲突的专项验收要求继续保留；下文旧状态与排期为历史记录。整合前原文仅保存在本地受限归档 `docs/archive/2026-09-roadmap-rebaseline/sources/docs/backtest_optimization_roadmap.md`，不随公开源码发布。
+
+> 当前代码路径提示：历史任务中的 `core/metrics.py` 已拆为 `core/metrics/` 包；`core/trade_ledger.py` 并不存在，当前回测的 FIFO 闭合交易重建位于 `backtest/reporting/trades.py`，逐批次持仓记账位于 `core/lots.py`。旧任务文本保留原表述供追溯，实施时按现有职责和代码核对。
 
 > 文档状态：Draft v0.1
 > 生效日期：2026-08-13

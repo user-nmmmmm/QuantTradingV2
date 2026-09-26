@@ -42,10 +42,9 @@ CLI（`python -m analysis.optimize`）：`--symbols`、`--days`、`--start`、`-
 
 ### `dashboard/__main__.py`
 只读 CLI 面板，展示实盘系统的运行状态，不产生任何交易副作用。
-- `recent_alerts(path, limit)`：读取 JSONL 告警日志（有界 deque）。
-- `load_dashboard(status_path, alerts_path, alert_limit=10)`：加载 `live_status.json`，校验 schema（必须是含布尔 `healthy` 字段的字典），返回归一化后的字典（权益、现金、持仓、健康原因、`operational_state`、近期告警）；状态文件缺失/格式错误时回退到失败关闭的 `_invalid_dashboard(...)`（`operational_state="RISK_HALTED"`，不提供任何财务数据）。
+- `recent_alerts(path, limit)` 和 `load_dashboard(status_path, alerts_path, ...)` 的实现位于 `core/status_snapshot.py`，`dashboard/__main__.py` 直接导入。前者读取近期 JSONL 告警，后者校验并归一化 `live_status.json`；状态文件缺失或结构无效时返回 `RISK_HALTED`，不提供未经验证的财务数据。
 - `render_text(data)`：格式化为人类可读的文本报告。
-- `main()` CLI 参数：`--status`（默认 `reports/live_status.json`）、`--alerts`（默认 `reports/live_alerts.jsonl`）、`--alert-limit`（10）、`--json`（输出 JSON 而非文本）；有效时退出码 0，无效时退出码 2。运行方式 `python -m dashboard`。
+- `main()` CLI 参数：`--status`（默认 `reports/live_status.json`）、`--alerts`（默认 `reports/live_alerts.jsonl`）、`--phase6-report`、`--alert-limit`（10）、`--json`（输出 JSON 而非文本）；状态有效时退出码 0，无效时退出码 2。运行方式 `python -m dashboard`。
 
 它间接连到 `live_trading/`：`live_status.json`/`live_alerts.jsonl` 是实盘运行期间由 `live_trading/engine.py` 和 `core/alerting.py` 写出的，面板只读取这些文件，从不直接触碰 `core/` 的交易逻辑。**设计上刻意失败关闭**：任何缺失/损坏的状态数据都视为不健康，而不是悄悄展示过期的"健康"状态。
 
@@ -57,9 +56,9 @@ CLI（`python -m analysis.optimize`）：`--symbols`、`--days`、`--start`、`-
 ## config/ — 配置加载
 
 ### `config/config.py`
-针对权威配置文件 `config/params.yaml` 的失败关闭式单例 YAML 加载器。`ConfigLoader`（通过 `__new__`/`_instance` 实现单例，除非显式传入 `config_path`，此时绕过单例缓存以便测试隔离）。构造时立即加载并校验 YAML；文件缺失、无法解析、或不是映射类型时抛 `ConfigLoadError`（`RuntimeError` 子类）——**没有静默兜底默认值**。加载时通过 `core.logger.get_logger` 记录关键参数（`commission_rate_taker/maker`、`max_leverage`、`max_drawdown_limit`、`routing`）。公开方法 `get(section, key=None)` 返回整个配置段或某个具体键的值（不存在则为 `None`）。模块在导入时就创建好现成的单例实例 `config = ConfigLoader()`。这是 `core/`、`backtest/`、`live_trading/` 共同依赖的基础设施，集中管理手续费率、最大杠杆/回撤限制等在回测和实盘风控中都会用到的参数。
+针对 `config/params.yaml` 的失败关闭式 YAML 加载器。`ConfigLoader` 在未显式传入 `config_path` 时复用单例；显式路径可隔离测试或校验指定配置。构造时立即加载并验证必需配置；文件缺失、无法解析、不是映射类型或缺少必需键会抛 `ConfigLoadError`。`get(section, key=None)` 在键缺失时返回 `None`，`require(...)` 则抛错。模块导入时创建 `config = ConfigLoader()`。当前由 `run_live.py` 和 `backtest/engine.py` 消费这份配置；`core/runtime.py`、策略与路由接收已装配的依赖，不直接解析 YAML。若继续收紧工程边界，可把回测引擎内的模块级配置读取也移到入口/装配层，并显式传参。
 
 ## 顶层入口脚本
 
-- **`main.py`**（仓库根目录）：实际的回测 CLI（没有单独的 `run_backtest.py`）。支持命令行参数模式（`--days`、`--start`、`--end`、`--capital`、`--symbols`、`--source {synthetic,yahoo,ccxt}`、`--seed`、`--slippage`、`--random_slip`）和不带参数时的交互式提问模式。流程：`core.data_fetcher.DataFetcher` 拉数/生成数据 → `core.data.DataHandler.generate_quality_report` 数据质量报告 → `backtest.engine.BacktestEngine.run(...)` → `backtest.reporting.ReportGenerator.generate(...)` → 写出带时间戳的 `reports/<时间戳>_<天数>d_<N>Syms_<收益率>pct/` 目录（equity.csv、指标、routing_log.csv、data_quality_report.json）。
-- **`run_live.py`**（仓库根目录）：实盘/沙盒交易 CLI。参数：`--symbols`（默认 `BTC/USDT ETH/USDT`）、`--interval`（60 秒）、`--sandbox`/`--live`（互斥，默认 sandbox）、`--exchange`（binance）、`--market-type {spot,future,futures,swap,margin}`、`--base-currency`（USDT）、`--preflight-only`、`--preflight-report`。需要从环境变量读取交易所凭据，构建 `StartupSafetyPolicy`、`PersistentOrderSafetyGuard`、`SafeLiveBroker`（均来自 `core/`），`--live` 模式下会校验实盘交易权限，然后驱动 `live_trading.engine.LiveTradingEngine`（初始化 → 启动前检查报告写入 `reports/startup_preflight.json` → 主循环 `engine.run()`）。它是最终产出 `live_status.json`/`live_alerts.jsonl` 的模块，供 `dashboard/__main__.py` 消费。
+- **`main.py`**（仓库根目录）：回测 CLI，无参运行会显示帮助并以退出码 2 结束；需明确指定数据来源和时间范围等参数，例如 `python main.py --source synthetic --days 365`。它协调数据获取、质量检查、`BacktestEngine.run(...)` 和 `ReportGenerator.generate(...)`，按 `--report-profile {workbook,compact,full}` 决定文件集合，默认 `workbook`。只有 `full` 路径才会写完整账本、事件和重放证据；可用 `--output-dir` 指定输出目录。
+- **`run_live.py`**（仓库根目录）：实盘/沙盒 CLI，默认沙盒，`--live` 还需要满足启动许可、账户事实和 R8 准入证据等校验。入口读取配置与环境凭据，装配 `StartupSafetyPolicy`、`PersistentOrderSafetyGuard`、`SafeLiveBroker`、`LiveTradingEngine`，可用 `--preflight-only` 只生成启动检查报告而不进入主循环。状态文件与告警日志供只读 Dashboard 使用。具体参数以 `python run_live.py --help` 为准；命令行支持的市场类型不等于该模式已获准实盘运行。
