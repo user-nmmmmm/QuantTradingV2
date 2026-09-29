@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Still Water Quant 本地只读交易监控：账户、持仓、风险、历史行情与回测。">
+  <meta name="theme-color" content="#f2f5f3">
+  <title>交易监控 · Still Water Quant</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <script src="/assets/theme.js"></script>
+  <link rel="stylesheet" href="/assets/style.css">
+  <link rel="stylesheet" href="/assets/visual.css">
+  <link rel="stylesheet" href="/assets/theme.css">
+  <script src="/assets/visual.js" defer></script>
+  <script src="/assets/app.js" defer></script>
+</head>
+<body>
+  <svg class="svg-defs" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.7 9A7 7 0 0 1 18 6l2 1M4 17l2 1a7 7 0 0 0 12.3-3"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 2 4 5v6c0 5.2 3.3 8.9 8 11 4.7-2.1 8-5.8 8-11V5l-8-3Z"/><path d="m9 12 2 2 4-4"/></symbol>
+    <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M4 7h15a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a3 3 0 0 1 3-3h12"/><path d="M3 7h17M16 14h5"/></symbol>
+    <symbol id="i-bars" viewBox="0 0 24 24"><path d="M5 19V9m7 10V4m7 15v-7"/></symbol>
+    <symbol id="i-coins" viewBox="0 0 24 24"><circle cx="9" cy="9" r="6"/><path d="M12 15a6 6 0 1 0 3-11M9 6v6m-2-2 2 2 2-2"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.2 15.2A8.5 8.5 0 0 1 8.8 3.8a8.6 8.6 0 1 0 11.4 11.4Z"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  </svg>
+
+  <header class="site-header"><div class="nav-wrap">
+    <a class="brand" href="#top" aria-label="Still Water Quant 首页"><span class="brand-mark"><span></span><span></span><span></span></span><span>stillwater<span class="brand-accent">.</span><small>QUANT</small></span></a>
+    <nav class="main-nav" aria-label="主导航"><a class="active" href="#overview">总览</a><a href="#market">行情</a><a href="#positions">持仓</a><a href="#operations">运行检查</a><a href="#activity">动态</a><a href="#backtest">回测</a><a href="#alerts">告警</a></nav>
+    <div class="nav-actions"><span class="nav-readonly"><span class="tiny-dot"></span>只读监控</span><span class="refresh-cadence">自动刷新 <strong id="countdown">15s</strong></span><button class="theme-toggle" id="themeToggle" type="button" aria-label="切换到深色模式" title="切换到深色模式"><svg class="theme-moon"><use href="#i-moon"/></svg><svg class="theme-sun"><use href="#i-sun"/></svg><span id="themeToggleText">深色</span></button><button class="refresh-button" id="refreshButton" type="button" aria-label="立即刷新"><svg><use href="#i-refresh"/></svg><span>刷新</span></button></div>
+  </div></header>
+
+  <main id="top" class="page-shell">
+    <div class="page-heading" id="overview"><div class="page-title"><span class="eyebrow">OPERATIONS CENTER</span><h1>交易监控 <span class="demo-banner" id="demoBanner" hidden>演示数据</span></h1><p>账户、持仓、风险与系统健康状态</p></div><div class="heading-right"><div class="status-pill" id="statusPill"><span class="status-led"></span><div><strong id="systemState">连接中</strong><small id="systemCaption">正在读取运行数据</small></div></div><div class="heading-meta"><span id="syncStatus">正在读取快照</span><span id="updatedAt">最近更新 —</span></div></div></div>
+
+    <nav class="mobile-jump-nav" aria-label="页面区域"><a href="#market">K 线</a><a href="#positions">持仓</a><a href="#operations">运行</a><a href="#activity">动态</a><a href="#backtest">回测</a><a href="#alerts">告警</a></nav>
+
+    <section class="metrics-grid" aria-label="关键指标">
+      <article class="metric-card"><div class="metric-top"><span>账户权益</span><span class="metric-icon violet"><svg><use href="#i-bars"/></svg></span></div><div class="metric-value" id="equityValue">—</div><div class="metric-foot"><span class="metric-accent violet-text">EQUITY</span><span>最新账户快照</span></div></article>
+      <article class="metric-card"><div class="metric-top"><span>账户现金</span><span class="metric-icon teal"><svg><use href="#i-wallet"/></svg></span></div><div class="metric-value" id="cashValue">—</div><div class="metric-foot"><span class="metric-accent teal-text">CASH</span><span>以快照字段为准</span></div></article>
+      <article class="metric-card"><div class="metric-top"><span>当前持仓</span><span class="metric-icon pink"><svg><use href="#i-coins"/></svg></span></div><div class="metric-value" id="positionValue">—</div><div class="metric-foot"><span class="metric-accent pink-text">POSITIONS</span><span id="positionHint">等待有效快照</span></div></article>
+      <article class="metric-card"><div class="metric-top"><span>账户开仓门控</span><span class="metric-icon amber"><svg><use href="#i-shield"/></svg></span></div><div class="metric-value gate-value" id="gateValue">待确认</div><div class="metric-foot"><span class="metric-accent amber-text">RISK GATE</span><span id="gateHint">等待账户核验</span></div></article>
+    </section>
+
+    <section class="analytics-grid" aria-label="资产视图">
+      <article class="panel chart-panel"><div class="panel-heading"><div><span class="eyebrow">ACCOUNT ACTIVITY</span><h2>权益轨迹</h2><p>本次监控会话中观察到的权益快照</p></div><span class="panel-chip">会话数据</span></div><div class="chart-wrap"><div class="chart-axis"><span id="chartMax">—</span><span id="chartMid">—</span><span id="chartMin">—</span></div><svg id="equityChart" viewBox="0 0 700 230" preserveAspectRatio="none" role="img" aria-label="权益变化曲线"><defs><linearGradient id="chartFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#169e98" stop-opacity=".17"/><stop offset="100%" stop-color="#169e98" stop-opacity="0"/></linearGradient></defs><path class="chart-gridline" d="M0 20H700M0 115H700M0 210H700"/><path id="chartArea" fill="url(#chartFill)" d=""/><path id="chartLine" class="chart-line" d=""/><circle id="chartPoint" class="chart-point" r="6" cx="0" cy="0" visibility="hidden"/></svg><div class="chart-empty" id="chartEmpty">累计两次不同时间的有效快照后，曲线会出现在这里。</div></div><div class="chart-ticks"><span id="chartFrom">—</span><span id="chartTo">—</span></div></article>
+      <article class="panel allocation-panel"><div class="panel-heading"><div><span class="eyebrow">PORTFOLIO MIX</span><h2>资金分布</h2><p>现金与非现金权益的概览</p></div></div><div class="allocation-body"><div class="donut" id="allocationDonut"><div class="donut-inner"><span>现金占比</span><strong id="cashPercent">—</strong></div></div><div class="allocation-legend"><div><span class="legend-dot legend-cash"></span><span>账户现金</span><strong id="legendCash">—</strong></div><div><span class="legend-dot legend-other"></span><span>非现金权益</span><strong id="legendOther">—</strong></div></div></div><p class="allocation-note" id="allocationNote">仅在现金与权益口径可比时显示比例。</p></article>
+    </section>
+
+    <section class="panel market-panel" id="market">
+      <div class="panel-heading visual-heading"><div><span class="eyebrow">MARKET DATA / 1D</span><h2>市场 K 线</h2><p>读取本地 Binance 现货日线缓存，显示已保存的历史 K 线</p></div><div class="visual-controls"><select id="marketSymbol" aria-label="选择交易对"><option>加载交易对...</option></select><div class="range-buttons" role="group" aria-label="K 线范围"><button type="button" data-limit="60">60 根</button><button type="button" class="active" data-limit="120">120 根</button><button type="button" data-limit="240">240 根</button></div></div></div>
+      <div class="visual-source"><span class="source-dot"></span><span id="marketStatus">正在读取本地行情缓存</span></div>
+      <div class="candle-summary" id="candleSummary"><div><span>日期</span><strong id="candleDate">—</strong></div><div><span>开盘</span><strong id="candleOpen">—</strong></div><div><span>最高</span><strong id="candleHigh">—</strong></div><div><span>最低</span><strong id="candleLow">—</strong></div><div><span>收盘</span><strong id="candleClose">—</strong></div><div><span>成交量</span><strong id="candleVolume">—</strong></div></div>
+      <div class="visual-chart-shell"><svg id="candleChart" viewBox="0 0 1100 430" preserveAspectRatio="none" role="img" aria-label="历史日线 K 线与成交量"></svg><div class="visual-empty" id="candleEmpty">正在加载 K 线...</div></div>
+      <div class="visual-foot"><span id="candlePeriod">—</span><span>青绿上涨 · 珊瑚红下跌 · 下方为成交量</span></div>
+    </section>
+
+    <section class="detail-grid"><article class="panel positions-panel" id="positions"><div class="panel-heading"><div><span class="eyebrow">OPEN EXPOSURE</span><h2>当前持仓</h2><p>来自最新状态快照的持仓事实</p></div><span class="panel-chip" id="positionsCount">0 个标的</span></div><div class="table-scroll"><table><thead><tr><th>交易对</th><th>方向</th><th>数量</th><th>持仓均价</th><th>保护单</th></tr></thead><tbody id="positionsBody"><tr><td class="empty-cell" colspan="5">正在加载持仓...</td></tr></tbody></table></div></article>
+      <article class="panel operations-panel" id="operations"><div class="panel-heading"><div><span class="eyebrow">SYSTEM CHECK</span><h2>运行检查</h2><p>关键控制条件的当前记录</p></div><span class="panel-chip neutral" id="checksSummary">检查中</span></div><div class="checks-list" id="checksList"></div></article></section>
+
+    <section class="detail-grid bottom-grid"><article class="panel strategies-panel"><div class="panel-heading"><div><span class="eyebrow">STRATEGY HEALTH</span><h2>策略状态</h2><p>策略生命周期及当前可用状态</p></div></div><div id="strategiesList" class="strategy-list"></div></article><article class="panel reasons-panel"><div class="panel-heading"><div><span class="eyebrow">HEALTH REASONS</span><h2>健康原因</h2><p>系统报告的异常与阻断依据</p></div><span class="panel-chip" id="reasonCount">0 条</span></div><div id="reasonsList" class="reasons-list"></div></article></section>
+
+    <section class="panel activity-panel" id="activity">
+      <div class="panel-heading"><div><span class="eyebrow">SESSION OBSERVATIONS</span><h2>动态监控</h2><p>每 15 秒检查运行快照；这里记录本次页面会话观察到的变化</p></div><span class="panel-chip">自动更新</span></div>
+      <div class="activity-layout"><div class="activity-facts"><div><span>最近检查</span><strong id="activityChecked">—</strong></div><div><span>快照时间</span><strong id="activitySnapshot">—</strong></div><div><span>最新告警</span><strong id="activityAlert">—</strong></div></div><div class="activity-feed"><div class="feed-heading">本次会话的变化 <span id="activityCount">0 条</span></div><div id="activityList" class="feed-list"><div class="panel-empty">等待状态快照更新</div></div></div></div>
+    </section>
+
+    <section class="panel backtest-panel" id="backtest">
+      <div class="panel-heading visual-heading"><div><span class="eyebrow">RESEARCH / BACKTEST</span><h2>回测可视化</h2><p>从已保存的回测权益文件绘制净值和回撤</p></div><div class="visual-controls"><label class="benchmark-toggle"><input id="benchmarkToggle" type="checkbox"><span>对照基准</span></label><select id="backtestRun" aria-label="选择回测报告"><option>加载回测报告...</option></select></div></div>
+      <div class="visual-source"><span class="source-dot historical"></span><span id="backtestStatus">正在读取本地回测报告</span></div>
+      <div class="backtest-metrics"><div><span>总收益</span><strong id="backtestReturn">—</strong></div><div><span>最大回撤</span><strong id="backtestDrawdown">—</strong></div><div><span>期末权益</span><strong id="backtestEndEquity">—</strong></div><div><span>成交记录</span><strong id="backtestFills">—</strong></div></div>
+      <div class="visual-chart-shell backtest-chart-shell"><svg id="backtestChart" viewBox="0 0 1100 390" preserveAspectRatio="none" role="img" aria-label="回测权益与回撤曲线"></svg><div class="visual-empty" id="backtestEmpty">正在加载回测数据...</div></div>
+      <div class="backtest-hover" id="backtestHover">移动到曲线上查看日期、收益与回撤</div>
+      <div class="visual-foot"><span id="backtestPeriod">—</span><span>历史回测结果 · 总收益和回撤按 equity.csv 计算</span></div>
+    </section>
+
+    <section class="panel alerts-panel" id="alerts"><div class="panel-heading alerts-heading"><div><span class="eyebrow">EVENT STREAM</span><h2>近期告警</h2><p>从告警日志读取的最近记录</p></div><div class="alert-filters" role="group" aria-label="筛选告警"><button type="button" class="active" data-filter="all">全部</button><button type="button" data-filter="high">高优先级</button><button type="button" data-filter="other">其他</button></div></div><div class="alert-list" id="alertsList"></div></section>
+
+    <footer><span class="footer-brand">stillwater<span>.</span> QUANT</span><span>基于本机状态快照的只读视图 · 快照不能代替交易所账户事实</span><a href="#top">返回顶部 ↑</a></footer>
+  </main>
+</body>
+</html>
