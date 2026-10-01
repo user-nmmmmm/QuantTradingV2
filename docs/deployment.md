@@ -9,7 +9,7 @@
 ## 1. 环境要求
 
 - **操作系统**：Windows 或 Linux。
-- **Python**：根目录 `.python-version` 当前为 3.13.2；现有 CI 工作流使用 3.11。跨版本运行仍应执行完整检查。
+- **Python**：本机 `.python-version` 当前为 3.13.2；现有 CI 工作流使用 3.11。跨版本运行仍应执行完整检查。
 - **依赖安装**：优先使用锁定版本 `python -m pip install -r requirements.lock.txt`；`requirements.txt` 只保存直接依赖。
 - **隔离环境**：建议使用项目独立虚拟环境，不复用系统 Python 环境。
 

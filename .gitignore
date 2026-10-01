@@ -6,6 +6,12 @@ __pycache__/
 .coverage
 .coverage.*
 htmlcov/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.hypothesis/
+tmp/
+cua_probe.txt
 
 # Virtual env
 .venv/
@@ -15,17 +21,22 @@ venv/
 
 # VS Code
 .vscode/
+
 # Runtime state and generated reports
 reports/live_status.json
 reports/live_status_state.db
 reports/routing_log.csv
 reports/live_alerts.jsonl
+reports/*.zip
+reports/*.log
+reports/*_tests_*.txt
 
 # Batch 0 regression harness output (fixtures themselves are versioned)
 tests/.generated/
 docs/baselines/generated/
 
-# Cached market data downloaded by scripts/fetch_binance_data.py
+# New market data downloaded by scripts/fetch_binance_data.py.
+# The existing tracked 1d snapshot is retained for local backtest reproducibility.
 data/binance/
 
 # Python caches and generated artifacts
@@ -38,3 +49,7 @@ reports/*/
 dummy_output/
 .codex_patch_probe
 .claude/settings.local.json
+
+# Local mail evidence and private audit archives are excluded from publication.
+docs/archive/
+docs/codex_mail_*

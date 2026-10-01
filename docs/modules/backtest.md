@@ -15,7 +15,7 @@
 
 `warmup_period`（默认 30）传给 `EventProcessor`，限制新开仓在指标预热完成后开始；已有持仓的管理路径仍可运行。
 
-**敞口列（BM3）**：每写一行权益曲线，`BacktestEngine._sample_exposure` 就从当时的非空持仓与标记价直接计算 `gross_exposure`、`net_exposure`、`priced_symbols`、`gross_exposure_pct_equity`、`net_exposure_pct_equity`，并更新该行。最后 `_equity_frame` 只组装这些已配对的行，不会在运行结束后把另一份持仓历史 join 回来。熔断后的尾段与 `EndOfBacktest` 合成行也按各自状态采样。该实现位于 `backtest/engine.py`；`core/metrics/` 另提供报告分析用的 `calculate_exposure`。
+**敞口列（BM3）**：每写一行权益曲线，引擎的 `_sample_exposure` 就调用 `backtest/equity_bookkeeping.py` 的 `sample_exposure`，从当时的非空持仓与标记价直接计算 `gross_exposure`、`net_exposure`、`priced_symbols`、`gross_exposure_pct_equity`、`net_exposure_pct_equity`，并更新该行。最后 `equity_frame` 只组装这些已配对的行，不会在运行结束后把另一份持仓历史 join 回来。熔断后的尾段与 `EndOfBacktest` 合成行也按各自状态采样。`core/metrics/` 另提供报告分析用的 `calculate_exposure`，这里没有 `core/metrics.py` 文件。
 
 ## `backtest/execution_adapter.py` — SimulatedExecutionAdapter
 

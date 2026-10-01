@@ -13,7 +13,7 @@
 任何人可通过以下命令复核本记录：
 
 ```bash
-git rev-parse HEAD                  # 应输出 ff14fb8cce57310f1e0828349a0357225ce33956
+git cat-file -e ff14fb8cce57310f1e0828349a0357225ce33956^{commit}  # 验证历史对象，当前 HEAD 可以前进
 git rev-parse --abbrev-ref HEAD     # 应输出 feature/factors-extended-indicators
 git status --porcelain              # 应无输出（clean）
 ```

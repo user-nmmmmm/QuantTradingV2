@@ -271,6 +271,9 @@ class MatchingMixin:
         """
         executed_trades: List[Dict] = []
         next_active_orders: List[Order] = []
+        # Several orders can compete for the same candle. Extract its scalar
+        # prices once instead of repeating pandas label lookups per order.
+        candle_prices = {}
         for symbol, bar in current_bar.items():
             mark = bar.get("mark_price", bar.get("close", bar.get("open")))
             if mark is not None and pd.notna(mark):
@@ -307,9 +310,11 @@ class MatchingMixin:
             if self._expire_aged_opening_order(order, current_time):
                 continue
 
-            open_price = float(bar_data["open"])
-            high_price = float(bar_data["high"])
-            low_price = float(bar_data["low"])
+            prices = candle_prices.get(order.symbol)
+            if prices is None:
+                prices = (float(bar_data["open"]), float(bar_data["high"]), float(bar_data["low"]))
+                candle_prices[order.symbol] = prices
+            open_price, high_price, low_price = prices
             limit_price = float(order.price) if order.price is not None else None
             exec_price = None
             is_maker = False

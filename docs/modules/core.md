@@ -166,7 +166,7 @@
 ## 六、存储与持久化
 
 ### `core/state_store_v2.py` — 实盘 bar 处理租约
-`StateStore`：事务性 SQLite 键值存储和带租约的 bar 处理认领机制。`claim_bar(bar_key, now, lease_seconds=300)`：若无既有认领则插入“processing”状态；若已是“processed”则拒绝；若既有“processing”认领已超过租约时长则可重新认领。`complete_bar`/`release_bar` 配套。线程安全（`RLock`）。租约支持崩溃恢复，但不单独保证交易所侧“恰好一次”下单。
+`StateStore`：事务性 SQLite 键值存储 + 带租约的 bar 处理认领机制，用于实盘"近似恰好一次"处理。`claim_bar(bar_key, now, lease_seconds=300)`：若无既有认领则插入"processing"状态；若已是"processed"则拒绝；若既有"processing"认领已超过租约时长则可重新认领（处理崩溃恢复）。`complete_bar`/`release_bar` 配套。线程安全（`RLock`）。
 
 ### `core/events/store.py` — 事件持久化
 `SQLiteEventStore`：只追加、按 `event_id` 幂等去重的事件日志；若已存在事件的内容（除 `observed_at` 外）与新事件不同则抛 `ValueError`。用 SQLite 触发器（`events_no_update`/`events_no_delete`）在数据库层面强制"只追加"，防止直接 SQL 篡改。`InMemoryEventStore` 是 `:memory:` 变体，供测试用。
@@ -178,16 +178,20 @@
 
 ## 七、可观测性、运维安全与验收
 
+`core/operations/` 保存事故记录、只读状态快照和启动前检查的实现。
+`core/incident_journal.py`、`core/status_snapshot.py`、`core/startup_preflight.py`
+保留为旧导入路径的兼容入口；新代码可直接从 `core.operations` 的对应模块导入。
+
 ### `core/alerting.py` — 告警
 `AlertSink` 协议 + 多种实现：`LoggingAlertSink`、`JsonlAlertSink`（本地持久追踪，fsync）、`WebhookAlertSink`、`TelegramAlertSink`（纯文本，不用 `parse_mode`，避免 Markdown 注入）。`CompositeAlertSink` 扇出并隔离各 sink 的失败。`HysteresisAlertSink` 用"稳定上下文哈希"（排除 timestamp、retry_attempts 等易变字段）对重复告警去重，按 trigger/suppress/ack 状态机运作，每 `summary_every`（默认 9）次发一次抑制汇总。`build_default_alert_sink(...)` 按环境变量自动组装 Logging+Jsonl+可选 Webhook（`LIVE_ALERT_WEBHOOK_URL`）+可选 Telegram（`TELEGRAM_BOT_TOKEN`/`CHAT_ID`），外层包一层 Hysteresis。
 
 ### `core/health.py` — 数据/同步健康监控
 `DataHealthMonitor`：失败关闭式评估行情新鲜度、完整性，以及账户/订单同步的陈旧程度，决定是否允许实盘承担新风险。`DataHealthPolicy` 定义各类阈值（默认：行情最大滞后 1.5 倍周期、同步最大陈旧 2 分钟、缺口容差 1.5 倍周期等）。`.assess(...)` 逐标的检查缺失数据、未来时间戳、无已收盘 bar、时间戳倒退（有状态追踪）、近期窗口缺口、陈旧；再检查账户/订单同步的陈旧/缺失/未来时间戳。**任何非空的 reasons 列表都判定为不健康**。
 
-### `core/incident_journal.py` — 事故处置记录
+### `core/operations/incident_journal.py` — 事故处置记录
 `record_incident(...)` 追加操作员对 R7 熔断/告警事件的处置记录（已解决/已说明）到只追加的 JSONL 日志（fsync）。`event_key` 必须是 `"<timestamp>|<event>"` 格式，被 `r7_acceptance.py` 用来检查未解决的熔断。
 
-### `core/status_snapshot.py` — 只读实盘状态快照
+### `core/operations/status_snapshot.py` — 只读实盘状态快照
 `load_dashboard(...)` 读取 `live_status.json` 与告警记录，供 Dashboard 等展示层消费；状态文件缺失、损坏或结构无效时返回 `RISK_HALTED`，不返回未经验证的权益和持仓数值。`recent_alerts(...)` 从 JSONL 告警中读取最近的有效记录。
 
 ### `core/logger.py` — 日志
@@ -197,7 +201,7 @@
 大型纯函数库：夏普比率、回撤、盈亏比、交易质量、敞口、信号漏斗、成本敏感性、归因、基准对比、滚动/分段收益、R 倍数/SQN、训练测试切分、滚动窗口、bootstrap 置信区间、蒙特卡洛交易序列重排、Benjamini-Hochberg FDR 校正等。多数函数返回带 `status` 字段（`ok`/`insufficient`/`undefined`）的字典而非直接抛错，便于小样本下优雅降级。`walk_forward_windows`/`train_test_split_returns` 严格按时间顺序切分，避免未来函数泄漏；`bootstrap_return_distribution`/`monte_carlo_trade_sequence` 用固定种子 42 保证可复现。
 
 ### `core/telegram_heartbeat.py` — 定期心跳报告
-和 `alerting.py` 的事件触发型告警不同，这是**周期性**（由 cron 驱动）的"系统仍在运行"状态汇报。`build_heartbeat_message(dashboard)` 汇总状态/健康/权益/现金/持仓/告警；若状态文件本身无效会明确报告 `RISK_HALTED`。`send_heartbeat(...)` 通过 `core.status_snapshot.load_dashboard` 加载数据，经 `alerting.send_telegram_message` 发送。
+和 `alerting.py` 的事件触发型告警不同，这是**周期性**（由 cron 驱动）的"系统仍在运行"状态汇报。`build_heartbeat_message(dashboard)` 汇总状态/健康/权益/现金/持仓/告警；若状态文件本身无效会明确报告 `RISK_HALTED`。`send_heartbeat(...)` 通过 `core.status_snapshot.load_dashboard` 兼容入口加载数据，经 `alerting.send_telegram_message` 发送。
 
 ### `core/live_broker/retry.py` — 重试包装器
 `with_retry(fn, max_attempts=3, base_delay=0.5, max_delay=8.0, retryable=is_ambiguous_error)`：带指数退避的有界重试，默认只重试"不确定"类错误（网络超时等），延迟为 `min(base_delay * 2**attempt, max_delay)`。
@@ -205,7 +209,7 @@
 ### `research/audit/reconciliation_job.py` — 日终对账
 `EODReconciliationJob` 调用 `research/audit/ledger.py` 的 `PortfolioProjection.reconcile`，对比外部交易所现金/持仓，原子性地把 JSON 报告落盘到 `<output_dir>/<日期>_<账户>.json`（临时文件 + `os.replace`）。要求 `checked_at` 带时区。产出被 `r7_acceptance.py` 消费，要求整个 soak 期内每天零偏差。
 
-### `core/startup_preflight.py` — 启动前检查
+### `core/operations/startup_preflight.py` — 启动前检查
 `build_startup_report(policy, credentials, engine)` 生成不含密钥明文的 JSON"证据"报告（凭据是否存在、sandbox/live 模式、一键停机是否未激活、账户/订单同步基线、健康基线、熔断状态）。`write_startup_report(...)` 原子写入（临时文件 + `os.replace` + fsync）。
 
 ### `composition/factory.py` — 组件装配工厂
@@ -241,4 +245,4 @@ data_fetcher/data → market_data(适配器) → runtime.EventProcessor
     research/audit/ledger.PortfolioProjection（独立的离线重放与对账研究）
 ```
 
-`live_safety.py`、`risk/persistent_guard.py`、`health.py`、`alerting.py`、`startup_preflight.py`、`incident_journal.py` 和 `r7_acceptance.py` 构成实盘运行的安全设施。`research/audit/reconciliation_job.py` 是离线日终证据工具，未接入实盘订单路径。
+`live_safety.py`、`risk/persistent_guard.py`、`health.py`、`alerting.py`、`operations/`、`core/account_reconciliation.py`、`r7_acceptance.py` 共同构成实盘运行的"安全护栏"，回测路径基本不涉及这些模块。`research/audit/reconciliation_job.py` 是离线日终证据工具，未接入实盘订单路径。

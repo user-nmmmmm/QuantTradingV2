@@ -59,9 +59,9 @@ OOS / Walk-Forward / Bootstrap / Monte Carlo 稳健性检验）；实盘链路�
 
 ### 2.1 分层总览
 
-系统共享 `EventProcessor` 的单根 bar 决策流程；历史与实时行情、模拟与交易所执行
-分别由适配器接入。回测和实盘仍各自承担调度、持久化、恢复与安全流程，部分具体适配器
-也位于 `core/`。后续工程边界的整理顺序见
+系统已共享 `EventProcessor` 的单根 bar 决策流程；历史与实时行情、模拟与交易所执行
+分别由适配器接入。回测和实盘仍各自承担调度、持久化、恢复与安全流程；部分具体适配器
+目前也仍位于 `core/`，包边界尚未完全按下图收敛。工程整理顺序见
 [`docs/engineering_structure_roadmap.md`](docs/engineering_structure_roadmap.md)。
 
 ```mermaid
@@ -97,7 +97,7 @@ flowchart TB
 
     subgraph OBS["治理与观测 Governance & Observability"]
         MT["metrics / diagnostics / benchmarks"]
-        EV["events/ · incident_journal"]
+        EV["events/ · operations/incident_journal"]
         HS["health / supervisor / alerting / telegram_heartbeat"]
         RP["reproducibility / backtest_audit / account_reconciliation"]
         PH["allocation / research_validation / admission_gates / r7_acceptance / gray_release"]
@@ -125,8 +125,10 @@ flowchart TB
 ### 2.2 共享决策流程与模式适配
 
 `core/runtime.py::EventProcessor` 统一处理已收盘 bar 的持仓管理、候选收集和组合分配。
-两种模式使用下列适配器，但回测引擎与实盘引擎仍有各自的运行生命周期及风险事实处理。
-逐事件一致性仍需按[统一 Roadmap 的 R5 阶段](docs/unified_roadmap.md)验收：
+两种模式使用下列适配器，但回测引擎与实盘引擎仍有各自的运行生命周期及风险事实处理，
+不能把下表理解成两条路径已经取得逐事件一致性验收（见
+[R5 阶段](docs/unified_roadmap.md#4-项目阶段与退出条件)与
+[SYS-06 契约](docs/development_details.md)）：
 
 | 抽象端口 | 回测实现 | 实盘实现 |
 | --- | --- | --- |
@@ -162,8 +164,8 @@ flowchart LR
 
 ### 2.3 回测：单根 bar 的确定性处理时序
 
-`BacktestEngine.run()` 对每根 bar 按下列顺序推进；当前收盘信号生成的普通新单
-最早在 bar *t+1* 撮合，已有仓位的常驻保护止损则在当前 bar 按既定盘中路径检查。
+`BacktestEngine.run()` 对每根 bar 严格按下列顺序推进；顺序本身就是防前视偏差与
+会计一致性的保证（信号在 bar *t* 生成，订单在 bar *t+1* 撮合）。
 
 ```mermaid
 sequenceDiagram
@@ -180,24 +182,25 @@ sequenceDiagram
     participant PF as Portfolio
     participant AC as AccountingReconciler
 
-    MD->>BE: stream 交付 MarketDataSlice（对齐后的一根 bar）
-    BE->>EX: on_market_data(event)：处理上一根 bar 的普通挂单
-    EX->>BR: 撮合普通订单并计提适用的资金费用
-    BR->>PF: 成交和成本回写 Portfolio / LotBook
-    BE->>PS: step(event)：检查常驻保护止损
-    PS->>BR: 触发时执行保护性成交
-    BE->>BR: 必要时处理已公告退市标的的退出
+    MD->>BE: stream 交付 MarketDataSlice（多标的对齐后的一根 bar）
+    BE->>EX: on_market_data(event)：先处理上一根 bar 的普通挂单
+    EX->>BR: process_orders（排除常驻保护止损单）并计提 carry
+    BR->>PF: 成交与费用回写 Portfolio / LotBook
+    BE->>PS: step(event)：处理已有仓位的常驻保护止损
+    PS->>BR: 止损触发时执行保护性成交
+    BE->>BR: 处理已公告退市标的的强制退出
     BE->>EP: process(event, execute_market_event=False)
-    EP->>RK: 更新价格、日切与风控状态
+    EP->>RK: 更新价格、日切和熔断状态
     loop 每个有真实 bar 的标的
-        EP->>RT: 管理已有仓位并收集新开仓候选
+        EP->>RT: process_position_management 管理现有仓位
+        EP->>RT: collect_entry_candidate 收集当前收盘信号
     end
-    EP->>AL: 按同一时间戳统一分配候选
-    AL->>RK: 逐个做杠杆 / 集中度 / 流动性校验并定量
+    EP->>AL: 同一时间戳的候选统一分配
+    AL->>RK: 逐个候选做杠杆 / 集中度 / 流动性校验并定量
     AL->>EX: 提交通过的订单（最早在 bar t+1 撮合）
     BE->>PF: margin_snapshot：初始 / 维持 / 可用保证金
     BE->>BR: 必要时执行保证金清算或回撤风险动作
-    BE->>AC: check_bar：按已实现、未实现和融资成本核对权益
+    BE->>AC: check_bar 核对权益、现金、持仓及费用
 ```
 
 **回撤分级熔断**（`config/params.yaml` 的 `drawdown.*`，基于权益高水位，动作具粘性）：
@@ -213,9 +216,9 @@ sequenceDiagram
 ### 2.4 实盘：一次 tick 的生命周期
 
 `LiveTradingEngine._tick_once()` 按事实可信度限制新增风险。行情更新失败后，仍尝试账户
-同步、订单对账与现有持仓保护；账户事实不可用或对账抛错时会提前结束本轮。未解决的
-`UNKNOWN` 订单阻止新增风险，已有持仓的风险动作和保护单对账仍可继续，具体取决于当次
-账户、价格与风控事实。
+同步、订单对账与现有持仓保护；账户事实不可用或对账抛错时才提前结束本轮。未解决的
+`UNKNOWN` 订单阻止新增风险，保护单与可执行的退出管理仍继续。异常会进入健康评估、告警
+与状态导出流程。
 
 ```mermaid
 flowchart TD
@@ -224,10 +227,10 @@ flowchart TD
     X1 --> T2
     T1 --> T2["broker.sync 同步账户与持仓"]
     T2 -->|失败| X2["ACCOUNT_SYNC_FAILED：禁用交易 + 告警"]
-    T2 --> T3["到期则执行订单与账户对账"]
+    T2 --> T3["到期则执行订单与持仓对账"]
     T3 -->|对账失败| X3["ORDER_SYNC_FAILED：告警 + 本轮结束"]
-    T3 -->|UNKNOWN 订单| U["禁新增风险；继续核对保护单"]
-    T3 --> T4["持仓管理 → EventProcessor 候选 → 新增风险门禁"]
+    T3 -->|UNKNOWN 订单| U["禁新增风险；继续保护现有仓位；人工核实后恢复"]
+    T3 --> T4["保护单 / 持仓管理 → EventProcessor 候选 → 新增风险门禁"]
     U --> T4
     T4 -->|允许新增风险| T5["SafeLiveBroker 提交订单：幂等 clientOrderId + 重试 + 白名单校验"]
     T4 -->|禁止新增风险| T7
@@ -299,7 +302,7 @@ QuantTradingV1/
 │   ├── portfolio.py                  # 组合、权益、敞口、保证金快照
 │   ├── accounts.py                   # spot / spot_margin / perpetual 显式账户契约
 │   ├── lots.py                       # FIFO 批次账本（lot_id / position_id / MAE-MFE）
-│   ├── valuation.py                  # 从交易账户状态构建组合估值快照
+│   ├── valuation.py                  # 从交易账户事实构建组合估值快照
 │   ├── accounting_check.py           # 逐 bar 会计恒等式核对（Gate G2）
 │   │
 │   ├── ── 执行 ──
@@ -318,7 +321,7 @@ QuantTradingV1/
 │   │   ├── account_sync.py           #   余额/持仓同步
 │   │   ├── safe.py                   #   幂等/限额/白名单包装层
 │   │   └── retry.py                  #   交易所操作的有界重试
-│   ├── exchange/                     # 订单与市场规格的规范化边界
+│   ├── exchange/                     # 交易所元数据/精度/衍生品能力的唯一边界
 │   │   ├── __init__.py               #   ExchangeBoundary 门面
 │   │   ├── metadata.py               #   能力探测、市场规格、元数据加载
 │   │   ├── validation.py             #   下单前校验
@@ -350,10 +353,13 @@ QuantTradingV1/
 │   ├── backtest_audit.py             # 强制事件日志与第二数据源校验
 │   ├── reproducibility.py            # run_manifest：代码/配置/数据指纹
 │   ├── health.py / supervisor.py     # 健康评估与进程守护
-│   ├── alerting.py / telegram_heartbeat.py / incident_journal.py
+│   ├── alerting.py / telegram_heartbeat.py
+│   ├── operations/                   # 事故记录、只读状态快照、启动前检查的实现
+│   │   ├── incident_journal.py
+│   │   ├── status_snapshot.py
+│   │   └── startup_preflight.py
 │   ├── account_reconciliation.py     # 独立账户事实的只读对账
 │   ├── sqlite_backup.py / sqlite_utils.py / state_store_v2.py
-│   ├── startup_preflight.py          # 启动前自检报告
 │   ├── live_safety.py                # 凭据/交易所/标的/账户类型白名单
 │   ├── gray_release.py               # R8 灰度放量限额
 │   ├── r7_acceptance.py              # R7 验收证据校验
@@ -373,6 +379,8 @@ QuantTradingV1/
 │
 ├── backtest/
 │   ├── engine.py               # 回测主循环（bar 时序、强平、会计核对、基准）
+│   ├── cli.py                  # 回测命令行参数与报告 profile
+│   ├── equity_bookkeeping.py   # 回测权益与敞口采样辅助
 │   ├── execution_adapter.py    # 模拟执行适配器
 │   ├── protective_stops.py     # 场内常驻止损的盘中撮合模拟
 │   ├── capacity.py             # 资金容量曲线（Phase 3）
@@ -395,7 +403,7 @@ QuantTradingV1/
 │   └── research_validation.py  # 研究治理：数据分区、holdout 协议、多重检验
 │
 ├── dashboard/                  # 只读运维 CLI（消费 live_status.json，不控制交易）
-├── scripts/                    # 数据抓取、批量矩阵、阶段证据、环境与依赖校验
+├── scripts/                    # 数据抓取、批量矩阵、阶段证据、环境与依赖校验；见 scripts/README.md
 ├── research/replay.py          # 事件回放研究脚本
 ├── research/audit/ledger.py    # 离线事件账本研究；不接入交易账户路径
 ├── research/audit/reconciliation_job.py # 离线日终对账与证据报告
@@ -405,6 +413,9 @@ QuantTradingV1/
 ├── docs/                       # 权威文档（见文档索引）
 └── tests/                      # pytest 测试：基线回归、无前视、订单生命周期、各 Gate
 ```
+
+`core/incident_journal.py`、`core/status_snapshot.py` 和 `core/startup_preflight.py`
+仍提供旧导入路径；实现位于 `core/operations/`。
 
 ---
 
@@ -504,8 +515,9 @@ python scripts/fetch_binance_data.py --timeframe 4h --symbols BTC/USDT ETH/USDT
 ```
 
 下载脚本每次只处理一个周期，并将结果写入 `data/binance/<timeframe>/`。
-当前仓库的 `1d` 缓存清单列出了 30 个 CSV，但它是可更新的下载清单；研究验收仍需固定
-实际输入的字节、来源和哈希。数据身份的后续工作见[工程结构优化路线图](docs/engineering_structure_roadmap.md)。
+`_manifest.json` 是本次缓存下载清单，不等于仓库全部历史行情的冻结清单；
+现有 `data/binance/1d/` 共有 30 个受版本控制的 CSV，其中只有 BTC、ETH 两个文件
+被当前清单逐文件记录。研究或验收应为实际使用的数据另存完整来源和哈希。
 
 ```bash
 python scripts/run_backtest_matrix.py --timeframes 1d --windows full
@@ -529,8 +541,7 @@ python run_live.py --exchange binance --symbols BTC/USDT ETH/USDT --interval 60 
 
 #### 恢复 UNKNOWN 状态的实盘订单
 
-若某笔订单停留在 `UNKNOWN`，系统会阻止新增风险并尽可能维护已有持仓的保护措施。
-执行以下人工恢复命令前，**先停止交易进程，并在交易所订单历史中独立核实该订单确实不存在**：
+若某笔订单停留在 `UNKNOWN`，系统会阻止新增风险并尽可能继续保护已有持仓。执行以下人工恢复命令前，**先停止交易进程，并在交易所订单历史中独立核实该订单确实不存在**：
 
 ```bash
 python resolve_live_order.py CLIENT_ORDER_ID --order-store reports/live_orders.db --operator YOUR_ID --reason "verified absent at exchange" --confirm-not-submitted
@@ -604,9 +615,12 @@ python -m dashboard --status reports/live_status.json --alerts reports/live_aler
 
 ### 5.3 运维脚本 `scripts/`
 
+下表列出常用入口；按稳定入口、运维、验证、研究和历史专项查找其他脚本，见
+[`scripts/README.md`](scripts/README.md)。
+
 | 脚本 | 用途 |
 | --- | --- |
-| `fetch_binance_data.py` | 按单个 `--timeframe` 分年抓取并增量缓存币安行情，写 `_manifest.json`（SHA-256 / 行数 / 时间范围） |
+| `fetch_binance_data.py` | 按单个 `--timeframe` 分年抓取并增量缓存行情，写本次缓存的 `_manifest.json`（SHA-256 / 行数 / 时间范围） |
 | `run_backtest_matrix.py` | 多币种 × 多周期 × 多时间窗批量回测，汇总核心指标 |
 | `run_phase3_capacity.py` | 生成资金容量曲线验证报告 |
 | `run_phase4_analysis.py` | 生成 Phase 4 路由/持有期/归因证据包 |
@@ -671,8 +685,8 @@ Phase 6 准入证据的 fail-closed 评估由 `python -m core.admission_gates` �
 ## 7. 输出与报告
 
 每次回测在 `reports/` 下生成独立的时间戳目录（命名规则见 `main.py`）。
-输出取决于 `--report-profile`：默认 `workbook` 生成 `backtest_report.xlsx`，并保留
-`metrics.json` 等计算结果；`compact` 生成 `report.pdf`、`dashboard.png` 与核心 CSV。
+输出取决于 `--report-profile`，默认 `workbook` 生成 `backtest_report.xlsx`，并保留
+`metrics.json` 等计算结果。`compact` 生成 `report.pdf`、`dashboard.png` 与核心 CSV。
 下表是显式使用 `--report-profile full` 时的完整审计文件，不代表默认运行产物：
 
 ```bash
@@ -696,8 +710,8 @@ python main.py --source synthetic --days 365 --seed 42 --report-profile full
 | | `top_trade_market_data_audit.json` | 头部盈亏交易的第二数据源核对 |
 | 复现 | `run_manifest.json` | 代码 / 配置 / 数据 / 执行身份指纹，配合 `--replay-manifest` 校验 |
 
-`research/audit/ledger.py` 的事件账本仅用于离线审计研究；当前交易路径的本地组合与批次
-账本使用 `core/portfolio.py`、`core/lots.py`，实盘仍须与交易所账户事实对账。
+`research/audit/ledger.py` 的事件账本仅用于离线审计研究；当前回测与实盘交易路径的
+本地组合/批次账本使用 `core/portfolio.py` 和 `core/lots.py`，实盘仍须与交易所账户事实对账。
 
 实盘侧产物：`reports/live_status.json`（状态快照）、`reports/live_alerts.jsonl`（告警）、
 `reports/live_orders.db`（订单状态机与审计账本）、`reports/startup_preflight.json`（启动自检）。
@@ -804,12 +818,11 @@ python -m pytest -q
 | --- | --- |
 | [`docs/README.md`](docs/README.md) | 文档入口、权威层级和历史归档说明 |
 | [`docs/modules/README.md`](docs/modules/README.md) | 逐包代码说明（模块职责、关键类、模块间关系） |
-| [`docs/engineering_structure_roadmap.md`](docs/engineering_structure_roadmap.md) | 基于当前主分支的工程结构优化顺序与验收条件 |
-| [`docs/architecture_review.md`](docs/architecture_review.md) | 研究账本边界、事件依赖方向与模块拆分说明 |
+| [`scripts/README.md`](scripts/README.md) | 脚本入口、运行用途与专项研究脚本索引 |
 | [`docs/unified_roadmap.md`](docs/unified_roadmap.md) | 唯一项目总路线图、R0–R8 与放行门槛 |
 | [`docs/development_plan.md`](docs/development_plan.md) | 当前开发批次、任务顺序和验收产物 |
 | [`docs/backtest_assumptions.md`](docs/backtest_assumptions.md) | 执行模型、费率/滑点、数据对齐与局限性 |
-| [`docs/authoritative_ledger.md`](docs/authoritative_ledger.md) | 离线事件账本与会计口径 |
+| [`docs/authoritative_ledger.md`](docs/authoritative_ledger.md) | 离线研究账本与会计口径；不接管交易账户事实 |
 | [`docs/p0_signal_observation.md`](docs/p0_signal_observation.md) | P0 信号观察契约、门控诊断、有限本金影子回放与验收 |
 | [`docs/p1_signal_meta_layer.md`](docs/p1_signal_meta_layer.md) | P1 条件 EV 账本、支持门槛、冻结滚动验证与复现证据 |
 | [`docs/p23_signal_meta_layer.md`](docs/p23_signal_meta_layer.md) | P2 软状态与动态归因、P3 影子账户、完整验收与论文差异 |
