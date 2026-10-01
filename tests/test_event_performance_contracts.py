@@ -65,6 +65,42 @@ def test_exact_wire_and_identity_match_previous_implementation():
         assert "_normalized_payload" not in {item.name for item in fields(event)}
 
 
+def test_frozen_order_and_fill_payloads_reuse_safe_values_but_freeze_mutable_fields():
+    pipeline = TradingEventPipeline(run_id="immutable-payloads", clock=lambda: NOW)
+    order = OrderEvent("order-safe", OrderStatus.ACCEPTED, Decimal("1"))
+    fill = FillEvent("fill-safe", "order-safe", "BTC/USDT", "buy", Decimal("1"),
+                     Decimal("100"))
+    assert pipeline.publish(order, occurred_at=NOW).payload is order
+    assert pipeline.publish(fill, occurred_at=NOW).payload is fill
+
+    message = ["initial"]
+    unusual = OrderEvent("order-unusual", OrderStatus.ACCEPTED, Decimal("1"), message=message)
+    published = pipeline.publish(unusual, occurred_at=NOW)
+    message.append("changed")
+    assert published.payload is not unusual
+    assert published.payload.message == ("initial",)
+
+    fee_currency = ["USDT"]
+    unusual_fill = FillEvent("fill-unusual", "order-unusual", "BTC/USDT", "buy",
+                             Decimal("1"), Decimal("100"), fee_currency=fee_currency)
+    published_fill = pipeline.publish(unusual_fill, occurred_at=NOW)
+    fee_currency.append("changed")
+    assert published_fill.payload is not unusual_fill
+    assert published_fill.payload.fee_currency == ("USDT",)
+
+    # Even a frozen dataclass can be tampered with through object.__setattr__;
+    # publishing must still reject values its constructor would reject.
+    broken_order = OrderEvent("order-broken", OrderStatus.ACCEPTED, Decimal("1"))
+    object.__setattr__(broken_order, "remaining_qty", Decimal("NaN"))
+    with pytest.raises(ValueError):
+        pipeline.publish(broken_order, occurred_at=NOW)
+    broken_fill = FillEvent("fill-broken", "order-broken", "BTC/USDT", "buy",
+                            Decimal("1"), Decimal("100"))
+    object.__setattr__(broken_fill, "price", Decimal("-1"))
+    with pytest.raises(ValueError):
+        pipeline.publish(broken_fill, occurred_at=NOW)
+
+
 @dataclass
 class MutableNestedValue:
     values: object

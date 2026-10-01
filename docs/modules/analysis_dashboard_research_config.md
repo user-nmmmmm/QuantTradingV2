@@ -42,7 +42,7 @@ CLI（`python -m analysis.optimize`）：`--symbols`、`--days`、`--start`、`-
 
 ### `dashboard/__main__.py`
 只读 CLI 面板，展示实盘系统的运行状态，不产生任何交易副作用。
-- `recent_alerts(path, limit)` 和 `load_dashboard(status_path, alerts_path, ...)` 的实现位于 `core/status_snapshot.py`，`dashboard/__main__.py` 直接导入。前者读取近期 JSONL 告警，后者校验并归一化 `live_status.json`；状态文件缺失或结构无效时返回 `RISK_HALTED`，不提供未经验证的财务数据。
+- `recent_alerts(path, limit)` 和 `load_dashboard(status_path, alerts_path, ...)` 的实现位于 `core/operations/status_snapshot.py`；`dashboard/__main__.py` 经 `core/status_snapshot.py` 的兼容入口调用。前者读取近期 JSONL 告警，后者校验并归一化 `live_status.json`；状态文件缺失或结构无效时返回 `RISK_HALTED`，不提供未经验证的财务数据。
 - `render_text(data)`：格式化为人类可读的文本报告。
 - `main()` CLI 参数：`--status`（默认 `reports/live_status.json`）、`--alerts`（默认 `reports/live_alerts.jsonl`）、`--phase6-report`、`--alert-limit`（10）、`--json`（输出 JSON 而非文本）；状态有效时退出码 0，无效时退出码 2。运行方式 `python -m dashboard`。
 

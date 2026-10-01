@@ -125,3 +125,5 @@ Python 可调用 `BacktestEngine(signal_meta_layer={"enabled": True})`，也可�
 P1 研究摘要为 `905073547cb930c44daad879e51f7677355dcbc4207ff69f32ff3d7a1f633db1`；对应 P0 为 `cebecf458288d001ccc82c8b133fa30fc2401c9c7a135fe57a77d5a8abe40286`。首轮曾因把尾部删失标签误要求为成熟标签的字段结构而失败；修复兼容性后重新完整验收，原失败包保留在 `reports/p1_signal_meta_layer_20260918_attempt1_failed/`，未覆盖。没有据此调整模型参数或放宽支持门槛。
 
 结论是工程实现与复现成立，但本历史片段没有给出满足预设保守条件的正净优势证据；不是利润改善或策略准入结论。
+
+后续 P2/P3 已作为独立、默认关闭的研究组件实现，见 [P2/P3 说明](p23_signal_meta_layer.md)。P1 核心源码与现有配置保持不变，旧 P1 manifest 不会隐式启用新研究层。

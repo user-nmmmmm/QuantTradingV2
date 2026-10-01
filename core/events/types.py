@@ -57,6 +57,56 @@ def _normalize_value(value: Any) -> Any:
             return type(value)(value.data)
         return type(value)({key: _normalize_value(item) for key, item in value.items()})
     if is_dataclass(value) and not isinstance(value, type):
+        # These exact frozen payloads contain only immutable scalar fields in
+        # their usual form. Rebuilding every order/fill event recursively is
+        # costly on a backtest's per-order publication path. Unusual values
+        # still take the full deep-freeze path below.
+        if type(value) is OrderEvent and (
+            type(value.client_order_id) is str
+            and bool(value.client_order_id)
+            and type(value.status) is OrderStatus
+            and type(value.requested_qty) is Decimal
+            and value.requested_qty.is_finite()
+            and type(value.filled_qty) is Decimal
+            and value.filled_qty.is_finite()
+            and value.filled_qty >= 0
+            and type(value.remaining_qty) is Decimal
+            and value.remaining_qty.is_finite()
+            and value.remaining_qty >= 0
+            and (value.average_fill_price is None or (
+                type(value.average_fill_price) is Decimal
+                and value.average_fill_price.is_finite()
+                and value.average_fill_price > 0
+            ))
+            and (value.exchange_order_id is None or type(value.exchange_order_id) is str)
+            and (value.error_code is None or type(value.error_code) is str)
+            and (value.message is None or type(value.message) is str)
+        ):
+            return value
+        if type(value) is FillEvent and (
+            type(value.fill_id) is str
+            and bool(value.fill_id)
+            and type(value.client_order_id) is str
+            and bool(value.client_order_id)
+            and type(value.symbol) is str
+            and bool(value.symbol)
+            and type(value.side) is str
+            and bool(value.side)
+            and type(value.qty) is Decimal
+            and value.qty.is_finite()
+            and value.qty > 0
+            and type(value.price) is Decimal
+            and value.price.is_finite()
+            and value.price > 0
+            and type(value.fee) is Decimal
+            and value.fee.is_finite()
+            and value.fee >= 0
+            and (value.fee_currency is None or type(value.fee_currency) is str)
+            and (value.exchange_order_id is None or type(value.exchange_order_id) is str)
+            and (value.liquidity is None or type(value.liquidity) is str)
+            and (value.quote_currency is None or type(value.quote_currency) is str)
+        ):
+            return value
         values = {item.name: _normalize_value(getattr(value, item.name)) for item in fields(value)}
         return type(value)(**values)
     if isinstance(value, Mapping):

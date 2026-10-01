@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "reviewed_on": "2026-09-26",
+  "tracked_reports": [
+    {
+      "path": "reports/deep_recovery_20260909_delivery.zip",
+      "size_bytes": 6424423,
+      "sha256": "b9fbd4ed37de8f538536832c75e5c3f5f5fbc5ffb573e9cd514f81a871062c22",
+      "purpose": "Historical recovery delivery archive"
+    },
+    {
+      "path": "reports/deep_recovery_20260909_run.log",
+      "size_bytes": 3152,
+      "sha256": "a7251c358e571b88576342e299ba9bf2686b67eb4bcae46c8ef547c7569a2d1d",
+      "purpose": "Historical recovery run evidence",
+      "checkout_policy": "text-lf"
+    },
+    {
+      "path": "reports/deep_recovery_engine_tests_20260909.txt",
+      "size_bytes": 112,
+      "sha256": "c5a0668d4433f29a83f7829fb0079448015bbbe28e752c9ecf03ae20559b0913",
+      "purpose": "Historical recovery test evidence",
+      "checkout_policy": "text-lf"
+    },
+    {
+      "path": "reports/deep_recovery_full_tests_20260909.txt",
+      "size_bytes": 9306,
+      "sha256": "97b9281b5fda4ed3be17e023afbd09a4131ae6127032a0c46fd5444284646600",
+      "purpose": "Historical recovery test evidence",
+      "checkout_policy": "text-lf"
+    },
+    {
+      "path": "reports/p0_recovery_run_20260909.log",
+      "size_bytes": 592,
+      "sha256": "9c664edccc0c4c23dd8f2ffcf1de2b6eff178211e4645875efd7c90a3545517b",
+      "purpose": "Historical P0 recovery run evidence",
+      "checkout_policy": "text-lf"
+    },
+    {
+      "path": "reports/p0_recovery_tests_20260909.txt",
+      "size_bytes": 9306,
+      "sha256": "14fb4e364f49451638da364e28ebcd75cb6ab01098a3d2cf8f3b0dd03770520b",
+      "purpose": "Historical P0 recovery test evidence",
+      "checkout_policy": "text-lf"
+    },
+    {
+      "path": "reports/revalidation_60_20260908_delivery.zip",
+      "size_bytes": 7236330,
+      "sha256": "5b17777fc958822d217451d619f62cbb6475e960ff323f2727cacaab2b005c6d",
+      "purpose": "Historical revalidation delivery archive"
+    },
+    {
+      "path": "reports/strategy_remediation_20260914_delivery.zip",
+      "size_bytes": 49711435,
+      "sha256": "ccde58ba4ef4fb108adce8c805201acd73f3afda5e6a45837bc2077159ad6b05",
+      "purpose": "Historical strategy remediation delivery archive"
+    },
+    {
+      "path": "reports/strategy_security_review_20260908.md",
+      "size_bytes": 17641,
+      "sha256": "b358a7749c8ac7b6568aa663a9bf0e61622ec98a066095736d091b52b5a6a697",
+      "purpose": "Historical strategy security review",
+      "checkout_policy": "text-lf"
+    }
+  ],
+  "tracked_market_data": {
+    "path_prefix": "data/binance/1d/",
+    "tracked_csv_count": 30,
+    "manifest_path": "data/binance/1d/_manifest.json",
+    "purpose": "Existing local backtest dataset; modified files remain in the current worktree"
+  },
+  "reference_documents": [
+    {
+      "path": "docs/references/regime_aware_multiaxial_signal_meta_layer.pdf",
+      "size_bytes": 900725,
+      "sha256": "9c512d397ff16c8969f49606fde4e5ab5910a8f552fc8b96f70f8a821093f792",
+      "purpose": "Research source formerly stored in tmp/pdfs"
+    }
+  ]
+}

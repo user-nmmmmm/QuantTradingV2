@@ -1,5 +1,7 @@
 # 当前策略修复、止损升级与重新准入 Roadmap
 
+> 文档定位（2026-09-20）：领域参考。排期、优先级和当前完成状态统一见[Roadmap](unified_roadmap.md)、[开发计划](development_plan.md)与[开发详情](development_details.md)。本文件的公式、设计依据和未冲突的专项验收要求继续保留；下文旧状态与排期为历史记录。整合前原文见[冻结快照](archive/2026-09-roadmap-rebaseline/sources/docs/current_strategy_remediation_roadmap.md)。
+
 > 文档状态：Active v1.0  
 > 生效日期：2026-08-31  
 > 适用基线：`reports/20260831_214432_3239d_30Syms_Ret173.8pct` 及当前 `TrendBreakout` 生产路由  
