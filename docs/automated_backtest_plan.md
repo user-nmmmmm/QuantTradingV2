@@ -3,7 +3,9 @@
 - 更新日期：2026-09-20。
 - 对应任务：`SYS-19`，工程入口已实现，真实持续运行验收仍待证据；当前任务登记为 41 项、24 项已验收、17 项开放，整体保持部分完成。
 - 当前依据：[自动化配置](../config/automation.json)、[编排入口](../scripts/run_automation.py)、[裁决入口](../scripts/evaluate_matrix.py)、[研究执行入口](../scripts/run_research_automation.py)。
-- 原始草案按原字节保存在[历史草案](archive/2026-09-followup/automated_backtest_plan.draft.md)。当前操作以本文和代码为准。
+- 原始草案仅保存在本地受限归档，不随公开源码发布；当前操作以本文和代码为准。
+
+证据范围：第 7–8 节的调度、真实数据和研究结果是 2026-09-20 的历史记录，绑定当时的源码、配置及本地运行身份。文中 `reports/roadmap_v3/…`、`outputs/automation/…` 路径是未随公开源码发布的本地回执，不能从干净检出直接打开。当前提交或工作树要取得同类结论，需要重新运行并保存新的回执；本页不改变策略或实盘准入状态。
 
 ## 1. 已交付范围与验收边界
 
@@ -93,6 +95,8 @@ python scripts/evaluate_matrix.py outputs/automation/runs/<run_id>/matrix --maxi
 python scripts/run_research_automation.py --task monthly-optimize --protocol reports/roadmap_v3/SYS-11/20260920-followup-successor-03/prospective_protocol.json --data-dir data/binance/1d --start 2024-01-01 --end 2024-08-27 --symbols BTC/USDT --output outputs/research_automation/new_monthly_run --synthetic --candidates-json '[[20,10],[30,10]]'
 ```
 
+示例中的 `--protocol` 文件只存在于当时的本地证据目录；在其他检出运行前，需提供与当前配置身份匹配的实际协议文件，并使用新的输出目录。
+
 `quarterly-robust` 使用同样参数，还可指定 `--capital-levels 10000 100000`；`--timeframe` 默认 `1d`。直接调用时输出目录必须是新目录，合成诊断仅支持最多 2000 根日线。当前编排器的研究任务使用 worker 默认候选与资本档位，不把 `automation.json` 的矩阵资本误作研究定仓资本。
 
 执行边界如下：
@@ -177,13 +181,13 @@ powershell -NoProfile -File scripts/register_automation_tasks.ps1
 
 2026-09-20 已手动通过一次真实 BTC/ETH 行情刷新（各2454根、2020-01-01至2026-09-19的已收盘日线），并通过四时间窗矩阵及逐项完整回放。前一次从未验证旧缓存迁移时，行数回退检查阻断了运行；旧缓存已单独归档，成功回执来自随后通过验证的刷新，没有覆盖该失败记录。当前仅积累1个真实UTC刷新日；缓存起点不代表交易所上市日期。
 
-最终followup-successor-03版本已重新执行上述刷新/矩阵，并用同一真实缓存完成月度优化和季度稳健性/容量流程；两项工程执行通过，研究结论均为样本不足（每候选6个有效交易群组，要求至少30个）。月度universe检查因缺独立上市/退市证据退出1并留下告警。完整回执见[最终自动化汇总](../reports/roadmap_v3/followup/20260920-implementation/final-automation-summary.json)，旧版本回执不用于新身份连续计数。
+最终followup-successor-03版本已重新执行上述刷新/矩阵，并用同一真实缓存完成月度优化和季度稳健性/容量流程；两项工程执行通过，研究结论均为样本不足（每候选6个有效交易群组，要求至少30个）。月度universe检查因缺独立上市/退市证据退出1并留下告警。完整回执见最终自动化汇总（仅本地证据：`../reports/roadmap_v3/followup/20260920-implementation/final-automation-summary.json`），旧版本回执不用于新身份连续计数。
 
 [backtest-automation.yml](../.github/workflows/backtest-automation.yml) 在 PR、main push、手动触发及每周 UTC 周日 19:17 运行离线回归、合成冒烟、完整回放并上传回执。CI 不抓币安数据，不提供交易所凭据。该工作流文件已交付；远程是否执行及通过仍须查看实际 CI 结果，不能把本地测试写成远程验收。
 
 ## 8. 仍需获得的真实证据
 
-本地已完成一次[封存的合成冒烟](../outputs/automation/runs/20260920T084254_994688Z_weekly-smoke_4a82469e/run_log.json)：完整报告、工程裁决和 manifest 回放通过，运行期间源码与配置身份保持一致。该回执明确为 `synthetic=true`、`production_evidence=false`、`live_admission=false`；它只证明该源码版本的离线执行链路通过。
+本地已完成一次封存的合成冒烟（仅本地证据：`../outputs/automation/runs/20260920T084254_994688Z_weekly-smoke_4a82469e/run_log.json`）：完整报告、工程裁决和 manifest 回放通过，运行期间源码与配置身份保持一致。该回执明确为 `synthetic=true`、`production_evidence=false`、`live_admission=false`；它只证明该源码版本的离线执行链路通过。
 
 `status` 只统计每个 UTC 日期最后一次真实 `nightly-data` 的结果，并重新验证封存回执、原配置/有效配置、源码清单和缓存身份。每个标的必须具有完整已收盘 bar 覆盖，缓存采集时间须属于声称的 UTC 运行日；连续段要求同一源码与配置身份。合成、未来、未封存或封存被改写的回执不计入；缺日、当日最后一次失败或身份切换会打断连续计数。达到 14 日后，字段 `daily_data_observation` 可以通过，但完整自动化运营验收仍要求真实周矩阵和告警送达/人工回执证据。本次工程交付不制造已经流逝的 14 日。
 

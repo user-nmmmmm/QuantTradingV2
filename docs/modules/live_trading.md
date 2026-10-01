@@ -1,24 +1,29 @@
 # live_trading/ 模块说明
 
-`live_trading/` 是实盘/沙盒轮询交易引擎的"外壳"。它不包含交易决策逻辑本身（决策逻辑在 `core/runtime.py` 的 `EventProcessor` 里，回测和实盘共用），而是负责实盘特有的**持续性**关切：轮询调度、崩溃恢复、健康监控、告警、状态导出。
+`live_trading/` 负责实盘/沙盒的轮询调度、订单恢复、账户与保护单对账、健康监控、告警和状态导出。状态识别、仓位管理与新开仓候选收集复用 `core/runtime.py` 的 `EventProcessor`；实盘还要在下单前核对独立账户事实与最新风险限制。
 
 ## `live_trading/engine.py` — LiveTradingEngine
 
-生产环境的轮询主循环。构造时会组装：
+`LiveTradingEngine` 组装依赖并运行轮询主循环。具体实现分布在 `engine.py` 及三个 mixin：
+
 - `LiveMarketDataAdapter`（行情，来自 `core/market_data.py`）
 - `RecordedExecutionAdapter`（执行，包装一个 `LiveBroker`）
-- `RiskManager`
-- 通过 `composition.factory.build_router` 构建的 `EventProcessor`
+- `RiskManager`、路由器、候选分配器及共享的 `EventProcessor`
+- `TickOrchestratorMixin`（`tick_orchestrator.py`）、`RecoveryMixin`（`recovery.py`）、`StateExportMixin`（`state_export.py`）
 
 **关键方法**：
-- `initialize()`：预热 OHLCV 历史数据，恢复/对齐状态。
-- `run()`：无限循环 `_tick()` + `sleep(interval)`，捕获 `KeyboardInterrupt` 优雅退出。
-- `_tick()`：单次轮询的核心顺序——恢复未完成订单 → 检查是否存在未解决的"未知订单状态" → 刷新行情 → `broker.sync()` 同步账户 → 计算已收盘 bar 的价格/估值快照 → 检查日内熔断 → 对每个标的执行"认领 bar → 处理 → 完成"（经 `StateStore`）→ 导出状态。
-- `_export_state()`：原子化写入 JSON（临时文件 + `os.replace` + fsync）。
+
+- `initialize()`（`engine.py`）：建立状态存储、恢复未完成订单、同步账户并预热历史行情。
+- `run()`（`engine.py`）：循环调用 `_tick()` 并按正常间隔或失败退避休眠，捕获 `KeyboardInterrupt` 退出。
+- `_tick()` / `_tick_once()`（`tick_orchestrator.py`）：单次轮询。先刷新行情，随后同步账户并执行到期的订单/账户对账；再构建估值快照、检查风控、处理已有仓位与保护单，最后对同一收盘时刻的新开仓候选批量分配。每根已收盘 bar 使用 `StateStore` 认领并在处理后完成或释放。
+- `_recover_orders()` / `_run_reconciliation_if_due()`（`recovery.py`）：恢复非终态订单，并按需核对交易所订单与独立账户事实。
+- `_maybe_export_state()` / `_export_state()`（`state_export.py`）：按间隔或重要状态变化导出 JSON，并用临时文件、`os.replace` 和 fsync 完成原子写入。
 
 **需要注意的行为**：
-- 使用 `StateStore` 的 `claim_bar`/`complete_bar`/`release_bar` 租约机制，保证处理过程中崩溃不会导致同一根 bar 被重复处理或丢失。
-- 出现"未解决的未知订单状态"（交易所事实不确定）会**暂停全部交易**，直到问题解决。
+
+- `StateStore` 的 `claim_bar`/`complete_bar`/`release_bar` 租约让崩溃后的 bar 可以重新认领，并配合订单身份与对账减少重复提交风险；租约本身不是交易所侧的“恰好一次”保证。
+- 行情刷新失败会使健康检查拒绝新增风险，但 `_tick_once()` 仍尝试同步账户、恢复订单并维护已有仓位的保护措施。账户事实无法确认等更严重的失败可能提前结束本次 tick。
+- 未解决的 `UNKNOWN` 订单会阻止**新增风险**，并触发对账；已有仓位的风险动作、退出及保护单对账仍可继续，具体执行取决于当次账户、价格和风控事实是否可用。
 - 熔断状态通过事务性存储跨进程重启持久化（刻意不信任人类可读的 JSON 状态文件）。
 - `_last_account_sync_at`/`_last_order_sync_at` 会喂给 `DataHealthMonitor`，健康检查不通过可强制进入 `RISK_HALTED`。
 
@@ -28,6 +33,6 @@
 
 ## 与其他模块的关系
 
-`live_trading/engine.py` 和 `backtest/engine.py` 是**同一套抽象上的两个平行调度器**，而不是各自独立的实现：两者都把全部交易决策逻辑委托给 `core.runtime.EventProcessor`，用同一套协作者（`Portfolio`、`RuntimeExecutionAdapter`、`RiskManager`、状态机、`Router`，经 `composition.factory` 构建）。实盘引擎额外承担了回测引擎完全没有的持久性关切：轮询/休眠循环、`StateStore` 租约、健康监控、告警、原子状态导出、订单恢复/对账。两种模式各自提供一对满足相同协议的适配器：`LiveMarketDataAdapter`/`RecordedExecutionAdapter`（实盘）对应 `HistoricalMarketDataAdapter`/`SimulatedExecutionAdapter`（回测）——正是这种对称性让 `Router` 和 `Strategy.on_bar` 可以做到与模式无关。
+`live_trading/engine.py` 和 `backtest/engine.py` 共用 `EventProcessor`、路由与策略接口，但各自编排执行顺序和风险动作。实盘引擎还负责轮询、`StateStore` 租约、健康检查、账户与保护单对账、状态导出及订单恢复。实盘使用 `LiveMarketDataAdapter`/`RecordedExecutionAdapter`，回测使用 `HistoricalMarketDataAdapter`/`SimulatedExecutionAdapter`；两种模式均需提供共享决策链路所要求的数据与执行接口。
 
 `run_live.py`（仓库根目录）是驱动这个引擎的 CLI 入口，最终产出的 `reports/live_status.json`/`reports/live_alerts.jsonl` 被 `dashboard/__main__.py` 消费。

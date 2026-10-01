@@ -4,6 +4,8 @@
 
 当前策略仍为 **paused_revalidation**。本记录不改变费率、风险门槛、冻结研究的 fail 结论或人工锁定。工程验证、策略有效性和实际运行分别留痕。
 
+证据适用范围：下文测试和自动化结论属于 2026-09-20 对特定源码与配置身份取得的历史结果，不自动覆盖后续提交。`reports/roadmap_v3/…` 与 `outputs/automation/…` 是本地受限回执，不随公开源码发布；干净检出可读本页摘要，复核具体 JSON/JUnit 仍需取得当时封存的原始文件。
+
 ## 1. 本次工程范围
 
 | 工作包 | 本次补齐 | 完整任务保留的边界 |
@@ -19,15 +21,15 @@
 
 ## 2. 验证与证据
 
-本次证据目录：`reports/roadmap_v3/followup/20260920-implementation/`，[最终验收汇总](../reports/roadmap_v3/followup/20260920-implementation/acceptance-final.json)索引当前源码身份、测试、质量检查、固定输入复现、调度和工作包回执。干净隔离提交的全量结果为 **2237 passed、46 subtests passed、1 skipped、0失败**，覆盖率 **89.40%**；唯一跳过项需要真实sandbox凭据，未当作通过。环境、依赖锁、Ruff、历史档案保护、任务结构、mypy及合成full报告/完整重放全部通过，见[质量回执](../reports/roadmap_v3/followup/20260920-implementation/final-quality.json)与[JUnit](../reports/roadmap_v3/followup/20260920-implementation/final-tests.xml)。
+本次证据目录：`reports/roadmap_v3/followup/20260920-implementation/`，最终验收汇总（仅本地证据：`../reports/roadmap_v3/followup/20260920-implementation/acceptance-final.json`）索引当前源码身份、测试、质量检查、固定输入复现、调度和工作包回执。干净隔离提交的全量结果为 **2237 passed、46 subtests passed、1 skipped、0失败**，覆盖率 **89.40%**；唯一跳过项需要真实sandbox凭据，未当作通过。环境、依赖锁、Ruff、历史档案保护、任务结构、mypy及合成full报告/完整重放全部通过，见质量回执（仅本地证据：`../reports/roadmap_v3/followup/20260920-implementation/final-quality.json`）与JUnit（仅本地证据：`../reports/roadmap_v3/followup/20260920-implementation/final-tests.xml`）。
 
-最终源码三进程复现通过。v4指标基线迁移保留旧v3原文件，17个叶路径变化均为新增指标、版本与缺事实原因文本；固定输入下交易、权益、基准和原六项指标一致，20条业务事件相同，见[迁移差异](../reports/roadmap_v3/followup/20260920-implementation/baseline-v4-diff.json)。
+最终源码三进程复现通过。v4指标基线迁移保留旧v3原文件，17个叶路径变化均为新增指标、版本与缺事实原因文本；固定输入下交易、权益、基准和原六项指标一致，20条业务事件相同，见迁移差异（仅本地证据：`../reports/roadmap_v3/followup/20260920-implementation/baseline-v4-diff.json`）。
 
-历史验收契约的字节身份继续保留。SYS-01原验收引用的开发详情已逐字节归档到 [修改前开发详情](archive/2026-09-followup/development_details.before-followup.md)，其原摘要不变。当前详情允许加入新任务，历史回执仍绑定原版本。本次新增源码重新冻结，不把旧源码回执描述为当前代码验证。
+历史验收契约的字节身份继续保留。SYS-01原验收引用的开发详情已逐字节归档到 修改前开发详情（仅本地证据：`archive/2026-09-followup/development_details.before-followup.md`），其原摘要不变。当前详情允许加入新任务，历史回执仍绑定原版本。本次新增源码重新冻结，不把旧源码回执描述为当前代码验证。
 
-最终候选登记为 [followup-successor-03](../reports/roadmap_v3/SYS-11/20260920-followup-successor-03/acceptance.json)，源码摘要为 `1ed2cf91117b5de1817fe88e5b46aa19cf2acb754a2ba75412c7c2aa63085211`；前两次候选及其失败/成功回执仍保留，不混用身份。参数文件原始摘要仍为 `49665830ead75ec74f6ef736f3f8b1ee7fdb3122ba9f334cda9d944b26decb4e`。灰度修复的新版证据格式与迁移方式见[Phase6操作说明](phase6_operations.md)。
+最终候选登记为 followup-successor-03（仅本地证据：`../reports/roadmap_v3/SYS-11/20260920-followup-successor-03/acceptance.json`），源码摘要为 `1ed2cf91117b5de1817fe88e5b46aa19cf2acb754a2ba75412c7c2aa63085211`；前两次候选及其失败/成功回执仍保留，不混用身份。参数文件原始摘要仍为 `49665830ead75ec74f6ef736f3f8b1ee7fdb3122ba9f334cda9d944b26decb4e`。灰度修复的新版证据格式与迁移方式见[Phase6操作说明](phase6_operations.md)。
 
-[最终真实自动化批次](../reports/roadmap_v3/followup/20260920-implementation/final-automation-summary.json)已完成，395个受控文件的逐文件身份在命令前后、运行和研究快照中均与最终冻结版本一致：
+最终真实自动化批次（仅本地证据：`../reports/roadmap_v3/followup/20260920-implementation/final-automation-summary.json`）已完成，395个受控文件的逐文件身份在命令前后、运行和研究快照中均与最终冻结版本一致：
 
 | 验证 | 结果与实际边界 |
 | --- | --- |

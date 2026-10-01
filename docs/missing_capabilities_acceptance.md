@@ -6,11 +6,11 @@
 | --- | --- |
 | M-01 | `tests/test_backtest_regression.py` 固定 fixtures、结构化事实包及连续运行一致性。 |
 | M-02 | `core/metric_result.py` 提供 `MetricResult`、明确状态和 JSON Schema，区分零值与不可计算。 |
-| M-03 | `research/audit/ledger.py` 的权威账本保存可重建 fill、费用、现金、仓位和已实现 PnL。 |
+| M-03 | `research/audit/ledger.py` 提供离线研究与对账的可重建 fill、费用、现金、仓位和已实现 PnL 投影；它不接管实盘或回测的账户持仓事实。 |
 | M-04 | `core/broker/cost_model.py` 统一成本语义；缺失的资金/借券成本显式标为 `not_modeled`。 |
 | M-05 | `PortfolioProjection.reconcile` 和现金充足性检查覆盖组合级对账。 |
-| M-06 | `core/metrics.py` 提供回撤事件、交易质量、暴露、信号漏斗和成本敏感性。 |
-| M-07 | `core/metrics.py` 提供归因、基准、R-Multiple、MAE/MFE 和 SQN。 |
+| M-06 | `core/metrics/` 提供回撤事件、交易质量、暴露、信号漏斗和成本敏感性。 |
+| M-07 | `core/metrics/` 提供归因、基准、R-Multiple、MAE/MFE 和 SQN。 |
 | M-08 | `analysis/validation.py` 组合 OOS/walk-forward/Bootstrap/Monte Carlo/多重测试；`optimize.py --oos` 输出证据。 |
 | M-09 | `core/exchange/__init__.py` 统一 markets、精度、步长、最小数量/名义金额。 |
 | M-10 | `research/audit/reconciliation_job.py` 原子输出日终对账报告。 |

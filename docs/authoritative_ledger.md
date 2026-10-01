@@ -1,8 +1,16 @@
 # P1.2 Authoritative Ledger
 
+> **Current integration boundary:** `research/audit/ledger.py` is an offline
+> event replay and reconciliation research component. It is not wired into
+> live or backtest order processing. The class name `AuthoritativeLedger`
+> describes authority **within its persisted research event stream**; trading
+> account and position facts continue to come from `core/portfolio.py` and
+> `core/lots.py`. This document describes the component's contracts, not an
+> assertion of live accounting adoption or trading approval.
+
 ## Scope and invariants
 
-The authoritative state path is:
+The offline replay path is:
 
 ```text
 EventEnvelope -> SQLiteEventStore(sequence)
@@ -12,9 +20,10 @@ EventEnvelope -> SQLiteEventStore(sequence)
               -> PortfolioSnapshot
 ```
 
-The mutable legacy `Portfolio` remains available for existing engines, but it
-is not an audit source. A ledger-backed snapshot is rebuilt exclusively from
-persisted events.
+The trading engines continue to use mutable `Portfolio` and `LotBook` for
+runtime positions. They are not append-only audit logs. A snapshot produced by
+this research ledger is rebuilt from its own persisted events; it does not
+replace exchange account facts or the engines' runtime position state.
 
 Core invariants:
 
@@ -76,7 +85,7 @@ fees; fee totals are separately available for net attribution.
 - `PortfolioProjection.reconcile(...)`: compares exchange cash and positions,
   applies tolerances, and emits structured warning/critical discrepancies.
 
-## Minimal use
+## Minimal offline use
 
 ```python
 from datetime import datetime, timezone
@@ -93,7 +102,7 @@ ledger.record_cash(
     idempotency_key="opening-balance-v1",
 )
 
-# Canonical FillEvent envelopes from backtest/live adapters are passed to:
+# Recorded canonical FillEvent envelopes can be passed to:
 # ledger.record_fill(fill_envelope)
 
 snapshot = ledger.snapshot(fx_rates={"EUR/USD": "1.10"})

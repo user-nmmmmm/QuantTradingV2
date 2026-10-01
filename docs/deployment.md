@@ -9,7 +9,7 @@
 ## 1. 环境要求
 
 - **操作系统**：Windows 或 Linux。
-- **Python**：项目固定版本见根目录 `.python-version`，当前为 Python 3.13.2。
+- **Python**：根目录 `.python-version` 当前为 3.13.2；现有 CI 工作流使用 3.11。跨版本运行仍应执行完整检查。
 - **依赖安装**：优先使用锁定版本 `python -m pip install -r requirements.lock.txt`；`requirements.txt` 只保存直接依赖。
 - **隔离环境**：建议使用项目独立虚拟环境，不复用系统 Python 环境。
 
@@ -42,17 +42,14 @@ export EXCHANGE_SECRET="sandbox-secret"
 ## 3. 运行回测
 
 ```powershell
-# 默认交互模式
-python main.py
-
-# 固定随机种子
+# 固定随机种子；默认报告模式为 workbook
 python main.py --days 365 --capital 100000 --symbols BTC-USDT ETH-USDT --seed 42
 
-# 固定起止日期，提高跨日期可复现性
-python main.py --source synthetic --start 2019-01-01 --end 2020-12-31 --capital 10000 --symbols BTC-USDT ETH-USDT --seed 42
+# 固定起止日期，并生成可重放的完整审计包
+python main.py --source synthetic --start 2019-01-01 --end 2020-12-31 --capital 10000 --symbols BTC-USDT ETH-USDT --seed 42 --report-profile full
 ```
 
-回测输出写入 `reports/<timestamp>_.../`。当前执行、成本、数据和指标口径见 [`backtest_assumptions.md`](backtest_assumptions.md)；固定回归证据见 [`baselines/batch0_fixed_baseline.md`](baselines/batch0_fixed_baseline.md)。
+不带运行参数执行 `python main.py` 会显示用法并返回非零状态，不会进入交互模式。回测输出写入 `reports/<timestamp>_.../`；默认 `workbook` 模式不生成完整审计包或重放清单，需要精确重放时显式选择 `full`。当前执行、成本、数据和指标口径见 [`backtest_assumptions.md`](backtest_assumptions.md)；固定回归证据见 [`baselines/batch0_fixed_baseline.md`](baselines/batch0_fixed_baseline.md)。
 
 ## 4. 运行 sandbox
 

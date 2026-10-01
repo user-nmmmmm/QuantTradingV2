@@ -59,8 +59,10 @@ OOS / Walk-Forward / Bootstrap / Monte Carlo 稳健性检验）；实盘链路�
 
 ### 2.1 分层总览
 
-系统按「**边界 → 领域内核 → 治理/观测**」分层。**回测与实盘共享同一个领域内核**，
-模式差异被完全隔离在最外层的适配器里。
+系统共享 `EventProcessor` 的单根 bar 决策流程；历史与实时行情、模拟与交易所执行
+分别由适配器接入。回测和实盘仍各自承担调度、持久化、恢复与安全流程，部分具体适配器
+也位于 `core/`。后续工程边界的整理顺序见
+[`docs/engineering_structure_roadmap.md`](docs/engineering_structure_roadmap.md)。
 
 ```mermaid
 flowchart TB
@@ -79,7 +81,7 @@ flowchart TB
         DF["DataFetcher（core/data_fetcher.py）"]
     end
 
-    subgraph KERNEL["领域内核 Domain Core（模式无关）"]
+    subgraph KERNEL["共享决策内核 Shared Decision Core"]
         EP["EventProcessor（core/runtime.py）"]
         SM["MarketStateMachine（core/state.py）"]
         RT["Router + PortfolioSignalAllocator（router/, core/allocation.py）"]
@@ -97,7 +99,7 @@ flowchart TB
         MT["metrics / diagnostics / benchmarks"]
         EV["events/ · incident_journal"]
         HS["health / supervisor / alerting / telegram_heartbeat"]
-        RP["reproducibility / backtest_audit / reconciliation_job"]
+        RP["reproducibility / backtest_audit / account_reconciliation"]
         PH["allocation / research_validation / admission_gates / r7_acceptance / gray_release"]
     end
 
@@ -120,17 +122,18 @@ flowchart TB
     DB --> OBS
 ```
 
-### 2.2 端口与适配器：一套内核，两种模式
+### 2.2 共享决策流程与模式适配
 
-`core/runtime.py::EventProcessor` 是「从一根已收盘 bar 到一次路由决策」的**唯一实现**。
-模式差异只体现在两个端口的具体实现上：
+`core/runtime.py::EventProcessor` 统一处理已收盘 bar 的持仓管理、候选收集和组合分配。
+两种模式使用下列适配器，但回测引擎与实盘引擎仍有各自的运行生命周期及风险事实处理。
+逐事件一致性仍需按[统一 Roadmap 的 R5 阶段](docs/unified_roadmap.md)验收：
 
 | 抽象端口 | 回测实现 | 实盘实现 |
 | --- | --- | --- |
 | 行情输入 `MarketDataAdapter` | `HistoricalMarketDataAdapter`（多标的时间轴对齐 + universe 过滤） | `LiveMarketDataAdapter`（轮询拉取，只交付已收盘 bar） |
 | 执行输出 `ExecutionPort` | `SimulatedExecutionAdapter` → `Broker` 撮合 | `RecordedExecutionAdapter` → `SafeLiveBroker` → CCXT |
 | 驱动方式 | `BacktestEngine.run()` 一次性遍历整段历史 | `LiveTradingEngine.run()` 按 `--interval` 秒轮询 |
-| 状态持久化 | 进程内 + `run_manifest.json` 快照 | SQLite（`order_store` / `state_store_v2` / `risk/persistent_guard`）+ 备份 |
+| 运行状态与证据 | 进程内运行；`--report-profile full` 写 `run_manifest.json` 等复现证据 | SQLite（`order_store` / `state_store_v2` / `risk/persistent_guard`）+ 备份 |
 
 ```mermaid
 flowchart LR
@@ -159,38 +162,42 @@ flowchart LR
 
 ### 2.3 回测：单根 bar 的确定性处理时序
 
-`BacktestEngine.run()` 对每根 bar 严格按下列顺序推进；顺序本身就是防前视偏差与
-会计一致性的保证（信号在 bar *t* 生成，订单在 bar *t+1* 撮合）。
+`BacktestEngine.run()` 对每根 bar 按下列顺序推进；当前收盘信号生成的普通新单
+最早在 bar *t+1* 撮合，已有仓位的常驻保护止损则在当前 bar 按既定盘中路径检查。
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant MD as HistoricalMarketDataAdapter
+    participant BE as BacktestEngine
+    participant EX as SimulatedExecutionAdapter
+    participant PS as ResidentStopSimulator
+    participant BR as Broker
     participant EP as EventProcessor
-    participant SM as MarketStateMachine
     participant RT as Router
     participant AL as PortfolioSignalAllocator
     participant RK as RiskManager
-    participant BR as Broker
     participant PF as Portfolio
     participant AC as AccountingReconciler
 
-    MD->>EP: stream 交付 MarketDataSlice（多标的对齐后的一根 bar）
-    EP->>BR: on_market_data：先撮合上一根 bar 挂出的订单
-    EP->>PF: 用最新收盘价刷新 last_prices 与 equity
-    EP->>RK: 日切重置 + check_circuit_breaker（日内亏损）
+    MD->>BE: stream 交付 MarketDataSlice（对齐后的一根 bar）
+    BE->>EX: on_market_data(event)：处理上一根 bar 的普通挂单
+    EX->>BR: 撮合普通订单并计提适用的资金费用
+    BR->>PF: 成交和成本回写 Portfolio / LotBook
+    BE->>PS: step(event)：检查常驻保护止损
+    PS->>BR: 触发时执行保护性成交
+    BE->>BR: 必要时处理已公告退市标的的退出
+    BE->>EP: process(event, execute_market_event=False)
+    EP->>RK: 更新价格、日切与风控状态
     loop 每个有真实 bar 的标的
-        EP->>SM: get_state 判定 Regime
-        EP->>RT: collect_candidate 按 regime 路由到策略
-        RT->>RT: 冷却期 / 状态切换互斥 / 最长持有期时间退出
+        EP->>RT: 管理已有仓位并收集新开仓候选
     end
-    RT->>AL: 同一时间戳的候选按 score-strategy-symbol 稳定排序
-    AL->>RK: 逐个候选做杠杆 / 集中度 / 流动性校验并定量
-    AL->>BR: 通过者下单（在 bar t+1 成交）
-    BR->>PF: 成交回写 LotBook / Ledger / 保证金账本
-    EP->>PF: margin_snapshot：初始 / 维持 / 可用保证金
-    PF->>BR: 触发强平（维持保证金不足或回撤分级熔断）
-    EP->>AC: check_bar：equity == 初始资金 + 已实现 + 未实现
+    EP->>AL: 按同一时间戳统一分配候选
+    AL->>RK: 逐个做杠杆 / 集中度 / 流动性校验并定量
+    AL->>EX: 提交通过的订单（最早在 bar t+1 撮合）
+    BE->>PF: margin_snapshot：初始 / 维持 / 可用保证金
+    BE->>BR: 必要时执行保证金清算或回撤风险动作
+    BE->>AC: check_bar：按已实现、未实现和融资成本核对权益
 ```
 
 **回撤分级熔断**（`config/params.yaml` 的 `drawdown.*`，基于权益高水位，动作具粘性）：
@@ -205,23 +212,28 @@ sequenceDiagram
 
 ### 2.4 实盘：一次 tick 的生命周期
 
-`LiveTradingEngine._tick_once()` 是 **fail-closed** 的：任一阶段失败即导出状态、
-告警并跳过本轮交易，绝不"带伤下单"。
+`LiveTradingEngine._tick_once()` 按事实可信度限制新增风险。行情更新失败后，仍尝试账户
+同步、订单对账与现有持仓保护；账户事实不可用或对账抛错时会提前结束本轮。未解决的
+`UNKNOWN` 订单阻止新增风险，已有持仓的风险动作和保护单对账仍可继续，具体取决于当次
+账户、价格与风控事实。
 
 ```mermaid
 flowchart TD
     T0["tick 开始：重置 UNKNOWN 缓存 / 日内风控日切"] --> T1["拉取最新 K 线 _update_data"]
-    T1 -->|失败| X1["MARKET_DATA_UPDATE_FAILED：告警 + 导出状态 + 本轮结束"]
+    T1 -->|失败| X1["MARKET_DATA_UPDATE_FAILED：记录健康问题；禁新增风险"]
+    X1 --> T2
     T1 --> T2["broker.sync 同步账户与持仓"]
     T2 -->|失败| X2["ACCOUNT_SYNC_FAILED：禁用交易 + 告警"]
-    T2 --> T3["到期则跑独立订单对账 reconciliation_job"]
-    T3 -->|不一致或存在 UNKNOWN 订单| X3["ORDER_SYNC_FAILED：停止交易，等待 resolve_live_order.py 人工核实"]
-    T3 --> T4["EventProcessor：Regime → 路由 → 分配 → 风控"]
-    T4 --> T5["SafeLiveBroker 提交订单：幂等 clientOrderId + 重试 + 白名单校验"]
+    T2 --> T3["到期则执行订单与账户对账"]
+    T3 -->|对账失败| X3["ORDER_SYNC_FAILED：告警 + 本轮结束"]
+    T3 -->|UNKNOWN 订单| U["禁新增风险；继续核对保护单"]
+    T3 --> T4["持仓管理 → EventProcessor 候选 → 新增风险门禁"]
+    U --> T4
+    T4 -->|允许新增风险| T5["SafeLiveBroker 提交订单：幂等 clientOrderId + 重试 + 白名单校验"]
+    T4 -->|禁止新增风险| T7
     T5 --> T6["写事件与订单状态到 SQLite：order_store / state_store_v2"]
     T6 --> T7["健康评估 + 心跳：health / supervisor / telegram_heartbeat"]
     T7 --> T8["导出 reports/live_status.json（状态变更时或每 N tick）"]
-    X1 --> T8
     X2 --> T8
     X3 --> T8
     T8 --> T9["Dashboard 与告警 Webhook 只读消费"]
@@ -237,19 +249,17 @@ flowchart LR
         S3["ccxt（交易所 REST）"]
         S4["local（data/binance/tf/*.csv）"]
     end
-    FB["scripts/fetch_binance_data.py：分年抓取 + 增量 + _manifest.json"] --> S4
+    FB["scripts/fetch_binance_data.py：逐周期抓取 + 缓存清单"] --> S4
     S1 --> DF["DataFetcher：归一化 / 去重 / 时区 / 质量报告"]
     S2 --> DF
     S3 --> DF
     S4 --> DF
     DF --> ENG["BacktestEngine"]
-    ENG --> R1["equity.csv / trades.csv / report.txt"]
-    ENG --> R2["equity.png / 月度热力图 / 滚动指标 / PnL 分布"]
-    ENG --> R3["routing_log.csv / event_log.jsonl"]
-    ENG --> R4["margin_ledger.csv / financing_ledger.csv / execution_audit.csv / breaker_audit.csv"]
-    ENG --> R5["run_manifest.json：代码 / 配置 / 数据 / 执行身份指纹"]
-    ENG --> R6["benchmark_fixed.csv / benchmark_dynamic.csv / benchmark_weights.csv"]
-    R1 --> MX["scripts/run_backtest_matrix.py：多币种 × 多周期 × 多窗口汇总"]
+    ENG --> W["默认 workbook：backtest_report.xlsx"]
+    ENG --> C["compact：report.pdf / dashboard.png / 核心 CSV"]
+    ENG --> F["full：报告 + 图表 + 账本 / 事件 / 基准审计"]
+    F --> R5["run_manifest.json：代码 / 配置 / 数据 / 执行身份指纹"]
+    F --> MX["scripts/run_backtest_matrix.py：多币种 × 多周期 × 多窗口汇总"]
     MX --> OUT["outputs/backtest_matrix/ts/summary.csv 与 summary.md"]
     R5 --> RPL["main.py --replay-manifest：确定性复现校验"]
 ```
@@ -258,7 +268,7 @@ flowchart LR
 
 ```text
 QuantTradingV1/
-├── main.py                     # 回测入口：参数 → 取数 → 引擎 → 报告 → manifest
+├── main.py                     # 回测入口：参数 → 取数 → 引擎 → 按 profile 生成报告
 ├── run_live.py                 # 实盘入口：预检 → 轮询主循环
 ├── resolve_live_order.py       # UNKNOWN 实盘订单的人工核实/恢复（写审计账本）
 │
@@ -289,7 +299,7 @@ QuantTradingV1/
 │   ├── portfolio.py                  # 组合、权益、敞口、保证金快照
 │   ├── accounts.py                   # spot / spot_margin / perpetual 显式账户契约
 │   ├── lots.py                       # FIFO 批次账本（lot_id / position_id / MAE-MFE）
-│   ├── valuation.py                  # 组合估值快照（权威账本见 research/audit/ledger.py）
+│   ├── valuation.py                  # 从交易账户状态构建组合估值快照
 │   ├── accounting_check.py           # 逐 bar 会计恒等式核对（Gate G2）
 │   │
 │   ├── ── 执行 ──
@@ -308,7 +318,7 @@ QuantTradingV1/
 │   │   ├── account_sync.py           #   余额/持仓同步
 │   │   ├── safe.py                   #   幂等/限额/白名单包装层
 │   │   └── retry.py                  #   交易所操作的有界重试
-│   ├── exchange/                     # 交易所元数据/精度/衍生品能力的唯一边界
+│   ├── exchange/                     # 订单与市场规格的规范化边界
 │   │   ├── __init__.py               #   ExchangeBoundary 门面
 │   │   ├── metadata.py               #   能力探测、市场规格、元数据加载
 │   │   ├── validation.py             #   下单前校验
@@ -337,18 +347,17 @@ QuantTradingV1/
 │   │   ├── codec.py                  #   严格 JSON 编解码与 canonical_json
 │   │   ├── ids.py                    #   确定性 UUID5 事件/关联/因果 ID
 │   │   └── store.py                  #   SQLite 事件持久化与回放
-│   ├── event_processor.py            # 事件消费管线
 │   ├── backtest_audit.py             # 强制事件日志与第二数据源校验
 │   ├── reproducibility.py            # run_manifest：代码/配置/数据指纹
 │   ├── health.py / supervisor.py     # 健康评估与进程守护
 │   ├── alerting.py / telegram_heartbeat.py / incident_journal.py
-│   ├── reconciliation_job.py         # 周期性订单与持仓对账
+│   ├── account_reconciliation.py     # 独立账户事实的只读对账
 │   ├── sqlite_backup.py / sqlite_utils.py / state_store_v2.py
 │   ├── startup_preflight.py          # 启动前自检报告
 │   ├── live_safety.py                # 凭据/交易所/标的/账户类型白名单
 │   ├── gray_release.py               # R8 灰度放量限额
 │   ├── r7_acceptance.py              # R7 验收证据校验
-│   ├── phase6.py                     # Phase 6 影子/纸面/准入门槛（fail-closed CLI）
+│   ├── admission_gates.py            # Phase 6 影子/纸面/准入门槛（fail-closed CLI）
 │   └── logger.py
 │
 ├── strategies/                 # 策略插件
@@ -388,11 +397,13 @@ QuantTradingV1/
 ├── dashboard/                  # 只读运维 CLI（消费 live_status.json，不控制交易）
 ├── scripts/                    # 数据抓取、批量矩阵、阶段证据、环境与依赖校验
 ├── research/replay.py          # 事件回放研究脚本
+├── research/audit/ledger.py    # 离线事件账本研究；不接入交易账户路径
+├── research/audit/reconciliation_job.py # 离线日终对账与证据报告
 ├── data/binance/<tf>/          # 本地行情缓存（--source local 读取）
 ├── outputs/                    # 批量实验与阶段性产物
 ├── reports/                    # 回测/实盘运行产物（按时间戳分目录）
 ├── docs/                       # 权威文档（见文档索引）
-└── tests/                      # 66 个 pytest 测试模块：基线回归、无前视、订单生命周期、各 Gate
+└── tests/                      # pytest 测试：基线回归、无前视、订单生命周期、各 Gate
 ```
 
 ---
@@ -414,8 +425,9 @@ QuantTradingV1/
   支持资金费、借币费、可借限制与标记价格强平。
 - **批次级账本**：每次开仓生成 `lot_id` / `position_id`，FIFO 追踪加减仓与部分成交，
   每笔平仓可精确定位其开仓批次，并记录 MAE / MFE。
-- **正确性护栏**：逐 bar 会计恒等式核对、`run_manifest.json` 可复现指纹、
-  `--replay-manifest` 确定性重跑校验、对头部盈亏交易的第二数据源独立核对。
+- **正确性护栏**：逐 bar 会计恒等式核对；使用 `--report-profile full` 时输出
+  `run_manifest.json` 复现指纹，并可通过 `--replay-manifest` 重跑校验；可选用第二数据源
+  独立核对头部盈亏交易。
 - **报告、归因与诊断**：绩效/交易质量/归因/稳健性指标，加上「结果可不可信」的诊断
   （盈亏集中度、退出归因、策略 close 钩子是否真的触发）。
 - **实盘轮询引擎**：fail-closed tick 流程、幂等下单、独立订单对账、健康评估与心跳、
@@ -487,8 +499,13 @@ python main.py --source local --data-dir data/binance/1d --timeframe 1d --symbol
 ### 4.3 下载行情与批量回测矩阵
 
 ```bash
-python scripts/fetch_binance_data.py --timeframes 1d 4h --symbols BTC/USDT ETH/USDT
+python scripts/fetch_binance_data.py --timeframe 1d --symbols BTC/USDT ETH/USDT
+python scripts/fetch_binance_data.py --timeframe 4h --symbols BTC/USDT ETH/USDT
 ```
+
+下载脚本每次只处理一个周期，并将结果写入 `data/binance/<timeframe>/`。
+当前仓库的 `1d` 缓存清单列出了 30 个 CSV，但它是可更新的下载清单；研究验收仍需固定
+实际输入的字节、来源和哈希。数据身份的后续工作见[工程结构优化路线图](docs/engineering_structure_roadmap.md)。
 
 ```bash
 python scripts/run_backtest_matrix.py --timeframes 1d --windows full
@@ -512,7 +529,8 @@ python run_live.py --exchange binance --symbols BTC/USDT ETH/USDT --interval 60 
 
 #### 恢复 UNKNOWN 状态的实盘订单
 
-若某笔订单停留在 `UNKNOWN`，**先停止交易并在交易所订单历史中独立核实该订单确实不存在**，再执行：
+若某笔订单停留在 `UNKNOWN`，系统会阻止新增风险并尽可能维护已有持仓的保护措施。
+执行以下人工恢复命令前，**先停止交易进程，并在交易所订单历史中独立核实该订单确实不存在**：
 
 ```bash
 python resolve_live_order.py CLIENT_ORDER_ID --order-store reports/live_orders.db --operator YOUR_ID --reason "verified absent at exchange" --confirm-not-submitted
@@ -560,7 +578,8 @@ python -m dashboard --status reports/live_status.json --alerts reports/live_aler
 | `--universe-file` | — | Point-in-time 成分表 CSV（`symbol,listed_at,delisted_at`） |
 | `--secondary-data-dir` | — | 头部盈亏交易第二数据源核对用的独立 CSV 目录 |
 | `--require-secondary-audit` | `False` | 第二数据源核对不通过时返回非零退出码 |
-| `--replay-manifest` | — | 重跑已有 `run_manifest.json` 并比对确定性输出 |
+| `--report-profile` | `workbook` | `workbook`：Excel；`compact`：PDF + 概览图 + 核心 CSV；`full`：完整报告与审计、复现文件 |
+| `--replay-manifest` | — | 重跑 `full` profile 生成的 `run_manifest.json` 并比对确定性输出 |
 | `--observe-signals` | `False` | P0 原始候选、上下文、固定周期结果、实际成交关联与 Ghost 诊断；不改变正式下单 |
 | `--signal-meta-layer` | `False` | P1 条件 EV、时间衰减、收缩与冻结滚动诊断；自动启用 P0，不改变正式下单 |
 | `--adaptive-signal-meta` | `False` | P2 因果分布聚类软状态、冻结历史预测与动态轴权重；自动启用 P1/P0，仅研究 |
@@ -587,7 +606,7 @@ python -m dashboard --status reports/live_status.json --alerts reports/live_aler
 
 | 脚本 | 用途 |
 | --- | --- |
-| `fetch_binance_data.py` | 分年抓取并增量缓存币安行情，写 `_manifest.json`（SHA-256 / 行数 / 时间范围） |
+| `fetch_binance_data.py` | 按单个 `--timeframe` 分年抓取并增量缓存币安行情，写 `_manifest.json`（SHA-256 / 行数 / 时间范围） |
 | `run_backtest_matrix.py` | 多币种 × 多周期 × 多时间窗批量回测，汇总核心指标 |
 | `run_phase3_capacity.py` | 生成资金容量曲线验证报告 |
 | `run_phase4_analysis.py` | 生成 Phase 4 路由/持有期/归因证据包 |
@@ -651,14 +670,22 @@ Phase 6 准入证据的 fail-closed 评估由 `python -m core.admission_gates` �
 
 ## 7. 输出与报告
 
-每次回测在 `reports/` 下生成独立的时间戳目录（命名规则见 `main.py`），典型包含：
+每次回测在 `reports/` 下生成独立的时间戳目录（命名规则见 `main.py`）。
+输出取决于 `--report-profile`：默认 `workbook` 生成 `backtest_report.xlsx`，并保留
+`metrics.json` 等计算结果；`compact` 生成 `report.pdf`、`dashboard.png` 与核心 CSV。
+下表是显式使用 `--report-profile full` 时的完整审计文件，不代表默认运行产物：
+
+```bash
+python main.py --source synthetic --days 365 --seed 42 --report-profile full
+```
 
 | 分类 | 文件 | 说明 |
 | --- | --- | --- |
-| 核心 | `report.txt` | 完整指标 + 回测元信息（控制台只打印主指标，此文件是唯一完整出口） |
+| 核心 | `report.txt` | 完整指标 + 回测元信息（控制台只打印主指标） |
 | | `equity.csv` | 权益曲线（`timestamp, equity, cash`） |
-| | `trades.csv` | 逐笔成交（手续费、滑点、`strategy_id`、`exit_reason`） |
-| 图表 | `equity.png` | 净值 / 回撤 / 收益 / 资金占用四联图 |
+| | `trades.csv` | 有成交记录时的逐笔成交（手续费、滑点、`strategy_id`、`exit_reason`） |
+| 图表 | `report.pdf` / `dashboard.png` | 可直接阅读的报告与概览图 |
+| | `equity.png` | 净值 / 回撤 / 收益 / 资金占用四联图 |
 | | `monthly_returns_heatmap.png` / `rolling_metrics.png` / `pnl_distribution.png` | 扩展分析图 |
 | 基准 | `benchmark_fixed.csv` / `benchmark_dynamic.csv` / `benchmark_weights.csv` / `benchmark_turnover_cost.csv` / `benchmark_metadata.json` | 可审计的固定与动态等权基准 |
 | 过程 | `routing_log.csv` | 每根 bar 的 regime 与路由策略 |
@@ -668,6 +695,9 @@ Phase 6 准入证据的 fail-closed 评估由 `python -m core.admission_gates` �
 | 质量 | `data_quality_report.json` | 缺失、重复、gap、spike 等数据质量 |
 | | `top_trade_market_data_audit.json` | 头部盈亏交易的第二数据源核对 |
 | 复现 | `run_manifest.json` | 代码 / 配置 / 数据 / 执行身份指纹，配合 `--replay-manifest` 校验 |
+
+`research/audit/ledger.py` 的事件账本仅用于离线审计研究；当前交易路径的本地组合与批次
+账本使用 `core/portfolio.py`、`core/lots.py`，实盘仍须与交易所账户事实对账。
 
 实盘侧产物：`reports/live_status.json`（状态快照）、`reports/live_alerts.jsonl`（告警）、
 `reports/live_orders.db`（订单状态机与审计账本）、`reports/startup_preflight.json`（启动自检）。
@@ -764,7 +794,7 @@ Phase 6 准入证据的 fail-closed 评估由 `python -m core.admission_gates` �
 python -m pytest -q
 ```
 
-`tests/` 共 66 个测试模块，覆盖固定基线回归（`test_backtest_regression.py`）、
+`tests/` 覆盖固定基线回归（`test_backtest_regression.py`）、
 无前视偏差（`test_no_lookahead.py`）、订单生命周期与实盘安全（`test_g1_*` / `test_g2_*`）、
 指标、执行端口与各阶段 Gate。
 
@@ -774,10 +804,12 @@ python -m pytest -q
 | --- | --- |
 | [`docs/README.md`](docs/README.md) | 文档入口、权威层级和历史归档说明 |
 | [`docs/modules/README.md`](docs/modules/README.md) | 逐包代码说明（模块职责、关键类、模块间关系） |
+| [`docs/engineering_structure_roadmap.md`](docs/engineering_structure_roadmap.md) | 基于当前主分支的工程结构优化顺序与验收条件 |
+| [`docs/architecture_review.md`](docs/architecture_review.md) | 研究账本边界、事件依赖方向与模块拆分说明 |
 | [`docs/unified_roadmap.md`](docs/unified_roadmap.md) | 唯一项目总路线图、R0–R8 与放行门槛 |
 | [`docs/development_plan.md`](docs/development_plan.md) | 当前开发批次、任务顺序和验收产物 |
 | [`docs/backtest_assumptions.md`](docs/backtest_assumptions.md) | 执行模型、费率/滑点、数据对齐与局限性 |
-| [`docs/authoritative_ledger.md`](docs/authoritative_ledger.md) | 权威账本与会计口径 |
+| [`docs/authoritative_ledger.md`](docs/authoritative_ledger.md) | 离线事件账本与会计口径 |
 | [`docs/p0_signal_observation.md`](docs/p0_signal_observation.md) | P0 信号观察契约、门控诊断、有限本金影子回放与验收 |
 | [`docs/p1_signal_meta_layer.md`](docs/p1_signal_meta_layer.md) | P1 条件 EV 账本、支持门槛、冻结滚动验证与复现证据 |
 | [`docs/p23_signal_meta_layer.md`](docs/p23_signal_meta_layer.md) | P2 软状态与动态归因、P3 影子账户、完整验收与论文差异 |
@@ -798,8 +830,8 @@ python -m pytest -q
 - **多标的无公共时间轴**：默认 `--alignment-mode union`，只路由当根 bar 真实存在的标的；
   改为 `intersection` 则要求所有标的都有 bar。日线或更慢周期会尝试按日历日期退化对齐
   （见 `backtest/engine.py`）。
-- **控制台中文乱码**：Windows 控制台代码页通常是 GBK，因此控制台只打印主指标，
-  完整中文报告写入 UTF-8 的 `report.txt`。
+- **控制台中文乱码**：Windows 控制台代码页通常是 GBK，因此控制台只打印主指标；
+  需要完整的 UTF-8 中文文本报告时使用 `--report-profile full`。
 
 ## 免责声明
 
