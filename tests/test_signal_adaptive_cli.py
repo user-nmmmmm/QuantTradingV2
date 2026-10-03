@@ -1,5 +1,6 @@
 """P2/P3 are separately identified research consumers of unchanged P0/P1."""
 from dataclasses import asdict
+from tests.synthetic_health_policy import synthetic_health_policy
 from datetime import datetime, timezone
 import json
 from pathlib import Path

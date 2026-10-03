@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
+from threading import RLock
+from time import perf_counter
 from typing import Dict, Iterable, List, Optional
 
 import numpy as np
 import pandas as pd
 
 from core.indicators import Indicators
+from core.data_fetcher import DataFetcher
 from core.runtime import MarketDataSlice
 from core.timeframes import closed_bars
 
@@ -268,7 +272,10 @@ class LiveMarketDataAdapter:
         close_grace_seconds: float = 2.0,
         exchange_id: Optional[str] = None,
         market_type: str = "spot",
+        max_workers: int = 1,
     ) -> None:
+        if isinstance(max_workers, bool) or not isinstance(max_workers, int) or not 1 <= max_workers <= 32:
+            raise ValueError("max_workers must be an integer between 1 and 32")
         self.symbols = list(symbols)
         self.fetcher = fetcher
         self.timeframe = timeframe
@@ -280,35 +287,68 @@ class LiveMarketDataAdapter:
         self._watermarks: Dict[str, pd.Timestamp] = {}
         self._last_fetched_latest: Dict[str, pd.Timestamp] = {}
         self.regressed_symbols: set[str] = set()
+        self.failed_symbols: Dict[str, str] = {}
+        self.max_workers = max_workers
+        self._executor: Optional[ThreadPoolExecutor] = None
+        self._refresh_lock = RLock()
+        # Strategies add columns to data_map. Never merge that derived view
+        # back into source data: overlapping provider rows would leave NaNs in
+        # the old state/channel columns and defeat their lazy recomputation.
+        self._raw_data_map: Dict[str, pd.DataFrame] = {}
+        self.refresh_metrics: Dict[str, object] = {}
+
+    def _fetch_symbol(self, symbol):
+        started = perf_counter()
+        try:
+            frame = normalize_market_frame(self.fetcher.fetch_ccxt(
+                symbol, timeframe=self.timeframe, limit=self.lookback,
+                **({"exchange_id": self.exchange_id} if self.exchange_id else {}),
+                **({"market_type": self.market_type} if self.market_type not in {"spot", "margin"} else {}),
+                **({"max_retries": 1} if isinstance(self.fetcher, DataFetcher) else {}),
+            ))
+            error = "empty_response" if frame.empty else None
+        except Exception as exc:
+            frame, error = pd.DataFrame(), type(exc).__name__
+        return symbol, frame, perf_counter() - started, error
+
+    def close(self) -> None:
+        with self._refresh_lock:
+            if self._executor is not None:
+                self._executor.shutdown(wait=True, cancel_futures=True)
+                self._executor = None
 
     def refresh(self) -> Dict[str, pd.DataFrame]:
+        with self._refresh_lock:
+            return self._refresh()
+
+    def _refresh(self) -> Dict[str, pd.DataFrame]:
+        started = perf_counter()
         self.regressed_symbols = set()
-        for symbol in self.symbols:
-            fetched = normalize_market_frame(
-                self.fetcher.fetch_ccxt(
-                    symbol, timeframe=self.timeframe, limit=self.lookback,
-                    **({"exchange_id": self.exchange_id} if self.exchange_id else {}),
-                    **({"market_type": self.market_type} if self.market_type not in {"spot", "margin"} else {}),
-                )
-            )
-            if fetched.empty:
+        self.failed_symbols = {}
+        if self.max_workers == 1:
+            results = [self._fetch_symbol(symbol) for symbol in self.symbols]
+        else:
+            if self._executor is None:
+                self._executor = ThreadPoolExecutor(
+                    max_workers=self.max_workers, thread_name_prefix="market-data")
+            # map preserves input order. Only network reads run in workers;
+            # commits and indicator updates remain on the calling thread.
+            results = list(self._executor.map(self._fetch_symbol, self.symbols))
+        fetched_at = perf_counter()
+        recomputed = reused = 0
+        for symbol, fetched, elapsed, error in results:
+            if error is not None:
+                self.failed_symbols[symbol] = error
                 continue
             fetched_latest = pd.Timestamp(fetched.index[-1])
             previous_latest = self._last_fetched_latest.get(symbol)
             if previous_latest is not None and fetched_latest < previous_latest:
                 self.regressed_symbols.add(symbol)
-            self._last_fetched_latest[symbol] = fetched_latest
-            current = self.data_map.get(symbol)
-            if current is not None and not current.empty:
-                current_index = current.index
-                if (
-                    not isinstance(current_index, pd.DatetimeIndex)
-                    or current_index.tz is not None
-                    or current_index.hasnans
-                    or not current_index.is_unique
-                    or not current_index.is_monotonic_increasing
-                ):
-                    current = normalize_market_frame(current)
+            self._last_fetched_latest[symbol] = max(fetched_latest, previous_latest or fetched_latest)
+            current = self._raw_data_map.get(symbol)
+            if current is None and symbol in self.data_map:
+                # Adopt externally primed source history without derived columns.
+                current = normalize_market_frame(self.data_map[symbol]).reindex(columns=fetched.columns)
             if current is None or current.empty:
                 combined = fetched.iloc[-self.lookback:].copy()
             else:
@@ -319,8 +359,25 @@ class LiveMarketDataAdapter:
                 if not combined.index.is_monotonic_increasing:
                     combined = combined.sort_index()
                 combined = combined.iloc[-self.lookback:].copy()
+            existing = self.data_map.get(symbol)
+            if (symbol in self._raw_data_map and current is not None and current.equals(combined)
+                    and existing is not None and set(combined.columns).issubset(existing.columns)
+                    and existing.loc[:, combined.columns].equals(combined)):
+                reused += 1
+                continue
+            self._raw_data_map[symbol] = combined.copy(deep=True)
             Indicators.calculate_all(combined)
             self.data_map[symbol] = combined
+            recomputed += 1
+        self.refresh_metrics = {
+            "workers": self.max_workers, "symbols": len(self.symbols),
+            "fetch_seconds": fetched_at - started,
+            "compute_seconds": perf_counter() - fetched_at,
+            "total_seconds": perf_counter() - started,
+            "recomputed_symbols": recomputed, "reused_symbols": reused,
+            "failed_symbols": dict(self.failed_symbols),
+            "symbol_fetch_seconds": {symbol: elapsed for symbol, _, elapsed, _ in results},
+        }
         return self.data_map
 
     def poll(self, now: datetime) -> list[MarketDataSlice]:
@@ -328,7 +385,7 @@ class LiveMarketDataAdapter:
         eligible: Dict[str, pd.DataFrame] = {}
         timeline = pd.DatetimeIndex([])
         for symbol, frame in self.data_map.items():
-            closed = closed_bars(frame, self.timeframe, now, self.close_grace_seconds)
+            closed = closed_bars(frame, self.timeframe, now, self.close_grace_seconds).copy()
             eligible[symbol] = closed
             watermark = self._watermarks.get(symbol)
             unseen = closed.index if watermark is None else closed.index[closed.index > watermark]

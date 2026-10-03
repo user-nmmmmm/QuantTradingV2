@@ -492,26 +492,28 @@ Windows 激活虚拟环境用 `.venv\Scripts\activate`，Linux / macOS 用 `sour
 无参数运行会打印用法并以非零状态退出（便于脚本化），不会阻塞在交互式输入上。
 
 ```bash
-python main.py --source synthetic --days 365 --capital 10000 --symbols BTC-USDT ETH-USDT --seed 42
+python main.py --source synthetic --days 365 --capital 10000 --symbols BTC-USDT ETH-USDT SOL-USDT --seed 42
 ```
 
 指定日期区间（优先级高于 `--days`）：
 
 ```bash
-python main.py --source synthetic --start 2019-01-01 --end 2020-12-31 --symbols BTC-USDT ETH-USDT --seed 42
+python main.py --source synthetic --start 2019-01-01 --end 2020-12-31 --symbols BTC-USDT ETH-USDT SOL-USDT --seed 42
 ```
 
-使用本地缓存的真实行情（先用 `scripts/fetch_binance_data.py` 下载）：
+回测默认标的是 BTC、ETH、SOL，与正式健康恢复至少三个不同标的的要求一致；固定 synthetic `weekly-smoke` 使用同一范围。显式传入两个标的仍会保留请求，并在正式健康规则不可达时拒绝启动。两标的研究需要单独登记有实验身份的研究政策。
+
+使用本地缓存的真实行情（先用 `scripts/fetch_binance_data.py` 下载并核验三个标的的数据）：
 
 ```bash
-python main.py --source local --data-dir data/binance/1d --timeframe 1d --symbols BTC-USDT ETH-USDT
+python main.py --source local --data-dir data/binance/1d --timeframe 1d --symbols BTC-USDT ETH-USDT SOL-USDT
 ```
 
 ### 4.3 下载行情与批量回测矩阵
 
 ```bash
-python scripts/fetch_binance_data.py --timeframe 1d --symbols BTC/USDT ETH/USDT
-python scripts/fetch_binance_data.py --timeframe 4h --symbols BTC/USDT ETH/USDT
+python scripts/fetch_binance_data.py --timeframe 1d --symbols BTC/USDT ETH/USDT SOL/USDT
+python scripts/fetch_binance_data.py --timeframe 4h --symbols BTC/USDT ETH/USDT SOL/USDT
 ```
 
 下载脚本每次只处理一个周期，并将结果写入 `data/binance/<timeframe>/`。
@@ -520,7 +522,7 @@ python scripts/fetch_binance_data.py --timeframe 4h --symbols BTC/USDT ETH/USDT
 被当前清单逐文件记录。研究或验收应为实际使用的数据另存完整来源和哈希。
 
 ```bash
-python scripts/run_backtest_matrix.py --timeframes 1d --windows full
+python scripts/run_backtest_matrix.py --symbols BTC/USDT ETH/USDT SOL/USDT --timeframes 1d --windows full
 ```
 
 汇总结果写入 `outputs/backtest_matrix/<时间戳>/summary.csv` 与 `summary.md`。
@@ -572,7 +574,7 @@ python -m dashboard --status reports/live_status.json --alerts reports/live_aler
 | :--- | :--- | :--- |
 | `--source` | `synthetic` | 数据源：`synthetic` / `yahoo` / `ccxt` / `local` |
 | `--data-dir` | — | `--source local` 的 OHLCV CSV 目录（如 `data/binance/1d`） |
-| `--symbols` | `BTC-USDT ETH-USDT` | 标的列表；`ccxt` 支持 `BTC/USDT` 与 `BTC-USDT` |
+| `--symbols` | `BTC-USDT ETH-USDT SOL-USDT` | 标的列表；`ccxt` 支持 `BTC/USDT` 与 `BTC-USDT` |
 | `--days` | `365` | 从当前时间向前回测 N 天（未指定 start/end 时生效） |
 | `--start` / `--end` | — | 日期区间，优先级高于 `--days` |
 | `--capital` | `10000.0` | 初始资金（USDT） |

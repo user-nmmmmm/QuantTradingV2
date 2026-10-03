@@ -161,7 +161,7 @@ def run_one(name, root, all_frames, frozen, *, start=START, end=END, multiplier=
             save(folder / f"{key}.json", result[key])
         for key in ("financing_ledger", "execution_audit", "stop_order_audit", "allocation_audit", "breaker_audit",
                     "risk_budget_reconciliation", "correlated_risk_audit", "strategy_health_cohorts", "strategy_health_transitions",
-                    "drawdown_budget_audit", "entry_observations"):
+                    "drawdown_budget_audit", "entry_observations", "exit_lifecycle_audit"):
             pd.DataFrame(result.get(key, [])).to_csv(folder / f"{key}.csv", index=False)
         actual_trades, valuation_transfers = split_execution_records(result['trades'], mark_to_market=not forced)
         pd.DataFrame(result['trades']).to_csv(folder / 'engine_trades.csv', index=False)

@@ -76,12 +76,20 @@ class StateStore:
             )
             return True
 
-    def complete_bar(self, bar_key: str, now: str) -> None:
+    def complete_bar(self, bar_key: str, now: str, *, state_values=None) -> None:
+        encoded = [(key, json.dumps(value, default=str))
+                   for key, value in (state_values or {}).items()]
         with self._lock, self._connection:
-            self._connection.execute(
+            updated = self._connection.execute(
                 "UPDATE processed_bars SET processed_at=?, status='processed' WHERE bar_key=?",
                 (now, bar_key),
             )
+            if encoded:
+                if updated.rowcount != 1:
+                    raise ValueError("cannot checkpoint an unclaimed bar")
+                self._connection.executemany(
+                    "INSERT INTO state(key,value) VALUES(?,?) "
+                    "ON CONFLICT(key) DO UPDATE SET value=excluded.value", encoded)
 
     def release_bar(self, bar_key: str) -> None:
         with self._lock, self._connection:

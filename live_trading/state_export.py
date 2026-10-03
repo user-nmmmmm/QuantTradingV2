@@ -149,6 +149,13 @@ class StateExportMixin:
                     persistence_failed=getattr(self, "_account_reconciliation_persistence_failed", False)),
                 "consecutive_strategy_failures": self._consecutive_strategy_failures,
                 "last_strategy_error": self._last_strategy_error,
+                "performance": {
+                    "last_tick_seconds": getattr(self, "_last_tick_seconds", None),
+                    "poll_interval_seconds": self.interval,
+                    "market_data": dict(self.market_data_adapter.refresh_metrics),
+                    "runtime_controls_enabled": bool(getattr(getattr(self, "runtime_controls", None), "policy", None)
+                        and self.runtime_controls.policy.enabled),
+                },
                 "health_reason_codes": (
                     self.health_assessment.reason_codes
                     if self.health_assessment else []

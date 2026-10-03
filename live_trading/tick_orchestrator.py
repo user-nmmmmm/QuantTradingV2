@@ -17,6 +17,7 @@ import pandas as pd
 from core.domain import OrderStatus
 from core.health import HealthReason
 from core.logger import get_logger
+from core.market_data_errors import MarketDataRefreshError
 from core.protective_orders import (
     ProtectiveAction,
     ProtectiveOrder,
@@ -31,10 +32,12 @@ from core.runtime import MarketDataSlice
 from core.risk.actions import plan_risk_action
 from core.timeframes import as_utc_timestamp, closed_bars, timeframe_delta
 from core.valuation import build_portfolio_snapshot
+from time import perf_counter
 from live_trading.risk_actions import PortfolioRiskActionsMixin
 from live_trading.recovery import (
     account_new_risk_gate, balance_sync_succeeded, supports_account_reconciliation,
 )
+from live_trading.catchup import runtime_checkpoint
 
 # Same logger name as live_trading.engine (logging.getLogger caches by name,
 # so this is the identical object) -- tests patch "live_trading.engine.logger"
@@ -58,11 +61,18 @@ class TickOrchestratorMixin(PortfolioRiskActionsMixin):
     _last_strategy_error: Optional[str]
 
     def _update_data(self):
+        controls = getattr(self, "runtime_controls", None)
+        if controls is not None and controls.policy.enabled:
+            controls.update_data(self)
+            return
         self.market_data_adapter.data_map = dict(self.data_map)
         self.data_map = self.market_data_adapter.refresh()
+        if self.market_data_adapter.failed_symbols:
+            raise MarketDataRefreshError(self.market_data_adapter.failed_symbols)
 
     def _tick(self) -> bool:
         '''Contain unexpected failures so one bad tick cannot kill the process.'''
+        started = perf_counter()
         try:
             self._tick_once()
         except Exception as exc:
@@ -96,6 +106,8 @@ class TickOrchestratorMixin(PortfolioRiskActionsMixin):
             except Exception:
                 logger.exception('Failed to export state after live tick crash')
             return False
+        finally:
+            self._last_tick_seconds = perf_counter() - started
         self._consecutive_tick_crashes = 0
         self._next_retry_delay = 0.0
         return True
@@ -106,6 +118,9 @@ class TickOrchestratorMixin(PortfolioRiskActionsMixin):
         now = self._now()
         state_store = self._ensure_state_store()
         self._reset_daily_risk_if_needed(now)
+        controls = getattr(self, "runtime_controls", None)
+        if controls is not None and controls.policy.enabled:
+            controls.protect_if_due(self)
         data_failure = None
         try:
             self._update_data()
@@ -119,6 +134,7 @@ class TickOrchestratorMixin(PortfolioRiskActionsMixin):
                 "operation": "update_data", "error": type(exc).__name__,
             })
             # Continue account/order recovery even when signal data is unavailable.
+        now = self._now()
         try:
             sync_result = self.broker.sync()
         except Exception as exc:
@@ -177,13 +193,17 @@ class TickOrchestratorMixin(PortfolioRiskActionsMixin):
             ))
             logger.critical("New risk blocked: unresolved unknown order; reconciling protection")
 
+        # Network reads may cross a close or UTC day boundary. Never classify
+        # closed bars or freshness using the tick's pre-fetch wall clock.
+        now = self._now()
+        self._reset_daily_risk_if_needed(now)
         prices: Dict[str, float] = {}
         price_times = {}
         closed_map: Dict[str, pd.DataFrame] = {}
         for symbol, data in self.data_map.items():
             eligible = closed_bars(data, self.timeframe, now, self.close_grace_seconds)
             if not eligible.empty:
-                closed_map[symbol] = eligible
+                closed_map[symbol] = eligible.copy()
                 prices[symbol] = float(eligible["close"].iloc[-1])
                 price_times[symbol] = as_utc_timestamp(eligible.index[-1]).to_pydatetime()
 
@@ -215,6 +235,9 @@ class TickOrchestratorMixin(PortfolioRiskActionsMixin):
                 self._maybe_export_state()
                 return
 
+        now = self._now()
+        self._reset_daily_risk_if_needed(now)
+        self._assess_health(now, *extra_health)
         try:
             self._snapshot = build_portfolio_snapshot(
                 self.broker.portfolio,
@@ -291,6 +314,10 @@ class TickOrchestratorMixin(PortfolioRiskActionsMixin):
             if frame is None or frame.empty:
                 continue
             timestamp = frame.index[-1]
+            if controls is not None and controls.policy.enabled:
+                timestamp = controls.prepare_bar(self, symbol, frame, state_store)
+                if timestamp is None:
+                    continue
             close_time = as_utc_timestamp(timestamp) + timeframe_delta(self.timeframe)
             bar_key = (
                 f"{getattr(self.broker, 'exchange_id', 'exchange')}|"
@@ -300,6 +327,8 @@ class TickOrchestratorMixin(PortfolioRiskActionsMixin):
             if not state_store.claim_bar(
                 bar_key, now.isoformat(), lease_seconds=self.bar_claim_lease_seconds
             ):
+                if controls is not None and controls.policy.enabled and state_store.status(bar_key) == "processed":
+                    controls.complete_bar(self, symbol, timestamp, state_store)
                 continue
             set_context = getattr(self.broker, "set_bar_context", None)
             if callable(set_context):
@@ -317,8 +346,9 @@ class TickOrchestratorMixin(PortfolioRiskActionsMixin):
                     allow_new_entries=not bool(breaker) and self._healthy and not data_failure
                         and account_gate["allows_new_risk"],
                 )
-                batch = batches.setdefault(close_time, {"candidates": [], "keys": []})
+                batch = batches.setdefault(close_time, {"candidates": [], "keys": [], "cursors": {}})
                 batch["keys"].append(bar_key)
+                batch["cursors"][bar_key] = (symbol, timestamp)
                 if candidate is not None and account_gate["allows_new_risk"]:
                     batch["candidates"].append(candidate)
                 if self._has_unresolved_unknown(refresh=True):
@@ -356,16 +386,25 @@ class TickOrchestratorMixin(PortfolioRiskActionsMixin):
                     if self._has_unresolved_unknown(refresh=True):
                         state_store.release_bar(key)
                     else:
-                        state_store.complete_bar(key, now.isoformat())
+                        if controls is not None and controls.policy.enabled:
+                            symbol, timestamp = batch["cursors"][key]
+                            state_store.complete_bar(key, now.isoformat(), state_values={
+                                **runtime_checkpoint(self),
+                                f"catchup_cursor:{symbol}:{self.timeframe}": timestamp.isoformat()})
+                        else:
+                            state_store.complete_bar(key, now.isoformat())
             except Exception as exc:
                 for key in batch["keys"]:
                     state_store.release_bar(key)
                 strategy_failures.append(("allocation_batch", type(exc).__name__))
+        runtime_states = {"router_runtime": self.router.checkpoint()}
         for strategy in self.strategies.values():
-            state_store.set(f"strategy_runtime:{strategy.name}", {
+            runtime_states[f"strategy_runtime:{strategy.name}"] = {
                 "context": strategy.context,
                 "consumed_close_event_ids": sorted(strategy._consumed_close_event_ids),
-            })
+                "trade_state": getattr(strategy, "trade_state", None),
+            }
+        state_store.set_many(runtime_states)
 
         if strategy_failures:
             self._consecutive_strategy_failures += len(strategy_failures)

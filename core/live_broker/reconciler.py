@@ -5,6 +5,7 @@ core/live_broker_submission.py's module docstring for why this is a mixin
 rather than a standalone collaborator object.
 """
 from __future__ import annotations
+from core.order_latency import record_order_call
 
 from datetime import datetime, timezone
 from dataclasses import dataclass
@@ -64,7 +65,8 @@ class OrderReconcilerMixin:
 
         previous_status = OrderStatus(record["status"])
         try:
-            payload = self._retry_exchange_call(lambda: self._fetch_exchange_order(record))
+            payload = self._retry_exchange_call(lambda: record_order_call(
+                self, "reconcile", self._fetch_exchange_order, record))
         except Exception as exc:
             code = classify_order_exception(exc)
             current = OrderStatus(record["status"])

@@ -9,6 +9,7 @@ from core.state import MarketState
 from strategies.base import Strategy
 from core.allocation import EntryCandidate, PortfolioSignalAllocator
 from core.entry_audit import note
+from core.timeframes import observed_bars_after, as_utc_timestamp
 
 
 class Router:
@@ -31,6 +32,8 @@ class Router:
         self.log_flush_every = log_flush_every
         self.symbol_states: Dict[str, MarketState] = {}
         self.cooldowns: Dict[str, int] = {}
+        self._cooldown_started_at: Dict[str, Any] = {}
+        self._cooldown_progress: Dict[str, tuple[Any, int]] = {}
         self.log_buffer = []
         self._log_header_written = False
         self.max_holding_days = (
@@ -122,12 +125,23 @@ class Router:
             return None
 
         if symbol in self.cooldowns:
-            if i <= self.cooldowns[symbol]:
+            started = self._cooldown_started_at.get(symbol)
+            if started is not None:
+                last, elapsed = self._cooldown_progress.get(symbol, (started, 0))
+                if as_utc_timestamp(current_time) > as_utc_timestamp(last):
+                    elapsed += observed_bars_after(df, i, last)
+                    self._cooldown_progress[symbol] = (current_time, elapsed)
+                cooling = elapsed <= self.cooldown_bars
+            else:
+                cooling = i <= self.cooldowns[symbol]
+            if cooling:
                 note("router_cooldown")
                 self._log_routing(current_time, symbol, state.name, "COOLDOWN", 0.0,
                                   route_event="cooldown", strategy_changed=False)
                 return None
             del self.cooldowns[symbol]
+            self._cooldown_started_at.pop(symbol, None)
+            self._cooldown_progress.pop(symbol, None)
 
         last_state = self.symbol_states.get(symbol)
         previous_name = self._map_state_to_strategy(last_state)
@@ -139,6 +153,8 @@ class Router:
             # stop new risk.  It does not grant Router authority to close lots.
             broker.cancel_symbol_orders(symbol)
             self.cooldowns[symbol] = i + self.cooldown_bars
+            self._cooldown_started_at[symbol] = current_time
+            self._cooldown_progress[symbol] = (current_time, 0)
             self.symbol_states[symbol] = state
             self._log_routing(current_time, symbol, state.name, "SWITCH_COOLDOWN", 0.0,
                               route_event="stop_new_entries", strategy_changed=True)
@@ -159,6 +175,27 @@ class Router:
                           route_event="candidate", strategy_changed=False)
         note(strategy=strategy_name)
         return strategy.build_entry_candidate(symbol, i, df, state, portfolio)
+
+    def checkpoint(self) -> dict:
+        return {"schema": "router-runtime/v1",
+                "states": {symbol: state.name for symbol, state in self.symbol_states.items()
+                           if isinstance(state, MarketState)},
+                "cooldowns": dict(self.cooldowns),
+                "started_at": {symbol: pd.Timestamp(value).isoformat()
+                               for symbol, value in self._cooldown_started_at.items()},
+                "progress": {symbol: [pd.Timestamp(value[0]).isoformat(), value[1]]
+                             for symbol, value in self._cooldown_progress.items()}}
+
+    def restore_checkpoint(self, row: dict) -> None:
+        if row.get("schema") != "router-runtime/v1":
+            raise ValueError("unsupported router runtime checkpoint")
+        states = {symbol: MarketState[name] for symbol, name in row["states"].items()}
+        cooldowns = {symbol: int(value) for symbol, value in row["cooldowns"].items()}
+        started = {symbol: pd.Timestamp(value) for symbol, value in row["started_at"].items()}
+        progress = {symbol: (pd.Timestamp(value[0]), int(value[1]))
+                    for symbol, value in row["progress"].items()}
+        self.symbol_states, self.cooldowns = states, cooldowns
+        self._cooldown_started_at, self._cooldown_progress = started, progress
 
     @staticmethod
     def _opening_strategy_name(symbol: str, portfolio: Portfolio) -> Optional[str]:

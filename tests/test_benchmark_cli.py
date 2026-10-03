@@ -1,5 +1,6 @@
 """Contract checks for the reproducible, offline performance command."""
 import copy
+from tests.synthetic_health_policy import synthetic_health_policy
 import json
 
 import pytest

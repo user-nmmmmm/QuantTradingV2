@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any, Dict, Mapping, Optional, Protocol
+from dataclasses import asdict
 
 from core.risk import RiskManager
 from core.candidate_scoring import CandidateScorePolicy
@@ -92,10 +93,38 @@ def build_strategy_registry(
     if configuration is not None:
         health_policy = build_strategy_health_policy(configuration)
         stop_policy = build_protective_stop_policy(configuration)
+        research = configuration.get("research") or {}
+        health_overrides = research.get("strategy_health_overrides", {})
+        regime_controls = research.get("regime_controls", {})
+        eligible = research.get("strategy_eligible_symbols", {})
+        for controls in (health_overrides, regime_controls, eligible):
+            if not isinstance(controls, Mapping) or set(controls) - set(registry):
+                raise ValueError("Research strategy controls must name registered strategies")
+        if (health_overrides or regime_controls or eligible) and not str(research.get("experiment_id") or "").strip():
+            raise ValueError("Strategy research controls require research.experiment_id")
         for strategy in registry.values():
             configure_health = getattr(strategy, "configure_health_policy", None)
             if callable(configure_health):
-                configure_health(health_policy)
+                override = health_overrides.get(strategy.name, {})
+                if not isinstance(override, Mapping) or set(override) - set(StrategyHealthPolicy.__dataclass_fields__):
+                    raise ValueError("Unknown per-strategy health policy field")
+                configure_health(StrategyHealthPolicy.from_mapping({**asdict(health_policy), **override}))
+            controls = regime_controls.get(strategy.name, {})
+            if not isinstance(controls, Mapping) or set(controls) - {"entry_states", "exit_states", "exit_on_disallowed_state"}:
+                raise ValueError("Unknown regime control")
+            if controls:
+                # Capture the original exit domain before widening entry admission.
+                strategy.exit_allowed_states = set(strategy.allowed_states)
+                for key, attr in (("entry_states", "allowed_states"), ("exit_states", "exit_allowed_states")):
+                    if key in controls:
+                        states = controls[key]
+                        if not isinstance(states, (list, tuple)) or not states or set(states) - {s.name for s in MarketState}:
+                            raise ValueError("Regime states must name valid market states")
+                        setattr(strategy, attr, {MarketState[s] for s in states})
+                if "exit_on_disallowed_state" in controls:
+                    if type(controls["exit_on_disallowed_state"]) is not bool:
+                        raise ValueError("exit_on_disallowed_state must be boolean")
+                    strategy.exit_on_disallowed_state = controls["exit_on_disallowed_state"]
             configure_stops = getattr(strategy, "configure_stop_policy", None)
             if callable(configure_stops):
                 configure_stops(stop_policy)
@@ -152,6 +181,13 @@ def build_strategy_health_policy(
 
 
 def build_risk_manager(configuration: Configuration) -> RiskManager:
+    budget_policy = configuration.get("drawdown_budget") or {}
+    if (budget_policy.get("stop_basis", "original") != "original"
+            or not budget_policy.get("reduction_enabled", True)
+            or budget_policy.get("review_interval_bars", 1) != 1):
+        research = configuration.get("research") or {}
+        if not research.get("experiment_id") or not research.get("overlay_study"):
+            raise ValueError("Drawdown overlay alternatives require a registered research study")
     drawdown = configuration.get("drawdown") or {}
     manager = RiskManager(
         risk_per_trade=configuration.require("risk", "risk_per_trade"),
@@ -195,6 +231,11 @@ def build_router(
     allow_short: bool = True,
 ) -> Router:
     routing_config = dict(configuration.require("routing"))
+    for name, controls in (configuration.get("research") or {}).get("regime_controls", {}).items():
+        if "entry_states" in controls:
+            actual = {state for state, strategy in routing_config.items() if strategy == name}
+            if actual != set(controls["entry_states"]):
+                raise ValueError("Registered regime entry states must match explicit routing")
     # Preserve V2's explicit routing identity across normal regimes. Its
     # TREND_DOWN multiplier blocks new longs while owned positions retain exits.
     if not allow_short and routing_config.get("TREND_DOWN") != "TrendPortfolioV2":

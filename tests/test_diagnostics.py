@@ -4,6 +4,7 @@ Each test pins the defect the metric exists to expose, so a regression that
 re-hides one of them fails here rather than silently passing as "profitable".
 """
 import unittest
+from tests.synthetic_health_policy import synthetic_health_policy
 
 import pandas as pd
 

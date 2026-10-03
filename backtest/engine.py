@@ -4,6 +4,7 @@ from __future__ import annotations
 from core.entry_audit import forced_trade_cost
 from core.entry_risk import resolve_approved_risk
 from core.orders import TERMINAL_STATUSES
+from core.strategy_registration import register_health_policies
 from dataclasses import asdict, replace
 
 import os
@@ -253,7 +254,7 @@ class BacktestEngine:
         budget = getattr(risk_manager, 'drawdown_budget', None)
         drawdown_reducer = BacktestDrawdownReducer(budget) if budget is not None else None
         state_machine = build_state_machine(config)
-        strategies = strategies or build_strategy_registry(config)
+        strategies = build_strategy_registry(config) if strategies is None else strategies
         for strategy in strategies.values():
             reset = getattr(strategy, "reset_runtime_state", None)
             if callable(reset):
@@ -338,6 +339,9 @@ class BacktestEngine:
         if len(timestamps) == 0:
             return empty_result
 
+        register_health_policies(strategies, processed_data, config.get("routing"),
+                                 research=config.get("research"))
+
         execution = SimulatedExecutionAdapter(broker)
         # STR-P1-01: the backtest carries the same venue-resident protective
         # stop the live path carries, and fills it inside the bar on the
@@ -349,6 +353,8 @@ class BacktestEngine:
             enabled=bool(protective_config.get("backtest_resident", True)),
         )
         self.stop_simulator = stop_simulator
+        if budget is not None and stop_simulator.enabled:
+            budget.confirmed_stop_provider = stop_simulator._resident_orders
         observer = None
         if self.observation_policy.enabled:
             observer = SignalObserver(policy=self.observation_policy,
@@ -883,6 +889,8 @@ class BacktestEngine:
             "margin_ledger": [item.to_dict() for item in portfolio.margin_ledger],
             "financing_ledger": [item.to_dict() for item in portfolio.financing_ledger],
             "execution_audit": list(broker.execution_audit),
+            "exit_lifecycle_audit": [row for strategy in strategies.values()
+                                     for row in getattr(strategy, "exit_lifecycle_audit", [])],
             "breaker_audit": list(risk_manager.breaker_audit),
             "breaker_state": {
                 "recovery": risk_manager.breaker_checkpoint() if hasattr(risk_manager, "breaker_checkpoint") else None,

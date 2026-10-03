@@ -95,6 +95,11 @@ def get_data(
     timeframe: str = "1d",
     data_timezone: str = "UTC",
     data_dir: str | None = None,
+    market_type: str = "spot",
+    derivatives_contract_file: str | None = None,
+    derivatives_funding_file: str | None = None,
+    derivatives_observations_file: str | None = None,
+    derivatives_max_age: str = "24h",
 ) -> pd.DataFrame:
     """
     获取单标的数据（封装 DataFetcher 的多源实现）。
@@ -106,27 +111,65 @@ def get_data(
     - days：回测天数（ccxt 作为 limit 的近似）
     - data_dir：source=local 时的本地缓存目录（如 data/binance/1d）
     """
+    from core.derivatives_data import LinearContractSpec, load_derivatives_bundle, merge_derivative_features
+
+    market_type = "margin" if market_type == "spot_margin" else market_type
+    if market_type not in {"spot", "margin", "perpetual"}:
+        raise ValueError(f"unsupported market_type: {market_type}")
+    derivative_inputs = any((derivatives_contract_file, derivatives_funding_file, derivatives_observations_file))
+    if derivative_inputs and market_type != "perpetual":
+        raise ValueError("derivative inputs require market_type=perpetual")
+    spec = None
+    if market_type == "perpetual":
+        if not derivatives_contract_file:
+            raise ValueError("perpetual market data requires an explicit derivative contract file")
+        spec = LinearContractSpec.from_json(derivatives_contract_file)
+        spec.validate_request(symbol, exchange, market_type)
+        if spec.contract_multiplier != 1:
+            raise ValueError("bar engine uses base quantity; nonunit contract multipliers require explicit event replay")
+        if source not in {"local", "ccxt"}:
+            raise ValueError("perpetual OHLCV requires local or ccxt contract data")
+    if derivatives_observations_file and not derivatives_funding_file:
+        raise ValueError("derivative observations require an explicit funding file (missing costs cannot be assumed zero)")
     fetcher = DataFetcher(data_timezone=data_timezone)
 
     if source == "local":
         if not data_dir:
             raise ValueError("--source local requires --data-dir")
-        return _load_local_ohlcv(symbol, start, end, data_dir)
+        frame = _load_local_ohlcv(symbol, start, end, data_dir)
     elif source == "ccxt":
-        return fetcher.fetch_ccxt(
+        frame = fetcher.fetch_ccxt(
             symbol,
             timeframe=timeframe,
             limit=days,
             start_date=start,
             end_date=end,
             exchange_id=exchange,
+            market_type=market_type,
             strict=True,
         )
     elif source == "yahoo":
-        return fetcher.fetch_yahoo(symbol, start, end)
+        frame = fetcher.fetch_yahoo(symbol, start, end)
     else:
         # Synthetic / Scenario
-        return fetcher.generate_scenario(symbol, start, end)
+        frame = fetcher.generate_scenario(symbol, start, end)
+    if spec is not None:
+        frame.attrs.update(market_type=market_type, contract_spec=spec.__dict__, contract_spec_digest=spec.digest)
+        frame["derivative_contract_id"] = spec.contract_id
+        frame["derivative_contract_spec_digest"] = spec.digest
+        frame["funding_settlement_mode"] = "event_replay_required"
+        if derivatives_funding_file:
+            # These identity columns are recreated by the feature merger.
+            frame = frame.drop(columns=["derivative_contract_id", "derivative_contract_spec_digest"])
+            bundle = load_derivatives_bundle(derivatives_contract_file, derivatives_funding_file,
+                                             derivatives_observations_file)
+            frame = merge_derivative_features(frame, bundle, max_age=derivatives_max_age)
+        else:
+            frame.attrs["derivatives"] = {"quality": {"funding_status": "missing",
+                                                        "observation_status": "missing",
+                                                        "cost_mode": "explicit_position_event_replay_required"},
+                                           "provenance": {"contract_spec": spec.__dict__, "spec_digest": spec.digest}}
+    return frame
 
 
 def _safe_symbol_name(symbol: str) -> str:
@@ -151,7 +194,9 @@ def _load_secondary_data(directory: str, symbols) -> dict:
     return result
 
 
-def replay_manifest(manifest_path: str) -> int:
+def replay_manifest(
+    manifest_path: str, *, output_dir: str | None = None, report_profile: str = "full"
+) -> int:
     """Re-run a saved manifest and compare trades/equity/report payload exactly."""
 
     path = Path(manifest_path).resolve()
@@ -161,10 +206,18 @@ def replay_manifest(manifest_path: str) -> int:
     if manifest["config"]["sha256"] != sha256_file(config_path):
         print("Replay refused: current config hash differs from manifest.", file=sys.stderr)
         return 7
-    snapshots = load_data_snapshots(
-        path.parent / "data_inputs", manifest["data_snapshots"], verify=True
-    )
+    try:
+        snapshots = load_data_snapshots(
+            path.parent / "data_inputs", manifest["data_snapshots"], verify=True
+        )
+    except (OSError, KeyError, TypeError, ValueError) as exc:
+        if output_dir is None:
+            raise
+        print(f"Replay refused: {exc}", file=sys.stderr)
+        return 7
     execution = manifest["execution"]
+    output_path = None
+    comparison_identity = None
     # An old manifest must not inherit a subsequently enabled research model.
     meta_policy = execution.get("signal_meta_layer") or {"enabled": False}
     if meta_policy.get("enabled", False) and not execution.get("signal_meta_layer_digest"):
@@ -202,6 +255,16 @@ def replay_manifest(manifest_path: str) -> int:
         # Snapshot filenames/JSON keys are canonicalised alphabetically, but
         # the original event stream and audit lists preserve input order.
         snapshots = {symbol: snapshots[symbol] for symbol in symbol_order}
+    if output_dir is not None:
+        from backtest.replay_reporting import prepare_report_replay
+        try:
+            output_path, comparison_identity = prepare_report_replay(
+                path, manifest, snapshots, output_dir=output_dir,
+                repo_root=Path(__file__).resolve().parent, report_profile=report_profile,
+            )
+        except (OSError, KeyError, TypeError, ValueError) as exc:
+            print(f"Replay refused: {exc}", file=sys.stderr)
+            return 7
     seed = int(execution["seed"])
     np.random.seed(seed)
     random.seed(seed)
@@ -223,7 +286,14 @@ def replay_manifest(manifest_path: str) -> int:
         signal_adaptive=adaptive_policy.to_dict(),
         signal_meta_replay=meta_replay_policy.to_dict(),
     )
-    result = engine.run(snapshots, routing_log_enabled=False)
+    if output_path is None:
+        result = engine.run(snapshots, routing_log_enabled=False)
+    else:
+        routing_enabled = bool(execution.get("routing_log_enabled", False))
+        result = engine.run(
+            snapshots, routing_log_enabled=routing_enabled,
+            routing_log_path=str(output_path / "routing_log.csv") if routing_enabled else None,
+        )
     observed = deterministic_result_digest(result)
     expected = execution["result_digest"]
     research_expected = execution.get("signal_observation_digest")
@@ -259,6 +329,20 @@ def replay_manifest(manifest_path: str) -> int:
     for name, (expected_digest, observed_digest) in additional_research.items():
         report[f"{name}_expected"] = expected_digest
         report[f"{name}_observed"] = observed_digest
+    if output_path is not None:
+        from backtest.replay_reporting import write_replay_report
+        try:
+            write_replay_report(
+                output_path, baseline_path=path, baseline=manifest, snapshots=snapshots,
+                result=result, comparison=report, comparison_identity=comparison_identity,
+                repo_root=Path(__file__).resolve().parent,
+            )
+        except Exception as exc:
+            report["report_status"] = "failed"
+            report["artifact_failures"] = [str(exc)]
+            report["status"] = "failed"
+            write_json_report(output_path / "replay_comparison.json", report)
+            print(f"Replay report failed: {exc}", file=sys.stderr)
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0 if report["status"] == "passed" else 8
 
@@ -293,6 +377,8 @@ def _resolve_date_range(args) -> tuple[datetime, datetime]:
 def _load_requested_data(args, start_date: datetime, end_date: datetime):
     """Fetch, quality-annotate and apply the point-in-time universe."""
     data_map = {}
+    from config.config import config
+    requested_market_type = args.market_type or (config.get("account") or {}).get("mode", "spot")
     download_started_at = datetime.now(timezone.utc)
     for symbol in args.symbols:
         frame = get_data(
@@ -305,6 +391,11 @@ def _load_requested_data(args, start_date: datetime, end_date: datetime):
             timeframe=args.timeframe,
             data_timezone=args.data_timezone,
             data_dir=args.data_dir,
+            market_type=requested_market_type,
+            derivatives_contract_file=getattr(args, "derivatives_contract_file", None),
+            derivatives_funding_file=getattr(args, "derivatives_funding_file", None),
+            derivatives_observations_file=getattr(args, "derivatives_observations_file", None),
+            derivatives_max_age=getattr(args, "derivatives_max_age", "24h"),
         )
         if not frame.empty and len(frame) > 10:
             print(f"Loaded {symbol}: {len(frame)} bars")
@@ -381,7 +472,11 @@ def main(argv=None) -> int:
     args = parser.parse_args(cli_args)
 
     if args.replay_manifest:
-        return replay_manifest(args.replay_manifest)
+        if args.output_dir is None:
+            return replay_manifest(args.replay_manifest)
+        return replay_manifest(
+            args.replay_manifest, output_dir=args.output_dir, report_profile=args.report_profile
+        )
 
     if args.seed is not None:
         np.random.seed(args.seed)
@@ -423,6 +518,9 @@ def main(argv=None) -> int:
     print("Generating Data Quality Report...")
     # Store report in memory to save later in the specific backtest folder
     quality_report = DataHandler.generate_quality_report(data_map, output_path=None)
+    for symbol, frame in data_map.items():
+        if frame.attrs.get("derivatives"):
+            quality_report.setdefault(symbol, {})["derivatives"] = frame.attrs["derivatives"]
 
     engine, results, temp_routing_log = _execute_backtest(args, data_map)
 

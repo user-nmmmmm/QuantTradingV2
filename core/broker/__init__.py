@@ -134,6 +134,8 @@ class Broker(MatchingMixin, FillServiceMixin, FinancingMixin, LiquidationMixin):
         self.close_events: List[CloseEvent] = []
         self._close_event_sequence = 0
         self.pending_orders: List[Order] = []
+        # Terminal closing orders must remain queryable after leaving the book.
+        self.orders_by_id: Dict[str, Order] = {}
         # Retain cumulative opening fills and their immutable approvals even
         # after an order leaves the matching queues.
         self.opening_orders: Dict[str, Order] = {}

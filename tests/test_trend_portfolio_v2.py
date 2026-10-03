@@ -247,7 +247,8 @@ def test_inherited_exit_flow_checks_old_stop_before_raising_next_bar_trail():
     # Low 159.8 clears the old stop of 150 but breaches today's new 170 trail.
     frame.loc[frame.index[120], "high"] = 175.0
     strategy.context[SYMBOL] = {"stop_loss": 150.0, "entry_price": 152.0, "entry_bar": 115}
-    portfolio = SimpleNamespace(get_position=lambda symbol: {"qty": 1.0})
+    portfolio = Portfolio(100_000.)
+    portfolio.update_position(SYMBOL, 1., 152., stop_price=150., strategy_id=strategy.name)
     broker = SimpleNamespace(event_pipeline=None, submit_order=Mock(return_value=SimpleNamespace(accepted=True)))
     strategy._consume_execution_trades = Mock()
     assert strategy.process_exit_only(SYMBOL, 120, frame, MarketState.TREND_UP, portfolio, broker) is None

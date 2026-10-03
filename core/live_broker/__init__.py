@@ -103,6 +103,8 @@ class LiveBroker(SubmissionServiceMixin, OrderReconcilerMixin, AccountSyncMixin)
         self._bar_timeframe = "unknown"
         self._bar_time = "unknown"
         self.trades = []  # Compatibility projection only; OrderStore is authoritative.
+        from core.order_latency import OrderLatencyRecorder
+        self.order_latency = OrderLatencyRecorder()
         self.close_events = []
         self.projection_issues = []
         self.unowned_positions = {}
@@ -135,6 +137,8 @@ class LiveBroker(SubmissionServiceMixin, OrderReconcilerMixin, AccountSyncMixin)
             self.exchange.session.trust_env = True
         if sandbox:
             self.exchange.set_sandbox_mode(True)
+        from core.request_budget import install_exchange_budget
+        install_exchange_budget(self.exchange, exchange_id, priority="critical")
         self.exchange_boundary = exchange_boundary or ExchangeBoundary(
             ExchangeCapabilities.from_ccxt(self.exchange, exchange_id),
             MarketMetadataLoader(

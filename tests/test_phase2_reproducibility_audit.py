@@ -1,4 +1,5 @@
 from __future__ import annotations
+from tests.synthetic_health_policy import synthetic_health_policy
 
 from datetime import datetime, timezone
 
