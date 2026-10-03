@@ -1,0 +1,61 @@
+{
+  "schema": "paper-application-local-acceptance/v1",
+  "date": "2026-10-03",
+  "status": "local_engineering_and_first_research_complete_dependencies_open",
+  "scope": "32-paper application list, staged roadmap, local validation/data/labels/derivatives implementation and fixed retrospective BTC/ETH study",
+  "report": "paper_application_execution_20261003.md",
+  "study_directory": "../../reports/paper_applications_20261003_v3",
+  "registration_identity_sha256": "7b9a462d395780593f933cf90a414f57858a46dd1973e1207da26358e6e7e76c",
+  "artifacts_sha256": {
+    "registration.json": "dbb69ce5e4bafb7aff85051dd5e16c161d089f45d5c4b008f5f74ef15e018255",
+    "results.json": "98406eb7d951d0f73f6f783d2a5da1641768ca9567a6fed778768d4be7951928",
+    "candidate_returns.csv": "fa8f04f104219698201e3daf3fc0eb70d2c4f0d69ec481dcba3dce41638254cc",
+    "comparison.csv": "16c0674ac8abb327cf77c840810b0e0aa4b66485235a26b2d6435c51901bfe1b",
+    "statistics.json": "8f11981bea2e14eae4c3b727bf5707733b4b278bde8624206ae8ed2f56c72cd3",
+    "data_audit.json": "ec1e35d9050b34ca78b5c3a16d03bf8b1c36a896f22e5bdee814ec7d3106270e",
+    "label_cpcv.json": "08e7c1eb463fc963badfff0ed0d50739935829d2c049574cd06c947204482ba8",
+    "triple_barrier.json": "7c3e1011466d11e61fa22a62028b334b28d500dc7887005cf7828957b9fc32ed",
+    "factor_attribution.json": "8225d094c576e92cc94c307c673648d46e9f94246caa08d145c3716b7075ff2b"
+  },
+  "verification": {
+    "pytest_passed": 318,
+    "subtests_passed": 4,
+    "offline_only": true,
+    "completed_economic_and_diagnostic_runs": 43,
+    "common_panel_rows": 2088,
+    "accounting_all_runs_passed": true,
+    "source_config_end_check_passed": true,
+    "frozen_source_files_verified": 265,
+    "input_byte_hashes_end_check_passed": true,
+    "ruff_checks_passed": true,
+    "markdown_local_links_checked": 66,
+    "missing_markdown_local_links": 0,
+    "git_diff_check_passed": true
+  },
+  "research_outcomes": {
+    "promoted_candidates": [],
+    "pbo_local_family": 0.45714285714285713,
+    "reality_check_p_values_blocks_5_20_60": [1.0, 1.0, 1.0],
+    "global_dsr_probability": null,
+    "p1": {"allow": 0, "veto": 6, "abstain": 3486},
+    "p2": {"allow": 0, "veto": 0, "abstain": 3492},
+    "triple_barrier": {"matured": 873, "ambiguous": 272, "training_eligible": 601}
+  },
+  "open_dependencies": [
+    "historical membership and original data-version available_at",
+    "full global search history",
+    "sufficient independent signal support per book",
+    "risk-matched independent research",
+    "real ACK/fills/independent quote calibration",
+    "real funding/OI and post-fill position event records",
+    "integration of funding event replay into full derivative trading engine",
+    "future calendar observation and existing operating admission gates"
+  ],
+  "production_parameters_changed": false,
+  "real_venue_orders_sent": false,
+  "independent_holdout_passed": false,
+  "real_execution_calibrated": false,
+  "production_admission": false,
+  "existing_successor_earliest_maturity": "2027-05-09",
+  "existing_candidate_identity_inherited": false
+}

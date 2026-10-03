@@ -7,6 +7,7 @@ from core.indicators import Indicators
 from core.factors import MomentumFactors
 from strategies.base import Strategy
 from core.entry_audit import note
+from core.timeframes import observed_bars_after, as_utc_timestamp
 
 """
 震荡均值回归策略（Range Mean Reversion）模块
@@ -87,9 +88,22 @@ class RangeStrategy(Strategy):
         ts = self.get_trade_state(symbol)
         
         # Check Cooldown
-        if i <= ts['cooldown_until']:
+        started = ts.get("cooldown_started_at")
+        if started is not None:
+            last = ts.get("cooldown_last_timestamp", started)
+            elapsed = ts.get("cooldown_bar_count", 0)
+            if as_utc_timestamp(df.index[i]) > as_utc_timestamp(last):
+                elapsed += observed_bars_after(df, i, last)
+                ts["cooldown_last_timestamp"] = df.index[i].isoformat()
+                ts["cooldown_bar_count"] = elapsed
+            cooling = elapsed <= 24
+        else:
+            cooling = i <= ts['cooldown_until']
+        if cooling:
             note("strategy_cooldown")
             return None
+        ts.pop("cooldown_started_at", None)
+        ts["cooldown_until"] = -1
 
         return self.raw_entry_signal(symbol, i, df)
 
@@ -184,12 +198,15 @@ class RangeStrategy(Strategy):
         trade: Dict[str, Any],
         bar_index: int,
     ) -> None:
-        del trade
         state = self.get_trade_state(symbol)
         if realized_pnl < 0:
             state["consecutive_losses"] += 1
             if state["consecutive_losses"] >= 3:
                 state["cooldown_until"] = bar_index + 24
+                if trade.get("timestamp") is not None:
+                    state["cooldown_started_at"] = pd.Timestamp(trade["timestamp"]).isoformat()
+                    state["cooldown_bar_count"] = 0
+                    state["cooldown_last_timestamp"] = state["cooldown_started_at"]
                 state["consecutive_losses"] = 0
         else:
             state["consecutive_losses"] = 0

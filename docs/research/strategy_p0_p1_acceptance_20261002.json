@@ -1,0 +1,71 @@
+{
+  "schema": "strategy-p0-p1-acceptance/v1",
+  "date": "2026-10-02",
+  "task_count": 5,
+  "status": "completed_offline_engineering_and_retrospective_research",
+  "study": "reports/strategy_p0_p1_20261002_final",
+  "tasks": [
+    {
+      "id": "STR-P0-EXIT",
+      "priority": "P0",
+      "title": "退出订单生命周期",
+      "status": "complete",
+      "delivered": "绑定订单ID与权威持仓批次；确认终态后重新评估剩余持仓；部分成交继续跟踪，UNKNOWN及取消中不重复下单；状态持久化并提供退出审计。",
+      "evidence": "tests/test_strategy_p0_p1.py；runs/health_off_final20/exit_lifecycle_audit.csv",
+      "historical_confirmation": "DOGE取消订单后的2002.4048941738365剩余数量已释放退出锁；前一时段另有22次取消锁释放。"
+    },
+    {
+      "id": "STR-P0-HEALTH-UNIVERSE",
+      "priority": "P0",
+      "title": "健康恢复条件可达性",
+      "status": "complete",
+      "delivered": "启动时验证所需标的数不超过登记标的范围；支持有实验身份的逐策略政策；政策和范围写入身份与检查点，重启时拒绝身份冲突。",
+      "policy": "两标的研究可明确登记门槛2，保留30天、5个新群组及去掉最佳群组仍为正；正式默认门槛3未修改。"
+    },
+    {
+      "id": "STR-P1-REGIME",
+      "priority": "P1",
+      "title": "入场状态与持仓退出拆分",
+      "status": "complete",
+      "delivered": "entry_states、exit_states及exit_on_disallowed_state分别登记；路由必须匹配登记的入场范围；四组对照检查单项效果及相互作用。",
+      "finding": "扩大入场范围而保留原状态退出，两个历史时段收益分别10.766510%与0.078663%；仅取消状态退出分别2.096754%与-6.710519%。"
+    },
+    {
+      "id": "STR-P1-HEALTH-OVERLAY",
+      "priority": "P1",
+      "title": "健康控制独立研究",
+      "status": "complete",
+      "delivered": "固定分档恢复、无健康控制、单次试运行恢复三个参照；导出空仓天数、恢复期盈亏和与真实健康阻断日期关联的参考交易。",
+      "finding": "关闭健康控制两时段分别1.008761%与36.263935%；去掉最大五笔盈利后分别亏976.470448和1835.478447。",
+      "attribution_limit": "避免亏损与错过收益为无健康控制参照账簿的关联代理值；因仓位和退出路径不同，不作为可加总的实际节省或独立因果证明。"
+    },
+    {
+      "id": "STR-P1-BUDGET-OVERLAY",
+      "priority": "P1",
+      "title": "组合回撤预算独立研究",
+      "status": "complete",
+      "delivered": "比较每日减仓、关闭减仓、每5根bar审核减仓及已确认保护单计量；新风险预算、不可变批准风险和账户硬门槛保留。",
+      "finding": "关闭减仓将两个时段从0.029249%/-4.968425%降为-5.092322%/-6.235032%；降低审核频率的方向不一致。",
+      "measurement_limit": "默认追踪止损关闭，本轮已确认保护单价格与原始止损相同，因此两种计量结果相同；不能据此评定追踪止损场景的优劣。"
+    }
+  ],
+  "validation": {
+    "pytest_passed": 2717,
+    "pytest_skipped": 1,
+    "subtests_passed": 46,
+    "engine_runs": 18,
+    "accounting_ok": true,
+    "static_analysis": "ruff与git diff --check通过",
+    "verification": "reports/strategy_p0_p1_20261002_final/verification.json"
+  },
+  "boundaries": {
+    "periods": ["2022-12-13..2024-09-20", "2024-09-21..2026-06-30"],
+    "history_already_observed": true,
+    "new_strategies_added": false,
+    "production_parameters_changed": false,
+    "live_admission": "paused_revalidation",
+    "prior_archives_overwritten": false,
+    "prior_iteration": "reports/strategy_p0_p1_20261002为过程记录；最终证据使用_final目录。",
+    "legacy_exit_checkpoints": "仅有exit_pending布尔值而无订单ID的旧检查点不会被猜测为取消；保持阻断，等待权威订单核对。"
+  }
+}

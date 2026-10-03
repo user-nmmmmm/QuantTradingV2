@@ -1,5 +1,6 @@
 """P0 audit passivity, exact entry linkage and evidence-gated risk recovery."""
 from copy import deepcopy
+from tests.synthetic_health_policy import synthetic_health_policy
 
 import pytest
 

@@ -11,6 +11,7 @@ money-path code and is deliberately left for a dedicated pass, not bundled
 into a file-size cleanup.
 """
 from __future__ import annotations
+from core.order_latency import record_order_call
 
 import math
 from dataclasses import replace
@@ -182,7 +183,8 @@ class SubmissionServiceMixin:
             # Retrying here could place a second live order, so an ambiguous
             # failure is classified UNKNOWN once and resolved out-of-band by
             # reconcile_order()'s idempotent fetch, never by resubmitting.
-            payload = self.exchange.create_order(**prepared.request.as_kwargs())
+            payload = record_order_call(self, "submit", self.exchange.create_order,
+                                              **prepared.request.as_kwargs())
         except Exception as exc:
             code = classify_order_exception(exc)
             status = OrderStatus.UNKNOWN if is_ambiguous_error(code) else OrderStatus.REJECTED
@@ -247,7 +249,8 @@ class SubmissionServiceMixin:
             client_order_id, OrderStatus.CANCEL_PENDING, self._now_iso()
         )
         try:
-            payload = self.exchange.cancel_order(record["exchange_order_id"], record["symbol"])
+            payload = record_order_call(self, "cancel", self.exchange.cancel_order,
+                record["exchange_order_id"], record["symbol"])
         except Exception:
             # Cancel rejection/race is resolved by querying the exchange fact.
             return self.reconcile_order(client_order_id)

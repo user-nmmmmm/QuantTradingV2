@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 
 from core.logger import get_logger
+from core.public_data_clients import PublicDataClientPool
 from core.timeframes import timeframe_delta as _fixed_timeframe_delta
 
 # 本模块与回测/实盘的数据源解耦：上层只关心返回统一格式的 OHLCV DataFrame
@@ -65,6 +66,7 @@ class DataFetcher:
 
         self.proxy_url = proxy_url
         self.request_timeout_ms = request_timeout_ms
+        self._public_clients = PublicDataClientPool()
         self._tz = ZoneInfo(data_timezone)
 
         if self.proxy_url:
@@ -74,6 +76,10 @@ class DataFetcher:
         """将 'YYYY-MM-DD' 按 self._tz 解释为当天 00:00:00，返回对应 UTC 毫秒时间戳。"""
         local_ts = pd.Timestamp(date_str, tz=self._tz)
         return int(local_ts.timestamp() * 1000)
+
+    def close(self) -> None:
+        """Close this fetcher's public sessions after its workers have stopped."""
+        self._public_clients.close()
 
     def _build_ccxt_proxies(self) -> Optional[dict]:
         """
@@ -200,6 +206,7 @@ class DataFetcher:
         exchange_id: Optional[str] = None,
         market_type: str = "spot",
         strict: bool = True,
+        max_retries: Optional[int] = None,
     ) -> pd.DataFrame:
         """
         通过 CCXT 从交易所拉取历史 K 线（当前默认 binance）。
@@ -210,12 +217,16 @@ class DataFetcher:
         - start_date / end_date：YYYY-MM-DD，可选；用于控制拉取范围（通过 since 分页）
         - limit：单次分页上限（CCXT 通常最大 1000）
         - strict：默认拒绝安全上限导致的截断；False 仅供读取带不完整标记的诊断数据。
+        - max_retries：可选请求尝试次数；实盘快照使用 1，历史下载默认使用原有重试次数。
 
         返回：
         - 标准化后的 OHLCV DataFrame（时间戳为 DatetimeIndex）
         """
         if isinstance(limit, bool) or not isinstance(limit, int) or limit <= 0:
             raise ValueError("limit must be a positive integer")
+        retries = self.CCXT_MAX_RETRIES if max_retries is None else max_retries
+        if isinstance(retries, bool) or not isinstance(retries, int) or retries <= 0:
+            raise ValueError("max_retries must be a positive integer")
         try:
             import ccxt
 
@@ -223,7 +234,7 @@ class DataFetcher:
 
             for current_exchange_id in exchange_ids:
                 ccxt_symbol = self._normalize_ccxt_symbol(symbol, current_exchange_id)
-                for attempt in range(1, self.CCXT_MAX_RETRIES + 1):
+                for attempt in range(1, retries + 1):
                     try:
                         df = self._fetch_ccxt_once(
                             current_exchange_id,
@@ -249,10 +260,10 @@ class DataFetcher:
                             ccxt_symbol,
                             current_exchange_id,
                             attempt,
-                            self.CCXT_MAX_RETRIES,
+                            retries,
                             exchange_error,
                         )
-                        if attempt < self.CCXT_MAX_RETRIES:
+                        if attempt < retries:
                             time.sleep(self.CCXT_RETRY_BACKOFF_S * attempt)
 
             if exchange_id:
@@ -295,15 +306,13 @@ class DataFetcher:
         import ccxt
 
         logger.info("Fetching %s via CCXT (%s)...", ccxt_symbol, exchange_id)
-        exchange_class = getattr(ccxt, exchange_id)
-        exchange = exchange_class(
-            {
-                "enableRateLimit": True,
-                "proxies": self._build_ccxt_proxies(),
-                "timeout": self.request_timeout_ms,
-                "options": {"defaultType": "future" if market_type in {"future", "futures", "perpetual", "swap"} else "spot"},
-            }
-        )
+        client_type = "future" if market_type in {"future", "futures", "perpetual", "swap"} else "spot"
+        exchange = self._public_clients.get(exchange_id, client_type, lambda: getattr(ccxt, exchange_id)({
+            "enableRateLimit": True,
+            "proxies": self._build_ccxt_proxies(),
+            "timeout": self.request_timeout_ms,
+            "options": {"defaultType": client_type},
+        }))
         if hasattr(exchange, "session") and hasattr(exchange.session, "trust_env"):
             exchange.session.trust_env = True
         if market_type not in {"spot", "margin"}:
@@ -340,6 +349,11 @@ class DataFetcher:
                 raise ValueError("OHLCV pagination did not advance")
             all_ohlcv.extend(ohlcv)
             current_since = last_timestamp + 1
+
+            # Without a date range this is a latest-window snapshot. Asking
+            # for the next (future) page adds latency without usable history.
+            if start_date is None and end_date is None:
+                break
 
             if (end_boundary_ms is not None
                     and last_timestamp + int(timeframe_delta(timeframe).total_seconds() * 1000) >= end_boundary_ms):
@@ -379,6 +393,30 @@ class DataFetcher:
                         pagination_termination=termination)
         return df
 
+    def fetch_ccxt_since(self, symbol, since, *, exchange_id="binance", timeframe="1m",
+                         limit=200, market_type="spot"):
+        """One bounded page for a live catchup cursor; no historical retry loop."""
+        if type(limit) is not int or not 1 <= limit <= 1000:
+            raise ValueError("catchup page limit must be between 1 and 1000")
+        import ccxt
+        symbol = self._normalize_ccxt_symbol(symbol, exchange_id)
+        stamp = pd.Timestamp(since)
+        stamp = stamp.tz_localize("UTC") if stamp.tzinfo is None else stamp.tz_convert("UTC")
+        client_type = "future" if market_type in {"future", "futures"} else "spot" if market_type == "margin" else market_type
+        exchange = self._public_clients.get(exchange_id, client_type, lambda: getattr(ccxt, exchange_id)({
+            "enableRateLimit": True, "proxies": self._build_ccxt_proxies(),
+            "timeout": self.request_timeout_ms, "options": {"defaultType": client_type}}))
+        if market_type not in {"spot", "margin"}:
+            exchange.load_markets()
+            if not exchange.market(symbol).get("contract"):
+                raise ValueError("catchup derivative resolved to spot")
+        values = exchange.fetch_ohlcv(symbol, timeframe=timeframe,
+            since=int(stamp.timestamp() * 1000), limit=limit)
+        frame = pd.DataFrame(values, columns=["timestamp", "open", "high", "low", "close", "volume"])
+        frame["timestamp"] = pd.to_datetime(frame["timestamp"], unit="ms")
+        frame = frame.set_index("timestamp")
+        return self._normalize(frame.loc[frame.index >= stamp.tz_localize(None)])
+
     def fetch_funding_rate_history(
         self,
         symbol: str,
@@ -408,6 +446,8 @@ class DataFetcher:
                     "timeout": self.request_timeout_ms,
                 }
             )
+            from core.request_budget import install_exchange_budget
+            install_exchange_budget(exchange, exchange_id, priority="research")
             if not exchange.has.get("fetchFundingRateHistory"):
                 logger.error("%s does not support fetchFundingRateHistory", exchange_id)
                 return pd.DataFrame()
@@ -484,6 +524,8 @@ class DataFetcher:
                     "timeout": self.request_timeout_ms,
                 }
             )
+            from core.request_budget import install_exchange_budget
+            install_exchange_budget(exchange, exchange_id, priority="research")
             if not exchange.has.get("fetchOpenInterestHistory"):
                 logger.error("%s does not support fetchOpenInterestHistory", exchange_id)
                 return pd.DataFrame()

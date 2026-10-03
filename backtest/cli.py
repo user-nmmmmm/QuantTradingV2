@@ -3,6 +3,9 @@
 import argparse
 
 
+DEFAULT_BACKTEST_SYMBOLS = ("BTC-USDT", "ETH-USDT", "SOL-USDT")
+
+
 def build_backtest_parser(default_initial_capital: float) -> argparse.ArgumentParser:
     """Declare the public backtest CLI contract in one testable place."""
     parser = argparse.ArgumentParser(description="Quantitative Trading System Backtest")
@@ -22,8 +25,8 @@ def build_backtest_parser(default_initial_capital: float) -> argparse.ArgumentPa
     parser.add_argument(
         "--symbols",
         nargs="+",
-        default=["BTC-USDT", "ETH-USDT"],
-        help="List of symbols to trade (default: BTC-USDT ETH-USDT)",
+        default=list(DEFAULT_BACKTEST_SYMBOLS),
+        help="List of symbols to trade (default: BTC-USDT ETH-USDT SOL-USDT)",
     )
     parser.add_argument(
         "--source",
@@ -84,6 +87,10 @@ def build_backtest_parser(default_initial_capital: float) -> argparse.ArgumentPa
         "--market-type", default=None, choices=["spot", "margin", "perpetual"],
         help="Override account mode; omitted uses config account.mode.",
     )
+    parser.add_argument("--derivatives-contract-file", help="Local JSON identity for a quote-settled linear perpetual contract.")
+    parser.add_argument("--derivatives-funding-file", help="Local actual settlement CSV; funding costs use a separate position-event replay.")
+    parser.add_argument("--derivatives-observations-file", help="Local OI, mark/index and predicted-rate CSV with observed_at and available_at.")
+    parser.add_argument("--derivatives-max-age", default="24h", help="Maximum observation age at the decision cutoff (default: 24h).")
     parser.add_argument(
         "--timeframe", default="1d",
         help="Bar timeframe and manifest identity (default: 1d).",

@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import os
 import time
+import math
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
@@ -40,15 +41,19 @@ from core.health import DataHealthMonitor, DataHealthPolicy, HealthAssessment, H
 from core.live_broker import LiveBroker
 from core.logger import get_logger
 from core.market_data import LiveMarketDataAdapter
+from core.market_data_errors import MarketDataRefreshError
 from core.protective_stops import EntryRiskPolicy
 from core.risk import RiskManager
 from core.runtime import EventProcessor
+from core.strategy_registration import register_health_policies
 from core.state_store_v2 import StateStore, default_state_db_path
 from core.sqlite_backup import SQLiteSnapshotManager
 from live_trading.execution_adapter import RecordedExecutionAdapter
 from live_trading.recovery import RecoveryMixin, account_new_risk_gate, balance_sync_succeeded
 from live_trading.state_export import StateExportMixin
 from live_trading.tick_orchestrator import TickOrchestratorMixin
+from live_trading.runtime_controls import RuntimeControls
+from live_trading.protection_schedule import RuntimeSchedulePolicy
 
 logger = get_logger(__name__)
 
@@ -83,7 +88,13 @@ class LiveTradingEngine(TickOrchestratorMixin, RecoveryMixin, StateExportMixin):
         reconciliation_interval_seconds: float = 300.0,
         strategy_failure_threshold: int = 3,
         state_export_interval_ticks: int = 5,
+        market_data_workers: Optional[int] = None,
+        runtime_policy: Optional[RuntimeSchedulePolicy] = None,
     ) -> None:
+        if isinstance(interval_seconds, bool) or not math.isfinite(interval_seconds) or interval_seconds <= 0:
+            raise ValueError("interval_seconds must be finite and positive")
+        register_health_policies(strategies, symbols, configuration.get("routing"),
+                                 research=configuration.get("research"))
         self.symbols = symbols
         self.strategies = strategies
         self.broker = broker
@@ -94,6 +105,7 @@ class LiveTradingEngine(TickOrchestratorMixin, RecoveryMixin, StateExportMixin):
         self.close_grace_seconds = close_grace_seconds
         self.bar_claim_lease_seconds = bar_claim_lease_seconds
         self.fetcher = data_fetcher or DataFetcher()
+        self._owns_fetcher = data_fetcher is None
         self.clock = coerce_clock(clock)
         self.health_monitor = DataHealthMonitor(health_policy)
         self.health_assessment: Optional[HealthAssessment] = None
@@ -131,6 +143,7 @@ class LiveTradingEngine(TickOrchestratorMixin, RecoveryMixin, StateExportMixin):
         self.strategy_failure_threshold = strategy_failure_threshold
         self.state_export_interval_ticks = int(state_export_interval_ticks)
         self._tick_count = 0
+        self._last_tick_seconds = None
         self._last_export_tick: Optional[int] = None
         self._last_reconciliation_at: Optional[datetime] = None
         self._reconciliation_status = {
@@ -177,7 +190,13 @@ class LiveTradingEngine(TickOrchestratorMixin, RecoveryMixin, StateExportMixin):
             close_grace_seconds=close_grace_seconds,
             exchange_id=getattr(broker, "exchange_id", None),
             market_type=str(getattr(broker, "market_type", "spot")),
+            max_workers=(market_data_workers if market_data_workers is not None
+                         else 4 if type(self.fetcher) is DataFetcher else 1),
         )
+        # Reviewed opt-in: the established loop remains the default. Controls
+        # are fault-tested separately and create no read workers when disabled.
+        self.runtime_controls = RuntimeControls(runtime_policy,
+            workers=self.market_data_adapter.max_workers)
         self.execution_adapter = RecordedExecutionAdapter(broker, opening_guard=lambda: account_new_risk_gate(
             broker, self._now(), persistence_failed=getattr(self, "_account_reconciliation_persistence_failed", False)
         )["allows_new_risk"])
@@ -269,6 +288,9 @@ class LiveTradingEngine(TickOrchestratorMixin, RecoveryMixin, StateExportMixin):
         if self.state_store is None:
             self.state_store = StateStore(self._state_db_path)
         if not self._strategies_state_bound:
+            router_state = self.state_store.get("router_runtime")
+            if isinstance(router_state, dict):
+                self.router.restore_checkpoint(router_state)
             governor = getattr(self.router.allocator, "risk_governor", None)
             if governor is not None:
                 governor.bind_state_store(self.state_store, getattr(self.broker, "order_store", None))
@@ -283,6 +305,8 @@ class LiveTradingEngine(TickOrchestratorMixin, RecoveryMixin, StateExportMixin):
                 if saved:
                     strategy.context = saved.get("context", {})
                     strategy._consumed_close_event_ids = set(saved.get("consumed_close_event_ids", []))
+                    if saved.get("trade_state") is not None:
+                        strategy.trade_state = saved["trade_state"]
             self._strategies_state_bound = True
         if self.snapshot_manager is None:
             source_path = getattr(self.state_store, "path", self._state_db_path)
@@ -385,30 +409,43 @@ class LiveTradingEngine(TickOrchestratorMixin, RecoveryMixin, StateExportMixin):
             )
         self._operational_state = "HEALTHY" if self._healthy else "HALTED"
         self._reset_daily_risk_if_needed(self._now())
-        for symbol in self.symbols:
-            logger.info("Warming up data for %s...", symbol)
-            frame = self.fetcher.fetch_ccxt(
-                symbol, timeframe=self.timeframe, limit=max(self.lookback_days, 100),
-                exchange_id=getattr(self.broker, "exchange_id", None),
-                **({"market_type": self.market_data_adapter.market_type} if self.market_data_adapter.market_type not in {"spot", "margin"} else {}),
-            )
-            if not frame.empty:
-                self.data_map[symbol] = frame
-                logger.info("Loaded %s bars for %s", len(frame), symbol)
-            else:
-                logger.warning("Failed to load data for %s", symbol)
-        self.market_data_adapter.data_map = dict(self.data_map)
+        data_failure = None
+        try:
+            self._update_data()
+        except MarketDataRefreshError as exc:
+            data_failure = HealthReason("MARKET_DATA_UPDATE_FAILED", "market_data", "data", str(exc))
         account_gate = account_new_risk_gate(self.broker, self._now())
         extra = () if account_gate["allows_new_risk"] else (HealthReason(
             "ACCOUNT_FACTS_UNVERIFIED", "account_sync", "account", account_gate["reason"]),)
+        if data_failure is not None:
+            extra = (*extra, data_failure)
         self._assess_health(self._now(), *extra)
 
     def run(self):
         logger.info("Starting Main Loop...")
         try:
             while True:
+                started = time.monotonic()
                 healthy_tick = self._tick()
-                delay = self.interval if healthy_tick else self._next_retry_delay
+                delay = (max(0.0, self.interval - (time.monotonic() - started))
+                         if healthy_tick else self._next_retry_delay)
+                controls = getattr(self, "runtime_controls", None)
+                if controls is not None and controls.policy.enabled:
+                    until = time.monotonic() + delay
+                    while delay > controls.policy.protection_interval_seconds:
+                        time.sleep(controls.policy.protection_interval_seconds)
+                        try:
+                            controls.protect_if_due(self)
+                        except Exception as exc:
+                            self._alert("critical", "protection_cycle_failed", {"error": type(exc).__name__})
+                        delay = max(0., until - time.monotonic())
                 time.sleep(delay)
         except KeyboardInterrupt:
             logger.info("Live Trading Stopped by User")
+        finally:
+            controls = getattr(self, "runtime_controls", None)
+            if controls is not None:
+                controls.close()
+            self.market_data_adapter.close()
+            if self._owns_fetcher:
+                self.fetcher.close()

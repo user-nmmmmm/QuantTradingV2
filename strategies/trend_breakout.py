@@ -572,7 +572,7 @@ class TrendBreakoutStrategy(
             }
 
         # 2. Regime Check (System Rule)
-        if state not in self.allowed_states:
+        if self.regime_requires_exit(state):
             return {"action": "sell", "reason": f"Regime {state.name} Not Allowed"}
 
         return None
@@ -694,7 +694,7 @@ class TrendBreakdownStrategy(
                 "reason": f"Breakdown Exit (Above High{self.exit_window})",
             }
 
-        if state not in self.allowed_states:
+        if self.regime_requires_exit(state):
             return {"action": "cover", "reason": f"Regime {state.name} Not Allowed"}
 
         return None

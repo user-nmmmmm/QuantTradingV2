@@ -8,6 +8,7 @@ from core.live_broker import LiveBroker
 from live_trading.engine import LiveTradingEngine
 from core.portfolio import Portfolio
 from core.risk import RiskManager
+from core.state_store_v2 import StateStore
 
 
 class TestLiveTrading(unittest.TestCase):
@@ -191,6 +192,7 @@ class TestLiveTrading(unittest.TestCase):
             configuration=config,
             data_fetcher=mock_fetcher,
             lookback_days=2,
+            state_store=StateStore(':memory:'),
         )
 
         engine.initialize()

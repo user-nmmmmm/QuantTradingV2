@@ -6,6 +6,7 @@ class BacktestDrawdownReducer:
     def __init__(self, budget):
         self.budget = budget
         self.sequence = 0
+        self.review_bars = 0
 
     def step(self, event):
         budget = self.budget
@@ -15,6 +16,13 @@ class BacktestDrawdownReducer:
         snap = budget.snapshot()
         row = {"timestamp": str(event.timestamp), "event": "budget_review", **snap.to_dict()}
         budget.audit.append(row)
+        self.review_bars += 1
+        if not budget.policy.reduction_enabled:
+            row['action'] = 'research_reduction_disabled'
+            return []
+        if (self.review_bars - 1) % budget.policy.review_interval_bars:
+            row['action'] = 'research_review_deferred'
+            return []
         if snap.issues:
             row['action'] = 'unverifiable_block_new'
             return []

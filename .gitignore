@@ -44,6 +44,8 @@ data/binance/
 *.py[cod]
 outputs/
 reports/*.db
+reports/*.sqlite3
+reports/*.sqlite3-*
 reports/*.jsonl
 reports/*/
 dummy_output/

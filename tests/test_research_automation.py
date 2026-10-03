@@ -199,7 +199,8 @@ def test_real_engine_synthetic_runs_leave_protocol_and_configuration_closed(tmp_
     monkeypatch.setattr(worker.DataFetcher, "fetch_yahoo", lambda *a, **k: pytest.fail("network"))
     original_protocol, original_config = protocol.read_bytes(), deepcopy(worker.config._config)
     kwargs = run_kwargs(tmp_path, protocol)
-    kwargs.update(task=task, capital_levels=[10000., 100000.])
+    kwargs.update(task=task, capital_levels=[10000., 100000.],
+                  symbols=['BTC/USDT', 'ETH/USDT', 'SOL/USDT'])
     result = worker.run_research_automation(**kwargs)
     assert result["engineering_status"] == "pass", result
     assert result["research_status"] == "synthetic_only"

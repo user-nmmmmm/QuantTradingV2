@@ -31,6 +31,23 @@ def as_utc_datetime(value: datetime) -> datetime:
     return value.astimezone(timezone.utc)
 
 
+def observed_bars_after(dataframe: pd.DataFrame, i: int, timestamp) -> int:
+    """Count observed bars after a timestamp, independent of window row shifts."""
+    index = dataframe.index
+    point = pd.Timestamp(timestamp)
+    if isinstance(index, pd.DatetimeIndex):
+        if not index.is_monotonic_increasing:
+            raise ValueError("bar history must be sorted")
+        if index.tz is None and point.tzinfo is not None:
+            point = point.tz_convert("UTC").tz_localize(None)
+        elif index.tz is not None:
+            point = point.tz_localize("UTC") if point.tzinfo is None else point
+            point = point.tz_convert(index.tz)
+        return max(0, i + 1 - int(index.searchsorted(point, side="right")))
+    # Preserve legacy non-datetime strategy fixtures.
+    return max(0, i + 1 - int(index.searchsorted(timestamp, side="right")))
+
+
 def closed_bars(
     dataframe: pd.DataFrame,
     timeframe: str,

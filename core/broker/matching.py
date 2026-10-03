@@ -222,6 +222,7 @@ class MatchingMixin:
         return cls._event_time(value).isoformat().replace("+00:00", "Z")
 
     def _publish_order_event(self, order: Order, occurred_at: Any) -> None:
+        self.orders_by_id[order.id] = order
         if order.intent is None:
             return
         payload = OrderEvent(

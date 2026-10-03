@@ -29,6 +29,8 @@ def test_cli_contract_is_declared_outside_the_orchestrator():
         "--secondary-data-dir", "--require-secondary-audit", "--replay-manifest",
         "--report-profile", "--output-dir", "--observe-signals", "--signal-meta-layer",
         "--adaptive-signal-meta", "--signal-meta-replay",
+        "--derivatives-contract-file", "--derivatives-funding-file",
+        "--derivatives-observations-file", "--derivatives-max-age",
     }
     parsed = parser.parse_args([
         "--source", "local", "--data-dir", "prices", "--start", "2025-01-01",
@@ -48,6 +50,16 @@ def test_cli_contract_is_declared_outside_the_orchestrator():
     assert parser.parse_args([]).signal_meta_layer is False
     assert parser.parse_args([]).adaptive_signal_meta is False
     assert parser.parse_args([]).signal_meta_replay is False
+    derivative_args = parser.parse_args([
+        "--market-type", "perpetual", "--derivatives-contract-file", "contract.json",
+        "--derivatives-funding-file", "funding.csv",
+        "--derivatives-observations-file", "observations.csv", "--derivatives-max-age", "12h",
+    ])
+    assert derivative_args.market_type == "perpetual"
+    assert derivative_args.derivatives_contract_file == "contract.json"
+    assert derivative_args.derivatives_funding_file == "funding.csv"
+    assert derivative_args.derivatives_observations_file == "observations.csv"
+    assert derivative_args.derivatives_max_age == "12h"
 
 
 def test_workbook_and_pdf_depend_on_shared_metrics_not_each_other():

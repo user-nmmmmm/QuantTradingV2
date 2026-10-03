@@ -8,14 +8,24 @@ from typing import Any
 
 from core.entry_audit import note
 from core.entry_risk import resolve_approved_risk
+from core.protective_orders import authoritative_position_ids
 
 
 @dataclass(frozen=True)
 class DrawdownBudgetPolicy:
     enabled: bool = False
     headroom_fraction: float = 0.5
+    stop_basis: str = "original"
+    reduction_enabled: bool = True
+    review_interval_bars: int = 1
 
     def __post_init__(self):
+        if self.stop_basis not in {"original", "confirmed_protective"}:
+            raise ValueError("Unknown drawdown stop basis")
+        if type(self.reduction_enabled) is not bool:
+            raise ValueError("reduction_enabled must be boolean")
+        if type(self.review_interval_bars) is not int or self.review_interval_bars < 1:
+            raise ValueError("review_interval_bars must be a positive integer")
         if not math.isfinite(self.headroom_fraction) or not 0 < self.headroom_fraction <= 1:
             raise ValueError("drawdown budget headroom_fraction must be in (0, 1]")
 
@@ -31,6 +41,7 @@ class DrawdownBudgetSnapshot:
     exit_cost: float = 0.0
     risks_by_symbol: dict[str, float] = field(default_factory=dict)
     issues: list[str] = field(default_factory=list)
+    stop_basis_by_symbol: dict[str, str] = field(default_factory=dict)
 
     @property
     def occupied(self):
@@ -61,6 +72,7 @@ class DrawdownBudget:
         self.timestamp = None
         self.live = False
         self.audit: list[dict[str, Any]] = []
+        self.confirmed_stop_provider = None
 
     def bind(self, execution, strategies):
         self.broker = getattr(execution, "broker", execution)
@@ -77,6 +89,9 @@ class DrawdownBudget:
         if isinstance(slip, (int, float)):
             self.costs["slippage_bps"] = slip * 10000.0
         self.live = getattr(self.broker, "order_store", None) is not None
+        if self.live and (self.policy.stop_basis != "original" or not self.policy.reduction_enabled
+                          or self.policy.review_interval_bars != 1):
+            raise ValueError("Drawdown overlay alternatives are research-only")
         if self.policy.enabled or self.manager.scale_minimum_with_risk:
             self.broker.opening_risk_guard = self
 
@@ -129,12 +144,17 @@ class DrawdownBudget:
             if abs(sum(lot.qty_open for lot in lots) - qty) > max(1e-8, qty*1e-8):
                 snap.issues.append(f"unverifiable_lots:{symbol}")
                 continue
+            confirmed = self._confirmed_stop(symbol, qty, pos['qty'])
+            snap.stop_basis_by_symbol[symbol] = (
+                "confirmed_protective" if confirmed is not None else "original")
             risk = 0.0
             for lot in lots:
                 stop = lot.stop_price
                 if stop is None or not math.isfinite(stop) or stop <= 0:
                     snap.issues.append(f"missing_original_stop:{symbol}:{lot.lot_id}")
                     continue
+                if confirmed is not None:
+                    stop = max(stop, confirmed) if lot.side == "long" else min(stop, confirmed)
                 distance = max(price-stop, 0) if lot.side == "long" else max(stop-price, 0)
                 risk += lot.qty_open * distance
             cost = self.cost(symbol, qty, price)
@@ -152,6 +172,28 @@ class DrawdownBudget:
         except (AttributeError, ValueError) as exc:
             snap.issues.append(f"unverifiable_pending_risk:{exc}")
         return snap
+
+    def _confirmed_stop(self, symbol, qty, signed_qty):
+        """Credit only a live reduce-only order covering this exact position epoch.
+
+        Missing, partial coverage, UNKNOWN and requested replacement levels use
+        original lot stops. Nothing from a strategy's desired-stop context is
+        accepted as venue confirmation.
+        """
+        if self.policy.stop_basis == "original" or self.confirmed_stop_provider is None:
+            return None
+        identities = authoritative_position_ids(self.broker.portfolio, symbol)
+        valid = [order for order in self.confirmed_stop_provider()
+                 if order.symbol == symbol and order.is_live and order.reduce_only
+                 and order.side == ("sell" if signed_qty > 0 else "cover")
+                 and tuple(sorted(order.position_ids or ())) == identities
+                 and math.isfinite(order.qty) and order.qty + max(1e-8, qty * 1e-8) >= qty
+                 and math.isfinite(order.stop_price) and order.stop_price > 0]
+        if not valid:
+            return None
+        # Duplicate coverage earns only the more conservative confirmed level.
+        levels = [order.stop_price for order in valid]
+        return min(levels) if signed_qty > 0 else max(levels)
 
     def clamp(self, symbol, qty, price, stop):
         if not self.policy.enabled:

@@ -327,6 +327,7 @@ class StrategyHealthMachine:
     ) -> None:
         self.strategy_name = strategy_name
         self.policy = policy or StrategyHealthPolicy()
+        self.registration = None
         self.reset()
 
     # ------------------------------------------------------------------ state
@@ -705,6 +706,7 @@ class StrategyHealthMachine:
                 blockers.append("minimum_stage_duration")
         return {
             "recovery_blockers": blockers,
+            "policy_registration": deepcopy(self.registration),
             "cohort_key_version": COHORT_KEY_VERSION,
             "strategy": self.strategy_name,
             "status": self.status.value,
@@ -742,6 +744,7 @@ class StrategyHealthMachine:
     def to_dict(self) -> Dict[str, Any]:
         return {
             **deepcopy(self._checkpoint_extensions),
+            "policy_registration": deepcopy(self.registration),
             "schema": "strategy_health/v3" if self.policy.unified_recovery else "strategy_health/v2",
             "streak_baseline_version": 2,
             "cohort_key_version": COHORT_KEY_VERSION,
@@ -776,6 +779,9 @@ class StrategyHealthMachine:
         """
         if not isinstance(data, dict) or data.get("schema") not in {"strategy_health/v2", "strategy_health/v3"}:
             return
+        recorded = data.get("policy_registration")
+        if recorded is not None and self.registration is not None and recorded != self.registration:
+            raise ValueError("Health checkpoint policy/universe identity mismatch")
         key_version = int(data.get("cohort_key_version", 1))
         if key_version not in (1, COHORT_KEY_VERSION):
             raise ValueError("Unsupported health cohort key version")

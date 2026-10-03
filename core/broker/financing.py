@@ -11,6 +11,7 @@ from typing import Any, Dict, List
 import pandas as pd
 
 from core.accounts import AccountMode
+from core.timeframes import timeframe_delta
 
 
 class FinancingMixin:
@@ -44,9 +45,14 @@ class FinancingMixin:
             mark_price = float(bar.get("mark_price", bar.get("close", position["avg_price"])))
             notional = abs(position["qty"]) * mark_price
             if self.portfolio.account_mode is AccountMode.PERPETUAL:
+                if bar.get("funding_settlement_mode") == "event_replay_required":
+                    raise ValueError("explicit derivative data requires funding settlement/position-event replay; bar-end positions are insufficient")
+                timeframe = getattr(self, "timeframe", "unknown")
+                if timeframe != "unknown" and timeframe_delta(timeframe).total_seconds() > self.funding_interval_hours * 3600:
+                    raise ValueError("bar timeframe exceeds funding interval; use explicit funding settlement/position-event replay")
                 bucket_seconds = self.funding_interval_hours * 3600.0
                 bucket = int(timestamp.timestamp() // bucket_seconds)
-                if self._last_funding_bucket.get(symbol) == bucket:
+                if bucket <= self._last_funding_bucket.get(symbol, bucket - 1):
                     continue
                 rate_raw = bar.get("funding_rate")
                 if rate_raw is None or pd.isna(rate_raw):

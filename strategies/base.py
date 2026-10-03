@@ -13,6 +13,9 @@ from core.events import Signal
 from core.risk import RiskManager
 from core.allocation import EntryCandidate
 from core.entry_audit import note
+from core.domain import OrderStatus
+from core.order_lifecycle import order_fact, terminal_fact
+from core.protective_orders import authoritative_position_ids
 
 """
 Strategy（策略基类）模块
@@ -43,6 +46,10 @@ class Strategy(ABC):
         """
         self.name = name
         self.allowed_states = allowed_states
+        # Entry admission and existing-position regime exits are independent.
+        self.exit_on_disallowed_state = True
+        self.exit_allowed_states = None
+        self.exit_lifecycle_audit = []
 
         # State tracking for the strategy per symbol
         # symbol -> { 'entry_price': float, 'stop_loss': float, 'trailing_stop': float }
@@ -79,8 +86,44 @@ class Strategy(ABC):
             self.context[symbol] = {}
         return self.context[symbol]
 
+    @staticmethod
+    def _just_entered(i, df, context):
+        """A rolling history's local row number cannot measure position age."""
+        from core.timeframes import observed_bars_after
+
+        timestamp = context.get("entry_timestamp")
+        if timestamp is None:
+            entry_bar = context.get("entry_bar", -2)
+            if (isinstance(df.index, pd.DatetimeIndex)
+                    and isinstance(entry_bar, int) and 0 <= entry_bar < len(df)):
+                # Pin a legacy context once, so its row number does not move
+                # with every subsequent window. New orders store this at entry.
+                timestamp = df.index[entry_bar].isoformat()
+                context["entry_timestamp"] = timestamp
+            else:
+                return i <= entry_bar + 1
+        if isinstance(df.index, pd.DatetimeIndex):
+            stamp_ns = context.get("entry_timestamp_ns")
+            if stamp_ns is None:
+                stamp_ns = context["entry_timestamp_ns"] = pd.Timestamp(timestamp).value
+            entry_bar = context.get("entry_bar", -2)
+            if (isinstance(entry_bar, int) and 0 <= entry_bar < len(df)
+                    and df.index.asi8[entry_bar] == stamp_ns):
+                return i <= entry_bar + 1
+        if context.get("entry_age_bars", 0) > 1:
+            return False
+        last = context.get("entry_age_last_timestamp", timestamp)
+        elapsed = context.get("entry_age_bars", 0)
+        from core.timeframes import as_utc_timestamp
+        if as_utc_timestamp(df.index[i]) > as_utc_timestamp(last):
+            elapsed += observed_bars_after(df, i, last)
+            context["entry_age_bars"] = elapsed
+            context["entry_age_last_timestamp"] = df.index[i].isoformat()
+        return elapsed <= 1
+
     def reset_runtime_state(self) -> None:
         self.context = {}
+        self.exit_lifecycle_audit = []
         self.observed_close_events = 0
         self._consumed_close_event_ids = set()
         self._position_close_accumulator = {}
@@ -256,11 +299,67 @@ class Strategy(ABC):
                 self._restore_close_checkpoint(saved if saved is not None else previous)
             raise
 
+        self._reconcile_exit(symbol, portfolio, broker, bar_index=bar_index)
         ctx = self.get_context(symbol)
-        if ctx.get("entry_pending") and not portfolio.get_position(symbol).get("qty", 0.0):
+        if ctx.get("entry_pending") and not ctx.get("exit_pending") and not portfolio.get_position(symbol).get("qty", 0.0):
             has_active = getattr(broker, "has_active_open_order", None)
             if callable(has_active) and has_active(symbol) is False:
                 self.context[symbol] = {}
+
+    def _persist_exit_context(self):
+        if self._close_state_store is not None:
+            self._close_state_store.set(self.close_state_key, self._close_checkpoint())
+
+    def _track_exit(self, symbol, submission, portfolio, *, position_ids=None):
+        status = getattr(submission, "status", None)
+        if not submission.accepted and status not in {
+            OrderStatus.UNKNOWN, OrderStatus.SUBMITTING, OrderStatus.CANCEL_PENDING,
+        }:
+            return
+        ctx = self.get_context(symbol)
+        ctx.update(exit_pending=True,
+                   exit_order_id=getattr(submission, "client_order_id", None) or getattr(submission, "id", None),
+                   exit_position_ids=list(authoritative_position_ids(portfolio, symbol)
+                                          if position_ids is None else position_ids),
+                   exit_remaining_position_qty=abs(float(portfolio.get_position(symbol)["qty"])),
+                   exit_order_status=getattr(status, "value", status))
+        self._persist_exit_context()
+
+    def _reconcile_exit(self, symbol, portfolio, execution, *, bar_index=None):
+        ctx = self.get_context(symbol)
+        if not ctx.get("exit_pending"):
+            return
+        before = deepcopy(ctx)
+        row = order_fact(execution, ctx.get("exit_order_id"))
+        if row is None:
+            ctx["exit_order_status"] = "unverifiable"
+        else:
+            ctx.update(exit_order_status=row["status"],
+                       exit_order_remaining_qty=float(row.get("remaining_qty") or 0),
+                       exit_remaining_position_qty=abs(float(portfolio.get_position(symbol)["qty"])))
+            identities = list(authoritative_position_ids(portfolio, symbol))
+            ctx["exit_position_changed"] = identities != ctx.get("exit_position_ids")
+            # UNKNOWN / cancel-pending / absent facts never authorize a retry.
+            # A terminal fact releases the latch; the next signal sizes the
+            # close from remaining authoritative inventory, including partials.
+            if terminal_fact(row):
+                for key in list(ctx):
+                    if key.startswith("exit_"):
+                        ctx.pop(key)
+        if ctx != before:
+            self.exit_lifecycle_audit.append({
+                "strategy": self.name, "symbol": symbol, "bar_index": bar_index,
+                "order_id": before.get("exit_order_id"),
+                "position_ids": before.get("exit_position_ids"),
+                "status": row.get("status") if row is not None else "unverifiable",
+                "remaining_position_qty": abs(float(portfolio.get_position(symbol)["qty"])),
+                "latch_released": not ctx.get("exit_pending", False),
+            })
+            self._persist_exit_context()
+
+    def regime_requires_exit(self, state):
+        states = self.allowed_states if self.exit_allowed_states is None else self.exit_allowed_states
+        return self.exit_on_disallowed_state and state not in states
     def _consume_close_batch(self, close_events, symbol, bar_index, portfolio):
         completed = set()
         final_events = {(event.symbol, event.position_id): event for event in close_events
@@ -305,7 +404,8 @@ class Strategy(ABC):
             self._remember_bounded(key, self._recent_position_ids, self._completed_position_ids)
             self.on_trade_closed(key[0], trade["realized_pnl"], trade, bar_index)
             if not portfolio.get_position(key[0]).get("qty", 0.0):
-                self.context[key[0]] = {}
+                self.context[key[0]] = {k: v for k, v in self.get_context(key[0]).items()
+                                       if k.startswith("exit_")}
 
     @abstractmethod
     def should_enter(
@@ -386,7 +486,7 @@ class Strategy(ABC):
         # Entry order is submitted at bar N, fills at bar N+1 open, then on_bar runs at bar N+1.
         # We must not check exit at bar N+1 for a freshly opened position.
         ctx_pre = self.get_context(symbol)
-        just_entered = i <= ctx_pre.get("entry_bar", -2) + 1
+        just_entered = self._just_entered(i, df, ctx_pre)
 
         if qty != 0 and not ctx_pre.get("exit_pending"):
             exit_signal = self.hard_stop_exit(symbol, i, df, portfolio)
@@ -417,6 +517,7 @@ class Strategy(ABC):
                         price=order_price,
                         reason=reason,
                     )
+                    exit_position_ids = authoritative_position_ids(portfolio, symbol)
                     submission = broker.submit_order(
                         symbol,
                         action,
@@ -429,11 +530,11 @@ class Strategy(ABC):
                         **self._signal_links(decision_event),
                     )
 
-                    if submission.accepted:
-                        self.context[symbol]["exit_pending"] = True
+                    self._track_exit(symbol, submission, portfolio, position_ids=exit_position_ids)
 
         # 2. Check Entry if we don't have a position (or if strategy allows pyramiding, but let's assume 1 pos for now)
-        if qty == 0 and not self.get_context(symbol).get("entry_pending"):
+        if (qty == 0 and symbol in getattr(self, "eligible_symbols", {symbol})
+                and not any(self.get_context(symbol).get(key) for key in ("entry_pending", "exit_pending"))):
             if state in self.allowed_states:
                 entry_signal = self.should_enter(symbol, i, df, state, portfolio)
                 if entry_signal:
@@ -550,6 +651,7 @@ class Strategy(ABC):
                                 if action == "buy"
                                 else np.inf,  # Init trail
                                 "entry_bar": i,  # Track bar to prevent same-bar exit
+                                "entry_timestamp": df.index[i].isoformat() if isinstance(df.index, pd.DatetimeIndex) else None,
                             }
     def process_exit_only(
         self, symbol: str, i: int, df: pd.DataFrame, state: MarketState,
@@ -560,7 +662,7 @@ class Strategy(ABC):
         self._consume_execution_trades(symbol, i, portfolio, broker)
         qty = portfolio.get_position(symbol)["qty"]
         ctx = self.get_context(symbol)
-        just_entered = i <= ctx.get("entry_bar", -2) + 1
+        just_entered = self._just_entered(i, df, ctx)
         if qty == 0 or ctx.get("exit_pending"):
             return None
         signal = self.hard_stop_exit(symbol, i, df, portfolio)
@@ -577,14 +679,14 @@ class Strategy(ABC):
             broker, symbol=symbol, timestamp=df.index[i], action=action,
             signal_kind="exit", price=price, reason=reason,
         )
+        exit_position_ids = authoritative_position_ids(portfolio, symbol)
         result = broker.submit_order(
             symbol, action, abs(qty), price=price,
             order_type=signal.get("order_type", "market"), timestamp=df.index[i],
             strategy_id=self.name, exit_reason=reason,
             **self._signal_links(decision_event),
         )
-        if result.accepted:
-            ctx["exit_pending"] = True
+        self._track_exit(symbol, result, portfolio, position_ids=exit_position_ids)
         return result
 
     def build_entry_candidate(
@@ -595,7 +697,10 @@ class Strategy(ABC):
 
         if portfolio.get_position(symbol)["qty"] != 0:
             return None
-        if self.get_context(symbol).get("entry_pending") or state not in self.allowed_states:
+        if symbol not in getattr(self, "eligible_symbols", {symbol}):
+            note("outside_registered_strategy_universe")
+            return None
+        if any(self.get_context(symbol).get(key) for key in ("entry_pending", "exit_pending")) or state not in self.allowed_states:
             note("entry_pending_or_disallowed_state")
             return None
         note("no_signal")
@@ -707,6 +812,7 @@ class Strategy(ABC):
                 "entry_price": current_price,
                 "trailing_stop": -np.inf if action == "buy" else np.inf,
                 "entry_bar": i,
+                "entry_timestamp": df.index[i].isoformat() if isinstance(df.index, pd.DatetimeIndex) else None,
             }
         if risk_governor is not None and budget_decision is not None:
             committed = (

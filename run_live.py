@@ -39,6 +39,7 @@ from core.strategy_governance import (
 )
 from core.live_broker.safe import SafeLiveBroker
 from live_trading.engine import LiveTradingEngine
+from live_trading.protection_schedule import RuntimeSchedulePolicy
 
 configure_logging()
 logger = get_logger(__name__)
@@ -48,6 +49,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="QuantTrading exchange engine")
     parser.add_argument("--symbols", nargs="+", default=["BTC/USDT", "ETH/USDT"])
     parser.add_argument("--interval", type=int, default=60)
+    parser.add_argument("--market-data-workers", type=int, choices=range(1, 9), default=4,
+                        help="public market-data fetch workers (1-8; default: 4)")
+    parser.add_argument("--runtime-controls", action="store_true",
+                        help="Opt in to bounded reads, protection cadence and state-only catchup")
+    parser.add_argument("--market-timeout", type=float, default=5.)
+    parser.add_argument("--protection-interval", type=float, default=5.)
+    parser.add_argument("--catchup-max-bars", type=int, default=100)
     parser.add_argument("--account-id", default=os.getenv("QUANT_ACCOUNT_ID"),
                         help="Non-secret stable account identifier for state isolation")
     mode = parser.add_mutually_exclusive_group()
@@ -271,6 +279,11 @@ def main() -> int:
         risk_manager=risk_manager,
         configuration=config,
         interval_seconds=args.interval,
+        market_data_workers=args.market_data_workers,
+        runtime_policy=RuntimeSchedulePolicy(enabled=args.runtime_controls,
+            market_timeout_seconds=args.market_timeout,
+            protection_interval_seconds=args.protection_interval,
+            catchup_max_bars=args.catchup_max_bars),
         state_file=str(identity.directory / "live_status.json"),
         state_store=StateStore(str(identity.directory / "state.db"), identity=identity),
         reconciliation_interval_seconds=config.require(

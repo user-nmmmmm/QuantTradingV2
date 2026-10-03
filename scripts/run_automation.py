@@ -397,6 +397,7 @@ def audit_universe(directory, config):
 
 
 def execute_task(task, runner, config, *, synthetic=False, skip_fetch=False):
+    from backtest.cli import DEFAULT_BACKTEST_SYMBOLS
     from scripts.evaluate_matrix import evaluate_matrix, evaluate_report
     if task == "nightly-data":
         if synthetic:
@@ -408,7 +409,7 @@ def execute_task(task, runner, config, *, synthetic=False, skip_fetch=False):
         return audit_universe(runner.directory, config)
     if task == "weekly-smoke":
         report = runner.directory / "report"
-        runner.step("smoke", python_command("main.py", "--source", "synthetic", "--symbols", "BTC-USDT", "ETH-USDT",
+        runner.step("smoke", python_command("main.py", "--source", "synthetic", "--symbols", *DEFAULT_BACKTEST_SYMBOLS,
                     "--start", "2020-01-01", "--end", "2020-06-28", "--timeframe", "1d", "--seed", "42",
                     "--capital", "100000", "--report-profile", "full", "--disable-routing-log", "--output-dir", report))
         verdict = evaluate_report(report, maximum_drawdown=config["maximum_drawdown"])

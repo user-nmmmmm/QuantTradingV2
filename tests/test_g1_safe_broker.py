@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 from core.live_safety import OrderSafetyGuard, StartupSafetyPolicy
 from core.portfolio import Portfolio
 from core.live_broker.safe import SafeLiveBroker
+from core.order_store import OrderStore
 
 
 class TestSafeLiveBroker(unittest.TestCase):
@@ -28,6 +29,7 @@ class TestSafeLiveBroker(unittest.TestCase):
             Portfolio(),
             safety_guard=OrderSafetyGuard(policy),
             sandbox=True,
+            order_store=OrderStore(':memory:'),
         )
 
         with patch.dict(os.environ, {"QUANT_KILL_SWITCH": "1"}):

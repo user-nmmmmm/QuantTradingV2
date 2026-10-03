@@ -69,6 +69,8 @@ def assert_live_admission(
     research_only_keys = {
         "experiment_id", "strategy_review", "review_overrides",
         "trend_breakout_parameters", "trend_portfolio_v2",
+        "trend_portfolio_v3", "regime_controls", "strategy_health_overrides",
+        "strategy_eligible_symbols", "overlay_study",
     }
     if research_only_keys.intersection(research):
         raise GovernanceError("Research experiment identities and overrides are research-only")

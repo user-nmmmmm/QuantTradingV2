@@ -1,5 +1,6 @@
 """P1 wiring is opt-in, post-trade, profile-independent and replayable."""
 from dataclasses import asdict
+from tests.synthetic_health_policy import synthetic_health_policy
 from datetime import datetime, timezone
 import json
 from pathlib import Path

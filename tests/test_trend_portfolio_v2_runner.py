@@ -1,4 +1,5 @@
 from copy import deepcopy
+from tests.synthetic_health_policy import synthetic_health_policy
 import json
 
 import numpy as np
