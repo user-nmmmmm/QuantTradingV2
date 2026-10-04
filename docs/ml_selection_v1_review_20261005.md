@@ -94,6 +94,16 @@ V3 的 198 个冻结源文件已按原哈希保存在本地 `reports/ml_selectio
 
 修复后 ML 专项共 154 项测试；V3 表中的 142 项保留为该运行批次的历史记录。提交前已通过依赖与锁文件完整性、历史归档、仓库文件卫生、Roadmap 结构、全仓库 Ruff 和关键运行接口 Mypy 检查。最终远端检查与合并身份以 GitHub PR 记录为准。
 
+## 代码合并与追加复核记录
+
+本实现已通过 [PR #48](https://github.com/user-nmmmmm/QuantTradingV2/pull/48) 合并到 `main`，合并提交为 `77f9ca4198f5cd52d5c1cc32c2d56629f1fad2fc`，时间为 2026-10-05 00:37:05（Asia/Singapore）。[远端 CI](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/37217022354) 的 `quality`、`ml-research`，以及离线回测 `synthetic-smoke-and-regression` 三项检查全部成功。完整质量测试为 3,487 项通过、111 个子测试通过、2 项跳过，核心/回测/实盘模块合计覆盖率 88.32%；ML 依赖专项另行执行全部 154 项测试。
+
+合并前使用修复后的源码再次核对旧 smart 基线，结果仍为 2,453 天、664 次成交、逐日权益差 0，执行、资金分配和会计检查均通过，证据位于本地 `reports/ml_selector_baseline_verification_20261005_merge/validation.json`。Windows 受限沙箱的全量测试曾卡在创建 asyncio 事件循环，不能记为通过；远端完整测试提供独立的工程验证。
+
+随后在 Windows 普通主机权限下完整测试通过：3,488 项通过、111 个子测试通过、1 项跳过，覆盖率同为 88.32%，耗时约 449 秒。该本地环境包含可选 ML 依赖，远端 `quality` 不包含这些可选依赖，测试计数因此有差异；远端另设 `ml-research` 检查。记录位于本地 `outputs/ml_merge_full_host_20261005.log` 及 `outputs/test_runtime/ml_merge_full_host_20261005.xml`。
+
+合并后的研究推进见[下一阶段 Roadmap](ml_selection_next_roadmap_20261005.md)，相关概念和验证练习见[学习清单](ml_selection_learning_checklist_20261005.md)。合并确认代码进入主分支，没有改变本轮模型未通过有效性验收的结论。
+
 ## CLI 与克隆后的输入限制
 
 以下命令从仓库根目录运行，使用仓库相对路径。Windows 示例依赖已准备好的 `.venv`；其他环境可将解释器替换为本机 Python：
