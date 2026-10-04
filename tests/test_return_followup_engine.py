@@ -10,7 +10,7 @@ from scripts import run_return_followup_engine as followup
 
 
 def prior():
-    return json.loads((followup.ROOT / "reports/paper_applications_20261003_v3/registration.json").read_text(encoding="utf-8"))
+    return json.loads((Path(__file__).parent / "fixtures/paper_followup/registration.json").read_text(encoding="utf-8"))
 
 
 def test_full_family_preserves_old_controls_and_common_risk():
@@ -80,10 +80,26 @@ def test_source_drift_fails_before_engine_and_preserves_failure(tmp_path, monkey
 
 def test_registration_only_is_complete_before_any_new_engine_result(tmp_path, monkeypatch):
     output = tmp_path / "study"
+    # CI must not depend on ignored local research reports. Use the registered
+    # parameter family and explicitly synthetic receipt files for hash capture.
+    reference = tmp_path / "prior"
+    reference.mkdir()
+    original = prior()
+    (reference / "registration.json").write_text(json.dumps(original), encoding="utf-8")
+    for job in followup.build_jobs(original):
+        if job["arm"] not in followup.CONTROLS or job["window"] == "continuous":
+            continue
+        name = f"{followup.CONTROLS[job['arm']]}_{job['window']}_cost{job['cost_multiplier']:g}"
+        folder = reference / "runs" / name
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / "resolved_config.json").write_text(json.dumps(job["parameters"]), encoding="utf-8")
+        (folder / "summary.json").write_text('{"synthetic_test_fixture": true}', encoding="utf-8")
+        (folder / "trades.csv").write_text("timestamp,qty\n", encoding="utf-8")
+        (folder / "financing_ledger.csv").write_text("timestamp,amount\n", encoding="utf-8")
     monkeypatch.setattr(followup, "source_identity", lambda: {})
     monkeypatch.setattr(followup, "run_job", lambda *args, **kwargs: pytest.fail("registration must not run engine"))
     previous_logging = logging.root.manager.disable
-    result = followup.main(["--output", str(output), "--register-only"])
+    result = followup.main(["--output", str(output), "--prior", str(reference), "--register-only"])
     assert logging.root.manager.disable == previous_logging
     protocol = json.loads((output / "registration.json").read_text())
     assert result["status"] == "registered"
