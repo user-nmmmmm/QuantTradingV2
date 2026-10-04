@@ -1,4 +1,5 @@
 from copy import deepcopy
+import hashlib
 import json
 import logging
 from pathlib import Path
@@ -80,6 +81,19 @@ def test_source_drift_fails_before_engine_and_preserves_failure(tmp_path, monkey
 
 def test_registration_only_is_complete_before_any_new_engine_result(tmp_path, monkeypatch):
     output = tmp_path / "study"
+    inputs = tmp_path / "inputs"
+    inputs.mkdir()
+    manifest = {"exchange": "binance", "market_type": "spot", "timeframe": "1d", "symbols": {}}
+    frame = pd.DataFrame({"open": 100., "high": 101., "low": 99., "close": 100., "volume": 1000.},
+                         index=pd.date_range("2021-01-01", periods=60))
+    for symbol in ("BTC/USDT", "ETH/USDT"):
+        path = inputs / (symbol.replace("/", "_") + ".csv")
+        frame.to_csv(path, index_label="timestamp")
+        manifest["symbols"][symbol] = {"file": path.name, "rows": len(frame),
+            "first": frame.index[0].isoformat(), "last": frame.index[-1].isoformat(),
+            "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+    manifest_path = inputs / "_manifest.json"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
     # CI must not depend on ignored local research reports. Use the registered
     # parameter family and explicitly synthetic receipt files for hash capture.
     reference = tmp_path / "prior"
@@ -99,7 +113,8 @@ def test_registration_only_is_complete_before_any_new_engine_result(tmp_path, mo
     monkeypatch.setattr(followup, "source_identity", lambda: {})
     monkeypatch.setattr(followup, "run_job", lambda *args, **kwargs: pytest.fail("registration must not run engine"))
     previous_logging = logging.root.manager.disable
-    result = followup.main(["--output", str(output), "--prior", str(reference), "--register-only"])
+    result = followup.main(["--output", str(output), "--prior", str(reference),
+                           "--manifest", str(manifest_path), "--register-only"])
     assert logging.root.manager.disable == previous_logging
     protocol = json.loads((output / "registration.json").read_text())
     assert result["status"] == "registered"
