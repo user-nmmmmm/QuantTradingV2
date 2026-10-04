@@ -11,6 +11,8 @@ htmlcov/
 .mypy_cache/
 .hypothesis/
 tmp/
+/.test-tmp-*/
+/.test_tmp_*/
 cua_probe.txt
 
 # Virtual env
@@ -44,14 +46,13 @@ data/binance/
 *.py[cod]
 outputs/
 reports/*.db
+reports/*.db-*
 reports/*.sqlite3
 reports/*.sqlite3-*
+reports/*.json
+reports/*.xml
 reports/*.jsonl
 reports/*/
 dummy_output/
 .codex_patch_probe
 .claude/settings.local.json
-
-# Local mail evidence and private audit archives are excluded from publication.
-docs/archive/
-docs/codex_mail_*

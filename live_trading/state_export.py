@@ -139,6 +139,9 @@ class StateExportMixin:
                 "cash": cash,
                 "equity": equity,
                 "positions": self.broker.portfolio.positions,
+                "capital_allocation": dict(getattr(
+                    getattr(getattr(self, "router", None), "allocator", None),
+                    "last_capital_summary", {"enabled": False})),
                 "symbols": self.symbols,
                 "last_update": self._now().isoformat(),
                 "healthy": self._healthy,
@@ -156,6 +159,11 @@ class StateExportMixin:
                     "runtime_controls_enabled": bool(getattr(getattr(self, "runtime_controls", None), "policy", None)
                         and self.runtime_controls.policy.enabled),
                 },
+                "temporal_data": {
+                    "audit": getattr(self.market_data_adapter, "temporal_audit", {}),
+                    "identity": getattr(self.market_data_adapter, "temporal_identity", {})},
+                "execution_quote_observation": (self.quote_sampler.health()
+                    if getattr(self, "quote_sampler", None) is not None else {"status": "disabled"}),
                 "health_reason_codes": (
                     self.health_assessment.reason_codes
                     if self.health_assessment else []
@@ -174,6 +182,10 @@ class StateExportMixin:
                 ),
                 "fill_risk_audit": list(
                     getattr(self, "_live_fill_risk_audit", [])
+                ),
+                "order_request_observations": (
+                    self.broker.order_latency.summary()
+                    if getattr(self.broker, "order_latency", None) is not None else None
                 ),
             }
             critical_state = self._critical_state_signature()

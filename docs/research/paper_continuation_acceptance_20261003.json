@@ -1,0 +1,154 @@
+{
+  "schema": "paper-continuation-acceptance/v1",
+  "status": "engineering_and_bounded_public_observations_verified",
+  "strict_training": {
+    "status": "enabled_for_versioned_spot_long_labels",
+    "unknown_inputs_excluded": true,
+    "latest_revision_strictly_before_each_cutoff": true,
+    "old_predictions_unchanged_by_future_revisions": true,
+    "candidate_source_frozen": true,
+    "source_publication_independently_authenticated": false,
+    "nonspot_financing_and_delayed_candidates": "training_ineligible",
+    "source_retractions": "unsupported"
+  },
+  "first_touch": {
+    "total": 873,
+    "coarse_ambiguous": 272,
+    "hourly_resolved": 249,
+    "minute_stage": {
+      "input_ambiguous": 23,
+      "newly_resolved": 23,
+      "remaining_ambiguous": 0,
+      "stage_statuses": {
+        "resolved": 23
+      }
+    },
+    "final": {
+      "ambiguous": 0,
+      "coarse_ambiguous": 272,
+      "insufficient": 0,
+      "matured": 873,
+      "resolved_with_fine_data": 272,
+      "total": 873,
+      "training_eligible": 873
+    },
+    "newly_resolved_available_in_original_history": 0,
+    "prior_resolved_rows_preserved": true,
+    "summary": "D:\\QuantTradingV1\\reports\\paper_first_touch_review_20261003_minute\\summary.json"
+  },
+  "public_data": {
+    "hourly_manifest": "D:\\QuantTradingV1\\reports\\paper_spot_intraday_20261003_v2\\ready_manifest.json",
+    "minute_manifest": "D:\\QuantTradingV1\\reports\\paper_spot_refinement_20261003_minute\\ready_manifest.json",
+    "hourly_rows": 117728,
+    "minute_rows": 27360,
+    "historical_pit_available": false
+  },
+  "forward_observation": {
+    "protocol_snapshot": "df0fb01ac70116127bd501d2bec31265e1e5a5276abb4b2228c966e32d24a71a",
+    "session_snapshots": [
+      "2ec540b289829f4d80fec685159ccc429eadd01be1048fee74157d99ee5c450a",
+      "36b7719059dfcb71ff1c8e1ea6a291710b45432b86988d57d12955f81c047cb1"
+    ],
+    "sessions": [
+      {
+        "session_id": "20261003T155724523383Z_eebcdc70",
+        "status": "completed",
+        "registered_at": "2026-10-03T15:57:24.523533+00:00",
+        "ended_at": "2026-10-03T15:57:54.629484+00:00",
+        "starting_sequence": 0,
+        "last_sequence": 54,
+        "observations": 54,
+        "observations_by_symbol": {
+          "BTC/USDT": 27,
+          "ETH/USDT": 27
+        },
+        "unknown_exchange_timestamps": 54
+      },
+      {
+        "session_id": "20261003T155839257786Z_28d8f220",
+        "status": "completed",
+        "registered_at": "2026-10-03T15:58:39.259006+00:00",
+        "ended_at": "2026-10-03T15:59:09.503367+00:00",
+        "starting_sequence": 54,
+        "last_sequence": 110,
+        "observations": 56,
+        "observations_by_symbol": {
+          "BTC/USDT": 28,
+          "ETH/USDT": 28
+        },
+        "unknown_exchange_timestamps": 56
+      }
+    ],
+    "observations": 110,
+    "immutable_prefix_verified": true,
+    "all_collectors_stopped": true,
+    "public_read_only": true,
+    "orders_submitted": 0
+  },
+  "tests": [
+    {
+      "file": "D:\\QuantTradingV1\\reports\\paper_continuation_20261003\\pytest_engineering.xml",
+      "sha256": "aaad85d67b25f52c1c15f227f0946528bca6110e800f7ef2bb5e695b86bf2b74",
+      "tests": 713,
+      "seconds": 201.18,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "file": "D:\\QuantTradingV1\\reports\\paper_continuation_20261003\\pytest_prospective.xml",
+      "sha256": "4d442cea79ca6c97463259fea44b3e271dfd2dc7a135cb79c93ecdced3fa8d26",
+      "tests": 18,
+      "seconds": 12.995,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "file": "D:\\QuantTradingV1\\reports\\paper_continuation_20261003\\pytest_minute_download.xml",
+      "sha256": "961b7562178c0fabb0d3275dce1dd748b879bde4c0ccc7c8102d9e2980042fcb",
+      "tests": 10,
+      "seconds": 1.586,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "unique_test_count": 741,
+  "test_file_count": 45,
+  "whole_repository_tested": false,
+  "ruff": "passed",
+  "windows_aware_diff_check": "passed",
+  "source_hashes": {
+    "core/temporal_labels.py": "a92dbc46065ec4f74a9967878fe845835b15cb2719daa16abee1d2567676a304",
+    "core/temporal_data.py": "8e457e982436079a7bc75c7ced551f197a96b96c8c6e9e48aa0c7f6272d6b175",
+    "core/market_data.py": "921f561001852cc83c8ebc77bdc11f0ee02d832c12bea3914ac52085858e4882",
+    "core/signal_observation.py": "0a93e7624b8073dc77d8db87d0debed1729f7bdae9f5e57140c97b478263084c",
+    "core/signal_label_versions.py": "513d8937e8e7024c9aaefb1896bbac7feaa2881f1e55ae430673ea150d2f02e9",
+    "core/signal_meta_layer.py": "b4cd8f4a1c441a2dde0b8241a98b10d59442bd03ac164138d66890d178efc502",
+    "core/signal_adaptive.py": "2cb3970269bd69c46d48040216feecb6f704b85db3ea330127fd9f175bb15ac3",
+    "core/signal_ev_types.py": "f14e1f8222d7e80364874343a3d38949f718269d0d405cfe5161c8a1302d4ee1",
+    "core/signal_adaptive_types.py": "b9b7f27cfe11955f9b530ee78e657c92b31afb1c207b077f8ae6f6ce195b971a",
+    "backtest/engine.py": "739dc0797789ffac41bd4e5d359db77f3c7d440d508f3746fda930d6c1574d7e",
+    "core/quote_observations.py": "0e8d6e6105f58f8e7ae1e8fb19dee00d50c631b019a8792645d960e7d5087fd4",
+    "analysis/paper_label_execution.py": "7155be7ec36d38d6ba5c2aa70d0a430780f6072c5c422cd6a629d6f7f9c61b5a",
+    "scripts/diagnose_public_market.py": "3c617f19fb3f687a14a11c8c3c78b23b5c6d0dce3c34632c97fd5ace1be7d077",
+    "scripts/collect_execution_quotes.py": "391c87e019bc074b3d1e17187a7702c47d03412d7ffd9ac85696210c31eef0ba",
+    "scripts/start_paper_observation.py": "190ec0abe0975f03d0a451c17fc7bee0602f1e46296643e0d7dbac757042a5b3",
+    "scripts/fetch_spot_intraday.py": "066405348a4c4d4e07a13f64ab490890d3dc30eb16b2c2e7be1d2964c5bc9b85",
+    "scripts/fetch_spot_refinement.py": "baca79e8646346045389c3e7bfefb7e44000a429c2ac829be91b630819fada42",
+    "scripts/review_barrier_first_touch.py": "91c419ab6593c1b08c53154001c22df1b7a83ddfa52681ff8a6ac66673bc5242",
+    "scripts/review_barrier_cascade.py": "20204ccd11f16d27e0846d0e50a0417b55dc74c96c6bbe38b07ada4cc9a74aba"
+  },
+  "point_in_time_complete": false,
+  "independent_holdout": false,
+  "real_venue_calibration": false,
+  "historical_global_search_complete": false,
+  "promotions": [],
+  "remaining": [
+    "actual fills paired with qualified quotes across separate training and later testing days",
+    "historical market capitalization, contemporaneous membership, delistings and availability provenance",
+    "new prospective strategy data and maturity periods",
+    "financing-source label revisions, delayed decision scheduling and source retraction protocol"
+  ]
+}

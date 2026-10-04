@@ -17,6 +17,7 @@ from backtest.execution_adapter import SimulatedExecutionAdapter
 from backtest.equity_bookkeeping import equity_frame, sample_exposure
 from backtest.protective_stops import CONSERVATIVE_BAR_PATH, ResidentStopSimulator
 from composition.factory import (
+    build_portfolio_target_controller,
     build_risk_manager,
     build_router,
     build_state_machine,
@@ -35,6 +36,7 @@ from core.events import TradingEventPipeline
 from core.logger import get_logger
 from core.market_data import HistoricalMarketDataAdapter, normalize_market_frame
 from core.portfolio import Portfolio
+from core.position_management import CapitalAllocationPolicy
 from core.runtime import EventProcessor, MarketDataSlice
 from core.risk.actions import plan_risk_action
 from backtest.drawdown_budget import BacktestDrawdownReducer
@@ -82,8 +84,36 @@ class BacktestEngine:
         terminal_policy: Optional[str] = None,
         calculate_benchmarks: bool = True,
         fast_bars: bool = True,
+        temporal_policy: Any = None,
+        temporal_financing: Any = None,
+        capital_allocation: Optional[Dict[str, Any]] = None,
     ) -> None:
+        self.capital_allocation_policy = CapitalAllocationPolicy.from_mapping({
+            **((config.get("allocation") or {}).get("capital") or {}),
+            **(capital_allocation or {}),
+        })
+        if self.capital_allocation_policy.enabled and (
+                portfolio_controller is not None or
+                (config.get("portfolio_targets") or {}).get("enabled", False)):
+            raise ValueError("smart capital allocation cannot run with a portfolio target controller")
         config_data = config.require("data")
+        from core.temporal_data import temporal_policy as parse_temporal_policy
+        self.temporal_policy = parse_temporal_policy(temporal_policy if temporal_policy is not None else config_data.get("temporal_policy"))
+        self.temporal_financing = temporal_financing
+        if temporal_financing is not None:
+            from core.temporal_financing import TemporalFinancing
+            from pathlib import Path
+            if isinstance(temporal_financing, (str, Path)):
+                self.temporal_financing = TemporalFinancing.from_json(temporal_financing)
+            elif isinstance(temporal_financing, dict):
+                if temporal_financing.get("schema") != "temporal-financing-evidence/v1":
+                    raise ValueError("unsupported financing evidence schema")
+                self.temporal_financing = TemporalFinancing(temporal_financing["dataset_id"],
+                    records=temporal_financing["records"])
+            elif not isinstance(temporal_financing, TemporalFinancing):
+                raise TypeError("temporal_financing requires a versioned financing provider or evidence file")
+        if self.temporal_policy.decision_delay_seconds:
+            raise ValueError("historical bar-close scheduler cannot execute delayed decisions before the next open; decision_delay_seconds must be zero")
         config_benchmark = config.require("benchmark")
         alignment_mode = alignment_mode or config_data["alignment_mode"]
         benchmark_mode = benchmark_mode or config_benchmark["mode"]
@@ -156,6 +186,7 @@ class BacktestEngine:
         self.timeframe = timeframe
         self.universe = universe
         self.portfolio_controller = portfolio_controller
+        self._automatic_portfolio_controller = False
         self.calculate_benchmarks = bool(calculate_benchmarks)
         self.fast_bars = bool(fast_bars)
         self._terminal_policy_override = terminal_policy
@@ -182,6 +213,9 @@ class BacktestEngine:
         routing_log_path: Optional[str] = None,
         routing_log_enabled: bool = True,
     ) -> Dict[str, Any]:
+        if self._automatic_portfolio_controller:
+            self.portfolio_controller = None
+            self._automatic_portfolio_controller = False
         self.terminal_policy = self._terminal_policy_override or config.get("backtest", "end_of_backtest_mode") or "mark_to_market"
         if self.terminal_policy not in {"mark_to_market", "forced_liquidation", "valuation_only"}:
             raise ValueError("unsupported backtest terminal policy")
@@ -255,6 +289,11 @@ class BacktestEngine:
         drawdown_reducer = BacktestDrawdownReducer(budget) if budget is not None else None
         state_machine = build_state_machine(config)
         strategies = build_strategy_registry(config) if strategies is None else strategies
+        if self.portfolio_controller is None:
+            self.portfolio_controller = build_portfolio_target_controller(config, strategies)
+            self._automatic_portfolio_controller = self.portfolio_controller is not None
+            if self.portfolio_controller is not None:
+                self.portfolio_controller.bind(broker)
         for strategy in strategies.values():
             reset = getattr(strategy, "reset_runtime_state", None)
             if callable(reset):
@@ -270,7 +309,8 @@ class BacktestEngine:
                 os.makedirs(log_dir, exist_ok=True)
         else:
             routing_log_path = None
-        router = build_router(strategies, config, log_path=routing_log_path)
+        router = build_router(strategies, config, log_path=routing_log_path,
+                              capital_policy=self.capital_allocation_policy)
 
         market_data = HistoricalMarketDataAdapter(
             data_map,
@@ -278,12 +318,16 @@ class BacktestEngine:
             calculate_indicators=self.portfolio_controller is None,
             alignment_mode=self.alignment_mode,
             universe=self.universe,
+            temporal_policy=self.temporal_policy,
         )
         processed_data = market_data.data_map
         # Early exits must keep the same result keys as a completed run, or
         # callers that read close_events/benchmark silently get None and the
         # diagnostics that depend on them are dropped without explanation.
         empty_result = {
+            "capital_allocation_policy": asdict(self.capital_allocation_policy),
+            "capital_allocation_audit": [],
+            "temporal_data": {"audit": market_data.temporal_audit, "identity": market_data.temporal_identity},
             "signal_observation": None,
             "signal_meta_layer": None,
             "trades": [],
@@ -359,7 +403,8 @@ class BacktestEngine:
         if self.observation_policy.enabled:
             observer = SignalObserver(policy=self.observation_policy,
                 costs=ObservationCosts.from_broker(broker), strategies=strategies,
-                state_machine=state_machine,
+                state_machine=state_machine, temporal_policy=self.temporal_policy,
+                financing=self.temporal_financing,
                 config_identity={name: config.get(name) for name in (
                     "state", "routing", "router", "risk", "strategy_health", "research")})
         processor = EventProcessor(
@@ -545,7 +590,14 @@ class BacktestEngine:
                     result.prices, timestamp=event.timestamp, record=True
                 )
                 action_cost = forced_trade_cost(forced_trades)
-                processor._previous_session_close_equity = result.equity
+                if self.temporal_policy.mode != "strict":
+                    processor._previous_session_close_equity = result.equity
+                else:
+                    from core.temporal_data import strategy_market_prices
+                    known_marks = strategy_market_prices(event, processor.last_prices)
+                    if all(not position.get("qty") or symbol in known_marks
+                           for symbol, position in portfolio.positions.items()):
+                        processor._previous_session_close_equity = portfolio.get_equity(known_marks)
                 # Re-arm against the actual remaining inventory without a
                 # second intrabar matching pass or invented fills.
                 if drawdown_reducer is not None and budget.policy.enabled and stop_simulator.enabled:
@@ -688,7 +740,8 @@ class BacktestEngine:
                                    "account_state_as_of": lifecycle["termination_timestamp"]})
                     observer.settle_decisions()
             if bool(self.breaker_policy.get("shadow_diagnostics", True)):
-                shadow_router = build_router(strategies, config, log_path=None)
+                shadow_router = build_router(strategies, config, log_path=None,
+                                              capital_policy=self.capital_allocation_policy)
                 shadow_processor = EventProcessor(
                     portfolio=portfolio,
                     execution=execution,
@@ -817,10 +870,29 @@ class BacktestEngine:
         if observer is not None:
             observer.finish()
             signal_observation_result = observer.export()
+            label_protocol = signal_observation_result.get("temporal_label_protocol")
+            versioned_labels = bool(label_protocol and label_protocol.get("schema") == "strict-fixed-horizon/v1")
+            signal_observation_result["temporal_scope"] = {
+                "decision_mode": self.temporal_policy.mode,
+                "outcome_inputs": ("versioned_as_of_OHLCV_with_source_evidence" if versioned_labels else
+                    "frozen_realised_bars_for_retrospective_execution_and_label_diagnostics"),
+                "outcomes_point_in_time_certified": False,
+                "strict_training_protocol_supported": versioned_labels,
+                "strict_training_eligible": bool(versioned_labels and any(
+                    row.get("training_eligible") for row in signal_observation_result["outcomes"])),
+                "reason": ("only proven available eligible revisions enter each training cutoff; source publication claims are not independently authenticated"
+                    if versioned_labels else "historical label revisions and availability are not independently proven")}
             signal_observation_result["actual"] = reconcile_actuals(
                 signal_observation_result, broker.trades, broker.opening_orders, broker.execution_audit,
                 mark_to_market=(config.require("backtest", "end_of_backtest_mode") == "mark_to_market"))
             signal_observation_result["actual_financing"] = [item.to_dict() for item in portfolio.financing_ledger]
+            from analysis.label_account_reconciliation import reconcile_observation_account
+            signal_observation_result["label_account_reconciliation"] = reconcile_observation_account(
+                signal_observation_result, broker.trades, initial_capital=self.initial_capital,
+                final_equity=float(equity_curve[-1]["equity"]) if equity_curve else self.initial_capital,
+                final_marks=dict(broker.last_prices), account_mode=self.account_mode.value,
+                valuation_only=self.terminal_policy == "mark_to_market",
+                quote_currency=self.config_account.get("quote_currency", "USDT"))
             signal_observation_result["ghost"] = replay_ghosts(market_data, signal_observation_result, broker)
             if (signal_observation_result["actual"]["unmatched"]
                     or signal_observation_result["ghost"]["errors"]):
@@ -839,6 +911,8 @@ class BacktestEngine:
             if self.signal_meta_replay_policy.enabled and signal_adaptive_result is not None else None
         )
         return {
+            "temporal_data": {"audit": market_data.temporal_audit, "identity": market_data.temporal_identity,
+                "decision_audit": getattr(processor, "temporal_audit", [])},
             "terminal_valuation": self.terminal_valuation,
             "valuation_quality": self.valuation_quality,
             "portfolio_controller": (self.portfolio_controller.export()
@@ -933,6 +1007,7 @@ class BacktestEngine:
             # correlated-risk budget did to each candidate.
             "allocation_audit": [
                 {
+                    "timestamp": decision.timestamp,
                     "symbol": decision.symbol,
                     "strategy": decision.strategy,
                     "score": decision.score,
@@ -940,6 +1015,8 @@ class BacktestEngine:
                     "accepted": decision.accepted,
                     "reason": decision.reason,
                     "ordering": decision.ordering,
+                    **{f"capital_{key}": value for key, value in
+                       (decision.capital_allocation or {}).items()},
                     **{
                         f"risk_budget_{key}": value
                         for key, value in (decision.risk_budget or {}).items()
@@ -948,6 +1025,8 @@ class BacktestEngine:
                 for decision in router.allocator.audit
             ],
             "degenerate_ranking_batches": router.allocator.degenerate_batches,
+            "capital_allocation_policy": asdict(self.capital_allocation_policy),
+            "capital_allocation_audit": list(router.allocator.capital_audit),
             "correlated_risk_audit": list(router.allocator.risk_governor.audit),
             "drawdown_budget_audit": list(budget.audit) if budget is not None else [],
             "strategy_health_cohorts": cohort_rows([

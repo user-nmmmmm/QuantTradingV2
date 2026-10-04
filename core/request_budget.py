@@ -1,4 +1,4 @@
-"""Weighted REST pacing shared by managed processes, with critical capacity."""
+"""用共享 SQLite 预算协调 REST 请求间隔，并为 critical 请求保留容量。"""
 from __future__ import annotations
 
 from contextlib import contextmanager
@@ -20,6 +20,7 @@ class RequestBudgetExpired(TimeoutError):
 
 @contextmanager
 def request_scope(*, deadline=None, priority=None):
+    """传播单调时钟截止时间与优先级；嵌套调用只能收紧已有截止时间。"""
     inherited = _DEADLINE.get()
     if inherited is not None:
         deadline = inherited if deadline is None else min(inherited, deadline)
@@ -43,11 +44,11 @@ def remaining_seconds():
 
 
 class SharedRequestBudget:
-    """SQLite serializes admission across processes using one deployment path.
+    """同一路径的 SQLite 数据库按 venue 串行批准跨进程请求。
 
-    SDK cost units are paced at the strictest observed CCXT base interval.
-    Public/research calls cannot consume the critical reserve. Critical calls
-    retain the same total limit; they receive priority over waiting reads.
+    cost 沿用 CCXT 端点权重，基础间隔取该 venue 已见过的最严格值。
+    market/research 不能消耗 critical 保留容量；critical 仍受总额与间隔限制。
+    只有接入此预算且共享路径的进程参与协调，外部客户端不会自动计入。
     """
 
     def __init__(self, path, *, window_seconds=60., reserve_fraction=.10,
@@ -108,7 +109,8 @@ class SharedRequestBudget:
                 if priority != "critical":
                     delay = max(delay, critical_until - now)
                 elif delay > 0:
-                    # A short lease blocks reads while critical admission waits.
+                    # critical 等待时短暂阻止普通读取抢先；短租约避免请求退出
+                    # 后留下长期阻塞，后续重试会按需续租。
                     critical_until = now + min(max(delay, .02), .25)
                 if delay <= 0:
                     used, last = used + cost, now
@@ -142,7 +144,11 @@ def deployment_budget():
 
 
 def install_exchange_budget(exchange, venue, *, priority="market", budget=None):
-    """Hook real SDK clients; minimal test doubles retain their existing API."""
+    """接管兼容 SDK 的限流与请求超时；缺少对应接口的测试替身保持原样。
+
+    每次请求将 SDK timeout 限制在剩余预算内，结束后恢复原值。调用方需保证
+    同一客户端不会被多个请求线程并发使用，因为 timeout 是客户端可变属性。
+    """
     if not isinstance(getattr(exchange, "rateLimit", None), (int, float)):
         return
     if not callable(getattr(exchange, "fetch", None)):

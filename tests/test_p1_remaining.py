@@ -64,6 +64,7 @@ class TestRemainingP1LiveSafety(unittest.TestCase):
         broker.account_id = "spot"
         broker.market_type = "spot"
         broker.portfolio = Portfolio()
+        broker.order_latency = None  # Strategy failures do not issue venue requests here.
         broker.sync.return_value = SyncResult(True, NOW)
         broker.recover_open_orders.return_value = {}
         broker.has_unresolved_unknown.return_value = False
@@ -90,17 +91,19 @@ class TestRemainingP1LiveSafety(unittest.TestCase):
     def test_strategy_failures_degrade_then_halt_and_are_exported(self):
         with tempfile.TemporaryDirectory() as directory:
             engine, store = self._strategy_failure_engine(directory)
-
-            self.assertTrue(engine._tick())
-            self.assertEqual(engine._operational_state, "DEGRADED")
-            self.assertFalse(engine._healthy)
-            self.assertTrue(engine._tick())
-            self.assertEqual(engine._operational_state, "HALTED")
-            with open(engine.state_file, encoding="utf-8") as handle:
-                state = json.load(handle)
-            self.assertEqual(state["consecutive_strategy_failures"], 2)
-            self.assertEqual(state["last_strategy_error"], "RuntimeError")
-            store.close()
+            try:
+                self.assertTrue(engine._tick())
+                self.assertEqual(engine._operational_state, "DEGRADED")
+                self.assertFalse(engine._healthy)
+                self.assertTrue(engine._tick())
+                self.assertEqual(engine._operational_state, "HALTED")
+                with open(engine.state_file, encoding="utf-8") as handle:
+                    state = json.load(handle)
+                self.assertEqual(state["consecutive_strategy_failures"], 2)
+                self.assertEqual(state["last_strategy_error"], "RuntimeError")
+                self.assertIsNone(state["order_request_observations"])
+            finally:
+                store.close()
 
     def test_reconciliation_runs_on_its_own_interval_and_records_counts(self):
         broker = MagicMock()

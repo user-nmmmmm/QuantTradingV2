@@ -1,0 +1,293 @@
+{
+  "schema_version": 1,
+  "snapshot_date": "2026-09-20",
+  "captured_at_utc": "2026-09-20T02:13:33.627501+00:00",
+  "baseline": "ab15bc2+dirty",
+  "scope": "Byte-preserving snapshots of roadmap, development-plan, phase/T planning and prior Codex mail audit sources before September rebaseline.",
+  "files": [
+    {
+      "source": "docs/unified_roadmap.md",
+      "snapshot": "sources/docs/unified_roadmap.md",
+      "sha256": "04701dde62f9ed5cb850ded9b25d05c34d001f05f9ae41101c1cffb63d7525cf",
+      "bytes": 10264,
+      "captured_at_utc": "2026-09-20T02:13:33.627501+00:00"
+    },
+    {
+      "source": "docs/development_plan.md",
+      "snapshot": "sources/docs/development_plan.md",
+      "sha256": "82e3e0c5258f78f7c31fb1479542f924cdc059d2f2c84b59094cf824a31b349c",
+      "bytes": 8038,
+      "captured_at_utc": "2026-09-20T02:13:33.627501+00:00"
+    },
+    {
+      "source": "docs/live_trading_remediation_plan.md",
+      "snapshot": "sources/docs/live_trading_remediation_plan.md",
+      "sha256": "db40922b975eb4939d6375464b974fe3ef071f89c583b13d6231adfa01c85bb7",
+      "bytes": 22498,
+      "captured_at_utc": "2026-09-20T02:13:33.627501+00:00"
+    },
+    {
+      "source": "docs/backtest_metrics_detailed_development_plan.md",
+      "snapshot": "sources/docs/backtest_metrics_detailed_development_plan.md",
+      "sha256": "a52b0079975914d528d86a18c0fdef08e005f39a40b2b571e3e26946f7238780",
+      "bytes": 19149,
+      "captured_at_utc": "2026-09-20T02:13:33.627501+00:00"
+    },
+    {
+      "source": "docs/strategy_development_roadmap.md",
+      "snapshot": "sources/docs/strategy_development_roadmap.md",
+      "sha256": "009379569f582d68bb06479a463bccd04ace2bbb50c3245946d86aad018d8bac",
+      "bytes": 15588,
+      "captured_at_utc": "2026-09-20T02:13:33.627501+00:00"
+    },
+    {
+      "source": "docs/current_strategy_remediation_roadmap.md",
+      "snapshot": "sources/docs/current_strategy_remediation_roadmap.md",
+      "sha256": "381abbf5a5d7dab3b9975446e68b36d34da23b9901d14677ea8933d6fd94c650",
+      "bytes": 36501,
+      "captured_at_utc": "2026-09-20T02:13:33.627501+00:00"
+    },
+    {
+      "source": "docs/position_management_plan.md",
+      "snapshot": "sources/docs/position_management_plan.md",
+      "sha256": "f18335d68fcc82b8095fa3d449638df4aa82de9d2eb073b35142aa281551f4bf",
+      "bytes": 4231,
+      "captured_at_utc": "2026-09-20T02:13:33.627501+00:00"
+    },
+    {
+      "source": "docs/backtest_optimization_roadmap.md",
+      "snapshot": "sources/docs/backtest_optimization_roadmap.md",
+      "sha256": "41a6459060874bcbef078f4ea0fa27c5d7b5612c13ac6b38597995b4820f6063",
+      "bytes": 16593,
+      "captured_at_utc": "2026-09-20T02:13:33.627501+00:00"
+    },
+    {
+      "source": "docs/codex_mail_roadmap_audit_20260920.md",
+      "snapshot": "sources/docs/codex_mail_roadmap_audit_20260920.md",
+      "sha256": "ba02c37de3c5ae2091af6e7c89cf77a079a3fc61b67db35b24a2801bf486986c",
+      "bytes": 83607,
+      "captured_at_utc": "2026-09-20T02:13:33.627501+00:00"
+    },
+    {
+      "source": "docs/codex_mail_findings_20260920.json",
+      "snapshot": "sources/docs/codex_mail_findings_20260920.json",
+      "sha256": "fde44396e54e15b028b7841359126a60e95abde53d22b8c7a8b40fc13b1a44e0",
+      "bytes": 139130,
+      "captured_at_utc": "2026-09-20T02:13:33.627501+00:00"
+    },
+    {
+      "source": "docs/phase3_implementation.md",
+      "snapshot": "sources/docs/phase3_implementation.md",
+      "sha256": "25a9c22721768e229f6ea65facf5141294288541cd6681a7aa0fee62313d3da6",
+      "bytes": 3072,
+      "captured_at_utc": "2026-09-20T02:13:33.627501+00:00"
+    },
+    {
+      "source": "docs/phase4_implementation.md",
+      "snapshot": "sources/docs/phase4_implementation.md",
+      "sha256": "2d71435d712b397fbabc99d3bdc153cea67d661ea2703ed45a7c2f2ba2d57792",
+      "bytes": 5775,
+      "captured_at_utc": "2026-09-20T02:13:33.627501+00:00"
+    },
+    {
+      "source": "docs/phase5/README.md",
+      "snapshot": "sources/docs/phase5/README.md",
+      "sha256": "34d273589fe12105ad65b8ef39f02746a368c0d4d8982787045655c7c79b25a0",
+      "bytes": 433,
+      "captured_at_utc": "2026-09-20T02:13:33.627501+00:00"
+    },
+    {
+      "source": "docs/phase6_operations.md",
+      "snapshot": "sources/docs/phase6_operations.md",
+      "sha256": "2dfe0536a04344532c49a62211ef04c6108729770a7b12cfb2f1387a1153b6b5",
+      "bytes": 3278,
+      "captured_at_utc": "2026-09-20T02:13:33.627501+00:00"
+    },
+    {
+      "source": "docs/p0_signal_observation.md",
+      "snapshot": "sources/docs/p0_signal_observation.md",
+      "sha256": "9a0f75978f3218a44fcd49a877dfcd62c9fc1f6989dab5cf50b6f95326f915cb",
+      "bytes": 9712,
+      "captured_at_utc": "2026-09-20T02:13:33.627501+00:00"
+    },
+    {
+      "source": "docs/p1_signal_meta_layer.md",
+      "snapshot": "sources/docs/p1_signal_meta_layer.md",
+      "sha256": "558f7b637ce7894baba169ae75722cdcfaac8892ced6637c0ee528a45f0d0b66",
+      "bytes": 11874,
+      "captured_at_utc": "2026-09-20T02:13:33.627501+00:00"
+    },
+    {
+      "source": "docs/p23_signal_meta_layer.md",
+      "snapshot": "sources/docs/p23_signal_meta_layer.md",
+      "sha256": "4cae4430a064adf0e09f3537a7cb1ae37f51fac18418b3d2fb80c9f0fdfc3ab5",
+      "bytes": 12133,
+      "captured_at_utc": "2026-09-20T02:13:33.627501+00:00"
+    },
+    {
+      "source": "docs/p0_drawdown_recovery.md",
+      "snapshot": "sources/docs/p0_drawdown_recovery.md",
+      "sha256": "ca31ff9c08f668fa86e7b5829b0a9916e12819eebea43726adeae49cbafe733d",
+      "bytes": 7701,
+      "captured_at_utc": "2026-09-20T02:13:33.627501+00:00"
+    },
+    {
+      "source": "docs/research/strategy_remediation_contract_20260914.md",
+      "snapshot": "sources/docs/research/strategy_remediation_contract_20260914.md",
+      "sha256": "53bc635e72dde8442d81fb6afcf2f01b5490aeb1bcb8f035d6ecd35f8e1fc2a7",
+      "bytes": 6815,
+      "captured_at_utc": "2026-09-20T02:13:33.627501+00:00"
+    },
+    {
+      "source": "docs/r7_sandbox_runbook.md",
+      "snapshot": "sources/docs/r7_sandbox_runbook.md",
+      "sha256": "c749a55538f211894b1e4301bf825ab0c2f5d83107d5f83c7c517c109e60535e",
+      "bytes": 8093,
+      "captured_at_utc": "2026-09-20T02:13:33.627501+00:00"
+    },
+    {
+      "source": "docs/baselines/batch0_fixed_baseline.md",
+      "snapshot": "sources/docs/baselines/batch0_fixed_baseline.md",
+      "sha256": "e92db2f50a42158bf74c14bbce7e24bb852857a655bc705526fa305072a74176",
+      "bytes": 2568,
+      "captured_at_utc": "2026-09-20T02:13:33.627501+00:00"
+    },
+    {
+      "source": "docs/archive/2026-08-roadmap-consolidation/backtest_metrics_development_roadmap.md",
+      "snapshot": "sources/docs/archive/2026-08-roadmap-consolidation/backtest_metrics_development_roadmap.md",
+      "sha256": "5826d21d054ba57e20c3571c001525a4683937da5b9cb94dbe0475e23f9c8ac4",
+      "bytes": 14383,
+      "captured_at_utc": "2026-09-20T02:13:33.627501+00:00"
+    },
+    {
+      "source": "docs/archive/2026-08-roadmap-consolidation/current_system_remediation_roadmap.md",
+      "snapshot": "sources/docs/archive/2026-08-roadmap-consolidation/current_system_remediation_roadmap.md",
+      "sha256": "54e5112428638b75da3640f2021be82011eb1fdb2278df415583136925365c7a",
+      "bytes": 28130,
+      "captured_at_utc": "2026-09-20T02:13:33.627501+00:00"
+    },
+    {
+      "source": "docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md",
+      "snapshot": "sources/docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md",
+      "sha256": "9bdc2d724b1f26b266f89f4e30dac6bd02f9fa5a1cd140822c6f7293f0e14895",
+      "bytes": 43343,
+      "captured_at_utc": "2026-09-20T02:13:33.627501+00:00"
+    },
+    {
+      "source": "docs/archive/2026-08-roadmap-consolidation/phase0_baseline.md",
+      "snapshot": "sources/docs/archive/2026-08-roadmap-consolidation/phase0_baseline.md",
+      "sha256": "e317259457275b3d5d7510fb7ba09090f4d98aa407ee82a4a6c547cd02846c94",
+      "bytes": 2041,
+      "captured_at_utc": "2026-09-20T02:13:33.627501+00:00"
+    },
+    {
+      "source": "docs/archive/2026-08-roadmap-consolidation/phase0_baseline_results.md",
+      "snapshot": "sources/docs/archive/2026-08-roadmap-consolidation/phase0_baseline_results.md",
+      "sha256": "b2a4039df85e9e721b3f99018cf1805878f11d360262306bf4ba181472d60ef0",
+      "bytes": 848,
+      "captured_at_utc": "2026-09-20T02:13:33.627501+00:00"
+    },
+    {
+      "source": "docs/archive/2026-08-roadmap-consolidation/project_file_and_architecture_analysis.md",
+      "snapshot": "sources/docs/archive/2026-08-roadmap-consolidation/project_file_and_architecture_analysis.md",
+      "sha256": "e2dc7d3826fc43a343028f2bc2cf18e72c98af124a1e14f1ad4214630756aa4e",
+      "bytes": 22868,
+      "captured_at_utc": "2026-09-20T02:13:33.627501+00:00"
+    },
+    {
+      "source": "docs/archive/2026-08-roadmap-consolidation/README.md",
+      "snapshot": "sources/docs/archive/2026-08-roadmap-consolidation/README.md",
+      "sha256": "48133d1f5147f694002e516e9269206f08859169f8c989717ec4f758c91f7009",
+      "bytes": 3309,
+      "captured_at_utc": "2026-09-20T02:13:33.627501+00:00"
+    },
+    {
+      "source": "docs/archive/2026-08-roadmap-consolidation/roadmap.md",
+      "snapshot": "sources/docs/archive/2026-08-roadmap-consolidation/roadmap.md",
+      "sha256": "ff262e0090d133c085efcbd959eafe099c18d02441b32593e83d30a548568af5",
+      "bytes": 8209,
+      "captured_at_utc": "2026-09-20T02:13:33.627501+00:00"
+    },
+    {
+      "source": "docs/archive/2026-08-roadmap-consolidation/roadmap_detailed.md",
+      "snapshot": "sources/docs/archive/2026-08-roadmap-consolidation/roadmap_detailed.md",
+      "sha256": "e18b5272dada2f81fda711bfaa7168a0378cabb31bc89474d95f1789bb8643db",
+      "bytes": 16558,
+      "captured_at_utc": "2026-09-20T02:13:33.627501+00:00"
+    },
+    {
+      "source": "docs/strategy_health_contract.md",
+      "snapshot": "sources/docs/strategy_health_contract.md",
+      "sha256": "64aa922367a7f3acfdcc74b77690ee4f49d56c531fb0629c7d90f972ed3c5c57",
+      "bytes": 12558,
+      "captured_at_utc": "2026-09-20T02:17:40.323115+00:00"
+    },
+    {
+      "source": "docs/protective_stop_contract.md",
+      "snapshot": "sources/docs/protective_stop_contract.md",
+      "sha256": "968bbba0e524b49097fc8ca952098a2dfbcf0d3c4644c41274c112840d380531",
+      "bytes": 14045,
+      "captured_at_utc": "2026-09-20T02:17:40.323115+00:00"
+    },
+    {
+      "source": "docs/portfolio_risk_contract.md",
+      "snapshot": "sources/docs/portfolio_risk_contract.md",
+      "sha256": "7ae3a9bf96abb7b5977fa71ddaeb4be27d336b3302d583d2572129b322bb9abc",
+      "bytes": 7641,
+      "captured_at_utc": "2026-09-20T02:17:40.323115+00:00"
+    },
+    {
+      "source": "docs/baseline/phase0/README.md",
+      "snapshot": "sources/docs/baseline/phase0/README.md",
+      "sha256": "bde896f82f3152c2856b7fdfd6dbb2e484440440403863f4d20901817fb426dc",
+      "bytes": 1917,
+      "captured_at_utc": "2026-09-20T02:36:02.306766+00:00"
+    }
+  ],
+  "input_sources": [
+    {
+      "source": "tmp/roadmap_audit_20260920/source_emails.json",
+      "sha256": "5519a30141e9d085c67f3031592512867fb46757cc71a42dd2e5229faa00398a",
+      "bytes": 227378,
+      "archival_policy": "Only scoped project email content is archived; Codex instructions and GitHub notification footer removed; no raw MIME/header copy."
+    }
+  ],
+  "counts": {
+    "source_snapshots": 34,
+    "emails": 45,
+    "pull_requests": 30,
+    "findings": 77,
+    "fixed": 24,
+    "partial": 7,
+    "remaining": 45,
+    "insufficient_evidence": 1
+  },
+  "derived_artifacts": [
+    {
+      "path": "emails/codex_mail_findings_20260920.json",
+      "sha256": "fde44396e54e15b028b7841359126a60e95abde53d22b8c7a8b40fc13b1a44e0",
+      "bytes": 139130
+    },
+    {
+      "path": "emails/codex_project_emails.json",
+      "sha256": "9552fd4049b28f6e11d40c60112c053ab91287b0635ea31bb01d22ef7b82047d",
+      "bytes": 165330
+    },
+    {
+      "path": "emails/codex_project_emails.md",
+      "sha256": "76044edb8acda460b92c19aab9eea5a2ddef0f6d6e527d83c41b335d041e6ae9",
+      "bytes": 126927
+    },
+    {
+      "path": "emails/README.md",
+      "sha256": "85df4f9a5ffbc8511de97b1a2d6f18a175ced7efd165742174c6882b46b28ac0",
+      "bytes": 19264
+    },
+    {
+      "path": "README.md",
+      "sha256": "bcc43ed596f54bb2b6d286c6bed1a79b1684885613c81535730865c4df394dab",
+      "bytes": 9848
+    }
+  ],
+  "archive_completed_at_utc": "2026-09-20T02:36:02.329888+00:00"
+}

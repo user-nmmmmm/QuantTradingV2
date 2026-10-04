@@ -7,25 +7,38 @@ from typing import Any, Dict, Iterable, Mapping
 from statistics import NormalDist
 import numpy as np
 import pandas as pd
+from .validation import cohort_block_plan
 
 
 def calculate_profit_factor(pnls: Iterable[float], minimum_samples: int = 30,
-                            confidence: float = 0.95) -> Dict[str, Any]:
+                            confidence: float = 0.95, *, timestamps=None,
+                            block_length: int = 5) -> Dict[str, Any]:
     values = np.asarray(list(pnls), dtype=float)
-    values = values[np.isfinite(values)]
+    if timestamps is None and isinstance(pnls, pd.Series) and isinstance(pnls.index, pd.DatetimeIndex):
+        timestamps = pnls.index
+    if not np.isfinite(values).all():
+        return {"status": "invalid_input", "sample_size": len(values), "value": None,
+                "lower": None, "upper": None, "evidence_eligible": False}
     wins, losses, flat = values[values > 0], values[values < 0], values[values == 0]
     base = {"sample_size": int(len(values)), "win_count": int(len(wins)),
             "loss_count": int(len(losses)), "breakeven_count": int(len(flat)),
-            "lower": None, "upper": None}
+            "lower": None, "upper": None, "evidence_eligible": False}
     if len(values) == 0:
         return {"value": None, "status": "insufficient", **base}
     gross_loss = float(abs(losses.sum()))
     if len(losses) == 0 or np.isclose(gross_loss, 0.0):
         return {"value": None, "status": "undefined", **base}
-    lower, upper = _profit_factor_interval(values, confidence)
+    try:
+        lower, upper, evidence = _profit_factor_interval(values, confidence,
+            timestamps=timestamps, block_length=block_length)
+    except (ValueError, TypeError) as exc:
+        return {"value": float(wins.sum() / gross_loss), "status": "invalid_input",
+                **base, "reason": str(exc)}
     return {"value": float(wins.sum() / gross_loss),
             "status": "ok" if len(values) >= minimum_samples else "insufficient",
-            **base, "lower": lower, "upper": upper}
+            **base, "lower": lower, "upper": upper, "resampling": evidence,
+            "evidence_eligible": evidence["time_evidence_eligible"] and len(values) >= minimum_samples,
+            "inference_status": "block_diagnostic" if evidence["time_evidence_eligible"] else "legacy_diagnostic_insufficient_time"}
 
 
 def calculate_trade_quality(
@@ -61,7 +74,11 @@ def calculate_trade_quality(
     avg_win = float(wins.mean()) if len(wins) else None
     avg_loss = float(losses.mean()) if len(losses) else None
     expectancy = win_rate * (avg_win or 0.0) + loss_rate * (avg_loss or 0.0)
-    pf = calculate_profit_factor(pnls, minimum_samples=minimum_samples, confidence=confidence)
+    ordered = sorted(records, key=lambda row: str(row.get("exit_time", "")))
+    times = [row.get("exit_time") for row in ordered]
+    pf = calculate_profit_factor([float(row["net_pnl"]) for row in ordered],
+        minimum_samples=minimum_samples, confidence=confidence,
+        timestamps=times if all(t is not None for t in times) else None)
 
     return {
         "sample_size": len(records),
@@ -220,14 +237,21 @@ def calculate_r_multiple_stats(trades: Iterable[Mapping[str, Any]]) -> Dict[str,
     }
 
 
-def _profit_factor_interval(values: np.ndarray, confidence: float):
+def _profit_factor_interval(values: np.ndarray, confidence: float, *, timestamps=None, block_length=5):
     if len(values) < 2 or not 0 < confidence < 1:
-        return None, None
-    samples = np.random.default_rng(42).choice(values, size=(2000, len(values)), replace=True)
-    profits = np.where(samples > 0, samples, 0.0).sum(axis=1)
-    losses = np.abs(np.where(samples < 0, samples, 0.0).sum(axis=1))
-    finite = profits[losses > 0] / losses[losses > 0]
-    if len(finite) == 0:
-        return None, None
+        return None, None, {"time_evidence_eligible": False, "reason": "insufficient samples or invalid confidence"}
+    raw, codes, draws, metadata = cohort_block_plan(values, timestamps=timestamps,
+        block_length=block_length, cohort_frequency="D")
+    count = metadata["cohort_count"]
+    profits_by_day = np.bincount(codes, weights=np.maximum(raw, 0), minlength=count)
+    losses_by_day = np.bincount(codes, weights=np.maximum(-raw, 0), minlength=count)
+    profits, losses = profits_by_day[draws].sum(axis=1), losses_by_day[draws].sum(axis=1)
+    ratios = np.divide(profits, losses, out=np.full(len(draws), np.inf), where=losses > 0)
+    # Preserve zero-loss draws in the empirical distribution; deleting them
+    # changes quantiles. Order-statistic bounds also avoid infinity interpolation.
+    ratios.sort()
     alpha = (1 - confidence) / 2
-    return float(np.quantile(finite, alpha)), float(np.quantile(finite, 1 - alpha))
+    lower, upper = (float(ratios[min(len(ratios) - 1, int(q * len(ratios)))]) for q in (alpha, 1 - alpha))
+    metadata["zero_loss_draws"] = int(np.sum(losses == 0))
+    metadata["upper_unbounded"] = not np.isfinite(upper)
+    return lower if np.isfinite(lower) else None, upper if np.isfinite(upper) else None, metadata

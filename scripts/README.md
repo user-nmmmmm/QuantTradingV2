@@ -1,6 +1,6 @@
 # 脚本索引
 
-从仓库根目录运行 `python scripts/<脚本名>.py`。需要参数的脚本先查看 `--help`，再确认输入数据、输出目录和对应的研究或验收文档。脚本生成的 `outputs/`、`reports/` 内容与源码分开管理。
+从仓库根目录运行 `python scripts/<脚本名>.py`。需要参数的脚本先查看 `--help`，再确认输入数据、输出目录和对应的研究或验收文档。脚本生成的 `outputs/`、`reports/` 内容与源码分开管理。表中“离线”表示不请求外部服务，仍可能创建本地报告；“公开采集”会访问外部行情接口。
 
 本索引按**用途**定位脚本，不表示研究结果已获策略准入。当前工作区还有尚未加入 Git 的脚本；发布或在其他机器运行前，需核对脚本及其依赖是否已进入版本控制。
 
@@ -13,6 +13,7 @@
 | [`fetch_binance_data.py`](fetch_binance_data.py) | 下载并增量缓存 Binance 历史行情及数据 manifest。 |
 | [`run_backtest_matrix.py`](run_backtest_matrix.py) | 运行多标的、多周期、多时间窗的批量回测。 |
 | [`run_portable_tests.py`](run_portable_tests.py) | 在受限 Windows 临时目录中运行 pytest。 |
+| [`start_dashboard.ps1`](start_dashboard.ps1) | 启动本地网页研究工作台；入口和任务行为见 [Dashboard 使用说明](../dashboard/README.md)。 |
 
 回测主入口是仓库根目录的 [`main.py`](../main.py)，实盘主入口是 [`run_live.py`](../run_live.py)；二者不在 `scripts/` 中。
 
@@ -52,6 +53,46 @@
 | [`run_strategy_branch_example.py`](run_strategy_branch_example.py) | 通过离线 Broker 演示 S2/S3 分支。 |
 | [`collect_trend_portfolio_v3_data.py`](collect_trend_portfolio_v3_data.py)、[`run_trend_portfolio_v2.py`](run_trend_portfolio_v2.py)、[`run_trend_portfolio_v3.py`](run_trend_portfolio_v3.py) | 收集 V3 官方历史资料并运行 V2/V3 固定比较。 |
 | [`render_capital_growth.py`](render_capital_growth.py) | 从已完成的资本对照结果渲染图表。 |
+| [`benchmark_live_latency.py`](benchmark_live_latency.py) | 在明确的合成 I/O 延迟下成对比较旧版/当前实盘适配器；输入基线源码路径，输出本地基准报告，不测真实交易所延迟。 |
+
+## 论文方法与收益复核（离线）
+
+从[论文应用路线图](../docs/research/paper_application_roadmap_20261003.md)了解研究范围，从[统计验证契约](../docs/research/paper_validation_contract_20261003.md)核对方法输入。以下脚本复用既有历史资料，运行前登记本次候选及输入身份；本次登记不使已查看的历史变成独立留出集，也不改变生产准入。
+
+| 脚本 | 输入与产物 |
+| --- | --- |
+| [`run_strategy_p0_p1.py`](run_strategy_p0_p1.py) | 读取策略审查批次的 `frozen_inputs`，执行固定窗口和对照组；参数可限定 `--windows`、`--arms`，结果写入独立研究目录。 |
+| [`run_paper_applications.py`](run_paper_applications.py) | 读取 BTC/ETH 日线 manifest，冻结输入并运行既定引擎对照；生成登记、逐任务结果及 P0 信号观察资料。 |
+| [`run_paper_roadmap.py`](run_paper_roadmap.py) | 读取日线 manifest 与 P0 观察，执行论文方法工作包并保留尝试日志；可附加细周期 manifest 和执行观测输入。 |
+| [`run_return_followup.py`](run_return_followup.py) | 使用脚本内固定的日线 manifest 和前序论文对比结果，研究现货目标权重、年度选择和连续账户；`--output` 必填，`--workers` 限定 1–4。 |
+| [`run_return_followup_engine.py`](run_return_followup_engine.py) | 用现有 `BacktestEngine` 复核固定策略分支及旧对照，输入 manifest 和前序论文批次；`--register-only` 只登记，执行并发限定 1 或 2。 |
+| [`plot_return_followup.py`](plot_return_followup.py) | 从 `--report` 指定的已完成连续账户结果导出图表，不重新选参或重跑账户。 |
+| [`review_barrier_first_touch.py`](review_barrier_first_touch.py) | 用细周期 manifest 复核历史双障碍歧义，保存新标签、变化表和输入身份。 |
+| [`review_barrier_cascade.py`](review_barrier_cascade.py) | 读取上一轮复核目录，仅细化仍有歧义的标签，保留已验证路径并写入新目录。 |
+
+两类收益复核使用不同执行路径：`run_return_followup.py` 的研究账户由 `analysis/paper_portfolio.py` 驱动 Broker；`run_return_followup_engine.py` 使用完整回测引擎。它们的结果应按各自协议解释。新导入细周期数据保留本次真实可用时间，不能倒填成历史决策时已知。
+
+## 公开资料、执行证据与后续观察
+
+| 脚本 | 外部访问与输入输出边界 |
+| --- | --- |
+| [`fetch_spot_intraday.py`](fetch_spot_intraday.py) | 公开采集 Binance 现货 1h 历史；保存原始分页、哈希、CSV 和会话 manifest，`--resume` 续传。历史事件时间不替代本次导入可用时间。 |
+| [`fetch_spot_refinement.py`](fetch_spot_refinement.py) | 根据 `--labels` 中歧义候选涉及的 UTC 日期，定向采集现货 1m 历史；保存回顾性路径证据，支持续传。 |
+| [`collect_factor_evidence.py`](collect_factor_evidence.py) | 有界采集公开日度因子输入，保留来源与接收时间；可续传，不认证历史时点可得性。 |
+| [`diagnose_public_market.py`](diagnose_public_market.py) | 有界诊断选定官方主机的公开连接，输出脱敏结果；`--configuration-only` 仅检查本地配置。 |
+| [`measure_market_speed.py`](measure_market_speed.py) | 请求公开 OHLCV，分别报告刷新耗时和已收盘价格变化；可附加本地 CSV，历史统计单列。 |
+| [`collect_execution_quotes.py`](collect_execution_quotes.py) | 有界采集公开最优买卖报价（BBO），保存报价库和会话证据；`--resume-store` 追加已有库，`--output` 仍须为新目录。 |
+| [`collect_execution_depth.py`](collect_execution_depth.py) | 有界采集 Binance 现货快照与有序深度流，保存深度日志、报价库、时钟诊断和可见深度测算；不提交订单。 |
+| [`calibrate_execution.py`](calibrate_execution.py) | 离线读取事件 JSON，可关联请求、报价和订单账本；按决策/提交时点向后匹配独立报价，输出校准报告。`--output` 是新文件路径。 |
+| [`audit_execution_readiness.py`](audit_execution_readiness.py) | 离线审计订单、请求、报价和深度证据；在新 `--output` 目录输出 `readiness.json`、`summary.json`、每日覆盖及分层 CSV。 |
+| [`measure_sandbox_orders.py`](measure_sandbox_orders.py) | 沙盒订单探针；显式传入 `--execute-sandbox-orders` 并通过沙盒凭据门槛后会提交测试网订单、撤单和观察成交。结果不能代替真实市场执行证据。 |
+| [`start_paper_observation.py`](start_paper_observation.py) | 登记并封存有限时长的公开报价观察。首次用 `--output`，后续用 `--resume` 验证原协议和证据后追加会话；每次必填 `--duration-seconds`。 |
+| [`prepare_strategy_forward.py`](prepare_strategy_forward.py) | 在新目录冻结当前候选和后续公开采集协议，重新起算观察时间；不打开前序留出集。 |
+| [`collect_strategy_forward.py`](collect_strategy_forward.py) | 从冻结候选的源码副本运行，以 `--batch` 指定登记目录；校验冻结身份后只收集登记后的已收盘 bar，不执行策略或计算选择指标。 |
+
+公开报价、深度、网络耗时、订单确认和真实成交是不同证据。没有成交时，报价采集会明确保留零成交和校准不足状态；可见深度测算不等于已验证成交容量。公开采集中的 `live` 指数据环境，不表示真实订单获准提交。具体证据口径见[研究与分析模块说明](../docs/modules/analysis_dashboard_research_config.md)。
+
+需要新目录的研究脚本会拒绝覆盖既有证据。部分脚本的默认路径绑定历史批次，复用时应显式指定新的 `--output`；续传仅使用该脚本公开提供的 `--resume` 或 `--resume-store`，不手工重写登记和哈希。
 
 ## 历史专项：策略审查交付
 

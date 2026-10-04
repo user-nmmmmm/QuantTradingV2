@@ -114,6 +114,7 @@ class MetaReplayPolicy:
 def adaptive_implementation_identity(policy):
     root = Path(__file__).resolve().parent
     names = ("signal_adaptive_types.py", "signal_regime_model.py", "signal_axis_attribution.py",
-             "signal_adaptive.py", "signal_ev_types.py", "signal_ev_ledger.py", "signal_meta_layer.py")
+             "signal_adaptive.py", "signal_ev_types.py", "signal_ev_ledger.py", "signal_meta_layer.py",
+             "signal_label_versions.py")
     return fingerprint({"sources": {name: (root/name).read_text(encoding="utf-8") for name in names},
                         "policy": policy.to_dict()})

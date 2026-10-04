@@ -52,30 +52,79 @@ def walk_forward_windows(
     return windows
 
 
+def cohort_block_plan(values, *, timestamps=None, block_length=5, n_samples=2000,
+                      seed=42, cohort_frequency=None):
+    """Keep simultaneous observations together; never certify missing time metadata.
+
+    Draws index chronological cohorts, not individual assets/trades. Nominal
+    blocks describe support, not a proof that the blocks are independent.
+    """
+    raw = np.asarray(list(values), dtype=float)
+    if raw.ndim != 1 or not np.isfinite(raw).all():
+        raise ValueError("all observations must be finite; missing rows cannot be discarded")
+    if block_length < 1 or n_samples < 1:
+        raise ValueError("positive block_length and n_samples required")
+    if timestamps is None and isinstance(values, pd.Series) and isinstance(values.index, pd.DatetimeIndex):
+        timestamps = values.index
+    if timestamps is None:
+        codes = np.arange(len(raw))
+        count, method, eligible = len(raw), "legacy_iid_diagnostic_missing_time", False
+    else:
+        times = pd.DatetimeIndex(pd.to_datetime(timestamps, utc=True))
+        if len(times) != len(raw) or times.hasnans or not times.is_monotonic_increasing:
+            raise ValueError("aligned, nonmissing chronological timestamps required")
+        if cohort_frequency:
+            times = times.floor(cohort_frequency)
+        codes, unique = pd.factorize(times, sort=False)
+        count, method = len(unique), "circular_chronological_cohort_blocks"
+        eligible = count >= max(2, 2 * block_length)
+    rng = np.random.default_rng(seed)
+    if not count:
+        draws = np.empty((n_samples, 0), dtype=int)
+    elif timestamps is None:
+        draws = rng.integers(count, size=(n_samples, count))
+    else:
+        starts = rng.integers(count, size=(n_samples, int(np.ceil(count / block_length))))
+        draws = ((starts[..., None] + np.arange(block_length)) % count).reshape(n_samples, -1)[:, :count]
+    metadata = {"method": method, "cohort_count": count, "block_length": block_length,
+                "nominal_blocks": count // block_length, "time_evidence_eligible": eligible,
+                "cohort_frequency": cohort_frequency, "seed": seed,
+                "interpretation": "dependence sensitivity; nominal blocks are not independent-sample certificates"}
+    return raw, codes, draws, metadata
+
+
+def _cohort_means(values, *, timestamps=None, block_length=5, n_samples=2000, seed=42):
+    raw, codes, draws, meta = cohort_block_plan(values, timestamps=timestamps,
+        block_length=block_length, n_samples=n_samples, seed=seed)
+    counts = np.bincount(codes, minlength=meta["cohort_count"])
+    means = np.divide(np.bincount(codes, weights=raw, minlength=len(counts)), counts,
+                      out=np.zeros(len(counts)), where=counts > 0)
+    meta["cohort_aggregation"] = "equal-weight mean of simultaneous observations; not an account return unless caller declares it"
+    return raw, means, means[draws], meta
+
+
 def bootstrap_return_distribution(
     returns: Iterable[float], statistic: str = "mean",
     n_samples: int = 2000, confidence: float = 0.95, seed: int = 42,
+    *, timestamps=None, block_length: int = 5,
 ) -> Dict[str, Any]:
-    """Bootstrap confidence interval for a return-series statistic (BM8).
+    """Chronological cohort-block interval, with explicit legacy diagnostics.
 
-    i.i.d. resampling with replacement — this does not model serial
-    correlation, so treat the interval as a lower bound on true uncertainty
-    for autocorrelated return series, not an exact one. ``statistic`` is
-    ``"mean"`` or ``"sharpe"`` (per-resample mean/std, unannualized —
-    annualize the bounds yourself with the correct periods_per_year if
-    comparing to an annualized Sharpe elsewhere). ``seed`` is fixed for
-    reproducibility, matching this module's existing profit-factor
-    bootstrap.
+    Sharpe bounds use per-observation units. Untimed input retains numeric
+    legacy output for reports, but evidence_eligible is false. Missing/nonfinite
+    observations are rejected rather than deleted. Compare several block lengths.
     """
     if statistic not in {"mean", "sharpe"}:
         raise ValueError("statistic must be 'mean' or 'sharpe'")
-    values = np.asarray(list(returns), dtype=float)
-    values = values[np.isfinite(values)]
+    try:
+        raw, values, samples, metadata = _cohort_means(returns, timestamps=timestamps,
+            block_length=block_length, n_samples=n_samples, seed=seed)
+    except (ValueError, TypeError) as exc:
+        return {"status": "invalid_input", "sample_size": 0, "value": None,
+                "lower": None, "upper": None, "reason": str(exc), "evidence_eligible": False}
     if len(values) < 2 or not 0 < confidence < 1:
         return {"status": "insufficient", "sample_size": int(len(values)),
                 "value": None, "lower": None, "upper": None}
-    rng = np.random.default_rng(seed)
-    samples = rng.choice(values, size=(n_samples, len(values)), replace=True)
     if statistic == "mean":
         stat_values = samples.mean(axis=1)
         point: Optional[float] = float(values.mean())
@@ -92,45 +141,45 @@ def bootstrap_return_distribution(
         return {"status": "undefined", "sample_size": int(len(values)),
                 "value": point, "lower": None, "upper": None}
     alpha = (1 - confidence) / 2
-    return {"status": "ok", "sample_size": int(len(values)), "value": point,
+    return {"status": "ok" if metadata["time_evidence_eligible"] else "diagnostic",
+            "sample_size": int(len(raw)), "effective_time_cohorts": len(values),
+            "evidence_eligible": metadata["time_evidence_eligible"], "resampling": metadata, "value": point,
             "lower": float(np.quantile(stat_values, alpha)),
             "upper": float(np.quantile(stat_values, 1 - alpha))}
 
 
 def one_sided_bootstrap_p_value(
     returns: Iterable[float], *, n_samples: int = 2000, seed: int = 42,
+    timestamps=None, block_length: int = 5,
 ) -> Dict[str, Any]:
-    """P(mean return <= 0) by bootstrap, for feeding ``benjamini_hochberg`` (BM8).
+    """One-sided null-centered cohort-block test of nonpositive mean.
 
-    A multiple-testing correction needs one p-value per hypothesis tested.
-    "This candidate's out-of-sample mean return is greater than zero" is the
-    hypothesis a parameter search is implicitly making N times, so this
-    resamples the candidate's own OOS returns and reports the share of
-    resamples whose mean is not positive.
-
-    The estimate is ``(k + 1) / (n_samples + 1)`` rather than ``k /
-    n_samples``: a bootstrap can never justify p == 0, and handing a literal
-    zero to an FDR correction would make the candidate unconditionally
-    significant no matter how many were tried.
-
-    Same i.i.d. caveat as :func:`bootstrap_return_distribution` — serial
-    correlation is not modelled, so this understates the true p-value for
-    autocorrelated returns and must not be read as an exact test.
+    Untimed/short-block input only populates diagnostic_p_value, preventing
+    a legacy IID number from silently entering FDR. Shared cohorts preserve
+    simultaneous cross-asset dependence. Stationarity remains an assumption.
     """
-    values = np.asarray(list(returns), dtype=float)
-    values = values[np.isfinite(values)]
+    try:
+        raw, values, samples, metadata = _cohort_means(returns, timestamps=timestamps,
+            block_length=block_length, n_samples=n_samples, seed=seed)
+    except (ValueError, TypeError) as exc:
+        return {"status": "invalid_input", "sample_size": 0, "p_value": None,
+                "mean": None, "reason": str(exc), "evidence_eligible": False}
     if len(values) < 2:
         return {"status": "insufficient", "sample_size": int(len(values)),
                 "p_value": None, "mean": None}
-    rng = np.random.default_rng(seed)
-    means = rng.choice(values, size=(n_samples, len(values)), replace=True).mean(axis=1)
-    failures = int(np.count_nonzero(means <= 0.0))
+    # Null-centered joint time blocks: tail of the null mean above the observed
+    # mean. Resampling uncentered signs is not this hypothesis test.
+    null_means = samples.mean(axis=1) - values.mean()
+    failures = int(np.count_nonzero(null_means >= values.mean()))
+    probability = float((failures + 1) / (n_samples + 1))
     return {
-        "status": "ok",
-        "sample_size": int(len(values)),
+        "status": "ok" if metadata["time_evidence_eligible"] else "diagnostic",
+        "sample_size": int(len(raw)), "effective_time_cohorts": len(values),
+        "evidence_eligible": metadata["time_evidence_eligible"], "resampling": metadata,
         "n_samples": int(n_samples),
         "mean": float(values.mean()),
-        "p_value": float((failures + 1) / (n_samples + 1)),
+        "p_value": probability if metadata["time_evidence_eligible"] else None,
+        "diagnostic_p_value": probability,
     }
 
 

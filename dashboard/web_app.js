@@ -1,11 +1,15 @@
 "use strict";
 
+import { requestJSON } from "/assets/api.js";
+
 const REFRESH_SECONDS = 15;
 const STALE_SECONDS = 300;
 let secondsUntilRefresh = REFRESH_SECONDS;
 let currentData = null;
 let currentFilter = "all";
 let fetching = false;
+let receivedAt = 0;
+const sectionVersions = new Map();
 
 const $ = (id) => document.getElementById(id);
 const numberFormat = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2, minimumFractionDigits: 2 });
@@ -15,7 +19,7 @@ function finite(value) { return typeof value === "number" && Number.isFinite(val
 function money(value) { return finite(value) ? numberFormat.format(value) : "—"; }
 function quantity(value) { return finite(value) ? quantityFormat.format(value) : "—"; }
 function text(value, fallback = "—") { return value === null || value === undefined || value === "" ? fallback : String(value); }
-function set(id, value) { $(id).textContent = value; }
+function set(id, value) { if ($(id).textContent !== value) $(id).textContent = value; }
 function node(tag, className, value) {
   const item = document.createElement(tag);
   if (className) item.className = className;
@@ -49,7 +53,7 @@ function renderHeader(data) {
   $("demoBanner").hidden = !demo;
   set("updatedAt", valid ? `最近更新 ${dateLabel(data.timestamp)}` : "最近更新 —");
   set("syncStatus", !valid ? "快照不可用" : !ageKnown ? "快照时间未确认" : stale ? `快照已过期 · ${ageLabel(data.snapshot_age_seconds)}` : `快照已同步 · ${ageLabel(data.snapshot_age_seconds)}`);
-  let state = "状态不可用";
+  let state = "账户快照不可用";
   let caption = "请检查状态快照";
   let stateClass = "danger";
   if (valid && stale) { state = ageKnown ? "快照过期" : "时间未确认"; caption = "等待可核验的状态更新"; stateClass = "warning"; }
@@ -267,21 +271,37 @@ function renderAlerts() {
   });
 }
 
+function changedSection(name, values, callback) {
+  const version = JSON.stringify(values);
+  if (sectionVersions.get(name) === version) return;
+  sectionVersions.set(name, version);
+  callback();
+}
 function render(data) {
   currentData = data;
-  renderHeader(data); renderMetrics(data); renderChart(data); renderAllocation(data);
-  renderPositions(data); renderChecks(data); renderStrategies(data); renderReasons(data); renderAlerts();
+  receivedAt = performance.now();
+  const valid = data.status_valid === true;
+  const stale = isStale(data);
+  const details = object(data.details);
+  renderHeader(data);
+  changedSection("metrics", [valid, stale, data.equity, data.cash, data.positions, details.account_entry_gate], () => renderMetrics(data));
+  changedSection("chart", [valid, data.history], () => renderChart(data));
+  changedSection("allocation", [valid, stale, data.equity, data.cash], () => renderAllocation(data));
+  changedSection("positions", [valid, stale, data.positions, details.protective_orders], () => renderPositions(data));
+  // Checks include snapshot age, so their labels must follow each observation.
+  renderChecks(data);
+  changedSection("strategies", [valid, stale, details.strategy_health], () => renderStrategies(data));
+  changedSection("reasons", [valid, data.health_reasons], () => renderReasons(data));
+  changedSection("alerts", [currentFilter, data.recent_alerts], renderAlerts);
   document.dispatchEvent(new CustomEvent("dashboard:status", { detail: data }));
 }
 async function refresh() {
-  if (fetching) return;
+  if (fetching || document.hidden) return;
   fetching = true;
   $("refreshButton").disabled = true;
   $("refreshButton").classList.add("loading");
   try {
-    const response = await fetch("/api/status", { cache: "no-store" });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    render(await response.json());
+    render(await requestJSON("/api/status", { key: "dashboard-status", timeout: 10000 }));
   } catch (_) {
     render({ mode: "live", status_valid: false, healthy: false, recent_alerts: [],
       health_reasons: [{ code: "CONNECTION_UNAVAILABLE", subject: "dashboard", message: "监控页面暂时无法读取状态接口" }] });
@@ -291,22 +311,41 @@ async function refresh() {
     $("refreshButton").disabled = false;
     $("refreshButton").classList.remove("loading");
     secondsUntilRefresh = REFRESH_SECONDS;
-    set("countdown", `${secondsUntilRefresh}s`);
+    set("countdown", document.hidden ? "已暂停" : `${secondsUntilRefresh}s`);
   }
 }
 
-document.querySelectorAll(".alert-filters button").forEach((button) => button.addEventListener("click", () => {
+const alertFilterButtons = document.querySelectorAll(".alert-filters button");
+function syncAlertFilterButtons() {
+  alertFilterButtons.forEach((button) => {
+    const selected = button.dataset.filter === currentFilter;
+    button.classList.toggle("active", selected);
+    button.setAttribute("aria-pressed", String(selected));
+  });
+}
+syncAlertFilterButtons();
+alertFilterButtons.forEach((button) => button.addEventListener("click", () => {
   currentFilter = button.dataset.filter;
-  document.querySelectorAll(".alert-filters button").forEach((item) => item.classList.toggle("active", item === button));
+  syncAlertFilterButtons();
   renderAlerts();
 }));
-document.querySelectorAll(".main-nav a").forEach((link) => link.addEventListener("click", () => {
-  document.querySelectorAll(".main-nav a").forEach((item) => item.classList.toggle("active", item === link));
-}));
-$("refreshButton").addEventListener("click", refresh);
+$("refreshButton").addEventListener("click", () => {
+  document.dispatchEvent(new CustomEvent("dashboard:refresh"));
+  refresh();
+});
 setInterval(() => {
+  if (document.hidden || fetching) return;
+  if (currentData && finite(currentData.snapshot_age_seconds)) {
+    const observed = { ...currentData, snapshot_age_seconds: currentData.snapshot_age_seconds + Math.floor((performance.now() - receivedAt) / 1000) };
+    renderHeader(observed);
+    if (isStale(observed) !== isStale(currentData)) render(observed);
+  }
   secondsUntilRefresh -= 1;
   if (secondsUntilRefresh <= 0) refresh();
   else set("countdown", `${secondsUntilRefresh}s`);
 }, 1000);
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) set("countdown", "已暂停");
+  else refresh();
+});
 refresh();

@@ -13,6 +13,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config.config import config
 from live_trading.engine import LiveTradingEngine
 from core.domain import PortfolioSnapshot
+from core.order_latency import OrderLatencyRecorder
 from core.portfolio import Portfolio
 from core.risk import RiskManager
 
@@ -24,6 +25,8 @@ class TestLiveStatusExport(unittest.TestCase):
         self.risk_manager = RiskManager()
         self.mock_broker = MagicMock()
         self.mock_broker.portfolio = self.portfolio
+        self.mock_broker.market_type = "spot"
+        self.mock_broker.order_latency = OrderLatencyRecorder()
 
         # Mock Data
         self.mock_broker.portfolio.positions = {
@@ -54,7 +57,7 @@ class TestLiveStatusExport(unittest.TestCase):
             os.remove(self.engine.state_file)
 
         # Run Export
-        self.engine._export_state()
+        self.assertTrue(self.engine._export_state())
 
         # Verify File Exists
         self.assertTrue(os.path.exists(self.engine.state_file))
@@ -69,6 +72,33 @@ class TestLiveStatusExport(unittest.TestCase):
         self.assertEqual(data["positions"]["BTC/USDT"]["qty"], 1.0)
         # Equity = 10000 + 1.0 * 50000 = 60000
         self.assertEqual(data["equity"], 60000.0)
+        self.assertIsInstance(data["performance"]["market_data"], dict)
+        self.assertIsInstance(data["temporal_data"]["audit"], dict)
+        self.assertEqual(data["order_request_observations"], self.mock_broker.order_latency.summary())
+
+    def test_state_export_preserves_real_request_observations(self):
+        ticks = iter((10.0, 10.125))
+        recorder = OrderLatencyRecorder(clock=lambda: next(ticks))
+        response = {"id": "order-1", "status": "open", "filled": 0}
+        self.assertEqual(recorder.call("create_order", lambda: response), response)
+        self.mock_broker.order_latency = recorder
+
+        self.assertTrue(self.engine._export_state())
+        with open(self.engine.state_file, encoding="utf-8") as handle:
+            state = json.load(handle)
+        observed = state["order_request_observations"]
+        self.assertEqual(observed, recorder.summary())
+        self.assertEqual(observed["total_records"], 1)
+        self.assertEqual(observed["statistics"]["create_order"]["p50_seconds"], 0.125)
+        self.assertEqual(observed["records"][0]["outcome"], "ack")
+        self.assertFalse(observed["records"][0]["terminal_observed"])
+
+    def test_state_export_supports_broker_without_request_recorder(self):
+        del self.mock_broker.order_latency
+        self.assertTrue(self.engine._export_state())
+        with open(self.engine.state_file, encoding="utf-8") as handle:
+            state = json.load(handle)
+        self.assertIsNone(state["order_request_observations"])
 
     def test_portfolio_transition_forces_export_without_waiting_for_interval(self):
         self.engine._tick_count = 1
@@ -99,7 +129,7 @@ class TestLiveStatusExport(unittest.TestCase):
             synced_at=datetime.now(timezone.utc),
         )
 
-        self.engine._export_state()
+        self.assertTrue(self.engine._export_state())
 
         with open(self.engine.state_file, "r") as f:
             data = json.load(f)

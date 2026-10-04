@@ -90,6 +90,6 @@ def context_memberships(candidate):
 def implementation_identity(policy):
     """Pin this model's code, fixed partitions and all parameters, not test data."""
     root = Path(__file__).resolve().parent
-    names = ("signal_ev_types.py", "signal_ev_ledger.py", "signal_meta_layer.py")
+    names = ("signal_ev_types.py", "signal_ev_ledger.py", "signal_meta_layer.py", "signal_label_versions.py")
     sources = {name: (root/name).read_text(encoding="utf-8") for name in names}
     return fingerprint({"sources": sources, "context": CONTEXT_DEFINITION, "policy": policy.to_dict()})

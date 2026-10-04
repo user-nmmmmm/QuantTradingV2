@@ -184,6 +184,11 @@ class SubmissionServiceMixin:
             # failure is classified UNKNOWN once and resolved out-of-band by
             # reconcile_order()'s idempotent fetch, never by resubmitting.
             payload = record_order_call(self, "submit", self.exchange.create_order,
+                telemetry_context={"client_order_id": intent.client_order_id,
+                    "symbol": intent.symbol, "decision_at": intent.created_at,
+                    "side": intent.action, "reference_price": float(intent.reference_price)
+                        if intent.reference_price is not None else None,
+                    "requested_qty": float(intent.requested_qty)},
                                               **prepared.request.as_kwargs())
         except Exception as exc:
             code = classify_order_exception(exc)
@@ -250,7 +255,8 @@ class SubmissionServiceMixin:
         )
         try:
             payload = record_order_call(self, "cancel", self.exchange.cancel_order,
-                record["exchange_order_id"], record["symbol"])
+                record["exchange_order_id"], record["symbol"],
+                telemetry_context={"client_order_id": client_order_id, "symbol": record["symbol"]})
         except Exception:
             # Cancel rejection/race is resolved by querying the exchange fact.
             return self.reconcile_order(client_order_id)

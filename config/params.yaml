@@ -103,6 +103,20 @@ router:
 
 allocation:
   order: score_strategy_symbol
+  # Batch planning; --smart-allocation enables this per backtest.
+  # Limits count both held positions and unfilled opening reservations.
+  capital:
+    enabled: false
+    max_positions: 8
+    max_gross_exposure: 0.90
+    max_position_pct: 0.20
+    cash_reserve_pct: 0.10
+    volatility_lookback: 60
+    min_history: 20
+    volatility_floor: 0.005
+    correlation_penalty: 1.0
+    score_cap: 5.0
+    cost_buffer_bps: 50.0
 
 # P0 passive candidate measurement. Research notionals are not order budgets.
 # Enable per run with main.py --observe-signals; never gates/sizes real orders.

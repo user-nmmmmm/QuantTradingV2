@@ -1,7 +1,5 @@
 # Roadmap 第 7 节：优先级与完成定义契约 v1
 
-> 公开发布视图：保留任务编号、状态、依赖及技术契约；私人邮件正文、逐条审查摘录和邮箱映射未发布。原始本地登记仍是权威资料。`reports/`、`outputs/`、`tmp/`、`docs/archive/` 及邮件审计文件均为仅本地引用，不随源码发布；公开 CI 的 structure-only 结果不代表这些历史证据已验证。
-
 适用范围是任务治理、历史本地验收证据和后续关闭任务的检查。权威状态仍由[统一 Roadmap](unified_roadmap.md)、[开发计划](development_plan.md)、[任务登记表](development_task_registry.json)共同维护。契约版本为 `roadmap-completion/v1`；[完成证据清单](roadmap_completion_manifest.json)为不同历史回执提供显式适配，原始回执和研究结论不改写。
 
 ## 优先级与依赖

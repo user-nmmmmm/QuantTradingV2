@@ -1,4 +1,4 @@
-"""Bounded restart-safe bar selection; historical replay has no execution port."""
+"""按持久化游标选择有限数量的补帧；历史帧只恢复状态，不补发订单。"""
 from dataclasses import dataclass
 import pandas as pd
 
@@ -7,6 +7,12 @@ from core.timeframes import as_utc_timestamp, timeframe_delta, observed_bars_aft
 
 @dataclass(frozen=True)
 class CatchupPlan:
+    """补帧结果：历史回放时间、可处理的最新 bar、剩余已观察帧数及缺口标记。
+
+    pending 不估算缺失 bar 的数量；无缺口时也不包含预留给实盘的最新 bar。
+    live_time 为 None 表示本轮尚不能进入正常策略处理。
+    """
+
     replay_times: tuple
     live_time: object
     pending: int
@@ -14,6 +20,12 @@ class CatchupPlan:
 
 
 def plan_catchup(frame, last_processed, *, timeframe, max_bars=100):
+    """为已收盘且索引有序、唯一的行情生成补帧计划。
+
+    首次启动直接采用最新 bar；重启后仅回放游标之后的历史帧。每轮最多
+    回放 max_bars 根，且只走到第一个时间缺口之前；补帧未完或存在缺口时
+    不放行最新 bar。时间统一按 UTC 比较，返回值保留原始索引类型。
+    """
     if type(max_bars) is not int or max_bars < 1:
         raise ValueError("catchup limit must be a positive integer")
     if frame.empty:
@@ -21,7 +33,7 @@ def plan_catchup(frame, last_processed, *, timeframe, max_bars=100):
     if not frame.index.is_monotonic_increasing or not frame.index.is_unique:
         raise ValueError("catchup history must be sorted and unique")
     latest = frame.index[-1]
-    # First start adopts the latest bar rather than trading historical signals.
+    # 无恢复游标时只接纳当前最新帧，不执行启动前的历史信号。
     if last_processed is None:
         return CatchupPlan((), latest, 0, False)
     last = as_utc_timestamp(last_processed)
@@ -41,6 +53,7 @@ def plan_catchup(frame, last_processed, *, timeframe, max_bars=100):
             break
         contiguous.append(point)
         previous = stamp
+    # 连续历史补齐后才把最后一帧交给正常策略；存在缺口时不得越过缺口。
     historical = contiguous if gap else unseen[:-1]
     replay = tuple(historical[:max_bars])
     pending = max(0, len(unseen) - len(replay) - (0 if gap else 1))
@@ -48,11 +61,14 @@ def plan_catchup(frame, last_processed, *, timeframe, max_bars=100):
 
 
 def replay_state_only(engine, symbol, frame, timestamp):
-    """Recover routing/cooldown state with no broker or candidate allocation."""
+    """恢复市场状态、路由及策略冷却进度，不调用 broker 或候选分配器。
+
+    冷却进度按已观察到的 bar 推进；此处不重新运行历史持仓管理、撤单或退出。
+    """
     location = frame.index.get_loc(timestamp)
     state = engine.state_machine.get_state(frame, location)
     engine.event_processor._last_market_states[symbol] = state
-    # Track transitions, but do not create historical cancel/exit/order calls.
+    # 状态切换可启动或结束冷却，但不能触发历史订单副作用。
     cooling = False
     if symbol in engine.router.cooldowns:
         started = engine.router._cooldown_started_at.get(symbol)
@@ -92,6 +108,7 @@ def replay_state_only(engine, symbol, frame, timestamp):
 
 
 def runtime_checkpoint(engine):
+    """收集与补帧游标一同持久化的路由、策略上下文及成交消费进度。"""
     values = {"router_runtime": engine.router.checkpoint()}
     for strategy in engine.strategies.values():
         values[f"strategy_runtime:{strategy.name}"] = {

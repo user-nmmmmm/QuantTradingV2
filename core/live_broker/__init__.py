@@ -90,6 +90,7 @@ class LiveBroker(SubmissionServiceMixin, OrderReconcilerMixin, AccountSyncMixin)
         self.portfolio = portfolio
         self.require_resident_protection = require_resident_protection
         self.exchange_id = exchange_id
+        self.environment = "sandbox" if sandbox else "live"
         self.market_type = market_type
         self.base_currency = base_currency
         self.account_id = account_id or market_type
@@ -103,8 +104,9 @@ class LiveBroker(SubmissionServiceMixin, OrderReconcilerMixin, AccountSyncMixin)
         self._bar_timeframe = "unknown"
         self._bar_time = "unknown"
         self.trades = []  # Compatibility projection only; OrderStore is authoritative.
-        from core.order_latency import OrderLatencyRecorder
-        self.order_latency = OrderLatencyRecorder()
+        from core.order_latency import OrderLatencyRecorder, order_observation_sidecar_path
+        self.order_latency = OrderLatencyRecorder(
+            persistence_path=order_observation_sidecar_path(getattr(self.order_store, "path", None)))
         self.close_events = []
         self.projection_issues = []
         self.unowned_positions = {}

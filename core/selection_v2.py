@@ -16,6 +16,8 @@ from typing import Any, Iterable, Mapping
 import numpy as np
 import pandas as pd
 
+from core.cost_aware_allocation import CostAwareAllocationPolicy, allocate_cost_aware
+
 from core.indicators import Indicators
 from core.protective_stops import ProtectiveStopPolicy, plan_initial_stop
 from core.universe import normalize_symbol
@@ -359,16 +361,23 @@ class PortfolioTargetsV2:
     add_allowed: dict[str, bool]
     stop_prices: dict[str, float]
     applied_multipliers: dict[str, float]
+    cost_aware_audit: dict[str, Any] | None = None
+    mandatory_reduction_weights: dict[str, float] | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        result = asdict(self)
+        if self.cost_aware_audit is None:
+            result.pop("cost_aware_audit")
+            result.pop("mandatory_reduction_weights")
+        return result
 
 
 def size_portfolio_targets(selection: SelectionResultV2, *, health_multiplier: float = 1.0,
                            account_multiplier: float = 1.0, clusters: Mapping[str, str] | None = None,
                            stop_distances: Mapping[str, float] | None = None,
                            existing_weights: Mapping[str, float] | None = None,
-                           daily_new_risk_budget: float = 0.02) -> PortfolioTargetsV2:
+                           daily_new_risk_budget: float = 0.02,
+                           cost_aware_policy: CostAwareAllocationPolicy | None = None) -> PortfolioTargetsV2:
     """Inverse volatility/covariance target, followed by non-refilling caps.
 
     Multipliers are explicit and applied exactly once here. An executor must
@@ -384,8 +393,19 @@ def size_portfolio_targets(selection: SelectionResultV2, *, health_multiplier: f
     if not math.isfinite(daily_new_risk_budget) or daily_new_risk_budget < 0:
         raise ValueError("daily_new_risk_budget must be finite and nonnegative")
     multiplier_facts = {"health": float(health_multiplier), "account": float(account_multiplier)}
+    if cost_aware_policy is not None and cost_aware_policy.enabled:
+        if any(not math.isfinite(float(w)) or float(w) < 0 for w in (existing_weights or {}).values()):
+            raise ValueError("existing_weights must be finite and nonnegative")
     if not symbols:
-        return PortfolioTargetsV2(selection.as_of, {}, {}, 0.0, 0.0, {}, {}, {}, multiplier_facts)
+        result = PortfolioTargetsV2(selection.as_of, {}, {}, 0.0, 0.0, {}, {}, {}, multiplier_facts)
+        if cost_aware_policy is not None and cost_aware_policy.enabled:
+            from dataclasses import replace
+            _, audit = allocate_cost_aware([], np.zeros((0, 0)), [], [], policy=cost_aware_policy)
+            mandatory = {s: 0. for s, w in (existing_weights or {}).items() if w > 0}
+            audit.update(as_of=selection.as_of, symbols=[], mandatory_reduction_weights=mandatory,
+                         mandatory_turnover_weight=float(sum((existing_weights or {}).values())))
+            result = replace(result, cost_aware_audit=audit, mandatory_reduction_weights=mandatory)
+        return result
     returns = selection.returns.reindex(columns=symbols).tail(policy.volatility_window)
     if len(returns) != policy.volatility_window or not np.isfinite(returns.to_numpy(dtype=float)).all():
         raise ValueError("portfolio covariance requires common complete trailing returns")
@@ -459,9 +479,36 @@ def size_portfolio_targets(selection: SelectionResultV2, *, health_multiplier: f
         for index, symbol in enumerate(symbols):
             if increments[index] > 0:
                 constraints[symbol].append("daily_new_risk")
+    cost_audit, mandatory = None, None
+    if cost_aware_policy is not None and cost_aware_policy.enabled:
+        all_existing = {s: float(w) for s, w in (existing_weights or {}).items()}
+        # The native selector's fully constrained weights are a hard envelope:
+        # optimization/partial adjustment may remove, never refill, risk budget.
+        upper = weights.copy()
+        if upper.sum() > cost_aware_policy.max_gross_weight:
+            upper *= cost_aware_policy.max_gross_weight/upper.sum()
+        horizon = cost_aware_policy.horizon_days
+        weights, cost_audit = allocate_cost_aware(
+            returns.mean().to_numpy(dtype=float)*horizon,
+            covariance/policy.periods_per_year*horizon, existing, upper,
+            policy=cost_aware_policy)
+        envelope = dict(zip(symbols, map(float, upper)))
+        mandatory = {s: envelope.get(s, 0.) for s, w in all_existing.items()
+                     if w > envelope.get(s, 0.)+1e-12}
+        if cost_audit["cash_fallback"]:
+            mandatory = {s: 0. for s, w in all_existing.items() if w > 0}
+        cost_audit.update(as_of=selection.as_of, symbols=list(symbols),
+                          mandatory_reduction_weights=mandatory,
+                          mandatory_turnover_weight=float(sum(all_existing[s]-w for s, w in mandatory.items())),
+                          native_risk_envelope=envelope)
+        for symbol in symbols:
+            constraints[symbol].append("cost_aware_research_target")
+            if symbol in mandatory:
+                constraints[symbol].append("mandatory_native_envelope_reduction")
     return PortfolioTargetsV2(
         selection.as_of, dict(zip(symbols, map(float, weights))), dict(zip(symbols, map(float, unconstrained))),
         float(np.sqrt(unconstrained @ covariance @ unconstrained)), float(np.sqrt(weights @ covariance @ weights)),
         {symbol: tuple(reasons) for symbol, reasons in constraints.items()},
         {symbol: selection.rows[symbol].add_allowed for symbol in symbols},
-        {symbol: float(selection.rows[symbol].stop_price) for symbol in symbols}, multiplier_facts)
+        {symbol: float(selection.rows[symbol].stop_price) for symbol in symbols}, multiplier_facts,
+        cost_audit, mandatory)

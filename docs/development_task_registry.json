@@ -68,6 +68,7 @@
         "任务登记表与追溯矩阵",
         "历史归档/邮件正文/manifest"
       ],
+      "mail_ids": [],
       "owner_role": "文档与工程治理",
       "evidence_dir": "docs/archive/2026-09-roadmap-rebaseline/",
       "baseline_status": "已验收",
@@ -123,6 +124,7 @@
       "compatibility": "保留旧基线及补丁；跨平台以Git可重现字节或明示规范化计算hash，不使用chmod宣称不可变。",
       "owner_role": "工程验收",
       "evidence_dir": "reports/roadmap_v3/SYS-01/<run_id>/",
+      "mail_ids": [],
       "deliverables": [
         "contract.md（契约及变更边界）",
         "acceptance.json（逐项通过/失败/不足/待证据）",
@@ -191,27 +193,71 @@
         "监控/对账/连续性反例夹具",
         "新旧准入对照报告"
       ],
+      "mail_ids": [
+        "MAIL-20-1",
+        "MAIL-20-2",
+        "MAIL-20-3"
+      ],
       "baseline_status": "planned_from_20260920_audit",
+      "mail_baseline": [
+        {
+          "id": "MAIL-20-1",
+          "status": "仍存在",
+          "mail_priority": "P1",
+          "title": "Fail admission on unhealthy monitoring snapshots",
+          "reason": "监控维度 ok=false 仍只追加 generated_alerts，不追加 issues；只要告警送达已验证，就会 passed=true 并被准入检查采用。",
+          "verification": "2026-09-20 内存复现：data_quality.ok=false，其他维度健康，evaluate_monitoring 返回 passed=true。详见 mid_verification.json MAIL-20-1。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/20#pullrequestreview-5032477893",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03ec7aa5b8fd35"
+        },
+        {
+          "id": "MAIL-20-2",
+          "status": "仍存在",
+          "mail_priority": "P1",
+          "title": "Compare unexpected fields in actual reconciliation records",
+          "reason": "逐字段对账仍只遍历 expected_record.items()，实际记录额外业务字段未纳入比较。",
+          "verification": "2026-09-20 内存复现：六层 actual 均多出 unexpected_business_status=bad，对账仍 coverage=1、passed=true。详见 mid_verification.json MAIL-20-2。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/20#pullrequestreview-5032477893",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03ec7aa5b8fd35"
+        },
+        {
+          "id": "MAIL-20-3",
+          "status": "仍存在",
+          "mail_priority": "P1",
+          "title": "Require continuous evidence across the paper-run interval",
+          "reason": "paper 时长仍仅由最早/最晚日期差得出，没有逐日覆盖或中间缺口校验。",
+          "verification": "2026-09-20 内存复现：2026-01-01 与 2026-02-25 两条、两个regime，56天paper gate passed=true。详见 mid_verification.json MAIL-20-3。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/20#pullrequestreview-5032477893",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03ec7aa5b8fd35"
+        }
+      ],
       "evidence": [
         {
+          "mail_id": "MAIL-20-1",
           "location": "core/admission_gates.py:380"
         },
         {
+          "mail_id": "MAIL-20-1",
           "location": "core/admission_gates.py:397"
         },
         {
+          "mail_id": "MAIL-20-1",
           "location": "core/admission_gates.py:446"
         },
         {
+          "mail_id": "MAIL-20-2",
           "location": "core/admission_gates.py:138"
         },
         {
+          "mail_id": "MAIL-20-2",
           "location": "core/admission_gates.py:154"
         },
         {
+          "mail_id": "MAIL-20-3",
           "location": "core/admission_gates.py:248"
         },
         {
+          "mail_id": "MAIL-20-3",
           "location": "core/admission_gates.py:263"
         }
       ],
@@ -227,8 +273,7 @@
         "supplemental_evidence": [
           {
             "path": "reports/roadmap_v3/POLICY/20260920-section56-release/policy_report.json",
-            "sha256": "085412421564bf66ff7009ba7086b9454142bb6fc1f9a381f072feaad38654b3",
-            "distribution": "local_only_not_published"
+            "sha256": "085412421564bf66ff7009ba7086b9454142bb6fc1f9a381f072feaad38654b3"
           }
         ]
       }
@@ -275,27 +320,60 @@
         "PF/DSR 定向测试",
         "旧报告重算差异清单"
       ],
+      "mail_ids": [
+        "MAIL-19-3",
+        "MAIL-19-5"
+      ],
       "baseline_status": "planned_from_20260920_audit",
+      "mail_baseline": [
+        {
+          "id": "MAIL-19-3",
+          "status": "仍存在",
+          "mail_priority": "P1",
+          "title": "Reject insufficient profit-factor samples",
+          "reason": "G13 仍仅检查PF值与置信下界，没有要求pf.status=='ok'，不足30笔的有利小样本仍能通过该门槛。",
+          "verification": "2026-09-20 内存复现19笔（18笔+10，1笔-1）：profit_factor.status=insufficient，但G13_pf_significance=true。详见 mid_verification.json MAIL-19-3。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/19#pullrequestreview-5032066890",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03e9990378d4e3"
+        },
+        {
+          "id": "MAIL-19-5",
+          "status": "仍存在",
+          "mail_priority": "P2",
+          "title": "Scale the expected maximum Sharpe consistently",
+          "reason": "observed Sharpe乘sqrt(periods_per_year)，expected_max仍为未缩放标准正态顺序统计量；分子和方差口径不一致。",
+          "verification": "2026-09-20 相同80条收益及12次试验，periods_per_year由1改365.25，expected_max仍1.664811，概率由0.000080025升至1.0。详见 mid_verification.json MAIL-19-5。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/19#pullrequestreview-5032066890",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03e9990378d4e3"
+        }
+      ],
       "evidence": [
         {
+          "mail_id": "MAIL-19-3",
           "location": "analysis/research_validation.py:360"
         },
         {
+          "mail_id": "MAIL-19-3",
           "location": "analysis/research_validation.py:387"
         },
         {
+          "mail_id": "MAIL-19-3",
           "location": "core/metrics/trade_quality.py:25"
         },
         {
+          "mail_id": "MAIL-19-5",
           "location": "analysis/research_validation.py:285"
         },
         {
+          "mail_id": "MAIL-19-5",
           "location": "analysis/research_validation.py:293"
         },
         {
+          "mail_id": "MAIL-19-5",
           "location": "analysis/research_validation.py:298"
         },
         {
+          "mail_id": "MAIL-19-5",
           "location": "scripts/run_phase5_analysis.py:145"
         }
       ],
@@ -353,36 +431,94 @@
         "版本化归档校验方案",
         "跨平台归档验证与污染工作区反例"
       ],
+      "mail_ids": [
+        "MAIL-15-1",
+        "MAIL-15-2",
+        "MAIL-15-3",
+        "MAIL-34-1"
+      ],
       "baseline_status": "planned_from_20260920_audit",
+      "mail_baseline": [
+        {
+          "id": "MAIL-15-1",
+          "status": "仍存在",
+          "mail_priority": "P1",
+          "title": "Regenerate hashes after Git line-ending normalization",
+          "reason": "归档清单仍记录 CRLF 字节。实际工作树可通过，但 Git 已提交 blob 是 LF；新检出/非 Windows 环境不能按清单验证。",
+          "verification": "2026-09-20 只读重算：首个 benchmark.csv 工作树21727字节/fdf23e1a…；git show HEAD:该文件21005字节/ff37867c…，与邮件完全一致。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/15#pullrequestreview-5019831836",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a0393b4b7581a5c"
+        },
+        {
+          "id": "MAIL-15-2",
+          "status": "仍存在",
+          "mail_priority": "P2",
+          "title": "Replace the HEAD check with a check of the recorded commit",
+          "reason": "文档仍要求 git rev-parse HEAD 输出旧基线 ff14fb8；当前 HEAD 为 ab15bc2，未改为检查被记录对象。",
+          "verification": "静态核对文档及当前 Git HEAD。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/15#pullrequestreview-5019831836",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a0393b4b7581a5c"
+        },
+        {
+          "id": "MAIL-15-3",
+          "status": "仍存在",
+          "mail_priority": "P2",
+          "title": "Enforce read-only archives rather than relying on chmod 444",
+          "reason": "仍声称 chmod 444 只读冻结；Git 无法保留此权限位，CI 未见归档目录变更/哈希守卫。",
+          "verification": "静态核对冻结说明、Git 工作流及属性规则；未更改归档。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/15#pullrequestreview-5019831836",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a0393b4b7581a5c"
+        },
+        {
+          "id": "MAIL-34-1",
+          "status": "仍存在",
+          "mail_priority": "P1",
+          "title": "Reject untracked files before accepting a commit",
+          "reason": "验收仍仅使用 git diff --name-only HEAD 判断干净树，未检查 untracked；后续直接运行 pytest，可能加载未跟踪 conftest/module。现有测试只覆盖交付ZIP，不覆盖源码净化。",
+          "verification": "静态确认 git diff 检查与未跟踪文件缺失检查；未运行会生成验收产物的完整 acceptance。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/34#pullrequestreview-5125020002",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a07631c34ed8774"
+        }
+      ],
       "evidence": [
         {
+          "mail_id": "MAIL-15-1",
           "location": "docs/baseline/phase0/reports_manifest.json:8"
         },
         {
+          "mail_id": "MAIL-15-1",
           "location": ".gitattributes:1"
         },
         {
+          "mail_id": "MAIL-15-2",
           "location": "docs/baseline/phase0/baseline_lock.md:16"
         },
         {
+          "mail_id": "MAIL-15-3",
           "location": "docs/baseline/phase0/README.md:8"
         },
         {
+          "mail_id": "MAIL-15-3",
           "location": "docs/baseline/phase0/freeze_notice.md:24"
         },
         {
+          "mail_id": "MAIL-15-3",
           "location": ".github/workflows/tests.yml:23"
         },
         {
+          "mail_id": "MAIL-34-1",
           "location": "scripts/main_acceptance.py:37"
         },
         {
+          "mail_id": "MAIL-34-1",
           "location": "scripts/main_acceptance.py:38"
         },
         {
+          "mail_id": "MAIL-34-1",
           "location": "scripts/main_acceptance.py:44"
         },
         {
+          "mail_id": "MAIL-34-1",
           "location": "tests/test_main_acceptance_archive.py:25"
         }
       ],
@@ -440,30 +576,75 @@
         "有界分页下载路径",
         "矩阵刷新 fail-closed 反例"
       ],
+      "mail_ids": [
+        "MAIL-21-1",
+        "MAIL-21-2",
+        "MAIL-21-3"
+      ],
       "baseline_status": "planned_from_20260920_audit",
+      "mail_baseline": [
+        {
+          "id": "MAIL-21-1",
+          "status": "仍存在",
+          "mail_priority": "P1",
+          "title": "Reject Yahoo fallback data from the Binance cache",
+          "reason": "通用下载路径仍可回退Yahoo且缓存脚本未验证实际来源/周期；新研究专用采集器不关闭此旧路径。",
+          "verification": "静态核对",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/21#pullrequestreview-5052647523",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a049087b39acea3"
+        },
+        {
+          "id": "MAIL-21-2",
+          "status": "仍存在",
+          "mail_priority": "P1",
+          "title": "Split intraday chunks below the fetcher's safety cap",
+          "reason": "依旧按自然年分块；15m/5m全年超过单次10000根上限。",
+          "verification": "静态核对",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/21#pullrequestreview-5052647523",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a049087b39acea3"
+        },
+        {
+          "id": "MAIL-21-3",
+          "status": "仍存在",
+          "mail_priority": "P1",
+          "title": "Stop the matrix when a cache refresh fails",
+          "reason": "下载子进程check=False且不检查returncode，失败后仍进入回测。",
+          "verification": "本次模拟returncode=1确认未传播异常",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/21#pullrequestreview-5052647523",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a049087b39acea3"
+        }
+      ],
       "evidence": [
         {
+          "mail_id": "MAIL-21-1",
           "location": "scripts/fetch_binance_data.py:115"
         },
         {
+          "mail_id": "MAIL-21-1",
           "location": "core/data_fetcher.py:239"
         },
         {
+          "mail_id": "MAIL-21-1",
           "location": "core/data_fetcher.py:251"
         },
         {
+          "mail_id": "MAIL-21-2",
           "location": "scripts/fetch_binance_data.py:92"
         },
         {
+          "mail_id": "MAIL-21-2",
           "location": "scripts/fetch_binance_data.py:113"
         },
         {
+          "mail_id": "MAIL-21-2",
           "location": "core/data_fetcher.py:324"
         },
         {
+          "mail_id": "MAIL-21-3",
           "location": "scripts/run_backtest_matrix.py:96"
         },
         {
+          "mail_id": "MAIL-21-3",
           "location": "scripts/run_backtest_matrix.py:177"
         }
       ],
@@ -521,24 +702,56 @@
         "日线完成度契约",
         "时间冻结和分页反例夹具"
       ],
+      "mail_ids": [
+        "MAIL-13-2",
+        "MAIL-35-2"
+      ],
       "baseline_status": "planned_from_20260920_audit",
+      "mail_baseline": [
+        {
+          "id": "MAIL-13-2",
+          "status": "仍存在",
+          "mail_priority": "P1",
+          "title": "Paginate open-interest history through the requested end",
+          "reason": "OI 历史仍只有一次 fetchOpenInterestHistory；end_date 仅过滤返回结果，未继续分页。",
+          "verification": "静态检查完整函数，无交易所调用。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/13#pullrequestreview-5005367713",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a032a2aa81b7066"
+        },
+        {
+          "id": "MAIL-35-2",
+          "status": "仍存在",
+          "mail_priority": "P2",
+          "title": "Reject incomplete daily candles",
+          "reason": "仍只保存 kline 前6列并按 opening timestamp 筛选，忽略 close time，也不限制 --end 必须在当前 UTC session 之前。现有下载测试只验证请求区间，不验证是否收盘。",
+          "verification": "已全 mock 离线调用实际 fetch_symbol，提供尚未收盘的2030年31根日线，函数接受31行并保留2030-01-31；网络与CSV写出均已 mock。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/35#pullrequestreview-5125276758",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a076a5a3d38db27"
+        }
+      ],
       "evidence": [
         {
+          "mail_id": "MAIL-13-2",
           "location": "core/data_fetcher.py:455"
         },
         {
+          "mail_id": "MAIL-13-2",
           "location": "core/data_fetcher.py:456"
         },
         {
+          "mail_id": "MAIL-13-2",
           "location": "core/data_fetcher.py:475"
         },
         {
+          "mail_id": "MAIL-35-2",
           "location": "scripts/run_expanded_universe_backtest.py:72"
         },
         {
+          "mail_id": "MAIL-35-2",
           "location": "scripts/run_expanded_universe_backtest.py:78"
         },
         {
+          "mail_id": "MAIL-35-2",
           "location": "tests/test_expanded_universe_download.py:28"
         }
       ],
@@ -596,21 +809,52 @@
         "前缀不变性测试",
         "新旧信号时间差异报告"
       ],
+      "mail_ids": [
+        "MAIL-13-1",
+        "MAIL-13-3"
+      ],
       "baseline_status": "planned_from_20260920_audit",
+      "mail_baseline": [
+        {
+          "id": "MAIL-13-1",
+          "status": "仍存在",
+          "mail_priority": "P1",
+          "title": "Delay swing markers until their confirmation bar",
+          "reason": "SWING_HIGH/LOW 仍用 center=True 并直接返回未延后标记；现有测试只核对长度。",
+          "verification": "2026-09-20 内存重现：high=[1,2,8,3,2],order=1，完整数据在索引2给8，而截断至索引2时为NaN，确认未来信息泄漏。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/13#pullrequestreview-5005367713",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a032a2aa81b7066"
+        },
+        {
+          "id": "MAIL-13-3",
+          "status": "仍存在",
+          "mail_priority": "P2",
+          "title": "Leave POC empty for zero-volume windows",
+          "reason": "POC 仍在 total_volume<=0 检查前赋值，零量窗口输出伪支撑价。",
+          "verification": "2026-09-20 内存重现3根零成交量窗口：POC=1.5、VAH/VAL=NaN。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/13#pullrequestreview-5005367713",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a032a2aa81b7066"
+        }
+      ],
       "evidence": [
         {
+          "mail_id": "MAIL-13-1",
           "location": "core/factors/support_resistance.py:52"
         },
         {
+          "mail_id": "MAIL-13-1",
           "location": "core/factors/support_resistance.py:62"
         },
         {
+          "mail_id": "MAIL-13-1",
           "location": "tests/test_factors.py:105"
         },
         {
+          "mail_id": "MAIL-13-3",
           "location": "core/factors/volume.py:112"
         },
         {
+          "mail_id": "MAIL-13-3",
           "location": "core/factors/volume.py:117"
         }
       ],
@@ -669,33 +913,68 @@
         "成员结束退出接线",
         "混合名称/退市边界集成测试"
       ],
+      "mail_ids": [
+        "MAIL-17-2",
+        "MAIL-32-2"
+      ],
       "baseline_status": "planned_from_20260920_audit",
+      "mail_baseline": [
+        {
+          "id": "MAIL-17-2",
+          "status": "仍存在",
+          "mail_priority": "P1",
+          "title": "Close positions when point-in-time membership ends",
+          "reason": "--universe-file路径仍只是截断delisted_at之后bars，没有在最后可交易bar生成退出标记；引擎新增scheduled_exit/AnnouncedMarginDelisting能力，但普通PointInTimeUniverse.apply未接入，旧路径仍可能持仓带到总体期末。",
+          "verification": "静态追踪CSV universe输入→apply→引擎；已有scheduled_exit分支不能证明通用PIT路径已关闭缺口。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/17#pullrequestreview-5028474123",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03d457a7ef033c"
+        },
+        {
+          "id": "MAIL-32-2",
+          "status": "仍存在",
+          "mail_priority": "P1",
+          "title": "Normalize symbols before applying the generated universe",
+          "reason": "生成 universe 仍改为连字符符号；apply 仍按原字符串 exact lookup，CLI没有统一 key。现有 PIT 测试未覆盖 slash/hyphen 同一币对混用。",
+          "verification": "已离线复现：membership BTC-USDT，data_map BTC/USDT，apply 返回空映射。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/32#pullrequestreview-5090380872",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a06256a5f1c91e2"
+        }
+      ],
       "evidence": [
         {
+          "mail_id": "MAIL-17-2",
           "location": "core/universe.py:66"
         },
         {
+          "mail_id": "MAIL-17-2",
           "location": "core/universe.py:79"
         },
         {
+          "mail_id": "MAIL-17-2",
           "location": "main.py:433"
         },
         {
+          "mail_id": "MAIL-17-2",
           "location": "backtest/engine.py:443"
         },
         {
+          "mail_id": "MAIL-17-2",
           "location": "backtest/engine.py:1061"
         },
         {
+          "mail_id": "MAIL-32-2",
           "location": "scripts/repair_binance_point_in_time_data.py:67"
         },
         {
+          "mail_id": "MAIL-32-2",
           "location": "core/universe.py:82"
         },
         {
+          "mail_id": "MAIL-32-2",
           "location": "main.py:435"
         },
         {
+          "mail_id": "MAIL-32-2",
           "location": "tests/test_phase2_reproducibility_audit.py:172"
         }
       ],
@@ -754,36 +1033,72 @@
         "窗口几何与拼接校验",
         "预热/重复样本边界测试"
       ],
+      "mail_ids": [
+        "MAIL-31-1",
+        "MAIL-31-4"
+      ],
       "baseline_status": "planned_from_20260920_audit",
+      "mail_baseline": [
+        {
+          "id": "MAIL-31-1",
+          "status": "仍存在",
+          "mail_priority": "P1",
+          "title": "Warm up test runs for each candidate's full lookback",
+          "reason": "候选含100-bar entry window，但测试运行前缀仍固定全局 warmup_period=30，没有按 candidate 最大指标lookback扩大。60-bar测试加30-bar前缀总90不足100；现有warmup测试只保证固定前缀可用，不覆盖候选lookback。",
+          "verification": "静态校验候选grid、切片与策略入口条件；未运行完整优化矩阵。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/31#pullrequestreview-5087145892",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a06121ba26be8a2"
+        },
+        {
+          "id": "MAIL-31-4",
+          "status": "仍存在",
+          "mail_priority": "P2",
+          "title": "Reject overlapping test windows before stitching returns",
+          "reason": "WalkForwardConfig未拒绝step<test_size；split仅要求step>=1，procedure仍concat全量收益，重叠时间无去重。测试仅覆盖默认非重叠几何。",
+          "verification": "离线实际配置/分窗：test_size=10、step=5被接受，首两测试窗[15,25)、[20,30)重叠。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/31#pullrequestreview-5087145892",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a06121ba26be8a2"
+        }
+      ],
       "evidence": [
         {
+          "mail_id": "MAIL-31-1",
           "location": "analysis/optimize.py:33"
         },
         {
+          "mail_id": "MAIL-31-1",
           "location": "analysis/walk_forward.py:86"
         },
         {
+          "mail_id": "MAIL-31-1",
           "location": "analysis/walk_forward.py:170"
         },
         {
+          "mail_id": "MAIL-31-1",
           "location": "analysis/walk_forward.py:281"
         },
         {
+          "mail_id": "MAIL-31-1",
           "location": "strategies/trend_breakout.py:483"
         },
         {
+          "mail_id": "MAIL-31-1",
           "location": "tests/test_walk_forward.py:188"
         },
         {
+          "mail_id": "MAIL-31-4",
           "location": "analysis/walk_forward.py:94"
         },
         {
+          "mail_id": "MAIL-31-4",
           "location": "analysis/walk_forward.py:313"
         },
         {
+          "mail_id": "MAIL-31-4",
           "location": "analysis/research_validation.py:134"
         },
         {
+          "mail_id": "MAIL-31-4",
           "location": "tests/test_walk_forward.py:177"
         }
       ],
@@ -850,6 +1165,7 @@
       "compatibility": "不覆盖原数据缓存；新规范生成新目录/manifest，使用显式迁移映射。",
       "owner_role": "领域内核与报告",
       "evidence_dir": "reports/roadmap_v3/SYS-04/<run_id>/",
+      "mail_ids": [],
       "deliverables": [
         "contract.md（契约及变更边界）",
         "acceptance.json（逐项通过/失败/不足/待证据）",
@@ -922,54 +1238,118 @@
         "方向/账户模式边界测试",
         "滑点覆盖与无价市场单回归"
       ],
+      "mail_ids": [
+        "MAIL-9-1",
+        "MAIL-10-1",
+        "MAIL-38-1",
+        "MAIL-38-2"
+      ],
       "baseline_status": "planned_from_20260920_audit",
+      "mail_baseline": [
+        {
+          "id": "MAIL-9-1",
+          "status": "部分修复",
+          "mail_priority": "P2",
+          "title": "Exclude pending shorts from reserved cash",
+          "reason": "现金公式仍减去所有方向预留，pending_notional仍未区分buy/short；现在SPOT禁止开空、margin走保证金，正常账户模式显著缩小触发范围，但原预留现金算法并未按方向修正。",
+          "verification": "静态核对账户模式分支和预留汇总。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/9#pullrequestreview-5000638067",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a02a70299f1110e"
+        },
+        {
+          "id": "MAIL-10-1",
+          "status": "仍存在",
+          "mail_priority": "P1",
+          "title": "Reserve execution costs when clamping to available cash",
+          "reason": "现金上限仍直接使用 cash-reserved_exposure，只扣1e-9安全边际；执行端仍要求成交金额加手续费不超现金，没有执行时可支付数量夹紧。其他风险预算可能缩量，但没有修复该现金契约。",
+          "verification": "静态追踪现金上限、夹紧和成交拒单条件。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/10#pullrequestreview-5000967232",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a02b1be8ad56f7d"
+        },
+        {
+          "id": "MAIL-38-1",
+          "status": "仍存在",
+          "mail_priority": "P2",
+          "title": "Use the resolved broker slippage in the budget",
+          "reason": "bind() 没有从绑定 Broker 同步已解析滑点，成本仍读取原始 execution.slippage_bps。现有测试只验证 engine 的默认滑点，没有覆盖 budget 与覆盖值一致性。",
+          "verification": "已做离线内存复现：broker.slippage=0.05、预算配置=1bp、数量1价格100时预算成本仅0.01（应按已解析滑点计5，不含其它成本）。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/38#pullrequestreview-5246104970",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a0b3b74235a6a3e"
+        },
+        {
+          "id": "MAIL-38-2",
+          "status": "仍存在",
+          "mail_priority": "P2",
+          "title": "Preserve price-less market-order support in the risk guard",
+          "reason": "check_intent 只使用 intent.reference_price/price，未回退当前 symbol mark；Broker 仍声明市场单 price 可以为 None。未找到针对有 mark 的无价市场单预算验收测试。",
+          "verification": "已做离线内存复现：guard current mark=100，market intent 未带 price/reference_price，返回 missing_sizing_reference。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/38#pullrequestreview-5246104970",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a0b3b74235a6a3e"
+        }
+      ],
       "evidence": [
         {
+          "mail_id": "MAIL-9-1",
           "location": "core/risk/position_sizing.py:159"
         },
         {
+          "mail_id": "MAIL-9-1",
           "location": "core/risk/position_sizing.py:164"
         },
         {
+          "mail_id": "MAIL-9-1",
           "location": "core/risk/reservation.py:124"
         },
         {
+          "mail_id": "MAIL-10-1",
           "location": "core/risk/position_sizing.py:164"
         },
         {
+          "mail_id": "MAIL-10-1",
           "location": "core/risk/position_sizing.py:224"
         },
         {
+          "mail_id": "MAIL-10-1",
           "location": "core/risk/__init__.py:42"
         },
         {
+          "mail_id": "MAIL-10-1",
           "location": "core/broker/fill_service.py:158"
         },
         {
+          "mail_id": "MAIL-38-1",
           "location": "core/risk/drawdown_budget.py:64"
         },
         {
+          "mail_id": "MAIL-38-1",
           "location": "core/risk/drawdown_budget.py:87"
         },
         {
+          "mail_id": "MAIL-38-1",
           "location": "backtest/engine.py:141"
         },
         {
+          "mail_id": "MAIL-38-1",
           "location": "backtest/engine.py:198"
         },
         {
+          "mail_id": "MAIL-38-1",
           "location": "composition/factory.py:144"
         },
         {
+          "mail_id": "MAIL-38-1",
           "location": "tests/test_backtest_engine.py:55"
         },
         {
+          "mail_id": "MAIL-38-2",
           "location": "core/risk/drawdown_budget.py:178"
         },
         {
+          "mail_id": "MAIL-38-2",
           "location": "core/broker/matching.py:58"
         },
         {
+          "mail_id": "MAIL-38-2",
           "location": "core/broker/matching.py:74"
         }
       ],
@@ -1029,30 +1409,64 @@
         "跨标的/部分退出集成测试",
         "策略回调兼容说明"
       ],
+      "mail_ids": [
+        "MAIL-12-2",
+        "MAIL-16-1"
+      ],
       "baseline_status": "planned_from_20260920_audit",
+      "mail_baseline": [
+        {
+          "id": "MAIL-12-2",
+          "status": "仍存在",
+          "mail_priority": "P1",
+          "title": "Pass the closing symbol's bar index to its callback",
+          "reason": "策略遍历全局所有 CloseEvent，却把调用方当前 bar_index 传给所有 event.symbol；没有按平仓标的取得对应历史索引。强制成交消费还使用组合全局 bar_index。",
+          "verification": "静态追踪全局事件循环与回调参数；现有CloseEvent测试只覆盖归因/去重，未覆盖错位时间轴。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/12#pullrequestreview-5001994647",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a02dbffa40b1065"
+        },
+        {
+          "id": "MAIL-16-1",
+          "status": "仍存在",
+          "mail_priority": "P1",
+          "title": "Aggregate close callbacks until the position is flat",
+          "reason": "基类仍对每个CloseEvent立即on_trade_closed，is_position_fully_closed仅用于清context；TrendBreakout的cohort聚合减轻其健康误计，但Range依然把部分退出当独立失败，未实现按position聚合一次闭合回调。",
+          "verification": "2026-09-20 注入同一position三条尚未完全平仓的亏损CloseEvent，Range在bar100已设置cooldown_until124。详见 mid_verification.json MAIL-16-1。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/16#pullrequestreview-5027130456",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03c9a15252cd08"
+        }
+      ],
       "evidence": [
         {
+          "mail_id": "MAIL-12-2",
           "location": "strategies/base.py:143"
         },
         {
+          "mail_id": "MAIL-12-2",
           "location": "strategies/base.py:166"
         },
         {
+          "mail_id": "MAIL-12-2",
           "location": "router/router.py:83"
         },
         {
+          "mail_id": "MAIL-12-2",
           "location": "backtest/engine.py:501"
         },
         {
+          "mail_id": "MAIL-16-1",
           "location": "strategies/base.py:142"
         },
         {
+          "mail_id": "MAIL-16-1",
           "location": "strategies/base.py:166"
         },
         {
+          "mail_id": "MAIL-16-1",
           "location": "strategies/mean_reversion.py:180"
         },
         {
+          "mail_id": "MAIL-16-1",
           "location": "strategies/trend_breakout.py:194"
         }
       ],
@@ -1115,54 +1529,107 @@
         "数量/费用/风险守恒测试",
         "旧成本数据迁移与降级规则"
       ],
+      "mail_ids": [
+        "MAIL-16-3",
+        "MAIL-16-4",
+        "MAIL-19-4"
+      ],
       "baseline_status": "planned_from_20260920_audit",
+      "mail_baseline": [
+        {
+          "id": "MAIL-16-3",
+          "status": "仍存在",
+          "mail_priority": "P2",
+          "title": "Preserve lot details across partial entry fills",
+          "reason": "报告仍逐入场fill压栈、逐配对位置消费lot_closes，而真实lot合并同一订单多次入场；一笔退出覆盖多个入场碎片时只有首碎片有lot/position/risk，后续缺失。新增round-trip汇总因缺position_id也无法修正该情形。",
+          "verification": "2026-09-20 真实本地Broker撮合25单位开仓分10/10/5、一次卖25：报告3条legs的lot_id=[LOT-000000001,null,null]，被汇总成3个roundtrips。详见 mid_verification.json MAIL-16-3。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/16#pullrequestreview-5027130456",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03c9a15252cd08"
+        },
+        {
+          "id": "MAIL-16-4",
+          "status": "部分修复",
+          "mail_priority": "P2",
+          "title": "Scale initial risk to the quantity being closed",
+          "reason": "CloseEvent风险已按qty_closed/qty_original比例分摊；主报告改按position汇总并按lot去重总初始风险，完整往返的R不再重复分母。但原LotClose.initial_risk和重建legs仍重复完整风险，直接消费legs的旧研究入口仍未统一；且部分入场匹配缺失仍影响此链。",
+          "verification": "2026-09-20 定向回归40 passed含完整往返risk只计一次；现有test_legs_each_repeat_the_lots_full_risk明确仍断言每条leg完整250，而roundtrip250。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/16#pullrequestreview-5027130456",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03c9a15252cd08"
+        },
+        {
+          "id": "MAIL-19-4",
+          "status": "仍存在",
+          "mail_priority": "P2",
+          "title": "Avoid double-counting legacy slippage",
+          "reason": "缺 theoretical_price 时仍回退fill price，并照样生成gross_pnl_theoretical；成本敏感度再扣slippage，旧档案仍重复计入滑点。",
+          "verification": "2026-09-20 只读重建PRIMARY完整历史：closed net=-1581.579048，1x成本净值=-2070.377486，差额488.798438等于全部slippage。详见 mid_verification.json MAIL-19-4。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/19#pullrequestreview-5032066890",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03e9990378d4e3"
+        }
+      ],
       "evidence": [
         {
+          "mail_id": "MAIL-16-3",
           "location": "backtest/reporting/trades.py:121"
         },
         {
+          "mail_id": "MAIL-16-3",
           "location": "backtest/reporting/trades.py:207"
         },
         {
+          "mail_id": "MAIL-16-3",
           "location": "backtest/reporting/trades.py:345"
         },
         {
+          "mail_id": "MAIL-16-3",
           "location": "core/lots.py:240"
         },
         {
+          "mail_id": "MAIL-16-4",
           "location": "core/lots.py:203"
         },
         {
+          "mail_id": "MAIL-16-4",
           "location": "core/broker/fill_service.py:235"
         },
         {
+          "mail_id": "MAIL-16-4",
           "location": "core/broker/fill_service.py:250"
         },
         {
+          "mail_id": "MAIL-16-4",
           "location": "backtest/reporting/trades.py:367"
         },
         {
+          "mail_id": "MAIL-16-4",
           "location": "backtest/reporting/__init__.py:216"
         },
         {
+          "mail_id": "MAIL-16-4",
           "location": "tests/test_round_trip_aggregation.py:143"
         },
         {
+          "mail_id": "MAIL-16-4",
           "location": "tests/test_round_trip_aggregation.py:151"
         },
         {
+          "mail_id": "MAIL-19-4",
           "location": "backtest/reporting/trades.py:94"
         },
         {
+          "mail_id": "MAIL-19-4",
           "location": "backtest/reporting/trades.py:211"
         },
         {
+          "mail_id": "MAIL-19-4",
           "location": "core/metrics/attribution.py:141"
         },
         {
+          "mail_id": "MAIL-19-4",
           "location": "core/metrics/attribution.py:149"
         },
         {
+          "mail_id": "MAIL-19-4",
           "location": "scripts/run_phase5_analysis.py:65"
         }
       ],
@@ -1219,18 +1686,37 @@
         "分段手算融资夹具",
         "正式/影子口径对照"
       ],
+      "mail_ids": [
+        "MAIL-17-3"
+      ],
       "baseline_status": "planned_from_20260920_audit",
+      "mail_baseline": [
+        {
+          "id": "MAIL-17-3",
+          "status": "仍存在",
+          "mail_priority": "P2",
+          "title": "Reset borrow accrual when a short is flat",
+          "reason": "正式Broker在flat期间仍跳过symbol且不清_last_borrow_time；仅Ghost/P3影子路径自行pop，不修复正式路径再开空仓的跨空窗利息。",
+          "verification": "2026-09-20 内存复现：日费0.1，1月2日平仓后2月2日重开首次收3.1，包含31天空窗。详见 mid_verification.json MAIL-17-3。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/17#pullrequestreview-5028474123",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03d457a7ef033c"
+        }
+      ],
       "evidence": [
         {
+          "mail_id": "MAIL-17-3",
           "location": "core/broker/financing.py:35"
         },
         {
+          "mail_id": "MAIL-17-3",
           "location": "core/broker/financing.py:77"
         },
         {
+          "mail_id": "MAIL-17-3",
           "location": "backtest/signal_ghost.py:74"
         },
         {
+          "mail_id": "MAIL-17-3",
           "location": "backtest/signal_meta_replay.py:214"
         }
       ],
@@ -1291,30 +1777,53 @@
         "同步/重启/保护失败集成测试",
         "接管审计记录"
       ],
+      "mail_ids": [
+        "MAIL-18-1"
+      ],
       "baseline_status": "planned_from_20260920_audit",
+      "mail_baseline": [
+        {
+          "id": "MAIL-18-1",
+          "status": "部分修复",
+          "mail_priority": "P1",
+          "title": "Preserve exit control for synchronized live positions",
+          "reason": "账户同步已从持久成交账本重建lots/owner，解决本系统有成交历史的重启仓位；不匹配仓位标unowned并禁止新风险，缺保护会尝试具名平仓。但无历史归属的外部持仓仍没有策略owner/entry_time，策略与max-holding退出不会执行，未见完整外部仓位接管验收。",
+          "verification": "2026-09-20 定向回归40 passed包含test_revalidation_execution；读代码确认对有持久成交事实的恢复与无法归属的边界。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/18#pullrequestreview-5031311051",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03e5f0dec59b1e"
+        }
+      ],
       "evidence": [
         {
+          "mail_id": "MAIL-18-1",
           "location": "core/live_broker/account_sync.py:37"
         },
         {
+          "mail_id": "MAIL-18-1",
           "location": "core/live_broker/__init__.py:184"
         },
         {
+          "mail_id": "MAIL-18-1",
           "location": "core/live_broker/submission.py:295"
         },
         {
+          "mail_id": "MAIL-18-1",
           "location": "router/router.py:93"
         },
         {
+          "mail_id": "MAIL-18-1",
           "location": "router/router.py:167"
         },
         {
+          "mail_id": "MAIL-18-1",
           "location": "live_trading/tick_orchestrator.py:685"
         },
         {
+          "mail_id": "MAIL-18-1",
           "location": "tests/test_revalidation_execution.py:174"
         },
         {
+          "mail_id": "MAIL-18-1",
           "location": "tests/test_revalidation_execution.py:227"
         }
       ],
@@ -1374,39 +1883,76 @@
         "正总 R/尾部亏损边界测试",
         "同 tick 状态一致性测试"
       ],
+      "mail_ids": [
+        "MAIL-32-1",
+        "MAIL-33-2"
+      ],
       "baseline_status": "planned_from_20260920_audit",
+      "mail_baseline": [
+        {
+          "id": "MAIL-32-1",
+          "status": "仍存在",
+          "mail_priority": "P1",
+          "title": "Reset the loss streak after probation passes",
+          "reason": "probation 通过转 ACTIVE 后未将通过样本加入 streak baseline；ACTIVE 分支只清空时间字段。已有通过测试采用连续盈利样本，遗漏正总R但尾部连续亏损场景。",
+          "verification": "已用实际 StrategyHealthMachine 离线复现：阈值2、probation样本3个(+10R,-1R,-1R)，通过评估为ACTIVE，随后无新样本再次evaluate即COOLDOWN。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/32#pullrequestreview-5090380872",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a06256a5f1c91e2"
+        },
+        {
+          "id": "MAIL-33-2",
+          "status": "仍存在",
+          "mail_priority": "P2",
+          "title": "Clear RISK_HALTED when cooldown recovery succeeds",
+          "reason": "健康状态先于 breaker 自动恢复计算；后续仅 breaker truthy 分支赋值 RISK_HALTED，没有恢复成功后同 tick刷新 HEALTHY 的分支。本地新增 risk_actions 仅写 DEGRADED，也未修复此状态显示问题。",
+          "verification": "静态检查全部 _operational_state 赋值；现有冷却恢复测试断言 risk action/entry permission，未断言 live 导出状态。未运行完整 live tick。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/33#pullrequestreview-5124762654",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a075dd685d2850b"
+        }
+      ],
       "evidence": [
         {
+          "mail_id": "MAIL-32-1",
           "location": "core/strategy_health.py:487"
         },
         {
+          "mail_id": "MAIL-32-1",
           "location": "core/strategy_health.py:491"
         },
         {
+          "mail_id": "MAIL-32-1",
           "location": "core/strategy_health.py:560"
         },
         {
+          "mail_id": "MAIL-32-1",
           "location": "core/strategy_health.py:602"
         },
         {
+          "mail_id": "MAIL-32-1",
           "location": "tests/test_sr1_strategy_health.py:152"
         },
         {
+          "mail_id": "MAIL-32-1",
           "location": "tests/test_sr1_strategy_health.py:172"
         },
         {
+          "mail_id": "MAIL-33-2",
           "location": "live_trading/tick_orchestrator.py:179"
         },
         {
+          "mail_id": "MAIL-33-2",
           "location": "live_trading/tick_orchestrator.py:217"
         },
         {
+          "mail_id": "MAIL-33-2",
           "location": "live_trading/tick_orchestrator.py:249"
         },
         {
+          "mail_id": "MAIL-33-2",
           "location": "live_trading/engine.py:206"
         },
         {
+          "mail_id": "MAIL-33-2",
           "location": "tests/test_drawdown_recovery.py:39"
         }
       ],
@@ -1466,39 +2012,76 @@
         "期末流动性来源规则",
         "union 缺 bar/尾部多 pass 集成测试"
       ],
+      "mail_ids": [
+        "MAIL-36-1",
+        "MAIL-37-2"
+      ],
       "baseline_status": "planned_from_20260920_audit",
+      "mail_baseline": [
+        {
+          "id": "MAIL-36-1",
+          "status": "仍存在",
+          "mail_priority": "P1",
+          "title": "Retry BLOCK_NEW reductions for missing-bar positions",
+          "reason": "force_liquidate 遇无 bar 的持仓直接 continue，不创建残余退出订单；engine 随即将 action 记为已应用，后续非零剩余比例动作不会为该 symbol 重试。已有 block_new 测试验证可管理持仓，但未覆盖 union 缺 bar 后恢复。",
+          "verification": "静态追踪 engine→force_liquidate→后续 action 判定已确认缺口；未运行完整多 symbol 缺 bar 集成复现。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/36#pullrequestreview-5125488681",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a076f2f7fc308cb"
+        },
+        {
+          "id": "MAIL-37-2",
+          "status": "仍存在",
+          "mail_priority": "P1",
+          "title": "Preserve the final bar's remaining volume budget",
+          "reason": "期末强平仍复制最后完整成交量并改为新 synthetic timestamp，触发按 timestamp 重置预算。已有测试覆盖同 timestamp 多 pass 和期末费用，未覆盖这两条路径组合。",
+          "verification": "已做离线内存复现：真实 bar 剩余预算0，复制后 timestamp +1微秒，相同 bar 的可成交预算重置为1。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/37#pullrequestreview-5149579832",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a08449bfeb8d915"
+        }
+      ],
       "evidence": [
         {
+          "mail_id": "MAIL-36-1",
           "location": "backtest/engine.py:488"
         },
         {
+          "mail_id": "MAIL-36-1",
           "location": "backtest/engine.py:495"
         },
         {
+          "mail_id": "MAIL-36-1",
           "location": "core/broker/liquidation.py:55"
         },
         {
+          "mail_id": "MAIL-36-1",
           "location": "core/broker/liquidation.py:57"
         },
         {
+          "mail_id": "MAIL-36-1",
           "location": "tests/test_breaker_lifecycle.py:38"
         },
         {
+          "mail_id": "MAIL-37-2",
           "location": "backtest/engine.py:1090"
         },
         {
+          "mail_id": "MAIL-37-2",
           "location": "backtest/engine.py:1091"
         },
         {
+          "mail_id": "MAIL-37-2",
           "location": "core/broker/matching.py:435"
         },
         {
+          "mail_id": "MAIL-37-2",
           "location": "core/broker/matching.py:439"
         },
         {
+          "mail_id": "MAIL-37-2",
           "location": "tests/test_backtest_stop_pass_and_liquidity.py:179"
         },
         {
+          "mail_id": "MAIL-37-2",
           "location": "tests/test_end_of_backtest.py:94"
         }
       ],
@@ -1545,7 +2128,7 @@
         "正例：普通流动性不足路径由残余 GTC 持续成交至固定目标，完整事实链可复现。",
         "正例：每个扩展场景有目标数量、残单、实际成交及最终状态证据。",
         "反例：不得仅因 applied_breaker_actions 代码形状就判定永久不重试。",
-        "反例：不得用 live 测试代替 backtest 集成结论；不得将 本地审查编号已省略 缺 bar 已确认缺陷重复计为本邮件完成。"
+        "反例：不得用 live 测试代替 backtest 集成结论；不得将 MAIL-36-1 缺 bar 已确认缺陷重复计为本邮件完成。"
       ],
       "files": [
         "backtest/engine.py",
@@ -1558,24 +2141,45 @@
         "已覆盖与未覆盖边界表",
         "确认缺陷或证据不足的审计结论"
       ],
+      "mail_ids": [
+        "MAIL-37-1"
+      ],
       "baseline_status": "planned_from_20260920_audit",
+      "mail_baseline": [
+        {
+          "id": "MAIL-37-1",
+          "status": "证据不足",
+          "mail_priority": "P1",
+          "title": "Retry partial reductions until the target is reached",
+          "reason": "引擎确实仍提前记录 applied action，未按目标数量追踪完成；但真实 Broker 将未完成的减仓 GTC 单保留在 active_orders，普通后续撮合会继续成交。因此邮件所述“流动性不足后永久不再减仓”在当前常规路径未复现，不宜直接当作仍存在的已确认缺陷，也不能仅凭代码形状标成修复。所列 partial-risk 测试属于 live 路径，不能代替 backtest 集成覆盖。缺 bar 的明确缺口另列 MAIL-36-1。",
+          "verification": "已做离线真实 Broker 复现：原仓10，目标5，每 bar 容量1；首次降至9、保留剩余4的 GTC 单，后续4 bar自动降至5。未运行完整策略/保护单干扰场景。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/37#pullrequestreview-5149579832",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a08449bfeb8d915"
+        }
+      ],
       "evidence": [
         {
+          "mail_id": "MAIL-37-1",
           "location": "backtest/engine.py:489"
         },
         {
+          "mail_id": "MAIL-37-1",
           "location": "backtest/engine.py:495"
         },
         {
+          "mail_id": "MAIL-37-1",
           "location": "core/broker/liquidation.py:59"
         },
         {
+          "mail_id": "MAIL-37-1",
           "location": "core/broker/matching.py:65"
         },
         {
+          "mail_id": "MAIL-37-1",
           "location": "core/broker/matching.py:375"
         },
         {
+          "mail_id": "MAIL-37-1",
           "location": "tests/test_revalidation_execution.py:193"
         }
       ],
@@ -1634,33 +2238,68 @@
         "崩溃注入恢复记录",
         "并发导出回归"
       ],
+      "mail_ids": [
+        "MAIL-33-1",
+        "MAIL-4-5"
+      ],
       "baseline_status": "planned_from_20260920_audit",
+      "mail_baseline": [
+        {
+          "id": "MAIL-33-1",
+          "status": "仍存在",
+          "mail_priority": "P1",
+          "title": "Persist the breaker day atomically with its checkpoint",
+          "reason": "checkpoint 和 circuit_breaker_day 仍为独立 StateStore.set 事务；重启恢复仍根据独立 day 字段重置 daily breaker。checkpoint 内没有将交易日纳入原子记录。现有 restart 测试覆盖完成 checkpoint 后的重启，不覆盖两次写入间崩溃。",
+          "verification": "静态检查写入/恢复/事务边界；未做进程崩溃注入测试。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/33#pullrequestreview-5124762654",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a075dd685d2850b"
+        },
+        {
+          "id": "MAIL-4-5",
+          "status": "部分修复",
+          "mail_priority": "P2",
+          "title": "Give concurrent state exports unique temporary files",
+          "reason": "临时名已从固定.tmp变成带PID，可区分进程；同进程多个实例或线程写同一目标仍共享同一个PID临时名，未达到每次导出唯一。",
+          "verification": "静态核对命名和os.replace路径；未触碰实盘状态文件。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/4#pullrequestreview-4889477929",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/19fe2c1bced78d32"
+        }
+      ],
       "evidence": [
         {
+          "mail_id": "MAIL-33-1",
           "location": "live_trading/tick_orchestrator.py:220"
         },
         {
+          "mail_id": "MAIL-33-1",
           "location": "live_trading/tick_orchestrator.py:247"
         },
         {
+          "mail_id": "MAIL-33-1",
           "location": "live_trading/engine.py:304"
         },
         {
+          "mail_id": "MAIL-33-1",
           "location": "live_trading/engine.py:308"
         },
         {
+          "mail_id": "MAIL-33-1",
           "location": "core/state_store_v2.py:43"
         },
         {
+          "mail_id": "MAIL-33-1",
           "location": "tests/test_drawdown_recovery.py:94"
         },
         {
+          "mail_id": "MAIL-4-5",
           "location": "live_trading/state_export.py:97"
         },
         {
+          "mail_id": "MAIL-4-5",
           "location": "live_trading/state_export.py:145"
         },
         {
+          "mail_id": "MAIL-4-5",
           "location": "live_trading/state_export.py:150"
         }
       ],
@@ -1718,27 +2357,71 @@
         "旧库回放与幂等冲突测试",
         "更新的运维命令"
       ],
+      "mail_ids": [
+        "MAIL-23-1",
+        "MAIL-23-2",
+        "MAIL-23-3"
+      ],
       "baseline_status": "planned_from_20260920_audit",
+      "mail_baseline": [
+        {
+          "id": "MAIL-23-1",
+          "status": "仍存在",
+          "mail_priority": "P2",
+          "title": "Retain a decoding shim for archived ledger events",
+          "reason": "注册表未接纳core.ledger:CashEvent/MarkPriceEvent，老审计库类型无法解码。",
+          "verification": "本次调用legacy解析复现ValueError",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/23#pullrequestreview-5061253521",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05360bc455bee6"
+        },
+        {
+          "id": "MAIL-23-2",
+          "status": "仍存在",
+          "mail_priority": "P1",
+          "title": "Preserve legacy wire names for moved event classes",
+          "reason": "新wire名core.events.types:*与旧core.events:*文档仍不同；幂等比较只忽略observed_at，不归一化类型别名。",
+          "verification": "本次同义新旧事件文档比较为false",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/23#pullrequestreview-5061253521",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05360bc455bee6"
+        },
+        {
+          "id": "MAIL-23-3",
+          "status": "仍存在",
+          "mail_priority": "P2",
+          "title": "Update operational reconciliation commands after the move",
+          "reason": "两本运行手册仍引用已删除core.reconciliation_job；实际模块已迁往research.audit。",
+          "verification": "静态核对",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/23#pullrequestreview-5061253521",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05360bc455bee6"
+        }
+      ],
       "evidence": [
         {
+          "mail_id": "MAIL-23-1",
           "location": "core/events/codec.py:27"
         },
         {
+          "mail_id": "MAIL-23-1",
           "location": "core/events/codec.py:38"
         },
         {
+          "mail_id": "MAIL-23-2",
           "location": "core/events/codec.py:22"
         },
         {
+          "mail_id": "MAIL-23-2",
           "location": "core/events/store.py:198"
         },
         {
+          "mail_id": "MAIL-23-3",
           "location": "docs/r6_operations.md:14"
         },
         {
+          "mail_id": "MAIL-23-3",
           "location": "docs/r7_sandbox_runbook.md:98"
         },
         {
+          "mail_id": "MAIL-23-3",
           "location": "research/audit/reconciliation_job.py:1"
         }
       ],
@@ -1808,57 +2491,122 @@
         "旧报告失效/迁移索引",
         "冻结配置 manifest 与复现实验"
       ],
+      "mail_ids": [
+        "MAIL-11-1",
+        "MAIL-19-1",
+        "MAIL-19-2",
+        "MAIL-19-6"
+      ],
       "baseline_status": "planned_from_20260920_audit",
+      "mail_baseline": [
+        {
+          "id": "MAIL-11-1",
+          "status": "仍存在",
+          "mail_priority": "P1",
+          "title": "Keep OOS results out of parameter ranking",
+          "reason": "路线图仍写“参数优化默认按 OOS 排序”，与同页 train-only 冲突。优化器已有 full-sample 排序的 caveat 并提供单独walk-forward方向，但未修正原验收标准。",
+          "verification": "静态核对文档和优化器输出说明。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/11#pullrequestreview-5001918007",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a02d94cc4bbcb96"
+        },
+        {
+          "id": "MAIL-19-1",
+          "status": "部分修复",
+          "mail_priority": "P1",
+          "title": "Reserve a genuinely unseen holdout",
+          "reason": "新的9/19研究明确已见历史不是新holdout，并冻结2026-10-20至2027-04-18前瞻窗口、最早2027-05-08验收；但旧Phase5脚本及报告仍将Phase0既见档案切片标作一次性final holdout，未替换/失效化。前瞻证据尚未成熟。",
+          "verification": "静态核对旧runner及最新协议/报告；未打开未来保留期、未执行研究重跑。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/19#pullrequestreview-5032066890",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03e9990378d4e3"
+        },
+        {
+          "id": "MAIL-19-2",
+          "status": "部分修复",
+          "mail_priority": "P1",
+          "title": "Evaluate the frozen Phase 4 implementation",
+          "reason": "最新9/19批次已有修复前/后冻结源码、配置、输入身份和真实当前引擎运行；但原Phase5入口依然硬编码Phase0档案PRIMARY，并从旧净值/交易计算准入，不反映当前实现。新批次未提交且总验收pending。",
+          "verification": "静态核对旧runner与最新冻结证据；不把新路径的存在当成旧入口已修复。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/19#pullrequestreview-5032066890",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03e9990378d4e3"
+        },
+        {
+          "id": "MAIL-19-6",
+          "status": "仍存在",
+          "mail_priority": "P2",
+          "title": "Honor the Phase 5 configuration",
+          "reason": "phase5 YAML仍声明分区、窗口和压力参数；run_phase5_analysis无配置读取，继续硬编码60/20/20、730/180/180和默认AdmissionThresholds，修改YAML不会同步该证据生成入口。",
+          "verification": "静态检查配置、完整runner和调用参数；未改配置运行。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/19#pullrequestreview-5032066890",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03e9990378d4e3"
+        }
+      ],
       "evidence": [
         {
+          "mail_id": "MAIL-11-1",
           "location": "docs/strategy_development_roadmap.md:169"
         },
         {
+          "mail_id": "MAIL-11-1",
           "location": "analysis/optimize.py:246"
         },
         {
+          "mail_id": "MAIL-19-1",
           "location": "scripts/run_phase5_analysis.py:35"
         },
         {
+          "mail_id": "MAIL-19-1",
           "location": "scripts/run_phase5_analysis.py:75"
         },
         {
+          "mail_id": "MAIL-19-1",
           "location": "scripts/run_phase5_analysis.py:191"
         },
         {
+          "mail_id": "MAIL-19-1",
           "location": "reports/strategy_review_20260919/研究验收报告.md:24"
         },
         {
+          "mail_id": "MAIL-19-1",
           "location": "reports/strategy_review_20260919/README.md:78"
         },
         {
+          "mail_id": "MAIL-19-2",
           "location": "scripts/run_phase5_analysis.py:34"
         },
         {
+          "mail_id": "MAIL-19-2",
           "location": "scripts/run_phase5_analysis.py:181"
         },
         {
+          "mail_id": "MAIL-19-2",
           "location": "reports/strategy_review_20260919/README.md:17"
         },
         {
+          "mail_id": "MAIL-19-2",
           "location": "reports/strategy_review_20260919/README.md:19"
         },
         {
+          "mail_id": "MAIL-19-2",
           "location": "reports/strategy_review_20260919/engineering_comparison.json:2"
         },
         {
+          "mail_id": "MAIL-19-6",
           "location": "config/params.yaml:243"
         },
         {
+          "mail_id": "MAIL-19-6",
           "location": "scripts/run_phase5_analysis.py:77"
         },
         {
+          "mail_id": "MAIL-19-6",
           "location": "scripts/run_phase5_analysis.py:96"
         },
         {
+          "mail_id": "MAIL-19-6",
           "location": "scripts/run_phase5_analysis.py:181"
         },
         {
+          "mail_id": "MAIL-19-6",
           "location": "analysis/research_validation.py:343"
         }
       ],
@@ -1921,39 +2669,98 @@
         "常规与空运行契约测试",
         "Metrics 兼容与非有限指标迁移说明"
       ],
+      "mail_ids": [
+        "MAIL-11-2",
+        "MAIL-21-4",
+        "MAIL-29-2",
+        "MAIL-36-2"
+      ],
       "baseline_status": "planned_from_20260920_audit",
+      "mail_baseline": [
+        {
+          "id": "MAIL-11-2",
+          "status": "部分修复",
+          "mail_priority": "P1",
+          "title": "Leave metrics.json serialization on the roadmap",
+          "reason": "专项回测脚本已经写 metrics.json 且磁盘有产物；常规 ReportGenerator.generate/main.py 仍未统一写该文件，文档“backtest/reporting输出metrics.json”仍过度宣称。",
+          "verification": "搜索全部 core/backtest/main/scripts 写入点；常规生成器只返回 metrics，专项脚本保存。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/11#pullrequestreview-5001918007",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a02d94cc4bbcb96"
+        },
+        {
+          "id": "MAIL-21-4",
+          "status": "仍存在",
+          "mail_priority": "P2",
+          "title": "Parse non-finite metrics emitted by reports",
+          "reason": "数值表达式仍不支持inf/nan，会漏掉报告指标。",
+          "verification": "本次离线构造报告，解析结果为空字典",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/21#pullrequestreview-5052647523",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a049087b39acea3"
+        },
+        {
+          "id": "MAIL-29-2",
+          "status": "仍存在",
+          "mail_priority": "P2",
+          "title": "Restore the promised Metrics compatibility export",
+          "reason": "仍承诺旧接口兼容，但Metrics类未导出；直接导入失败。",
+          "verification": "本次离线导入复现ImportError",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/29#pullrequestreview-5078459446",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05d183fbccf8d3"
+        },
+        {
+          "id": "MAIL-36-2",
+          "status": "仍存在",
+          "mail_priority": "P2",
+          "title": "Include entry observations in empty backtest results",
+          "reason": "empty_result 仍无 entry_observations，而 run_arm 审计路径直接索引该字段；正常结果才有该字段。未找到空数据结果包含该键的专项测试。",
+          "verification": "已离线调用 BacktestEngine().run({}, routing_log_enabled=False)，entry_observations in result 为 False。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/36#pullrequestreview-5125488681",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a076f2f7fc308cb"
+        }
+      ],
       "evidence": [
         {
+          "mail_id": "MAIL-11-2",
           "location": "docs/strategy_development_roadmap.md:25"
         },
         {
+          "mail_id": "MAIL-11-2",
           "location": "backtest/reporting/__init__.py:278"
         },
         {
+          "mail_id": "MAIL-11-2",
           "location": "scripts/run_revalidation60.py:153"
         },
         {
+          "mail_id": "MAIL-11-2",
           "location": "scripts/run_p0_recovery_backtest.py:108"
         },
         {
+          "mail_id": "MAIL-21-4",
           "location": "scripts/run_backtest_matrix.py:112"
         },
         {
+          "mail_id": "MAIL-29-2",
           "location": "core/metrics/__init__.py:4"
         },
         {
+          "mail_id": "MAIL-29-2",
           "location": "core/metrics/__init__.py:48"
         },
         {
+          "mail_id": "MAIL-36-2",
           "location": "backtest/engine.py:265"
         },
         {
+          "mail_id": "MAIL-36-2",
           "location": "backtest/engine.py:279"
         },
         {
+          "mail_id": "MAIL-36-2",
           "location": "backtest/engine.py:831"
         },
         {
+          "mail_id": "MAIL-36-2",
           "location": "scripts/run_expanded_universe_backtest.py:114"
         }
       ],
@@ -2016,42 +2823,102 @@
         "窗口/桶边界/配置传播/漏斗测试",
         "新旧展示差异示例"
       ],
+      "mail_ids": [
+        "MAIL-9-2",
+        "MAIL-9-3",
+        "MAIL-18-3",
+        "MAIL-31-3"
+      ],
       "baseline_status": "planned_from_20260920_audit",
+      "mail_baseline": [
+        {
+          "id": "MAIL-9-2",
+          "status": "仍存在",
+          "mail_priority": "P2",
+          "title": "Compute drawdown peaks within each trailing window",
+          "reason": "滚动回撤仍先全历史cummax，再对全历史水下值rolling(window).min，旧峰值离开窗口后仍影响图。",
+          "verification": "静态公式核对，未生成图表。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/9#pullrequestreview-5000638067",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a02a70299f1110e"
+        },
+        {
+          "id": "MAIL-9-3",
+          "status": "仍存在",
+          "mail_priority": "P2",
+          "title": "Use common bin edges for the PnL histogram",
+          "reason": "盈利/亏损直方图仍分别传同一整数bins，并未以全部PnL生成共享边界。",
+          "verification": "静态核对两次hist调用。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/9#pullrequestreview-5000638067",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a02a70299f1110e"
+        },
+        {
+          "id": "MAIL-18-3",
+          "status": "仍存在",
+          "mail_priority": "P2",
+          "title": "Use the configured holding limit in diagnostics",
+          "reason": "运行路由读取router.max_holding_days（已从phase4迁移），但build_diagnostics和Phase4分析脚本仍固定365天；非365配置的超时诊断仍与执行政策不一致。",
+          "verification": "静态对照配置传播及两个报告调用点。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/18#pullrequestreview-5031311051",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03e5f0dec59b1e"
+        },
+        {
+          "id": "MAIL-31-3",
+          "status": "仍存在",
+          "mail_priority": "P2",
+          "title": "Restrict funnel groups to entry signal chains",
+          "reason": "仍为任意correlation创建group并计退出链；新增说明承认order_created可超过risk_evaluated，但没有仅筛入场或拆开退出。测试甚至认可退出导致后段更大，未实现邮件要求。",
+          "verification": "离线实际 calculate_signal_funnel：1条开仓风险评估+1条退出order_intent，order_created=2、risk_approved=1，转化率200%。",
+          "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/31#pullrequestreview-5087145892",
+          "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a06121ba26be8a2"
+        }
+      ],
       "evidence": [
         {
+          "mail_id": "MAIL-9-2",
           "location": "backtest/reporting/render/charts.py:224"
         },
         {
+          "mail_id": "MAIL-9-2",
           "location": "backtest/reporting/render/charts.py:226"
         },
         {
+          "mail_id": "MAIL-9-3",
           "location": "backtest/reporting/render/charts.py:276"
         },
         {
+          "mail_id": "MAIL-9-3",
           "location": "backtest/reporting/render/charts.py:278"
         },
         {
+          "mail_id": "MAIL-18-3",
           "location": "core/diagnostics.py:506"
         },
         {
+          "mail_id": "MAIL-18-3",
           "location": "scripts/run_phase4_analysis.py:137"
         },
         {
+          "mail_id": "MAIL-18-3",
           "location": "composition/factory.py:179"
         },
         {
+          "mail_id": "MAIL-18-3",
           "location": "config/params.yaml:102"
         },
         {
+          "mail_id": "MAIL-31-3",
           "location": "core/metrics/attribution.py:68"
         },
         {
+          "mail_id": "MAIL-31-3",
           "location": "core/metrics/attribution.py:83"
         },
         {
+          "mail_id": "MAIL-31-3",
           "location": "core/metrics/attribution.py:95"
         },
         {
+          "mail_id": "MAIL-31-3",
           "location": "tests/test_order_ttl_and_funnel.py:285"
         }
       ],
@@ -2119,6 +2986,7 @@
       "compatibility": "先双读比较并保存差异；旧表不原地覆写，版本化导出并校验回放。",
       "owner_role": "领域内核与报告",
       "evidence_dir": "reports/roadmap_v3/SYS-02/<run_id>/",
+      "mail_ids": [],
       "deliverables": [
         "contract.md（契约及变更边界）",
         "acceptance.json（逐项通过/失败/不足/待证据）",
@@ -2187,6 +3055,7 @@
       "compatibility": "保留旧报告回读；状态和年化语义改变必须提供新旧固定样本差异及版本说明。",
       "owner_role": "领域内核与报告",
       "evidence_dir": "reports/roadmap_v3/SYS-03/<run_id>/",
+      "mail_ids": [],
       "deliverables": [
         "contract.md（契约及变更边界）",
         "acceptance.json（逐项通过/失败/不足/待证据）",
@@ -2262,6 +3131,7 @@
       "compatibility": "保留原始外部快照和差异；外部无owner仓位不伪造策略来源，账户迁移必须核实。",
       "owner_role": "领域内核与报告",
       "evidence_dir": "reports/roadmap_v3/SYS-05/<run_id>/",
+      "mail_ids": [],
       "deliverables": [
         "contract.md（契约及变更边界）",
         "acceptance.json（逐项通过/失败/不足/待证据）",
@@ -2338,6 +3208,7 @@
       "compatibility": "验证迁移副本及回退方案，不在原始库上进行不可逆试验。 G2历史已有完成证据，本任务复验当前冻结版本的既有保证，不将全部能力视作重新开发。",
       "owner_role": "领域内核与报告",
       "evidence_dir": "reports/roadmap_v3/SYS-06/<run_id>/",
+      "mail_ids": [],
       "deliverables": [
         "contract.md（契约及变更边界）",
         "acceptance.json（逐项通过/失败/不足/待证据）",
@@ -2365,8 +3236,7 @@
         "scope": "account gate and protection-only synchronization compatibility",
         "evidence": {
           "path": "reports/roadmap_v3/followup/20260920-implementation/SYS-05/acceptance-final.json",
-          "sha256": "d228614da15fb412a5424f2db444170276796ee6e4c0c564e8c85feda774b0a6",
-          "distribution": "local_only_not_published"
+          "sha256": "d228614da15fb412a5424f2db444170276796ee6e4c0c564e8c85feda774b0a6"
         },
         "overall_task_closed": false
       }
@@ -2417,6 +3287,7 @@
       "compatibility": "不创建第二本资金账；迁移保留原position ID映射和旧checkpoint备份。",
       "owner_role": "领域内核与报告",
       "evidence_dir": "reports/roadmap_v3/SYS-07/<run_id>/",
+      "mail_ids": [],
       "deliverables": [
         "contract.md（契约及变更边界）",
         "acceptance.json（逐项通过/失败/不足/待证据）",
@@ -2459,8 +3330,7 @@
         "scope": "account gate and protection-only synchronization compatibility",
         "evidence": {
           "path": "reports/roadmap_v3/followup/20260920-implementation/SYS-05/acceptance-final.json",
-          "sha256": "d228614da15fb412a5424f2db444170276796ee6e4c0c564e8c85feda774b0a6",
-          "distribution": "local_only_not_published"
+          "sha256": "d228614da15fb412a5424f2db444170276796ee6e4c0c564e8c85feda774b0a6"
         },
         "overall_task_closed": false
       }
@@ -2517,6 +3387,7 @@
       "compatibility": "复用9月14日合同，不调整阈值；旧动作迁移先备份再校验目标身份。",
       "owner_role": "领域内核与报告",
       "evidence_dir": "reports/roadmap_v3/SYS-08/<run_id>/",
+      "mail_ids": [],
       "deliverables": [
         "contract.md（契约及变更边界）",
         "acceptance.json（逐项通过/失败/不足/待证据）",
@@ -2544,8 +3415,7 @@
         "scope": "account gate and protection-only synchronization compatibility",
         "evidence": {
           "path": "reports/roadmap_v3/followup/20260920-implementation/SYS-05/acceptance-final.json",
-          "sha256": "d228614da15fb412a5424f2db444170276796ee6e4c0c564e8c85feda774b0a6",
-          "distribution": "local_only_not_published"
+          "sha256": "d228614da15fb412a5424f2db444170276796ee6e4c0c564e8c85feda774b0a6"
         },
         "overall_task_closed": false
       }
@@ -2594,6 +3464,7 @@
       "compatibility": "沿用版本化健康checkpoint迁移，保留旧样本边界与映射审计。",
       "owner_role": "领域内核与报告",
       "evidence_dir": "reports/roadmap_v3/SYS-09/<run_id>/",
+      "mail_ids": [],
       "deliverables": [
         "contract.md（契约及变更边界）",
         "acceptance.json（逐项通过/失败/不足/待证据）",
@@ -2663,6 +3534,7 @@
       "compatibility": "原研究目录保留；新发布追加版本或索引，不覆盖失败/中断证据。",
       "owner_role": "研究与数据",
       "evidence_dir": "reports/roadmap_v3/SYS-10/<run_id>/",
+      "mail_ids": [],
       "deliverables": [
         "contract.md（契约及变更边界）",
         "acceptance.json（逐项通过/失败/不足/待证据）",
@@ -2680,8 +3552,7 @@
         "supplemental_evidence": [
           {
             "path": "reports/roadmap_v3/section56/20260920-implementation/meta_delivery_recheck.json",
-            "sha256": "fbc13f984f1f5845a04c7a0529b0349715cb4498a7a93e294382779208a4fb80",
-            "distribution": "local_only_not_published"
+            "sha256": "fbc13f984f1f5845a04c7a0529b0349715cb4498a7a93e294382779208a4fb80"
           }
         ]
       },
@@ -2744,6 +3615,7 @@
       "compatibility": "旧Phase5证据明确失效范围；保留历史结果，只有新合规证据可改变准入状态。",
       "owner_role": "研究与数据",
       "evidence_dir": "reports/roadmap_v3/SYS-11/<run_id>/",
+      "mail_ids": [],
       "deliverables": [
         "contract.md（契约及变更边界）",
         "acceptance.json（逐项通过/失败/不足/待证据）",
@@ -2778,8 +3650,7 @@
       },
       "latest_registered_candidate": {
         "path": "reports/roadmap_v3/SYS-11/20260920-followup-successor-03/acceptance.json",
-        "sha256": "42bfdaa652e35781687fa488b1935912bf9bb13be936315c7b5286aa6b545090",
-        "distribution": "local_only_not_published"
+        "sha256": "42bfdaa652e35781687fa488b1935912bf9bb13be936315c7b5286aa6b545090"
       }
     },
     {
@@ -2841,6 +3712,7 @@
       "compatibility": "不改existing数据库权限或删除坏状态规避保护；回滚保留原库、备份和差异。",
       "owner_role": "运行与运维",
       "evidence_dir": "reports/roadmap_v3/SYS-16/<run_id>/",
+      "mail_ids": [],
       "deliverables": [
         "contract.md（契约及变更边界）",
         "acceptance.json（逐项通过/失败/不足/待证据）",
@@ -2868,8 +3740,7 @@
         "scope": "account gate and protection-only synchronization compatibility",
         "evidence": {
           "path": "reports/roadmap_v3/followup/20260920-implementation/SYS-05/acceptance-final.json",
-          "sha256": "d228614da15fb412a5424f2db444170276796ee6e4c0c564e8c85feda774b0a6",
-          "distribution": "local_only_not_published"
+          "sha256": "d228614da15fb412a5424f2db444170276796ee6e4c0c564e8c85feda774b0a6"
         },
         "overall_task_closed": false
       }
@@ -2918,6 +3789,7 @@
       "compatibility": "本任务是未来执行计划，不代表当前授权启动或已发生运行；真实资金仍需SYS-18批准。",
       "owner_role": "运行与运维",
       "evidence_dir": "reports/roadmap_v3/SYS-17/<run_id>/",
+      "mail_ids": [],
       "deliverables": [
         "contract.md（契约及变更边界）",
         "acceptance.json（逐项通过/失败/不足/待证据）",
@@ -2981,6 +3853,7 @@
       "compatibility": "写计划不构成资金运行授权；先交付可审阅方案和已完成前置证据，再由用户批准实际范围。",
       "owner_role": "运行与运维",
       "evidence_dir": "reports/roadmap_v3/SYS-18/<run_id>/",
+      "mail_ids": [],
       "deliverables": [
         "contract.md（契约及变更边界）",
         "acceptance.json（逐项通过/失败/不足/待证据）",
@@ -3048,6 +3921,7 @@
       "compatibility": "默认关闭，新参数及输出schema有版本；保留原固定symbols行为。",
       "owner_role": "研究与数据",
       "evidence_dir": "reports/roadmap_v3/SYS-12/<run_id>/",
+      "mail_ids": [],
       "deliverables": [
         "contract.md（契约及变更边界）",
         "acceptance.json（逐项通过/失败/不足/待证据）",
@@ -3132,6 +4006,7 @@
       "compatibility": "新策略显式opt-in，不用回测最优参数替换既有生产风险配置。",
       "owner_role": "领域内核与报告",
       "evidence_dir": "reports/roadmap_v3/SYS-13/<run_id>/",
+      "mail_ids": [],
       "deliverables": [
         "contract.md（契约及变更边界）",
         "acceptance.json（逐项通过/失败/不足/待证据）",
@@ -3217,6 +4092,7 @@
       "compatibility": "当前正在使用的账户正确性已属SYS-02/05/08主线，不能以此扩展待办推迟；只增加新模式/新候选为BX。",
       "owner_role": "领域内核与报告",
       "evidence_dir": "reports/roadmap_v3/SYS-14/<run_id>/",
+      "mail_ids": [],
       "deliverables": [
         "contract.md（契约及变更边界）",
         "acceptance.json（逐项通过/失败/不足/待证据）",
@@ -3290,6 +4166,7 @@
       "compatibility": "不改原报告计算口径；新增字段版本化且旧消费者可识别缺失。",
       "owner_role": "领域内核与报告",
       "evidence_dir": "reports/roadmap_v3/SYS-15/<run_id>/",
+      "mail_ids": [],
       "deliverables": [
         "contract.md（契约及变更边界）",
         "acceptance.json（逐项通过/失败/不足/待证据）",
@@ -3363,6 +4240,7 @@
         "调度与CI定义",
         "工程验收与剩余运行证据清单"
       ],
+      "mail_ids": [],
       "owner_role": "Codex（工程）；项目运行负责人（待指定）",
       "evidence_dir": "reports/roadmap_v3/followup/20260920-implementation/SYS-19/",
       "execution_assignment": {
@@ -3378,6 +4256,942 @@
         "engineering_status": "pass",
         "evidence": "reports/roadmap_v3/followup/20260920-implementation/SYS-19/acceptance-final.json",
         "source_sha256": "1ed2cf91117b5de1817fe88e5b46aa19cf2acb754a2ba75412c7c2aa63085211"
+      }
+    }
+  ],
+  "mail_mapping": [
+    {
+      "mail_id": "MAIL-4-1",
+      "baseline_status": "已修复",
+      "task_id": null,
+      "disposition": "regression",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/4#pullrequestreview-4889477929",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/19fe2c1bced78d32"
+    },
+    {
+      "mail_id": "MAIL-4-2",
+      "baseline_status": "已修复",
+      "task_id": null,
+      "disposition": "regression",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/4#pullrequestreview-4889477929",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/19fe2c1bced78d32"
+    },
+    {
+      "mail_id": "MAIL-4-3",
+      "baseline_status": "已修复",
+      "task_id": null,
+      "disposition": "regression",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/4#pullrequestreview-4889477929",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/19fe2c1bced78d32"
+    },
+    {
+      "mail_id": "MAIL-4-4",
+      "baseline_status": "已修复",
+      "task_id": null,
+      "disposition": "regression",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/4#pullrequestreview-4889477929",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/19fe2c1bced78d32"
+    },
+    {
+      "mail_id": "MAIL-4-5",
+      "baseline_status": "部分修复",
+      "task_id": "FIX-17",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/4#pullrequestreview-4889477929",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/19fe2c1bced78d32",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-17",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-9-1",
+      "baseline_status": "部分修复",
+      "task_id": "FIX-10",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/9#pullrequestreview-5000638067",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a02a70299f1110e",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-10",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-9-2",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-20",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/9#pullrequestreview-5000638067",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a02a70299f1110e",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-20",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-9-3",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-20",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/9#pullrequestreview-5000638067",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a02a70299f1110e",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-20",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-10-1",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-10",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/10#pullrequestreview-5000967232",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a02b1be8ad56f7d",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-10",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-10-2",
+      "baseline_status": "已修复",
+      "task_id": null,
+      "disposition": "regression",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/10#pullrequestreview-5000967232",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a02b1be8ad56f7d"
+    },
+    {
+      "mail_id": "MAIL-11-1",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-08",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/11#pullrequestreview-5001918007",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a02d94cc4bbcb96",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-08",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-11-2",
+      "baseline_status": "部分修复",
+      "task_id": "FIX-19",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/11#pullrequestreview-5001918007",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a02d94cc4bbcb96",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-19",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-11-3",
+      "baseline_status": "已修复",
+      "task_id": null,
+      "disposition": "regression",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/11#pullrequestreview-5001918007",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a02d94cc4bbcb96"
+    },
+    {
+      "mail_id": "MAIL-12-1",
+      "baseline_status": "已修复",
+      "task_id": null,
+      "disposition": "regression",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/12#pullrequestreview-5001994647",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a02dbffa40b1065"
+    },
+    {
+      "mail_id": "MAIL-12-2",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-11",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/12#pullrequestreview-5001994647",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a02dbffa40b1065",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-11",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-13-1",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-06",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/13#pullrequestreview-5005367713",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a032a2aa81b7066",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-06",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-13-2",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-05",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/13#pullrequestreview-5005367713",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a032a2aa81b7066",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-05",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-13-3",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-06",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/13#pullrequestreview-5005367713",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a032a2aa81b7066",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-06",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-15-1",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-03",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/15#pullrequestreview-5019831836",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a0393b4b7581a5c",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-03",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-15-2",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-03",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/15#pullrequestreview-5019831836",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a0393b4b7581a5c",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-03",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-15-3",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-03",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/15#pullrequestreview-5019831836",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a0393b4b7581a5c",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-03",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-16-1",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-11",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/16#pullrequestreview-5027130456",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03c9a15252cd08",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-11",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-16-2",
+      "baseline_status": "已修复",
+      "task_id": null,
+      "disposition": "regression",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/16#pullrequestreview-5027130456",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03c9a15252cd08"
+    },
+    {
+      "mail_id": "MAIL-16-3",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-12",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/16#pullrequestreview-5027130456",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03c9a15252cd08",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-12",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-16-4",
+      "baseline_status": "部分修复",
+      "task_id": "FIX-12",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/16#pullrequestreview-5027130456",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03c9a15252cd08",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-12",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-17-1",
+      "baseline_status": "已修复",
+      "task_id": null,
+      "disposition": "regression",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/17#pullrequestreview-5028474123",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03d457a7ef033c"
+    },
+    {
+      "mail_id": "MAIL-17-2",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-07",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/17#pullrequestreview-5028474123",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03d457a7ef033c",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-07",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-17-3",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-13",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/17#pullrequestreview-5028474123",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03d457a7ef033c",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-13",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-18-1",
+      "baseline_status": "部分修复",
+      "task_id": "FIX-14",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/18#pullrequestreview-5031311051",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03e5f0dec59b1e",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-14",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-18-2",
+      "baseline_status": "已修复",
+      "task_id": null,
+      "disposition": "regression",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/18#pullrequestreview-5031311051",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03e5f0dec59b1e"
+    },
+    {
+      "mail_id": "MAIL-18-3",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-20",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/18#pullrequestreview-5031311051",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03e5f0dec59b1e",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-20",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-19-1",
+      "baseline_status": "部分修复",
+      "task_id": "FIX-08",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/19#pullrequestreview-5032066890",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03e9990378d4e3",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-08",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-19-2",
+      "baseline_status": "部分修复",
+      "task_id": "FIX-08",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/19#pullrequestreview-5032066890",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03e9990378d4e3",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-08",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-19-3",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-02",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/19#pullrequestreview-5032066890",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03e9990378d4e3",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-02",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-19-4",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-12",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/19#pullrequestreview-5032066890",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03e9990378d4e3",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-12",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-19-5",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-02",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/19#pullrequestreview-5032066890",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03e9990378d4e3",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-02",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-19-6",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-08",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/19#pullrequestreview-5032066890",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03e9990378d4e3",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-08",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-20-1",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-01",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/20#pullrequestreview-5032477893",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03ec7aa5b8fd35",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-01",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-20-2",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-01",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/20#pullrequestreview-5032477893",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03ec7aa5b8fd35",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-01",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-20-3",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-01",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/20#pullrequestreview-5032477893",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03ec7aa5b8fd35",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-01",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-21-1",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-04",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/21#pullrequestreview-5052647523",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a049087b39acea3",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-04",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-21-2",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-04",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/21#pullrequestreview-5052647523",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a049087b39acea3",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-04",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-21-3",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-04",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/21#pullrequestreview-5052647523",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a049087b39acea3",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-04",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-21-4",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-19",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/21#pullrequestreview-5052647523",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a049087b39acea3",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-19",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-22-1",
+      "baseline_status": "已修复",
+      "task_id": null,
+      "disposition": "regression",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/22#pullrequestreview-5061172508",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a0533a93285643a"
+    },
+    {
+      "mail_id": "MAIL-23-1",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-18",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/23#pullrequestreview-5061253521",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05360bc455bee6",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-18",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-23-2",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-18",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/23#pullrequestreview-5061253521",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05360bc455bee6",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-18",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-23-3",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-18",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/23#pullrequestreview-5061253521",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05360bc455bee6",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-18",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-25-1",
+      "baseline_status": "已修复",
+      "task_id": null,
+      "disposition": "regression",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/25#pullrequestreview-5064031605",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a056b03f46edc22"
+    },
+    {
+      "mail_id": "MAIL-26-1",
+      "baseline_status": "已修复",
+      "task_id": null,
+      "disposition": "regression",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/26#pullrequestreview-5065127391",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a057317a5d64997"
+    },
+    {
+      "mail_id": "MAIL-26-2",
+      "baseline_status": "已修复",
+      "task_id": null,
+      "disposition": "regression",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/26#pullrequestreview-5065127391",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a057317a5d64997"
+    },
+    {
+      "mail_id": "MAIL-27-1",
+      "baseline_status": "已修复",
+      "task_id": null,
+      "disposition": "regression",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/27#pullrequestreview-5074006738",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05b34da3e57df6"
+    },
+    {
+      "mail_id": "MAIL-27-2",
+      "baseline_status": "已修复",
+      "task_id": null,
+      "disposition": "regression",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/27#pullrequestreview-5074006738",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05b34da3e57df6"
+    },
+    {
+      "mail_id": "MAIL-27-3",
+      "baseline_status": "已修复",
+      "task_id": null,
+      "disposition": "regression",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/27#pullrequestreview-5074006738",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05b34da3e57df6"
+    },
+    {
+      "mail_id": "MAIL-28-1",
+      "baseline_status": "已修复",
+      "task_id": null,
+      "disposition": "regression",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/28#pullrequestreview-5074542286",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05b938ac2335df"
+    },
+    {
+      "mail_id": "MAIL-28-2",
+      "baseline_status": "已修复",
+      "task_id": null,
+      "disposition": "regression",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/28#pullrequestreview-5074542286",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05b938ac2335df"
+    },
+    {
+      "mail_id": "MAIL-28-3",
+      "baseline_status": "已修复",
+      "task_id": null,
+      "disposition": "regression",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/28#pullrequestreview-5074542286",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05b938ac2335df"
+    },
+    {
+      "mail_id": "MAIL-29-1",
+      "baseline_status": "已修复",
+      "task_id": null,
+      "disposition": "regression",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/29#pullrequestreview-5078459446",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05d183fbccf8d3"
+    },
+    {
+      "mail_id": "MAIL-29-2",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-19",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/29#pullrequestreview-5078459446",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05d183fbccf8d3",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-19",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-31-1",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-09",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/31#pullrequestreview-5087145892",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a06121ba26be8a2",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-09",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-31-2",
+      "baseline_status": "已修复",
+      "task_id": null,
+      "disposition": "regression",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/31#pullrequestreview-5087145892",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a06121ba26be8a2"
+    },
+    {
+      "mail_id": "MAIL-31-3",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-20",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/31#pullrequestreview-5087145892",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a06121ba26be8a2",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-20",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-31-4",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-09",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/31#pullrequestreview-5087145892",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a06121ba26be8a2",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-09",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-32-1",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-15",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/32#pullrequestreview-5090380872",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a06256a5f1c91e2",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-15",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-32-2",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-07",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/32#pullrequestreview-5090380872",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a06256a5f1c91e2",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-07",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-33-1",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-17",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/33#pullrequestreview-5124762654",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a075dd685d2850b",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-17",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-33-2",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-15",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/33#pullrequestreview-5124762654",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a075dd685d2850b",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-15",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-34-1",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-03",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/34#pullrequestreview-5125020002",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a07631c34ed8774",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-03",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-35-1",
+      "baseline_status": "已修复",
+      "task_id": null,
+      "disposition": "regression",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/35#pullrequestreview-5125276758",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a076a5a3d38db27"
+    },
+    {
+      "mail_id": "MAIL-35-2",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-05",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/35#pullrequestreview-5125276758",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a076a5a3d38db27",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-05",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-36-1",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-16",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/36#pullrequestreview-5125488681",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a076f2f7fc308cb",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-16",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-36-2",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-19",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/36#pullrequestreview-5125488681",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a076f2f7fc308cb",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-19",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-37-1",
+      "baseline_status": "证据不足",
+      "task_id": "VER-01",
+      "disposition": "verification",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/37#pullrequestreview-5149579832",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a08449bfeb8d915",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已验证：原描述不成立，取消/拒绝边界已修复",
+        "task_id": "VER-01",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-37-2",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-16",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/37#pullrequestreview-5149579832",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a08449bfeb8d915",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-16",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-37-3",
+      "baseline_status": "已修复",
+      "task_id": null,
+      "disposition": "regression",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/37#pullrequestreview-5149579832",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a08449bfeb8d915"
+    },
+    {
+      "mail_id": "MAIL-38-1",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-10",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/38#pullrequestreview-5246104970",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a0b3b74235a6a3e",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-10",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
+      }
+    },
+    {
+      "mail_id": "MAIL-38-2",
+      "baseline_status": "仍存在",
+      "task_id": "FIX-10",
+      "disposition": "fix",
+      "source_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/38#pullrequestreview-5246104970",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a0b3b74235a6a3e",
+      "revalidation": {
+        "date": "2026-09-20",
+        "status": "已修复并完成本地工程验收",
+        "task_id": "FIX-10",
+        "evidence_index": "reports/roadmap_v3/acceptance_index.json"
       }
     }
   ],
@@ -3984,24 +5798,20 @@
     "integration": {
       "source": {
         "path": "reports/roadmap_v3/SYS-11/20260920-followup-successor-03/source_manifest.json",
-        "sha256": "22324d983780b16d2a6d4fda53f4855c435840df9a63bc6254fe2b2a3eda62cb",
-        "distribution": "local_only_not_published"
+        "sha256": "22324d983780b16d2a6d4fda53f4855c435840df9a63bc6254fe2b2a3eda62cb"
       },
       "source_sha256": "1ed2cf91117b5de1817fe88e5b46aa19cf2acb754a2ba75412c7c2aa63085211",
       "tests": {
         "path": "reports/roadmap_v3/followup/20260920-implementation/final-tests.xml",
-        "sha256": "599721d3a1aceb9e3292bd28468e8929527086f3b3164029248c3d31316b66f7",
-        "distribution": "local_only_not_published"
+        "sha256": "599721d3a1aceb9e3292bd28468e8929527086f3b3164029248c3d31316b66f7"
       },
       "quality": {
         "path": "reports/roadmap_v3/followup/20260920-implementation/final-quality.json",
-        "sha256": "c2ef0192379879a555bf3b399ee79cda40d3ad095efbfc53eb7669e13afa4820",
-        "distribution": "local_only_not_published"
+        "sha256": "c2ef0192379879a555bf3b399ee79cda40d3ad095efbfc53eb7669e13afa4820"
       },
       "reproducibility": {
         "path": "reports/roadmap_v3/SYS-01/20260920-followup-freeze-03/acceptance.json",
-        "sha256": "8f694ecb628e2c3d5c72f8a6c741dfefbbe6ade729df4d245f488ac0e47702a3",
-        "distribution": "local_only_not_published"
+        "sha256": "8f694ecb628e2c3d5c72f8a6c741dfefbbe6ade729df4d245f488ac0e47702a3"
       }
     },
     "overall_R0_R8": "incomplete",
@@ -4009,8 +5819,7 @@
     "run_id": "20260920-followup-final",
     "section5_policy": {
       "path": "reports/roadmap_v3/POLICY/20260920-section56-release/policy_report.json",
-      "sha256": "085412421564bf66ff7009ba7086b9454142bb6fc1f9a381f072feaad38654b3",
-      "distribution": "local_only_not_published"
+      "sha256": "085412421564bf66ff7009ba7086b9454142bb6fc1f9a381f072feaad38654b3"
     },
     "section6_status": "incomplete_external_research_and_operations_dependencies"
   },
@@ -4046,24 +5855,20 @@
       "integration": {
         "source": {
           "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source_manifest.json",
-          "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03",
-          "distribution": "local_only_not_published"
+          "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03"
         },
         "source_sha256": "7b2e6fbc4d72ee6db4ea5d33d316a787dcb0f9007f7bd1912455f2eedaec50b5",
         "tests": {
           "path": "reports/roadmap_v3/integration/20260920-r-series/release.xml",
-          "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d",
-          "distribution": "local_only_not_published"
+          "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d"
         },
         "quality": {
           "path": "reports/roadmap_v3/integration/20260920-r-series/quality-release.json",
-          "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322",
-          "distribution": "local_only_not_published"
+          "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322"
         },
         "reproducibility": {
           "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/acceptance.json",
-          "sha256": "0264618756aa0a3ef7089fdbb5267f55e70d8da359ab0a3ebba3e1390c389735",
-          "distribution": "local_only_not_published"
+          "sha256": "0264618756aa0a3ef7089fdbb5267f55e70d8da359ab0a3ebba3e1390c389735"
         }
       },
       "overall_R0_R8": "incomplete",
@@ -4100,24 +5905,20 @@
       "integration": {
         "source": {
           "path": "reports/roadmap_v3/SYS-11/20260920-section56-successor-02/source_manifest.json",
-          "sha256": "fdd274c95cb4fe23ec91b74a1baf7adcfce80d3849a0672aa76097622d487fd5",
-          "distribution": "local_only_not_published"
+          "sha256": "fdd274c95cb4fe23ec91b74a1baf7adcfce80d3849a0672aa76097622d487fd5"
         },
         "source_sha256": "1174212be1fe952929bf83138c50285394a8213ca72b2c11b70f033da3774824",
         "tests": {
           "path": "reports/roadmap_v3/section56/20260920-implementation/full-tests-final.xml",
-          "sha256": "be0539442795bb43f143999bef61005ee78c09f4b65574ffc7591a0188711c6f",
-          "distribution": "local_only_not_published"
+          "sha256": "be0539442795bb43f143999bef61005ee78c09f4b65574ffc7591a0188711c6f"
         },
         "quality": {
           "path": "reports/roadmap_v3/section56/20260920-implementation/quality.json",
-          "sha256": "e92a5429e7202c3fe247c4c513ffa1e28e93b0f738fb087b32355b0635d45ddc",
-          "distribution": "local_only_not_published"
+          "sha256": "e92a5429e7202c3fe247c4c513ffa1e28e93b0f738fb087b32355b0635d45ddc"
         },
         "reproducibility": {
           "path": "reports/roadmap_v3/SYS-01/20260920-section56-freeze-02/acceptance.json",
-          "sha256": "d56424232017aca1efd91c45a73fb7af9855eea1a75887b9509395fdb21574e7",
-          "distribution": "local_only_not_published"
+          "sha256": "d56424232017aca1efd91c45a73fb7af9855eea1a75887b9509395fdb21574e7"
         }
       },
       "overall_R0_R8": "incomplete",
@@ -4125,8 +5926,7 @@
       "run_id": "20260920-section56",
       "section5_policy": {
         "path": "reports/roadmap_v3/POLICY/20260920-section56-release/policy_report.json",
-        "sha256": "085412421564bf66ff7009ba7086b9454142bb6fc1f9a381f072feaad38654b3",
-        "distribution": "local_only_not_published"
+        "sha256": "085412421564bf66ff7009ba7086b9454142bb6fc1f9a381f072feaad38654b3"
       },
       "section6_status": "incomplete_external_research_and_operations_dependencies"
     }
@@ -4172,20 +5972,14 @@
       "coverage_percent": 89.4
     },
     "evidence": "reports/roadmap_v3/followup/20260920-implementation/acceptance-final.json",
-    "remote_ci_status": "pending_exact_commit"
-  },
-  "public_distribution": {
-    "scope": "isolated_public_governance_view",
-    "authority": "Original local governance files remain authoritative; this public copy retains task structure and technical contracts.",
-    "local_only_reference_prefixes": [
-      "reports/",
-      "outputs/",
-      "tmp/",
-      "docs/archive/",
-      "docs/codex_mail"
-    ],
-    "local_only_reference_policy": "Historical receipt/archive paths and hashes are metadata references only. Those artifacts are not included in the public source release and are not verified by public structure-only CI.",
-    "excluded_content": "Private message contents, message identifiers, mailbox URLs, per-message mappings and quoted review tables are omitted.",
-    "live_admission": false
+    "remote_ci_status": "pass_pr_head_and_main_merge_aee11221cfa80e559858a2cea39d6966135a7d69",
+    "publication": {
+      "path": "reports/roadmap_v3/followup/20260920-implementation/publication-authorization-pending.json",
+      "sha256": "8f047fe2f1a5949c3aabd5b4db5a584802740523ee33429c68017ce8c020f2ed"
+    },
+    "remote_ci": {
+      "path": "reports/roadmap_v3/followup/20260920-implementation/remote-ci.json",
+      "sha256": "937586dbde4c95232cd20bb47ee37be72d7cf939943e37bf4b1dc0a1a1e92b2b"
+    }
   }
 }

@@ -1,10 +1,8 @@
-"""Per-tick execution: data refresh, account sync, risk gate, bar routing.
+"""编排单次实盘轮询：保护检查、行情、账户对账、风险动作和策略处理。
 
-Split out of live_trading/engine.py (A4) — see docs/architecture_review.md.
-See live_trading/recovery.py's module docstring for why this is a mixin
-rather than a standalone collaborator object. ``LiveTradingEngine`` keeps
-``run()``/``initialize()`` as the lifecycle shell; this module is the body
-of a single tick.
+LiveTradingEngine 负责 initialize()/run() 生命周期；本 mixin 与恢复、导出
+mixin 共享同一引擎状态。新增风险门控与已有持仓保护分别判断：拒绝新开仓
+不等于跳过账户恢复或保护单对账，具体路径仍取决于可用账户事实和风险动作。
 """
 from __future__ import annotations
 
@@ -71,7 +69,11 @@ class TickOrchestratorMixin(PortfolioRiskActionsMixin):
             raise MarketDataRefreshError(self.market_data_adapter.failed_symbols)
 
     def _tick(self) -> bool:
-        '''Contain unexpected failures so one bad tick cannot kill the process.'''
+        """隔离意外异常并更新退避；返回 True 仅表示本轮未抛出未处理异常。
+
+        行情、账户或风险门控可以在 _tick_once 内结束本轮，此时不能把 True
+        解释为允许交易或账户健康。
+        """
         started = perf_counter()
         try:
             self._tick_once()
@@ -113,6 +115,11 @@ class TickOrchestratorMixin(PortfolioRiskActionsMixin):
         return True
 
     def _tick_once(self):
+        """先建立账户和风险事实，再按收盘时间批量分配通过门控的候选。
+
+        可选 runtime_controls 在行情刷新前运行到期保护，并在认领最新 bar
+        前仅补齐历史状态。bar 租约、订单对账及最终入场复核分别承担不同责任。
+        """
         self._tick_count += 1
         self._unresolved_unknown_cache = None
         now = self._now()
@@ -148,10 +155,8 @@ class TickOrchestratorMixin(PortfolioRiskActionsMixin):
             self._maybe_export_state()
             return
         self._healthy = bool(getattr(sync_result, "ok", sync_result is None))
-        # A complete balance observation can expose an independent-account
-        # discrepancy. Preserve protection and exits using those factual
-        # positions; source discrepancies only deny new entries. Network or
-        # malformed balance failures still leave position facts unknown.
+        # 余额同步成功与独立账户核验通过是两个条件。前者可为保护/退出提供
+        # 真实持仓，后者仍可拒绝新增风险；网络或格式错误则连持仓事实也不可信。
         if not balance_sync_succeeded(self.broker, sync_result):
             self._assess_health(now, HealthReason(
                 "ACCOUNT_SYNC_FAILED", "account_sync", "account",
@@ -366,8 +371,7 @@ class TickOrchestratorMixin(PortfolioRiskActionsMixin):
 
         for close_time, batch in sorted(batches.items()):
             try:
-                # Price fetches and management may take time. Recheck the
-                # current source immediately before allocating new orders.
+                # 持仓管理可能耗时或引入 UNKNOWN；分配前复核账户证据新鲜度和订单状态。
                 allocation_gate = account_new_risk_gate(self.broker, self._now(),
                     persistence_failed=getattr(self, "_account_reconciliation_persistence_failed", False))
                 self._reconciliation_status["account_entry_gate"] = allocation_gate
@@ -388,6 +392,7 @@ class TickOrchestratorMixin(PortfolioRiskActionsMixin):
                     else:
                         if controls is not None and controls.policy.enabled:
                             symbol, timestamp = batch["cursors"][key]
+                            # bar 完成事实、游标与运行状态一并提交，避免崩溃后跳过未落盘状态。
                             state_store.complete_bar(key, now.isoformat(), state_values={
                                 **runtime_checkpoint(self),
                                 f"catchup_cursor:{symbol}:{self.timeframe}": timestamp.isoformat()})
@@ -749,12 +754,12 @@ class TickOrchestratorMixin(PortfolioRiskActionsMixin):
         return True
 
     def _reconcile_protective_orders(self) -> None:
-        """Keep venue-resident protection in step with the real position.
+        """按真实持仓及 position_ids 核对驻场保护，避免旧持仓止损影响新持仓。
 
-        SR2-5: the entry fill, not the signal, is what creates protection; the
-        protective quantity tracks the net position; the level only ratchets;
-        and anything the venue cannot confirm fails closed into a flatten
-        rather than being carried as if a stop existed.
+        保护数量扣除在途非止损退出已占用的数量，止损价只沿收紧方向移动。
+        无法读取订单或确认持仓身份时降级告警；需替换的订单先确认撤单终态。
+        不能确认保护时可请求退出，但退出仍受撤单、账户同步和持仓归属约束，
+        不能把“已请求退出”视为“已平仓”。
         """
         if not getattr(self, "protective_orders_enabled", True):
             return

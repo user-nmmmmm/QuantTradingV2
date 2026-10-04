@@ -23,6 +23,7 @@ from core.domain import OrderIntent
 from core.events import OrderEvent
 from core.logger import get_logger
 from core.risk.reservation import OpeningRiskRejected, ensure_opening_reservation
+from core.timeframes import as_utc_timestamp
 
 logger = get_logger(__name__)
 
@@ -73,6 +74,7 @@ class MatchingMixin:
         approved_risk_amount: Optional[float] = None,
         signal_id: Optional[str] = None,
         causation_id: Optional[str] = None,
+        match_not_before: Any = None,
     ) -> Order:
         """
         提交订单（进入撮合队列）。
@@ -86,6 +88,13 @@ class MatchingMixin:
         - 仅做基本参数校验与结构化封装，加入 pending_orders
         - 实际撮合发生在 process_orders（由引擎在每根 bar 调用）
         """
+        if match_not_before is not None:
+            not_before = as_utc_timestamp(match_not_before)
+            submitted = as_utc_timestamp(timestamp)
+            if (timestamp is None or pd.isna(not_before) or pd.isna(submitted)
+                    or not_before < submitted or order_type.lower() != "market"):
+                raise ValueError("event-clock matching requires a market order with an earliest time at/after submission")
+            match_not_before = not_before
         # Map string to Enum
         otype_map = {
             "market": OrderType.MARKET,
@@ -139,6 +148,7 @@ class MatchingMixin:
             order_type=otype,
             price=price,
             timestamp=timestamp,
+            match_not_before=match_not_before,
             slippage=slippage,
             strategy_id=strategy_id,
             submitted_date=(
@@ -295,7 +305,9 @@ class MatchingMixin:
                 next_active_orders.append(order)
                 continue
             current_time = bar_data.name
-            if order.timestamp is not None and current_time <= order.timestamp:
+            not_ready = (as_utc_timestamp(current_time) < order.match_not_before if order.match_not_before is not None
+                         else order.timestamp is not None and current_time <= order.timestamp)
+            if not_ready:
                 next_active_orders.append(order)
                 continue
             if order.expire_time is not None and current_time > order.expire_time:

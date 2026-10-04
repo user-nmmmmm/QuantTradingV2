@@ -274,8 +274,13 @@ def concentration_stress(pnls: Iterable[float], removals: Sequence[int] = (1, 3,
 
 def deflated_sharpe_ratio(
     returns: Iterable[float], *, trials: int, periods_per_year: float = 1.0,
+    trial_sharpe_std: float | None = None,
 ) -> dict[str, Any]:
-    """Probability that observed Sharpe exceeds search-inflated expected maximum."""
+    """Legacy single-series diagnostic; a full candidate panel is preferred.
+
+    More than one trial requires measured cross-trial period-Sharpe dispersion.
+    A single return series cannot establish search completeness or supply it.
+    """
     values = np.asarray(list(returns), dtype=float)
     if not np.all(np.isfinite(values)):
         return {"status": "invalid_input", "sample_size": int(len(values)),
@@ -292,29 +297,41 @@ def deflated_sharpe_ratio(
     observed = float(values.mean() / std)
     euler_gamma = 0.5772156649015329
     normal = NormalDist()
+    if trial_sharpe_std is not None and (not math.isfinite(trial_sharpe_std) or trial_sharpe_std < 0):
+        raise ValueError("trial_sharpe_std must be finite and nonnegative in per-period units")
+    if trials > 1 and trial_sharpe_std is None:
+        return {"status": "insufficient", "sample_size": len(values), "trials": trials,
+                "probability": None, "diagnostic_probability": None,
+                "observed_period_sharpe": observed,
+                "observed_sharpe": observed * math.sqrt(periods_per_year),
+                "expected_max_period_sharpe": None, "expected_max_sharpe": None,
+                "reason": "cross-trial Sharpe dispersion unavailable; use deflated_sharpe_evidence with the full panel",
+                "admission_eligible": False, "formula_version": "dsr-single-series/v3"}
     if trials == 1:
         expected_max = 0.0
     else:
         z1 = normal.inv_cdf(1 - 1 / trials)
         z2 = normal.inv_cdf(1 - 1 / (trials * math.e))
-        expected_max = (1 - euler_gamma) * z1 + euler_gamma * z2
+        expected_max = trial_sharpe_std * ((1 - euler_gamma) * z1 + euler_gamma * z2)
     centered = values - values.mean()
     skew = float(np.mean(centered ** 3) / (np.std(values) ** 3))
     kurtosis = float(np.mean(centered ** 4) / (np.var(values) ** 2))
     denominator = math.sqrt(max(1e-12, 1 - skew * observed + ((kurtosis - 1) / 4) * observed ** 2))
     statistic = (observed - expected_max) * math.sqrt(len(values) - 1) / denominator
     return {
-        "status": "ok",
+        "status": "diagnostic",
         "sample_size": int(len(values)),
         "trials": int(trials),
-        "formula_version": "dsr-period-consistent/v2",
+        "formula_version": "dsr-single-series/v3",
         "periods_per_year": periods_per_year,
         "sharpe_scale": "annualized",
         "observed_sharpe": observed * math.sqrt(periods_per_year),
         "expected_max_sharpe": expected_max * math.sqrt(periods_per_year),
         "observed_period_sharpe": observed,
         "expected_max_period_sharpe": expected_max,
-        "probability": float(normal.cdf(statistic)),
+        "probability": None, "diagnostic_probability": float(normal.cdf(statistic)),
+        "trial_sharpe_std": trial_sharpe_std, "admission_eligible": False,
+        "reason": "single-series API cannot verify complete preregistered search history",
     }
 
 
@@ -382,7 +399,11 @@ def evaluate_holdout_admission(
             continue
         pnls.append(pnl)
         valid_trades.append(trade)
-    pf = calculate_profit_factor(pnls, minimum_samples=thresholds.minimum_trades, confidence=0.95)
+    ordered_trades = sorted(valid_trades, key=lambda trade: str(trade.get("exit_time", "")))
+    exit_times = [trade.get("exit_time") for trade in ordered_trades]
+    pf = calculate_profit_factor([float(trade["net_pnl"]) for trade in ordered_trades],
+        minimum_samples=thresholds.minimum_trades, confidence=0.95,
+        timestamps=exit_times if all(time is not None for time in exit_times) else None)
     overlap = pd.concat([pd.Series(equity, name="strategy"), pd.Series(benchmark, name="benchmark")], axis=1).dropna()
     strategy_return = benchmark_return = excess_return = None
     if len(overlap) >= 2 and overlap.iloc[0].ne(0).all():
@@ -413,7 +434,8 @@ def evaluate_holdout_admission(
             and excess_return > 0
         ),
         "G13_pf_significance": bool(
-            not invalid_trades and pf["status"] == "ok" and pf["sample_size"] >= thresholds.minimum_trades
+            not invalid_trades and pf["status"] == "ok" and pf.get("evidence_eligible", False)
+            and pf["sample_size"] >= thresholds.minimum_trades
             and pf["value"] is not None and pf["value"] > thresholds.minimum_pf
             and pf["lower"] is not None and pf["lower"] > thresholds.minimum_pf_ci_lower
         ),
@@ -423,8 +445,11 @@ def evaluate_holdout_admission(
     }
     by_strategy = {}
     for name in sorted({str(trade.get("strategy", "UNKNOWN")) for trade in valid_trades}):
-        values = [float(trade["net_pnl"]) for trade in valid_trades if str(trade.get("strategy", "UNKNOWN")) == name]
-        by_strategy[name] = calculate_profit_factor(values, minimum_samples=thresholds.minimum_trades, confidence=0.95)
+        group = [trade for trade in ordered_trades if str(trade.get("strategy", "UNKNOWN")) == name]
+        group_times = [trade.get("exit_time") for trade in group]
+        by_strategy[name] = calculate_profit_factor([float(trade["net_pnl"]) for trade in group],
+            minimum_samples=thresholds.minimum_trades, confidence=0.95,
+            timestamps=group_times if all(time is not None for time in group_times) else None)
     return {
         "decision": "admit" if all(gates.values()) else "reject",
         "gates": gates,
@@ -435,10 +460,10 @@ def evaluate_holdout_admission(
         "gate_details": {
             "G13_pf_significance": {
                 "status": ("invalid_input" if invalid_trades else "pass" if gates["G13_pf_significance"] else
-                           "insufficient_data" if pf["status"] != "ok" else "fail"),
+                           "insufficient_data" if pf["status"] != "ok" or not pf.get("evidence_eligible") else "fail"),
                 "metric_status": pf["status"], "sample_size": pf["sample_size"],
                 "minimum_samples": thresholds.minimum_trades,
-                "formula_version": "pf-admission/v2",
+                "formula_version": "pf-admission-cohort-block/v3",
             },
         },
         "profit_factor_by_strategy": by_strategy,

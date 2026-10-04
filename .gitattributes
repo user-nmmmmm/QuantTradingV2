@@ -3,6 +3,3 @@ requirements.lock.sha256 text eol=lf
 docs/baseline/phase0/**/*.csv text eol=lf
 docs/baseline/phase0/**/*.json text eol=lf
 docs/baseline/phase0/**/*.txt text eol=lf
-reports/*.md text eol=lf
-reports/*.log text eol=lf
-reports/*.txt text eol=lf

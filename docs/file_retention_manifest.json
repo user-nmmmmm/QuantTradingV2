@@ -10,38 +10,33 @@
     },
     {
       "path": "reports/deep_recovery_20260909_run.log",
-      "size_bytes": 3152,
-      "sha256": "a7251c358e571b88576342e299ba9bf2686b67eb4bcae46c8ef547c7569a2d1d",
-      "purpose": "Historical recovery run evidence",
-      "checkout_policy": "text-lf"
+      "size_bytes": 3223,
+      "sha256": "41d23fe9ce5cb760880be5c05319037d6f2a87f5839008ae7de6d09500c82733",
+      "purpose": "Historical recovery run evidence"
     },
     {
       "path": "reports/deep_recovery_engine_tests_20260909.txt",
-      "size_bytes": 112,
-      "sha256": "c5a0668d4433f29a83f7829fb0079448015bbbe28e752c9ecf03ae20559b0913",
-      "purpose": "Historical recovery test evidence",
-      "checkout_policy": "text-lf"
+      "size_bytes": 114,
+      "sha256": "1efbdb650d9ee069e0f05181481c8060951e8c9539ffebe0fe671893ed2270e3",
+      "purpose": "Historical recovery test evidence"
     },
     {
       "path": "reports/deep_recovery_full_tests_20260909.txt",
-      "size_bytes": 9306,
-      "sha256": "97b9281b5fda4ed3be17e023afbd09a4131ae6127032a0c46fd5444284646600",
-      "purpose": "Historical recovery test evidence",
-      "checkout_policy": "text-lf"
+      "size_bytes": 9454,
+      "sha256": "e6ae1cd815e42ec1a39ab5d40218f3964bd4c37c2f857a46f5dbf4827feeb7a7",
+      "purpose": "Historical recovery test evidence"
     },
     {
       "path": "reports/p0_recovery_run_20260909.log",
-      "size_bytes": 592,
-      "sha256": "9c664edccc0c4c23dd8f2ffcf1de2b6eff178211e4645875efd7c90a3545517b",
-      "purpose": "Historical P0 recovery run evidence",
-      "checkout_policy": "text-lf"
+      "size_bytes": 599,
+      "sha256": "67fb9db71da45f00fb0c901d346d636ffadcfa388c84e5965a3ba91232180caa",
+      "purpose": "Historical P0 recovery run evidence"
     },
     {
       "path": "reports/p0_recovery_tests_20260909.txt",
-      "size_bytes": 9306,
-      "sha256": "14fb4e364f49451638da364e28ebcd75cb6ab01098a3d2cf8f3b0dd03770520b",
-      "purpose": "Historical P0 recovery test evidence",
-      "checkout_policy": "text-lf"
+      "size_bytes": 9454,
+      "sha256": "3d53fca9bb8a158b61b28d7c8ab7948b8090c5cb97dbf9a2baccb8ac0976fe42",
+      "purpose": "Historical P0 recovery test evidence"
     },
     {
       "path": "reports/revalidation_60_20260908_delivery.zip",
@@ -59,8 +54,7 @@
       "path": "reports/strategy_security_review_20260908.md",
       "size_bytes": 17641,
       "sha256": "b358a7749c8ac7b6568aa663a9bf0e61622ec98a066095736d091b52b5a6a697",
-      "purpose": "Historical strategy security review",
-      "checkout_policy": "text-lf"
+      "purpose": "Historical strategy security review"
     }
   ],
   "tracked_market_data": {

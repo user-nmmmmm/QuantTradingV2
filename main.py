@@ -1,3 +1,10 @@
+"""回测命令行入口：读取行情、执行历史回放并按报告模式保存结果。
+
+数据源包括 synthetic（合成验证）、yahoo、ccxt 和 local（本地 CSV）。
+参数定义集中在 backtest.cli；无参数时打印用法并退出，不进入交互式问答。
+full 报告额外保存审计与复现证据，可用 --replay-manifest 核对确定性输出。
+"""
+
 import sys
 import os
 import shutil
@@ -5,15 +12,17 @@ import argparse
 import random
 import json
 import re
+from dataclasses import asdict
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-# Add project root to path
+# 直接运行脚本时也能解析仓库内的包。
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from core.data_fetcher import DataFetcher
+from core.temporal_data import compatibility_audit, freeze_ohlcv, temporal_policy as parse_temporal_policy
 from core.data import DataHandler
 from core.backtest_audit import (
     cross_verify_top_trades,
@@ -24,6 +33,7 @@ from core.backtest_audit import (
 from core.reproducibility import (
     artifact_hashes,
     build_run_manifest,
+    capital_allocation_digest,
     data_identity,
     deterministic_result_digest,
     load_data_snapshots,
@@ -41,27 +51,16 @@ from core.logger import get_logger
 
 logger = get_logger(__name__)
 
-"""
-项目入口（回测 CLI）
-
-用途：
-- 通过命令行或交互模式配置数据源、标的、日期区间、滑点等参数
-- 拉取/生成数据后运行 BacktestEngine
-- 生成 reports/<timestamp>_* 目录下的回测报告
-
-数据源：
-- synthetic：内置情景数据（用于快速演示与本地验证）
-- yahoo：Yahoo Finance 日线
-- ccxt：交易所 K 线（需网络与交易所支持）
-"""
-
-
-def _load_local_ohlcv(symbol: str, start: str, end: str, data_dir: str) -> pd.DataFrame:
+def _load_local_ohlcv(symbol: str, start: str, end: str, data_dir: str, *,
+                      timeframe="1d", temporal_policy=None) -> pd.DataFrame:
     """
     从本地缓存目录读取单标的 OHLCV CSV（由 scripts/fetch_binance_data.py 生成）。
 
     - 文件名按 symbol 归一化匹配，兼容 BTC/USDT、BTC-USDT、BTC_USDT 等写法。
-    - 读入后按 [start, end] 半开区间（end 次日 00:00 之前）裁剪。
+    - 起止日期均包含在内；实际筛选区间为 [start 00:00, end 次日 00:00)。
+    - 有时区的索引先转成 UTC 再去掉时区；此函数按归一后的时间裁剪。
+    - 指定版本存储时先冻结并从快照读取原文件，保留本次输入身份；
+      快照不意味着数据在历史决策时刻已经可用，严格筛选由时间策略负责。
     """
     root = Path(data_dir)
     if not root.is_dir():
@@ -78,7 +77,27 @@ def _load_local_ohlcv(symbol: str, start: str, end: str, data_dir: str) -> pd.Da
             f"No local CSV for {symbol} in {root} (tried: {', '.join(c.name for c in candidates)})"
         )
 
-    df = DataHandler.load_csv(str(path))
+    raw_identity = None
+    if temporal_policy is not None and parse_temporal_policy(temporal_policy).store_path:
+        import io
+        from core.data_versions import DataVersionStore
+        policy = parse_temporal_policy(temporal_policy)
+        store = DataVersionStore(policy.store_path)
+        raw_identity = store.freeze_files(f"raw-csv:{path.resolve()}", {path.name: path},
+                                         observed_at=datetime.now(timezone.utc))
+        df = DataHandler.validate(pd.read_csv(io.BytesIO(store.read_file(
+            raw_identity["snapshot_id"], path.name)), index_col=0, parse_dates=True))
+    else:
+        df = DataHandler.load_csv(str(path))
+    if temporal_policy is not None:
+        df = freeze_ohlcv(df, symbol=symbol, timeframe=timeframe, policy=temporal_policy,
+            source_reference=f"csv:{path.name}", dataset_id=f"csv:{path.resolve()}|{symbol}|{timeframe}")
+        if raw_identity:
+            df.attrs["temporal_raw_file_snapshot"] = raw_identity["snapshot_id"]
+    else:
+        df.attrs["temporal_audit"] = compatibility_audit()
+    if df.index.tz is not None:
+        df.index = df.index.tz_convert("UTC").tz_localize(None)
     start_ts = pd.Timestamp(start)
     end_ts = pd.Timestamp(end) + pd.Timedelta(days=1)
     return df[(df.index >= start_ts) & (df.index < end_ts)]
@@ -100,6 +119,7 @@ def get_data(
     derivatives_funding_file: str | None = None,
     derivatives_observations_file: str | None = None,
     derivatives_max_age: str = "24h",
+    temporal_policy=None,
 ) -> pd.DataFrame:
     """
     获取单标的数据（封装 DataFetcher 的多源实现）。
@@ -131,12 +151,14 @@ def get_data(
             raise ValueError("perpetual OHLCV requires local or ccxt contract data")
     if derivatives_observations_file and not derivatives_funding_file:
         raise ValueError("derivative observations require an explicit funding file (missing costs cannot be assumed zero)")
-    fetcher = DataFetcher(data_timezone=data_timezone)
+    fetcher = DataFetcher(data_timezone=data_timezone,
+                          **({"temporal_policy": temporal_policy} if temporal_policy is not None else {}))
 
     if source == "local":
         if not data_dir:
             raise ValueError("--source local requires --data-dir")
-        frame = _load_local_ohlcv(symbol, start, end, data_dir)
+        frame = _load_local_ohlcv(symbol, start, end, data_dir, timeframe=timeframe,
+                                  temporal_policy=temporal_policy)
     elif source == "ccxt":
         frame = fetcher.fetch_ccxt(
             symbol,
@@ -153,6 +175,11 @@ def get_data(
     else:
         # Synthetic / Scenario
         frame = fetcher.generate_scenario(symbol, start, end)
+    if temporal_policy is not None and not frame.empty and not frame.attrs.get("temporal_identity"):
+        frame = freeze_ohlcv(frame, symbol=symbol, timeframe=timeframe, policy=temporal_policy,
+                             source_reference=source)
+    elif temporal_policy is None:
+        frame.attrs.setdefault("temporal_audit", compatibility_audit())
     if spec is not None:
         frame.attrs.update(market_type=market_type, contract_spec=spec.__dict__, contract_spec_digest=spec.digest)
         frame["derivative_contract_id"] = spec.contract_id
@@ -194,9 +221,7 @@ def _load_secondary_data(directory: str, symbols) -> dict:
     return result
 
 
-def replay_manifest(
-    manifest_path: str, *, output_dir: str | None = None, report_profile: str = "full"
-) -> int:
+def replay_manifest(manifest_path: str) -> int:
     """Re-run a saved manifest and compare trades/equity/report payload exactly."""
 
     path = Path(manifest_path).resolve()
@@ -206,18 +231,16 @@ def replay_manifest(
     if manifest["config"]["sha256"] != sha256_file(config_path):
         print("Replay refused: current config hash differs from manifest.", file=sys.stderr)
         return 7
-    try:
-        snapshots = load_data_snapshots(
-            path.parent / "data_inputs", manifest["data_snapshots"], verify=True
-        )
-    except (OSError, KeyError, TypeError, ValueError) as exc:
-        if output_dir is None:
-            raise
-        print(f"Replay refused: {exc}", file=sys.stderr)
-        return 7
+    snapshots = load_data_snapshots(
+        path.parent / "data_inputs", manifest["data_snapshots"], verify=True
+    )
     execution = manifest["execution"]
-    output_path = None
-    comparison_identity = None
+    try:
+        replay_temporal_policy = _restore_temporal_replay_inputs(snapshots, execution, path.parent)
+        replay_temporal_financing = _restore_temporal_financing(execution, path.parent)
+    except (OSError, ValueError, KeyError) as exc:
+        print(f"Replay refused: frozen temporal evidence unavailable or changed: {exc}", file=sys.stderr)
+        return 7
     # An old manifest must not inherit a subsequently enabled research model.
     meta_policy = execution.get("signal_meta_layer") or {"enabled": False}
     if meta_policy.get("enabled", False) and not execution.get("signal_meta_layer_digest"):
@@ -255,16 +278,6 @@ def replay_manifest(
         # Snapshot filenames/JSON keys are canonicalised alphabetically, but
         # the original event stream and audit lists preserve input order.
         snapshots = {symbol: snapshots[symbol] for symbol in symbol_order}
-    if output_dir is not None:
-        from backtest.replay_reporting import prepare_report_replay
-        try:
-            output_path, comparison_identity = prepare_report_replay(
-                path, manifest, snapshots, output_dir=output_dir,
-                repo_root=Path(__file__).resolve().parent, report_profile=report_profile,
-            )
-        except (OSError, KeyError, TypeError, ValueError) as exc:
-            print(f"Replay refused: {exc}", file=sys.stderr)
-            return 7
     seed = int(execution["seed"])
     np.random.seed(seed)
     random.seed(seed)
@@ -285,15 +298,11 @@ def replay_manifest(
         signal_meta_layer=meta_policy,
         signal_adaptive=adaptive_policy.to_dict(),
         signal_meta_replay=meta_replay_policy.to_dict(),
+        temporal_policy=replay_temporal_policy,
+        temporal_financing=replay_temporal_financing,
+        capital_allocation=execution.get("capital_allocation") or {"enabled": False},
     )
-    if output_path is None:
-        result = engine.run(snapshots, routing_log_enabled=False)
-    else:
-        routing_enabled = bool(execution.get("routing_log_enabled", False))
-        result = engine.run(
-            snapshots, routing_log_enabled=routing_enabled,
-            routing_log_path=str(output_path / "routing_log.csv") if routing_enabled else None,
-        )
+    result = engine.run(snapshots, routing_log_enabled=False)
     observed = deterministic_result_digest(result)
     expected = execution["result_digest"]
     research_expected = execution.get("signal_observation_digest")
@@ -307,6 +316,8 @@ def replay_manifest(
         from backtest.reporting.signal_meta_layer import signal_meta_layer_digest
         meta_observed = signal_meta_layer_digest(result.get("signal_meta_layer"))
     additional_research = {}
+    capital_expected = execution.get("capital_allocation_digest")
+    capital_observed = capital_allocation_digest(result) if capital_expected is not None else None
     for name in ("signal_adaptive", "signal_meta_replay"):
         expected_digest = execution.get(f"{name}_digest")
         observed_digest = None
@@ -317,6 +328,7 @@ def replay_manifest(
     report = {
         "status": "passed" if (observed == expected and research_expected == research_observed
                                and meta_expected == meta_observed
+                               and capital_expected == capital_observed
                                and all(pair[0] == pair[1] for pair in additional_research.values())) else "failed",
         "expected": expected,
         "observed": observed,
@@ -325,26 +337,93 @@ def replay_manifest(
         "signal_meta_layer_expected": meta_expected,
         "signal_meta_layer_observed": meta_observed,
         "code_identity_expected": expected_code,
+        "capital_allocation_expected": capital_expected,
+        "capital_allocation_observed": capital_observed,
     }
     for name, (expected_digest, observed_digest) in additional_research.items():
         report[f"{name}_expected"] = expected_digest
         report[f"{name}_observed"] = observed_digest
-    if output_path is not None:
-        from backtest.replay_reporting import write_replay_report
-        try:
-            write_replay_report(
-                output_path, baseline_path=path, baseline=manifest, snapshots=snapshots,
-                result=result, comparison=report, comparison_identity=comparison_identity,
-                repo_root=Path(__file__).resolve().parent,
-            )
-        except Exception as exc:
-            report["report_status"] = "failed"
-            report["artifact_failures"] = [str(exc)]
-            report["status"] = "failed"
-            write_json_report(output_path / "replay_comparison.json", report)
-            print(f"Replay report failed: {exc}", file=sys.stderr)
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0 if report["status"] == "passed" else 8
+
+
+def _temporal_report_payload(engine, results, data_map):
+    """Freeze the evidence needed to restore temporal semantics after CSV load."""
+    payload = {**(results.get("temporal_data") or {}), "schema": "temporal-run/v1",
+               "policy": vars(parse_temporal_policy(getattr(engine, "temporal_policy", None))),
+               "inputs": {}}
+    adapter = getattr(engine, "market_data_adapter", None)
+    histories = getattr(adapter, "_temporal_histories", {})
+    for symbol, versions in histories.items():
+        entry = {"identity": versions.identity}
+        if not versions.store:
+            entry["records"] = list(versions.records)
+        raw_id = data_map[symbol].attrs.get("temporal_raw_file_snapshot")
+        if raw_id:
+            entry["raw_file_snapshot"] = raw_id
+        payload["inputs"][symbol] = entry
+    financing = getattr(engine, "temporal_financing", None)
+    if financing is not None:
+        from core.temporal_financing import TemporalFinancing
+        if isinstance(financing, TemporalFinancing):
+            payload["financing_evidence"] = financing.export()
+    return payload
+
+
+def _restore_temporal_financing(execution, report_dir):
+    """Restore the exact frozen cost revisions, never a mutable external head."""
+    expected = execution.get("temporal_financing_sha256")
+    if expected is None:
+        return None
+    from core.signal_observation_types import fingerprint
+    path = Path(report_dir) / "temporal_data.json"
+    if sha256_file(path) != execution.get("temporal_data_sha256"):
+        raise ValueError("temporal financing report hash mismatch")
+    evidence = json.loads(path.read_text(encoding="utf-8")).get("financing_evidence")
+    if evidence is None or fingerprint(evidence) != expected:
+        raise ValueError("frozen temporal financing evidence missing or changed")
+    return evidence
+
+
+def _restore_temporal_replay_inputs(data_map, execution, report_dir):
+    from core.temporal_data import TemporalDataError, TemporalOHLCV
+
+    # Explicit compatibility policy prevents an old manifest inheriting today's
+    # config. Strict replay must restore identical evidence, never re-import it.
+    policy = parse_temporal_policy(execution.get("temporal_policy") or "retrospective")
+    expected = execution.get("temporal_data_sha256")
+    if not expected:
+        if policy.mode == "strict" or policy.store_path:
+            raise TemporalDataError("recorded temporal policy has no evidence digest")
+        return vars(policy)
+    evidence_path = Path(report_dir) / "temporal_data.json"
+    if sha256_file(evidence_path) != expected:
+        raise TemporalDataError("temporal report hash mismatch")
+    payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+    if payload.get("schema") != "temporal-run/v1" or payload.get("policy") != vars(policy):
+        raise TemporalDataError("temporal policy differs from recorded evidence")
+    inputs = payload.get("inputs", {})
+    if policy.mode == "strict" and set(inputs) != set(data_map):
+        raise TemporalDataError("strict input evidence is incomplete")
+    for symbol, entry in inputs.items():
+        frame = data_map[symbol]
+        identity = entry["identity"]
+        store_path = identity.get("store_path")
+        if store_path and not Path(store_path).is_dir():
+            raise TemporalDataError("referenced immutable version store is missing")
+        frame.attrs["temporal_identity"] = identity
+        if "records" in entry:
+            frame.attrs["temporal_records"] = entry["records"]
+        reader = TemporalOHLCV(identity["dataset_id"], timeframe=identity["timeframe"],
+                               policy={**vars(policy), "store_path": None})
+        if not reader.import_identity(frame):
+            raise TemporalDataError("frozen temporal records are missing")
+        if entry.get("raw_file_snapshot"):
+            if reader.store is None:
+                raise TemporalDataError("raw CSV snapshot store is missing")
+            reader.store.verify_snapshot(entry["raw_file_snapshot"])
+            frame.attrs["temporal_raw_file_snapshot"] = entry["raw_file_snapshot"]
+    return vars(policy)
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -380,6 +459,17 @@ def _load_requested_data(args, start_date: datetime, end_date: datetime):
     from config.config import config
     requested_market_type = args.market_type or (config.get("account") or {}).get("mode", "spot")
     download_started_at = datetime.now(timezone.utc)
+    configured_temporal = (config.get("data") or {}).get("temporal_policy")
+    temporal = configured_temporal
+    if any(getattr(args, field, None) is not None for field in (
+            "temporal_mode", "temporal_knowledge", "temporal_unknown", "data_version_store", "temporal_decision_delay_seconds")):
+        temporal = dict(vars(parse_temporal_policy(configured_temporal)))
+        for argument, field in (("temporal_mode", "mode"), ("temporal_knowledge", "knowledge"),
+            ("temporal_unknown", "unknown"), ("data_version_store", "store_path"),
+            ("temporal_decision_delay_seconds", "decision_delay_seconds")):
+            if getattr(args, argument, None) is not None:
+                temporal[field] = getattr(args, argument)
+    args.resolved_temporal_policy = temporal
     for symbol in args.symbols:
         frame = get_data(
             symbol,
@@ -396,6 +486,7 @@ def _load_requested_data(args, start_date: datetime, end_date: datetime):
             derivatives_funding_file=getattr(args, "derivatives_funding_file", None),
             derivatives_observations_file=getattr(args, "derivatives_observations_file", None),
             derivatives_max_age=getattr(args, "derivatives_max_age", "24h"),
+            **({"temporal_policy": temporal} if temporal is not None else {}),
         )
         if not frame.empty and len(frame) > 10:
             print(f"Loaded {symbol}: {len(frame)} bars")
@@ -424,6 +515,21 @@ def _load_requested_data(args, start_date: datetime, end_date: datetime):
     )
 
 
+def _capital_allocation_options(args):
+    """Validate per-run CLI overrides without changing the shared configuration."""
+    from config.config import config
+    from core.position_management import CapitalAllocationPolicy
+    enabled = getattr(args, "smart_allocation", False)
+    values = {key: getattr(args, key, None) for key in ("max_positions", "cash_reserve_pct")}
+    if not enabled and any(value is not None for value in values.values()):
+        raise ValueError("--max-positions and --cash-reserve-pct require --smart-allocation")
+    if not enabled:
+        return None
+    policy = {**((config.get("allocation") or {}).get("capital") or {}), "enabled": True,
+              **{key: value for key, value in values.items() if value is not None}}
+    return asdict(CapitalAllocationPolicy.from_mapping(policy))
+
+
 def _execute_backtest(args, data_map):
     """Construct the engine and run it with the requested reporting footprint."""
     print("\nInitializing Backtest Engine...")
@@ -440,6 +546,9 @@ def _execute_backtest(args, data_map):
         signal_meta_layer={"enabled": True} if getattr(args, "signal_meta_layer", False) else None,
         signal_adaptive={"enabled": True} if getattr(args, "adaptive_signal_meta", False) else None,
         signal_meta_replay={"enabled": True} if getattr(args, "signal_meta_replay", False) else None,
+        temporal_policy=getattr(args, "resolved_temporal_policy", None),
+        temporal_financing=getattr(args, "temporal_financing_evidence", None),
+        capital_allocation=_capital_allocation_options(args),
     )
     print("Running Backtest...")
     reports_dir = os.path.join(os.getcwd(), "reports")
@@ -472,11 +581,13 @@ def main(argv=None) -> int:
     args = parser.parse_args(cli_args)
 
     if args.replay_manifest:
-        if args.output_dir is None:
-            return replay_manifest(args.replay_manifest)
-        return replay_manifest(
-            args.replay_manifest, output_dir=args.output_dir, report_profile=args.report_profile
-        )
+        return replay_manifest(args.replay_manifest)
+
+    try:
+        _capital_allocation_options(args)
+    except (TypeError, ValueError) as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 2
 
     if args.seed is not None:
         np.random.seed(args.seed)
@@ -559,6 +670,22 @@ def main(argv=None) -> int:
     output_path = Path(output_dir)
     reporter = ReportGenerator(output_dir)
     artifact_failures = []
+    try:
+        write_json_report(output_path / "capital_allocation.json", {
+            "policy": results.get("capital_allocation_policy"),
+            "batches": results.get("capital_allocation_audit", []),
+        })
+        if (results.get("capital_allocation_policy") or {}).get("enabled"):
+            pd.DataFrame(results.get("allocation_audit") or []).to_csv(
+                output_path / "capital_allocation.csv", index=False)
+    except Exception as exc:
+        artifact_failures.append("capital_allocation")
+        logger.exception("Failed to save capital allocation evidence: %s", exc)
+    try:
+        write_json_report(output_path / "temporal_data.json", _temporal_report_payload(engine, results, data_map))
+    except Exception as exc:
+        artifact_failures.append("temporal_data")
+        logger.exception("Failed to save temporal data evidence: %s", exc)
     signal_summary = {}
     if results.get("signal_observation") is not None:
         from backtest.reporting.signal_observation import write_signal_observation_report
@@ -850,8 +977,12 @@ def main(argv=None) -> int:
             "top_trade_market_data_audit.json",
             "margin_ledger.csv", "financing_ledger.csv", "execution_audit.csv",
             "breaker_audit.csv", "breaker_state.json", "backtest_lifecycle.json",
+            "temporal_data.json",
         ]
         artifact_names.extend(signal_summary.get("artifacts", []))
+        artifact_names.append("capital_allocation.json")
+        if (results.get("capital_allocation_policy") or {}).get("enabled"):
+            artifact_names.append("capital_allocation.csv")
         artifact_names.extend(meta_summary.get("artifacts", []))
         artifact_names.extend(adaptive_summary.get("artifacts", []))
         artifact_names.extend(meta_replay_summary.get("artifacts", []))
@@ -863,6 +994,8 @@ def main(argv=None) -> int:
             "slippage": engine.slippage,
             "random_slip": args.random_slip,
             "warmup_period": engine.warmup_period,
+            "capital_allocation": asdict(engine.capital_allocation_policy),
+            "capital_allocation_digest": capital_allocation_digest(results),
             "signal_observation": results["signal_observation"]["policy"] if results.get("signal_observation") else None,
             "signal_observation_digest": signal_summary.get("research_payload_sha256"),
             "signal_meta_layer": engine.signal_meta_policy.to_dict(),
@@ -881,7 +1014,14 @@ def main(argv=None) -> int:
             "account_mode": results.get("account_mode"),
             "routing_log_enabled": not args.disable_routing_log,
             "result_digest": deterministic_result_digest(results),
+            "temporal_policy": vars(parse_temporal_policy(getattr(engine, "temporal_policy", None))),
+            "temporal_data_sha256": sha256_file(output_path / "temporal_data.json"),
         }
+        if getattr(engine, "temporal_financing", None) is not None:
+            from core.temporal_financing import TemporalFinancing
+            from core.signal_observation_types import fingerprint
+            if isinstance(engine.temporal_financing, TemporalFinancing):
+                execution_identity["temporal_financing_sha256"] = fingerprint(engine.temporal_financing.export())
         manifest = build_run_manifest(
             run_id=results["run_id"],
             repo_root=Path(__file__).resolve().parent,

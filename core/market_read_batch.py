@@ -1,4 +1,4 @@
-"""Bounded read-only batches; late results never touch runtime state."""
+"""在统一截止时间内汇总只读请求；超时结果不会被后续批次接纳。"""
 from concurrent.futures import ThreadPoolExecutor, wait
 from dataclasses import dataclass
 import math
@@ -16,6 +16,12 @@ class ReadBatchResult:
 
 
 class BoundedMarketReads:
+    """限制并发抓取数，同一标的的旧请求未结束时不再提交新请求。
+
+    fetch 应只返回读取结果，运行时状态由调用方统一提交。线程无法强制中断
+    已开始的网络请求，因此超时表示停止等待，不代表底层请求已经结束。
+    """
+
     def __init__(self, workers=4):
         if type(workers) is not int or not 1 <= workers <= 32:
             raise ValueError("workers must be between 1 and 32")
@@ -29,6 +35,7 @@ class BoundedMarketReads:
             return fetch(symbol)
 
     def read(self, symbols, fetch, *, timeout_seconds=5.):
+        """按标的去重提交；排队、限流等待和请求共同消耗本批次时间预算。"""
         if isinstance(timeout_seconds, bool) or not math.isfinite(timeout_seconds) or timeout_seconds <= 0:
             raise ValueError("batch timeout must be finite and positive")
         with self._lock:
@@ -42,7 +49,7 @@ class BoundedMarketReads:
                 if old is not None and not old.done():
                     failures[symbol] = "fetch_in_progress"
                     continue
-                # A timed-out round's completed value is never adopted later.
+                # 旧轮次即使后来成功也丢弃结果，防止过期响应覆盖新状态。
                 self._jobs.pop(symbol, None)
                 jobs[symbol] = self._pool.submit(self._read, fetch, symbol, deadline)
                 self._jobs[symbol] = jobs[symbol]
@@ -50,6 +57,8 @@ class BoundedMarketReads:
             values = {}
             for symbol, job in jobs.items():
                 if not job.done():
+                    # cancel 只能取消尚未启动的任务；运行中的任务继续被 _jobs
+                    # 跟踪，以便下一轮返回 fetch_in_progress 而非重复抓取。
                     job.cancel()
                     failures[symbol] = "refresh_timeout"
                 else:

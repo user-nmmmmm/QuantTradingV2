@@ -1,8 +1,9 @@
-"""Selection and event-validation diagnostics for the paper research workstream.
+"""论文研究的候选选择与事件验证工具，只返回离线诊断。
 
-The caller supplies research-only data and retains responsibility for its
-provenance, cost basis and holdout boundaries. Nothing here opens a holdout,
-fits a strategy, changes admission thresholds or authorizes trading.
+调用方负责数据来源、统一成本口径、候选搜索历史和留出集边界。本模块
+不打开留出集、不拟合策略、不改准入门槛；即使 status 为 ok，所有结果的
+admission_eligible 仍为 False。各方法的输入与状态契约见
+docs/research/paper_validation_contract_20261003.md。
 """
 from __future__ import annotations
 

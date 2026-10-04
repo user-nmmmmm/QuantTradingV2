@@ -16,6 +16,7 @@ from core.execution_port import ExecutionPort
 from core.portfolio import Portfolio
 from core.risk import BreakerAction, RiskControlDecision, RiskManager
 from core.entry_audit import capture, note
+from core.temporal_data import strict_market_event, strategy_market_prices, strategy_market_view
 from dataclasses import replace
 
 
@@ -141,6 +142,7 @@ class EventProcessor:
             initial_equity if initial_equity is not None else portfolio.cash
         )
         self._previous_session_close_equity = self._daily_start_equity
+        self.temporal_audit: list[dict[str, Any]] = []
         self._bar_index = -1
         self.signal_observer = signal_observer
         self.portfolio_controller = portfolio_controller
@@ -186,6 +188,14 @@ class EventProcessor:
                 self.last_prices[symbol] = close
 
         equity = self.portfolio.get_total_value(self.last_prices)
+        strict = strict_market_event(event)
+        strategy_event = strategy_market_view(event)
+        strategy_prices = strategy_market_prices(event, self.last_prices)
+        missing_marks = sorted(symbol for symbol, position in self.portfolio.positions.items()
+                               if position.get("qty", 0.) and symbol not in strategy_prices) if strict else []
+        # A missing mark is never filled with a realised revision. The portfolio
+        # cost-basis fallback is only diagnostic; no fresh risk is approved.
+        decision_equity = self.portfolio.get_total_value(strategy_prices) if strict else equity
         self._bar_index += 1
         current_day = event.timestamp.date()
         if current_day != self._current_day:
@@ -197,29 +207,36 @@ class EventProcessor:
             self._current_day = current_day
 
         raw_decision: Any = False
-        if check_circuit_breaker:
+        if check_circuit_breaker and not missing_marks:
             try:
                 raw_decision = self.risk_manager.check_circuit_breaker(
-                    equity, self._daily_start_equity,
+                    decision_equity, self._daily_start_equity,
                     occurred_at=event.timestamp, bar_index=self._bar_index,
                 )
             except TypeError:
                 # Compatibility for adapters/test doubles implementing the
                 # pre-decision two-positional-argument contract.
                 raw_decision = self.risk_manager.check_circuit_breaker(
-                    equity, self._daily_start_equity
+                    decision_equity, self._daily_start_equity
                 )
         decision = self._normalize_risk_decision(raw_decision)
+        if missing_marks:
+            decision = replace(decision, allow_new_entries=False,
+                reason_codes=(*decision.reason_codes, "temporal_held_mark_unavailable"))
+            self.temporal_audit.append({"timestamp": event.timestamp.isoformat(),
+                "reason": "temporal_held_mark_unavailable", "symbols": missing_marks,
+                "action": "block_new_risk; retain forced reductions",
+                "decision_valuation": "incomplete; cost basis diagnostic only"})
         budget = getattr(self.risk_manager, "drawdown_budget", None)
-        if budget is not None:
-            budget.update(self.last_prices, event.bars, event.timestamp)
+        if budget is not None and not missing_marks:
+            budget.update(strategy_prices, strategy_event.bars, event.timestamp)
 
         routed: list[str] = []
         selected = set(symbols) if symbols is not None else None
         portfolio_symbols = None
         if self.portfolio_controller is not None:
             portfolio_symbols = self.portfolio_controller.prepare(
-                event=event, portfolio=self.portfolio, broker=self.execution, current_prices=self.last_prices)
+                event=event, portfolio=self.portfolio, broker=self.execution, current_prices=strategy_prices)
             self._portfolio_management_symbols = set(self.portfolio_controller.management_symbols)
         candidates = []
         # Position management and entry collection are deliberately separate:
@@ -231,7 +248,7 @@ class EventProcessor:
             if selected is not None and symbol not in selected and not held:
                 continue
             candidate, processed = self._collect_symbol_candidate(
-                event, symbol,
+                strategy_event, symbol,
                 allow_position_management=decision.allow_position_management,
                 allow_new_entries=decision.allow_new_entries and self.portfolio_controller is None,
             )
@@ -242,17 +259,18 @@ class EventProcessor:
         if self.portfolio_controller is not None:
             self.portfolio_controller.process(
                 event=event, portfolio=self.portfolio, broker=self.execution,
-                risk_manager=self.risk_manager, current_prices=self.last_prices,
+                risk_manager=self.risk_manager, current_prices=strategy_prices,
                 risk_decision=decision, risk_governor=getattr(self.allocator, "risk_governor", None),
                 market_states=self._last_market_states,
             )
         elif decision.allow_new_entries:
             self.allocator.allocate(
                 candidates, portfolio=self.portfolio, broker=self.execution,
-                risk_manager=self.risk_manager, current_prices=self.last_prices,
+                risk_manager=self.risk_manager, current_prices=strategy_prices,
             )
 
-        self._previous_session_close_equity = equity
+        if not missing_marks:
+            self._previous_session_close_equity = decision_equity
         if self.signal_observer is not None:
             self.signal_observer.settle_decisions()
 
@@ -301,6 +319,11 @@ class EventProcessor:
         if self.signal_observer is not None:
             self.signal_observer.advance(event)
 
+        event = strategy_market_view(event)
+        prices = strategy_market_prices(event, self.last_prices)
+        if strict_market_event(event) and any(position.get("qty", 0.) and symbol not in prices
+                for symbol, position in self.portfolio.positions.items()):
+            allow_new_entries = False
         candidate, processed = self._collect_symbol_candidate(
             event, symbol, allow_position_management=allow_position_management,
             allow_new_entries=allow_new_entries,
@@ -308,7 +331,7 @@ class EventProcessor:
         if candidate is not None:
             self.allocator.allocate(
                 [candidate], portfolio=self.portfolio, broker=self.execution,
-                risk_manager=self.risk_manager, current_prices=self.last_prices,
+                risk_manager=self.risk_manager, current_prices=prices,
             )
         if self.signal_observer is not None:
             self.signal_observer.settle_decisions()
@@ -345,6 +368,7 @@ class EventProcessor:
         """Return ``(candidate, processed)`` without allocating capital."""
 
         df = event.histories.get(symbol)
+        prices = strategy_market_prices(event, self.last_prices)
         if symbol in event.bars and bool(event.bars[symbol].get("entry_blocked", False)):
             allow_new_entries = False
         if df is None or df.empty or symbol not in event.bars:
@@ -390,12 +414,12 @@ class EventProcessor:
             else:
                 candidate = entry_collector(
                     symbol, location, df, state, self.portfolio, self.execution,
-                    self.risk_manager, self.last_prices,
+                    self.risk_manager, prices,
                 )
         elif allow_position_management or allow_new_entries:
             candidate = self.router.collect_candidate(
                 symbol, location, df, state, self.portfolio, self.execution,
-                self.risk_manager, self.last_prices,
+                self.risk_manager, prices,
             )
             if not allow_new_entries:
                 candidate = None

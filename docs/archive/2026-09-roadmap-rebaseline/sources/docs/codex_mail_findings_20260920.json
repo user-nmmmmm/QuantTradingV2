@@ -1,0 +1,2035 @@
+{
+  "schema": "codex_mail_roadmap_audit/v1",
+  "audited_at": "2026-09-20",
+  "timezone": "Asia/Singapore",
+  "head": "ab15bc244d54b1161a8b6714d2eb71565c2c1d41",
+  "scope": "Current local working tree including existing uncommitted changes; all retrievable project Codex emails from the connected requested Gmail account",
+  "counts": {
+    "emails": 45,
+    "pull_requests": 30,
+    "findings": 77,
+    "fixed": 24,
+    "partial": 7,
+    "remaining": 45,
+    "insufficient_evidence": 1
+  },
+  "emails": [
+    {
+      "message_id": "19fe2c1bced78d32",
+      "thread_id": "19fe2c1bced78d32",
+      "date": "2026-08-08T19:02:55.000Z",
+      "pr": 4,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Add fault tolerance, alerting, and SQLite durability hardening (PR #4)",
+      "type": "具体审查意见",
+      "finding_count": 5,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/4#pullrequestreview-4889477929",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/19fe2c1bced78d32"
+    },
+    {
+      "message_id": "1a02a70299f1110e",
+      "thread_id": "1a02a70299f1110e",
+      "date": "2026-08-22T17:06:28.000Z",
+      "pr": 9,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Add pre-trade cash sufficiency check and three backtest report charts (PR #9)",
+      "type": "具体审查意见",
+      "finding_count": 3,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/9#pullrequestreview-5000638067",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a02a70299f1110e"
+    },
+    {
+      "message_id": "1a02b1be8ad56f7d",
+      "thread_id": "1a02b1be8ad56f7d",
+      "date": "2026-08-22T20:14:04.000Z",
+      "pr": 10,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Fix/engine baseline linux precision (PR #10)",
+      "type": "具体审查意见",
+      "finding_count": 2,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/10#pullrequestreview-5000967232",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a02b1be8ad56f7d"
+    },
+    {
+      "message_id": "1a02d94cc4bbcb96",
+      "thread_id": "1a02d94cc4bbcb96",
+      "date": "2026-08-23T07:45:21.000Z",
+      "pr": 11,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Add the S0-S4 strategy capability roadmap (PR #11)",
+      "type": "具体审查意见",
+      "finding_count": 3,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/11#pullrequestreview-5001918007",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a02d94cc4bbcb96"
+    },
+    {
+      "message_id": "1a02dbffa40b1065",
+      "thread_id": "1a02dbffa40b1065",
+      "date": "2026-08-23T08:32:31.000Z",
+      "pr": 12,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Refactor strategy routing and trade lifecycle handling (PR #12)",
+      "type": "具体审查意见",
+      "finding_count": 2,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/12#pullrequestreview-5001994647",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a02dbffa40b1065"
+    },
+    {
+      "message_id": "1a032a2aa81b7066",
+      "thread_id": "1a032a2aa81b7066",
+      "date": "2026-08-24T07:18:36.000Z",
+      "pr": 13,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Add extended factors library (trend/momentum/volatility/volume/suppor… (PR #13)",
+      "type": "具体审查意见",
+      "finding_count": 3,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/13#pullrequestreview-5005367713",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a032a2aa81b7066"
+    },
+    {
+      "message_id": "1a0393b4b7581a5c",
+      "thread_id": "1a0393b4b7581a5c",
+      "date": "2026-08-25T14:03:02.000Z",
+      "pr": 15,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Freeze Phase 0 baseline: lock commit/config and archive last 5 backtests (PR #15)",
+      "type": "具体审查意见",
+      "finding_count": 3,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/15#pullrequestreview-5019831836",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a0393b4b7581a5c"
+    },
+    {
+      "message_id": "1a03c9a15252cd08",
+      "thread_id": "1a03c9a15252cd08",
+      "date": "2026-08-26T05:45:25.000Z",
+      "pr": 16,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Phase 1: lot ledger, unified close events, cost contract, accounting check, EndOfBacktest (PR #16)",
+      "type": "具体审查意见",
+      "finding_count": 4,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/16#pullrequestreview-5027130456",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03c9a15252cd08"
+    },
+    {
+      "message_id": "1a03d457a7ef033c",
+      "thread_id": "1a03d457a7ef033c",
+      "date": "2026-08-26T08:52:38.000Z",
+      "pr": 17,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Expand quantitative trading system capabilities (PR #17)",
+      "type": "具体审查意见",
+      "finding_count": 3,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/17#pullrequestreview-5028474123",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03d457a7ef033c"
+    },
+    {
+      "message_id": "1a03e5f0dec59b1e",
+      "thread_id": "1a03e5f0dec59b1e",
+      "date": "2026-08-26T14:00:11.000Z",
+      "pr": 18,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Complete Phase 4 routing and portfolio remediation (PR #18)",
+      "type": "具体审查意见",
+      "finding_count": 3,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/18#pullrequestreview-5031311051",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03e5f0dec59b1e"
+    },
+    {
+      "message_id": "1a03e9990378d4e3",
+      "thread_id": "1a03e9990378d4e3",
+      "date": "2026-08-26T15:04:06.000Z",
+      "pr": 19,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Add configurable indicator confirmations and Phase 5 governance (PR #19)",
+      "type": "具体审查意见",
+      "finding_count": 6,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/19#pullrequestreview-5032066890",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03e9990378d4e3"
+    },
+    {
+      "message_id": "1a03ec7aa5b8fd35",
+      "thread_id": "1a03ec7aa5b8fd35",
+      "date": "2026-08-26T15:54:27.000Z",
+      "pr": 20,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Implement Phase 6 operational readiness gates (PR #20)",
+      "type": "具体审查意见",
+      "finding_count": 3,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/20#pullrequestreview-5032477893",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03ec7aa5b8fd35"
+    },
+    {
+      "message_id": "1a049087b39acea3",
+      "thread_id": "1a049087b39acea3",
+      "date": "2026-08-28T15:41:27.000Z",
+      "pr": 21,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Docs/readme architecture and local data (PR #21)",
+      "type": "具体审查意见",
+      "finding_count": 4,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/21#pullrequestreview-5052647523",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a049087b39acea3"
+    },
+    {
+      "message_id": "1a0533a93285643a",
+      "thread_id": "1a0533a93285643a",
+      "date": "2026-08-30T15:12:22.000Z",
+      "pr": 22,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Refactor codebase and remove obsolete implementations (PR #22)",
+      "type": "审查摘要",
+      "finding_count": 0,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/22#issuecomment-5469492090",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a0533a93285643a"
+    },
+    {
+      "message_id": "1a0533f294b15c46",
+      "thread_id": "1a0533a93285643a",
+      "date": "2026-08-30T15:17:23.000Z",
+      "pr": 22,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Refactor codebase and remove obsolete implementations (PR #22)",
+      "type": "具体审查意见",
+      "finding_count": 1,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/22#pullrequestreview-5061172508",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a0533a93285643a"
+    },
+    {
+      "message_id": "1a05360bc455bee6",
+      "thread_id": "1a05360bc455bee6",
+      "date": "2026-08-30T15:54:03.000Z",
+      "pr": 23,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Archive offline ledger tooling and split metrics/events god-files (A3/A4) (PR #23)",
+      "type": "审查摘要",
+      "finding_count": 0,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/23#issuecomment-5469707798",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05360bc455bee6"
+    },
+    {
+      "message_id": "1a05363c9151b8ab",
+      "thread_id": "1a05360bc455bee6",
+      "date": "2026-08-30T15:57:23.000Z",
+      "pr": 23,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Archive offline ledger tooling and split metrics/events god-files (A3/A4) (PR #23)",
+      "type": "具体审查意见",
+      "finding_count": 3,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/23#pullrequestreview-5061253521",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05360bc455bee6"
+    },
+    {
+      "message_id": "1a05678bc4e86b9e",
+      "thread_id": "1a05678bc4e86b9e",
+      "date": "2026-08-31T06:19:07.000Z",
+      "pr": 24,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Split risk/exchange_boundary/live-engine god-files by change reason (A4/batch 7+8a) (PR #24)",
+      "type": "审查摘要",
+      "finding_count": 0,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/24#issuecomment-5474525924",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05678bc4e86b9e"
+    },
+    {
+      "message_id": "1a056b03f46edc22",
+      "thread_id": "1a056b03f46edc22",
+      "date": "2026-08-31T07:19:45.000Z",
+      "pr": 25,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Split core/broker.py and core/live_broker.py by change reason (A4/batch 8b+8c) (PR #25)",
+      "type": "审查摘要",
+      "finding_count": 0,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/25#issuecomment-5475084244",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a056b03f46edc22"
+    },
+    {
+      "message_id": "1a056b502947e8c8",
+      "thread_id": "1a056b03f46edc22",
+      "date": "2026-08-31T07:24:58.000Z",
+      "pr": 25,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Split core/broker.py and core/live_broker.py by change reason (A4/batch 8b+8c) (PR #25)",
+      "type": "具体审查意见",
+      "finding_count": 1,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/25#pullrequestreview-5064031605",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a056b03f46edc22"
+    },
+    {
+      "message_id": "1a057317a5d64997",
+      "thread_id": "1a057317a5d64997",
+      "date": "2026-08-31T09:40:55.000Z",
+      "pr": 26,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Add breaker lifecycle policies and active-period reporting (PR #26)",
+      "type": "审查摘要",
+      "finding_count": 0,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/26#issuecomment-5476548528",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a057317a5d64997"
+    },
+    {
+      "message_id": "1a05735fd34d03a2",
+      "thread_id": "1a057317a5d64997",
+      "date": "2026-08-31T09:45:50.000Z",
+      "pr": 26,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Add breaker lifecycle policies and active-period reporting (PR #26)",
+      "type": "具体审查意见",
+      "finding_count": 2,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/26#pullrequestreview-5065127391",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a057317a5d64997"
+    },
+    {
+      "message_id": "1a05b34da3e57df6",
+      "thread_id": "1a05b34da3e57df6",
+      "date": "2026-09-01T04:23:05.000Z",
+      "pr": 27,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Implement SR0-SR3 of the current-strategy remediation roadmap (PR #27)",
+      "type": "审查摘要",
+      "finding_count": 0,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/27#issuecomment-5488852225",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05b34da3e57df6"
+    },
+    {
+      "message_id": "1a05b3824962ccff",
+      "thread_id": "1a05b34da3e57df6",
+      "date": "2026-09-01T04:26:40.000Z",
+      "pr": 27,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Implement SR0-SR3 of the current-strategy remediation roadmap (PR #27)",
+      "type": "具体审查意见",
+      "finding_count": 3,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/27#pullrequestreview-5074006738",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05b34da3e57df6"
+    },
+    {
+      "message_id": "1a05b938ac2335df",
+      "thread_id": "1a05b938ac2335df",
+      "date": "2026-09-01T06:06:30.000Z",
+      "pr": 28,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Close current-strategy execution safety gaps (PR #28)",
+      "type": "审查摘要",
+      "finding_count": 0,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/28#issuecomment-5489646520",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05b938ac2335df"
+    },
+    {
+      "message_id": "1a05b96695069336",
+      "thread_id": "1a05b938ac2335df",
+      "date": "2026-09-01T06:09:39.000Z",
+      "pr": 28,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Close current-strategy execution safety gaps (PR #28)",
+      "type": "具体审查意见",
+      "finding_count": 3,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/28#pullrequestreview-5074542286",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05b938ac2335df"
+    },
+    {
+      "message_id": "1a05d183fbccf8d3",
+      "thread_id": "1a05d183fbccf8d3",
+      "date": "2026-09-01T13:11:04.000Z",
+      "pr": 29,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Codex/refactor codebase boundaries (PR #29)",
+      "type": "审查摘要",
+      "finding_count": 0,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/29#issuecomment-5494456051",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05d183fbccf8d3"
+    },
+    {
+      "message_id": "1a05d1bb20c4c13f",
+      "thread_id": "1a05d183fbccf8d3",
+      "date": "2026-09-01T13:14:51.000Z",
+      "pr": 29,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Codex/refactor codebase boundaries (PR #29)",
+      "type": "具体审查意见",
+      "finding_count": 2,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/29#pullrequestreview-5078459446",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05d183fbccf8d3"
+    },
+    {
+      "message_id": "1a05d656bd3d0655",
+      "thread_id": "1a05d656bd3d0655",
+      "date": "2026-09-01T14:35:22.000Z",
+      "pr": 30,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Refactor reporting metrics and migrate Phase 4 configuration (PR #30)",
+      "type": "审查摘要",
+      "finding_count": 0,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/30#issuecomment-5495596418",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05d656bd3d0655"
+    },
+    {
+      "message_id": "1a06121ba26be8a2",
+      "thread_id": "1a06121ba26be8a2",
+      "date": "2026-09-02T07:59:55.000Z",
+      "pr": 31,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Fix backtest fidelity defects and wire the unused research metrics (PR #31)",
+      "type": "审查摘要",
+      "finding_count": 0,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/31#issuecomment-5506411860",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a06121ba26be8a2"
+    },
+    {
+      "message_id": "1a061280e2754a60",
+      "thread_id": "1a06121ba26be8a2",
+      "date": "2026-09-02T08:06:49.000Z",
+      "pr": 31,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Fix backtest fidelity defects and wire the unused research metrics (PR #31)",
+      "type": "具体审查意见",
+      "finding_count": 4,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/31#pullrequestreview-5087145892",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a06121ba26be8a2"
+    },
+    {
+      "message_id": "1a06256a5f1c91e2",
+      "thread_id": "1a06256a5f1c91e2",
+      "date": "2026-09-02T13:37:20.000Z",
+      "pr": 32,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Fix strategy-health probation ordering, opening-order TTL, and SUI-USDT listing data (PR #32)",
+      "type": "审查摘要",
+      "finding_count": 0,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/32#issuecomment-5510416199",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a06256a5f1c91e2"
+    },
+    {
+      "message_id": "1a0625a5fa3ebcd2",
+      "thread_id": "1a06256a5f1c91e2",
+      "date": "2026-09-02T13:41:24.000Z",
+      "pr": 32,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Fix strategy-health probation ordering, opening-order TTL, and SUI-USDT listing data (PR #32)",
+      "type": "具体审查意见",
+      "finding_count": 2,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/32#pullrequestreview-5090380872",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a06256a5f1c91e2"
+    },
+    {
+      "message_id": "1a075dd685d2850b",
+      "thread_id": "1a075dd685d2850b",
+      "date": "2026-09-06T08:37:19.000Z",
+      "pr": 33,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Add drawdown recovery with durable breaker state and stop cleanup (PR #33)",
+      "type": "具体审查意见",
+      "finding_count": 2,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/33#pullrequestreview-5124762654",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a075dd685d2850b"
+    },
+    {
+      "message_id": "1a075dd718e32fe1",
+      "thread_id": "1a075dd685d2850b",
+      "date": "2026-09-06T08:37:21.000Z",
+      "pr": 33,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Add drawdown recovery with durable breaker state and stop cleanup (PR #33)",
+      "type": "审查摘要",
+      "finding_count": 0,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/33#issuecomment-5558074781",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a075dd685d2850b"
+    },
+    {
+      "message_id": "1a07631c34ed8774",
+      "thread_id": "1a07631c34ed8774",
+      "date": "2026-09-06T10:09:27.000Z",
+      "pr": 34,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Add main acceptance tooling and verified evidence index (PR #34)",
+      "type": "审查摘要",
+      "finding_count": 0,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/34#issuecomment-5558526706",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a07631c34ed8774"
+    },
+    {
+      "message_id": "1a07634b888d646b",
+      "thread_id": "1a07631c34ed8774",
+      "date": "2026-09-06T10:12:40.000Z",
+      "pr": 34,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Add main acceptance tooling and verified evidence index (PR #34)",
+      "type": "具体审查意见",
+      "finding_count": 1,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/34#pullrequestreview-5125020002",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a07631c34ed8774"
+    },
+    {
+      "message_id": "1a076a5a3d38db27",
+      "thread_id": "1a076a5a3d38db27",
+      "date": "2026-09-06T12:16:01.000Z",
+      "pr": 35,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Add opt-in health recovery and 60-symbol backtest research (PR #35)",
+      "type": "审查摘要",
+      "finding_count": 0,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/35#issuecomment-5559145714",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a076a5a3d38db27"
+    },
+    {
+      "message_id": "1a076a89a3cace58",
+      "thread_id": "1a076a5a3d38db27",
+      "date": "2026-09-06T12:19:16.000Z",
+      "pr": 35,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Add opt-in health recovery and 60-symbol backtest research (PR #35)",
+      "type": "具体审查意见",
+      "finding_count": 2,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/35#pullrequestreview-5125276758",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a076a5a3d38db27"
+    },
+    {
+      "message_id": "1a076f2f7fc308cb",
+      "thread_id": "1a076f2f7fc308cb",
+      "date": "2026-09-06T13:40:29.000Z",
+      "pr": 36,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] P0: entry attribution, staged recovery and position risk research (PR #36)",
+      "type": "审查摘要",
+      "finding_count": 0,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/36#issuecomment-5559599421",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a076f2f7fc308cb"
+    },
+    {
+      "message_id": "1a076f73d53b4aef",
+      "thread_id": "1a076f2f7fc308cb",
+      "date": "2026-09-06T13:45:09.000Z",
+      "pr": 36,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] P0: entry attribution, staged recovery and position risk research (PR #36)",
+      "type": "具体审查意见",
+      "finding_count": 2,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/36#pullrequestreview-5125488681",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a076f2f7fc308cb"
+    },
+    {
+      "message_id": "1a08449bfeb8d915",
+      "thread_id": "1a08449bfeb8d915",
+      "date": "2026-09-09T03:50:20.000Z",
+      "pr": 37,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Repair P0-P2 trading safety and add 60-coin revalidation (PR #37)",
+      "type": "审查摘要",
+      "finding_count": 0,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/37#issuecomment-5595496984",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a08449bfeb8d915"
+    },
+    {
+      "message_id": "1a08452b051443e1",
+      "thread_id": "1a08449bfeb8d915",
+      "date": "2026-09-09T04:00:06.000Z",
+      "pr": 37,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Repair P0-P2 trading safety and add 60-coin revalidation (PR #37)",
+      "type": "具体审查意见",
+      "finding_count": 3,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/37#pullrequestreview-5149579832",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a08449bfeb8d915"
+    },
+    {
+      "message_id": "1a0b3b74235a6a3e",
+      "thread_id": "1a0b3b74235a6a3e",
+      "date": "2026-09-18T08:52:06.000Z",
+      "pr": 38,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Implement signal observation and regime-aware EV meta-layer (PR #38)",
+      "type": "审查摘要",
+      "finding_count": 0,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/38#issuecomment-5727605674",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a0b3b74235a6a3e"
+    },
+    {
+      "message_id": "1a0b3c4a2fe99731",
+      "thread_id": "1a0b3b74235a6a3e",
+      "date": "2026-09-18T09:06:43.000Z",
+      "pr": 38,
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Implement signal observation and regime-aware EV meta-layer (PR #38)",
+      "type": "具体审查意见",
+      "finding_count": 2,
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/38#pullrequestreview-5246104970",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a0b3b74235a6a3e"
+    }
+  ],
+  "findings": [
+    {
+      "id": "MAIL-4-1",
+      "pr": 4,
+      "priority": "P1",
+      "title": "Isolate alert-delivery failures from the trading loop",
+      "description": "When a custom alert sink raises—for example, because a webhook is unavailable—this call lets the exception escape `_assess_health`; several `_tick()` error handlers invoke this method, and `run()` only catches `KeyboardInterrupt`, so an alerting outage terminates the live-trading process instead of leaving it safely halted and retrying on the next tick. Catch and log sink failures independently from health-state transitions.",
+      "message_id": "19fe2c1bced78d32",
+      "date": "2026-08-08T19:02:55.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/4#pullrequestreview-4889477929",
+      "status": "已修复",
+      "evidence": [
+        "live_trading/engine.py:215"
+      ],
+      "reason": "_alert 已独立 try/except 告警 sink.notify 异常并记录 alert_delivery_failed，避免投递失败从健康故障处理链逃出。",
+      "verification": "静态确认异常边界；未连接Webhook或交易所。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/19fe2c1bced78d32"
+    },
+    {
+      "id": "MAIL-4-2",
+      "pr": 4,
+      "priority": "P2",
+      "title": "Recompute recorded slippage after clamping limit fills",
+      "description": "When requested slippage would cross the limit, this clamp changes the actual `fill_price`, but the trade record still stores `price * total_slip_rate` as its unit `slip`. `ReportGenerator` treats that field as the actual unit price difference and includes it in `TotalSlippage`, so limit-order backtests can substantially overstate trading costs—for example, a buy based at 9,490 with 5% slippage is filled at 9,500 but records 474.5 of unit slippage rather than 10.",
+      "message_id": "19fe2c1bced78d32",
+      "date": "2026-08-08T19:02:55.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/4#pullrequestreview-4889477929",
+      "status": "已修复",
+      "evidence": [
+        "core/broker/fill_service.py:80",
+        "core/broker/fill_service.py:266"
+      ],
+      "reason": "交易记录 slip 现在取 abs(fill_price-price)，限价夹紧后以实际价差记录，原TotalSlippage错误路径已修正。注意CostBreakdown分量仍按理论滑点另算，属于额外一致性问题，不扩大此条修复结论。",
+      "verification": "静态核对限价夹紧及成交记录字段。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/19fe2c1bced78d32"
+    },
+    {
+      "id": "MAIL-4-3",
+      "pr": 4,
+      "priority": "P2",
+      "title": "Classify broker synchronization exceptions as account failures",
+      "description": "When `_update_data()` succeeds but `broker.sync()` raises, the shared exception handler reports `MARKET_DATA_REFRESH_FAILED` and says the data refresh failed. This sends the wrong health reason to the dashboard and alert sink during an account/exchange synchronization outage, which can misdirect incident response; the two operations need separate exception classification.",
+      "message_id": "19fe2c1bced78d32",
+      "date": "2026-08-08T19:02:55.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/4#pullrequestreview-4889477929",
+      "status": "已修复",
+      "evidence": [
+        "live_trading/tick_orchestrator.py:103",
+        "live_trading/tick_orchestrator.py:115",
+        "live_trading/tick_orchestrator.py:119"
+      ],
+      "reason": "行情更新与账户同步现在有独立异常分支，broker.sync 抛异常标记 ACCOUNT_SYNC_FAILED。",
+      "verification": "静态核对_tick_once异常处理。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/19fe2c1bced78d32"
+    },
+    {
+      "id": "MAIL-4-4",
+      "pr": 4,
+      "priority": "P2",
+      "title": "Preserve subjects when deduplicating health alerts",
+      "description": "When different symbols fail for the same reason code, reducing the assessment to a `frozenset` of codes makes those incidents indistinguishable. For example, if BTC is stale and the next assessment instead finds ETH stale, both keys are `{\"MARKET_DATA_STALE\"}`, so no new alert is emitted and the alert context does not identify the affected symbol; include each reason's subject in the deduplication identity and notification context.",
+      "message_id": "19fe2c1bced78d32",
+      "date": "2026-08-08T19:02:55.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/4#pullrequestreview-4889477929",
+      "status": "已修复",
+      "evidence": [
+        "live_trading/engine.py:246",
+        "core/alerting.py:200"
+      ],
+      "reason": "risk_halt context 现在保留(code,subject)；HysteresisAlertSink根据完整稳定context生成key，因此不同标的同原因可分辨。",
+      "verification": "静态追踪健康告警context和去重key。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/19fe2c1bced78d32"
+    },
+    {
+      "id": "MAIL-4-5",
+      "pr": 4,
+      "priority": "P2",
+      "title": "Give concurrent state exports unique temporary files",
+      "description": "When two engine instances or threads export the same state file concurrently, both use the same `.tmp` path. One writer can replace that pathname while the other still has it open, causing the second `os.replace()` to fail; worse, one writer can rename a file that the other has truncated and is still writing, briefly exposing partial JSON and defeating the atomicity guarantee. Create the temporary file with a unique name in the destination directory before replacing the target.",
+      "message_id": "19fe2c1bced78d32",
+      "date": "2026-08-08T19:02:55.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/4#pullrequestreview-4889477929",
+      "status": "部分修复",
+      "evidence": [
+        "live_trading/state_export.py:97",
+        "live_trading/state_export.py:145",
+        "live_trading/state_export.py:150"
+      ],
+      "reason": "临时名已从固定.tmp变成带PID，可区分进程；同进程多个实例或线程写同一目标仍共享同一个PID临时名，未达到每次导出唯一。",
+      "verification": "静态核对命名和os.replace路径；未触碰实盘状态文件。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/19fe2c1bced78d32"
+    },
+    {
+      "id": "MAIL-9-1",
+      "pr": 9,
+      "priority": "P2",
+      "title": "Exclude pending shorts from reserved cash",
+      "description": "When a cash-funded buy is checked while a short order is pending, `reserved_exposure` includes that short because `RiskReservationProjection.pending_notional()` aggregates both `buy` and `short` reservations without preserving their actions. Subtracting the entire amount here can therefore reject an otherwise funded buy, even though this change explicitly exempts shorts from cash consumption. Track buy-side reserved notional separately for this cash calculation while retaining both sides for leverage and concentration checks.",
+      "message_id": "1a02a70299f1110e",
+      "date": "2026-08-22T17:06:28.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/9#pullrequestreview-5000638067",
+      "status": "部分修复",
+      "evidence": [
+        "core/risk/position_sizing.py:159",
+        "core/risk/position_sizing.py:164",
+        "core/risk/reservation.py:124"
+      ],
+      "reason": "现金公式仍减去所有方向预留，pending_notional仍未区分buy/short；现在SPOT禁止开空、margin走保证金，正常账户模式显著缩小触发范围，但原预留现金算法并未按方向修正。",
+      "verification": "静态核对账户模式分支和预留汇总。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a02a70299f1110e"
+    },
+    {
+      "id": "MAIL-9-2",
+      "pr": 9,
+      "priority": "P2",
+      "title": "Compute drawdown peaks within each trailing window",
+      "description": "For a series that crashes from an old peak and then remains flat, this calculation continues measuring every point against the all-time peak even after that peak has left the requested 30-period window. The chart can consequently show a large rolling maximum drawdown indefinitely, whereas the maximum drawdown of the current trailing window may be zero. Each plotted value needs to calculate its peak-to-trough decline using observations contained within that window.",
+      "message_id": "1a02a70299f1110e",
+      "date": "2026-08-22T17:06:28.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/9#pullrequestreview-5000638067",
+      "status": "仍存在",
+      "evidence": [
+        "backtest/reporting/render/charts.py:224",
+        "backtest/reporting/render/charts.py:226"
+      ],
+      "reason": "滚动回撤仍先全历史cummax，再对全历史水下值rolling(window).min，旧峰值离开窗口后仍影响图。",
+      "verification": "静态公式核对，未生成图表。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a02a70299f1110e"
+    },
+    {
+      "id": "MAIL-9-3",
+      "pr": 9,
+      "priority": "P2",
+      "title": "Use common bin edges for the PnL histogram",
+      "description": "When wins and losses span different ranges, these two independent `hist` calls derive separate bin edges despite receiving the same bin count. A win bar may therefore represent a much narrower PnL interval than a loss bar, making their heights visually incomparable in a chart labeled as one PnL distribution. Derive edges once from all `net_pnls` and pass those shared edges to both calls.",
+      "message_id": "1a02a70299f1110e",
+      "date": "2026-08-22T17:06:28.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/9#pullrequestreview-5000638067",
+      "status": "仍存在",
+      "evidence": [
+        "backtest/reporting/render/charts.py:276",
+        "backtest/reporting/render/charts.py:278"
+      ],
+      "reason": "盈利/亏损直方图仍分别传同一整数bins，并未以全部PnL生成共享边界。",
+      "verification": "静态核对两次hist调用。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a02a70299f1110e"
+    },
+    {
+      "id": "MAIL-10-1",
+      "pr": 10,
+      "priority": "P1",
+      "title": "Reserve execution costs when clamping to available cash",
+      "description": "When cash is the binding cap, `budget` equals essentially all free cash, and the `1e-9` margin leaves far less than the configured commission or buy-side slippage. `Broker._fill_order` then requires `value + commission <= portfolio.cash` and rejects the supposedly valid clamped order, so entries are silently lost whenever cash headroom is tighter than the leverage/concentration caps. Compute the cash budget net of expected fees and execution-price effects, or perform an affordability clamp at execution.",
+      "message_id": "1a02b1be8ad56f7d",
+      "date": "2026-08-22T20:14:04.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/10#pullrequestreview-5000967232",
+      "status": "仍存在",
+      "evidence": [
+        "core/risk/position_sizing.py:164",
+        "core/risk/position_sizing.py:224",
+        "core/risk/__init__.py:42",
+        "core/broker/fill_service.py:158"
+      ],
+      "reason": "现金上限仍直接使用 cash-reserved_exposure，只扣1e-9安全边际；执行端仍要求成交金额加手续费不超现金，没有执行时可支付数量夹紧。其他风险预算可能缩量，但没有修复该现金契约。",
+      "verification": "静态追踪现金上限、夹紧和成交拒单条件。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a02b1be8ad56f7d"
+    },
+    {
+      "id": "MAIL-10-2",
+      "pr": 10,
+      "priority": "P2",
+      "title": "Supply lifecycle observations to the diagnostic suite",
+      "description": "Every production report calls `build_diagnostics` without `observed_close_events`, so `build_diagnostics` omits `lifecycle_coverage` entirely and the report's lifecycle warning section is unreachable. Thus the newly advertised diagnostic cannot expose the missed router-driven close callbacks it was introduced to detect; the report-generation path needs to receive or derive the per-strategy callback counts.",
+      "message_id": "1a02b1be8ad56f7d",
+      "date": "2026-08-22T20:14:04.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/10#pullrequestreview-5000967232",
+      "status": "已修复",
+      "evidence": [
+        "backtest/engine.py:823",
+        "main.py:636",
+        "backtest/reporting/__init__.py:261",
+        "tests/test_diagnostics.py:342",
+        "tests/test_diagnostics.py:360"
+      ],
+      "reason": "引擎返回每策略 observed_close_events；main 将其传入报告，报告传给 build_diagnostics，生命周期覆盖率链路已经接通。",
+      "verification": "定向合跑 diagnostics/close_events 共25 passed、3因系统临时目录PermissionError失败；引擎close_event计数测试通过，报告写文件测试被环境权限阻断，静态接线已确认。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a02b1be8ad56f7d"
+    },
+    {
+      "id": "MAIL-11-1",
+      "pr": 11,
+      "priority": "P1",
+      "title": "Keep OOS results out of parameter ranking",
+      "description": "Ranking parameter candidates by OOS performance uses the test segment to select parameters, directly contradicting the train-only selection requirement immediately above and the untouched-test requirement in `docs/backtest_optimization_roadmap.md:134-136`. Following this acceptance criterion would contaminate the reported OOS Sharpe/PF and make it in-sample selection evidence; rank candidates on train/validation results and use OOS only for the final selected candidate's evaluation.",
+      "message_id": "1a02d94cc4bbcb96",
+      "date": "2026-08-23T07:45:21.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/11#pullrequestreview-5001918007",
+      "status": "仍存在",
+      "evidence": [
+        "docs/strategy_development_roadmap.md:169",
+        "analysis/optimize.py:246"
+      ],
+      "reason": "路线图仍写“参数优化默认按 OOS 排序”，与同页 train-only 冲突。优化器已有 full-sample 排序的 caveat 并提供单独walk-forward方向，但未修正原验收标准。",
+      "verification": "静态核对文档和优化器输出说明。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a02d94cc4bbcb96"
+    },
+    {
+      "id": "MAIL-11-2",
+      "pr": 11,
+      "priority": "P1",
+      "title": "Leave metrics.json serialization on the roadmap",
+      "description": "This capability is not implemented in the inspected tree: `ReportGenerator.generate` writes `equity.csv`, `benchmark.csv`, `trades.csv`, `report.txt`, and charts (`backtest/reporting.py:173-215`), while a repo-wide search finds no production writer for `metrics.json`; `docs/development_plan.md:80-87` also still lists it as unfinished. Marking it complete removes the prerequisite that S1-2 later assumes, so those charts cannot read their claimed standard structured result; retain an explicit serialization task or point to an actual generated artifact.",
+      "message_id": "1a02d94cc4bbcb96",
+      "date": "2026-08-23T07:45:21.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/11#pullrequestreview-5001918007",
+      "status": "部分修复",
+      "evidence": [
+        "docs/strategy_development_roadmap.md:25",
+        "backtest/reporting/__init__.py:278",
+        "scripts/run_revalidation60.py:153",
+        "scripts/run_p0_recovery_backtest.py:108"
+      ],
+      "reason": "专项回测脚本已经写 metrics.json 且磁盘有产物；常规 ReportGenerator.generate/main.py 仍未统一写该文件，文档“backtest/reporting输出metrics.json”仍过度宣称。",
+      "verification": "搜索全部 core/backtest/main/scripts 写入点；常规生成器只返回 metrics，专项脚本保存。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a02d94cc4bbcb96"
+    },
+    {
+      "id": "MAIL-11-3",
+      "pr": 11,
+      "priority": "P1",
+      "title": "Optimize the strategies behind the routing names",
+      "description": "The stated fix can pass its acceptance checks while optimizing the wrong algorithms: `analysis/optimize.py:83-89` constructs legacy `TrendUpStrategy`/`TrendDownStrategy` instances with SMA/ATR parameters, whereas the production registry uses `TrendBreakoutStrategy`/`TrendBreakdownStrategy` with entry/exit-window parameters (`core/system_factory.py:15-20`). Merely changing the dictionary keys makes Router resolve these legacy instances under misleading production names, and both nonzero trades and parameter-dependent results can still pass; require construction of the registered strategy classes and a matching parameter grid (or explicitly re-register the legacy strategies) as part of S0-2.",
+      "message_id": "1a02d94cc4bbcb96",
+      "date": "2026-08-23T07:45:21.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/11#pullrequestreview-5001918007",
+      "status": "已修复",
+      "evidence": [
+        "analysis/optimize.py:23",
+        "analysis/optimize.py:37",
+        "analysis/optimize.py:108"
+      ],
+      "reason": "优化器现在直接构造 TrendBreakoutStrategy/TrendBreakdownStrategy，并以 entry_window/exit_window 网格驱动，不再只是旧类改字典名。",
+      "verification": "静态检查导入、构造工厂和单组任务入口。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a02d94cc4bbcb96"
+    },
+    {
+      "id": "MAIL-12-1",
+      "pr": 12,
+      "priority": "P1",
+      "title": "Consume circuit-breaker fills outside Router.route",
+      "description": "Move fill consumption to an unconditional event-processing path. When the circuit breaker is active, `EventProcessor.process` skips every call to `Router.route`; therefore a CircuitBreaker flatten that fills on the next market event is not consumed here while the breaker remains active. The opening strategy's `on_trade_closed` callback is delayed until routing resumes, or missed entirely if the run ends first, leaving lifecycle coverage and loss-based health gates incorrect.",
+      "message_id": "1a02dbffa40b1065",
+      "date": "2026-08-23T08:32:31.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/12#pullrequestreview-5001994647",
+      "status": "已修复",
+      "evidence": [
+        "backtest/engine.py:491",
+        "backtest/engine.py:498",
+        "strategies/base.py:129",
+        "tests/test_close_events.py:62"
+      ],
+      "reason": "当前强制减仓/熔断成交在引擎里立即形成 forced_trades，并显式遍历策略消费 CloseEvent；不再依赖恢复 Router.route 才消费熔断平仓。",
+      "verification": "静态核对实际引擎消费路径；定向 tests/test_close_events.py 所有6个参数化/测试案例通过（与diagnostics合跑）。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a02dbffa40b1065"
+    },
+    {
+      "id": "MAIL-12-2",
+      "pr": 12,
+      "priority": "P1",
+      "title": "Pass the closing symbol's bar index to its callback",
+      "description": "Derive the callback index from `trade_symbol` rather than reusing the current routed symbol's `bar_index`. The new global cursor lets the first routed symbol consume fills for every symbol, but historical processing uses a union-of-real-bars timeline, so per-symbol dataframe positions can differ; a close for symbol B consumed while routing symbol A consequently gives B the wrong index. `RangeStrategy.on_trade_closed` sets `cooldown_until = bar_index + 24`, so missing histories or different listing dates can make its cooldown substantially too long or too short and alter backtest trades.",
+      "message_id": "1a02dbffa40b1065",
+      "date": "2026-08-23T08:32:31.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/12#pullrequestreview-5001994647",
+      "status": "仍存在",
+      "evidence": [
+        "strategies/base.py:143",
+        "strategies/base.py:166",
+        "router/router.py:83",
+        "backtest/engine.py:501"
+      ],
+      "reason": "策略遍历全局所有 CloseEvent，却把调用方当前 bar_index 传给所有 event.symbol；没有按平仓标的取得对应历史索引。强制成交消费还使用组合全局 bar_index。",
+      "verification": "静态追踪全局事件循环与回调参数；现有CloseEvent测试只覆盖归因/去重，未覆盖错位时间轴。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a02dbffa40b1065"
+    },
+    {
+      "id": "MAIL-13-1",
+      "pr": 13,
+      "priority": "P1",
+      "title": "Delay swing markers until their confirmation bar",
+      "description": "When `Factors.calculate_all` is applied to a complete historical frame, `center=True` calculates each marker using the following `order` candles. A strategy consuming the resulting rows through `HistoricalMarketDataAdapter` can therefore see `SWING_HIGH` and `SWING_LOW` up to five bars before those extrema could actually be confirmed, introducing look-ahead bias into backtests; shift the markers by `order` or otherwise expose them only on the confirmation bar.",
+      "message_id": "1a032a2aa81b7066",
+      "date": "2026-08-24T07:18:36.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/13#pullrequestreview-5005367713",
+      "status": "仍存在",
+      "evidence": [
+        "core/factors/support_resistance.py:52",
+        "core/factors/support_resistance.py:62",
+        "tests/test_factors.py:105"
+      ],
+      "reason": "SWING_HIGH/LOW 仍用 center=True 并直接返回未延后标记；现有测试只核对长度。",
+      "verification": "2026-09-20 内存重现：high=[1,2,8,3,2],order=1，完整数据在索引2给8，而截断至索引2时为NaN，确认未来信息泄漏。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a032a2aa81b7066"
+    },
+    {
+      "id": "MAIL-13-2",
+      "pr": 13,
+      "priority": "P1",
+      "title": "Paginate open-interest history through the requested end",
+      "description": "When the requested interval contains more than `limit` observations—such as 30 days of hourly Binance data with the default limit of 500—this performs only the first request from `since` and silently omits the remaining interval through `end_date`. This produces incomplete open-interest factors despite accepting a date range; advance `since` and fetch additional pages until the end boundary or the provider exhausts its history, as the funding-rate method already does.",
+      "message_id": "1a032a2aa81b7066",
+      "date": "2026-08-24T07:18:36.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/13#pullrequestreview-5005367713",
+      "status": "仍存在",
+      "evidence": [
+        "core/data_fetcher.py:455",
+        "core/data_fetcher.py:456",
+        "core/data_fetcher.py:475"
+      ],
+      "reason": "OI 历史仍只有一次 fetchOpenInterestHistory；end_date 仅过滤返回结果，未继续分页。",
+      "verification": "静态检查完整函数，无交易所调用。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a032a2aa81b7066"
+    },
+    {
+      "id": "MAIL-13-3",
+      "pr": 13,
+      "priority": "P2",
+      "title": "Leave POC empty for zero-volume windows",
+      "description": "When every bar in a rolling window has zero or negative volume, `bin_volumes` remains all zeros and `argmax` selects bin 0, so this writes a seemingly valid POC near the window low before the subsequent total-volume check leaves only VAH and VAL empty. That false support level can be consumed as a real signal; check `total_volume` before assigning POC so all three outputs remain undefined for such windows.",
+      "message_id": "1a032a2aa81b7066",
+      "date": "2026-08-24T07:18:36.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/13#pullrequestreview-5005367713",
+      "status": "仍存在",
+      "evidence": [
+        "core/factors/volume.py:112",
+        "core/factors/volume.py:117"
+      ],
+      "reason": "POC 仍在 total_volume<=0 检查前赋值，零量窗口输出伪支撑价。",
+      "verification": "2026-09-20 内存重现3根零成交量窗口：POC=1.5、VAH/VAL=NaN。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a032a2aa81b7066"
+    },
+    {
+      "id": "MAIL-15-1",
+      "pr": 15,
+      "priority": "P1",
+      "title": "Regenerate hashes after Git line-ending normalization",
+      "description": "On a normal checkout, this first archived CSV is 21,005 bytes with SHA-256 `ff37867c...`, rather than the recorded 21,727 bytes and `fdf23e1a...`; the same CRLF-to-LF mismatch affects every archived text artifact and both configuration snapshots. Consequently, the verification command documented in `README.md` immediately raises `AssertionError`, so the integrity manifest cannot validate this frozen experiment baseline. Generate the manifest from the committed bytes (or enforce the intended line endings before hashing).",
+      "message_id": "1a0393b4b7581a5c",
+      "date": "2026-08-25T14:03:02.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/15#pullrequestreview-5019831836",
+      "status": "仍存在",
+      "evidence": [
+        "docs/baseline/phase0/reports_manifest.json:8",
+        ".gitattributes:1"
+      ],
+      "reason": "归档清单仍记录 CRLF 字节。实际工作树可通过，但 Git 已提交 blob 是 LF；新检出/非 Windows 环境不能按清单验证。",
+      "verification": "2026-09-20 只读重算：首个 benchmark.csv 工作树21727字节/fdf23e1a…；git show HEAD:该文件21005字节/ff37867c…，与邮件完全一致。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a0393b4b7581a5c"
+    },
+    {
+      "id": "MAIL-15-2",
+      "pr": 15,
+      "priority": "P2",
+      "title": "Replace the HEAD check with a check of the recorded commit",
+      "description": "When these instructions are read from the commit that introduces them, `git rev-parse HEAD` returns `12fe631...`, not the recorded baseline `ff14fb8...`; checking out `ff14fb8` also removes this document because it is the parent commit. On later branch commits the result drifts further, so this command cannot perform the promised verification. Check that the recorded object exists and that the snapshots correspond to it instead of asserting that the caller's current HEAD equals it.",
+      "message_id": "1a0393b4b7581a5c",
+      "date": "2026-08-25T14:03:02.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/15#pullrequestreview-5019831836",
+      "status": "仍存在",
+      "evidence": [
+        "docs/baseline/phase0/baseline_lock.md:16"
+      ],
+      "reason": "文档仍要求 git rev-parse HEAD 输出旧基线 ff14fb8；当前 HEAD 为 ab15bc2，未改为检查被记录对象。",
+      "verification": "静态核对文档及当前 Git HEAD。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a0393b4b7581a5c"
+    },
+    {
+      "id": "MAIL-15-3",
+      "pr": 15,
+      "priority": "P2",
+      "title": "Enforce read-only archives rather than relying on chmod 444",
+      "description": "On every fresh Git checkout these purportedly read-only files are writable: the tree records mode `100644`, and Git does not preserve the owner/group/other write-bit distinctions made by `chmod 444`. Thus the stated freeze protection disappears as soon as another researcher clones or checks out the commit. Either remove the read-only claim or add an enforceable guard, such as a validation hook or CI check that rejects modifications under this directory.",
+      "message_id": "1a0393b4b7581a5c",
+      "date": "2026-08-25T14:03:02.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/15#pullrequestreview-5019831836",
+      "status": "仍存在",
+      "evidence": [
+        "docs/baseline/phase0/README.md:8",
+        "docs/baseline/phase0/freeze_notice.md:24",
+        ".github/workflows/tests.yml:23"
+      ],
+      "reason": "仍声称 chmod 444 只读冻结；Git 无法保留此权限位，CI 未见归档目录变更/哈希守卫。",
+      "verification": "静态核对冻结说明、Git 工作流及属性规则；未更改归档。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a0393b4b7581a5c"
+    },
+    {
+      "id": "MAIL-16-1",
+      "pr": 16,
+      "priority": "P1",
+      "title": "Aggregate close callbacks until the position is flat",
+      "description": "When an exit is partially filled, or one closing fill spans multiple pyramided lots, the broker emits multiple `CloseEvent`s and this invokes `on_trade_closed` for each one regardless of `is_position_fully_closed`. Consequently `TrendBreakoutStrategy` counts one position as several trades and `RangeStrategy` can advance its consecutive-loss cooldown while the position is still open; the previous implementation accumulated partial PnL and invoked the hook only after the position became flat. Aggregate events by position and deliver a single lifecycle callback at the full close.",
+      "message_id": "1a03c9a15252cd08",
+      "date": "2026-08-26T05:45:25.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/16#pullrequestreview-5027130456",
+      "status": "仍存在",
+      "evidence": [
+        "strategies/base.py:142",
+        "strategies/base.py:166",
+        "strategies/mean_reversion.py:180",
+        "strategies/trend_breakout.py:194"
+      ],
+      "reason": "基类仍对每个CloseEvent立即on_trade_closed，is_position_fully_closed仅用于清context；TrendBreakout的cohort聚合减轻其健康误计，但Range依然把部分退出当独立失败，未实现按position聚合一次闭合回调。",
+      "verification": "2026-09-20 注入同一position三条尚未完全平仓的亏损CloseEvent，Range在bar100已设置cooldown_until124。详见 mid_verification.json MAIL-16-1。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03c9a15252cd08"
+    },
+    {
+      "id": "MAIL-16-2",
+      "pr": 16,
+      "priority": "P1",
+      "title": "Cancel outstanding entries before tail liquidation",
+      "description": "If the final real bar leaves a partially filled GTC entry active, `process_orders` processes that existing entry before the newly submitted EndOfBacktest order. Because the synthetic bar has enormous volume, the entry's entire remainder fills, while the liquidation order was sized from the smaller pre-synthetic position; the run therefore ends with the newly filled remainder still open and absent from closed-trade analytics. Outstanding orders should be canceled before sizing and processing the tail close.",
+      "message_id": "1a03c9a15252cd08",
+      "date": "2026-08-26T05:45:25.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/16#pullrequestreview-5027130456",
+      "status": "已修复",
+      "evidence": [
+        "backtest/engine.py:1053",
+        "backtest/engine.py:1056",
+        "backtest/engine.py:1063",
+        "tests/test_end_of_backtest.py:81"
+      ],
+      "reason": "期末尾仓处理在读取待平数量、提交EndOfBacktest订单和处理合成bar之前取消保护单及所有pending/active订单，剩余开仓不会借合成bar的大成交量补成交。",
+      "verification": "静态确认取消顺序；2026-09-20 定向回归40 passed含期末估值/强制退出测试。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03c9a15252cd08"
+    },
+    {
+      "id": "MAIL-16-3",
+      "pr": 16,
+      "priority": "P2",
+      "title": "Preserve lot details across partial entry fills",
+      "description": "When one entry order fills across multiple bars, `LotBook` merges those fills into one lot, so a later close supplies one `lot_closes` detail. The report reconstruction still keeps each entry fill as a separate stack item and calls `_next_lot_detail()` once per matched item; only the first reconstructed fragment receives the lot ID, initial risk, MAE, and MFE, while the remaining fragments are excluded from risk analytics. The reconstruction needs to merge same-order entry fills or associate each match using lot/quantity information rather than positional consumption.",
+      "message_id": "1a03c9a15252cd08",
+      "date": "2026-08-26T05:45:25.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/16#pullrequestreview-5027130456",
+      "status": "仍存在",
+      "evidence": [
+        "backtest/reporting/trades.py:121",
+        "backtest/reporting/trades.py:207",
+        "backtest/reporting/trades.py:345",
+        "core/lots.py:240"
+      ],
+      "reason": "报告仍逐入场fill压栈、逐配对位置消费lot_closes，而真实lot合并同一订单多次入场；一笔退出覆盖多个入场碎片时只有首碎片有lot/position/risk，后续缺失。新增round-trip汇总因缺position_id也无法修正该情形。",
+      "verification": "2026-09-20 真实本地Broker撮合25单位开仓分10/10/5、一次卖25：报告3条legs的lot_id=[LOT-000000001,null,null]，被汇总成3个roundtrips。详见 mid_verification.json MAIL-16-3。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03c9a15252cd08"
+    },
+    {
+      "id": "MAIL-16-4",
+      "pr": 16,
+      "priority": "P2",
+      "title": "Scale initial risk to the quantity being closed",
+      "description": "For a partial reduction, each `LotClose` receives the lot's full original dollar risk even though its PnL covers only `qty_closed`; subsequent reductions of the same lot receive that full risk again. Since `calculate_r_multiple_stats` computes each reconstructed record as `net_pnl / initial_risk`, partial exits understate R-multiples and double-count the risk denominator. Allocate the lot's initial risk proportionally to the closed quantity.",
+      "message_id": "1a03c9a15252cd08",
+      "date": "2026-08-26T05:45:25.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/16#pullrequestreview-5027130456",
+      "status": "部分修复",
+      "evidence": [
+        "core/lots.py:203",
+        "core/broker/fill_service.py:235",
+        "core/broker/fill_service.py:250",
+        "backtest/reporting/trades.py:367",
+        "backtest/reporting/__init__.py:216",
+        "tests/test_round_trip_aggregation.py:143",
+        "tests/test_round_trip_aggregation.py:151"
+      ],
+      "reason": "CloseEvent风险已按qty_closed/qty_original比例分摊；主报告改按position汇总并按lot去重总初始风险，完整往返的R不再重复分母。但原LotClose.initial_risk和重建legs仍重复完整风险，直接消费legs的旧研究入口仍未统一；且部分入场匹配缺失仍影响此链。",
+      "verification": "2026-09-20 定向回归40 passed含完整往返risk只计一次；现有test_legs_each_repeat_the_lots_full_risk明确仍断言每条leg完整250，而roundtrip250。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03c9a15252cd08"
+    },
+    {
+      "id": "MAIL-17-1",
+      "pr": 17,
+      "priority": "P1",
+      "title": "Continue routing exits after blocking new entries",
+      "description": "When high-water drawdown reaches `portfolio_drawdown_block` but remains below the liquidation threshold, this returns `True`; `EventProcessor.process()` consequently skips its entire symbol-routing loop, including hard stops and `should_exit`, while `BacktestEngine` does not force liquidation for `block_new`. Because this state is sticky, existing positions remain unmanaged until the stronger liquidation threshold is reached or the backtest ends; block only entry submission while continuing to route exit logic.",
+      "message_id": "1a03d457a7ef033c",
+      "date": "2026-08-26T08:52:38.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/17#pullrequestreview-5028474123",
+      "status": "已修复",
+      "evidence": [
+        "core/runtime.py:214",
+        "core/runtime.py:219",
+        "core/runtime.py:354",
+        "tests/test_breaker_lifecycle.py:38"
+      ],
+      "reason": "共享运行时已分离持仓管理与新仓候选，BLOCK_NEW仍调用退出管理，只有entry collection/allocation被禁用。",
+      "verification": "2026-09-20 定向回归40 passed包含test_block_new_runs_position_management_but_never_collects_entry。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03d457a7ef033c"
+    },
+    {
+      "id": "MAIL-17-2",
+      "pr": 17,
+      "priority": "P1",
+      "title": "Close positions when point-in-time membership ends",
+      "description": "When a symbol is held at its last eligible bar and `delisted_at` occurs before the other series end, clipping all later bars prevents the runtime from routing any exit for that position. The engine then carries it at its stale last price and `_close_tail_positions` closes it only at the overall backtest end, creating artificial exposure and PnL after delisting; membership expiry needs an explicit close or delisting valuation policy at the last tradable bar.",
+      "message_id": "1a03d457a7ef033c",
+      "date": "2026-08-26T08:52:38.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/17#pullrequestreview-5028474123",
+      "status": "仍存在",
+      "evidence": [
+        "core/universe.py:66",
+        "core/universe.py:79",
+        "main.py:433",
+        "backtest/engine.py:443",
+        "backtest/engine.py:1061"
+      ],
+      "reason": "--universe-file路径仍只是截断delisted_at之后bars，没有在最后可交易bar生成退出标记；引擎新增scheduled_exit/AnnouncedMarginDelisting能力，但普通PointInTimeUniverse.apply未接入，旧路径仍可能持仓带到总体期末。",
+      "verification": "静态追踪CSV universe输入→apply→引擎；已有scheduled_exit分支不能证明通用PIT路径已关闭缺口。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03d457a7ef033c"
+    },
+    {
+      "id": "MAIL-17-3",
+      "pr": 17,
+      "priority": "P2",
+      "title": "Reset borrow accrual when a short is flat",
+      "description": "If a margin short is closed and the same symbol is shorted again later, `_last_borrow_time` still contains the timestamp from the previous loan because `accrue_carry` only visits currently open positions. The first accrual after reopening therefore charges borrow cost for the entire flat interval; clear this timestamp when the short closes or initialize it when a new short is opened.",
+      "message_id": "1a03d457a7ef033c",
+      "date": "2026-08-26T08:52:38.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/17#pullrequestreview-5028474123",
+      "status": "仍存在",
+      "evidence": [
+        "core/broker/financing.py:35",
+        "core/broker/financing.py:77",
+        "backtest/signal_ghost.py:74",
+        "backtest/signal_meta_replay.py:214"
+      ],
+      "reason": "正式Broker在flat期间仍跳过symbol且不清_last_borrow_time；仅Ghost/P3影子路径自行pop，不修复正式路径再开空仓的跨空窗利息。",
+      "verification": "2026-09-20 内存复现：日费0.1，1月2日平仓后2月2日重开首次收3.1，包含31天空窗。详见 mid_verification.json MAIL-17-3。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03d457a7ef033c"
+    },
+    {
+      "id": "MAIL-18-1",
+      "pr": 18,
+      "priority": "P1",
+      "title": "Preserve exit control for synchronized live positions",
+      "description": "When a live position is populated by `LiveBroker.sync()`, only `portfolio.positions` is replaced (`core/live_broker.py:859-864`); no opening lot or strategy owner is reconstructed. Consequently `_opening_strategy_name()` returns `None` here, the strategy exit path is skipped, and `_max_holding_expired()` also cannot trigger because its lot list is empty. This affects both positions restored at startup and positions subsequently observed through account sync, leaving them unmanaged by strategy and maximum-holding exits.",
+      "message_id": "1a03e5f0dec59b1e",
+      "date": "2026-08-26T14:00:11.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/18#pullrequestreview-5031311051",
+      "status": "部分修复",
+      "evidence": [
+        "core/live_broker/account_sync.py:37",
+        "core/live_broker/__init__.py:184",
+        "core/live_broker/submission.py:295",
+        "router/router.py:93",
+        "router/router.py:167",
+        "live_trading/tick_orchestrator.py:685",
+        "tests/test_revalidation_execution.py:174",
+        "tests/test_revalidation_execution.py:227"
+      ],
+      "reason": "账户同步已从持久成交账本重建lots/owner，解决本系统有成交历史的重启仓位；不匹配仓位标unowned并禁止新风险，缺保护会尝试具名平仓。但无历史归属的外部持仓仍没有策略owner/entry_time，策略与max-holding退出不会执行，未见完整外部仓位接管验收。",
+      "verification": "2026-09-20 定向回归40 passed包含test_revalidation_execution；读代码确认对有持久成交事实的恢复与无法归属的边界。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03e5f0dec59b1e"
+    },
+    {
+      "id": "MAIL-18-2",
+      "pr": 18,
+      "priority": "P1",
+      "title": "Batch live candidates before allocating portfolio risk",
+      "description": "When multiple live symbols produce candidates for the same close, `live_trading/engine.py:560-568` invokes `process_symbol()` separately for each singleton event. Allocating the candidate immediately here lets the first symbol reserve the available risk budget before later candidates are seen, so the live result remains dependent on `data_map` iteration order and bypasses the score-based same-timestamp ranking implemented by `process()`.",
+      "message_id": "1a03e5f0dec59b1e",
+      "date": "2026-08-26T14:00:11.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/18#pullrequestreview-5031311051",
+      "status": "已修复",
+      "evidence": [
+        "live_trading/tick_orchestrator.py:294",
+        "live_trading/tick_orchestrator.py:298",
+        "live_trading/tick_orchestrator.py:315",
+        "tests/test_phase4_routing_allocation.py:42",
+        "tests/test_sr3_portfolio_risk.py:147"
+      ],
+      "reason": "实盘先收集候选并按close_time分批，再调用组合allocator一次分配，已不再按每个symbol立即消耗风险预算。该文件当前有其他未提交改动，结论针对当前工作区。",
+      "verification": "静态核对真实tick接线；2026-09-20 定向回归40 passed含Phase4批量排名测试。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03e5f0dec59b1e"
+    },
+    {
+      "id": "MAIL-18-3",
+      "pr": 18,
+      "priority": "P2",
+      "title": "Use the configured holding limit in diagnostics",
+      "description": "If `phase4.max_holding_days` is changed from 365, the router uses the configured value (`core/system_factory.py:61-66`) while this audit continues classifying timeouts against 365 days. Reports will therefore omit actual maximum-holding exits or classify unrelated trades as timeouts, making the new holding-period diagnostic inconsistent with the policy that produced the trades.",
+      "message_id": "1a03e5f0dec59b1e",
+      "date": "2026-08-26T14:00:11.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/18#pullrequestreview-5031311051",
+      "status": "仍存在",
+      "evidence": [
+        "core/diagnostics.py:506",
+        "scripts/run_phase4_analysis.py:137",
+        "composition/factory.py:179",
+        "config/params.yaml:102"
+      ],
+      "reason": "运行路由读取router.max_holding_days（已从phase4迁移），但build_diagnostics和Phase4分析脚本仍固定365天；非365配置的超时诊断仍与执行政策不一致。",
+      "verification": "静态对照配置传播及两个报告调用点。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03e5f0dec59b1e"
+    },
+    {
+      "id": "MAIL-19-1",
+      "pr": 19,
+      "priority": "P1",
+      "title": "Reserve a genuinely unseen holdout",
+      "description": "The selected `PRIMARY` report was already present in `docs/baseline/phase0/archived_reports` with equity, trades, benchmark, and published whole-period results through 2026 before this protocol was created. Slicing its last 20% now cannot make that period an unseen final holdout, so the subsequent Phase 1–4 research and the choice of report may already incorporate its outcomes; `final_holdout_report.json` therefore cannot support the claimed one-time out-of-sample admission. Freeze a period or dataset that was not included in any previously inspected report.",
+      "message_id": "1a03e9990378d4e3",
+      "date": "2026-08-26T15:04:06.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/19#pullrequestreview-5032066890",
+      "status": "部分修复",
+      "evidence": [
+        "scripts/run_phase5_analysis.py:35",
+        "scripts/run_phase5_analysis.py:75",
+        "scripts/run_phase5_analysis.py:191",
+        "reports/strategy_review_20260919/研究验收报告.md:24",
+        "reports/strategy_review_20260919/README.md:78"
+      ],
+      "reason": "新的9/19研究明确已见历史不是新holdout，并冻结2026-10-20至2027-04-18前瞻窗口、最早2027-05-08验收；但旧Phase5脚本及报告仍将Phase0既见档案切片标作一次性final holdout，未替换/失效化。前瞻证据尚未成熟。",
+      "verification": "静态核对旧runner及最新协议/报告；未打开未来保留期、未执行研究重跑。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03e9990378d4e3"
+    },
+    {
+      "id": "MAIL-19-2",
+      "pr": 19,
+      "priority": "P1",
+      "title": "Evaluate the frozen Phase 4 implementation",
+      "description": "The hard-coded source is a Phase 0 archive generated from the baseline SHA `ff14fb8` documented in `docs/baseline/phase0/baseline_lock.md`, not a run of the later Phase 4 strategy state that this script says it evaluates. Consequently none of the Phase 1–4 remediation or the strategy behavior at this commit is represented in the holdout gates, so the admission decision describes an obsolete system. Generate the holdout artifacts from an explicitly frozen current strategy/configuration instead.",
+      "message_id": "1a03e9990378d4e3",
+      "date": "2026-08-26T15:04:06.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/19#pullrequestreview-5032066890",
+      "status": "部分修复",
+      "evidence": [
+        "scripts/run_phase5_analysis.py:34",
+        "scripts/run_phase5_analysis.py:181",
+        "reports/strategy_review_20260919/README.md:17",
+        "reports/strategy_review_20260919/README.md:19",
+        "reports/strategy_review_20260919/engineering_comparison.json:2"
+      ],
+      "reason": "最新9/19批次已有修复前/后冻结源码、配置、输入身份和真实当前引擎运行；但原Phase5入口依然硬编码Phase0档案PRIMARY，并从旧净值/交易计算准入，不反映当前实现。新批次未提交且总验收pending。",
+      "verification": "静态核对旧runner与最新冻结证据；不把新路径的存在当成旧入口已修复。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03e9990378d4e3"
+    },
+    {
+      "id": "MAIL-19-3",
+      "pr": 19,
+      "priority": "P1",
+      "title": "Reject insufficient profit-factor samples",
+      "description": "When the holdout has fewer than 30 trades, `calculate_profit_factor` deliberately returns `status: \"insufficient\"` but can still return a value and bootstrap lower bound. This gate ignores that status, so a small favorable sample can pass `G13_pf_significance` and potentially admit a strategy despite not meeting the configured minimum sample requirement. Require `pf[\"status\"] == \"ok\"` as part of the gate.",
+      "message_id": "1a03e9990378d4e3",
+      "date": "2026-08-26T15:04:06.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/19#pullrequestreview-5032066890",
+      "status": "仍存在",
+      "evidence": [
+        "analysis/research_validation.py:360",
+        "analysis/research_validation.py:387",
+        "core/metrics/trade_quality.py:25"
+      ],
+      "reason": "G13 仍仅检查PF值与置信下界，没有要求pf.status=='ok'，不足30笔的有利小样本仍能通过该门槛。",
+      "verification": "2026-09-20 内存复现19笔（18笔+10，1笔-1）：profit_factor.status=insufficient，但G13_pf_significance=true。详见 mid_verification.json MAIL-19-3。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03e9990378d4e3"
+    },
+    {
+      "id": "MAIL-19-4",
+      "pr": 19,
+      "priority": "P2",
+      "title": "Avoid double-counting legacy slippage",
+      "description": "The checked-in `PRIMARY/trades.csv` has no `theoretical_price`, so `_reconstruct_closed_trades` falls back to fill prices and its `gross_pnl_theoretical` already reflects realized slippage. Passing those records to `calculate_cost_sensitivity` then subtracts `slippage` again; the committed report exposes this because concentration baseline PnL is 1121.67 while the nominal 1x cost baseline is 1006.17, exactly one additional slippage total lower. Normalize legacy records or use the legacy cost formula before evaluating `G15`, otherwise marginal strategies can be rejected from overstated costs.",
+      "message_id": "1a03e9990378d4e3",
+      "date": "2026-08-26T15:04:06.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/19#pullrequestreview-5032066890",
+      "status": "仍存在",
+      "evidence": [
+        "backtest/reporting/trades.py:94",
+        "backtest/reporting/trades.py:211",
+        "core/metrics/attribution.py:141",
+        "core/metrics/attribution.py:149",
+        "scripts/run_phase5_analysis.py:65"
+      ],
+      "reason": "缺 theoretical_price 时仍回退fill price，并照样生成gross_pnl_theoretical；成本敏感度再扣slippage，旧档案仍重复计入滑点。",
+      "verification": "2026-09-20 只读重建PRIMARY完整历史：closed net=-1581.579048，1x成本净值=-2070.377486，差额488.798438等于全部slippage。详见 mid_verification.json MAIL-19-4。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03e9990378d4e3"
+    },
+    {
+      "id": "MAIL-19-5",
+      "pr": 19,
+      "priority": "P2",
+      "title": "Scale the expected maximum Sharpe consistently",
+      "description": "When `periods_per_year != 1`, `observed` is annualized by `sqrt(periods_per_year)`, but `expected_max` remains a standard-normal order statistic with no sampling-error or annualization scale. The runner passes 365.25, so the two quantities compared in the probability statistic are not estimates on the same scale and the resulting deflated-Sharpe probability is invalid. Scale the null maximum using the Sharpe estimator variance and the same annualization convention, or perform the full calculation with unannualized Sharpe.",
+      "message_id": "1a03e9990378d4e3",
+      "date": "2026-08-26T15:04:06.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/19#pullrequestreview-5032066890",
+      "status": "仍存在",
+      "evidence": [
+        "analysis/research_validation.py:285",
+        "analysis/research_validation.py:293",
+        "analysis/research_validation.py:298",
+        "scripts/run_phase5_analysis.py:145"
+      ],
+      "reason": "observed Sharpe乘sqrt(periods_per_year)，expected_max仍为未缩放标准正态顺序统计量；分子和方差口径不一致。",
+      "verification": "2026-09-20 相同80条收益及12次试验，periods_per_year由1改365.25，expected_max仍1.664811，概率由0.000080025升至1.0。详见 mid_verification.json MAIL-19-5。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03e9990378d4e3"
+    },
+    {
+      "id": "MAIL-19-6",
+      "pr": 19,
+      "priority": "P2",
+      "title": "Honor the Phase 5 configuration",
+      "description": "The new `phase5` values in `config/params.yaml` are never read: this runner hard-codes the 60/20 split, walk-forward sizes, admission thresholds, concentration removals, and cost multipliers. Therefore changing the authoritative YAML appears to configure the governance run but has no effect on its protocol or decision, which can leave generated evidence inconsistent with the reviewed configuration. Load these values through `ConfigLoader` or remove the misleading configuration section.",
+      "message_id": "1a03e9990378d4e3",
+      "date": "2026-08-26T15:04:06.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/19#pullrequestreview-5032066890",
+      "status": "仍存在",
+      "evidence": [
+        "config/params.yaml:243",
+        "scripts/run_phase5_analysis.py:77",
+        "scripts/run_phase5_analysis.py:96",
+        "scripts/run_phase5_analysis.py:181",
+        "analysis/research_validation.py:343"
+      ],
+      "reason": "phase5 YAML仍声明分区、窗口和压力参数；run_phase5_analysis无配置读取，继续硬编码60/20/20、730/180/180和默认AdmissionThresholds，修改YAML不会同步该证据生成入口。",
+      "verification": "静态检查配置、完整runner和调用参数；未改配置运行。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03e9990378d4e3"
+    },
+    {
+      "id": "MAIL-20-1",
+      "pr": 20,
+      "priority": "P1",
+      "title": "Fail admission on unhealthy monitoring snapshots",
+      "description": "When any monitoring dimension reports `ok: false`—for example, stale market data—the code only emits a generated alert and does not add an issue, so this expression still marks T-6.5 as passed when alert delivery is verified. T-6.6 consequently permits micro-live admission despite a currently failed health check; make failed dimensions fail the monitoring gate.",
+      "message_id": "1a03ec7aa5b8fd35",
+      "date": "2026-08-26T15:54:27.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/20#pullrequestreview-5032477893",
+      "status": "仍存在",
+      "evidence": [
+        "core/admission_gates.py:380",
+        "core/admission_gates.py:397",
+        "core/admission_gates.py:446"
+      ],
+      "reason": "监控维度 ok=false 仍只追加 generated_alerts，不追加 issues；只要告警送达已验证，就会 passed=true 并被准入检查采用。",
+      "verification": "2026-09-20 内存复现：data_quality.ok=false，其他维度健康，evaluate_monitoring 返回 passed=true。详见 mid_verification.json MAIL-20-1。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03ec7aa5b8fd35"
+    },
+    {
+      "id": "MAIL-20-2",
+      "pr": 20,
+      "priority": "P1",
+      "title": "Compare unexpected fields in actual reconciliation records",
+      "description": "When an actual lifecycle record contains an additional business field absent from the expected record, such as an exchange-reported fill quantity or status introduced by schema drift, this expected-only iteration never examines it. The layer can therefore report 100% reconciliation and satisfy production admission despite the records not being identical; compare the union of fields while continuing to exclude only the explicitly ignored metadata fields.",
+      "message_id": "1a03ec7aa5b8fd35",
+      "date": "2026-08-26T15:54:27.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/20#pullrequestreview-5032477893",
+      "status": "仍存在",
+      "evidence": [
+        "core/admission_gates.py:138",
+        "core/admission_gates.py:154"
+      ],
+      "reason": "逐字段对账仍只遍历 expected_record.items()，实际记录额外业务字段未纳入比较。",
+      "verification": "2026-09-20 内存复现：六层 actual 均多出 unexpected_business_status=bad，对账仍 coverage=1、passed=true。详见 mid_verification.json MAIL-20-2。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03ec7aa5b8fd35"
+    },
+    {
+      "id": "MAIL-20-3",
+      "pr": 20,
+      "priority": "P1",
+      "title": "Require continuous evidence across the paper-run interval",
+      "description": "When the bundle contains only two observations 55 days apart with two different regimes, this date-span calculation reports 56 elapsed days and T-6.2 passes even though no evidence exists for the intervening weeks. Because this gate feeds real-money admission, require sufficient daily coverage or explicitly detect gaps rather than treating the endpoints as proof of a continuous eight-week paper run.",
+      "message_id": "1a03ec7aa5b8fd35",
+      "date": "2026-08-26T15:54:27.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/20#pullrequestreview-5032477893",
+      "status": "仍存在",
+      "evidence": [
+        "core/admission_gates.py:248",
+        "core/admission_gates.py:263"
+      ],
+      "reason": "paper 时长仍仅由最早/最晚日期差得出，没有逐日覆盖或中间缺口校验。",
+      "verification": "2026-09-20 内存复现：2026-01-01 与 2026-02-25 两条、两个regime，56天paper gate passed=true。详见 mid_verification.json MAIL-20-3。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03ec7aa5b8fd35"
+    },
+    {
+      "id": "MAIL-21-1",
+      "pr": 21,
+      "priority": "P1",
+      "title": "Reject Yahoo fallback data from the Binance cache",
+      "description": "When Binance has no data or all retries fail, `core/data_fetcher.py::fetch_ccxt` automatically calls `_fallback_to_yahoo_crypto`, so this call can silently write Yahoo data into `data/binance/<timeframe>` while the manifest still identifies it as Binance. Yahoo's fallback is also daily regardless of the requested CCXT timeframe, meaning an outage during a `1h` download can produce a cache labeled as Binance hourly data but containing Yahoo daily bars, invalidating subsequent matrix results; require the requested exchange here or verify the returned source/timeframe before caching it.",
+      "message_id": "1a049087b39acea3",
+      "date": "2026-08-28T15:41:27.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/21#pullrequestreview-5052647523",
+      "status": "仍存在",
+      "evidence": [
+        "scripts/fetch_binance_data.py:115",
+        "core/data_fetcher.py:239",
+        "core/data_fetcher.py:251"
+      ],
+      "reason": "通用下载路径仍可回退Yahoo且缓存脚本未验证实际来源/周期；新研究专用采集器不关闭此旧路径。",
+      "verification": "静态核对",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a049087b39acea3"
+    },
+    {
+      "id": "MAIL-21-2",
+      "pr": 21,
+      "priority": "P1",
+      "title": "Split intraday chunks below the fetcher's safety cap",
+      "description": "For `15m` and `5m` downloads spanning most of a year, each annual chunk contains roughly 35,000 or 105,000 bars, but `DataFetcher._fetch_ccxt_once` stops after 10,000 candles. The loop therefore saves only the beginning of every year and then advances directly to the next year, leaving large silent gaps despite this script explicitly advertising multi-year `5m` support; chunk by the timeframe-derived duration rather than by calendar year.",
+      "message_id": "1a049087b39acea3",
+      "date": "2026-08-28T15:41:27.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/21#pullrequestreview-5052647523",
+      "status": "仍存在",
+      "evidence": [
+        "scripts/fetch_binance_data.py:92",
+        "scripts/fetch_binance_data.py:113",
+        "core/data_fetcher.py:324"
+      ],
+      "reason": "依旧按自然年分块；15m/5m全年超过单次10000根上限。",
+      "verification": "静态核对",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a049087b39acea3"
+    },
+    {
+      "id": "MAIL-21-3",
+      "pr": 21,
+      "priority": "P1",
+      "title": "Stop the matrix when a cache refresh fails",
+      "description": "When the fetch subprocess returns nonzero, this code discards that status and proceeds to run every backtest. If an older cache exists for a failed symbol, `main.py --source local` still succeeds using that stale, truncated history, while the matrix records the requested `window_end` rather than the cache's effective end; a transient download failure can therefore produce apparently successful but mislabeled experiment results. Propagate the fetch failure or validate every cache's coverage before starting the matrix.",
+      "message_id": "1a049087b39acea3",
+      "date": "2026-08-28T15:41:27.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/21#pullrequestreview-5052647523",
+      "status": "仍存在",
+      "evidence": [
+        "scripts/run_backtest_matrix.py:96",
+        "scripts/run_backtest_matrix.py:177"
+      ],
+      "reason": "下载子进程check=False且不检查returncode，失败后仍进入回测。",
+      "verification": "本次模拟returncode=1确认未传播异常",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a049087b39acea3"
+    },
+    {
+      "id": "MAIL-21-4",
+      "pr": 21,
+      "priority": "P2",
+      "title": "Parse non-finite metrics emitted by reports",
+      "description": "When a run has no losing trades, the report formatter emits `Profit Factor ... : inf`, but this numeric pattern accepts only digits, dots, and an optional minus sign. The successful run then omits `profit_factor` from `summary.csv` and renders it as `nan` in `summary.md`; the same applies to any `nan` metric. Accept the report formatter's non-finite values so the matrix does not silently replace valid report output.",
+      "message_id": "1a049087b39acea3",
+      "date": "2026-08-28T15:41:27.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/21#pullrequestreview-5052647523",
+      "status": "仍存在",
+      "evidence": [
+        "scripts/run_backtest_matrix.py:112"
+      ],
+      "reason": "数值表达式仍不支持inf/nan，会漏掉报告指标。",
+      "verification": "本次离线构造报告，解析结果为空字典",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a049087b39acea3"
+    },
+    {
+      "id": "MAIL-22-1",
+      "pr": 22,
+      "priority": "P1",
+      "title": "Remove the pre-listing SUI price series",
+      "description": "When the default backtest matrix includes `SUI/USDT`, this file splices the unrelated pre-2023 SUI market into the current Binance listing: the series jumps from 0.004487 on 2022-12-30 to an opening price of 0.1 and closing price of 1.4016 on 2023-05-03. A position held across the gap can therefore receive an artificial 30–300x revaluation, while indicators otherwise train on a different asset's history, corrupting SUI and portfolio-level experiment results. Start this dataset at the current listing or represent the earlier market under a separate identity.",
+      "message_id": "1a0533f294b15c46",
+      "date": "2026-08-30T15:17:23.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/22#pullrequestreview-5061172508",
+      "status": "已修复",
+      "evidence": [
+        "data/binance/1d/SUI_USDT.csv:2",
+        "config/universe_binance_spot_1d.csv:26"
+      ],
+      "reason": "当前SUI数据从2023-05-03开始，PIT universe同步上市日；不等于所有其他缓存来源均通过审计。",
+      "verification": "本次读取CSV首行与universe记录",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a0533a93285643a"
+    },
+    {
+      "id": "MAIL-23-1",
+      "pr": 23,
+      "priority": "P2",
+      "title": "Retain a decoding shim for archived ledger events",
+      "description": "When reconciliation opens a ledger database created before this change, stored `CashEvent` and `MarkPriceEvent` payloads contain qualified names such as `core.ledger:CashEvent`; `EventCodec.decode` imports that module to reconstruct each dataclass. Because the move removes `core.ledger` entirely, `AuthoritativeLedger` fails during its initial rebuild with `ModuleNotFoundError`, making existing audit ledgers unreadable; retain a compatibility module or add explicit legacy-name resolution.",
+      "message_id": "1a05363c9151b8ab",
+      "date": "2026-08-30T15:57:23.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/23#pullrequestreview-5061253521",
+      "status": "仍存在",
+      "evidence": [
+        "core/events/codec.py:27",
+        "core/events/codec.py:38"
+      ],
+      "reason": "注册表未接纳core.ledger:CashEvent/MarkPriceEvent，老审计库类型无法解码。",
+      "verification": "本次调用legacy解析复现ValueError",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05360bc455bee6"
+    },
+    {
+      "id": "MAIL-23-2",
+      "pr": 23,
+      "priority": "P1",
+      "title": "Preserve legacy wire names for moved event classes",
+      "description": "When upgrading with a populated SQLite event store, live fill and order retries reuse their idempotency keys (`core/live_broker.py` publishes both this way), but these moved dataclasses now serialize as `core.event_types:FillEvent`/`OrderEvent` instead of `core.events:*`. The resulting event ID is unchanged while `SQLiteEventStore` sees a different document and raises an `Idempotency conflict`, potentially halting processing after a restart; preserve the legacy qualified names on the wire or normalize these aliases during comparison.",
+      "message_id": "1a05363c9151b8ab",
+      "date": "2026-08-30T15:57:23.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/23#pullrequestreview-5061253521",
+      "status": "仍存在",
+      "evidence": [
+        "core/events/codec.py:22",
+        "core/events/store.py:198"
+      ],
+      "reason": "新wire名core.events.types:*与旧core.events:*文档仍不同；幂等比较只忽略observed_at，不归一化类型别名。",
+      "verification": "本次同义新旧事件文档比较为false",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05360bc455bee6"
+    },
+    {
+      "id": "MAIL-23-3",
+      "pr": 23,
+      "priority": "P2",
+      "title": "Update operational reconciliation commands after the move",
+      "description": "The checked operational runbooks `docs/r6_operations.md:14` and `docs/r7_sandbox_runbook.md:98` still schedule `python -m core.reconciliation_job`, but this commit deletes that module and only provides `research.audit.reconciliation_job`, so both documented EOD commands now exit immediately with “No module named core.reconciliation_job.” Update those commands or retain a forwarding module.",
+      "message_id": "1a05363c9151b8ab",
+      "date": "2026-08-30T15:57:23.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/23#pullrequestreview-5061253521",
+      "status": "仍存在",
+      "evidence": [
+        "docs/r6_operations.md:14",
+        "docs/r7_sandbox_runbook.md:98",
+        "research/audit/reconciliation_job.py:1"
+      ],
+      "reason": "两本运行手册仍引用已删除core.reconciliation_job；实际模块已迁往research.audit。",
+      "verification": "静态核对",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05360bc455bee6"
+    },
+    {
+      "id": "MAIL-25-1",
+      "pr": 25,
+      "priority": "P2",
+      "title": "Preserve the broker logger name after splitting",
+      "description": "When a deployment or test attaches a handler/filter specifically to the existing `core.broker` logger, order rejection and cancellation messages now go to the sibling logger `core.broker_matching` instead, and fill messages similarly go to `core.broker_fill_service` at line 22; neither logger is a descendant of `core.broker`, so those records no longer reach its handlers. Use `get_logger(\"core.broker\")` in both extracted modules, as the live-broker mixins already do, to preserve the pre-split logging contract.",
+      "message_id": "1a056b502947e8c8",
+      "date": "2026-08-31T07:24:58.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/25#pullrequestreview-5064031605",
+      "status": "已修复",
+      "evidence": [
+        "core/broker/matching.py:26",
+        "core/broker/fill_service.py:22"
+      ],
+      "reason": "包化后logger为core.broker.matching/fill_service，均属于core.broker子层级，恢复父logger handler传播。",
+      "verification": "本次读取实际logger名称确认",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a056b03f46edc22"
+    },
+    {
+      "id": "MAIL-26-1",
+      "pr": 26,
+      "priority": "P1",
+      "title": "Preserve restored daily breakers in risk decisions",
+      "description": "On a same-day live-process restart, `LiveTradingEngine._reset_daily_risk_if_needed` restores only `circuit_breaker_triggered = True`, leaving the newly introduced `daily_loss_triggered` false. If equity has recovered above the daily threshold, this decision therefore allows new entries and evaluates false, causing `TickOrchestrator` to clear the persisted halt and resume trading during a day that is explicitly meant to remain halted after restart. Honor the restored compatibility flag here or restore the dedicated daily flag alongside it.",
+      "message_id": "1a05735fd34d03a2",
+      "date": "2026-08-31T09:45:50.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/26#pullrequestreview-5065127391",
+      "status": "已修复",
+      "evidence": [
+        "live_trading/engine.py:300",
+        "live_trading/engine.py:320",
+        "core/risk/circuit_breaker.py:328"
+      ],
+      "reason": "同日恢复同步设置daily_loss_triggered；断点与交易日原子性另见MAIL-33-1。",
+      "verification": "静态核对",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a057317a5d64997"
+    },
+    {
+      "id": "MAIL-26-2",
+      "pr": 26,
+      "priority": "P1",
+      "title": "Finish liquidating every position before terminating",
+      "description": "With the default union alignment, `event.bars` can omit an open symbol on the bar where the breaker reaches `liquidate` or `locked`; `LiquidationMixin.force_liquidate` skips any position without a supplied bar. The new lifecycle logic nevertheless breaks immediately afterward and appends a constant cash tail, leaving that lot open while reporting the portfolio as terminated and flat. Termination must wait until all positions are closed, or liquidation must obtain a valid mark for every open symbol.",
+      "message_id": "1a05735fd34d03a2",
+      "date": "2026-08-31T09:45:50.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/26#pullrequestreview-5065127391",
+      "status": "已修复",
+      "evidence": [
+        "backtest/engine.py:581",
+        "backtest/engine.py:584",
+        "tests/test_breaker_lifecycle.py:182"
+      ],
+      "reason": "终止前检查是否仍有仓位；未平时保留risk-only执行并记录unresolved。HEAD已有。",
+      "verification": "本次breaker lifecycle既有测试通过；缺bar专项未另加测试",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a057317a5d64997"
+    },
+    {
+      "id": "MAIL-27-1",
+      "pr": 27,
+      "priority": "P1",
+      "title": "Ignore pre-probation losses when evaluating probation",
+      "description": "When cooldown expires, the method transitions to `PROBATION` and returns, but the next health check still evaluates the global consecutive-loss streak that originally caused the cooldown. If no nonnegative cohort is ingested between those two checks—which is typical when there is no setup exactly at expiry—the unchanged historical streak immediately calls `_fail_probation`, sending the strategy back to cooldown and eventually `MANUAL_LOCK` without allowing it to collect the required probation cohorts. Scope this check to cohorts closed since `probation_started_at`.",
+      "message_id": "1a05b3824962ccff",
+      "date": "2026-09-01T04:26:40.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/27#pullrequestreview-5074006738",
+      "status": "已修复",
+      "evidence": [
+        "core/strategy_health.py:460",
+        "core/strategy_health.py:618",
+        "tests/test_sr1_strategy_health.py:172"
+      ],
+      "reason": "试运行判定只取新cohort，样本数足够后才评估；与通过后清空亏损基线缺口MAIL-32-1分别跟踪。",
+      "verification": "本次相关逻辑测试通过；同文件1项SQLite临时目录权限受阻",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05b34da3e57df6"
+    },
+    {
+      "id": "MAIL-27-2",
+      "pr": 27,
+      "priority": "P1",
+      "title": "Fail closed when protective-order submission is rejected",
+      "description": "`SafeLiveBroker.submit_order()` reports ordinary venue/metadata failures as a rejected or unknown `OrderSubmissionResult` rather than raising, but this code discards that result and treats the protective stop as successfully placed. For example, if a spot venue rejects the `stop` order type, the position remains unprotected without the promised flatten or `position_unprotected` alert; a terminal rejection also disappears from `list_non_terminal()` on the next reconciliation. Inspect the returned status and flatten/alert unless protection is confirmed.",
+      "message_id": "1a05b3824962ccff",
+      "date": "2026-09-01T04:26:40.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/27#pullrequestreview-5074006738",
+      "status": "已修复",
+      "evidence": [
+        "live_trading/tick_orchestrator.py:667",
+        "live_trading/tick_orchestrator.py:676"
+      ],
+      "reason": "已检查submit结果，未确认保护时告警且尝试风险平仓；HEAD已含accepted检查。",
+      "verification": "静态核对；真实交易所拒绝场景未重跑",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05b34da3e57df6"
+    },
+    {
+      "id": "MAIL-27-3",
+      "pr": 27,
+      "priority": "P2",
+      "title": "Validate the account mode selected by the live CLI",
+      "description": "This validates only `config.account.mode`, even though the broker immediately below is created with `args.market_type`. With the committed defaults, `--market-type spot` or `--market-type futures` still validates the configured `spot_margin` fee contract and proceeds, so the new entry-point check does not detect the exact account/cost mismatch it is intended to reject. Pass the CLI-selected mode after mapping margin and derivative aliases to the contract vocabulary.",
+      "message_id": "1a05b3824962ccff",
+      "date": "2026-09-01T04:26:40.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/27#pullrequestreview-5074006738",
+      "status": "已修复",
+      "evidence": [
+        "run_live.py:109",
+        "tests/test_sr3_portfolio_risk.py:480"
+      ],
+      "reason": "运行入口将CLI market_type送入成本/账户模式验证，别名映射已存在。",
+      "verification": "静态核对及已有测试",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05b34da3e57df6"
+    },
+    {
+      "id": "MAIL-28-1",
+      "pr": 28,
+      "priority": "P1",
+      "title": "Exclude resident stops from the opening-order pass",
+      "description": "When a resident stop from the prior bar and a queued strategy exit coexist on a bar that breaches the stop, this unfiltered call processes the already-active stop before the newly appended market exit. The position therefore closes at the stop rather than at the opening exit price promised by the documented ordering, and `ResidentStopSimulator.step()` subsequently sees no fill, so `triggered_stops` and the stop audit are also wrong. The initial pass needs to exclude protective stops so they are matched only by the simulator.",
+      "message_id": "1a05b96695069336",
+      "date": "2026-09-01T06:09:39.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/28#pullrequestreview-5074542286",
+      "status": "已修复",
+      "evidence": [
+        "backtest/execution_adapter.py:13",
+        "backtest/execution_adapter.py:37",
+        "tests/test_backtest_stop_pass_and_liquidity.py:100"
+      ],
+      "reason": "开盘撮合明确排除保护止损，止损由独立pass处理。",
+      "verification": "本次该测试文件7项通过",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05b938ac2335df"
+    },
+    {
+      "id": "MAIL-28-2",
+      "pr": 28,
+      "priority": "P1",
+      "title": "Carry the consumed volume budget into the stop pass",
+      "description": "On an entry bar where the opening fill consumes the symbol's full participation allowance and the newly armed stop is breached, this second `process_orders` invocation constructs a fresh volume budget and can fill the stop using another full allowance. Total simulated volume can consequently reach twice `max_participation_rate`, producing fills and impact costs that the shared-liquidity model should reject or partially fill. The two matching phases must share the bar's remaining budget rather than resetting it here.",
+      "message_id": "1a05b96695069336",
+      "date": "2026-09-01T06:09:39.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/28#pullrequestreview-5074542286",
+      "status": "已修复",
+      "evidence": [
+        "core/broker/matching.py:421",
+        "tests/test_backtest_stop_pass_and_liquidity.py:179"
+      ],
+      "reason": "按bar时间戳复用成交量余额，不为第二次撮合重建额度。",
+      "verification": "本次相关测试通过",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05b938ac2335df"
+    },
+    {
+      "id": "MAIL-28-3",
+      "pr": 28,
+      "priority": "P1",
+      "title": "Ignore closed historical entries during live risk rechecks",
+      "description": "Because `list_with_fills()` returns every filled order ever retained, this loop also evaluates closed historical entries that lack the newly introduced checkpoint. Such records are initially skipped while no strategy stop exists, but after a later unrelated position opens in the same symbol, they are evaluated using that position's current stop and their old fill quantity; any computed resize is then clamped against and submitted for the current holding. A deployment with pre-existing order history can therefore reduce or flatten the wrong live position unless records are tied to still-open lots or historical fills are durably baselined.",
+      "message_id": "1a05b96695069336",
+      "date": "2026-09-01T06:09:39.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/28#pullrequestreview-5074542286",
+      "status": "已修复",
+      "evidence": [
+        "live_trading/tick_orchestrator.py:483",
+        "tests/test_entry_risk_contract.py:241"
+      ],
+      "reason": "按client_order_id匹配仍未平仓lot；已关闭历史开仓不会减后来仓位。HEAD已含此修复。",
+      "verification": "静态核对及已有针对性测试，本次未执行该测试",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05b938ac2335df"
+    },
+    {
+      "id": "MAIL-29-1",
+      "pr": 29,
+      "priority": "P1",
+      "title": "Update the checksum to match the modified lockfile",
+      "description": "The committed digest does not match `requirements.lock.txt`: the lockfile hashes to `e5ea5c4c94d3766094fd72adb7162d61ea8ab8ae65497095738f858a0b474d9e`, so `python scripts/verify_lock.py` exits with a checksum mismatch. Because `.github/workflows/tests.yml` runs that verifier before the test suite, every CI run for this commit fails regardless of the code or environment.",
+      "message_id": "1a05d1bb20c4c13f",
+      "date": "2026-09-01T13:14:51.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/29#pullrequestreview-5078459446",
+      "status": "已修复",
+      "evidence": [
+        "requirements.lock.sha256:1",
+        "scripts/verify_lock.py:8"
+      ],
+      "reason": "当前锁文件校验已通过；历史修复提交44f9178。",
+      "verification": "本次实际执行verify_lock通过",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05d183fbccf8d3"
+    },
+    {
+      "id": "MAIL-29-2",
+      "pr": 29,
+      "priority": "P2",
+      "title": "Restore the promised Metrics compatibility export",
+      "description": "The previous facade explicitly exported the `Metrics` static-method bundle for API compatibility, but the replacement package omits both that class and its `__all__` entry even though its module documentation promises that every former name remains re-exported. Any external consumer using `from core.metrics import Metrics` now receives an `ImportError`; retain the compatibility class or provide an equivalent export during this refactor.",
+      "message_id": "1a05d1bb20c4c13f",
+      "date": "2026-09-01T13:14:51.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/29#pullrequestreview-5078459446",
+      "status": "仍存在",
+      "evidence": [
+        "core/metrics/__init__.py:4",
+        "core/metrics/__init__.py:48"
+      ],
+      "reason": "仍承诺旧接口兼容，但Metrics类未导出；直接导入失败。",
+      "verification": "本次离线导入复现ImportError",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05d183fbccf8d3"
+    },
+    {
+      "id": "MAIL-31-1",
+      "pr": 31,
+      "priority": "P1",
+      "title": "Warm up test runs for each candidate's full lookback",
+      "description": "With the CLI defaults, test windows contain only 60 bars and this prefix contributes 30 more, while the grid includes `entry_window=100`; both trend strategies reject every entry while `i < entry_window`. Consequently, those candidates can be selected using the much longer train/validation run but are structurally unable to trade in any test run, producing falsely flat out-of-sample results and biased candidate/FDR comparisons. Supply at least each candidate's maximum indicator lookback before the test start rather than always using the global 30-bar prefix.",
+      "message_id": "1a061280e2754a60",
+      "date": "2026-09-02T08:06:49.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/31#pullrequestreview-5087145892",
+      "status": "仍存在",
+      "evidence": [
+        "analysis/optimize.py:33",
+        "analysis/walk_forward.py:86",
+        "analysis/walk_forward.py:170",
+        "analysis/walk_forward.py:281",
+        "strategies/trend_breakout.py:483",
+        "tests/test_walk_forward.py:188"
+      ],
+      "reason": "候选含100-bar entry window，但测试运行前缀仍固定全局 warmup_period=30，没有按 candidate 最大指标lookback扩大。60-bar测试加30-bar前缀总90不足100；现有warmup测试只保证固定前缀可用，不覆盖候选lookback。",
+      "verification": "静态校验候选grid、切片与策略入口条件；未运行完整优化矩阵。",
+      "commit_state": "缺口已在HEAD；trend_breakout.py本地调整保留该warmup条件。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a06121ba26be8a2"
+    },
+    {
+      "id": "MAIL-31-2",
+      "pr": 31,
+      "priority": "P1",
+      "title": "Restart the TTL clock after partial-fill progress stops",
+      "description": "For a partially filled opening order, `filled_qty` remains positive forever, so every later bar takes this branch and resets `idle_bars` even when no new quantity fills. A limit entry that fills once and then moves away from its limit therefore never expires, retaining its remaining reservation and active-order lock indefinitely despite the configured TTL. Track whether `filled_qty` increased on the current bar, then resume counting idle bars after the last actual fill.",
+      "message_id": "1a061280e2754a60",
+      "date": "2026-09-02T08:06:49.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/31#pullrequestreview-5087145892",
+      "status": "已修复",
+      "evidence": [
+        "core/broker/matching.py:398",
+        "core/broker/matching.py:406",
+        "core/broker/matching.py:412",
+        "tests/test_order_ttl_and_funnel.py:126",
+        "tests/test_order_ttl_and_funnel.py:142"
+      ],
+      "reason": "改为按总 matchable-bar age 硬TTL，部分成交不再重置寿命；虽不是邮件建议的 idle-progress 实现，但消除了无限保留预留/锁的原始问题，且明确记录了语义。",
+      "verification": "本次离线 pytest TestPartialFillsDoNotResetTheClock 两个测试通过，覆盖部分成交仍到期与同bar多pass只计龄一次。",
+      "commit_state": "修复和测试均已提交，无本地-only 修复。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a06121ba26be8a2"
+    },
+    {
+      "id": "MAIL-31-3",
+      "pr": 31,
+      "priority": "P2",
+      "title": "Restrict funnel groups to entry signal chains",
+      "description": "The production event log also contains exit order intents, orders, and fills, but exits have no `risk_decision`; creating a group for every correlation ID therefore mixes exit-only chains into an entry funnel. This can make `order_created`, `order_accepted`, or `filled` exceed the preceding stage and yields percentages above 100%, contradicting the report's claim that the funnel only decreases and obscuring actual entry conversion. Build the reported funnel from correlations associated with an opening risk evaluation, or report exits separately.",
+      "message_id": "1a061280e2754a60",
+      "date": "2026-09-02T08:06:49.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/31#pullrequestreview-5087145892",
+      "status": "仍存在",
+      "evidence": [
+        "core/metrics/attribution.py:68",
+        "core/metrics/attribution.py:83",
+        "core/metrics/attribution.py:95",
+        "tests/test_order_ttl_and_funnel.py:285"
+      ],
+      "reason": "仍为任意correlation创建group并计退出链；新增说明承认order_created可超过risk_evaluated，但没有仅筛入场或拆开退出。测试甚至认可退出导致后段更大，未实现邮件要求。",
+      "verification": "离线实际 calculate_signal_funnel：1条开仓风险评估+1条退出order_intent，order_created=2、risk_approved=1，转化率200%。",
+      "commit_state": "当前实现与接受该行为的测试均已提交。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a06121ba26be8a2"
+    },
+    {
+      "id": "MAIL-31-4",
+      "pr": 31,
+      "priority": "P2",
+      "title": "Reject overlapping test windows before stitching returns",
+      "description": "When callers set `WalkForwardConfig.step` below `test_size`, the accepted split geometry produces overlapping test windows, and this concatenation includes the same calendar returns multiple times. The procedure's sample size, bootstrap evidence, and compounded `total_return` are then inflated even though the module documents the stitched windows as non-overlapping. Either enforce a non-overlapping step for this procedure result or aggregate overlaps without double-counting timestamps.",
+      "message_id": "1a061280e2754a60",
+      "date": "2026-09-02T08:06:49.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/31#pullrequestreview-5087145892",
+      "status": "仍存在",
+      "evidence": [
+        "analysis/walk_forward.py:94",
+        "analysis/walk_forward.py:313",
+        "analysis/research_validation.py:134",
+        "tests/test_walk_forward.py:177"
+      ],
+      "reason": "WalkForwardConfig未拒绝step<test_size；split仅要求step>=1，procedure仍concat全量收益，重叠时间无去重。测试仅覆盖默认非重叠几何。",
+      "verification": "离线实际配置/分窗：test_size=10、step=5被接受，首两测试窗[15,25)、[20,30)重叠。",
+      "commit_state": "缺口位于已提交实现，无本地修复。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a06121ba26be8a2"
+    },
+    {
+      "id": "MAIL-32-1",
+      "pr": 32,
+      "priority": "P1",
+      "title": "Reset the loss streak after probation passes",
+      "description": "When `probation_required_cohorts` exceeds `consecutive_negative_cohorts`—both are independently registered candidate parameters—a probation sample can have positive total R but end with enough losses to trigger the streak gate (for example, `+10R, -1R, -1R` with required=3 and consecutive=2). This branch marks the strategy ACTIVE and resets failed cycles, but leaves those probation cohorts outside the baseline; the next `check_health()` therefore immediately sends it back to COOLDOWN using the same sample that just passed, bypassing the intended probation verdict and corrupting those experiment results. Snapshot the passing cohorts into the streak baseline when transitioning to ACTIVE.",
+      "message_id": "1a0625a5fa3ebcd2",
+      "date": "2026-09-02T13:41:24.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/32#pullrequestreview-5090380872",
+      "status": "仍存在",
+      "evidence": [
+        "core/strategy_health.py:487",
+        "core/strategy_health.py:491",
+        "core/strategy_health.py:560",
+        "core/strategy_health.py:602",
+        "tests/test_sr1_strategy_health.py:152",
+        "tests/test_sr1_strategy_health.py:172"
+      ],
+      "reason": "probation 通过转 ACTIVE 后未将通过样本加入 streak baseline；ACTIVE 分支只清空时间字段。已有通过测试采用连续盈利样本，遗漏正总R但尾部连续亏损场景。",
+      "verification": "已用实际 StrategyHealthMachine 离线复现：阈值2、probation样本3个(+10R,-1R,-1R)，通过评估为ACTIVE，随后无新样本再次evaluate即COOLDOWN。",
+      "commit_state": "缺口已在HEAD；当前未提交 cohort迁移改动未修复该通过分支。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a06256a5f1c91e2"
+    },
+    {
+      "id": "MAIL-32-2",
+      "pr": 32,
+      "priority": "P1",
+      "title": "Normalize symbols before applying the generated universe",
+      "description": "The generated universe unconditionally rewrites manifest symbols to hyphen form, but `main.py` retains the exact user spelling as each `data_map` key and `PointInTimeUniverse.apply()` performs an exact lookup. Consequently, using this universe with the repository's 30-symbol defaults (`BTC/USDT`, etc., as used by the fetch and matrix scripts) removes every loaded series and raises `Point-in-time universe removed all requested data`; only hyphen-spelled invocations work. Normalize both sides during lookup or generate symbols in the same convention as the intended caller.",
+      "message_id": "1a0625a5fa3ebcd2",
+      "date": "2026-09-02T13:41:24.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/32#pullrequestreview-5090380872",
+      "status": "仍存在",
+      "evidence": [
+        "scripts/repair_binance_point_in_time_data.py:67",
+        "core/universe.py:82",
+        "main.py:435",
+        "tests/test_phase2_reproducibility_audit.py:172"
+      ],
+      "reason": "生成 universe 仍改为连字符符号；apply 仍按原字符串 exact lookup，CLI没有统一 key。现有 PIT 测试未覆盖 slash/hyphen 同一币对混用。",
+      "verification": "已离线复现：membership BTC-USDT，data_map BTC/USDT，apply 返回空映射。",
+      "commit_state": "缺口已提交；main.py 本地其它修改未解决。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a06256a5f1c91e2"
+    },
+    {
+      "id": "MAIL-33-1",
+      "pr": 33,
+      "priority": "P1",
+      "title": "Persist the breaker day atomically with its checkpoint",
+      "description": "If the live process stops after this `StateStore.set` commits but before `circuit_breaker_day` is written below, a same-day restart restores the new checkpoint and then treats it as belonging to a previous day in `_reset_daily_risk_if_needed`, clearing `daily_loss_triggered`. Because the daily breaker is intended to remain sticky even if equity subsequently rebounds, this crash window can allow new entries later that day; persist the checkpoint and its associated trading day in one transaction or include the day inside the checkpoint.",
+      "message_id": "1a075dd685d2850b",
+      "date": "2026-09-06T08:37:19.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/33#pullrequestreview-5124762654",
+      "status": "仍存在",
+      "evidence": [
+        "live_trading/tick_orchestrator.py:220",
+        "live_trading/tick_orchestrator.py:247",
+        "live_trading/engine.py:304",
+        "live_trading/engine.py:308",
+        "core/state_store_v2.py:43",
+        "tests/test_drawdown_recovery.py:94"
+      ],
+      "reason": "checkpoint 和 circuit_breaker_day 仍为独立 StateStore.set 事务；重启恢复仍根据独立 day 字段重置 daily breaker。checkpoint 内没有将交易日纳入原子记录。现有 restart 测试覆盖完成 checkpoint 后的重启，不覆盖两次写入间崩溃。",
+      "verification": "静态检查写入/恢复/事务边界；未做进程崩溃注入测试。",
+      "commit_state": "HEAD 与工作区均存在此边界；tick_orchestrator.py 有其它本地改动。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a075dd685d2850b"
+    },
+    {
+      "id": "MAIL-33-2",
+      "pr": 33,
+      "priority": "P2",
+      "title": "Clear RISK_HALTED when cooldown recovery succeeds",
+      "description": "On the first healthy tick at or after the cooldown deadline, `_assess_health` has already set `_operational_state` from the pre-recovery breaker state, and this call can then transition the breaker from `BLOCK_NEW` to `REDUCE`. Since only the truthy branch updates `_operational_state`, the engine proceeds to route newly permitted entries and exports the recovery transition while still reporting `RISK_HALTED` until the next tick; refresh the operational state immediately after a successful automatic recovery.",
+      "message_id": "1a075dd685d2850b",
+      "date": "2026-09-06T08:37:19.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/33#pullrequestreview-5124762654",
+      "status": "仍存在",
+      "evidence": [
+        "live_trading/tick_orchestrator.py:179",
+        "live_trading/tick_orchestrator.py:217",
+        "live_trading/tick_orchestrator.py:249",
+        "live_trading/engine.py:206",
+        "tests/test_drawdown_recovery.py:39"
+      ],
+      "reason": "健康状态先于 breaker 自动恢复计算；后续仅 breaker truthy 分支赋值 RISK_HALTED，没有恢复成功后同 tick刷新 HEALTHY 的分支。本地新增 risk_actions 仅写 DEGRADED，也未修复此状态显示问题。",
+      "verification": "静态检查全部 _operational_state 赋值；现有冷却恢复测试断言 risk action/entry permission，未断言 live 导出状态。未运行完整 live tick。",
+      "commit_state": "缺口 HEAD 与工作区均存在；本地 risk lifecycle 工作未处理此项。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a075dd685d2850b"
+    },
+    {
+      "id": "MAIL-34-1",
+      "pr": 34,
+      "priority": "P1",
+      "title": "Reject untracked files before accepting a commit",
+      "description": "When acceptance runs in a worktree containing an untracked `conftest.py`, Python module, or configuration file, this check still reports the tree as clean because `git diff` omits untracked files. Pytest can automatically load such a `conftest.py`, and application imports can resolve untracked modules, so the recorded results may not represent the commit stored in `base`; use a status check that includes untracked files while explicitly allowing only the acceptance output/tooling paths.",
+      "message_id": "1a07634b888d646b",
+      "date": "2026-09-06T10:12:40.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/34#pullrequestreview-5125020002",
+      "status": "仍存在",
+      "evidence": [
+        "scripts/main_acceptance.py:37",
+        "scripts/main_acceptance.py:38",
+        "scripts/main_acceptance.py:44",
+        "tests/test_main_acceptance_archive.py:25"
+      ],
+      "reason": "验收仍仅使用 git diff --name-only HEAD 判断干净树，未检查 untracked；后续直接运行 pytest，可能加载未跟踪 conftest/module。现有测试只覆盖交付ZIP，不覆盖源码净化。",
+      "verification": "静态确认 git diff 检查与未跟踪文件缺失检查；未运行会生成验收产物的完整 acceptance。",
+      "commit_state": "缺口位于已提交脚本，未见本地修复。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a07631c34ed8774"
+    },
+    {
+      "id": "MAIL-35-1",
+      "pr": 35,
+      "priority": "P1",
+      "title": "Require the complete 60-symbol universe",
+      "description": "If even one of the 30 added downloads fails, this condition still permits the run as long as one extra symbol succeeded, so the script advertised as a 30-vs-60 experiment can publish results for an arbitrary 31–59-symbol basket. Because transient API failures are collected rather than raised, reruns can silently compare different universes and invalidate the research conclusion; require all requested symbols or explicitly abort unless a fixed reduced universe was predeclared.",
+      "message_id": "1a076a89a3cace58",
+      "date": "2026-09-06T12:19:16.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/35#pullrequestreview-5125276758",
+      "status": "已修复",
+      "evidence": [
+        "scripts/run_expanded_universe_backtest.py:192",
+        "scripts/run_expanded_universe_backtest.py:193",
+        "tests/test_expanded_universe_download.py:42",
+        "tests/test_revalidation_data_protocol.py:33"
+      ],
+      "reason": "原下载/研究脚本已要求 len(expanded)==60，否则在运行比较前失败；新增 revalidation runner 也有缺币 fail-closed 测试。",
+      "verification": "静态确认严格60/60 gate；本次 test_predeclared_unique_sixty_symbols 通过。缺币 runner pytest 因临时目录权限无法完成，未声称运行通过。",
+      "commit_state": "严格 gate 与相关测试已提交，无本地-only 修复。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a076a5a3d38db27"
+    },
+    {
+      "id": "MAIL-35-2",
+      "pr": 35,
+      "priority": "P2",
+      "title": "Reject incomplete daily candles",
+      "description": "When `--end` is the current UTC date or a future date, Binance returns the currently open daily kline and this filter retains it based only on its opening timestamp. The backtest then treats partial OHLCV and volume as a completed daily bar, which can change indicators, fills, and results; validate the kline close time or require the requested end date to precede the active session.",
+      "message_id": "1a076a89a3cace58",
+      "date": "2026-09-06T12:19:16.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/35#pullrequestreview-5125276758",
+      "status": "仍存在",
+      "evidence": [
+        "scripts/run_expanded_universe_backtest.py:72",
+        "scripts/run_expanded_universe_backtest.py:78",
+        "tests/test_expanded_universe_download.py:28"
+      ],
+      "reason": "仍只保存 kline 前6列并按 opening timestamp 筛选，忽略 close time，也不限制 --end 必须在当前 UTC session 之前。现有下载测试只验证请求区间，不验证是否收盘。",
+      "verification": "已全 mock 离线调用实际 fetch_symbol，提供尚未收盘的2030年31根日线，函数接受31行并保留2030-01-31；网络与CSV写出均已 mock。",
+      "commit_state": "缺口位于已提交脚本。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a076a5a3d38db27"
+    },
+    {
+      "id": "MAIL-36-1",
+      "pr": 36,
+      "priority": "P1",
+      "title": "Retry BLOCK_NEW reductions for missing-bar positions",
+      "description": "With the `union` alignment used by the new experiment runner, a transition timestamp may omit bars for some currently held symbols. `force_liquidate` skips those positions, but this code still marks the entire action ID as applied, so the omitted holdings remain at full size when their data resumes and the `staged_derisk` arm no longer implements its configured once-per-BLOCK_NEW reduction. Track completion per held symbol or defer marking the action complete until every position has been processed.",
+      "message_id": "1a076f73d53b4aef",
+      "date": "2026-09-06T13:45:09.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/36#pullrequestreview-5125488681",
+      "status": "仍存在",
+      "evidence": [
+        "backtest/engine.py:488",
+        "backtest/engine.py:495",
+        "core/broker/liquidation.py:55",
+        "core/broker/liquidation.py:57",
+        "tests/test_breaker_lifecycle.py:38"
+      ],
+      "reason": "force_liquidate 遇无 bar 的持仓直接 continue，不创建残余退出订单；engine 随即将 action 记为已应用，后续非零剩余比例动作不会为该 symbol 重试。已有 block_new 测试验证可管理持仓，但未覆盖 union 缺 bar 后恢复。",
+      "verification": "静态追踪 engine→force_liquidate→后续 action 判定已确认缺口；未运行完整多 symbol 缺 bar 集成复现。",
+      "commit_state": "HEAD 已存在该缺口；backtest/engine.py 其它未提交修改未解决。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a076f2f7fc308cb"
+    },
+    {
+      "id": "MAIL-36-2",
+      "pr": 36,
+      "priority": "P2",
+      "title": "Include entry observations in empty backtest results",
+      "description": "This key is added only to the completed-run return mapping, while both no-valid-data exits return `empty_result` without it. Consequently, an audit-enabled caller following the new `run_arm` path and indexing `result[\"entry_observations\"]` raises `KeyError` instead of reconciling an empty audit whenever all supplied frames are empty or removed by normalization. Add the key with an empty list to `empty_result` to preserve the engine's stated stable-result contract.",
+      "message_id": "1a076f73d53b4aef",
+      "date": "2026-09-06T13:45:09.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/36#pullrequestreview-5125488681",
+      "status": "仍存在",
+      "evidence": [
+        "backtest/engine.py:265",
+        "backtest/engine.py:279",
+        "backtest/engine.py:831",
+        "scripts/run_expanded_universe_backtest.py:114"
+      ],
+      "reason": "empty_result 仍无 entry_observations，而 run_arm 审计路径直接索引该字段；正常结果才有该字段。未找到空数据结果包含该键的专项测试。",
+      "verification": "已离线调用 BacktestEngine().run({}, routing_log_enabled=False)，entry_observations in result 为 False。",
+      "commit_state": "缺口 HEAD 与当前工作区均存在。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a076f2f7fc308cb"
+    },
+    {
+      "id": "MAIL-37-1",
+      "pr": 37,
+      "priority": "P1",
+      "title": "Retry partial reductions until the target is reached",
+      "description": "When a `DrawdownReduce` or `block_new` reduction encounters insufficient bar volume, `force_liquidate` now preserves real liquidity and can leave the position above `remaining_fraction`. The action ID is nevertheless added to `applied_breaker_actions`, and the retry exception only applies to zero-fraction liquidations, so subsequent bars permanently skip the unfinished reduction. Keep retrying any risk action while current positions exceed its target.",
+      "message_id": "1a08452b051443e1",
+      "date": "2026-09-09T04:00:06.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/37#pullrequestreview-5149579832",
+      "status": "证据不足",
+      "evidence": [
+        "backtest/engine.py:489",
+        "backtest/engine.py:495",
+        "core/broker/liquidation.py:59",
+        "core/broker/matching.py:65",
+        "core/broker/matching.py:375",
+        "tests/test_revalidation_execution.py:193"
+      ],
+      "reason": "引擎确实仍提前记录 applied action，未按目标数量追踪完成；但真实 Broker 将未完成的减仓 GTC 单保留在 active_orders，普通后续撮合会继续成交。因此邮件所述“流动性不足后永久不再减仓”在当前常规路径未复现，不宜直接当作仍存在的已确认缺陷，也不能仅凭代码形状标成修复。所列 partial-risk 测试属于 live 路径，不能代替 backtest 集成覆盖。缺 bar 的明确缺口另列 MAIL-36-1。",
+      "verification": "已做离线真实 Broker 复现：原仓10，目标5，每 bar 容量1；首次降至9、保留剩余4的 GTC 单，后续4 bar自动降至5。未运行完整策略/保护单干扰场景。",
+      "commit_state": "GTC 残单保留与引擎 once-only 条件均已在 HEAD；未发现可指认的专门修复提交。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a08449bfeb8d915"
+    },
+    {
+      "id": "MAIL-37-2",
+      "pr": 37,
+      "priority": "P1",
+      "title": "Preserve the final bar's remaining volume budget",
+      "description": "In forced-liquidation mode, this copies the last real bar's full volume but assigns it `synthetic_time`. `Broker._bar_volume_budget` keys its shared budget by the bar timestamp, so this creates a fresh budget after ordinary orders and stops may already have consumed liquidity from that same historical bar. An end-window exit can therefore pass the liquidity check even when total fills exceed the configured participation limit; the synthetic pass must reuse only the real bar's remaining budget.",
+      "message_id": "1a08452b051443e1",
+      "date": "2026-09-09T04:00:06.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/37#pullrequestreview-5149579832",
+      "status": "仍存在",
+      "evidence": [
+        "backtest/engine.py:1090",
+        "backtest/engine.py:1091",
+        "core/broker/matching.py:435",
+        "core/broker/matching.py:439",
+        "tests/test_backtest_stop_pass_and_liquidity.py:179",
+        "tests/test_end_of_backtest.py:94"
+      ],
+      "reason": "期末强平仍复制最后完整成交量并改为新 synthetic timestamp，触发按 timestamp 重置预算。已有测试覆盖同 timestamp 多 pass 和期末费用，未覆盖这两条路径组合。",
+      "verification": "已做离线内存复现：真实 bar 剩余预算0，复制后 timestamp +1微秒，相同 bar 的可成交预算重置为1。",
+      "commit_state": "HEAD 已存在该缺口；backtest/engine.py 的其它本地修改未修复。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a08449bfeb8d915"
+    },
+    {
+      "id": "MAIL-37-3",
+      "pr": 37,
+      "priority": "P1",
+      "title": "Restore reservations from the persisted reference price",
+      "description": "A market opening order can now persist `reference_price` while leaving `price=None`, but `_restore_reservations` still derives its price only from `intent.price` or the order record's `price`. After a restart such an unresolved order is republished without a `RiskReservation`, causing `pending_open_notional()` to omit it and allowing portfolio-wide limits to admit overlapping risk in other symbols. Include `intent.reference_price` when rebuilding the reservation.",
+      "message_id": "1a08452b051443e1",
+      "date": "2026-09-09T04:00:06.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/37#pullrequestreview-5149579832",
+      "status": "已修复",
+      "evidence": [
+        "core/live_broker/__init__.py:170",
+        "tests/test_entry_risk_contract.py:194",
+        "tests/test_entry_risk_contract.py:202",
+        "tests/test_entry_risk_contract.py:207"
+      ],
+      "reason": "恢复预留时已优先使用持久化 intent.reference_price，回归测试也覆盖 reference_price 持久化及重建后的正 pending notional。",
+      "verification": "已独立离线内存调用实际 LiveBroker._restore_reservations：price=None、reference_price=100、qty=1，生成1个 reservation 事件，pending_notional=100。现有 pytest 用例因临时目录权限错误未完成，不能声称其通过。",
+      "commit_state": "修复代码与回归测试均已提交，相关文件没有工作区修改。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a08449bfeb8d915"
+    },
+    {
+      "id": "MAIL-38-1",
+      "pr": 38,
+      "priority": "P2",
+      "title": "Use the resolved broker slippage in the budget",
+      "description": "When a backtest supplies the supported `slippage` override (for example through `--slippage`), the broker executes with `self.slippage`, but this budget calculation continues using `execution.slippage_bps` from the global config. Consequently the default-enabled drawdown guard reserves the wrong transaction cost and can admit too much risk, reject otherwise valid entries, or trigger reductions at the wrong point. Populate the budget cost model from the bound broker's resolved values rather than the raw configuration.",
+      "message_id": "1a0b3c4a2fe99731",
+      "date": "2026-09-18T09:06:43.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/38#pullrequestreview-5246104970",
+      "status": "仍存在",
+      "evidence": [
+        "core/risk/drawdown_budget.py:64",
+        "core/risk/drawdown_budget.py:87",
+        "backtest/engine.py:141",
+        "backtest/engine.py:198",
+        "composition/factory.py:144",
+        "tests/test_backtest_engine.py:55"
+      ],
+      "reason": "bind() 没有从绑定 Broker 同步已解析滑点，成本仍读取原始 execution.slippage_bps。现有测试只验证 engine 的默认滑点，没有覆盖 budget 与覆盖值一致性。",
+      "verification": "已做离线内存复现：broker.slippage=0.05、预算配置=1bp、数量1价格100时预算成本仅0.01（应按已解析滑点计5，不含其它成本）。",
+      "commit_state": "HEAD 已存在该缺口；相关配置/引擎文件有其它未提交修改，未解决此项。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a0b3b74235a6a3e"
+    },
+    {
+      "id": "MAIL-38-2",
+      "pr": 38,
+      "priority": "P2",
+      "title": "Preserve price-less market-order support in the risk guard",
+      "description": "When the drawdown budget is bound—which it is by default in the engine—a caller using the existing supported form `submit_order(..., order_type=\"market\", price=None)` produces an intent without a reference price, so this branch returns `missing_sizing_reference` and the broker rejects the order before it can fill at the next bar's open. This breaks the execution-port contract for direct/custom strategy market submissions; use the guard's current mark for the symbol when an opening market intent has no explicit reference price.",
+      "message_id": "1a0b3c4a2fe99731",
+      "date": "2026-09-18T09:06:43.000Z",
+      "url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/38#pullrequestreview-5246104970",
+      "status": "仍存在",
+      "evidence": [
+        "core/risk/drawdown_budget.py:178",
+        "core/broker/matching.py:58",
+        "core/broker/matching.py:74"
+      ],
+      "reason": "check_intent 只使用 intent.reference_price/price，未回退当前 symbol mark；Broker 仍声明市场单 price 可以为 None。未找到针对有 mark 的无价市场单预算验收测试。",
+      "verification": "已做离线内存复现：guard current mark=100，market intent 未带 price/reference_price，返回 missing_sizing_reference。",
+      "commit_state": "相关实现已提交；缺口未修复。",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a0b3b74235a6a3e"
+    }
+  ]
+}

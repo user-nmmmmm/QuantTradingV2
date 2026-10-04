@@ -1,0 +1,168 @@
+{
+  "schema": "return-followup-acceptance/v1",
+  "status": "completed_retrospective_research",
+  "runs": 130,
+  "spot_runs": 74,
+  "main_engine_runs": 56,
+  "all_accounting_passed": true,
+  "prior_control_runs_unchanged": 54,
+  "prior_control_metric_checks": 396,
+  "source_and_input_identity_unchanged_during_runs": true,
+  "protected_files": {
+    "config/params.yaml": {
+      "expected": "49665830ead75ec74f6ef736f3f8b1ee7fdb3122ba9f334cda9d944b26decb4e",
+      "actual": "49665830ead75ec74f6ef736f3f8b1ee7fdb3122ba9f334cda9d944b26decb4e",
+      "unchanged": true
+    },
+    "reports/paper_strategy_forward_20261004/prospective_protocol.json": {
+      "expected": "893925413374c1b65f9e80729c5621b442d3442f686d0880c2cce0e7ae7f67f4",
+      "actual": "893925413374c1b65f9e80729c5621b442d3442f686d0880c2cce0e7ae7f67f4",
+      "unchanged": true
+    },
+    "reports/strategy_review_20260919/prospective_protocol.json": {
+      "expected": "7914fce0ade29362e9489788003e9b35c8d088197ee475b456c164b152c71e8e",
+      "actual": "7914fce0ade29362e9489788003e9b35c8d088197ee475b456c164b152c71e8e",
+      "unchanged": true
+    }
+  },
+  "forward_protocols": {
+    "reports/paper_strategy_forward_20261004/prospective_protocol.json": {
+      "opened_at": null,
+      "status": "pending_unseen_evidence",
+      "access_log": []
+    },
+    "reports/strategy_review_20260919/prospective_protocol.json": {
+      "opened_at": null,
+      "status": "pending_unseen_evidence",
+      "access_log": []
+    }
+  },
+  "independent_holdout_passed": false,
+  "historical_pit_certified": false,
+  "real_execution_calibrated": false,
+  "live_orders_submitted": 0,
+  "formal_configuration_changed": false,
+  "promoted_candidates": [],
+  "research_candidate_retained": "ensemble_equal_no_trade",
+  "global_search_history_complete": false,
+  "comparative_claim": "local historical improvement versus trend_60 only",
+  "spot_candidate_differences": {
+    "candidate": "ensemble_equal_no_trade",
+    "baseline": "trend_60",
+    "net_return_difference_pp": 73.04924067800678,
+    "ending_equity_difference_usdt": 7304.924067800683,
+    "drawdown_reduction_pp": 11.559460936600436,
+    "stress_return_difference_pp": 70.15716786714314,
+    "filled_notional_increase_vs_trend60_pct": 17.369427269061166,
+    "filled_notional_reduction_vs_same_ensemble_pct": 2.488743101785662,
+    "fills_reduction_vs_same_ensemble_pct": 34.86842105263158
+  },
+  "statistical_evidence": {
+    "admission_eligible": false,
+    "global_search_complete": false,
+    "candidate_vs_trend60": {
+      "annual_arithmetic_excess_pct": 1.3393099706516294,
+      "independent_holdout_passed": false,
+      "scenarios": {
+        "20": {
+          "annual_arithmetic_excess_pct_ci95": [
+            -8.20844001348066,
+            11.356276110964876
+          ],
+          "block_length": 20,
+          "iterations": 1000
+        },
+        "5": {
+          "annual_arithmetic_excess_pct_ci95": [
+            -8.930604722815628,
+            11.381477623081187
+          ],
+          "block_length": 5,
+          "iterations": 1000
+        },
+        "60": {
+          "annual_arithmetic_excess_pct_ci95": [
+            -10.254620583225341,
+            12.489343779587834
+          ],
+          "block_length": 60,
+          "iterations": 1000
+        }
+      },
+      "scope": "paired dependent historical mean differences; not cumulative-return or future-profit confidence"
+    },
+    "pbo": {
+      "diagnostic_probability": 0.8142857142857143,
+      "probability": null,
+      "status": "diagnostic",
+      "family_complete": false,
+      "reason": "candidate-family completeness was not attested"
+    },
+    "dsr": {
+      "diagnostic_probability": 0.9671217305021966,
+      "probability": null,
+      "status": "diagnostic",
+      "reason": "complete preregistered global search with exact trial count required"
+    },
+    "reality_check": {
+      "20": {
+        "diagnostic_p_value": 0.6923076923076923,
+        "p_value": null,
+        "status": "diagnostic",
+        "reason": "candidate-family completeness was not attested"
+      },
+      "5": {
+        "diagnostic_p_value": 0.7022977022977023,
+        "p_value": null,
+        "status": "diagnostic",
+        "reason": "candidate-family completeness was not attested"
+      },
+      "60": {
+        "diagnostic_p_value": 0.6683316683316683,
+        "p_value": null,
+        "status": "diagnostic",
+        "reason": "candidate-family completeness was not attested"
+      }
+    }
+  },
+  "tests": {
+    "distinct_root_tests": 26,
+    "engine_tests": 5,
+    "distinct_total": 31,
+    "xml": [
+      {
+        "file": "reports/paper_return_followup_validation_20261004.xml",
+        "tests": 25,
+        "failures": 0,
+        "errors": 0
+      },
+      {
+        "file": "reports/paper_return_followup_logic_validation_20261004_final.xml",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0
+      }
+    ],
+    "engine": {
+      "schema": "return-followup-validation/v1",
+      "unit_test_command": ".venv\\Scripts\\python.exe -m pytest tests/test_return_followup_engine.py -q --basetemp D:\\QuantTradingV1\\.test_tmp_return_followup_20261004_a1",
+      "unit_test_result": "5 passed in 2.73s",
+      "test_evidence_origin": "transcribed completed exec tool result; no repeat for report creation",
+      "engine_jobs": 56,
+      "engine_accounting_all_passed": true,
+      "engine_failed_jobs": 0,
+      "old_control_metric_checks": 180,
+      "old_control_mismatches": 0,
+      "source_identity_unchanged": true,
+      "data_identity_unchanged": true,
+      "prior_artifacts_unchanged": true,
+      "registered_before_new_results": true,
+      "production_config_changes": false,
+      "real_venue_orders": false
+    }
+  },
+  "artifacts": {
+    "spot": "reports\\paper_return_followup_spot_20261004",
+    "engine": "reports\\paper_return_followup_engine_20261004"
+  }
+}
