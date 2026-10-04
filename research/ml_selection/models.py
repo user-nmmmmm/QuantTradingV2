@@ -145,6 +145,9 @@ class RidgeModel:
             raise ValueError("intercept must be finite")
         self.metadata = dict(metadata)
 
+    def predict_net_return(self, frame: pd.DataFrame | np.ndarray) -> np.ndarray:
+        return self.predict(frame)
+
     def predict(self, frame: pd.DataFrame | np.ndarray) -> np.ndarray:
         result = self.scaler.transform(frame) @ self.coefficients + self.intercept
         if not np.isfinite(result).all():
@@ -195,6 +198,9 @@ class LightGBMModel:
                 "features": list(self.features), "scaler": self.scaler.to_dict(),
                 "booster_text": self.booster.model_to_string(), "metadata": self.metadata}
 
+    def predict_net_return(self, frame: pd.DataFrame | np.ndarray) -> np.ndarray:
+        return self.predict(frame)
+
     @property
     def model_id(self) -> str:
         return _identity(self._payload())
@@ -207,8 +213,68 @@ def _lightgbm():
     try:
         import lightgbm
     except ImportError as exc:
-        raise ImportError("kind='lightgbm' requires the optional lightgbm package; choose ridge or install it") from exc
+        raise ImportError("LightGBM regression/ranking requires the optional lightgbm package; choose ridge or install it") from exc
     return lightgbm
+
+
+class LambdaRankModel(LightGBMModel):
+    """Within-decision order and an independent, training-only return gate.
+
+    Ranking scores have no return units. The Ridge gate sees raw features and
+    retained training returns, never ranker predictions or validation labels.
+    """
+
+    kind = "lambdarank"
+
+    def __init__(self, scaler: FeatureScaler, booster: Any, gate: RidgeModel,
+                 metadata: Mapping[str, Any]):
+        super().__init__(scaler, booster, metadata)
+        if gate.features != self.features:
+            raise ValueError("ranker and return gate feature order differs")
+        self.gate = gate
+        self.metadata["score_semantics"] = "within_as_of_ranking_score"
+        self.metadata["net_return_semantics"] = "training_only_ridge_expected_net_return"
+
+    def predict_net_return(self, frame: pd.DataFrame | np.ndarray) -> np.ndarray:
+        return self.gate.predict(frame)
+
+    def _payload(self) -> dict[str, Any]:
+        return {**super()._payload(), "return_gate": self.gate._payload()}
+
+
+def ranking_relevance(labels: Sequence[float], groups: Sequence[int], bins: int = 5) -> np.ndarray:
+    """Frozen relevance: floor((minimum rank - 1)/(group size - 1)*(bins-1)).
+
+    Ties share the same integer relevance. Each contiguous group is exactly
+    one decision timestamp; no full-sample return quantiles are fitted.
+    """
+    if isinstance(bins, bool) or not isinstance(bins, (int, np.integer)) or not 2 <= bins <= 30:
+        raise ValueError("relevance_bins must be an integer between 2 and 30")
+    values = np.asarray(labels, dtype=float)
+    sizes = np.asarray(groups)
+    if sizes.ndim != 1 or any(isinstance(v, (bool, np.bool_)) or int(v) != v or v <= 0 for v in sizes):
+        raise ValueError("ranking groups must be positive integer sizes")
+    if values.ndim != 1 or not np.isfinite(values).all() or sizes.sum() != len(values):
+        raise ValueError("ranking groups must cover finite labels exactly")
+    result = np.zeros(len(values), dtype=np.int32)
+    start = 0
+    for size in sizes:
+        end = start + int(size)
+        if size > 1:
+            ranks = pd.Series(values[start:end]).rank(method="min").to_numpy() - 1.0
+            result[start:end] = np.floor(ranks / (int(size) - 1) * (int(bins) - 1)).astype(np.int32)
+        start = end
+    return result
+
+
+def _ranking_grouped(frame: pd.DataFrame, labels: np.ndarray, column: str):
+    times = _times(frame, column, "ranking data")
+    if times is None:
+        raise ValueError("lambdarank requires as_of decision timestamps")
+    order = np.argsort(times.astype("int64").to_numpy(), kind="stable")
+    ordered = frame.iloc[order]
+    sizes = times.iloc[order].groupby(times.iloc[order], sort=False).size().to_numpy(dtype=int)
+    return ordered, labels[order], sizes
 
 
 def _times(frame: pd.DataFrame, column: str, context: str) -> pd.Series | None:
@@ -228,7 +294,7 @@ def _bound(values: pd.Series | None, operation: str) -> str | None:
 
 def fit_model(train: pd.DataFrame, validation: pd.DataFrame, *, features: Sequence[str],
               kind: str = "ridge", seed: int = 42,
-              params: Mapping[str, Any] | None = None) -> RidgeModel | LightGBMModel:
+              params: Mapping[str, Any] | None = None) -> RidgeModel | LightGBMModel | LambdaRankModel:
     """Fit only finite training labels, enforcing label availability at validation.
 
     ``target_column``, ``as_of_column`` and ``label_available_column`` may be
@@ -236,7 +302,7 @@ def fit_model(train: pd.DataFrame, validation: pd.DataFrame, *, features: Sequen
     be available by the first validation decision; training decisions must
     strictly precede it. The caller must supply a chronologically purged split.
     """
-    if kind not in {"ridge", "lightgbm"}:
+    if kind not in {"ridge", "lightgbm", "lambdarank"}:
         raise ValueError(f"unknown model kind: {kind}")
     options = dict(params or {})
     names = _features(features)
@@ -249,6 +315,13 @@ def fit_model(train: pd.DataFrame, validation: pd.DataFrame, *, features: Sequen
     _matrix(validation, names)
     labels = pd.to_numeric(train[target_column], errors="coerce").to_numpy(dtype=float)
     retained = np.isfinite(labels)
+    if kind == "lambdarank":
+        all_times = _times(train, as_of_column, "ranking training data")
+        if all_times is None:
+            raise ValueError("lambdarank requires as_of decision timestamps")
+        # Missing members must not silently improve a query's relative label.
+        complete = pd.Series(retained, index=train.index).groupby(all_times).transform("all")
+        retained &= complete.to_numpy(dtype=bool)
     training = train.loc[retained]
     y = labels[retained]
     if not len(y):
@@ -268,6 +341,7 @@ def fit_model(train: pd.DataFrame, validation: pd.DataFrame, *, features: Sequen
     scaler = FeatureScaler.fit(training, names)
     x = scaler.transform(training)
     metadata = {
+        "score_semantics": "net_return",
         "seed": int(seed), "target_column": target_column,
         "as_of_column": as_of_column, "label_available_column": available_column,
         "train_rows": int(len(training)), "train_dropped_invalid_labels": int((~retained).sum()),
@@ -291,13 +365,39 @@ def fit_model(train: pd.DataFrame, validation: pd.DataFrame, *, features: Sequen
                                      np.concatenate((y, np.zeros(len(names)))), rcond=None)
         metadata["params"] = {"alpha": alpha}
         return RidgeModel(scaler, fitted[1:], fitted[0], metadata)
+    ranker = kind == "lambdarank"
+    relevance_bins = options.pop("relevance_bins", 5) if ranker else None
+    gate_alpha = options.pop("gate_alpha", 1.0) if ranker else None
+    gate = None
+    if ranker:
+        gate = fit_model(training, validation, features=names, kind="ridge", seed=seed,
+                         params={"alpha": gate_alpha, "target_column": target_column,
+                                 "as_of_column": as_of_column,
+                                 "label_available_column": available_column})
     lightgbm = _lightgbm()
     if target_column not in validation:
         raise ValueError(f"validation data missing target column {target_column}")
     validation_y = pd.to_numeric(validation[target_column], errors="coerce").to_numpy(dtype=float)
     validation_mask = np.isfinite(validation_y)
+    train_groups, valid_groups = None, None
+    if ranker:
+        all_valid_times = _times(validation, as_of_column, "ranking validation data")
+        if all_valid_times is None:
+            raise ValueError("lambdarank requires as_of decision timestamps")
+        complete = pd.Series(validation_mask, index=validation.index).groupby(all_valid_times).transform("all")
+        validation_mask &= complete.to_numpy(dtype=bool)
     if not validation_mask.any():
-        raise ValueError("LightGBM early stopping requires finite validation labels")
+        raise ValueError("LightGBM early stopping requires finite complete validation labels")
+    valid_training = validation.loc[validation_mask]
+    valid_labels = validation_y[validation_mask]
+    if ranker:
+        training, y, train_groups = _ranking_grouped(training, y, as_of_column)
+        valid_training, valid_labels, valid_groups = _ranking_grouped(valid_training, valid_labels, as_of_column)
+        x = scaler.transform(training)
+        y = ranking_relevance(y, train_groups, relevance_bins)
+        valid_labels = ranking_relevance(valid_labels, valid_groups, relevance_bins)
+        if not any(size > 1 for size in train_groups):
+            raise ValueError("lambdarank requires at least one training decision with competing candidates")
     # Fixed CPU backend and bounded threads keep laptop jobs predictable.
     threads = int(options.pop("num_threads", 2))
     if not 1 <= threads <= 16:
@@ -311,25 +411,37 @@ def fit_model(train: pd.DataFrame, validation: pd.DataFrame, *, features: Sequen
                   "n_iter", "n_jobs", "num_thread", "deterministic"}
     if controlled.intersection(options):
         raise ValueError(f"reserved LightGBM parameters: {sorted(controlled.intersection(options))}")
-    settings = {"objective": "regression", "metric": "l2", "device_type": "cpu",
+    settings = {"objective": "lambdarank" if ranker else "regression",
+                "metric": "ndcg" if ranker else "l2", "device_type": "cpu",
                 "seed": int(seed), "num_threads": threads, "verbosity": -1,
                 "learning_rate": 0.03, "num_leaves": 15, "max_depth": 5,
                 "min_data_in_leaf": 20, "deterministic": True, "force_col_wise": True,
                 **options}
     booster = lightgbm.train(
         settings,
-        lightgbm.Dataset(x, label=y, feature_name=list(names)),
+        lightgbm.Dataset(x, label=y, group=train_groups, feature_name=list(names)),
         num_boost_round=rounds,
-        valid_sets=[lightgbm.Dataset(scaler.transform(validation.loc[validation_mask]),
-                                    label=validation_y[validation_mask], feature_name=list(names))],
+        valid_sets=[lightgbm.Dataset(scaler.transform(valid_training),
+                                    label=valid_labels, group=valid_groups, feature_name=list(names))],
         callbacks=[lightgbm.early_stopping(stopping, verbose=False)],
     )
     metadata["params"] = {**settings, "num_boost_round": rounds, "early_stopping_rounds": stopping}
     metadata["best_iteration"] = int(booster.best_iteration)
+    if ranker:
+        metadata.update({"score_semantics": "within_as_of_ranking_score",
+                         "ranking_group_column": as_of_column,
+                         "train_group_sizes": train_groups.tolist(),
+                         "validation_group_sizes": valid_groups.tolist(),
+                         "relevance": {"bins": int(relevance_bins),
+                             "formula": "floor((minimum_rank-1)/(group_size-1)*(bins-1)); singleton=0",
+                             "scope": "within_complete_as_of_group", "ties": "minimum_rank"},
+                         "return_gate": {"kind": "ridge", "alpha": float(gate_alpha),
+                             "fit_scope": "retained_training_rows_only", "model_id": gate.model_id}})
+        return LambdaRankModel(scaler, booster, gate, metadata)
     return LightGBMModel(scaler, booster, metadata)
 
 
-def load_model(path: str | Path) -> RidgeModel | LightGBMModel | "BernoulliPolicy":
+def load_model(path: str | Path) -> RidgeModel | LightGBMModel | LambdaRankModel | "BernoulliPolicy":
     payload = _load_payload(path)
     scaler = FeatureScaler.from_dict(payload["scaler"])
     if tuple(payload["features"]) != scaler.features:
@@ -339,6 +451,18 @@ def load_model(path: str | Path) -> RidgeModel | LightGBMModel | "BernoulliPolic
         return RidgeModel(scaler, payload["coefficients"], payload["intercept"], payload["metadata"])
     if kind == "lightgbm":
         return LightGBMModel(scaler, _lightgbm().Booster(model_str=payload["booster_text"]), payload["metadata"])
+    if kind == "lambdarank":
+        body = payload["return_gate"]
+        if body.get("kind") != "ridge" or body.get("artifact_version") != ARTIFACT_VERSION:
+            raise ValueError("ranker return gate must be a supported Ridge artifact")
+        gate_scaler = FeatureScaler.from_dict(body["scaler"])
+        if tuple(body["features"]) != gate_scaler.features:
+            raise ValueError("return gate feature order differs from scaler features")
+        gate = RidgeModel(gate_scaler, body["coefficients"], body["intercept"], body["metadata"])
+        if payload["metadata"].get("return_gate", {}).get("model_id") != gate.model_id:
+            raise ValueError("ranker return gate identity mismatch")
+        return LambdaRankModel(scaler, _lightgbm().Booster(model_str=payload["booster_text"]),
+                               gate, payload["metadata"])
     if kind == "bernoulli_policy":
         result = BernoulliPolicy(payload["features"], scaler=scaler, seed=payload["seed"],
                                  weights=payload["weights"], bias=payload["bias"],
@@ -415,6 +539,62 @@ def ranking_metrics(frame: pd.DataFrame, predictions: Sequence[float], *,
             "evaluated_cohorts": len(ic), "metric_type": "label_diagnostic_not_portfolio_return"}
 
 
+def calibration_metrics(frame: pd.DataFrame, predictions: Sequence[float], *,
+                        target_column: str = DEFAULT_TARGET, as_of_column: str = "as_of",
+                        label_available_column: str = "label_available_at",
+                        mature_as_of: Any = None, quantiles: int = 5,
+                        gate_threshold: float = 0.0) -> dict[str, Any]:
+    """Report return error and score groups; never fit validation calibration.
+
+    Complete mature decision cohorts alone contribute to the statistics. A
+    missing outcome is unknown, including an unfilled or unclosed experiment.
+    """
+    if isinstance(quantiles, bool) or int(quantiles) != quantiles or quantiles < 2:
+        raise ValueError("quantiles must be an integer of at least 2")
+    if not math.isfinite(float(gate_threshold)):
+        raise ValueError("gate_threshold must be finite")
+    if target_column not in frame or as_of_column not in frame:
+        raise ValueError("calibration data requires target and as_of columns")
+    predicted = _finite_array(predictions, len(frame), "predictions")
+    times = _times(frame, as_of_column, "calibration data")
+    mature = np.ones(len(frame), dtype=bool)
+    if label_available_column in frame:
+        if mature_as_of is None:
+            raise ValueError("mature_as_of is required when label availability is present")
+        cutoff = pd.to_datetime(mature_as_of, utc=True, errors="raise")
+        if pd.isna(cutoff):
+            raise ValueError("mature_as_of must be a valid timestamp")
+        availability = pd.to_datetime(frame[label_available_column], utc=True, errors="coerce")
+        mature = (availability.notna() & (availability <= cutoff)).to_numpy()
+    labels = np.full(len(frame), np.nan)
+    labels[mature] = pd.to_numeric(frame.loc[mature, target_column], errors="coerce").to_numpy(dtype=float)
+    usable = mature & np.isfinite(labels)
+    complete = pd.Series(usable).groupby(pd.Series(times.to_numpy())).transform("all").to_numpy(dtype=bool)
+    kept = usable & complete
+    diagnostics = pd.DataFrame({"prediction": predicted[kept], "outcome": labels[kept]})
+    groups = []
+    if len(diagnostics):
+        buckets = np.minimum(np.ceil(diagnostics.prediction.rank(method="average", pct=True) * quantiles), quantiles).astype(int)
+        for number, group in diagnostics.groupby(buckets, sort=True):
+            groups.append({"group": int(number), "rows": int(len(group)),
+                           "mean_prediction": float(group.prediction.mean()),
+                           "mean_net_return": float(group.outcome.mean()),
+                           "bias": float((group.prediction - group.outcome).mean()),
+                           "positive_outcome_fraction": float((group.outcome > 0).mean())})
+    error = predicted[kept] - labels[kept]
+    admitted = kept & (predicted >= float(gate_threshold))
+    return {"metric_type": "net_return_calibration_diagnostic_not_portfolio_return",
+            "fitted_on_evaluation": False, "rows": len(frame), "mature_rows": int(mature.sum()),
+            "known_rows": int(usable.sum()), "evaluated_rows": int(kept.sum()),
+            "pending_or_incomplete_cohort_rows": int((~kept).sum()),
+            "evaluated_cohorts": int(times.loc[kept].nunique()), "groups": groups,
+            "mae": float(np.abs(error).mean()) if len(error) else None,
+            "rmse": float(np.sqrt(np.mean(error ** 2))) if len(error) else None,
+            "bias": float(error.mean()) if len(error) else None,
+            "gate_threshold": float(gate_threshold), "admitted_rows": int(admitted.sum()),
+            "admitted_mean_net_return": float(labels[admitted].mean()) if admitted.any() else None}
+
+
 class BernoulliPolicy:
     """Shared linear candidate gate, optimized by caller-supplied advantages.
 
@@ -472,9 +652,12 @@ class BernoulliPolicy:
     def predict(self, frame: pd.DataFrame | np.ndarray) -> np.ndarray:
         return self._probabilities(self._inputs(frame))
 
-    def act(self, frame: pd.DataFrame | np.ndarray, deterministic: bool = False) -> tuple[np.ndarray, np.ndarray]:
+    def act(self, frame: pd.DataFrame | np.ndarray, deterministic: bool = False, *,
+            threshold: float = 0.5) -> tuple[np.ndarray, np.ndarray]:
+        if isinstance(threshold, bool) or not math.isfinite(float(threshold)) or not 0 <= threshold <= 1:
+            raise ValueError("policy evaluation threshold must be finite and between zero and one")
         probabilities = self.predict(frame)
-        gates = probabilities >= 0.5 if deterministic else self.rng.random(len(probabilities)) < probabilities
+        gates = probabilities >= threshold if deterministic else self.rng.random(len(probabilities)) < probabilities
         return gates.astype(bool), probabilities
 
     def update(self, frame: pd.DataFrame | np.ndarray, actions: Sequence[bool],

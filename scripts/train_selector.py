@@ -22,6 +22,7 @@ def main(argv=None):
     parser.add_argument("--rl-episodes", type=int, help="首次运行的强化学习回合数")
     parser.add_argument("--market-data-dir", help="前瞻已收盘日线 CSV 目录")
     parser.add_argument("--as-of", help="影子观察信息截点，默认当前 UTC")
+    parser.add_argument("--account-state", help="原引擎候选 hook 的完整冻结 RL 状态 JSON")
     args = parser.parse_args(argv)
     from research.ml_selection.pipeline import (artifact_manifest, evaluate, full_run, load_dataset,
         prepare, shadow, supervised_stage, train_policies, freeze_candidate, resolve_shadow, walk_forward)
@@ -57,7 +58,8 @@ def main(argv=None):
             outcome = resolve_shadow(folder, protocol, market_data_dir=args.market_data_dir, as_of=args.as_of)
             print(json.dumps({"resolved": len(outcome["resolved"]), "pending": outcome["pending_labels"]}, ensure_ascii=False))
         elif args.stage == "shadow":
-            outcome = shadow(folder, protocol, market_data_dir=args.market_data_dir, as_of=args.as_of)
+            outcome = shadow(folder, protocol, market_data_dir=args.market_data_dir, as_of=args.as_of,
+                             account_state=args.account_state)
             print(json.dumps({"status": outcome["status"], "observations": len(outcome["observations"])}, ensure_ascii=False))
         else:
             dataset = load_dataset(folder)

@@ -15,6 +15,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
       - name: Install dependencies
         run: python -m pip install -r requirements-dev.txt
       - name: Verify environment and lock integrity
@@ -23,6 +26,8 @@ jobs:
           python scripts/verify_lock.py
       - name: Lint
         run: python -m ruff check .
+      - name: Dashboard frontend tests
+        run: node --test tests/dashboard_*.test.mjs
       - name: Verify protected historical archive
         run: python scripts/verify_baseline_archive.py
       - name: Check tracked files and frozen artifacts
@@ -54,6 +59,15 @@ jobs:
           tests/test_ml_selection_environment.py
           tests/test_ml_selection_integrity.py
           tests/test_ml_selection_pipeline.py
+          tests/test_ml_selection_next_supervised.py
+          tests/test_ml_selection_next_rl.py
+          tests/test_ml_selection_next_round.py
+          tests/test_ml_selection_next_forward.py
+          tests/test_ml_selection_diagnostics.py
+          tests/test_ml_selection_batch_comparison.py
+          tests/test_ml_selection_bridge_audit.py
+          tests/test_ml_selection_stress_failures.py
+          tests/test_coin_selector_cli.py
           --junitxml=outputs/ml-research-tests.xml
       - name: Preserve ML test receipt
         if: always()

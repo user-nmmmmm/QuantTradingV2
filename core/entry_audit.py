@@ -19,6 +19,10 @@ def capture(row):
 def note(reason=None, **facts):
     row = _row.get()
     if row is not None:
+        # Keep the observed sequence: later submission facts must not erase
+        # sizing, health or risk attribution. No extra gate is evaluated.
+        if row.get("decision_id") is not None or row.get("trace_gate_facts") is True:
+            row.setdefault("gate_facts", []).append({"reason": reason, **facts})
         row.update(facts)
         if reason is not None:
             row["reason"] = reason

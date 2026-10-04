@@ -1,7 +1,7 @@
 from typing import Any, Dict, List, Optional
 
 from core.accounts import AccountMode, FinancingEntry, MarginSnapshot
-from core.lots import Lot, LotBook, LotClose, LotIdAllocator
+from core.lots import Lot, LotBook, LotClose, LotIdAllocator, _QTY_EPS
 
 """
 Portfolio（组合/账户）模块
@@ -133,6 +133,10 @@ class Portfolio:
         current_pos = self.get_position(symbol)
         old_qty = current_pos["qty"]
         new_qty = old_qty + qty_delta
+        # The lot ledger retires sub-epsilon remainder after a close. Keep the
+        # aggregate flat as well, without rounding away a remaining open lot.
+        if not self.open_lots(symbol) and abs(new_qty) <= _QTY_EPS:
+            new_qty = 0.0
 
         self.cash -= fee
         if self.account_mode is AccountMode.SPOT:

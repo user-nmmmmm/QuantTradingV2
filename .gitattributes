@@ -1,5 +1,7 @@
 requirements.lock.txt text eol=lf
 requirements.lock.sha256 text eol=lf
+config/ml_selector_current.json -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+config/ml_selector_frozen/*.json -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
 docs/baseline/phase0/**/*.csv text eol=lf
 docs/baseline/phase0/**/*.json text eol=lf
 docs/baseline/phase0/**/*.txt text eol=lf

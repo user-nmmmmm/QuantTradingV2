@@ -67,7 +67,7 @@ def validate_settings(settings):
     allowed = {"schema", "timeframe", "account_mode", "evaluation_kind", "data_registration",
                "baseline_registration", "baseline_arm", "start", "end", "splits", "symbols",
                "max_symbols", "models", "model_params", "seed", "selection", "random_seeds",
-               "dataset", "rl", "stress", "gates", "walk_forward"}
+               "dataset", "rl", "stress", "gates", "walk_forward", "next_research"}
     if not isinstance(settings, dict) or settings.get("schema") != "ml-selection-research/v1":
         raise ValueError("unsupported ML research configuration")
     unknown = set(settings) - allowed
@@ -102,9 +102,9 @@ def validate_settings(settings):
         if not isinstance(symbols, list) or not symbols or any(not isinstance(s, str) or not s for s in symbols) or len(set(symbols)) != len(symbols):
             raise ValueError("symbols must be a nonempty list of distinct names")
     models = settings.get("models", ["ridge", "lightgbm"])
-    if not isinstance(models, list) or not models or len(set(models)) != len(models) or any(m not in {"ridge", "lightgbm"} for m in models):
+    if not isinstance(models, list) or not models or len(set(models)) != len(models) or any(m not in {"ridge", "lightgbm", "lambdarank"} for m in models):
         raise ValueError("models must be distinct supported names")
-    model_params = _section(settings, "model_params", {"ridge", "lightgbm"})
+    model_params = _section(settings, "model_params", {"ridge", "lightgbm", "lambdarank"})
     if any(not isinstance(value, dict) for value in model_params.values()):
         raise ValueError("model_params values must be mappings")
     _integer(settings.get("seed", 42), "seed", 0)
@@ -114,7 +114,9 @@ def validate_settings(settings):
     for seed in seeds:
         _integer(seed, "random seed", 0)
     rl = _section(settings, "rl", {"enabled", "episodes", "seed", "seeds", "learning_rate", "entropy_coef",
-                                  "gamma", "drawdown_penalty", "turnover_penalty", "validation_patience"})
+                                  "gamma", "drawdown_penalty", "turnover_penalty", "validation_patience",
+                                  "min_updates", "early_stopping_start_updates", "evaluation_threshold",
+                                  "evaluation_thresholds"})
     policy_seeds = rl.get("seeds", [rl.get("seed", 42)])
     if not isinstance(policy_seeds, list) or not policy_seeds or len(set(policy_seeds)) != len(policy_seeds):
         raise ValueError("rl.seeds must be distinct seed integers")
@@ -136,15 +138,23 @@ def validate_settings(settings):
                 strict_minimum=name != "min_expected_return")
     if "enabled" in rl and type(rl["enabled"]) is not bool:
         raise ValueError("rl.enabled must be boolean")
-    for name in ("episodes", "validation_patience", "seed"):
+    for name in ("episodes", "validation_patience", "seed", "min_updates", "early_stopping_start_updates"):
         if name in rl:
-            _integer(rl[name], f"rl.{name}", 0 if name == "seed" else 1)
+            _integer(rl[name], f"rl.{name}", 0 if name in {"seed", "min_updates", "early_stopping_start_updates"} else 1)
+    if max(rl.get("min_updates", 0), rl.get("early_stopping_start_updates", 0)) > rl.get("episodes", 6):
+        raise ValueError("RL update minimum and early-stop start must fit the episode budget")
+    _number(rl.get("evaluation_threshold", .5), "rl.evaluation_threshold", minimum=0, maximum=1)
+    thresholds = rl.get("evaluation_thresholds", [rl.get("evaluation_threshold", .5)])
+    if not isinstance(thresholds, list) or not thresholds or len(set(thresholds)) != len(thresholds):
+        raise ValueError("rl.evaluation_thresholds must be a nonempty distinct list")
+    for threshold in thresholds:
+        _number(threshold, "RL evaluation threshold", minimum=0, maximum=1)
     for name in ("learning_rate", "entropy_coef", "drawdown_penalty", "turnover_penalty"):
         if name in rl:
             _number(rl[name], f"rl.{name}", minimum=0, strict_minimum=name == "learning_rate")
     if "gamma" in rl:
         _number(rl["gamma"], "rl.gamma", minimum=0, maximum=1)
-    stress = _section(settings, "stress", {"cost_multipliers"})
+    stress = _section(settings, "stress", {"cost_multipliers", "execution_scenarios"})
     multipliers = stress.get("cost_multipliers", [1.5, 2.0])
     if not isinstance(multipliers, list) or not multipliers:
         raise ValueError("stress.cost_multipliers must be a nonempty list")
@@ -152,6 +162,70 @@ def validate_settings(settings):
         _number(value, "stress cost multiplier", minimum=1)
     if len(set(multipliers)) != len(multipliers):
         raise ValueError("stress cost multipliers must be distinct")
+    scenarios = stress.get("execution_scenarios", [])
+    if not isinstance(scenarios, list):
+        raise ValueError("stress.execution_scenarios must be a list")
+    names = set()
+    for scenario in scenarios:
+        if not isinstance(scenario, dict) or set(scenario) - {"name", "opening_delay_bars", "max_participation_rate", "opening_order_ttl_bars", "initial_capital"}:
+            raise ValueError("unsupported execution scenario")
+        name = scenario.get("name")
+        if not isinstance(name, str) or not name or not name.replace("_", "").isalnum() or name in names:
+            raise ValueError("execution scenario names must be distinct safe names")
+        names.add(name)
+        for key in ("opening_delay_bars", "opening_order_ttl_bars"):
+            if key in scenario:
+                _integer(scenario[key], f"stress.{key}", 0)
+        if "max_participation_rate" in scenario:
+            _number(scenario["max_participation_rate"], "stress.max_participation_rate", minimum=0, maximum=1, strict_minimum=True)
+        if "initial_capital" in scenario:
+            _number(scenario["initial_capital"], "stress.initial_capital", minimum=0, strict_minimum=True)
+    extension = _section(settings, "next_research", {"learning_months", "exit_probe_count", "rl_windows",
+        "reward_pilot_weights", "pilot_episodes", "final_sample", "forward_observation", "experiment_budget"})
+    months = extension.get("learning_months", [12, 24, 36])
+    if not isinstance(months, list) or not months or len(set(months)) != len(months):
+        raise ValueError("learning_months must be distinct positive months")
+    for month in months:
+        _integer(month, "learning month")
+    for name in ("exit_probe_count", "pilot_episodes"):
+        if name in extension:
+            _integer(extension[name], f"next_research.{name}")
+    rl_windows = extension.get("rl_windows", [])
+    if not isinstance(rl_windows, list) or len(set(rl_windows)) != len(rl_windows):
+        raise ValueError("rl_windows must be distinct walk-forward indices")
+    for number in rl_windows:
+        _integer(number, "RL window")
+        if number > len(windows):
+            raise ValueError("RL window outside registered walk-forward windows")
+    weights = extension.get("reward_pilot_weights", [])
+    if not isinstance(weights, list) or len(set(weights)) != len(weights):
+        raise ValueError("reward pilot weights must be distinct")
+    for value in weights:
+        _number(value, "reward pilot weight", minimum=0)
+    for name in ("final_sample", "forward_observation", "experiment_budget"):
+        if name in extension and not isinstance(extension[name], dict):
+            raise ValueError(f"next_research.{name} must be a mapping")
+    final = extension.get("final_sample", {})
+    if final:
+        if not {"start", "end", "opened", "maximum_frozen_candidates"} <= set(final):
+            raise ValueError("final sample requires unopened dates and candidate budget")
+        if final["opened"] is not False or not end <= _utc(final["start"]) < _utc(final["end"]):
+            raise ValueError("final sample must be unopened and beyond historical development data")
+        _integer(final["maximum_frozen_candidates"], "final candidate budget")
+    forward = extension.get("forward_observation", {})
+    if forward:
+        if not {"start", "minimum_decision_dates", "maturity_horizon_bars", "frozen_candidate_count"} <= set(forward):
+            raise ValueError("forward observation requires registered dates and maturity budget")
+        if _utc(forward["start"]) < end:
+            raise ValueError("forward observation must follow historical development data")
+        for key in ("minimum_decision_dates", "maturity_horizon_bars", "frozen_candidate_count"):
+            _integer(forward[key], f"forward {key}")
+    budget = extension.get("experiment_budget", {})
+    minimum_total = rl.get("min_updates", 0) * len(policy_seeds) * (1 + len(rl_windows))
+    maximum_total = rl.get("episodes", 6) * len(policy_seeds) * (1 + len(rl_windows))
+    for key, actual in (("minimum_formal_updates", minimum_total), ("maximum_formal_episodes", maximum_total)):
+        if key in budget and budget[key] != actual:
+            raise ValueError(f"registered {key} disagrees with seed/window training controls")
     gates = _section(settings, "gates", {"max_drawdown", "require_positive_net_return",
                                        "require_outperform_native", "require_positive_after_removing_top_5"})
     for name, value in gates.items():
@@ -230,6 +304,7 @@ def load_inputs(settings):
     # The new experiment is cash-funded spot; the original smart registration
     # remains immutable and is separately replayed without this adaptation.
     parameters["account"]["mode"] = "spot"
+    parameters.setdefault("research", {})["entry_audit"] = True
     execution = parameters["execution"]
     if isinstance(execution.get("fee_schedule"), dict):
         execution["fee_schedule"]["market_type"] = "spot"
@@ -251,7 +326,7 @@ def load_inputs(settings):
 
 def source_identity():
     paths = [ROOT / "backtest/engine.py", ROOT / "core/runtime.py",
-             ROOT / "scripts/train_selector.py", ROOT / "scripts/verify_ml_selector_baseline.py",
+             ROOT / "scripts/train_selector.py", ROOT / "scripts/run_ml_selection_next.py", ROOT / "scripts/verify_ml_selector_baseline.py",
              ROOT / "config/ml_selection.yaml",
              ROOT / "requirements-ml.txt", ROOT / "requirements.txt", ROOT / "requirements.lock.txt",
              ROOT / "requirements.lock.sha256", ROOT / "pyproject.toml"]
@@ -275,6 +350,17 @@ def freeze_protocol(folder, settings, parameters, engine_options, evidence):
                 "final_holdout_opened": False}
     protocol["protocol_id"] = hashlib.sha256(canonical_json(protocol).encode()).hexdigest()
     save_json(target / "protocol.json", protocol)
+    # Preserve the exact registered sources as well as their identities. A
+    # later checkout must not destroy the ability to inspect an old run.
+    for relative, digest in protocol["source_hashes"].items():
+        source = (ROOT / relative).resolve()
+        archived = (target / "frozen_source" / relative).resolve()
+        if not source.is_relative_to(ROOT.resolve()) or not archived.is_relative_to((target / "frozen_source").resolve()):
+            raise ValueError("registered source path escapes its root")
+        archived.parent.mkdir(parents=True, exist_ok=True)
+        archived.write_bytes(source.read_bytes())
+        if sha256_file(archived) != digest:
+            raise ValueError(f"source changed during freeze: {relative}")
     return protocol
 
 
@@ -293,6 +379,12 @@ def validate_run(folder):
     for relative, digest in protocol["source_hashes"].items():
         if not (ROOT / relative).exists() or sha256_file(ROOT / relative) != digest:
             raise ValueError(f"source changed since freeze: {relative}; start a new run")
+    archive = folder / "frozen_source"
+    if archive.exists():
+        for relative, digest in protocol["source_hashes"].items():
+            archived = (archive / relative).resolve()
+            if not archived.is_relative_to(archive.resolve()) or not archived.is_file() or sha256_file(archived) != digest:
+                raise ValueError(f"frozen source archive changed: {relative}")
     evidence = protocol["data_evidence"]
     declared = {"data_registration", "data_registration_sha256", "baseline_registration",
                 "baseline_registration_sha256", "input_file_hashes"}

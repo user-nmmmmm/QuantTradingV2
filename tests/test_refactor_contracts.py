@@ -35,12 +35,14 @@ def test_cli_contract_is_declared_outside_the_orchestrator():
         "--derivatives-funding-file", "--derivatives-observations-file",
         "--derivatives-max-age",
         "--smart-allocation", "--max-positions", "--cash-reserve-pct",
+        "--coin-selector", "--selector-bundle",
     }
     parsed = parser.parse_args([
         "--source", "local", "--data-dir", "prices", "--start", "2025-01-01",
         "--end", "2025-02-01", "--symbols", "BTC-USDT", "ETH-USDT",
         "--report-profile", "full", "--disable-routing-log", "--observe-signals", "--signal-meta-layer",
         "--adaptive-signal-meta", "--signal-meta-replay",
+        "--coin-selector", "on", "--selector-bundle", "models/current.json",
     ])
     assert parsed.source == "local"
     assert parsed.symbols == ["BTC-USDT", "ETH-USDT"]
@@ -50,10 +52,14 @@ def test_cli_contract_is_declared_outside_the_orchestrator():
     assert parsed.signal_meta_layer is True
     assert parsed.adaptive_signal_meta is True
     assert parsed.signal_meta_replay is True
+    assert parsed.coin_selector == "on"
+    assert parsed.selector_bundle == "models/current.json"
     assert parser.parse_args([]).observe_signals is False
     assert parser.parse_args([]).signal_meta_layer is False
     assert parser.parse_args([]).adaptive_signal_meta is False
     assert parser.parse_args([]).signal_meta_replay is False
+    assert parser.parse_args([]).coin_selector == "off"
+    assert parser.parse_args([]).selector_bundle is None
 
 
 def test_workbook_and_pdf_depend_on_shared_metrics_not_each_other():
