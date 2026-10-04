@@ -126,6 +126,7 @@ class EventProcessor:
         entry_audit_enabled: bool = False,
         signal_observer: Any = None,
         portfolio_controller: Any = None,
+        candidate_selector: Any = None,
     ) -> None:
         self.portfolio = portfolio
         self.execution = execution
@@ -146,6 +147,7 @@ class EventProcessor:
         self._bar_index = -1
         self.signal_observer = signal_observer
         self.portfolio_controller = portfolio_controller
+        self.candidate_selector = candidate_selector
         self.entry_audit_enabled = entry_audit_enabled or signal_observer is not None
         self.entry_audit: list[dict[str, Any]] = []
         budget = getattr(self.risk_manager, "drawdown_budget", None)
@@ -264,6 +266,12 @@ class EventProcessor:
                 market_states=self._last_market_states,
             )
         elif decision.allow_new_entries:
+            if self.candidate_selector is not None:
+                candidates = self.candidate_selector.select(
+                    candidates, event=strategy_event, portfolio=self.portfolio,
+                    broker=self.execution, risk_manager=self.risk_manager,
+                    current_prices=strategy_prices,
+                )
             self.allocator.allocate(
                 candidates, portfolio=self.portfolio, broker=self.execution,
                 risk_manager=self.risk_manager, current_prices=strategy_prices,
@@ -329,8 +337,15 @@ class EventProcessor:
             allow_new_entries=allow_new_entries,
         )
         if candidate is not None:
+            candidates = [candidate]
+            if self.candidate_selector is not None:
+                candidates = self.candidate_selector.select(
+                    candidates, event=event, portfolio=self.portfolio,
+                    broker=self.execution, risk_manager=self.risk_manager,
+                    current_prices=prices,
+                )
             self.allocator.allocate(
-                [candidate], portfolio=self.portfolio, broker=self.execution,
+                candidates, portfolio=self.portfolio, broker=self.execution,
                 risk_manager=self.risk_manager, current_prices=prices,
             )
         if self.signal_observer is not None:

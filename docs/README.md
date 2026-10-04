@@ -31,6 +31,7 @@
 
 以下按近期主题提供入口。带日期的实施记录说明对应批次的工作和证据，文件日期较新并不自动替代已批准契约或更新项目放行状态。
 
+- [2026-10-05 机器学习选币 V1 实施总结](ml_selection_v1_review_20261005.md)：CPU 评分与完整回合 REINFORCE、原引擎可选接口、本地历史训练结果、数据包前提与有效性未通过的边界；操作入口见[训练指南](ml_selection_roadmap.md)。
 - [2026-10-04 剩余论文任务](research/paper_remaining_tasks_20261004.md)：执行成本与盘口证据、历史因子输入、前瞻采集和严格标签的实现与缺口；[收益改进复核](research/paper_return_followup_20261004.md)记录固定方案的历史比较，保留主引擎与独立现货账户的口径差异。
 - [论文统计验证契约](research/paper_validation_contract_20261003.md)：PBO、purged/embargo 切分、White Reality Check 与 DSR 的输入、计算和证据不足行为；应用入口见[论文应用清单](research/paper_application_list_20261003.md)和[工程完成记录](research/paper_engineering_completion_20261003.md)。
 - [论文路线图实施](research/paper_roadmap_implementation_20261003.md)、[续办记录](research/paper_continuation_20261003.md)：因果标签、数据版本、融资与账户关联的实施边界及产物索引。
