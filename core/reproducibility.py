@@ -317,6 +317,14 @@ def deterministic_result_digest(result: Mapping[str, Any]) -> Dict[str, str]:
     }
 
 
+def capital_allocation_digest(result: Mapping[str, Any]) -> str:
+    """Freeze planning evidence even when differing plans happen to fill identically."""
+    payload = {"policy": result.get("capital_allocation_policy"),
+               "batches": result.get("capital_allocation_audit", []),
+               "decisions": result.get("allocation_audit", [])}
+    return sha256_bytes(canonical_json(payload).encode("utf-8"))
+
+
 def runtime_identity() -> Dict[str, Any]:
     return {
         "python_executable": Path(sys.executable).name,

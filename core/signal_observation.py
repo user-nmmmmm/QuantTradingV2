@@ -16,6 +16,8 @@ from core.signal_observation_types import (
     close_time, context_features, finite, fingerprint, iso,
 )
 from core.signal_outcomes import ForwardOutcomeTracker, ObservationCosts
+from core.temporal_data import strict_market_event, temporal_policy as parse_temporal_policy
+from core.temporal_labels import VersionedOutcomeTracker
 
 
 UPSTREAM = {
@@ -67,7 +69,8 @@ def strategy_identity(strategy):
 
 class SignalObserver:
     def __init__(self, *, policy: ObservationPolicy, costs: ObservationCosts,
-                 strategies: dict, state_machine: Any, config_identity: dict | None = None):
+                 strategies: dict, state_machine: Any, config_identity: dict | None = None,
+                 temporal_policy=None, financing=None):
         self.policy, self.costs, self.strategies = policy, costs, strategies
         self.state_machine = deepcopy(state_machine)
         self.versions = {name: strategy_identity(s) for name, s in strategies.items()}
@@ -77,7 +80,10 @@ class SignalObserver:
         self.decisions: list[dict] = []
         self.errors: list[dict] = []
         self.coverage: Counter = Counter()
-        self.outcomes = ForwardOutcomeTracker(policy, costs)
+        self.temporal_policy = parse_temporal_policy(temporal_policy)
+        self.financing = financing
+        self.outcomes = (VersionedOutcomeTracker(policy, costs, knowledge=self.temporal_policy.knowledge, financing=financing)
+                         if self.temporal_policy.mode == "strict" else ForwardOutcomeTracker(policy, costs))
         self._frames: dict = {}
         self._seen: set = set()
         self._pending_decisions: list = []
@@ -86,14 +92,26 @@ class SignalObserver:
     def advance(self, event):
         if self._last_event is not None and event.timestamp < self._last_event:
             raise ValueError("signal observation events must be time ordered")
+        self._ensure_temporal_tracker(event)
         self.outcomes.advance(event)
         self._last_event = event.timestamp
 
+    def _ensure_temporal_tracker(self, event):
+        if strict_market_event(event) and not isinstance(self.outcomes, VersionedOutcomeTracker):
+            if self.candidates or self.outcomes.results:
+                raise ValueError("cannot mix retrospective candidates with strict versioned outcomes")
+            self.outcomes = VersionedOutcomeTracker(self.policy, self.costs, financing=self.financing)
+
     def _private_frame(self, symbol, source):
-        signature = (id(source), len(source), source.index[-1])
+        signature = (id(source), len(source), source.index[-1],
+                     (source.attrs.get("temporal_audit") or {}).get("as_of"))
         prior = self._frames.get(symbol)
         if prior is None or prior[0] != signature:
             frame = source.copy(deep=True)
+            # Provenance was consumed by the versioned outcome tracker. Pandas
+            # copies attrs on every derived Series, so keep the private feature
+            # calculation frame free of the full raw-version proof map.
+            frame.attrs.pop("temporal_source_versions", None)
             # Built-in providers use only trailing indicators. Precomputation
             # is private; raw_entry_signal below NEVER receives future rows.
             self.state_machine.get_states(frame)
@@ -110,14 +128,27 @@ class SignalObserver:
             return
         self._seen.add(key)
         source = event.histories.get(symbol)
+        temporal = (source.attrs.get("temporal_audit") or {}) if source is not None else {}
+        strict = event.source == "historical_strict" or temporal.get("mode") == "strict"
+        if strict and (source is None or source.empty or event.timestamp not in source.index):
+            self.coverage["temporal:unavailable_current_bar"] += 1
+            return
         if source is None or source.empty or symbol not in event.bars:
             self.errors.append({"timestamp": key[0], "symbol": symbol, "reason": "missing_history"})
             return
         try:
+            self._ensure_temporal_tracker(event)
+            if isinstance(self.outcomes, VersionedOutcomeTracker) and self._last_event is None:
+                self.outcomes.advance(event)
             loc = source.index.get_loc(event.timestamp)
             frame = self._private_frame(symbol, source).iloc[:loc+1]
             current = frame.iloc[-1]
             available = close_time(event.timestamp, event.timeframe)
+            if strict:
+                cutoff = temporal.get("as_of")
+                if cutoff is None or pd.Timestamp(cutoff) < pd.Timestamp(available):
+                    raise ValueError("strict temporal history lacks a valid decision cutoff")
+                available = iso(cutoff)
             if "available_at" in frame:
                 input_times = pd.to_datetime(frame.available_at, utc=True, errors="coerce")
                 if input_times.isna().any() or (input_times > pd.Timestamp(available)).any():
@@ -202,10 +233,14 @@ class SignalObserver:
         self.outcomes.finish(at)
 
     def export(self):
-        return {"schema": self.policy.schema, "policy": asdict(self.policy),
+        result = {"schema": self.policy.schema, "policy": asdict(self.policy),
                 "snapshot_version": self.snapshot_version, "costs": asdict(self.costs),
                 "strategy_versions": self.versions,
                 "candidates": [c.to_dict() for c in self.candidates],
                 "decisions": deepcopy(self.decisions), "outcomes": deepcopy(self.outcomes.results),
                 "errors": deepcopy(self.errors), "coverage": dict(sorted(self.coverage.items())),
                 "status": "incomplete" if self.errors or any(d["accepted"] is None for d in self.decisions) else "complete"}
+        if isinstance(self.outcomes, VersionedOutcomeTracker):
+            result.update(outcome_revisions=self.outcomes.revisions,
+                          temporal_label_protocol=self.outcomes.protocol)
+        return result

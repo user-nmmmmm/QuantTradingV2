@@ -739,12 +739,21 @@ class Strategy(ABC):
         size *= self.health_risk_multiplier()  # SR1-3 probation scaling
         market_multiplier = self.entry_risk_multiplier(candidate.state)
         size *= market_multiplier
+        if candidate.capital_allocation is not None:
+            # The whole batch shares one precomputed envelope. This is an
+            # upper bound after strategy scaling, never a second multiplier.
+            approved = float(candidate.capital_allocation.get("approved_qty", 0.))
+            size = min(size, approved) if np.isfinite(approved) and approved > 0 else 0.
+            note(capital_allocation=dict(candidate.capital_allocation))
         note("zero_sizing", sized_qty=size, health_multiplier=self.health_risk_multiplier(),
              market_multiplier=market_multiplier,
              portfolio_multiplier=risk_manager.risk_multiplier, reference_price=current_price,
              equity=equity, stop_loss=stop_loss, sized_notional=size * current_price)
         pending_provider = getattr(broker, "pending_open_notional", None)
         pending = pending_provider(current_prices) if callable(pending_provider) else {}
+        projection = getattr(broker, "reservation_projection", None)
+        projection_options = ({"reservation_projection": projection}
+            if candidate.capital_allocation is not None and projection is not None else {})
         clamp = getattr(risk_manager, "clamp_entry_qty", None)
         if callable(clamp):
             size = clamp(
@@ -752,6 +761,7 @@ class Strategy(ABC):
                 current_prices=current_prices, pending_open_notional=pending,
                 action=action,
                 health_multiplier=self.health_risk_multiplier(),
+                **projection_options,
             )
         budget_decision = None
         note(clamped_qty=size)

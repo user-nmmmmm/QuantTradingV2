@@ -126,6 +126,55 @@ def test_delayed_bar_availability_is_respected_and_invalid_availability_censors(
     assert label(frame)["reason"] == "availability_before_bar_close"
 
 
+@pytest.mark.parametrize("late_bar", [1, 2])
+def test_delayed_entry_and_intermediate_bars_bound_label_availability(late_bar):
+    frame = bars()
+    frame["available_at"] = frame.index + pd.Timedelta(days=1)
+    frame.iloc[late_bar, frame.columns.get_loc("available_at")] = pd.Timestamp("2020-01-07", tz="UTC")
+    config = BarrierConfig(max_holding_bars=3)
+    before = label(frame, config=config, cutoff="2020-01-06")
+    assert before["status"] == "insufficient" and before["reason"] == "not_matured"
+    assert before["available_at"] is None and not before["training_eligible"]
+    mature = label(frame, config=config)
+    assert mature["label_end_time"] == "2020-01-05T00:00:00+00:00"
+    assert mature["available_at"] == "2020-01-07T00:00:00+00:00"
+    assert mature["training_eligible"]
+
+
+def test_unknown_explicit_timestamp_does_not_become_a_nominal_known_timestamp():
+    frame = bars()
+    frame["available_at"] = frame.index + pd.Timedelta(days=1)
+    frame.iloc[1, frame.columns.get_loc("available_at")] = pd.NaT
+    out = label(frame)
+    assert out["reason"] == "invalid_available_at" and out["status"] == "insufficient"
+    assert out["available_at"] is None and not out["training_eligible"]
+    # Legacy frames with no availability evidence retain their explicit lower-
+    # bound research policy; this change does not certify historical publication.
+    assert label()["availability_policy"] == "explicit_bar_available_at_or_nominal_close_lower_bound"
+
+
+@pytest.mark.parametrize("late_bar", [1, 2])
+def test_fine_refinement_retains_late_coarse_dependencies(late_bar):
+    from analysis.paper_label_execution import refine_barrier_labels
+
+    frame = bars()
+    frame.iloc[3] = [100, 103, 98, 100, 1000]
+    frame["available_at"] = frame.index + pd.Timedelta(days=1)
+    frame.iloc[late_bar, frame.columns.get_loc("available_at")] = pd.Timestamp("2020-01-07", tz="UTC")
+    hourly = pd.DataFrame({"open": 100., "high": 100., "low": 100.,
+                          "close": 100., "volume": 40.},
+                         index=pd.date_range("2020-01-04", periods=24, freq="h", tz="UTC"))
+    hourly.iloc[0, hourly.columns.get_loc("high")] = 103.
+    hourly.iloc[12, hourly.columns.get_loc("low")] = 98.
+    out = refine_barrier_labels({"BTC/USDT": frame}, [candidate()],
+        config=BarrierConfig(max_holding_bars=3), costs=LabelCosts(),
+        as_of="2020-01-08", fine_frames={"BTC/USDT": hourly})["outcomes"][0]
+    assert out["refinement_status"] == "resolved" and out["training_eligible"]
+    assert out["barrier"] == "profit_take" and out["exit_reference"] == 102
+    assert out["label_end_time"] == "2020-01-04T01:00:00+00:00"
+    assert out["available_at"] == "2020-01-07T00:00:00+00:00"
+
+
 def test_duplicate_or_unordered_bars_fail_instead_of_being_repaired():
     frame = bars()
     with pytest.raises(ValueError, match="ordered"):

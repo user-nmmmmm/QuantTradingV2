@@ -4,7 +4,7 @@
 
 当前策略仍为 **paused_revalidation**。本记录不改变费率、风险门槛、冻结研究的 fail 结论或人工锁定。工程验证、策略有效性和实际运行分别留痕。
 
-证据适用范围：下文测试和自动化结论属于 2026-09-20 对特定源码与配置身份取得的历史结果，不自动覆盖后续提交。`reports/roadmap_v3/…` 与 `outputs/automation/…` 是本地受限回执，不随公开源码发布；干净检出可读本页摘要，复核具体 JSON/JUnit 仍需取得当时封存的原始文件。
+证据适用范围：下文测试、自动化和远端 CI 是 2026-09-20 对明确源码/配置身份取得的历史结论，其中 PR #39 的提交及合并身份列于第 2 节。2026-09-27 核对时，本检出分支 HEAD `ab15bc2` 早于该合并提交，工作区又有未提交变更，不能直接继承这些通过结果。`reports/roadmap_v3/…` 和 `outputs/automation/…` 链接指向本机保留且被 Git 忽略的原始回执；干净检出可阅读本页的证据摘要与公开 PR，但若要复核具体 JSON/JUnit，需取得当时封存的本地文件。
 
 ## 1. 本次工程范围
 
@@ -14,22 +14,24 @@
 | SYS-05 | 固定文件摘要的只读账户来源；开账资本/资金流/手续费/融资/全账户估值对账；周期报告、运行时新增风险门禁与CLI接线 | 真实账户原始导出、受信任来源校验、实际逐笔和完整日终证据仍缺；默认无可信校验时禁止新增风险 |
 | SYS-06/07/08/16 | 账户差异与余额获取失败分别处理，保留保护性管理；新风险逐次检查完整账户来源及新鲜度 | 整体仍依赖SYS-05和真实恢复、告警及人工接管验收，不以局部测试关闭任务 |
 | SYS-18 | 灰度入口重算原始Phase6证据，绑定外部文件摘要、实际源码/配置/账户/唯一策略/额度/有效期；逐次新增风险复核，拒绝旧汇总pass和14日证据 | 新增修复专项88项通过；真实批准、SYS-17前置及实际小额运行仍未取得 |
-| SYS-19 | 自动化总入口、独占矩阵目录、指标/摘要裁决、完整重放、训练/验证研究与稳健性/容量任务、索引留存、本地失败告警；六项Windows调度已注册；真实双币四时间窗矩阵与重放已通过 | 当前仅1个真实UTC刷新日；连续14自然日、远端CI以及独立PIT数据仍需证据 |
+| SYS-19 | 自动化总入口、独占矩阵目录、指标/摘要裁决、完整重放、训练/验证研究与稳健性/容量任务、索引留存、本地失败告警；六项Windows调度已注册；真实双币四时间窗矩阵与重放、精确提交的两项远端CI均已通过 | 当前仅1个真实UTC刷新日；连续14自然日、独立PIT数据及外部告警回执仍需证据 |
 | DOC-01后续同步 | README、回测假设、Router与策略模块文档；自动化草案改为实际接口说明；账户事实操作说明 | 工程负责人已填；真实数据与账户操作负责人的实际姓名待指定 |
 
 指标的缺失事实仍产生 `null + not_modeled/insufficient_data`。分组回撤需要同步完整估值，现金流按区间末发生；组贡献在同一账户峰谷之间可加总。独立报价偏差仅是观察值，不代表因果市场冲击。账户导出只接受显式空仓开账锚点；第三币手续费的库存迁移和未支持的初始库存会明确拒绝。
 
 ## 2. 验证与证据
 
-本次证据目录：`reports/roadmap_v3/followup/20260920-implementation/`，最终验收汇总（仅本地证据：`../reports/roadmap_v3/followup/20260920-implementation/acceptance-final.json`）索引当前源码身份、测试、质量检查、固定输入复现、调度和工作包回执。干净隔离提交的全量结果为 **2237 passed、46 subtests passed、1 skipped、0失败**，覆盖率 **89.40%**；唯一跳过项需要真实sandbox凭据，未当作通过。环境、依赖锁、Ruff、历史档案保护、任务结构、mypy及合成full报告/完整重放全部通过，见质量回执（仅本地证据：`../reports/roadmap_v3/followup/20260920-implementation/final-quality.json`）与JUnit（仅本地证据：`../reports/roadmap_v3/followup/20260920-implementation/final-tests.xml`）。
+本次证据目录：`reports/roadmap_v3/followup/20260920-implementation/`，[最终验收汇总](../reports/roadmap_v3/followup/20260920-implementation/acceptance-final.json)索引当前源码身份、测试、质量检查、固定输入复现、调度和工作包回执。干净隔离提交的全量结果为 **2237 passed、46 subtests passed、1 skipped、0失败**，覆盖率 **89.40%**；唯一跳过项需要真实sandbox凭据，未当作通过。环境、依赖锁、Ruff、历史档案保护、任务结构、mypy及合成full报告/完整重放全部通过，见[质量回执](../reports/roadmap_v3/followup/20260920-implementation/final-quality.json)与[JUnit](../reports/roadmap_v3/followup/20260920-implementation/final-tests.xml)。
 
-最终源码三进程复现通过。v4指标基线迁移保留旧v3原文件，17个叶路径变化均为新增指标、版本与缺事实原因文本；固定输入下交易、权益、基准和原六项指标一致，20条业务事件相同，见迁移差异（仅本地证据：`../reports/roadmap_v3/followup/20260920-implementation/baseline-v4-diff.json`）。
+最终源码三进程复现通过。v4指标基线迁移保留旧v3原文件，17个叶路径变化均为新增指标、版本与缺事实原因文本；固定输入下交易、权益、基准和原六项指标一致，20条业务事件相同，见[迁移差异](../reports/roadmap_v3/followup/20260920-implementation/baseline-v4-diff.json)。
 
-历史验收契约的字节身份继续保留。SYS-01原验收引用的开发详情已逐字节归档到 修改前开发详情（仅本地证据：`archive/2026-09-followup/development_details.before-followup.md`），其原摘要不变。当前详情允许加入新任务，历史回执仍绑定原版本。本次新增源码重新冻结，不把旧源码回执描述为当前代码验证。
+用户明确授权后，公开发布副本已作为干净提交 `a2581d1cc1fd799a36008a2deacbbd9101dda205` 推送并通过[PR #39](https://github.com/user-nmmmmm/QuantTradingV2/pull/39)合并到main，合并提交为 `aee11221cfa80e559858a2cea39d6966135a7d69`。395个源码与已测提交完全相同，另有27份净化文档；私人邮件、账户原始资料和本地证据未纳入。PR精确提交和main合并提交的 `quality` 与 `synthetic-smoke-and-regression` 两项远端CI均通过，见[远端CI回执](../reports/roadmap_v3/followup/20260920-implementation/remote-ci.json)及[main合并回执](../reports/roadmap_v3/followup/20260920-implementation/merge-main.json)。
 
-最终候选登记为 followup-successor-03（仅本地证据：`../reports/roadmap_v3/SYS-11/20260920-followup-successor-03/acceptance.json`），源码摘要为 `1ed2cf91117b5de1817fe88e5b46aa19cf2acb754a2ba75412c7c2aa63085211`；前两次候选及其失败/成功回执仍保留，不混用身份。参数文件原始摘要仍为 `49665830ead75ec74f6ef736f3f8b1ee7fdb3122ba9f334cda9d944b26decb4e`。灰度修复的新版证据格式与迁移方式见[Phase6操作说明](phase6_operations.md)。
+历史验收契约的字节身份继续保留。SYS-01原验收引用的开发详情已逐字节归档到 [修改前开发详情](archive/2026-09-followup/development_details.before-followup.md)，其原摘要不变。当前详情允许加入新任务，历史回执仍绑定原版本。本次新增源码重新冻结，不把旧源码回执描述为当前代码验证。
 
-最终真实自动化批次（仅本地证据：`../reports/roadmap_v3/followup/20260920-implementation/final-automation-summary.json`）已完成，395个受控文件的逐文件身份在命令前后、运行和研究快照中均与最终冻结版本一致：
+最终候选登记为 [followup-successor-03](../reports/roadmap_v3/SYS-11/20260920-followup-successor-03/acceptance.json)，源码摘要为 `1ed2cf91117b5de1817fe88e5b46aa19cf2acb754a2ba75412c7c2aa63085211`；前两次候选及其失败/成功回执仍保留，不混用身份。参数文件原始摘要仍为 `49665830ead75ec74f6ef736f3f8b1ee7fdb3122ba9f334cda9d944b26decb4e`。灰度修复的新版证据格式与迁移方式见[Phase6操作说明](phase6_operations.md)。
+
+[最终真实自动化批次](../reports/roadmap_v3/followup/20260920-implementation/final-automation-summary.json)已完成，395个受控文件的逐文件身份在命令前后、运行和研究快照中均与最终冻结版本一致：
 
 | 验证 | 结果与实际边界 |
 | --- | --- |
@@ -53,7 +55,7 @@
 | 2 · SYS-06/07/08/09（含P0 SYS-08） | 在已验证账户来源上完成共享持仓、风险动作、健康恢复与重启的端到端实况验证；关闭前置依赖 | 运行负责人；Codex复核事实与恢复 |
 | 3 · SYS-10/11 | 保留历史研究fail；按最新独立候选身份积累未见样本并在成熟后单次裁决，不复用旧候选天数 | 研究负责人/人工裁决人；Codex执行冻结协议 |
 | 3 · SYS-16 | 实际告警送达、人工接管、真实场地备份恢复、RTO/RPO与账户隔离证明 | 项目运行负责人 |
-| 并行 · SYS-19 | 六项计划已部署、真实行情/周矩阵已手动通过；继续积累至少14个同源码/配置真实连续自然日；取得远端CI结果，合成冒烟不计天数 | Codex工程；项目主机/仓库负责人 |
+| 并行 · SYS-19 | 六项计划已部署、真实行情/周矩阵及精确提交远端CI已通过；继续积累至少14个同源码/配置真实连续自然日，补独立PIT数据与外部告警回执；合成冒烟不计天数 | Codex工程；项目主机/仓库负责人 |
 | 4 · SYS-17 | SYS-11和SYS-16完成后，以冻结身份至少56个连续自然日、两种市场状态、逐笔100%与完整日终对账验收 | 项目运行负责人 |
 | 5 · SYS-18 | SYS-17通过，取得针对具体版本/账户/金额/范围的人工批准，再执行小额灰度 | 账户授权人与运行负责人 |
 | 支线 · SYS-12/13 | 除真实PIT、账户和独立研究外，仍有正式调度接线、目标到订单的持久映射、多资产协方差/风险贡献及联合压力模型的工程工作；前置整体任务尚未验收，扩展保持默认关闭 | 研究/领域负责人；Codex承担工程 |

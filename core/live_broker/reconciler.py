@@ -66,7 +66,8 @@ class OrderReconcilerMixin:
         previous_status = OrderStatus(record["status"])
         try:
             payload = self._retry_exchange_call(lambda: record_order_call(
-                self, "reconcile", self._fetch_exchange_order, record))
+                self, "reconcile", self._fetch_exchange_order, record,
+                telemetry_context={"client_order_id": client_order_id, "symbol": record["symbol"]}))
         except Exception as exc:
             code = classify_order_exception(exc)
             current = OrderStatus(record["status"])

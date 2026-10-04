@@ -9,7 +9,7 @@
 > P1/P2/P3 are opt-in, research-only components; learned regimes never actuate the production account.
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
-[![Status: Alpha](https://img.shields.io/badge/Status-Alpha-orange.svg)]()
+![Status: Alpha](https://img.shields.io/badge/Status-Alpha-orange.svg)
 [![Tests: pytest](https://img.shields.io/badge/tests-pytest-green.svg)](#11-测试)
 
 ---
@@ -41,6 +41,10 @@
 **Next-Bar Execution 防前视偏差**的撮合模型，以及一个**实盘轮询引擎**
 （CCXT 下单 + 状态导出 + 只读运维 Dashboard）。
 
+本地网页研究工作台支持历史回测、数据检查、实验对比与 Walk-forward 研究；账户监控
+读取实盘快照，网页任务在独立子进程中运行离线引擎。操作说明见
+[`dashboard/README.md`](dashboard/README.md)。
+
 项目当前处于 **Alpha** 阶段：回测链路（数据 → 状态机 → 路由 → 组合分配 → 风控 → 撮合 → 归因）
 已具备工程化的正确性验证（会计恒等式核对、固定基线回归、可复现 manifest、
 OOS / Walk-Forward / Bootstrap / Monte Carlo 稳健性检验）；实盘链路仍在按
@@ -52,6 +56,17 @@ OOS / Walk-Forward / Bootstrap / Monte Carlo 稳健性检验）；实盘链路�
 | --- | --- |
 | ✅ 适用 | 策略研究、回测工程化、交易系统原型验证、Sandbox 联调 |
 | ⚠️ 不适用 | 直接用于真实资金的生产级交易（需先通过 R7 验收与 Phase 6 准入证据） |
+
+### 按用途阅读
+
+| 需要做什么 | 入口 |
+| --- | --- |
+| 安装并完成首次回测 | [快速开始](#4-快速开始) |
+| 在网页检查数据、运行和比较实验 | [本地研究工作台](dashboard/README.md) |
+| 理解代码职责与调用关系 | [模块导航](docs/modules/README.md) |
+| 查找研究脚本、输入与产物 | [脚本索引](scripts/README.md) |
+| 查看论文研究和当前证据边界 | [文档导航](docs/README.md#最新行为变更) |
+| 查看任务状态和放行条件 | [统一 Roadmap](docs/unified_roadmap.md) |
 
 ---
 
@@ -70,7 +85,7 @@ flowchart TB
         M["main.py（回测 CLI）"]
         RL["run_live.py（实盘轮询）"]
         RS["resolve_live_order.py（UNKNOWN 订单人工恢复）"]
-        DB["python -m dashboard（只读运维视图）"]
+        DB["dashboard CLI / Web（账户监控 / 离线研究）"]
         SC["scripts/（数据抓取 / 批量矩阵 / 环境自检）"]
     end
 
@@ -120,6 +135,7 @@ flowchart TB
     PF --> OBS
     RS --> LB
     DB --> OBS
+    DB -->|离线回测子进程| M
 ```
 
 ### 2.2 共享决策流程与模式适配
@@ -382,6 +398,7 @@ QuantTradingV1/
 │   ├── cli.py                  # 回测命令行参数与报告 profile
 │   ├── equity_bookkeeping.py   # 回测权益与敞口采样辅助
 │   ├── execution_adapter.py    # 模拟执行适配器
+│   ├── delayed_execution.py    # 按信号实际可用时间调度延迟市场单
 │   ├── protective_stops.py     # 场内常驻止损的盘中撮合模拟
 │   ├── capacity.py             # 资金容量曲线（Phase 3）
 │   └── reporting/              # 报告层：先算后渲染
@@ -394,15 +411,24 @@ QuantTradingV1/
 │   ├── engine.py               # 实盘轮询引擎（tick 生命周期、状态导出）
 │   ├── execution_adapter.py    # 记录式执行适配器
 │   ├── tick_orchestrator.py    # 单次 tick 的阶段编排
+│   ├── catchup.py              # 已收盘 bar 补帧与信号新鲜度判断
+│   ├── protection_schedule.py  # 保护单对账间隔与强制触发
+│   ├── runtime_controls.py     # 账户事实、策略故障与新增风险门控
 │   ├── state_export.py         # live_status.json 导出
 │   └── recovery.py             # 重启恢复
 │
 ├── analysis/
 │   ├── optimize.py             # 参数优化（含 --oos）
 │   ├── validation.py           # walk-forward / bootstrap 验证
-│   └── research_validation.py  # 研究治理：数据分区、holdout 协议、多重检验
+│   ├── research_validation.py  # 研究治理：数据分区、holdout 协议、多重检验
+│   ├── research_evidence.py    # 候选登记、尝试历史与证据汇总
+│   ├── paper_validation.py     # 论文统计验证方法与证据完整性检查
+│   └── return_followup.py      # 固定方案的收益改进历史复核
 │
-├── dashboard/                  # 只读运维 CLI（消费 live_status.json，不控制交易）
+├── dashboard/                  # 账户监控 CLI + 本地网页研究工作台
+│   ├── web.py                 # 网页服务、同源接口与启动参数
+│   ├── backtest_jobs.py       # 离线回测/滚动研究共用任务槽
+│   └── experiment_store.py    # 实验档案、笔记、标签和策略预设
 ├── scripts/                    # 数据抓取、批量矩阵、阶段证据、环境与依赖校验；见 scripts/README.md
 ├── research/replay.py          # 事件回放研究脚本
 ├── research/audit/ledger.py    # 离线事件账本研究；不接入交易账户路径
@@ -458,19 +484,26 @@ QuantTradingV1/
 
 ### 4.1 安装依赖
 
+从仓库根目录创建环境，并使用该环境的 Python 安装依赖。Windows PowerShell：
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.\.venv\Scripts\Activate.ps1
+```
+
+Linux / macOS：
+
 ```bash
 python -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements-dev.txt
 ```
 
-```bash
-pip install -r requirements.txt
-```
-
-```bash
-pip install -r requirements-dev.txt
-```
-
-Windows 激活虚拟环境用 `.venv\Scripts\activate`，Linux / macOS 用 `source .venv/bin/activate`。
+`requirements-dev.txt` 已包含运行依赖。只运行项目时可改用 `requirements.txt`；需要固定
+传递依赖时使用 `requirements.lock.txt`，具体区别见[依赖管理](docs/dependency_management.md)。
+下文 `python` 均指已激活环境的解释器；PowerShell 无法激活时可直接替换为
+`.\.venv\Scripts\python.exe`。
 
 > CI 与 `mypy` 目标 Python 版本为 **3.11**（`.github/workflows/tests.yml`、`pyproject.toml`），
 > 本地开发环境固定为 3.13.2（`.python-version`）。
@@ -492,28 +525,26 @@ Windows 激活虚拟环境用 `.venv\Scripts\activate`，Linux / macOS 用 `sour
 无参数运行会打印用法并以非零状态退出（便于脚本化），不会阻塞在交互式输入上。
 
 ```bash
-python main.py --source synthetic --days 365 --capital 10000 --symbols BTC-USDT ETH-USDT SOL-USDT --seed 42
+python main.py --source synthetic --days 365 --capital 10000 --symbols BTC-USDT ETH-USDT --seed 42
 ```
 
 指定日期区间（优先级高于 `--days`）：
 
 ```bash
-python main.py --source synthetic --start 2019-01-01 --end 2020-12-31 --symbols BTC-USDT ETH-USDT SOL-USDT --seed 42
+python main.py --source synthetic --start 2019-01-01 --end 2020-12-31 --symbols BTC-USDT ETH-USDT --seed 42
 ```
 
-回测默认标的是 BTC、ETH、SOL，与正式健康恢复至少三个不同标的的要求一致；固定 synthetic `weekly-smoke` 使用同一范围。显式传入两个标的仍会保留请求，并在正式健康规则不可达时拒绝启动。两标的研究需要单独登记有实验身份的研究政策。
-
-使用本地缓存的真实行情（先用 `scripts/fetch_binance_data.py` 下载并核验三个标的的数据）：
+使用本地缓存的真实行情（先用 `scripts/fetch_binance_data.py` 下载）：
 
 ```bash
-python main.py --source local --data-dir data/binance/1d --timeframe 1d --symbols BTC-USDT ETH-USDT SOL-USDT
+python main.py --source local --data-dir data/binance/1d --timeframe 1d --symbols BTC-USDT ETH-USDT
 ```
 
 ### 4.3 下载行情与批量回测矩阵
 
 ```bash
-python scripts/fetch_binance_data.py --timeframe 1d --symbols BTC/USDT ETH/USDT SOL/USDT
-python scripts/fetch_binance_data.py --timeframe 4h --symbols BTC/USDT ETH/USDT SOL/USDT
+python scripts/fetch_binance_data.py --timeframe 1d --symbols BTC/USDT ETH/USDT
+python scripts/fetch_binance_data.py --timeframe 4h --symbols BTC/USDT ETH/USDT
 ```
 
 下载脚本每次只处理一个周期，并将结果写入 `data/binance/<timeframe>/`。
@@ -522,7 +553,7 @@ python scripts/fetch_binance_data.py --timeframe 4h --symbols BTC/USDT ETH/USDT 
 被当前清单逐文件记录。研究或验收应为实际使用的数据另存完整来源和哈希。
 
 ```bash
-python scripts/run_backtest_matrix.py --symbols BTC/USDT ETH/USDT SOL/USDT --timeframes 1d --windows full
+python scripts/run_backtest_matrix.py --timeframes 1d --windows full
 ```
 
 汇总结果写入 `outputs/backtest_matrix/<时间戳>/summary.csv` 与 `summary.md`。
@@ -553,16 +584,29 @@ python resolve_live_order.py CLIENT_ORDER_ID --order-store reports/live_orders.d
 `EXPIRED_UNSUBMITTED`，并把操作人、原因、迁移前状态和时间戳写入 SQLite 审计账本。
 **切勿**仅因一次查询超时或临时无结果就使用此命令。
 
-### 4.5 只读运维 Dashboard
+### 4.5 本地网页工作台与运维 CLI
 
-Dashboard 是一个最小化 CLI，消费 `live_status.json` 与近期告警记录；
-它**不是** Web UI，也**从不控制交易**：
+启动网页工作台：
+
+```bash
+python -m dashboard.web --open
+```
+
+默认打开 [本地页面](http://127.0.0.1:8765/)，支持数据检查、离线回测、实验对比与
+Walk-forward 研究。Windows 也可运行 `.\scripts\start_dashboard.ps1`，自动选择环境并打开
+浏览器。账户监控只读取快照；网页回测和研究会写入本地报告及实验档案，不向交易所下单。
+需要禁用网页任务执行时加 `--no-backtests`，查看演示账户时加 `--demo`。
+
+终端监控入口仍可单独使用：
 
 ```bash
 python -m dashboard --status reports/live_status.json --alerts reports/live_alerts.jsonl
 ```
 
-状态快照缺失或非法时以退出码 `2` 结束。
+终端监控在状态快照缺失或非法时以退出码 `2` 结束。网页监控则显示不可用状态，
+离线研究仍可使用。启动参数、任务限制和结果口径见
+[`dashboard/README.md`](dashboard/README.md)，接口与前端维护见
+[`dashboard/FRONTEND.md`](dashboard/FRONTEND.md)。
 
 ---
 
@@ -574,7 +618,7 @@ python -m dashboard --status reports/live_status.json --alerts reports/live_aler
 | :--- | :--- | :--- |
 | `--source` | `synthetic` | 数据源：`synthetic` / `yahoo` / `ccxt` / `local` |
 | `--data-dir` | — | `--source local` 的 OHLCV CSV 目录（如 `data/binance/1d`） |
-| `--symbols` | `BTC-USDT ETH-USDT SOL-USDT` | 标的列表；`ccxt` 支持 `BTC/USDT` 与 `BTC-USDT` |
+| `--symbols` | `BTC-USDT ETH-USDT` | 标的列表；`ccxt` 支持 `BTC/USDT` 与 `BTC-USDT` |
 | `--days` | `365` | 从当前时间向前回测 N 天（未指定 start/end 时生效） |
 | `--start` / `--end` | — | 日期区间，优先级高于 `--days` |
 | `--capital` | `10000.0` | 初始资金（USDT） |
@@ -585,6 +629,10 @@ python -m dashboard --status reports/live_status.json --alerts reports/live_aler
 | `--market-type` | 取配置 `account.mode` | `spot` / `margin` / `perpetual` |
 | `--timeframe` | `1d` | Bar 周期与 manifest 身份 |
 | `--data-timezone` | `UTC` | 解释请求日期边界的时区 |
+| `--temporal-mode` | 取配置；未启用时为回顾性兼容 | `retrospective` 回放最终数据；`strict` 按决策时刻的可用性证据筛选 |
+| `--temporal-knowledge` / `--temporal-unknown` | 取时间策略配置 | `local` / `published` 选择可用性口径；缺证据时 `exclude` / `raise` |
+| `--data-version-store` | — | 保存原始输入和增量 OHLCV 版本的本地目录 |
+| `--temporal-financing-evidence` | — | 严格研究标签使用的版本化资金费/借贷证据 JSON，随报告封存 |
 | `--alignment-mode` | `union` | 多标的时间轴对齐：`union` / `intersection` |
 | `--benchmark-mode` | `fixed` | 主报告基准：`fixed` 等权买入持有 / `dynamic` 等权再平衡 |
 | `--benchmark-rebalance-cost-bps` | `5.0` | 动态基准的换手成本 |
@@ -599,21 +647,34 @@ python -m dashboard --status reports/live_status.json --alerts reports/live_aler
 | `--signal-meta-replay` | `False` | P3 独立有限资本基线／门控／受限仓位账户；自动启用 P2/P1/P0，不改变正式账户 |
 | `--disable-routing-log` | `False` | 关闭逐 bar 路由 CSV，用于批量参数优化 |
 
+参数全集以 `python main.py --help` 为准。主回测引擎要求
+`--temporal-decision-delay-seconds` 为 `0`；正延迟研究使用独立的
+[延迟执行诊断](docs/modules/backtest.md#backtestdelayed_executionpy--独立延迟执行诊断)。
+冻结输入文件只能证明版本身份，不能补足历史时点的可用性证据。
+
 ### 5.2 实盘入口 `run_live.py`
 
 | 参数 | 默认 | 说明 |
 | :--- | :--- | :--- |
 | `--symbols` | `BTC/USDT ETH/USDT` | 标的列表 |
 | `--interval` | `60` | 轮询间隔（秒） |
+| `--market-data-workers` | `4` | 公共行情读取并发数，范围 `1–8`；账户与成交处理仍串行 |
+| `--runtime-controls` | `False` | 显式开启整批行情预算、保护单调度和仅恢复状态的补帧 |
+| `--market-timeout` / `--protection-interval` | `5` / `5` | 启用运行控制后的整批行情预算 / 保护检查间隔，单位为秒 |
+| `--catchup-max-bars` | `100` | 启用运行控制后的单批补帧上限 |
+| `--account-id` | `QUANT_ACCOUNT_ID` | 用于状态隔离的稳定账户标识，不是凭据 |
 | `--sandbox` / `--live` | `--sandbox` | 互斥组；`--live` 才连接真实资金端点 |
 | `--exchange` | `binance` | CCXT 交易所 ID |
-| `--market-type` | `spot` | `spot` / `future` / `futures` / `swap` / `margin`，受能力边界约束 |
+| `--market-type` | 从配置 `account.mode` 映射 | `spot` / `future` / `futures` / `swap` / `margin`，受能力边界约束 |
 | `--base-currency` | `USDT` | 计价货币 |
 | `--preflight-only` | `False` | 只连接交易所、写启动报告后退出 |
 | `--preflight-report` | `reports/startup_preflight.json` | 启动自检报告路径 |
 | `--r8-evidence` | — | 已通过的 R7 或 Phase 6 准入证据 JSON（`--live` 必需） |
 | `--rollback-snapshot` | — | 已验证的可回滚状态快照（`--live` 必需） |
 | `--r8-max-order-notional` / `--r8-max-daily-risk` | — | 灰度放量阶段的单笔名义额与日风险上限 |
+
+运行控制的默认启用状态、补帧与保护路径见[实盘模块说明](docs/modules/live_trading.md)。
+保护检查在同一执行线程中调度；间隔值不保证阻塞调用期间也能按时执行。
 
 ### 5.3 运维脚本 `scripts/`
 
@@ -814,6 +875,10 @@ python -m pytest -q
 无前视偏差（`test_no_lookahead.py`）、订单生命周期与实盘安全（`test_g1_*` / `test_g2_*`）、
 指标、执行端口与各阶段 Gate。
 
+网页前端另有 Node.js 原生测试；它们不需要 npm 安装或构建。测试命令及对应模块见
+[`dashboard/FRONTEND.md`](dashboard/FRONTEND.md)。Windows 临时目录受限时可使用
+[`scripts/run_portable_tests.py`](scripts/run_portable_tests.py)。
+
 ## 文档索引
 
 | 文档 | 说明 |
@@ -821,6 +886,9 @@ python -m pytest -q
 | [`docs/README.md`](docs/README.md) | 文档入口、权威层级和历史归档说明 |
 | [`docs/modules/README.md`](docs/modules/README.md) | 逐包代码说明（模块职责、关键类、模块间关系） |
 | [`scripts/README.md`](scripts/README.md) | 脚本入口、运行用途与专项研究脚本索引 |
+| [`dashboard/README.md`](dashboard/README.md) | 网页工作台启动、研究流程、档案与常见问题 |
+| [`docs/research/paper_validation_contract_20261003.md`](docs/research/paper_validation_contract_20261003.md) | 论文统计验证方法、输入契约与证据不足行为 |
+| [`docs/research/paper_remaining_tasks_20261004.md`](docs/research/paper_remaining_tasks_20261004.md) | 执行证据、历史因子、前瞻采集与严格标签的工程边界 |
 | [`docs/unified_roadmap.md`](docs/unified_roadmap.md) | 唯一项目总路线图、R0–R8 与放行门槛 |
 | [`docs/development_plan.md`](docs/development_plan.md) | 当前开发批次、任务顺序和验收产物 |
 | [`docs/backtest_assumptions.md`](docs/backtest_assumptions.md) | 执行模型、费率/滑点、数据对齐与局限性 |

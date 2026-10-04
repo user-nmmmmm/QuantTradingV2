@@ -102,6 +102,8 @@ def triple_barrier_label(frame: pd.DataFrame, candidate, *, config: BarrierConfi
     missing expected bar censors rather than jumping across the gap. No future
     or incomplete bar's OHLC is read. label_end_time is the conservative exit
     bar-close bound suitable for overlap purging, not an invented tick time.
+    available_at includes the signal and every bar inspected through the exit:
+    a late entry/intermediate revision cannot make the label available earlier.
     """
     if split not in {"train", "validation", "retrospective"}:
         raise ValueError("final/holdout samples require the existing adjudication entrypoint")
@@ -145,6 +147,7 @@ def triple_barrier_label(frame: pd.DataFrame, candidate, *, config: BarrierConfi
         return insufficient("not_matured")
     sign = 1 if item["direction"] == "long" else -1
     entry = None
+    label_available = available
     for number in range(config.max_holding_bars):
         at = entry_at + number * delta
         if at + delta > cutoff:
@@ -163,6 +166,7 @@ def triple_barrier_label(frame: pd.DataFrame, candidate, *, config: BarrierConfi
             return insufficient("availability_before_bar_close")
         if bar_available > cutoff:
             return insufficient("not_matured")
+        label_available = max(label_available, bar_available)
         try:
             open_, high, low, close, volume = [float(row[key]) for key in
                                              ("open", "high", "low", "close", "volume")]
@@ -207,7 +211,7 @@ def triple_barrier_label(frame: pd.DataFrame, candidate, *, config: BarrierConfi
         result.update(status="matured", reason="ambiguous_stop_first" if ambiguous else None,
                       barrier=barrier, ambiguous=ambiguous, training_eligible=not ambiguous,
                       exit_reference=exit_price, exit_bar=at.isoformat(),
-                      label_end_time=(at + delta).isoformat(), available_at=bar_available.isoformat(),
+                      label_end_time=(at + delta).isoformat(), available_at=label_available.isoformat(),
                       label=1 if net > 0 else (-1 if net < 0 else 0),
                       gross_return_bps=gross, net_return_bps=net,
                       cost_components_bps=components, execution_flags=flags,

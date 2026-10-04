@@ -12,6 +12,7 @@ import pandas as pd
 
 from core.signal_ev_types import EVPolicy, CONTEXT_DEFINITION, context_memberships, implementation_identity
 from core.signal_ev_ledger import EVLedger
+from core.signal_label_versions import OutcomeRevisionBook
 from core.signal_observation_types import finite, fingerprint, iso
 from core.reproducibility import canonical_json, sha256_bytes
 from core.timeframes import as_utc_timestamp, timeframe_delta
@@ -87,6 +88,8 @@ def _validate_input(payload):
 
 def _exclusions(candidate_id, outcome, decisions):
     flags = list(outcome.get("execution_flags", []))
+    if outcome.get("training_eligible") is False:
+        flags.append("temporal_label_ineligible")
     stage = decisions[candidate_id]["veto_stage"]
     if stage in EXCLUDED_GATES:
         flags.append("p0_ineligible:" + stage)
@@ -114,10 +117,14 @@ def _build_signal_meta_layer(payload, policy=None):
             "economics": "overlapping fixed-horizon labels, NOT portfolio return or gate causal uplift"}}
     try:
         horizons, candidates, decisions, outcomes = _validate_input(payload)
+        revisions = OutcomeRevisionBook(payload, candidates, horizons, outcomes)
         result["input_identity"].update(
             candidates_sha256=fingerprint([candidates[cid] for cid in sorted(candidates)]),
             outcomes_sha256=fingerprint([outcomes[key] for key in sorted(outcomes)]),
             decisions_sha256=sha256_bytes(canonical_json([decisions[cid] for cid in sorted(decisions)]).encode("utf-8")))
+        if revisions.versioned:
+            result["input_identity"]["outcome_revisions_sha256"] = fingerprint(payload["outcome_revisions"])
+        result["protocol"].update(revisions.audit())
     except (KeyError, TypeError, ValueError) as exc:
         result["status"] = "incomplete"
         result["errors"].append({"reason": "invalid_p0_input", "message": str(exc)})
@@ -149,9 +156,14 @@ def _build_signal_meta_layer(payload, policy=None):
             start = first_test + index*fold_length
             cutoff = start - pd.Timedelta(days=policy.embargo_days)
             train_start = cutoff - pd.Timedelta(days=policy.train_days)
-            training = [(c, o) for c, o in eligible
+            cutoff_eligible = ([(candidates[cid], o) for (cid, _), o in revisions.as_of(cutoff).items()
+                if revisions.eligible(o) and not _exclusions(cid, o, decisions)]
+                if revisions.versioned else eligible)
+            training = [(c, o) for c, o in cutoff_eligible
                         if train_start <= as_utc_timestamp(c["context"]["available_at"])
                         and as_utc_timestamp(o["available_at"]) < cutoff]
+            training.sort(key=lambda pair: (as_utc_timestamp(pair[1]["available_at"]),
+                pair[0]["candidate_id"], pair[1]["horizon_bars"]))
             ledger = EVLedger(policy)
             for c, o in training:
                 ledger.add(c, o, stamps[c["candidate_id"]], cutoff=cutoff)
@@ -162,6 +174,7 @@ def _build_signal_meta_layer(payload, policy=None):
                 "embargo_days": policy.embargo_days, "training_observations": len(training),
                 "training_candidates": len({c["candidate_id"] for c, _ in training}),
                 "training_digest": training_digest,
+                "label_revisions": [o["revision_id"] for _, o in training if "revision_id" in o],
                 "latest_label_available_at": max((o["available_at"] for _, o in training), default=None),
                 "model_version": fingerprint({"implementation": model_version, "training_digest": training_digest,
                                                "cutoff": iso(cutoff), "train_start": iso(train_start)})}

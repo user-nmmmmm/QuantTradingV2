@@ -11,6 +11,7 @@ import pandas as pd
 from core.logger import get_logger
 from core.public_data_clients import PublicDataClientPool
 from core.timeframes import timeframe_delta as _fixed_timeframe_delta
+from core.temporal_data import TemporalOHLCV, compatibility_audit, temporal_policy as _temporal_policy
 
 # 本模块与回测/实盘的数据源解耦：上层只关心返回统一格式的 OHLCV DataFrame
 # （index 为时间戳，列名为 open/high/low/close/volume，均为小写）
@@ -53,6 +54,8 @@ class DataFetcher:
         proxy_url: Optional[str] = _UNSET,
         request_timeout_ms: int = 10000,
         data_timezone: str = "Asia/Shanghai",
+        temporal_policy=None,
+        clock=None,
     ):
         """
         参数：
@@ -68,9 +71,28 @@ class DataFetcher:
         self.request_timeout_ms = request_timeout_ms
         self._public_clients = PublicDataClientPool()
         self._tz = ZoneInfo(data_timezone)
+        self.temporal_policy = _temporal_policy(temporal_policy)
+        self._temporal_enabled = temporal_policy is not None
+        self._temporal_clock = clock or (lambda: pd.Timestamp.now(tz="UTC").floor("us"))
+        self._temporal_histories = {}
 
         if self.proxy_url:
             logger.info("Using outbound proxy for data fetches: %s", safe_url(self.proxy_url))
+
+    def _capture_ohlcv(self, frame, *, symbol, timeframe, provider, market_type="spot"):
+        """Record the completed response boundary, never an inferred publication time."""
+        receipt = self._temporal_clock()
+        if not self._temporal_enabled or frame.empty:
+            frame.attrs["temporal_audit"] = compatibility_audit()
+            frame.attrs["local_response_received_at"] = str(receipt)
+            return frame
+        dataset = f"{provider}|{market_type}|{symbol}|{timeframe}"
+        history = self._temporal_histories.get(dataset)
+        if history is None:
+            history = TemporalOHLCV(dataset, timeframe=timeframe, policy=self.temporal_policy)
+            self._temporal_histories[dataset] = history
+        return history.ingest(frame, observed_at=receipt, local_receipt=True,
+                              source_reference=f"{provider}:ohlcv_response")
 
     def _local_date_to_utc_ms(self, date_str: str) -> int:
         """将 'YYYY-MM-DD' 按 self._tz 解释为当天 00:00:00，返回对应 UTC 毫秒时间戳。"""
@@ -187,7 +209,7 @@ class DataFetcher:
 
             normalized = self._normalize(df)
             normalized.attrs.update(provider="yahoo", symbol=symbol, timeframe="1d", market_type="spot")
-            return normalized
+            return self._capture_ohlcv(normalized, symbol=symbol, timeframe="1d", provider="yahoo")
 
         except ImportError:
             logger.error("yfinance not installed. Please run: pip install yfinance")
@@ -391,7 +413,8 @@ class DataFetcher:
         df.attrs.update(provider=exchange_id, symbol=ccxt_symbol, timeframe=timeframe,
                         market_type=market_type, requested_start=start_date, requested_end=end_date,
                         pagination_termination=termination)
-        return df
+        return self._capture_ohlcv(df, symbol=ccxt_symbol, timeframe=timeframe,
+                                  provider=exchange_id, market_type=market_type)
 
     def fetch_ccxt_since(self, symbol, since, *, exchange_id="binance", timeframe="1m",
                          limit=200, market_type="spot"):
@@ -415,7 +438,9 @@ class DataFetcher:
         frame = pd.DataFrame(values, columns=["timestamp", "open", "high", "low", "close", "volume"])
         frame["timestamp"] = pd.to_datetime(frame["timestamp"], unit="ms")
         frame = frame.set_index("timestamp")
-        return self._normalize(frame.loc[frame.index >= stamp.tz_localize(None)])
+        frame = self._normalize(frame.loc[frame.index >= stamp.tz_localize(None)])
+        return self._capture_ohlcv(frame, symbol=symbol, timeframe=timeframe,
+                                  provider=exchange_id, market_type=market_type)
 
     def fetch_funding_rate_history(
         self,

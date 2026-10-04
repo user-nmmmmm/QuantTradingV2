@@ -35,6 +35,15 @@
   --font-body: "Aptos", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
   --font-data: "Bahnschrift", "Aptos Display", "Segoe UI", "Microsoft YaHei", sans-serif;
   --font-mono: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+  --font-xs: 11px;
+  --font-sm: 12px;
+  --font-md: 14px;
+  --font-lg: 20px;
+  --font-body-size: 13px;
+  --font-page: clamp(28px, 2.4vw, 36px);
+  --font-reading: 24px;
+  --radius-control: 7px;
+  --control-height: 44px;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -88,7 +97,7 @@ body {
   background: var(--bg);
   color: var(--ink);
   font-family: var(--font-body);
-  font-size: 13px;
+  font-size: var(--font-body-size);
   line-height: 1.55;
   font-variant-numeric: tabular-nums;
 }

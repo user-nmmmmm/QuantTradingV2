@@ -8,31 +8,26 @@
       "kind": "documentation",
       "legacy_receipt": {
         "path": "docs/archive/2026-09-roadmap-rebaseline/manifest.json",
-        "sha256": "c60eb4749d857d6f6e9f218ccd02d41146c25851c62cf389636ac9d85f3d2099",
-        "distribution": "local_only_not_published"
+        "sha256": "c60eb4749d857d6f6e9f218ccd02d41146c25851c62cf389636ac9d85f3d2099"
       },
       "contract": {
         "path": "docs/archive/2026-09-roadmap-rebaseline/README.md",
-        "sha256": "bcc43ed596f54bb2b6d286c6bed1a79b1684885613c81535730865c4df394dab",
-        "distribution": "local_only_not_published"
+        "sha256": "bcc43ed596f54bb2b6d286c6bed1a79b1684885613c81535730865c4df394dab"
       },
       "compatibility": "旧路径保留并提示新入口；原文快照不修改相对链接，通过归档索引阅读。",
       "source_identity": {
         "path": "docs/archive/2026-09-roadmap-rebaseline/manifest.json",
-        "sha256": "c60eb4749d857d6f6e9f218ccd02d41146c25851c62cf389636ac9d85f3d2099",
-        "distribution": "local_only_not_published"
+        "sha256": "c60eb4749d857d6f6e9f218ccd02d41146c25851c62cf389636ac9d85f3d2099"
       },
       "source_snapshot_root": "docs/archive/2026-09-roadmap-rebaseline",
       "fixed_inputs": [
         {
           "path": "docs/archive/2026-09-roadmap-rebaseline/emails/codex_mail_findings_20260920.json",
-          "sha256": "fde44396e54e15b028b7841359126a60e95abde53d22b8c7a8b40fc13b1a44e0",
-          "distribution": "local_only_not_published"
+          "sha256": "fde44396e54e15b028b7841359126a60e95abde53d22b8c7a8b40fc13b1a44e0"
         },
         {
           "path": "docs/archive/2026-09-roadmap-rebaseline/emails/codex_project_emails.md",
-          "sha256": "76044edb8acda460b92c19aab9eea5a2ddef0f6d6e527d83c41b335d041e6ae9",
-          "distribution": "local_only_not_published"
+          "sha256": "76044edb8acda460b92c19aab9eea5a2ddef0f6d6e527d83c41b335d041e6ae9"
         }
       ],
       "checks": [
@@ -43,13 +38,11 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/DOC-01/20260920-rebaseline/document_validation.json",
-              "sha256": "2f5423804c3e15755893d149d295a3925d61f9e66e13dea95d9b151a910871ed",
-              "distribution": "local_only_not_published"
+              "sha256": "2f5423804c3e15755893d149d295a3925d61f9e66e13dea95d9b151a910871ed"
             },
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/governance_validation.json",
-              "sha256": "621dc62f69c2c5376fa2c7782942d350730e7bb1173b7304a9dc5a601a08bc94",
-              "distribution": "local_only_not_published"
+              "sha256": "621dc62f69c2c5376fa2c7782942d350730e7bb1173b7304a9dc5a601a08bc94"
             }
           ]
         },
@@ -60,13 +53,11 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/DOC-01/20260920-rebaseline/document_validation.json",
-              "sha256": "2f5423804c3e15755893d149d295a3925d61f9e66e13dea95d9b151a910871ed",
-              "distribution": "local_only_not_published"
+              "sha256": "2f5423804c3e15755893d149d295a3925d61f9e66e13dea95d9b151a910871ed"
             },
             {
               "path": "docs/archive/2026-09-roadmap-rebaseline/README.md",
-              "sha256": "bcc43ed596f54bb2b6d286c6bed1a79b1684885613c81535730865c4df394dab",
-              "distribution": "local_only_not_published"
+              "sha256": "bcc43ed596f54bb2b6d286c6bed1a79b1684885613c81535730865c4df394dab"
             }
           ]
         },
@@ -77,8 +68,7 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/DOC-01/20260920-rebaseline/document_validation.json",
-              "sha256": "2f5423804c3e15755893d149d295a3925d61f9e66e13dea95d9b151a910871ed",
-              "distribution": "local_only_not_published"
+              "sha256": "2f5423804c3e15755893d149d295a3925d61f9e66e13dea95d9b151a910871ed"
             }
           ]
         },
@@ -89,18 +79,15 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/DOC-01/20260920-rebaseline/document_validation.json",
-              "sha256": "2f5423804c3e15755893d149d295a3925d61f9e66e13dea95d9b151a910871ed",
-              "distribution": "local_only_not_published"
+              "sha256": "2f5423804c3e15755893d149d295a3925d61f9e66e13dea95d9b151a910871ed"
             },
             {
               "path": "docs/archive/2026-09-roadmap-rebaseline/manifest.json",
-              "sha256": "c60eb4749d857d6f6e9f218ccd02d41146c25851c62cf389636ac9d85f3d2099",
-              "distribution": "local_only_not_published"
+              "sha256": "c60eb4749d857d6f6e9f218ccd02d41146c25851c62cf389636ac9d85f3d2099"
             },
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/governance_validation.json",
-              "sha256": "621dc62f69c2c5376fa2c7782942d350730e7bb1173b7304a9dc5a601a08bc94",
-              "distribution": "local_only_not_published"
+              "sha256": "621dc62f69c2c5376fa2c7782942d350730e7bb1173b7304a9dc5a601a08bc94"
             }
           ]
         }
@@ -123,37 +110,31 @@
       "kind": "engineering",
       "legacy_receipt": {
         "path": "reports/roadmap_v3/SYS-01/20260920-section56-freeze-02/acceptance.json",
-        "sha256": "d56424232017aca1efd91c45a73fb7af9855eea1a75887b9509395fdb21574e7",
-        "distribution": "local_only_not_published"
+        "sha256": "d56424232017aca1efd91c45a73fb7af9855eea1a75887b9509395fdb21574e7"
       },
       "contract": {
         "path": "docs/archive/2026-09-followup/development_details.before-followup.md",
         "sha256": "113ffa6d2e0157a29fb33a34cbdeb06a397f5a4db1b4964df072573ede4c81ed",
-        "anchor": "sys-01",
-        "distribution": "local_only_not_published"
+        "anchor": "sys-01"
       },
       "compatibility": "保留旧基线及补丁；跨平台以Git可重现字节或明示规范化计算hash，不使用chmod宣称不可变。",
       "source_identity": {
         "path": "reports/roadmap_v3/SYS-01/20260920-section56-freeze-02/source_manifest.json",
-        "sha256": "74bb2abf82e49392ca77d31709be3cf8a2fe73dd856bf6655218abac5015eb7d",
-        "distribution": "local_only_not_published"
+        "sha256": "74bb2abf82e49392ca77d31709be3cf8a2fe73dd856bf6655218abac5015eb7d"
       },
       "source_snapshot_root": "reports/roadmap_v3/SYS-01/20260920-section56-freeze-02/source",
       "fixed_inputs": [
         {
           "path": "reports/roadmap_v3/SYS-01/20260920-section56-freeze-02/source/config/params.yaml",
-          "sha256": "49665830ead75ec74f6ef736f3f8b1ee7fdb3122ba9f334cda9d944b26decb4e",
-          "distribution": "local_only_not_published"
+          "sha256": "49665830ead75ec74f6ef736f3f8b1ee7fdb3122ba9f334cda9d944b26decb4e"
         },
         {
           "path": "reports/roadmap_v3/SYS-01/20260920-section56-freeze-02/source/tests/engine_baseline_harness.py",
-          "sha256": "8a178a21c97a70c968a3c468e3554b0d0c8738d8eda9f29d54bb33147dec4d7f",
-          "distribution": "local_only_not_published"
+          "sha256": "8a178a21c97a70c968a3c468e3554b0d0c8738d8eda9f29d54bb33147dec4d7f"
         },
         {
           "path": "reports/roadmap_v3/SYS-01/20260920-section56-freeze-02/source/tests/test_roadmap_research_reporting.py",
-          "sha256": "882ba445ef2ab0be2c89f019004322c6bcd91826dd6715b3d794e0e10ff35984",
-          "distribution": "local_only_not_published"
+          "sha256": "882ba445ef2ab0be2c89f019004322c6bcd91826dd6715b3d794e0e10ff35984"
         }
       ],
       "input_identity_adapter": "facts.json retains the exact synthetic input rows and input_sha256; the frozen harness fixes generation parameters. The resolved configuration and three separate process outputs belong to the same section56 frozen identity, not the current working tree.",
@@ -165,8 +146,7 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/SYS-01/20260920-section56-freeze-02/acceptance.json",
-              "sha256": "d56424232017aca1efd91c45a73fb7af9855eea1a75887b9509395fdb21574e7",
-              "distribution": "local_only_not_published"
+              "sha256": "d56424232017aca1efd91c45a73fb7af9855eea1a75887b9509395fdb21574e7"
             }
           ]
         },
@@ -177,13 +157,11 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/section56/20260920-implementation/full-tests-final.xml",
-              "sha256": "be0539442795bb43f143999bef61005ee78c09f4b65574ffc7591a0188711c6f",
-              "distribution": "local_only_not_published"
+              "sha256": "be0539442795bb43f143999bef61005ee78c09f4b65574ffc7591a0188711c6f"
             },
             {
               "path": "reports/roadmap_v3/SYS-01/20260920-section56-freeze-02/source_manifest.json",
-              "sha256": "74bb2abf82e49392ca77d31709be3cf8a2fe73dd856bf6655218abac5015eb7d",
-              "distribution": "local_only_not_published"
+              "sha256": "74bb2abf82e49392ca77d31709be3cf8a2fe73dd856bf6655218abac5015eb7d"
             }
           ],
           "allowed_skips": [
@@ -198,28 +176,23 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/SYS-01/20260920-section56-freeze-02/acceptance.json",
-              "sha256": "d56424232017aca1efd91c45a73fb7af9855eea1a75887b9509395fdb21574e7",
-              "distribution": "local_only_not_published"
+              "sha256": "d56424232017aca1efd91c45a73fb7af9855eea1a75887b9509395fdb21574e7"
             },
             {
               "path": "reports/roadmap_v3/SYS-01/20260920-section56-freeze-02/run_1/facts.json",
-              "sha256": "79948555b0870296a933cd9cba8d092976443323fba1f046be32798fdc9507ee",
-              "distribution": "local_only_not_published"
+              "sha256": "79948555b0870296a933cd9cba8d092976443323fba1f046be32798fdc9507ee"
             },
             {
               "path": "reports/roadmap_v3/SYS-01/20260920-section56-freeze-02/run_2/facts.json",
-              "sha256": "79948555b0870296a933cd9cba8d092976443323fba1f046be32798fdc9507ee",
-              "distribution": "local_only_not_published"
+              "sha256": "79948555b0870296a933cd9cba8d092976443323fba1f046be32798fdc9507ee"
             },
             {
               "path": "reports/roadmap_v3/SYS-01/20260920-section56-freeze-02/run_3/facts.json",
-              "sha256": "79948555b0870296a933cd9cba8d092976443323fba1f046be32798fdc9507ee",
-              "distribution": "local_only_not_published"
+              "sha256": "79948555b0870296a933cd9cba8d092976443323fba1f046be32798fdc9507ee"
             },
             {
               "path": "reports/roadmap_v3/SYS-01/20260920-section56-freeze-02/source/scripts/roadmap_baseline.py",
-              "sha256": "daeaf682893b681608c872381f2afef3b0154d762f03bcfb345eaf73cc2790a4",
-              "distribution": "local_only_not_published"
+              "sha256": "daeaf682893b681608c872381f2afef3b0154d762f03bcfb345eaf73cc2790a4"
             }
           ]
         },
@@ -230,18 +203,15 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/section56/20260920-implementation/full-tests-final.xml",
-              "sha256": "be0539442795bb43f143999bef61005ee78c09f4b65574ffc7591a0188711c6f",
-              "distribution": "local_only_not_published"
+              "sha256": "be0539442795bb43f143999bef61005ee78c09f4b65574ffc7591a0188711c6f"
             },
             {
               "path": "reports/roadmap_v3/section56/20260920-implementation/quality.json",
-              "sha256": "e92a5429e7202c3fe247c4c513ffa1e28e93b0f738fb087b32355b0635d45ddc",
-              "distribution": "local_only_not_published"
+              "sha256": "e92a5429e7202c3fe247c4c513ffa1e28e93b0f738fb087b32355b0635d45ddc"
             },
             {
               "path": "reports/roadmap_v3/SYS-01/20260920-section56-freeze-02/source_manifest.json",
-              "sha256": "74bb2abf82e49392ca77d31709be3cf8a2fe73dd856bf6655218abac5015eb7d",
-              "distribution": "local_only_not_published"
+              "sha256": "74bb2abf82e49392ca77d31709be3cf8a2fe73dd856bf6655218abac5015eb7d"
             }
           ],
           "allowed_skips": [
@@ -269,26 +239,22 @@
       "kind": "engineering",
       "legacy_receipt": {
         "path": "reports/roadmap_v3/FIX-01/20260920-r-series/acceptance.json",
-        "sha256": "2deb61bb9d42ec1e6e9c6bbed7e7ef535c64f1095ba4bfcbdabb1747908f647d",
-        "distribution": "local_only_not_published"
+        "sha256": "2deb61bb9d42ec1e6e9c6bbed7e7ef535c64f1095ba4bfcbdabb1747908f647d"
       },
       "contract": {
         "path": "reports/roadmap_v3/FIX-01/20260920-r-series/contract.md",
-        "sha256": "9eb80b992d99aee703cd6e8f32814a2771e9d0512aa5adbc64c0aa2616714e5a",
-        "distribution": "local_only_not_published"
+        "sha256": "9eb80b992d99aee703cd6e8f32814a2771e9d0512aa5adbc64c0aa2616714e5a"
       },
       "compatibility": "为旧纸面报告增加 legacy/incomplete 标记，不能自动承继新准入 passed；保留旧原始证据并用新版本复算。",
       "source_identity": {
         "path": "reports/roadmap_v3/FIX-01/20260920-r-series/evidence_manifest.json",
-        "sha256": "5f30c528151b3d5de815ed713325002a4f8f48b8a27ac9cf03a33895f26ba2de",
-        "distribution": "local_only_not_published"
+        "sha256": "5f30c528151b3d5de815ed713325002a4f8f48b8a27ac9cf03a33895f26ba2de"
       },
       "source_snapshot_root": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source",
       "fixed_inputs": [
         {
           "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source/tests/test_roadmap_admission_recovery.py",
-          "sha256": "fbb7af1751cc7119b7d10b8d4bf99ede6d73920194c83751f268740dc6602682",
-          "distribution": "local_only_not_published"
+          "sha256": "fbb7af1751cc7119b7d10b8d4bf99ede6d73920194c83751f268740dc6602682"
         }
       ],
       "input_identity_adapter": "Deterministic configuration/data are embedded in the retained test source fixtures. Each frozen input SHA-256 is an exact match to the original per-task manifest and the bound source snapshot; no present working-tree file is substituted. The later full integration uses its own separately bound final source manifest.",
@@ -300,13 +266,11 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/FIX-01/20260920-r-series/test_record.json",
-              "sha256": "15dc723e03e884ce7d5ac26f910f55c3fbafa21c68cad514cd5560d92c245173",
-              "distribution": "local_only_not_published"
+              "sha256": "15dc723e03e884ce7d5ac26f910f55c3fbafa21c68cad514cd5560d92c245173"
             },
             {
               "path": "reports/roadmap_v3/recovery_integration/20260920-r-series/final_boundary_tests.xml",
-              "sha256": "7ad433086acf2c41a58e047be98bf1de808b8a5566f3c754caa6ec4a3b370fbd",
-              "distribution": "local_only_not_published"
+              "sha256": "7ad433086acf2c41a58e047be98bf1de808b8a5566f3c754caa6ec4a3b370fbd"
             }
           ]
         },
@@ -317,13 +281,11 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/FIX-01/20260920-r-series/test_record.json",
-              "sha256": "15dc723e03e884ce7d5ac26f910f55c3fbafa21c68cad514cd5560d92c245173",
-              "distribution": "local_only_not_published"
+              "sha256": "15dc723e03e884ce7d5ac26f910f55c3fbafa21c68cad514cd5560d92c245173"
             },
             {
               "path": "reports/roadmap_v3/recovery_integration/20260920-r-series/final_boundary_tests.xml",
-              "sha256": "7ad433086acf2c41a58e047be98bf1de808b8a5566f3c754caa6ec4a3b370fbd",
-              "distribution": "local_only_not_published"
+              "sha256": "7ad433086acf2c41a58e047be98bf1de808b8a5566f3c754caa6ec4a3b370fbd"
             }
           ]
         },
@@ -334,18 +296,15 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/FIX-01/20260920-r-series/test_record.json",
-              "sha256": "15dc723e03e884ce7d5ac26f910f55c3fbafa21c68cad514cd5560d92c245173",
-              "distribution": "local_only_not_published"
+              "sha256": "15dc723e03e884ce7d5ac26f910f55c3fbafa21c68cad514cd5560d92c245173"
             },
             {
               "path": "reports/roadmap_v3/recovery_integration/20260920-r-series/final_boundary_tests.xml",
-              "sha256": "7ad433086acf2c41a58e047be98bf1de808b8a5566f3c754caa6ec4a3b370fbd",
-              "distribution": "local_only_not_published"
+              "sha256": "7ad433086acf2c41a58e047be98bf1de808b8a5566f3c754caa6ec4a3b370fbd"
             },
             {
               "path": "reports/roadmap_v3/FIX-01/20260920-r-series/gate_before_after.json",
-              "sha256": "7e94adf8fcb7bd698df1fac81864b2b4d4cea86b34212202087992011cde67e5",
-              "distribution": "local_only_not_published"
+              "sha256": "7e94adf8fcb7bd698df1fac81864b2b4d4cea86b34212202087992011cde67e5"
             }
           ]
         },
@@ -356,18 +315,15 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/release.xml",
-              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d",
-              "distribution": "local_only_not_published"
+              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d"
             },
             {
               "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source_manifest.json",
-              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03",
-              "distribution": "local_only_not_published"
+              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03"
             },
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/quality-release.json",
-              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322",
-              "distribution": "local_only_not_published"
+              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322"
             }
           ],
           "allowed_skips": [
@@ -382,13 +338,11 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/FIX-01/20260920-r-series/test_record.json",
-              "sha256": "15dc723e03e884ce7d5ac26f910f55c3fbafa21c68cad514cd5560d92c245173",
-              "distribution": "local_only_not_published"
+              "sha256": "15dc723e03e884ce7d5ac26f910f55c3fbafa21c68cad514cd5560d92c245173"
             },
             {
               "path": "reports/roadmap_v3/recovery_integration/20260920-r-series/final_boundary_tests.xml",
-              "sha256": "7ad433086acf2c41a58e047be98bf1de808b8a5566f3c754caa6ec4a3b370fbd",
-              "distribution": "local_only_not_published"
+              "sha256": "7ad433086acf2c41a58e047be98bf1de808b8a5566f3c754caa6ec4a3b370fbd"
             }
           ]
         }
@@ -411,31 +365,26 @@
       "kind": "engineering",
       "legacy_receipt": {
         "path": "reports/roadmap_v3/FIX-02/20260920-r-series/acceptance.json",
-        "sha256": "93cfa11324b49fc0d05541d678188145b8b10e7911adc057f81779e149018a5c",
-        "distribution": "local_only_not_published"
+        "sha256": "93cfa11324b49fc0d05541d678188145b8b10e7911adc057f81779e149018a5c"
       },
       "contract": {
         "path": "reports/roadmap_v3/FIX-02/20260920-r-series/contract.md",
-        "sha256": "f8932df08052213573733bc227eb22a2d2a33c9627761728e377bb5c986d6060",
-        "distribution": "local_only_not_published"
+        "sha256": "f8932df08052213573733bc227eb22a2d2a33c9627761728e377bb5c986d6060"
       },
       "compatibility": "历史研究统计结果保留原版本；新报告标明重算后的门槛结果，禁止静默覆盖原 fail/pending。",
       "source_identity": {
         "path": "reports/roadmap_v3/FIX-02/20260920-r-series/evidence_manifest.json",
-        "sha256": "18320508fa18d984ac4e23828dd7964bc924d8e0c1574bef97a6a9a9370aee9b",
-        "distribution": "local_only_not_published"
+        "sha256": "18320508fa18d984ac4e23828dd7964bc924d8e0c1574bef97a6a9a9370aee9b"
       },
       "source_snapshot_root": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source",
       "fixed_inputs": [
         {
           "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source/tests/test_roadmap_research_reporting.py",
-          "sha256": "882ba445ef2ab0be2c89f019004322c6bcd91826dd6715b3d794e0e10ff35984",
-          "distribution": "local_only_not_published"
+          "sha256": "882ba445ef2ab0be2c89f019004322c6bcd91826dd6715b3d794e0e10ff35984"
         },
         {
           "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source/config/params.yaml",
-          "sha256": "49665830ead75ec74f6ef736f3f8b1ee7fdb3122ba9f334cda9d944b26decb4e",
-          "distribution": "local_only_not_published"
+          "sha256": "49665830ead75ec74f6ef736f3f8b1ee7fdb3122ba9f334cda9d944b26decb4e"
         }
       ],
       "input_identity_adapter": "Deterministic configuration/data are embedded in the retained test source fixtures. Each frozen input SHA-256 is an exact match to the original per-task manifest and the bound source snapshot; no present working-tree file is substituted. The later full integration uses its own separately bound final source manifest.",
@@ -447,8 +396,7 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/FIX-02/20260920-r-series/tests.xml",
-              "sha256": "5bf25de121cff0ba5956eafc86462e3c009e3cfa6b3db034322a6dda07439acc",
-              "distribution": "local_only_not_published"
+              "sha256": "5bf25de121cff0ba5956eafc86462e3c009e3cfa6b3db034322a6dda07439acc"
             }
           ]
         },
@@ -459,8 +407,7 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/FIX-02/20260920-r-series/tests.xml",
-              "sha256": "5bf25de121cff0ba5956eafc86462e3c009e3cfa6b3db034322a6dda07439acc",
-              "distribution": "local_only_not_published"
+              "sha256": "5bf25de121cff0ba5956eafc86462e3c009e3cfa6b3db034322a6dda07439acc"
             }
           ]
         },
@@ -471,18 +418,15 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/FIX-02/20260920-r-series/tests.xml",
-              "sha256": "5bf25de121cff0ba5956eafc86462e3c009e3cfa6b3db034322a6dda07439acc",
-              "distribution": "local_only_not_published"
+              "sha256": "5bf25de121cff0ba5956eafc86462e3c009e3cfa6b3db034322a6dda07439acc"
             },
             {
               "path": "reports/roadmap_v3/FIX-02/20260920-r-series/root-before.json",
-              "sha256": "4c0ed91ef567317053b3c3cfaf8b77511d72aa13bcaa5ad8f15738815d3c9c4f",
-              "distribution": "local_only_not_published"
+              "sha256": "4c0ed91ef567317053b3c3cfaf8b77511d72aa13bcaa5ad8f15738815d3c9c4f"
             },
             {
               "path": "reports/roadmap_v3/FIX-02/20260920-r-series/root-after.json",
-              "sha256": "a93e3ece98126c71d08436b2db1d6d3cb6bef925ba9a034de84de244bba4150d",
-              "distribution": "local_only_not_published"
+              "sha256": "a93e3ece98126c71d08436b2db1d6d3cb6bef925ba9a034de84de244bba4150d"
             }
           ]
         },
@@ -493,18 +437,15 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/release.xml",
-              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d",
-              "distribution": "local_only_not_published"
+              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d"
             },
             {
               "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source_manifest.json",
-              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03",
-              "distribution": "local_only_not_published"
+              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03"
             },
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/quality-release.json",
-              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322",
-              "distribution": "local_only_not_published"
+              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322"
             }
           ],
           "allowed_skips": [
@@ -531,31 +472,26 @@
       "kind": "engineering",
       "legacy_receipt": {
         "path": "reports/roadmap_v3/FIX-03/20260920-r-series/acceptance.json",
-        "sha256": "5c92bf08a9e273f71696d07531427913f8ed92ce1eeb8b2cc3f5517e4638850d",
-        "distribution": "local_only_not_published"
+        "sha256": "5c92bf08a9e273f71696d07531427913f8ed92ce1eeb8b2cc3f5517e4638850d"
       },
       "contract": {
         "path": "reports/roadmap_v3/FIX-03/20260920-r-series/contract.md",
-        "sha256": "49759f500128289a03540b9da8f4a1f4151550a3ad12b34bfe290545c9932d9f",
-        "distribution": "local_only_not_published"
+        "sha256": "49759f500128289a03540b9da8f4a1f4151550a3ad12b34bfe290545c9932d9f"
       },
       "compatibility": "不把历史归档静默改造成当前结果；保留旧 hash 及修正缘由，重新发布可核验清单。该工作不授权提交或合并当前未提交代码。 本包只修验收污染与归档验证，项目整体 B0 冻结仍由总计划单独验收。",
       "source_identity": {
         "path": "reports/roadmap_v3/FIX-03/20260920-r-series/evidence_manifest.json",
-        "sha256": "b1d0e3d6a52fa539a9fe8cf2f22e5130b4e833713275dabbef82bf8bf64e92ef",
-        "distribution": "local_only_not_published"
+        "sha256": "b1d0e3d6a52fa539a9fe8cf2f22e5130b4e833713275dabbef82bf8bf64e92ef"
       },
       "source_snapshot_root": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source",
       "fixed_inputs": [
         {
           "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source/tests/test_roadmap_research_reporting.py",
-          "sha256": "882ba445ef2ab0be2c89f019004322c6bcd91826dd6715b3d794e0e10ff35984",
-          "distribution": "local_only_not_published"
+          "sha256": "882ba445ef2ab0be2c89f019004322c6bcd91826dd6715b3d794e0e10ff35984"
         },
         {
           "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source/config/params.yaml",
-          "sha256": "49665830ead75ec74f6ef736f3f8b1ee7fdb3122ba9f334cda9d944b26decb4e",
-          "distribution": "local_only_not_published"
+          "sha256": "49665830ead75ec74f6ef736f3f8b1ee7fdb3122ba9f334cda9d944b26decb4e"
         }
       ],
       "input_identity_adapter": "Deterministic configuration/data are embedded in the retained test source fixtures. Each frozen input SHA-256 is an exact match to the original per-task manifest and the bound source snapshot; no present working-tree file is substituted. The later full integration uses its own separately bound final source manifest.",
@@ -567,8 +503,7 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/FIX-03/20260920-r-series/tests.xml",
-              "sha256": "5bf25de121cff0ba5956eafc86462e3c009e3cfa6b3db034322a6dda07439acc",
-              "distribution": "local_only_not_published"
+              "sha256": "5bf25de121cff0ba5956eafc86462e3c009e3cfa6b3db034322a6dda07439acc"
             }
           ]
         },
@@ -579,8 +514,7 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/FIX-03/20260920-r-series/tests.xml",
-              "sha256": "5bf25de121cff0ba5956eafc86462e3c009e3cfa6b3db034322a6dda07439acc",
-              "distribution": "local_only_not_published"
+              "sha256": "5bf25de121cff0ba5956eafc86462e3c009e3cfa6b3db034322a6dda07439acc"
             }
           ]
         },
@@ -591,18 +525,15 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/FIX-03/20260920-r-series/tests.xml",
-              "sha256": "5bf25de121cff0ba5956eafc86462e3c009e3cfa6b3db034322a6dda07439acc",
-              "distribution": "local_only_not_published"
+              "sha256": "5bf25de121cff0ba5956eafc86462e3c009e3cfa6b3db034322a6dda07439acc"
             },
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/quality-release.json",
-              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322",
-              "distribution": "local_only_not_published"
+              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322"
             },
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/archive-release.log",
-              "sha256": "9aa8f5a0d1380ced07a598ec8fa6968700c8edce8438c3e682cc66020d72343a",
-              "distribution": "local_only_not_published"
+              "sha256": "9aa8f5a0d1380ced07a598ec8fa6968700c8edce8438c3e682cc66020d72343a"
             }
           ]
         },
@@ -613,18 +544,15 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/release.xml",
-              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d",
-              "distribution": "local_only_not_published"
+              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d"
             },
             {
               "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source_manifest.json",
-              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03",
-              "distribution": "local_only_not_published"
+              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03"
             },
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/quality-release.json",
-              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322",
-              "distribution": "local_only_not_published"
+              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322"
             }
           ],
           "allowed_skips": [
@@ -651,31 +579,26 @@
       "kind": "engineering",
       "legacy_receipt": {
         "path": "reports/roadmap_v3/FIX-04/20260920-r-series/acceptance.json",
-        "sha256": "d9392399092f5b5baf9869784edb5aefe857d13cdb80d55016521a19d29ef4c0",
-        "distribution": "local_only_not_published"
+        "sha256": "d9392399092f5b5baf9869784edb5aefe857d13cdb80d55016521a19d29ef4c0"
       },
       "contract": {
         "path": "reports/roadmap_v3/FIX-04/20260920-r-series/contract.md",
-        "sha256": "a1246112b121c6a01ee338c6a8f4bf7c63d57c29921bf632e2e71f2ad1285761",
-        "distribution": "local_only_not_published"
+        "sha256": "a1246112b121c6a01ee338c6a8f4bf7c63d57c29921bf632e2e71f2ad1285761"
       },
       "compatibility": "既有无来源缓存不自动删除；标记待重取并隔离，兼容通用多源 fetcher 但专用 Binance 写入边界必须严格。",
       "source_identity": {
         "path": "reports/roadmap_v3/FIX-04/20260920-r-series/evidence_manifest.json",
-        "sha256": "06fa524f8027020c2001a656568abea4543711ae1d23fc7645e7f474481653ed",
-        "distribution": "local_only_not_published"
+        "sha256": "06fa524f8027020c2001a656568abea4543711ae1d23fc7645e7f474481653ed"
       },
       "source_snapshot_root": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source",
       "fixed_inputs": [
         {
           "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source/tests/test_r_series_data_causality.py",
-          "sha256": "f690c3078c2080e9b821e2b2eae086de4abb242d7b9da51cbe26ea960bc8793a",
-          "distribution": "local_only_not_published"
+          "sha256": "f690c3078c2080e9b821e2b2eae086de4abb242d7b9da51cbe26ea960bc8793a"
         },
         {
           "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source/tests/test_roadmap_optimizer_execution.py",
-          "sha256": "e1987d642f743ca0c7725d9419f2d4ab871233848c208cdf6fce27b233d3fa53",
-          "distribution": "local_only_not_published"
+          "sha256": "e1987d642f743ca0c7725d9419f2d4ab871233848c208cdf6fce27b233d3fa53"
         }
       ],
       "input_identity_adapter": "Deterministic configuration/data are embedded in the retained test source fixtures. Each frozen input SHA-256 is an exact match to the original per-task manifest and the bound source snapshot; no present working-tree file is substituted. The later full integration uses its own separately bound final source manifest.",
@@ -687,13 +610,11 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/FIX-04/20260920-r-series/test_results.json",
-              "sha256": "509e7706d7fbeb85a822b92a0fbb82359344e8893f377fdd0579d35cea1039f5",
-              "distribution": "local_only_not_published"
+              "sha256": "509e7706d7fbeb85a822b92a0fbb82359344e8893f377fdd0579d35cea1039f5"
             },
             {
               "path": "reports/roadmap_v3/FIX-04/20260920-r-series/data_causality_tests.xml",
-              "sha256": "e953f1b81443c4d39722f45a059a034c3dce6c13de1527885f13c8701367d04f",
-              "distribution": "local_only_not_published"
+              "sha256": "e953f1b81443c4d39722f45a059a034c3dce6c13de1527885f13c8701367d04f"
             }
           ]
         },
@@ -704,13 +625,11 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/FIX-04/20260920-r-series/test_results.json",
-              "sha256": "509e7706d7fbeb85a822b92a0fbb82359344e8893f377fdd0579d35cea1039f5",
-              "distribution": "local_only_not_published"
+              "sha256": "509e7706d7fbeb85a822b92a0fbb82359344e8893f377fdd0579d35cea1039f5"
             },
             {
               "path": "reports/roadmap_v3/FIX-04/20260920-r-series/data_causality_tests.xml",
-              "sha256": "e953f1b81443c4d39722f45a059a034c3dce6c13de1527885f13c8701367d04f",
-              "distribution": "local_only_not_published"
+              "sha256": "e953f1b81443c4d39722f45a059a034c3dce6c13de1527885f13c8701367d04f"
             }
           ]
         },
@@ -721,13 +640,11 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/FIX-04/20260920-r-series/test_results.json",
-              "sha256": "509e7706d7fbeb85a822b92a0fbb82359344e8893f377fdd0579d35cea1039f5",
-              "distribution": "local_only_not_published"
+              "sha256": "509e7706d7fbeb85a822b92a0fbb82359344e8893f377fdd0579d35cea1039f5"
             },
             {
               "path": "reports/roadmap_v3/FIX-04/20260920-r-series/data_causality_tests.xml",
-              "sha256": "e953f1b81443c4d39722f45a059a034c3dce6c13de1527885f13c8701367d04f",
-              "distribution": "local_only_not_published"
+              "sha256": "e953f1b81443c4d39722f45a059a034c3dce6c13de1527885f13c8701367d04f"
             }
           ]
         },
@@ -738,18 +655,15 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/release.xml",
-              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d",
-              "distribution": "local_only_not_published"
+              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d"
             },
             {
               "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source_manifest.json",
-              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03",
-              "distribution": "local_only_not_published"
+              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03"
             },
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/quality-release.json",
-              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322",
-              "distribution": "local_only_not_published"
+              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322"
             }
           ],
           "allowed_skips": [
@@ -776,31 +690,26 @@
       "kind": "engineering",
       "legacy_receipt": {
         "path": "reports/roadmap_v3/FIX-05/20260920-r-series/acceptance.json",
-        "sha256": "c2d58ac75a5ba3a82b6538438f1c197d3acf0993c270410a9d73f58f9a2d9a85",
-        "distribution": "local_only_not_published"
+        "sha256": "c2d58ac75a5ba3a82b6538438f1c197d3acf0993c270410a9d73f58f9a2d9a85"
       },
       "contract": {
         "path": "reports/roadmap_v3/FIX-05/20260920-r-series/contract.md",
-        "sha256": "5772d4132ded9f62eed0d41d7d08d5c13cc8451abeb1a55e0df05b44697da428",
-        "distribution": "local_only_not_published"
+        "sha256": "5772d4132ded9f62eed0d41d7d08d5c13cc8451abeb1a55e0df05b44697da428"
       },
       "compatibility": "不改变数据源可保留历史的事实；超出可取范围应返回不可满足原因。旧 CSV 缺 close_time 时必须用明确周期边界重验。",
       "source_identity": {
         "path": "reports/roadmap_v3/FIX-05/20260920-r-series/evidence_manifest.json",
-        "sha256": "06fa524f8027020c2001a656568abea4543711ae1d23fc7645e7f474481653ed",
-        "distribution": "local_only_not_published"
+        "sha256": "06fa524f8027020c2001a656568abea4543711ae1d23fc7645e7f474481653ed"
       },
       "source_snapshot_root": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source",
       "fixed_inputs": [
         {
           "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source/tests/test_r_series_data_causality.py",
-          "sha256": "f690c3078c2080e9b821e2b2eae086de4abb242d7b9da51cbe26ea960bc8793a",
-          "distribution": "local_only_not_published"
+          "sha256": "f690c3078c2080e9b821e2b2eae086de4abb242d7b9da51cbe26ea960bc8793a"
         },
         {
           "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source/tests/test_roadmap_optimizer_execution.py",
-          "sha256": "e1987d642f743ca0c7725d9419f2d4ab871233848c208cdf6fce27b233d3fa53",
-          "distribution": "local_only_not_published"
+          "sha256": "e1987d642f743ca0c7725d9419f2d4ab871233848c208cdf6fce27b233d3fa53"
         }
       ],
       "input_identity_adapter": "Deterministic configuration/data are embedded in the retained test source fixtures. Each frozen input SHA-256 is an exact match to the original per-task manifest and the bound source snapshot; no present working-tree file is substituted. The later full integration uses its own separately bound final source manifest.",
@@ -812,13 +721,11 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/FIX-05/20260920-r-series/test_results.json",
-              "sha256": "509e7706d7fbeb85a822b92a0fbb82359344e8893f377fdd0579d35cea1039f5",
-              "distribution": "local_only_not_published"
+              "sha256": "509e7706d7fbeb85a822b92a0fbb82359344e8893f377fdd0579d35cea1039f5"
             },
             {
               "path": "reports/roadmap_v3/FIX-04/20260920-r-series/data_causality_tests.xml",
-              "sha256": "e953f1b81443c4d39722f45a059a034c3dce6c13de1527885f13c8701367d04f",
-              "distribution": "local_only_not_published"
+              "sha256": "e953f1b81443c4d39722f45a059a034c3dce6c13de1527885f13c8701367d04f"
             }
           ]
         },
@@ -829,13 +736,11 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/FIX-05/20260920-r-series/test_results.json",
-              "sha256": "509e7706d7fbeb85a822b92a0fbb82359344e8893f377fdd0579d35cea1039f5",
-              "distribution": "local_only_not_published"
+              "sha256": "509e7706d7fbeb85a822b92a0fbb82359344e8893f377fdd0579d35cea1039f5"
             },
             {
               "path": "reports/roadmap_v3/FIX-04/20260920-r-series/data_causality_tests.xml",
-              "sha256": "e953f1b81443c4d39722f45a059a034c3dce6c13de1527885f13c8701367d04f",
-              "distribution": "local_only_not_published"
+              "sha256": "e953f1b81443c4d39722f45a059a034c3dce6c13de1527885f13c8701367d04f"
             }
           ]
         },
@@ -846,13 +751,11 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/FIX-05/20260920-r-series/test_results.json",
-              "sha256": "509e7706d7fbeb85a822b92a0fbb82359344e8893f377fdd0579d35cea1039f5",
-              "distribution": "local_only_not_published"
+              "sha256": "509e7706d7fbeb85a822b92a0fbb82359344e8893f377fdd0579d35cea1039f5"
             },
             {
               "path": "reports/roadmap_v3/FIX-04/20260920-r-series/data_causality_tests.xml",
-              "sha256": "e953f1b81443c4d39722f45a059a034c3dce6c13de1527885f13c8701367d04f",
-              "distribution": "local_only_not_published"
+              "sha256": "e953f1b81443c4d39722f45a059a034c3dce6c13de1527885f13c8701367d04f"
             }
           ]
         },
@@ -863,18 +766,15 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/release.xml",
-              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d",
-              "distribution": "local_only_not_published"
+              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d"
             },
             {
               "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source_manifest.json",
-              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03",
-              "distribution": "local_only_not_published"
+              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03"
             },
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/quality-release.json",
-              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322",
-              "distribution": "local_only_not_published"
+              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322"
             }
           ],
           "allowed_skips": [
@@ -901,31 +801,26 @@
       "kind": "engineering",
       "legacy_receipt": {
         "path": "reports/roadmap_v3/FIX-06/20260920-r-series/acceptance.json",
-        "sha256": "4732e0ece02c8678b673fa5e3e70ebab0bca79c4ac9c656be29162aef45b5f10",
-        "distribution": "local_only_not_published"
+        "sha256": "4732e0ece02c8678b673fa5e3e70ebab0bca79c4ac9c656be29162aef45b5f10"
       },
       "contract": {
         "path": "reports/roadmap_v3/FIX-06/20260920-r-series/contract.md",
-        "sha256": "5b32baad875a3001af9d8e6a3b0af07a3966b9c1e5c053f4e664d0205c87b128",
-        "distribution": "local_only_not_published"
+        "sha256": "5b32baad875a3001af9d8e6a3b0af07a3966b9c1e5c053f4e664d0205c87b128"
       },
       "compatibility": "因子时点变化会改变历史交易，不重写旧结果；新基线重跑并在比较报告标注因果修复。",
       "source_identity": {
         "path": "reports/roadmap_v3/FIX-06/20260920-r-series/evidence_manifest.json",
-        "sha256": "06fa524f8027020c2001a656568abea4543711ae1d23fc7645e7f474481653ed",
-        "distribution": "local_only_not_published"
+        "sha256": "06fa524f8027020c2001a656568abea4543711ae1d23fc7645e7f474481653ed"
       },
       "source_snapshot_root": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source",
       "fixed_inputs": [
         {
           "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source/tests/test_r_series_data_causality.py",
-          "sha256": "f690c3078c2080e9b821e2b2eae086de4abb242d7b9da51cbe26ea960bc8793a",
-          "distribution": "local_only_not_published"
+          "sha256": "f690c3078c2080e9b821e2b2eae086de4abb242d7b9da51cbe26ea960bc8793a"
         },
         {
           "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source/tests/test_roadmap_optimizer_execution.py",
-          "sha256": "e1987d642f743ca0c7725d9419f2d4ab871233848c208cdf6fce27b233d3fa53",
-          "distribution": "local_only_not_published"
+          "sha256": "e1987d642f743ca0c7725d9419f2d4ab871233848c208cdf6fce27b233d3fa53"
         }
       ],
       "input_identity_adapter": "Deterministic configuration/data are embedded in the retained test source fixtures. Each frozen input SHA-256 is an exact match to the original per-task manifest and the bound source snapshot; no present working-tree file is substituted. The later full integration uses its own separately bound final source manifest.",
@@ -937,13 +832,11 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/FIX-06/20260920-r-series/test_results.json",
-              "sha256": "509e7706d7fbeb85a822b92a0fbb82359344e8893f377fdd0579d35cea1039f5",
-              "distribution": "local_only_not_published"
+              "sha256": "509e7706d7fbeb85a822b92a0fbb82359344e8893f377fdd0579d35cea1039f5"
             },
             {
               "path": "reports/roadmap_v3/FIX-04/20260920-r-series/data_causality_tests.xml",
-              "sha256": "e953f1b81443c4d39722f45a059a034c3dce6c13de1527885f13c8701367d04f",
-              "distribution": "local_only_not_published"
+              "sha256": "e953f1b81443c4d39722f45a059a034c3dce6c13de1527885f13c8701367d04f"
             }
           ]
         },
@@ -954,13 +847,11 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/FIX-06/20260920-r-series/test_results.json",
-              "sha256": "509e7706d7fbeb85a822b92a0fbb82359344e8893f377fdd0579d35cea1039f5",
-              "distribution": "local_only_not_published"
+              "sha256": "509e7706d7fbeb85a822b92a0fbb82359344e8893f377fdd0579d35cea1039f5"
             },
             {
               "path": "reports/roadmap_v3/FIX-04/20260920-r-series/data_causality_tests.xml",
-              "sha256": "e953f1b81443c4d39722f45a059a034c3dce6c13de1527885f13c8701367d04f",
-              "distribution": "local_only_not_published"
+              "sha256": "e953f1b81443c4d39722f45a059a034c3dce6c13de1527885f13c8701367d04f"
             }
           ]
         },
@@ -971,13 +862,11 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/FIX-06/20260920-r-series/test_results.json",
-              "sha256": "509e7706d7fbeb85a822b92a0fbb82359344e8893f377fdd0579d35cea1039f5",
-              "distribution": "local_only_not_published"
+              "sha256": "509e7706d7fbeb85a822b92a0fbb82359344e8893f377fdd0579d35cea1039f5"
             },
             {
               "path": "reports/roadmap_v3/FIX-04/20260920-r-series/data_causality_tests.xml",
-              "sha256": "e953f1b81443c4d39722f45a059a034c3dce6c13de1527885f13c8701367d04f",
-              "distribution": "local_only_not_published"
+              "sha256": "e953f1b81443c4d39722f45a059a034c3dce6c13de1527885f13c8701367d04f"
             }
           ]
         },
@@ -988,18 +877,15 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/release.xml",
-              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d",
-              "distribution": "local_only_not_published"
+              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d"
             },
             {
               "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source_manifest.json",
-              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03",
-              "distribution": "local_only_not_published"
+              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03"
             },
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/quality-release.json",
-              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322",
-              "distribution": "local_only_not_published"
+              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322"
             }
           ],
           "allowed_skips": [
@@ -1026,31 +912,26 @@
       "kind": "engineering",
       "legacy_receipt": {
         "path": "reports/roadmap_v3/FIX-07/20260920-r-series/acceptance.json",
-        "sha256": "eb7fec01e460088c65851cf9dfefac0c52d70825a618f843f9e4398262a103d4",
-        "distribution": "local_only_not_published"
+        "sha256": "eb7fec01e460088c65851cf9dfefac0c52d70825a618f843f9e4398262a103d4"
       },
       "contract": {
         "path": "reports/roadmap_v3/FIX-07/20260920-r-series/contract.md",
-        "sha256": "f03b8085efa5c72e584ae7fbee91e4e9bb3581425fe481782968022ccfbccaa8",
-        "distribution": "local_only_not_published"
+        "sha256": "f03b8085efa5c72e584ae7fbee91e4e9bb3581425fe481782968022ccfbccaa8"
       },
       "compatibility": "读取旧 slash/hyphen 文件须兼容；输出只用一种规范键并保存原始名称，不能合并实际不同市场类型。",
       "source_identity": {
         "path": "reports/roadmap_v3/FIX-07/20260920-r-series/evidence_manifest.json",
-        "sha256": "1f24021bde9de636a04206c39c348bd6d1842cee6ce823b57ed117ee4834b91d",
-        "distribution": "local_only_not_published"
+        "sha256": "1f24021bde9de636a04206c39c348bd6d1842cee6ce823b57ed117ee4834b91d"
       },
       "source_snapshot_root": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source",
       "fixed_inputs": [
         {
           "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source/tests/test_r_series_data_causality.py",
-          "sha256": "f690c3078c2080e9b821e2b2eae086de4abb242d7b9da51cbe26ea960bc8793a",
-          "distribution": "local_only_not_published"
+          "sha256": "f690c3078c2080e9b821e2b2eae086de4abb242d7b9da51cbe26ea960bc8793a"
         },
         {
           "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source/tests/test_roadmap_optimizer_execution.py",
-          "sha256": "e1987d642f743ca0c7725d9419f2d4ab871233848c208cdf6fce27b233d3fa53",
-          "distribution": "local_only_not_published"
+          "sha256": "e1987d642f743ca0c7725d9419f2d4ab871233848c208cdf6fce27b233d3fa53"
         }
       ],
       "input_identity_adapter": "Deterministic configuration/data are embedded in the retained test source fixtures. Each frozen input SHA-256 is an exact match to the original per-task manifest and the bound source snapshot; no present working-tree file is substituted. The later full integration uses its own separately bound final source manifest.",
@@ -1062,13 +943,11 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/FIX-07/20260920-r-series/test_results.json",
-              "sha256": "509e7706d7fbeb85a822b92a0fbb82359344e8893f377fdd0579d35cea1039f5",
-              "distribution": "local_only_not_published"
+              "sha256": "509e7706d7fbeb85a822b92a0fbb82359344e8893f377fdd0579d35cea1039f5"
             },
             {
               "path": "reports/roadmap_v3/FIX-04/20260920-r-series/data_causality_tests.xml",
-              "sha256": "e953f1b81443c4d39722f45a059a034c3dce6c13de1527885f13c8701367d04f",
-              "distribution": "local_only_not_published"
+              "sha256": "e953f1b81443c4d39722f45a059a034c3dce6c13de1527885f13c8701367d04f"
             }
           ]
         },
@@ -1079,13 +958,11 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/FIX-07/20260920-r-series/test_results.json",
-              "sha256": "509e7706d7fbeb85a822b92a0fbb82359344e8893f377fdd0579d35cea1039f5",
-              "distribution": "local_only_not_published"
+              "sha256": "509e7706d7fbeb85a822b92a0fbb82359344e8893f377fdd0579d35cea1039f5"
             },
             {
               "path": "reports/roadmap_v3/FIX-04/20260920-r-series/data_causality_tests.xml",
-              "sha256": "e953f1b81443c4d39722f45a059a034c3dce6c13de1527885f13c8701367d04f",
-              "distribution": "local_only_not_published"
+              "sha256": "e953f1b81443c4d39722f45a059a034c3dce6c13de1527885f13c8701367d04f"
             }
           ]
         },
@@ -1096,18 +973,15 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/FIX-07/20260920-r-series/test_results.json",
-              "sha256": "509e7706d7fbeb85a822b92a0fbb82359344e8893f377fdd0579d35cea1039f5",
-              "distribution": "local_only_not_published"
+              "sha256": "509e7706d7fbeb85a822b92a0fbb82359344e8893f377fdd0579d35cea1039f5"
             },
             {
               "path": "reports/roadmap_v3/FIX-04/20260920-r-series/data_causality_tests.xml",
-              "sha256": "e953f1b81443c4d39722f45a059a034c3dce6c13de1527885f13c8701367d04f",
-              "distribution": "local_only_not_published"
+              "sha256": "e953f1b81443c4d39722f45a059a034c3dce6c13de1527885f13c8701367d04f"
             },
             {
               "path": "reports/roadmap_v3/FIX-07/20260920-r-series/engine_test_results.json",
-              "sha256": "28ff2e4b82daa463d54797c6dc82b3bf606799506ebd078dcf25dd4469d46423",
-              "distribution": "local_only_not_published"
+              "sha256": "28ff2e4b82daa463d54797c6dc82b3bf606799506ebd078dcf25dd4469d46423"
             }
           ]
         },
@@ -1118,18 +992,15 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/release.xml",
-              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d",
-              "distribution": "local_only_not_published"
+              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d"
             },
             {
               "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source_manifest.json",
-              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03",
-              "distribution": "local_only_not_published"
+              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03"
             },
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/quality-release.json",
-              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322",
-              "distribution": "local_only_not_published"
+              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322"
             }
           ],
           "allowed_skips": [
@@ -1156,31 +1027,26 @@
       "kind": "engineering",
       "legacy_receipt": {
         "path": "reports/roadmap_v3/FIX-09/20260920-r-series/acceptance.json",
-        "sha256": "50df52ab15e2d3201814abe320d64822390e9d8d34255f2095a81e7dda2fa210",
-        "distribution": "local_only_not_published"
+        "sha256": "50df52ab15e2d3201814abe320d64822390e9d8d34255f2095a81e7dda2fa210"
       },
       "contract": {
         "path": "reports/roadmap_v3/FIX-09/20260920-r-series/contract.md",
-        "sha256": "27fb5c171b876acb93d910de23038b54fbfe13980de6c3b244468e9d312d709a",
-        "distribution": "local_only_not_published"
+        "sha256": "27fb5c171b876acb93d910de23038b54fbfe13980de6c3b244468e9d312d709a"
       },
       "compatibility": "原固定 warmup 配置作为最低值保留，实际值取依赖所需上界；重叠配置升级后给清晰错误信息和迁移方法。",
       "source_identity": {
         "path": "reports/roadmap_v3/FIX-09/20260920-r-series/evidence_manifest.json",
-        "sha256": "06fa524f8027020c2001a656568abea4543711ae1d23fc7645e7f474481653ed",
-        "distribution": "local_only_not_published"
+        "sha256": "06fa524f8027020c2001a656568abea4543711ae1d23fc7645e7f474481653ed"
       },
       "source_snapshot_root": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source",
       "fixed_inputs": [
         {
           "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source/tests/test_r_series_data_causality.py",
-          "sha256": "f690c3078c2080e9b821e2b2eae086de4abb242d7b9da51cbe26ea960bc8793a",
-          "distribution": "local_only_not_published"
+          "sha256": "f690c3078c2080e9b821e2b2eae086de4abb242d7b9da51cbe26ea960bc8793a"
         },
         {
           "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source/tests/test_roadmap_optimizer_execution.py",
-          "sha256": "e1987d642f743ca0c7725d9419f2d4ab871233848c208cdf6fce27b233d3fa53",
-          "distribution": "local_only_not_published"
+          "sha256": "e1987d642f743ca0c7725d9419f2d4ab871233848c208cdf6fce27b233d3fa53"
         }
       ],
       "input_identity_adapter": "Deterministic configuration/data are embedded in the retained test source fixtures. Each frozen input SHA-256 is an exact match to the original per-task manifest and the bound source snapshot; no present working-tree file is substituted. The later full integration uses its own separately bound final source manifest.",
@@ -1192,13 +1058,11 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/FIX-09/20260920-r-series/test_results.json",
-              "sha256": "509e7706d7fbeb85a822b92a0fbb82359344e8893f377fdd0579d35cea1039f5",
-              "distribution": "local_only_not_published"
+              "sha256": "509e7706d7fbeb85a822b92a0fbb82359344e8893f377fdd0579d35cea1039f5"
             },
             {
               "path": "reports/roadmap_v3/FIX-04/20260920-r-series/data_causality_tests.xml",
-              "sha256": "e953f1b81443c4d39722f45a059a034c3dce6c13de1527885f13c8701367d04f",
-              "distribution": "local_only_not_published"
+              "sha256": "e953f1b81443c4d39722f45a059a034c3dce6c13de1527885f13c8701367d04f"
             }
           ]
         },
@@ -1209,13 +1073,11 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/FIX-09/20260920-r-series/test_results.json",
-              "sha256": "509e7706d7fbeb85a822b92a0fbb82359344e8893f377fdd0579d35cea1039f5",
-              "distribution": "local_only_not_published"
+              "sha256": "509e7706d7fbeb85a822b92a0fbb82359344e8893f377fdd0579d35cea1039f5"
             },
             {
               "path": "reports/roadmap_v3/FIX-04/20260920-r-series/data_causality_tests.xml",
-              "sha256": "e953f1b81443c4d39722f45a059a034c3dce6c13de1527885f13c8701367d04f",
-              "distribution": "local_only_not_published"
+              "sha256": "e953f1b81443c4d39722f45a059a034c3dce6c13de1527885f13c8701367d04f"
             }
           ]
         },
@@ -1226,13 +1088,11 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/FIX-09/20260920-r-series/test_results.json",
-              "sha256": "509e7706d7fbeb85a822b92a0fbb82359344e8893f377fdd0579d35cea1039f5",
-              "distribution": "local_only_not_published"
+              "sha256": "509e7706d7fbeb85a822b92a0fbb82359344e8893f377fdd0579d35cea1039f5"
             },
             {
               "path": "reports/roadmap_v3/FIX-04/20260920-r-series/data_causality_tests.xml",
-              "sha256": "e953f1b81443c4d39722f45a059a034c3dce6c13de1527885f13c8701367d04f",
-              "distribution": "local_only_not_published"
+              "sha256": "e953f1b81443c4d39722f45a059a034c3dce6c13de1527885f13c8701367d04f"
             }
           ]
         },
@@ -1243,18 +1103,15 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/release.xml",
-              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d",
-              "distribution": "local_only_not_published"
+              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d"
             },
             {
               "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source_manifest.json",
-              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03",
-              "distribution": "local_only_not_published"
+              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03"
             },
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/quality-release.json",
-              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322",
-              "distribution": "local_only_not_published"
+              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322"
             }
           ],
           "allowed_skips": [
@@ -1281,26 +1138,22 @@
       "kind": "engineering",
       "legacy_receipt": {
         "path": "reports/roadmap_v3/FIX-10/20260920-r-series/acceptance.json",
-        "sha256": "9edce42330fc7544589a27caaf111e7148b964ab4fa45cd27f45496e89a0628b",
-        "distribution": "local_only_not_published"
+        "sha256": "9edce42330fc7544589a27caaf111e7148b964ab4fa45cd27f45496e89a0628b"
       },
       "contract": {
         "path": "reports/roadmap_v3/FIX-10/20260920-r-series/contract.md",
-        "sha256": "0168d96014ef717befd2c938505146113cbfd8084531ffdcd438b44af6eb9df1",
-        "distribution": "local_only_not_published"
+        "sha256": "0168d96014ef717befd2c938505146113cbfd8084531ffdcd438b44af6eb9df1"
       },
       "compatibility": "保留旧 submit_order(price=None) 接口；新增预留字段须兼容旧状态，缺字段用显式迁移政策而非假定零成本。",
       "source_identity": {
         "path": "reports/roadmap_v3/FIX-10/20260920-r-series/evidence_manifest.json",
-        "sha256": "1a8de922b57cfbd444b12b04bfd0c6bad1dd0b7aa18bd10bba9edfcf68566c87",
-        "distribution": "local_only_not_published"
+        "sha256": "1a8de922b57cfbd444b12b04bfd0c6bad1dd0b7aa18bd10bba9edfcf68566c87"
       },
       "source_snapshot_root": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source",
       "fixed_inputs": [
         {
           "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source/tests/test_r_series_trading_facts.py",
-          "sha256": "9d6e799e51539706d0f5777bcd1bc50c1502b26191e059315a47437fb8a7a7c0",
-          "distribution": "local_only_not_published"
+          "sha256": "9d6e799e51539706d0f5777bcd1bc50c1502b26191e059315a47437fb8a7a7c0"
         }
       ],
       "input_identity_adapter": "Deterministic configuration/data are embedded in the retained test source fixtures. Each frozen input SHA-256 is an exact match to the original per-task manifest and the bound source snapshot; no present working-tree file is substituted. The later full integration uses its own separately bound final source manifest.",
@@ -1312,8 +1165,7 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/VER-01/20260920-r-series/frozen_trading_contracts.xml",
-              "sha256": "8d7343cdac57da653d0ac820c7082d7ccbb6542958720f8a419f715393d55df2",
-              "distribution": "local_only_not_published"
+              "sha256": "8d7343cdac57da653d0ac820c7082d7ccbb6542958720f8a419f715393d55df2"
             }
           ]
         },
@@ -1324,8 +1176,7 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/VER-01/20260920-r-series/frozen_trading_contracts.xml",
-              "sha256": "8d7343cdac57da653d0ac820c7082d7ccbb6542958720f8a419f715393d55df2",
-              "distribution": "local_only_not_published"
+              "sha256": "8d7343cdac57da653d0ac820c7082d7ccbb6542958720f8a419f715393d55df2"
             }
           ]
         },
@@ -1336,8 +1187,7 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/VER-01/20260920-r-series/frozen_trading_contracts.xml",
-              "sha256": "8d7343cdac57da653d0ac820c7082d7ccbb6542958720f8a419f715393d55df2",
-              "distribution": "local_only_not_published"
+              "sha256": "8d7343cdac57da653d0ac820c7082d7ccbb6542958720f8a419f715393d55df2"
             }
           ]
         },
@@ -1348,18 +1198,15 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/release.xml",
-              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d",
-              "distribution": "local_only_not_published"
+              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d"
             },
             {
               "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source_manifest.json",
-              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03",
-              "distribution": "local_only_not_published"
+              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03"
             },
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/quality-release.json",
-              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322",
-              "distribution": "local_only_not_published"
+              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322"
             }
           ],
           "allowed_skips": [
@@ -1386,26 +1233,22 @@
       "kind": "engineering",
       "legacy_receipt": {
         "path": "reports/roadmap_v3/FIX-11/20260920-r-series/acceptance.json",
-        "sha256": "cc4c6bcc92e4e23c429ad2591b26a6e4bf40e3ce8b9f95672fef22ab2342d58f",
-        "distribution": "local_only_not_published"
+        "sha256": "cc4c6bcc92e4e23c429ad2591b26a6e4bf40e3ce8b9f95672fef22ab2342d58f"
       },
       "contract": {
         "path": "reports/roadmap_v3/FIX-11/20260920-r-series/contract.md",
-        "sha256": "636092b8b348d4b30b0838a9310c4dd0bccb671e3798e9618497f0742f299cbd",
-        "distribution": "local_only_not_published"
+        "sha256": "636092b8b348d4b30b0838a9310c4dd0bccb671e3798e9618497f0742f299cbd"
       },
       "compatibility": "需要给依赖每个 close event 的旧策略提供明确的部分退出钩子/迁移说明；旧 on_trade_closed 名称保留但语义固定为完整持仓。",
       "source_identity": {
         "path": "reports/roadmap_v3/FIX-11/20260920-r-series/evidence_manifest.json",
-        "sha256": "9757bc6e67ead89e7d1e2921632acc4f597f8859df4da8f300432b7e49c0735c",
-        "distribution": "local_only_not_published"
+        "sha256": "9757bc6e67ead89e7d1e2921632acc4f597f8859df4da8f300432b7e49c0735c"
       },
       "source_snapshot_root": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source",
       "fixed_inputs": [
         {
           "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source/tests/test_r_series_trading_facts.py",
-          "sha256": "9d6e799e51539706d0f5777bcd1bc50c1502b26191e059315a47437fb8a7a7c0",
-          "distribution": "local_only_not_published"
+          "sha256": "9d6e799e51539706d0f5777bcd1bc50c1502b26191e059315a47437fb8a7a7c0"
         }
       ],
       "input_identity_adapter": "Deterministic configuration/data are embedded in the retained test source fixtures. Each frozen input SHA-256 is an exact match to the original per-task manifest and the bound source snapshot; no present working-tree file is substituted. The later full integration uses its own separately bound final source manifest.",
@@ -1417,8 +1260,7 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/VER-01/20260920-r-series/frozen_trading_contracts.xml",
-              "sha256": "8d7343cdac57da653d0ac820c7082d7ccbb6542958720f8a419f715393d55df2",
-              "distribution": "local_only_not_published"
+              "sha256": "8d7343cdac57da653d0ac820c7082d7ccbb6542958720f8a419f715393d55df2"
             }
           ]
         },
@@ -1429,8 +1271,7 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/VER-01/20260920-r-series/frozen_trading_contracts.xml",
-              "sha256": "8d7343cdac57da653d0ac820c7082d7ccbb6542958720f8a419f715393d55df2",
-              "distribution": "local_only_not_published"
+              "sha256": "8d7343cdac57da653d0ac820c7082d7ccbb6542958720f8a419f715393d55df2"
             }
           ]
         },
@@ -1441,8 +1282,7 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/VER-01/20260920-r-series/frozen_trading_contracts.xml",
-              "sha256": "8d7343cdac57da653d0ac820c7082d7ccbb6542958720f8a419f715393d55df2",
-              "distribution": "local_only_not_published"
+              "sha256": "8d7343cdac57da653d0ac820c7082d7ccbb6542958720f8a419f715393d55df2"
             }
           ]
         },
@@ -1453,18 +1293,15 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/release.xml",
-              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d",
-              "distribution": "local_only_not_published"
+              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d"
             },
             {
               "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source_manifest.json",
-              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03",
-              "distribution": "local_only_not_published"
+              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03"
             },
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/quality-release.json",
-              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322",
-              "distribution": "local_only_not_published"
+              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322"
             }
           ],
           "allowed_skips": [
@@ -1491,26 +1328,22 @@
       "kind": "engineering",
       "legacy_receipt": {
         "path": "reports/roadmap_v3/FIX-12/20260920-r-series/acceptance.json",
-        "sha256": "7371b2e250e19a599990fbfa9d20079c79a96b348c224d76825df6159b0630f0",
-        "distribution": "local_only_not_published"
+        "sha256": "7371b2e250e19a599990fbfa9d20079c79a96b348c224d76825df6159b0630f0"
       },
       "contract": {
         "path": "reports/roadmap_v3/FIX-12/20260920-r-series/contract.md",
-        "sha256": "468924af0ad4b9d2e11bf456afba102345db218ec4970e4bb7feea6e66619605",
-        "distribution": "local_only_not_published"
+        "sha256": "468924af0ad4b9d2e11bf456afba102345db218ec4970e4bb7feea6e66619605"
       },
       "compatibility": "增加 schema/成本语义标记；旧 CSV 保留原值并显式标为 legacy，无法恢复的字段不编造。旧 legs 研究入口要同时迁移。",
       "source_identity": {
         "path": "reports/roadmap_v3/FIX-12/20260920-r-series/evidence_manifest.json",
-        "sha256": "6ce478be85a8f5128a99a24dbd4ea0f709c7b2087bbbb0d986196499c4896af1",
-        "distribution": "local_only_not_published"
+        "sha256": "6ce478be85a8f5128a99a24dbd4ea0f709c7b2087bbbb0d986196499c4896af1"
       },
       "source_snapshot_root": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source",
       "fixed_inputs": [
         {
           "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source/tests/test_r_series_trading_facts.py",
-          "sha256": "9d6e799e51539706d0f5777bcd1bc50c1502b26191e059315a47437fb8a7a7c0",
-          "distribution": "local_only_not_published"
+          "sha256": "9d6e799e51539706d0f5777bcd1bc50c1502b26191e059315a47437fb8a7a7c0"
         }
       ],
       "input_identity_adapter": "Deterministic configuration/data are embedded in the retained test source fixtures. Each frozen input SHA-256 is an exact match to the original per-task manifest and the bound source snapshot; no present working-tree file is substituted. The later full integration uses its own separately bound final source manifest.",
@@ -1522,8 +1355,7 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/VER-01/20260920-r-series/frozen_trading_contracts.xml",
-              "sha256": "8d7343cdac57da653d0ac820c7082d7ccbb6542958720f8a419f715393d55df2",
-              "distribution": "local_only_not_published"
+              "sha256": "8d7343cdac57da653d0ac820c7082d7ccbb6542958720f8a419f715393d55df2"
             }
           ]
         },
@@ -1534,8 +1366,7 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/VER-01/20260920-r-series/frozen_trading_contracts.xml",
-              "sha256": "8d7343cdac57da653d0ac820c7082d7ccbb6542958720f8a419f715393d55df2",
-              "distribution": "local_only_not_published"
+              "sha256": "8d7343cdac57da653d0ac820c7082d7ccbb6542958720f8a419f715393d55df2"
             }
           ]
         },
@@ -1546,13 +1377,11 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/VER-01/20260920-r-series/frozen_trading_contracts.xml",
-              "sha256": "8d7343cdac57da653d0ac820c7082d7ccbb6542958720f8a419f715393d55df2",
-              "distribution": "local_only_not_published"
+              "sha256": "8d7343cdac57da653d0ac820c7082d7ccbb6542958720f8a419f715393d55df2"
             },
             {
               "path": "reports/roadmap_v3/FIX-12/20260920-r-series/risk_migration_example.json",
-              "sha256": "07dc4be6797ab5040d3956f9e8eec4a36f7c31c7d2dc9377fa10677d6e8a2f4b",
-              "distribution": "local_only_not_published"
+              "sha256": "07dc4be6797ab5040d3956f9e8eec4a36f7c31c7d2dc9377fa10677d6e8a2f4b"
             }
           ]
         },
@@ -1563,18 +1392,15 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/release.xml",
-              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d",
-              "distribution": "local_only_not_published"
+              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d"
             },
             {
               "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source_manifest.json",
-              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03",
-              "distribution": "local_only_not_published"
+              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03"
             },
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/quality-release.json",
-              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322",
-              "distribution": "local_only_not_published"
+              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322"
             }
           ],
           "allowed_skips": [
@@ -1601,26 +1427,22 @@
       "kind": "engineering",
       "legacy_receipt": {
         "path": "reports/roadmap_v3/FIX-13/20260920-r-series/acceptance.json",
-        "sha256": "7e27c0ea394d80248b0a04b00db2c8fc0501e2ca7de5c978f9b5a2e714c424f6",
-        "distribution": "local_only_not_published"
+        "sha256": "7e27c0ea394d80248b0a04b00db2c8fc0501e2ca7de5c978f9b5a2e714c424f6"
       },
       "contract": {
         "path": "reports/roadmap_v3/FIX-13/20260920-r-series/contract.md",
-        "sha256": "65c9a3fe946da7fa8f96e18caaba363ff0cbe39db864d9de068fa6a8ea677619",
-        "distribution": "local_only_not_published"
+        "sha256": "65c9a3fe946da7fa8f96e18caaba363ff0cbe39db864d9de068fa6a8ea677619"
       },
       "compatibility": "重启状态含旧 last_borrow_time 但仓位为零时迁移为已结清状态并留痕；不覆盖历史已收费用。",
       "source_identity": {
         "path": "reports/roadmap_v3/FIX-13/20260920-r-series/evidence_manifest.json",
-        "sha256": "329c4192c095b0a885f5272caeec1915cadd8fdd01f3337fb763ee69f4b4d468",
-        "distribution": "local_only_not_published"
+        "sha256": "329c4192c095b0a885f5272caeec1915cadd8fdd01f3337fb763ee69f4b4d468"
       },
       "source_snapshot_root": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source",
       "fixed_inputs": [
         {
           "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source/tests/test_r_series_trading_facts.py",
-          "sha256": "9d6e799e51539706d0f5777bcd1bc50c1502b26191e059315a47437fb8a7a7c0",
-          "distribution": "local_only_not_published"
+          "sha256": "9d6e799e51539706d0f5777bcd1bc50c1502b26191e059315a47437fb8a7a7c0"
         }
       ],
       "input_identity_adapter": "Deterministic configuration/data are embedded in the retained test source fixtures. Each frozen input SHA-256 is an exact match to the original per-task manifest and the bound source snapshot; no present working-tree file is substituted. The later full integration uses its own separately bound final source manifest.",
@@ -1632,8 +1454,7 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/VER-01/20260920-r-series/frozen_trading_contracts.xml",
-              "sha256": "8d7343cdac57da653d0ac820c7082d7ccbb6542958720f8a419f715393d55df2",
-              "distribution": "local_only_not_published"
+              "sha256": "8d7343cdac57da653d0ac820c7082d7ccbb6542958720f8a419f715393d55df2"
             }
           ]
         },
@@ -1644,8 +1465,7 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/VER-01/20260920-r-series/frozen_trading_contracts.xml",
-              "sha256": "8d7343cdac57da653d0ac820c7082d7ccbb6542958720f8a419f715393d55df2",
-              "distribution": "local_only_not_published"
+              "sha256": "8d7343cdac57da653d0ac820c7082d7ccbb6542958720f8a419f715393d55df2"
             }
           ]
         },
@@ -1656,13 +1476,11 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/VER-01/20260920-r-series/frozen_trading_contracts.xml",
-              "sha256": "8d7343cdac57da653d0ac820c7082d7ccbb6542958720f8a419f715393d55df2",
-              "distribution": "local_only_not_published"
+              "sha256": "8d7343cdac57da653d0ac820c7082d7ccbb6542958720f8a419f715393d55df2"
             },
             {
               "path": "reports/roadmap_v3/VER-01/20260920-r-series/financing_and_final_contracts.xml",
-              "sha256": "b41de87aafefb3da2cbff1c7f04f4eb506322fcaf5f73c97d602b212a6e0f6df",
-              "distribution": "local_only_not_published"
+              "sha256": "b41de87aafefb3da2cbff1c7f04f4eb506322fcaf5f73c97d602b212a6e0f6df"
             }
           ]
         },
@@ -1673,18 +1491,15 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/release.xml",
-              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d",
-              "distribution": "local_only_not_published"
+              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d"
             },
             {
               "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source_manifest.json",
-              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03",
-              "distribution": "local_only_not_published"
+              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03"
             },
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/quality-release.json",
-              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322",
-              "distribution": "local_only_not_published"
+              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322"
             }
           ],
           "allowed_skips": [
@@ -1711,26 +1526,22 @@
       "kind": "engineering",
       "legacy_receipt": {
         "path": "reports/roadmap_v3/FIX-14/20260920-r-series/acceptance.json",
-        "sha256": "81d2b0a43702c444faeb67cde2fc592ca299bf9b0d77a6f219752d0512e0c6b5",
-        "distribution": "local_only_not_published"
+        "sha256": "81d2b0a43702c444faeb67cde2fc592ca299bf9b0d77a6f219752d0512e0c6b5"
       },
       "contract": {
         "path": "reports/roadmap_v3/FIX-14/20260920-r-series/contract.md",
-        "sha256": "d5fc405fb6028283a5bbf9c44a38a0e6db38f70de11bab632353839270de900e",
-        "distribution": "local_only_not_published"
+        "sha256": "d5fc405fb6028283a5bbf9c44a38a0e6db38f70de11bab632353839270de900e"
       },
       "compatibility": "不自动认领为任意策略；持仓历史缺失保持明确 unknown。新增持仓管理状态需兼容已有 owner 重建。",
       "source_identity": {
         "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source_manifest.json",
-        "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03",
-        "distribution": "local_only_not_published"
+        "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03"
       },
       "source_snapshot_root": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source",
       "fixed_inputs": [
         {
           "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source/tests/test_roadmap_external_positions.py",
-          "sha256": "0ddd598b733f31bbc0de770e55ec97790cda44fcb1bcf74fa32db008ea72e943",
-          "distribution": "local_only_not_published"
+          "sha256": "0ddd598b733f31bbc0de770e55ec97790cda44fcb1bcf74fa32db008ea72e943"
         }
       ],
       "input_identity_adapter": "Deterministic configuration/data are embedded in the retained test source fixtures. Each frozen input SHA-256 is an exact match to the original per-task manifest and the bound source snapshot; no present working-tree file is substituted. This task explicitly uses final freeze04 integrated closure: all required check categories reference the final full-suite run on that same source identity. The original intermediate manifest is retained as historical context, not represented as a fully reconstructible intermediate snapshot. ",
@@ -1742,8 +1553,7 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/release.xml",
-              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d",
-              "distribution": "local_only_not_published"
+              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d"
             }
           ],
           "allowed_skips": [
@@ -1758,8 +1568,7 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/release.xml",
-              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d",
-              "distribution": "local_only_not_published"
+              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d"
             }
           ],
           "allowed_skips": [
@@ -1774,13 +1583,11 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/release.xml",
-              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d",
-              "distribution": "local_only_not_published"
+              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d"
             },
             {
               "path": "reports/roadmap_v3/FIX-14/20260920-r-series/evidence_manifest.json",
-              "sha256": "56370313436993c32ba9ed8d4082f0f5be3c8dd85cdc189048b8bf2171b33b7d",
-              "distribution": "local_only_not_published"
+              "sha256": "56370313436993c32ba9ed8d4082f0f5be3c8dd85cdc189048b8bf2171b33b7d"
             }
           ],
           "allowed_skips": [
@@ -1795,18 +1602,15 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/release.xml",
-              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d",
-              "distribution": "local_only_not_published"
+              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d"
             },
             {
               "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source_manifest.json",
-              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03",
-              "distribution": "local_only_not_published"
+              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03"
             },
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/quality-release.json",
-              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322",
-              "distribution": "local_only_not_published"
+              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322"
             }
           ],
           "allowed_skips": [
@@ -1821,8 +1625,7 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/release.xml",
-              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d",
-              "distribution": "local_only_not_published"
+              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d"
             }
           ],
           "allowed_skips": [
@@ -1852,26 +1655,22 @@
       "kind": "engineering",
       "legacy_receipt": {
         "path": "reports/roadmap_v3/FIX-15/20260920-r-series/acceptance.json",
-        "sha256": "3420949ea530144dea425aac9e30beb9813957c9d99d5e06b1956e7e2cb4df93",
-        "distribution": "local_only_not_published"
+        "sha256": "3420949ea530144dea425aac9e30beb9813957c9d99d5e06b1956e7e2cb4df93"
       },
       "contract": {
         "path": "reports/roadmap_v3/FIX-15/20260920-r-series/contract.md",
-        "sha256": "4b173696eb66b85f1267175b7317e3715c95038e98cb4a27075f2404c05379d3",
-        "distribution": "local_only_not_published"
+        "sha256": "4b173696eb66b85f1267175b7317e3715c95038e98cb4a27075f2404c05379d3"
       },
       "compatibility": "健康状态版本需保存新 baseline；旧状态恢复需明确从最后已判定交易开始，不能重复消费完整历史。 参数服从 2026-09-14 已冻结健康协议（stage 0.10、30 天、5 个新 cohort、3 个 symbol、去掉最佳样本后仍为正等）；本包修状态消费，不恢复旧 3 cohort/默认 0.25 标准。",
       "source_identity": {
         "path": "reports/roadmap_v3/FIX-15/20260920-r-series/evidence_manifest.json",
-        "sha256": "08e573f6ee8a0856239932fded19028f46bd0ec97150c03ef2a238c716188994",
-        "distribution": "local_only_not_published"
+        "sha256": "08e573f6ee8a0856239932fded19028f46bd0ec97150c03ef2a238c716188994"
       },
       "source_snapshot_root": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source",
       "fixed_inputs": [
         {
           "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source/tests/test_roadmap_admission_recovery.py",
-          "sha256": "fbb7af1751cc7119b7d10b8d4bf99ede6d73920194c83751f268740dc6602682",
-          "distribution": "local_only_not_published"
+          "sha256": "fbb7af1751cc7119b7d10b8d4bf99ede6d73920194c83751f268740dc6602682"
         }
       ],
       "input_identity_adapter": "Deterministic configuration/data are embedded in the retained test source fixtures. Each frozen input SHA-256 is an exact match to the original per-task manifest and the bound source snapshot; no present working-tree file is substituted. The later full integration uses its own separately bound final source manifest.",
@@ -1883,13 +1682,11 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/FIX-15/20260920-r-series/test_record.json",
-              "sha256": "15dc723e03e884ce7d5ac26f910f55c3fbafa21c68cad514cd5560d92c245173",
-              "distribution": "local_only_not_published"
+              "sha256": "15dc723e03e884ce7d5ac26f910f55c3fbafa21c68cad514cd5560d92c245173"
             },
             {
               "path": "reports/roadmap_v3/recovery_integration/20260920-r-series/final_boundary_tests.xml",
-              "sha256": "7ad433086acf2c41a58e047be98bf1de808b8a5566f3c754caa6ec4a3b370fbd",
-              "distribution": "local_only_not_published"
+              "sha256": "7ad433086acf2c41a58e047be98bf1de808b8a5566f3c754caa6ec4a3b370fbd"
             }
           ]
         },
@@ -1900,13 +1697,11 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/FIX-15/20260920-r-series/test_record.json",
-              "sha256": "15dc723e03e884ce7d5ac26f910f55c3fbafa21c68cad514cd5560d92c245173",
-              "distribution": "local_only_not_published"
+              "sha256": "15dc723e03e884ce7d5ac26f910f55c3fbafa21c68cad514cd5560d92c245173"
             },
             {
               "path": "reports/roadmap_v3/recovery_integration/20260920-r-series/final_boundary_tests.xml",
-              "sha256": "7ad433086acf2c41a58e047be98bf1de808b8a5566f3c754caa6ec4a3b370fbd",
-              "distribution": "local_only_not_published"
+              "sha256": "7ad433086acf2c41a58e047be98bf1de808b8a5566f3c754caa6ec4a3b370fbd"
             }
           ]
         },
@@ -1917,18 +1712,15 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/FIX-15/20260920-r-series/test_record.json",
-              "sha256": "15dc723e03e884ce7d5ac26f910f55c3fbafa21c68cad514cd5560d92c245173",
-              "distribution": "local_only_not_published"
+              "sha256": "15dc723e03e884ce7d5ac26f910f55c3fbafa21c68cad514cd5560d92c245173"
             },
             {
               "path": "reports/roadmap_v3/recovery_integration/20260920-r-series/final_boundary_tests.xml",
-              "sha256": "7ad433086acf2c41a58e047be98bf1de808b8a5566f3c754caa6ec4a3b370fbd",
-              "distribution": "local_only_not_published"
+              "sha256": "7ad433086acf2c41a58e047be98bf1de808b8a5566f3c754caa6ec4a3b370fbd"
             },
             {
               "path": "reports/roadmap_v3/FIX-15/20260920-r-series/health_before_after.json",
-              "sha256": "ba2a95a295bf36a61c5c2e7793a0c035a5643061c230e189503e188b759b9cbe",
-              "distribution": "local_only_not_published"
+              "sha256": "ba2a95a295bf36a61c5c2e7793a0c035a5643061c230e189503e188b759b9cbe"
             }
           ]
         },
@@ -1939,18 +1731,15 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/release.xml",
-              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d",
-              "distribution": "local_only_not_published"
+              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d"
             },
             {
               "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source_manifest.json",
-              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03",
-              "distribution": "local_only_not_published"
+              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03"
             },
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/quality-release.json",
-              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322",
-              "distribution": "local_only_not_published"
+              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322"
             }
           ],
           "allowed_skips": [
@@ -1977,26 +1766,22 @@
       "kind": "engineering",
       "legacy_receipt": {
         "path": "reports/roadmap_v3/FIX-16/20260920-r-series/acceptance.json",
-        "sha256": "9bbaab8e40aac43aa4331d7bcb54a8a82fffcccdbbe0a3ebdb974d0201e76e41",
-        "distribution": "local_only_not_published"
+        "sha256": "9bbaab8e40aac43aa4331d7bcb54a8a82fffcccdbbe0a3ebdb974d0201e76e41"
       },
       "contract": {
         "path": "reports/roadmap_v3/FIX-16/20260920-r-series/contract.md",
-        "sha256": "e697fcd3f19857e27253a404e337398080153c955db5de65e18575b13bc29d01",
-        "distribution": "local_only_not_published"
+        "sha256": "e697fcd3f19857e27253a404e337398080153c955db5de65e18575b13bc29d01"
       },
       "compatibility": "目标应固定于风险动作创建时，避免每次重试按当前数量重复乘比例。VER-01 独立验证流动性残单情形，本包不预先认定其缺陷成立。",
       "source_identity": {
         "path": "reports/roadmap_v3/FIX-16/20260920-r-series/evidence_manifest.json",
-        "sha256": "b24dfa3f18554106d39e9876c6b3d708aa18f97453097aa6f64346a49a493737",
-        "distribution": "local_only_not_published"
+        "sha256": "b24dfa3f18554106d39e9876c6b3d708aa18f97453097aa6f64346a49a493737"
       },
       "source_snapshot_root": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source",
       "fixed_inputs": [
         {
           "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source/tests/test_r_series_trading_facts.py",
-          "sha256": "9d6e799e51539706d0f5777bcd1bc50c1502b26191e059315a47437fb8a7a7c0",
-          "distribution": "local_only_not_published"
+          "sha256": "9d6e799e51539706d0f5777bcd1bc50c1502b26191e059315a47437fb8a7a7c0"
         }
       ],
       "input_identity_adapter": "Deterministic configuration/data are embedded in the retained test source fixtures. Each frozen input SHA-256 is an exact match to the original per-task manifest and the bound source snapshot; no present working-tree file is substituted. The later full integration uses its own separately bound final source manifest.",
@@ -2008,8 +1793,7 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/VER-01/20260920-r-series/frozen_trading_contracts.xml",
-              "sha256": "8d7343cdac57da653d0ac820c7082d7ccbb6542958720f8a419f715393d55df2",
-              "distribution": "local_only_not_published"
+              "sha256": "8d7343cdac57da653d0ac820c7082d7ccbb6542958720f8a419f715393d55df2"
             }
           ]
         },
@@ -2020,8 +1804,7 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/VER-01/20260920-r-series/frozen_trading_contracts.xml",
-              "sha256": "8d7343cdac57da653d0ac820c7082d7ccbb6542958720f8a419f715393d55df2",
-              "distribution": "local_only_not_published"
+              "sha256": "8d7343cdac57da653d0ac820c7082d7ccbb6542958720f8a419f715393d55df2"
             }
           ]
         },
@@ -2032,8 +1815,7 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/VER-01/20260920-r-series/frozen_trading_contracts.xml",
-              "sha256": "8d7343cdac57da653d0ac820c7082d7ccbb6542958720f8a419f715393d55df2",
-              "distribution": "local_only_not_published"
+              "sha256": "8d7343cdac57da653d0ac820c7082d7ccbb6542958720f8a419f715393d55df2"
             }
           ]
         },
@@ -2044,18 +1826,15 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/release.xml",
-              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d",
-              "distribution": "local_only_not_published"
+              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d"
             },
             {
               "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source_manifest.json",
-              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03",
-              "distribution": "local_only_not_published"
+              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03"
             },
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/quality-release.json",
-              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322",
-              "distribution": "local_only_not_published"
+              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322"
             }
           ],
           "allowed_skips": [
@@ -2082,26 +1861,22 @@
       "kind": "engineering",
       "legacy_receipt": {
         "path": "reports/roadmap_v3/VER-01/20260920-r-series/acceptance.json",
-        "sha256": "c32057f2b9a2a6a35f6c8a01e370c8b9e9aeebd763da20e5230a11eb08d69ec7",
-        "distribution": "local_only_not_published"
+        "sha256": "c32057f2b9a2a6a35f6c8a01e370c8b9e9aeebd763da20e5230a11eb08d69ec7"
       },
       "contract": {
         "path": "reports/roadmap_v3/VER-01/20260920-r-series/contract.md",
-        "sha256": "380dec1fd304fff8da4c1c8701813e745b3d600c86a474a2ad369b17ffc441e4",
-        "distribution": "local_only_not_published"
+        "sha256": "380dec1fd304fff8da4c1c8701813e745b3d600c86a474a2ad369b17ffc441e4"
       },
       "compatibility": "本项首先是验证，不能预设要修改行为；发现新缺陷后保留同一来源和证据，明确对 FIX-16 的依赖/边界。",
       "source_identity": {
         "path": "reports/roadmap_v3/VER-01/20260920-r-series/evidence_manifest.json",
-        "sha256": "f7bcccbbce01b48c6929ccd5733c549f9204a72679077d1648af1ae353d4c0d0",
-        "distribution": "local_only_not_published"
+        "sha256": "f7bcccbbce01b48c6929ccd5733c549f9204a72679077d1648af1ae353d4c0d0"
       },
       "source_snapshot_root": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source",
       "fixed_inputs": [
         {
           "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source/tests/test_r_series_trading_facts.py",
-          "sha256": "9d6e799e51539706d0f5777bcd1bc50c1502b26191e059315a47437fb8a7a7c0",
-          "distribution": "local_only_not_published"
+          "sha256": "9d6e799e51539706d0f5777bcd1bc50c1502b26191e059315a47437fb8a7a7c0"
         }
       ],
       "input_identity_adapter": "Deterministic configuration/data are embedded in the retained test source fixtures. Each frozen input SHA-256 is an exact match to the original per-task manifest and the bound source snapshot; no present working-tree file is substituted. The later full integration uses its own separately bound final source manifest.",
@@ -2113,8 +1888,7 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/VER-01/20260920-r-series/frozen_trading_contracts.xml",
-              "sha256": "8d7343cdac57da653d0ac820c7082d7ccbb6542958720f8a419f715393d55df2",
-              "distribution": "local_only_not_published"
+              "sha256": "8d7343cdac57da653d0ac820c7082d7ccbb6542958720f8a419f715393d55df2"
             }
           ]
         },
@@ -2125,8 +1899,7 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/VER-01/20260920-r-series/frozen_trading_contracts.xml",
-              "sha256": "8d7343cdac57da653d0ac820c7082d7ccbb6542958720f8a419f715393d55df2",
-              "distribution": "local_only_not_published"
+              "sha256": "8d7343cdac57da653d0ac820c7082d7ccbb6542958720f8a419f715393d55df2"
             }
           ]
         },
@@ -2137,23 +1910,19 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/VER-01/20260920-r-series/frozen_trading_contracts.xml",
-              "sha256": "8d7343cdac57da653d0ac820c7082d7ccbb6542958720f8a419f715393d55df2",
-              "distribution": "local_only_not_published"
+              "sha256": "8d7343cdac57da653d0ac820c7082d7ccbb6542958720f8a419f715393d55df2"
             },
             {
               "path": "reports/roadmap_v3/VER-01/20260920-r-series/baseline_trace.json",
-              "sha256": "6a68ef554a978e25769c93b36709f4f6108b1ab7f9712c846cb5673927697e0f",
-              "distribution": "local_only_not_published"
+              "sha256": "6a68ef554a978e25769c93b36709f4f6108b1ab7f9712c846cb5673927697e0f"
             },
             {
               "path": "reports/roadmap_v3/VER-01/20260920-r-series/after_trace.json",
-              "sha256": "bc34cc43507c77d781ce62bdc064ab24b62979bf1606b916c0d0b56d84a6b464",
-              "distribution": "local_only_not_published"
+              "sha256": "bc34cc43507c77d781ce62bdc064ab24b62979bf1606b916c0d0b56d84a6b464"
             },
             {
               "path": "reports/roadmap_v3/VER-01/20260920-r-series/baseline_boundary_failures.txt",
-              "sha256": "73edb9bd62e716b0b2f7b2d4745005715f87adb4de6c3ec1b29e719da7d484d5",
-              "distribution": "local_only_not_published"
+              "sha256": "73edb9bd62e716b0b2f7b2d4745005715f87adb4de6c3ec1b29e719da7d484d5"
             }
           ]
         },
@@ -2164,18 +1933,15 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/release.xml",
-              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d",
-              "distribution": "local_only_not_published"
+              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d"
             },
             {
               "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source_manifest.json",
-              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03",
-              "distribution": "local_only_not_published"
+              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03"
             },
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/quality-release.json",
-              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322",
-              "distribution": "local_only_not_published"
+              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322"
             }
           ],
           "allowed_skips": [
@@ -2202,31 +1968,26 @@
       "kind": "engineering",
       "legacy_receipt": {
         "path": "reports/roadmap_v3/FIX-17/20260920-r-series/acceptance.json",
-        "sha256": "9311b327bb9ff416cdb02f60daaacd20ec8bbe50ba2a373b602f1a9264ffd528",
-        "distribution": "local_only_not_published"
+        "sha256": "9311b327bb9ff416cdb02f60daaacd20ec8bbe50ba2a373b602f1a9264ffd528"
       },
       "contract": {
         "path": "reports/roadmap_v3/FIX-17/20260920-r-series/contract.md",
-        "sha256": "983ff5d05f9e9c7b498ec3e9cdc33a0f503cf41f5e752696efe4fc5418e88b22",
-        "distribution": "local_only_not_published"
+        "sha256": "983ff5d05f9e9c7b498ec3e9cdc33a0f503cf41f5e752696efe4fc5418e88b22"
       },
       "compatibility": "保留读取旧 checkpoint 的迁移分支；第一次成功保存生成新原子版本。临时文件清理仅针对本次唯一文件，不扫描删除其它会话。",
       "source_identity": {
         "path": "reports/roadmap_v3/FIX-17/20260920-r-series/evidence_manifest.json",
-        "sha256": "888a7410c051228849e23e85ebef01d6aecb6d313ba4cc0247721a0da29b7275",
-        "distribution": "local_only_not_published"
+        "sha256": "888a7410c051228849e23e85ebef01d6aecb6d313ba4cc0247721a0da29b7275"
       },
       "source_snapshot_root": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source",
       "fixed_inputs": [
         {
           "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source/tests/test_roadmap_admission_recovery.py",
-          "sha256": "fbb7af1751cc7119b7d10b8d4bf99ede6d73920194c83751f268740dc6602682",
-          "distribution": "local_only_not_published"
+          "sha256": "fbb7af1751cc7119b7d10b8d4bf99ede6d73920194c83751f268740dc6602682"
         },
         {
           "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source/tests/test_r7_fault_injection.py",
-          "sha256": "0b8983ef4b54b35201749715c9105ef7f6568a16348924c428c2484430216cd1",
-          "distribution": "local_only_not_published"
+          "sha256": "0b8983ef4b54b35201749715c9105ef7f6568a16348924c428c2484430216cd1"
         }
       ],
       "input_identity_adapter": "Deterministic configuration/data are embedded in the retained test source fixtures. Each frozen input SHA-256 is an exact match to the original per-task manifest and the bound source snapshot; no present working-tree file is substituted. The later full integration uses its own separately bound final source manifest.",
@@ -2238,13 +1999,11 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/FIX-17/20260920-r-series/test_record.json",
-              "sha256": "15dc723e03e884ce7d5ac26f910f55c3fbafa21c68cad514cd5560d92c245173",
-              "distribution": "local_only_not_published"
+              "sha256": "15dc723e03e884ce7d5ac26f910f55c3fbafa21c68cad514cd5560d92c245173"
             },
             {
               "path": "reports/roadmap_v3/recovery_integration/20260920-r-series/final_boundary_tests.xml",
-              "sha256": "7ad433086acf2c41a58e047be98bf1de808b8a5566f3c754caa6ec4a3b370fbd",
-              "distribution": "local_only_not_published"
+              "sha256": "7ad433086acf2c41a58e047be98bf1de808b8a5566f3c754caa6ec4a3b370fbd"
             }
           ]
         },
@@ -2255,13 +2014,11 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/FIX-17/20260920-r-series/test_record.json",
-              "sha256": "15dc723e03e884ce7d5ac26f910f55c3fbafa21c68cad514cd5560d92c245173",
-              "distribution": "local_only_not_published"
+              "sha256": "15dc723e03e884ce7d5ac26f910f55c3fbafa21c68cad514cd5560d92c245173"
             },
             {
               "path": "reports/roadmap_v3/recovery_integration/20260920-r-series/final_boundary_tests.xml",
-              "sha256": "7ad433086acf2c41a58e047be98bf1de808b8a5566f3c754caa6ec4a3b370fbd",
-              "distribution": "local_only_not_published"
+              "sha256": "7ad433086acf2c41a58e047be98bf1de808b8a5566f3c754caa6ec4a3b370fbd"
             }
           ]
         },
@@ -2272,13 +2029,11 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/FIX-17/20260920-r-series/test_record.json",
-              "sha256": "15dc723e03e884ce7d5ac26f910f55c3fbafa21c68cad514cd5560d92c245173",
-              "distribution": "local_only_not_published"
+              "sha256": "15dc723e03e884ce7d5ac26f910f55c3fbafa21c68cad514cd5560d92c245173"
             },
             {
               "path": "reports/roadmap_v3/recovery_integration/20260920-r-series/final_boundary_tests.xml",
-              "sha256": "7ad433086acf2c41a58e047be98bf1de808b8a5566f3c754caa6ec4a3b370fbd",
-              "distribution": "local_only_not_published"
+              "sha256": "7ad433086acf2c41a58e047be98bf1de808b8a5566f3c754caa6ec4a3b370fbd"
             }
           ]
         },
@@ -2289,18 +2044,15 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/release.xml",
-              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d",
-              "distribution": "local_only_not_published"
+              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d"
             },
             {
               "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source_manifest.json",
-              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03",
-              "distribution": "local_only_not_published"
+              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03"
             },
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/quality-release.json",
-              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322",
-              "distribution": "local_only_not_published"
+              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322"
             }
           ],
           "allowed_skips": [
@@ -2315,13 +2067,11 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/FIX-17/20260920-r-series/test_record.json",
-              "sha256": "15dc723e03e884ce7d5ac26f910f55c3fbafa21c68cad514cd5560d92c245173",
-              "distribution": "local_only_not_published"
+              "sha256": "15dc723e03e884ce7d5ac26f910f55c3fbafa21c68cad514cd5560d92c245173"
             },
             {
               "path": "reports/roadmap_v3/recovery_integration/20260920-r-series/final_boundary_tests.xml",
-              "sha256": "7ad433086acf2c41a58e047be98bf1de808b8a5566f3c754caa6ec4a3b370fbd",
-              "distribution": "local_only_not_published"
+              "sha256": "7ad433086acf2c41a58e047be98bf1de808b8a5566f3c754caa6ec4a3b370fbd"
             }
           ]
         }
@@ -2344,26 +2094,22 @@
       "kind": "engineering",
       "legacy_receipt": {
         "path": "reports/roadmap_v3/FIX-18/20260920-r-series/acceptance.json",
-        "sha256": "d4bb06cba399aa8b5902bfdd50b600b4ea7b38ba19c120168679e5120ab5f334",
-        "distribution": "local_only_not_published"
+        "sha256": "d4bb06cba399aa8b5902bfdd50b600b4ea7b38ba19c120168679e5120ab5f334"
       },
       "contract": {
         "path": "reports/roadmap_v3/FIX-18/20260920-r-series/contract.md",
-        "sha256": "437d09f26dc1ace18daff2928022205f29a8c083a1e59fff5cad05000335397f",
-        "distribution": "local_only_not_published"
+        "sha256": "437d09f26dc1ace18daff2928022205f29a8c083a1e59fff5cad05000335397f"
       },
       "compatibility": "不要全库重写 wire name 后丢失原始事实；优先读时兼容和规范比较。保留迁移前数据库与格式说明。",
       "source_identity": {
         "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source_manifest.json",
-        "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03",
-        "distribution": "local_only_not_published"
+        "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03"
       },
       "source_snapshot_root": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source",
       "fixed_inputs": [
         {
           "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source/tests/test_roadmap_admission_recovery.py",
-          "sha256": "fbb7af1751cc7119b7d10b8d4bf99ede6d73920194c83751f268740dc6602682",
-          "distribution": "local_only_not_published"
+          "sha256": "fbb7af1751cc7119b7d10b8d4bf99ede6d73920194c83751f268740dc6602682"
         }
       ],
       "input_identity_adapter": "Deterministic configuration/data are embedded in the retained test source fixtures. Each frozen input SHA-256 is an exact match to the original per-task manifest and the bound source snapshot; no present working-tree file is substituted. This task explicitly uses final freeze04 integrated closure: all required check categories reference the final full-suite run on that same source identity. The original intermediate manifest is retained as historical context, not represented as a fully reconstructible intermediate snapshot. ",
@@ -2375,8 +2121,7 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/release.xml",
-              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d",
-              "distribution": "local_only_not_published"
+              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d"
             }
           ],
           "allowed_skips": [
@@ -2391,8 +2136,7 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/release.xml",
-              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d",
-              "distribution": "local_only_not_published"
+              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d"
             }
           ],
           "allowed_skips": [
@@ -2407,13 +2151,11 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/release.xml",
-              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d",
-              "distribution": "local_only_not_published"
+              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d"
             },
             {
               "path": "reports/roadmap_v3/FIX-18/20260920-r-series/evidence_manifest.json",
-              "sha256": "d6e905f7a96d3c1b9be8ee12a92d6bf30d23b9e2cf222cbed8c0721a4a910aa4",
-              "distribution": "local_only_not_published"
+              "sha256": "d6e905f7a96d3c1b9be8ee12a92d6bf30d23b9e2cf222cbed8c0721a4a910aa4"
             }
           ],
           "allowed_skips": [
@@ -2428,18 +2170,15 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/release.xml",
-              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d",
-              "distribution": "local_only_not_published"
+              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d"
             },
             {
               "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source_manifest.json",
-              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03",
-              "distribution": "local_only_not_published"
+              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03"
             },
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/quality-release.json",
-              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322",
-              "distribution": "local_only_not_published"
+              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322"
             }
           ],
           "allowed_skips": [
@@ -2467,36 +2206,30 @@
       "kind": "engineering",
       "legacy_receipt": {
         "path": "reports/roadmap_v3/FIX-08/20260920-r-series/acceptance.json",
-        "sha256": "ff80034c132b023007ea0a5ce7f07e2ba2e341cec1f7aeae41446f0624982b62",
-        "distribution": "local_only_not_published"
+        "sha256": "ff80034c132b023007ea0a5ce7f07e2ba2e341cec1f7aeae41446f0624982b62"
       },
       "contract": {
         "path": "reports/roadmap_v3/FIX-08/20260920-r-series/contract.md",
-        "sha256": "d626a6def565cccde5637e60373402cfd4360fe9425e4c032ca236640d0bab9f",
-        "distribution": "local_only_not_published"
+        "sha256": "d626a6def565cccde5637e60373402cfd4360fe9425e4c032ca236640d0bab9f"
       },
       "compatibility": "保留旧脚本/报告的来源，但取消错误准入解释；新入口输出含 schema/version 的结果。前瞻时间按既有计划冻结，时间到达不自动代表门槛通过。",
       "source_identity": {
         "path": "reports/roadmap_v3/FIX-08/20260920-r-series/evidence_manifest.json",
-        "sha256": "4e4009840ffd4e5e755090985172c533b47d2a5b38038b776509e9813ab8909d",
-        "distribution": "local_only_not_published"
+        "sha256": "4e4009840ffd4e5e755090985172c533b47d2a5b38038b776509e9813ab8909d"
       },
       "source_snapshot_root": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source",
       "fixed_inputs": [
         {
           "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source/tests/test_roadmap_optimizer_execution.py",
-          "sha256": "e1987d642f743ca0c7725d9419f2d4ab871233848c208cdf6fce27b233d3fa53",
-          "distribution": "local_only_not_published"
+          "sha256": "e1987d642f743ca0c7725d9419f2d4ab871233848c208cdf6fce27b233d3fa53"
         },
         {
           "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source/tests/test_roadmap_research_reporting.py",
-          "sha256": "882ba445ef2ab0be2c89f019004322c6bcd91826dd6715b3d794e0e10ff35984",
-          "distribution": "local_only_not_published"
+          "sha256": "882ba445ef2ab0be2c89f019004322c6bcd91826dd6715b3d794e0e10ff35984"
         },
         {
           "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-02/source/config/params.yaml",
-          "sha256": "49665830ead75ec74f6ef736f3f8b1ee7fdb3122ba9f334cda9d944b26decb4e",
-          "distribution": "local_only_not_published"
+          "sha256": "49665830ead75ec74f6ef736f3f8b1ee7fdb3122ba9f334cda9d944b26decb4e"
         }
       ],
       "input_identity_adapter": "Deterministic configuration/data are embedded in the retained test source fixtures. Each frozen input SHA-256 is an exact match to the original per-task manifest and the bound source snapshot; no present working-tree file is substituted. The later full integration uses its own separately bound final source manifest.",
@@ -2508,8 +2241,7 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/FIX-08/20260920-r-series/tests.xml",
-              "sha256": "5bf25de121cff0ba5956eafc86462e3c009e3cfa6b3db034322a6dda07439acc",
-              "distribution": "local_only_not_published"
+              "sha256": "5bf25de121cff0ba5956eafc86462e3c009e3cfa6b3db034322a6dda07439acc"
             }
           ]
         },
@@ -2520,8 +2252,7 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/FIX-08/20260920-r-series/tests.xml",
-              "sha256": "5bf25de121cff0ba5956eafc86462e3c009e3cfa6b3db034322a6dda07439acc",
-              "distribution": "local_only_not_published"
+              "sha256": "5bf25de121cff0ba5956eafc86462e3c009e3cfa6b3db034322a6dda07439acc"
             }
           ]
         },
@@ -2532,13 +2263,11 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/FIX-08/20260920-r-series/tests.xml",
-              "sha256": "5bf25de121cff0ba5956eafc86462e3c009e3cfa6b3db034322a6dda07439acc",
-              "distribution": "local_only_not_published"
+              "sha256": "5bf25de121cff0ba5956eafc86462e3c009e3cfa6b3db034322a6dda07439acc"
             },
             {
               "path": "reports/roadmap_v3/FIX-08/20260920-r-series/optimizer_execution.xml",
-              "sha256": "d98e7134c939cd4f4b33c0dc340bcd2d4f2930d6e54e77a4a183fe991a9939fd",
-              "distribution": "local_only_not_published"
+              "sha256": "d98e7134c939cd4f4b33c0dc340bcd2d4f2930d6e54e77a4a183fe991a9939fd"
             }
           ]
         },
@@ -2549,18 +2278,15 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/release.xml",
-              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d",
-              "distribution": "local_only_not_published"
+              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d"
             },
             {
               "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source_manifest.json",
-              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03",
-              "distribution": "local_only_not_published"
+              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03"
             },
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/quality-release.json",
-              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322",
-              "distribution": "local_only_not_published"
+              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322"
             }
           ],
           "allowed_skips": [
@@ -2587,31 +2313,26 @@
       "kind": "engineering",
       "legacy_receipt": {
         "path": "reports/roadmap_v3/FIX-19/20260920-r-series/acceptance.json",
-        "sha256": "ef830d87c620e7e830e07eb3ae5e16bb2aa8698cbc6ea1e65db5cf4d94603ea8",
-        "distribution": "local_only_not_published"
+        "sha256": "ef830d87c620e7e830e07eb3ae5e16bb2aa8698cbc6ea1e65db5cf4d94603ea8"
       },
       "contract": {
         "path": "reports/roadmap_v3/FIX-19/20260920-r-series/contract.md",
-        "sha256": "b60ae219594d0bcca42d041481a4743c86f648c1a18fa7ddfa8939fc1767a6fb",
-        "distribution": "local_only_not_published"
+        "sha256": "b60ae219594d0bcca42d041481a4743c86f648c1a18fa7ddfa8939fc1767a6fb"
       },
       "compatibility": "保留旧文本解析作为有期限的兼容入口；写入器采用 schema_version，旧 Metrics 适配器避免重建第二套公式。",
       "source_identity": {
         "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source_manifest.json",
-        "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03",
-        "distribution": "local_only_not_published"
+        "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03"
       },
       "source_snapshot_root": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source",
       "fixed_inputs": [
         {
           "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source/tests/test_roadmap_research_reporting.py",
-          "sha256": "882ba445ef2ab0be2c89f019004322c6bcd91826dd6715b3d794e0e10ff35984",
-          "distribution": "local_only_not_published"
+          "sha256": "882ba445ef2ab0be2c89f019004322c6bcd91826dd6715b3d794e0e10ff35984"
         },
         {
           "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source/config/params.yaml",
-          "sha256": "49665830ead75ec74f6ef736f3f8b1ee7fdb3122ba9f334cda9d944b26decb4e",
-          "distribution": "local_only_not_published"
+          "sha256": "49665830ead75ec74f6ef736f3f8b1ee7fdb3122ba9f334cda9d944b26decb4e"
         }
       ],
       "input_identity_adapter": "Deterministic configuration/data are embedded in the retained test source fixtures. Each frozen input SHA-256 is an exact match to the original per-task manifest and the bound source snapshot; no present working-tree file is substituted. This task explicitly uses final freeze04 integrated closure: all required check categories reference the final full-suite run on that same source identity. The original intermediate manifest is retained as historical context, not represented as a fully reconstructible intermediate snapshot. ",
@@ -2623,8 +2344,7 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/release.xml",
-              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d",
-              "distribution": "local_only_not_published"
+              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d"
             }
           ],
           "allowed_skips": [
@@ -2639,8 +2359,7 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/release.xml",
-              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d",
-              "distribution": "local_only_not_published"
+              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d"
             }
           ],
           "allowed_skips": [
@@ -2655,13 +2374,11 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/release.xml",
-              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d",
-              "distribution": "local_only_not_published"
+              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d"
             },
             {
               "path": "reports/roadmap_v3/FIX-19/20260920-r-series/evidence_manifest.json",
-              "sha256": "cbf9df03caf587469c2c36a475490581296e4e76b374672c2cce5d309d61700d",
-              "distribution": "local_only_not_published"
+              "sha256": "cbf9df03caf587469c2c36a475490581296e4e76b374672c2cce5d309d61700d"
             }
           ],
           "allowed_skips": [
@@ -2676,18 +2393,15 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/release.xml",
-              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d",
-              "distribution": "local_only_not_published"
+              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d"
             },
             {
               "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source_manifest.json",
-              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03",
-              "distribution": "local_only_not_published"
+              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03"
             },
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/quality-release.json",
-              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322",
-              "distribution": "local_only_not_published"
+              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322"
             }
           ],
           "allowed_skips": [
@@ -2715,31 +2429,26 @@
       "kind": "engineering",
       "legacy_receipt": {
         "path": "reports/roadmap_v3/FIX-20/20260920-r-series/acceptance.json",
-        "sha256": "f0dbaebc255fbd825ddb7101c950072570f5cfcec2c64e6dcd5106558b3dbbcc",
-        "distribution": "local_only_not_published"
+        "sha256": "f0dbaebc255fbd825ddb7101c950072570f5cfcec2c64e6dcd5106558b3dbbcc"
       },
       "contract": {
         "path": "reports/roadmap_v3/FIX-20/20260920-r-series/contract.md",
-        "sha256": "95adbe34ee5309763e4a16f7ee755044bcf5a57c38a72be095e39f7276f32c4f",
-        "distribution": "local_only_not_published"
+        "sha256": "95adbe34ee5309763e4a16f7ee755044bcf5a57c38a72be095e39f7276f32c4f"
       },
       "compatibility": "图表公式与漏斗口径版本化，旧图保留原版本；更改后数值差异为口径修正，不据此宣称策略变好。",
       "source_identity": {
         "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source_manifest.json",
-        "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03",
-        "distribution": "local_only_not_published"
+        "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03"
       },
       "source_snapshot_root": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source",
       "fixed_inputs": [
         {
           "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source/tests/test_roadmap_research_reporting.py",
-          "sha256": "882ba445ef2ab0be2c89f019004322c6bcd91826dd6715b3d794e0e10ff35984",
-          "distribution": "local_only_not_published"
+          "sha256": "882ba445ef2ab0be2c89f019004322c6bcd91826dd6715b3d794e0e10ff35984"
         },
         {
           "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source/config/params.yaml",
-          "sha256": "49665830ead75ec74f6ef736f3f8b1ee7fdb3122ba9f334cda9d944b26decb4e",
-          "distribution": "local_only_not_published"
+          "sha256": "49665830ead75ec74f6ef736f3f8b1ee7fdb3122ba9f334cda9d944b26decb4e"
         }
       ],
       "input_identity_adapter": "Deterministic configuration/data are embedded in the retained test source fixtures. Each frozen input SHA-256 is an exact match to the original per-task manifest and the bound source snapshot; no present working-tree file is substituted. This task explicitly uses final freeze04 integrated closure: all required check categories reference the final full-suite run on that same source identity. The original intermediate manifest is retained as historical context, not represented as a fully reconstructible intermediate snapshot. ",
@@ -2751,8 +2460,7 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/release.xml",
-              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d",
-              "distribution": "local_only_not_published"
+              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d"
             }
           ],
           "allowed_skips": [
@@ -2767,8 +2475,7 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/release.xml",
-              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d",
-              "distribution": "local_only_not_published"
+              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d"
             }
           ],
           "allowed_skips": [
@@ -2783,13 +2490,11 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/release.xml",
-              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d",
-              "distribution": "local_only_not_published"
+              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d"
             },
             {
               "path": "reports/roadmap_v3/FIX-20/20260920-r-series/evidence_manifest.json",
-              "sha256": "7cff655c9d5816bb76395e708b94983d73f2e86c7d57283f96318c5e0d2516af",
-              "distribution": "local_only_not_published"
+              "sha256": "7cff655c9d5816bb76395e708b94983d73f2e86c7d57283f96318c5e0d2516af"
             }
           ],
           "allowed_skips": [
@@ -2804,18 +2509,15 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/release.xml",
-              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d",
-              "distribution": "local_only_not_published"
+              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d"
             },
             {
               "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source_manifest.json",
-              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03",
-              "distribution": "local_only_not_published"
+              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03"
             },
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/quality-release.json",
-              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322",
-              "distribution": "local_only_not_published"
+              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322"
             }
           ],
           "allowed_skips": [
@@ -2843,36 +2545,30 @@
       "kind": "engineering",
       "legacy_receipt": {
         "path": "reports/roadmap_v3/SYS-02/20260920-r-series/acceptance.json",
-        "sha256": "9bc181c54b41998c045a5b236f659a558e18f2a5ab91acdc663ba8a182c19158",
-        "distribution": "local_only_not_published"
+        "sha256": "9bc181c54b41998c045a5b236f659a558e18f2a5ab91acdc663ba8a182c19158"
       },
       "contract": {
         "path": "reports/roadmap_v3/SYS-02/20260920-r-series/contract.md",
-        "sha256": "1604276ebea2551c82acfe4a9ca5fc40a009c29b3e5a5ba79c4ec9a06541e484",
-        "distribution": "local_only_not_published"
+        "sha256": "1604276ebea2551c82acfe4a9ca5fc40a009c29b3e5a5ba79c4ec9a06541e484"
       },
       "compatibility": "先双读比较并保存差异；旧表不原地覆写，版本化导出并校验回放。",
       "source_identity": {
         "path": "reports/roadmap_v3/SYS-02/20260920-r-series/evidence_manifest.json",
-        "sha256": "bb117cdde2aecdb17e7a4885a7a4f5e398ba534db295ebd722b0d8555857e7b4",
-        "distribution": "local_only_not_published"
+        "sha256": "bb117cdde2aecdb17e7a4885a7a4f5e398ba534db295ebd722b0d8555857e7b4"
       },
       "source_snapshot_root": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source",
       "fixed_inputs": [
         {
           "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source/tests/test_r_series_trading_facts.py",
-          "sha256": "1eb70d4b1ad847e351d08ed1676cfb5d398ccb4c008927ab0bc842f632bcdfb6",
-          "distribution": "local_only_not_published"
+          "sha256": "1eb70d4b1ad847e351d08ed1676cfb5d398ccb4c008927ab0bc842f632bcdfb6"
         },
         {
           "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source/tests/test_sys02_incremental_projection.py",
-          "sha256": "8cc2e480e439cbb937cb7a9aff34ee5a6a91602b6a599484092a71bb6b31adda",
-          "distribution": "local_only_not_published"
+          "sha256": "8cc2e480e439cbb937cb7a9aff34ee5a6a91602b6a599484092a71bb6b31adda"
         },
         {
           "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source/tests/test_sys02_historical_report.py",
-          "sha256": "3fe282d3a60d96a5fc60b4a2b52f3814460a63abe41bd2e30d2e1a764f56e943",
-          "distribution": "local_only_not_published"
+          "sha256": "3fe282d3a60d96a5fc60b4a2b52f3814460a63abe41bd2e30d2e1a764f56e943"
         }
       ],
       "input_identity_adapter": "Deterministic configuration/data are embedded in the retained test source fixtures. Each frozen input SHA-256 is an exact match to the original per-task manifest and the bound source snapshot; no present working-tree file is substituted. The later full integration uses its own separately bound final source manifest.",
@@ -2884,13 +2580,11 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/SYS-02/20260920-r-series/new_contracts.xml",
-              "sha256": "dd891eb8d1651795d939160e8e718a865f38fe0e19a8eddb566fc33e033dd6fa",
-              "distribution": "local_only_not_published"
+              "sha256": "dd891eb8d1651795d939160e8e718a865f38fe0e19a8eddb566fc33e033dd6fa"
             },
             {
               "path": "reports/roadmap_v3/SYS-02/20260920-r-series/final_contracts.xml",
-              "sha256": "f21f2a481c14cc227708ed7e502dbf977493f093410cb6f377c1e87d850c44d2",
-              "distribution": "local_only_not_published"
+              "sha256": "f21f2a481c14cc227708ed7e502dbf977493f093410cb6f377c1e87d850c44d2"
             }
           ]
         },
@@ -2901,13 +2595,11 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/SYS-02/20260920-r-series/new_contracts.xml",
-              "sha256": "dd891eb8d1651795d939160e8e718a865f38fe0e19a8eddb566fc33e033dd6fa",
-              "distribution": "local_only_not_published"
+              "sha256": "dd891eb8d1651795d939160e8e718a865f38fe0e19a8eddb566fc33e033dd6fa"
             },
             {
               "path": "reports/roadmap_v3/SYS-02/20260920-r-series/final_contracts.xml",
-              "sha256": "f21f2a481c14cc227708ed7e502dbf977493f093410cb6f377c1e87d850c44d2",
-              "distribution": "local_only_not_published"
+              "sha256": "f21f2a481c14cc227708ed7e502dbf977493f093410cb6f377c1e87d850c44d2"
             }
           ]
         },
@@ -2918,13 +2610,11 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/SYS-02/20260920-r-series/new_contracts.xml",
-              "sha256": "dd891eb8d1651795d939160e8e718a865f38fe0e19a8eddb566fc33e033dd6fa",
-              "distribution": "local_only_not_published"
+              "sha256": "dd891eb8d1651795d939160e8e718a865f38fe0e19a8eddb566fc33e033dd6fa"
             },
             {
               "path": "reports/roadmap_v3/SYS-02/20260920-r-series/final_contracts.xml",
-              "sha256": "f21f2a481c14cc227708ed7e502dbf977493f093410cb6f377c1e87d850c44d2",
-              "distribution": "local_only_not_published"
+              "sha256": "f21f2a481c14cc227708ed7e502dbf977493f093410cb6f377c1e87d850c44d2"
             }
           ]
         },
@@ -2935,18 +2625,15 @@
           "evidence": [
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/release.xml",
-              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d",
-              "distribution": "local_only_not_published"
+              "sha256": "3bc6e6067373d2399eadf5df46f867bd2939fd0bebfd5f94e813f0e8b8dbd67d"
             },
             {
               "path": "reports/roadmap_v3/SYS-01/20260920-r-series-freeze-04/source_manifest.json",
-              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03",
-              "distribution": "local_only_not_published"
+              "sha256": "5c09ac33bc9368b14ab1b8357e7dd41d0d776dea95345c9561266c9e50552a03"
             },
             {
               "path": "reports/roadmap_v3/integration/20260920-r-series/quality-release.json",
-              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322",
-              "distribution": "local_only_not_published"
+              "sha256": "3acc0dbc2e71db8db2748f27ff3f8f41e859c55f79212aaf668468e82dce1322"
             }
           ],
           "allowed_skips": [
@@ -2971,19 +2658,5 @@
       },
       "accepted_scope": "Historical local engineering contract closure for SYS-02; research and operational conclusions remain exactly those of the acceptance index and are not promoted by section 7."
     }
-  ],
-  "public_distribution": {
-    "scope": "isolated_public_governance_view",
-    "authority": "Original local governance files remain authoritative; this public copy retains task structure and technical contracts.",
-    "local_only_reference_prefixes": [
-      "reports/",
-      "outputs/",
-      "tmp/",
-      "docs/archive/",
-      "docs/codex_mail"
-    ],
-    "local_only_reference_policy": "Historical receipt/archive paths and hashes are metadata references only. Those artifacts are not included in the public source release and are not verified by public structure-only CI.",
-    "excluded_content": "Private message contents, message identifiers, mailbox URLs, per-message mappings and quoted review tables are omitted.",
-    "live_admission": false
-  }
+  ]
 }

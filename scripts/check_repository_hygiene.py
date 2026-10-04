@@ -52,22 +52,13 @@ def _verify_frozen_file(entry: dict[str, object], errors: list[str]) -> None:
     if not file_path.is_file():
         errors.append(f"Frozen artifact is missing: {path}")
         return
-    normalized_content = None
-    if entry.get("checkout_policy") == "text-lf":
-        normalized_content = file_path.read_bytes().replace(b"\r\n", b"\n")
-    actual_size = (
-        len(normalized_content) if normalized_content is not None else file_path.stat().st_size
-    )
-    if actual_size != expected_size:
+    if file_path.stat().st_size != expected_size:
         errors.append(f"Frozen artifact size changed: {path}")
         return
     digest = hashlib.sha256()
-    if normalized_content is not None:
-        digest.update(normalized_content)
-    else:
-        with file_path.open("rb") as handle:
-            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-                digest.update(chunk)
+    with file_path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
     if digest.hexdigest() != expected_hash:
         errors.append(f"Frozen artifact checksum changed: {path}")
 

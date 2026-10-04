@@ -1,9 +1,7 @@
 # QuantTrading 开发详情 v3.0
 
-> 公开发布视图：保留任务编号、状态、依赖及技术契约；私人邮件正文、逐条审查摘录和邮箱映射未发布。原始本地登记仍是权威资料。`reports/`、`outputs/`、`tmp/`、`docs/archive/` 及邮件审计文件均为仅本地引用，不随源码发布；公开 CI 的 structure-only 结果不代表这些历史证据已验证。
-
 > 2026-09-20。本文件定义41个任务的开发与验收边界（原始40项加本次SYS-19）；顺序和状态维护见[开发计划](development_plan.md)，项目放行见[Roadmap](unified_roadmap.md)。
-> [任务登记JSON](development_task_registry.json) · [历史需求与邮件映射](roadmap_traceability.md) · 历史资料总入口（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/README.md`，不随源码发布）
+> [任务登记JSON](development_task_registry.json) · [历史需求与邮件映射](roadmap_traceability.md) · [历史资料总入口](archive/2026-09-roadmap-rebaseline/README.md)
 
 ## 本轮复核说明
 
@@ -100,16 +98,16 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | documentation / B0 / P1 |
 | 2026-09-20状态 | 已验收 |
-| 本轮复核状态 | 已验收；验收证据（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/manifest.json`，不随源码发布） |
+| 本轮复核状态 | 已验收；[验收证据](../docs/archive/2026-09-roadmap-rebaseline/manifest.json) |
 | 负责角色 | 文档与工程治理 |
 | 验收依赖 | 无 |
 | 历史编号（结合来源阅读） | DOC、R0 |
-| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 邮件意见 | 无直接新增邮件意见；继承能力或治理要求 |
 | 证据目录 | `docs/archive/2026-09-roadmap-rebaseline/` |
 
 **目标契约：** 保留历史原文字节、邮件来源与审计基线，生成唯一三层执行入口，全部邮件及旧能力可追溯。
 
-**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+**来源：** [docs/codex_mail_findings_20260920.json（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json)。
 
 **修改范围：** [docs/unified_roadmap.md](unified_roadmap.md)、[docs/development_plan.md](development_plan.md)、[docs/development_details.md](development_details.md)、[docs/roadmap_traceability.md](roadmap_traceability.md)、[docs/development_task_registry.json](development_task_registry.json)。
 
@@ -137,16 +135,16 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | capability / B0 / P1 |
 | 2026-09-20状态 | 部分实现待验收 |
-| 本轮复核状态 | 已验收；第5/6节追加证据（仅本地引用：`reports/roadmap_v3/SYS-01/20260920-section56-freeze-02/acceptance.json`，不随源码发布）；[完成边界](section56_acceptance_20260920.md) |
+| 本轮复核状态 | 已验收；[第5/6节追加证据](../reports/roadmap_v3/SYS-01/20260920-section56-freeze-02/acceptance.json)；[完成边界](section56_acceptance_20260920.md) |
 | 负责角色 | 工程验收 |
 | 验收依赖 | [DOC-01](development_details.md#doc-01) |
 | 历史编号（结合来源阅读） | R0、G0、G9、Batch 0、T-0.1–T-0.5 |
-| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 邮件意见 | 无直接新增邮件意见；继承能力或治理要求 |
 | 证据目录 | `reports/roadmap_v3/SYS-01/<run_id>/` |
 
 **目标契约：** 固定此次实际工作区，不把HEAD或历史CI当作未提交源码的身份；区分准备基线与每批修复后的新基线。
 
-**来源：** docs/development_plan.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/development_plan.md`，不随源码发布）；docs/live_trading_remediation_plan.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/live_trading_remediation_plan.md`，不随源码发布）；docs/baseline/phase0/README.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/baseline/phase0/README.md`，不随源码发布）。
+**来源：** [docs/development_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/development_plan.md)；[docs/live_trading_remediation_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/live_trading_remediation_plan.md)；[docs/baseline/phase0/README.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/baseline/phase0/README.md)。
 
 **修改范围：** [scripts/main_acceptance.py](../scripts/main_acceptance.py)、[scripts/run_portable_tests.py](../scripts/run_portable_tests.py)、[tests/test_backtest_regression.py](../tests/test_backtest_regression.py)、[scripts/verify_lock.py](../scripts/verify_lock.py)。
 
@@ -175,18 +173,18 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | fix / B1 / P0 |
 | 2026-09-20状态 | 待闭环 |
-| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/FIX-01/20260920-r-series/acceptance.json`，不随源码发布） |
+| 本轮复核状态 | 已验收；[验收证据](../reports/roadmap_v3/FIX-01/20260920-r-series/acceptance.json) |
 | 负责角色 | 准入与工程验收 |
 | 验收依赖 | [SYS-01](development_details.md#sys-01) |
 | 历史编号（结合来源阅读） | R6、R7、R8 |
-| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 邮件意见 | MAIL-20-1、MAIL-20-2、MAIL-20-3 |
 | 证据目录 | `reports/roadmap_v3/FIX-01/<run_id>/` |
 
 优先级说明：原邮件均为 P1；项目级升级为 P0，因为这些检查可将失效风控或不完整对账错误放行。
 
 **目标契约：** monitoring 的业务健康与告警送达分开判定；对账比较双方业务字段的并集；paper 时长仅基于完整且连续的有效观测，缺失证据不能 passed。
 
-**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+**来源：** [docs/codex_mail_findings_20260920.json（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json)。
 
 **修改范围：** [core/admission_gates.py](../core/admission_gates.py)。
 
@@ -209,7 +207,13 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **交付物：** 门控 schema 与失败原因字典；监控/对账/连续性反例夹具；新旧准入对照报告。
 
-**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+**邮件原始判断（保持2026-09-20审计基线）：**
+
+| 意见 | 当时状态 | 开发依据 |
+| --- | --- | --- |
+| [MAIL-20-1](https://github.com/user-nmmmmm/QuantTradingV2/pull/20#pullrequestreview-5032477893) | 仍存在 | 监控维度 ok=false 仍只追加 generated_alerts，不追加 issues；只要告警送达已验证，就会 passed=true 并被准入检查采用。 |
+| [MAIL-20-2](https://github.com/user-nmmmmm/QuantTradingV2/pull/20#pullrequestreview-5032477893) | 仍存在 | 逐字段对账仍只遍历 expected_record.items()，实际记录额外业务字段未纳入比较。 |
+| [MAIL-20-3](https://github.com/user-nmmmmm/QuantTradingV2/pull/20#pullrequestreview-5032477893) | 仍存在 | paper 时长仍仅由最早/最晚日期差得出，没有逐日覆盖或中间缺口校验。 |
 
 <a id="fix-02"></a>
 
@@ -219,18 +223,18 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | fix / B1 / P1 |
 | 2026-09-20状态 | 待闭环 |
-| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/FIX-02/20260920-r-series/acceptance.json`，不随源码发布） |
+| 本轮复核状态 | 已验收；[验收证据](../reports/roadmap_v3/FIX-02/20260920-r-series/acceptance.json) |
 | 负责角色 | 准入与工程验收 |
 | 验收依赖 | [SYS-01](development_details.md#sys-01) |
 | 历史编号（结合来源阅读） | R3、SR5 |
-| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 邮件意见 | MAIL-19-3、MAIL-19-5 |
 | 证据目录 | `reports/roadmap_v3/FIX-02/<run_id>/` |
 
 优先级说明：保留原 P1；Sharpe 原 P2 随统计准入契约统一提高到 P1，因为其数值直接影响研究结论。
 
 **目标契约：** PF 仅在 status=ok、样本量合格且阈值/置信区间同时满足时可通过；DSR 的 observed、expected maximum 与方差使用同一周期尺度。
 
-**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+**来源：** [docs/codex_mail_findings_20260920.json（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json)。
 
 **修改范围：** [analysis/research_validation.py](../analysis/research_validation.py)、[core/metrics/trade_quality.py](../core/metrics/trade_quality.py)、[scripts/run_phase5_analysis.py](../scripts/run_phase5_analysis.py)。
 
@@ -252,7 +256,12 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **交付物：** 统计口径说明与公式版本；PF/DSR 定向测试；旧报告重算差异清单。
 
-**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+**邮件原始判断（保持2026-09-20审计基线）：**
+
+| 意见 | 当时状态 | 开发依据 |
+| --- | --- | --- |
+| [MAIL-19-3](https://github.com/user-nmmmmm/QuantTradingV2/pull/19#pullrequestreview-5032066890) | 仍存在 | G13 仍仅检查PF值与置信下界，没有要求pf.status=='ok'，不足30笔的有利小样本仍能通过该门槛。 |
+| [MAIL-19-5](https://github.com/user-nmmmmm/QuantTradingV2/pull/19#pullrequestreview-5032066890) | 仍存在 | observed Sharpe乘sqrt(periods_per_year)，expected_max仍为未缩放标准正态顺序统计量；分子和方差口径不一致。 |
 
 <a id="fix-03"></a>
 
@@ -262,18 +271,18 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | fix / B1 / P1 |
 | 2026-09-20状态 | 待闭环 |
-| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/FIX-03/20260920-r-series/acceptance.json`，不随源码发布） |
+| 本轮复核状态 | 已验收；[验收证据](../reports/roadmap_v3/FIX-03/20260920-r-series/acceptance.json) |
 | 负责角色 | 准入与工程验收 |
 | 验收依赖 | [SYS-01](development_details.md#sys-01) |
 | 历史编号（结合来源阅读） | R0、SR0 |
-| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 邮件意见 | MAIL-15-1、MAIL-15-2、MAIL-15-3、MAIL-34-1 |
 | 证据目录 | `reports/roadmap_v3/FIX-03/<run_id>/` |
 
 优先级说明：保留主验收/哈希原 P1；其余文档 P2 合并进同一证据身份契约。
 
 **目标契约：** 验收结果明确绑定可重建的提交、配置、输入；未跟踪的可执行源码/配置阻断验收；历史归档按已记录对象和明确字节规范验证，保护不依赖 chmod。
 
-**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+**来源：** [docs/codex_mail_findings_20260920.json（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json)。
 
 **修改范围：** [.gitattributes](../.gitattributes)、[.github/workflows/tests.yml](../.github/workflows/tests.yml)、[scripts/main_acceptance.py](../scripts/main_acceptance.py)。
 
@@ -296,7 +305,14 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **交付物：** 验收输入身份清单；版本化归档校验方案；跨平台归档验证与污染工作区反例。
 
-**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+**邮件原始判断（保持2026-09-20审计基线）：**
+
+| 意见 | 当时状态 | 开发依据 |
+| --- | --- | --- |
+| [MAIL-15-1](https://github.com/user-nmmmmm/QuantTradingV2/pull/15#pullrequestreview-5019831836) | 仍存在 | 归档清单仍记录 CRLF 字节。实际工作树可通过，但 Git 已提交 blob 是 LF；新检出/非 Windows 环境不能按清单验证。 |
+| [MAIL-15-2](https://github.com/user-nmmmmm/QuantTradingV2/pull/15#pullrequestreview-5019831836) | 仍存在 | 文档仍要求 git rev-parse HEAD 输出旧基线 ff14fb8；当前 HEAD 为 ab15bc2，未改为检查被记录对象。 |
+| [MAIL-15-3](https://github.com/user-nmmmmm/QuantTradingV2/pull/15#pullrequestreview-5019831836) | 仍存在 | 仍声称 chmod 444 只读冻结；Git 无法保留此权限位，CI 未见归档目录变更/哈希守卫。 |
+| [MAIL-34-1](https://github.com/user-nmmmmm/QuantTradingV2/pull/34#pullrequestreview-5125020002) | 仍存在 | 验收仍仅使用 git diff --name-only HEAD 判断干净树，未检查 untracked；后续直接运行 pytest，可能加载未跟踪 conftest/module。现有测试只覆盖交付ZIP，不覆盖源码净化。 |
 
 <a id="fix-04"></a>
 
@@ -306,18 +322,18 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | fix / B2 / P1 |
 | 2026-09-20状态 | 待闭环 |
-| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/FIX-04/20260920-r-series/acceptance.json`，不随源码发布） |
+| 本轮复核状态 | 已验收；[验收证据](../reports/roadmap_v3/FIX-04/20260920-r-series/acceptance.json) |
 | 负责角色 | 数据与研究 |
 | 验收依赖 | [SYS-01](development_details.md#sys-01) |
 | 历史编号（结合来源阅读） | R0、R1、SR4 |
-| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 邮件意见 | MAIL-21-1、MAIL-21-2、MAIL-21-3 |
 | 证据目录 | `reports/roadmap_v3/FIX-04/<run_id>/` |
 
 优先级说明：保留邮件 P1；数据污染与截断会直接改变回测。
 
 **目标契约：** Binance 缓存只接受已验证来源和周期；请求区间完整可核验；声明刷新失败时矩阵在任何回测开始前终止。
 
-**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+**来源：** [docs/codex_mail_findings_20260920.json（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json)。
 
 **修改范围：** [scripts/fetch_binance_data.py](../scripts/fetch_binance_data.py)、[core/data_fetcher.py](../core/data_fetcher.py)、[scripts/run_backtest_matrix.py](../scripts/run_backtest_matrix.py)。
 
@@ -339,7 +355,13 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **交付物：** 数据来源 manifest；有界分页下载路径；矩阵刷新 fail-closed 反例。
 
-**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+**邮件原始判断（保持2026-09-20审计基线）：**
+
+| 意见 | 当时状态 | 开发依据 |
+| --- | --- | --- |
+| [MAIL-21-1](https://github.com/user-nmmmmm/QuantTradingV2/pull/21#pullrequestreview-5052647523) | 仍存在 | 通用下载路径仍可回退Yahoo且缓存脚本未验证实际来源/周期；新研究专用采集器不关闭此旧路径。 |
+| [MAIL-21-2](https://github.com/user-nmmmmm/QuantTradingV2/pull/21#pullrequestreview-5052647523) | 仍存在 | 依旧按自然年分块；15m/5m全年超过单次10000根上限。 |
+| [MAIL-21-3](https://github.com/user-nmmmmm/QuantTradingV2/pull/21#pullrequestreview-5052647523) | 仍存在 | 下载子进程check=False且不检查returncode，失败后仍进入回测。 |
 
 <a id="fix-05"></a>
 
@@ -349,18 +371,18 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | fix / B2 / P1 |
 | 2026-09-20状态 | 待闭环 |
-| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/FIX-05/20260920-r-series/acceptance.json`，不随源码发布） |
+| 本轮复核状态 | 已验收；[验收证据](../reports/roadmap_v3/FIX-05/20260920-r-series/acceptance.json) |
 | 负责角色 | 数据与研究 |
 | 验收依赖 | [SYS-01](development_details.md#sys-01)、[FIX-04](development_details.md#fix-04) |
 | 历史编号（结合来源阅读） | R1、R3、SR4 |
-| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 邮件意见 | MAIL-13-2、MAIL-35-2 |
 | 证据目录 | `reports/roadmap_v3/FIX-05/<run_id>/` |
 
 优先级说明：OI 原 P1 保留；未收盘日线原 P2 提至 P1，因为会引入未来时点不可获得的完成值。
 
 **目标契约：** OI 拉取一直分页至请求结束或明确源数据边界；日线只能以已确认收盘时间进入研究输入，实际覆盖范围可见。
 
-**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+**来源：** [docs/codex_mail_findings_20260920.json（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json)。
 
 **修改范围：** [core/data_fetcher.py](../core/data_fetcher.py)、[scripts/run_expanded_universe_backtest.py](../scripts/run_expanded_universe_backtest.py)。
 
@@ -382,7 +404,12 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **交付物：** OI 分页与覆盖结果；日线完成度契约；时间冻结和分页反例夹具。
 
-**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+**邮件原始判断（保持2026-09-20审计基线）：**
+
+| 意见 | 当时状态 | 开发依据 |
+| --- | --- | --- |
+| [MAIL-13-2](https://github.com/user-nmmmmm/QuantTradingV2/pull/13#pullrequestreview-5005367713) | 仍存在 | OI 历史仍只有一次 fetchOpenInterestHistory；end_date 仅过滤返回结果，未继续分页。 |
+| [MAIL-35-2](https://github.com/user-nmmmmm/QuantTradingV2/pull/35#pullrequestreview-5125276758) | 仍存在 | 仍只保存 kline 前6列并按 opening timestamp 筛选，忽略 close time，也不限制 --end 必须在当前 UTC session 之前。现有下载测试只验证请求区间，不验证是否收盘。 |
 
 <a id="fix-06"></a>
 
@@ -392,18 +419,18 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | fix / B2 / P1 |
 | 2026-09-20状态 | 待闭环 |
-| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/FIX-06/20260920-r-series/acceptance.json`，不随源码发布） |
+| 本轮复核状态 | 已验收；[验收证据](../reports/roadmap_v3/FIX-06/20260920-r-series/acceptance.json) |
 | 负责角色 | 数据与研究 |
 | 验收依赖 | [SYS-01](development_details.md#sys-01) |
 | 历史编号（结合来源阅读） | R1、R3、S1、SR4 |
-| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 邮件意见 | MAIL-13-1、MAIL-13-3 |
 | 证据目录 | `reports/roadmap_v3/FIX-06/<run_id>/` |
 
 优先级说明：摆动因子原 P1 保留；零量 POC 原 P2 随同因子有效性契约处理。
 
 **目标契约：** SWING_HIGH/LOW 只能在右侧确认窗口成熟时输出可交易标记；全零成交量窗口的 POC 保持不可计算。
 
-**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+**来源：** [docs/codex_mail_findings_20260920.json（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json)。
 
 **修改范围：** [core/factors/support_resistance.py](../core/factors/support_resistance.py)、[core/factors/volume.py](../core/factors/volume.py)。
 
@@ -425,7 +452,12 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **交付物：** 因子可用时间规范；前缀不变性测试；新旧信号时间差异报告。
 
-**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+**邮件原始判断（保持2026-09-20审计基线）：**
+
+| 意见 | 当时状态 | 开发依据 |
+| --- | --- | --- |
+| [MAIL-13-1](https://github.com/user-nmmmmm/QuantTradingV2/pull/13#pullrequestreview-5005367713) | 仍存在 | SWING_HIGH/LOW 仍用 center=True 并直接返回未延后标记；现有测试只核对长度。 |
+| [MAIL-13-3](https://github.com/user-nmmmmm/QuantTradingV2/pull/13#pullrequestreview-5005367713) | 仍存在 | POC 仍在 total_volume<=0 检查前赋值，零量窗口输出伪支撑价。 |
 
 <a id="fix-07"></a>
 
@@ -435,18 +467,18 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | fix / B2 / P1 |
 | 2026-09-20状态 | 待闭环 |
-| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/FIX-07/20260920-r-series/acceptance.json`，不随源码发布） |
+| 本轮复核状态 | 已验收；[验收证据](../reports/roadmap_v3/FIX-07/20260920-r-series/acceptance.json) |
 | 负责角色 | 数据与研究 |
 | 验收依赖 | [SYS-01](development_details.md#sys-01) |
 | 历史编号（结合来源阅读） | R1、S2、SR4 |
-| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 邮件意见 | MAIL-17-2、MAIL-32-2 |
 | 证据目录 | `reports/roadmap_v3/FIX-07/<run_id>/` |
 
 优先级说明：保留两条邮件 P1；成员集失效和非交易期持仓使回测事实失真。
 
 **目标契约：** 生成、读取、应用 PIT universe 使用同一规范化币对键；成员终止要进入既有 scheduled_exit 生命周期，退出时间不晚于最后可交易边界。
 
-**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+**来源：** [docs/codex_mail_findings_20260920.json（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json)。
 
 **修改范围：** [core/universe.py](../core/universe.py)、[main.py](../main.py)、[backtest/engine.py](../backtest/engine.py)、[scripts/repair_binance_point_in_time_data.py](../scripts/repair_binance_point_in_time_data.py)。
 
@@ -468,7 +500,12 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **交付物：** PIT 符号规范与迁移说明；成员结束退出接线；混合名称/退市边界集成测试。
 
-**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+**邮件原始判断（保持2026-09-20审计基线）：**
+
+| 意见 | 当时状态 | 开发依据 |
+| --- | --- | --- |
+| [MAIL-17-2](https://github.com/user-nmmmmm/QuantTradingV2/pull/17#pullrequestreview-5028474123) | 仍存在 | --universe-file路径仍只是截断delisted_at之后bars，没有在最后可交易bar生成退出标记；引擎新增scheduled_exit/AnnouncedMarginDelisting能力，但普通PointInTimeUniverse.apply未接入，旧路径仍可能持仓带到总体期末。 |
+| [MAIL-32-2](https://github.com/user-nmmmmm/QuantTradingV2/pull/32#pullrequestreview-5090380872) | 仍存在 | 生成 universe 仍改为连字符符号；apply 仍按原字符串 exact lookup，CLI没有统一 key。现有 PIT 测试未覆盖 slash/hyphen 同一币对混用。 |
 
 <a id="fix-09"></a>
 
@@ -478,18 +515,18 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | fix / B2 / P1 |
 | 2026-09-20状态 | 待闭环 |
-| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/FIX-09/20260920-r-series/acceptance.json`，不随源码发布） |
+| 本轮复核状态 | 已验收；[验收证据](../reports/roadmap_v3/FIX-09/20260920-r-series/acceptance.json) |
 | 负责角色 | 数据与研究 |
 | 验收依赖 | [SYS-01](development_details.md#sys-01) |
 | 历史编号（结合来源阅读） | R3、S1、SR5 |
-| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 邮件意见 | MAIL-31-1、MAIL-31-4 |
 | 证据目录 | `reports/roadmap_v3/FIX-09/<run_id>/` |
 
 优先级说明：候选预热原 P1 保留；重叠收益原 P2 提至 P1，因为重复样本会污染样本外统计。
 
 **目标契约：** 每个候选测试运行获得其最大所需 lookback 的历史上下文且不计入测试收益；拼接的样本外时间戳唯一且无重叠。
 
-**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+**来源：** [docs/codex_mail_findings_20260920.json（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json)。
 
 **修改范围：** [analysis/optimize.py](../analysis/optimize.py)、[analysis/walk_forward.py](../analysis/walk_forward.py)、[strategies/trend_breakout.py](../strategies/trend_breakout.py)、[analysis/research_validation.py](../analysis/research_validation.py)。
 
@@ -511,7 +548,12 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **交付物：** 候选 lookback 解析器；窗口几何与拼接校验；预热/重复样本边界测试。
 
-**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+**邮件原始判断（保持2026-09-20审计基线）：**
+
+| 意见 | 当时状态 | 开发依据 |
+| --- | --- | --- |
+| [MAIL-31-1](https://github.com/user-nmmmmm/QuantTradingV2/pull/31#pullrequestreview-5087145892) | 仍存在 | 候选含100-bar entry window，但测试运行前缀仍固定全局 warmup_period=30，没有按 candidate 最大指标lookback扩大。60-bar测试加30-bar前缀总90不足100；现有warmup测试只保证固定前缀可用，不覆盖候选lookback。 |
+| [MAIL-31-4](https://github.com/user-nmmmmm/QuantTradingV2/pull/31#pullrequestreview-5087145892) | 仍存在 | WalkForwardConfig未拒绝step<test_size；split仅要求step>=1，procedure仍concat全量收益，重叠时间无去重。测试仅覆盖默认非重叠几何。 |
 
 <a id="sys-04"></a>
 
@@ -521,16 +563,16 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | capability / B2 / P1 |
 | 2026-09-20状态 | 部分实现待验收 |
-| 本轮复核状态 | 部分实现待验收；验收证据（仅本地引用：`reports/roadmap_v3/SYS-04/20260920-local-gates/acceptance.json`，不随源码发布） |
+| 本轮复核状态 | 部分实现待验收；[验收证据](../reports/roadmap_v3/SYS-04/20260920-local-gates/acceptance.json) |
 | 负责角色 | 领域内核与报告 |
 | 验收依赖 | [SYS-01](development_details.md#sys-01)、[FIX-04](development_details.md#fix-04)、[FIX-05](development_details.md#fix-05)、[FIX-06](development_details.md#fix-06)、[FIX-07](development_details.md#fix-07) |
 | 历史编号（结合来源阅读） | SR4-1–SR4-4、S2-1、S2-2、B-12、B-13、B-15、D1、D2 |
-| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 邮件意见 | 无直接新增邮件意见；继承能力或治理要求 |
 | 证据目录 | `reports/roadmap_v3/SYS-04/<run_id>/` |
 
 **目标契约：** 每根研究输入可追到交易所/账户类型/标的/周期/获取时间/哈希与PIT可交易区间；已知限制可见。
 
-**来源：** docs/current_strategy_remediation_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/current_strategy_remediation_roadmap.md`，不随源码发布）；docs/strategy_development_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md`，不随源码发布）；docs/backtest_optimization_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/backtest_optimization_roadmap.md`，不随源码发布）。
+**来源：** [docs/current_strategy_remediation_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/current_strategy_remediation_roadmap.md)；[docs/strategy_development_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md)；[docs/backtest_optimization_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/backtest_optimization_roadmap.md)。
 
 **修改范围：** [core/data_fetcher.py](../core/data_fetcher.py)、[core/data.py](../core/data.py)、[core/universe.py](../core/universe.py)、[scripts/fetch_binance_data.py](../scripts/fetch_binance_data.py)、[config/universe_binance_spot_1d.csv](../config/universe_binance_spot_1d.csv)。
 
@@ -560,18 +602,18 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | fix / B3 / P1 |
 | 2026-09-20状态 | 待闭环 |
-| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/FIX-10/20260920-r-series/acceptance.json`，不随源码发布） |
+| 本轮复核状态 | 已验收；[验收证据](../reports/roadmap_v3/FIX-10/20260920-r-series/acceptance.json) |
 | 负责角色 | 交易与风险 |
 | 验收依赖 | [SYS-01](development_details.md#sys-01) |
 | 历史编号（结合来源阅读） | R1、R2、R4、SR3 |
-| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 邮件意见 | MAIL-9-1、MAIL-10-1、MAIL-38-1、MAIL-38-2 |
 | 证据目录 | `reports/roadmap_v3/FIX-10/<run_id>/` |
 
 优先级说明：保留现金成本原 P1；其它 P2 提至同包 P1，因为共同影响资金可支付性及风险限额。
 
 **目标契约：** 现金占用区分订单方向和账户模式并包含实际费用/滑点；预算使用 Broker 解析后的成本参数；支持有可信当前 mark 的 price=None 市价单。
 
-**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+**来源：** [docs/codex_mail_findings_20260920.json（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json)。
 
 **修改范围：** [core/risk/position_sizing.py](../core/risk/position_sizing.py)、[core/risk/reservation.py](../core/risk/reservation.py)、[core/risk/__init__.py](../core/risk/__init__.py)、[core/broker/fill_service.py](../core/broker/fill_service.py)、[core/risk/drawdown_budget.py](../core/risk/drawdown_budget.py)、[backtest/engine.py](../backtest/engine.py)、[composition/factory.py](../composition/factory.py)、[core/broker/matching.py](../core/broker/matching.py)。
 
@@ -594,7 +636,14 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **交付物：** 统一可支付性与成本输入契约；方向/账户模式边界测试；滑点覆盖与无价市场单回归。
 
-**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+**邮件原始判断（保持2026-09-20审计基线）：**
+
+| 意见 | 当时状态 | 开发依据 |
+| --- | --- | --- |
+| [MAIL-9-1](https://github.com/user-nmmmmm/QuantTradingV2/pull/9#pullrequestreview-5000638067) | 部分修复 | 现金公式仍减去所有方向预留，pending_notional仍未区分buy/short；现在SPOT禁止开空、margin走保证金，正常账户模式显著缩小触发范围，但原预留现金算法并未按方向修正。 |
+| [MAIL-10-1](https://github.com/user-nmmmmm/QuantTradingV2/pull/10#pullrequestreview-5000967232) | 仍存在 | 现金上限仍直接使用 cash-reserved_exposure，只扣1e-9安全边际；执行端仍要求成交金额加手续费不超现金，没有执行时可支付数量夹紧。其他风险预算可能缩量，但没有修复该现金契约。 |
+| [MAIL-38-1](https://github.com/user-nmmmmm/QuantTradingV2/pull/38#pullrequestreview-5246104970) | 仍存在 | bind() 没有从绑定 Broker 同步已解析滑点，成本仍读取原始 execution.slippage_bps。现有测试只验证 engine 的默认滑点，没有覆盖 budget 与覆盖值一致性。 |
+| [MAIL-38-2](https://github.com/user-nmmmmm/QuantTradingV2/pull/38#pullrequestreview-5246104970) | 仍存在 | check_intent 只使用 intent.reference_price/price，未回退当前 symbol mark；Broker 仍声明市场单 price 可以为 None。未找到针对有 mark 的无价市场单预算验收测试。 |
 
 <a id="fix-11"></a>
 
@@ -604,18 +653,18 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | fix / B3 / P1 |
 | 2026-09-20状态 | 待闭环 |
-| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/FIX-11/20260920-r-series/acceptance.json`，不随源码发布） |
+| 本轮复核状态 | 已验收；[验收证据](../reports/roadmap_v3/FIX-11/20260920-r-series/acceptance.json) |
 | 负责角色 | 交易与风险 |
 | 验收依赖 | [SYS-01](development_details.md#sys-01) |
 | 历史编号（结合来源阅读） | R1、R4、SR1 |
-| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 邮件意见 | MAIL-12-2、MAIL-16-1 |
 | 证据目录 | `reports/roadmap_v3/FIX-11/<run_id>/` |
 
 优先级说明：保留邮件 P1；重复闭仓和错误索引会改变冷却、持有期与策略健康。
 
 **目标契约：** 每个完整 position 仅触发一次 on_trade_closed；部分退出继续累计，回调使用 event.symbol 对应的本地 bar 索引及完整净收益。
 
-**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+**来源：** [docs/codex_mail_findings_20260920.json（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json)。
 
 **修改范围：** [strategies/base.py](../strategies/base.py)、[router/router.py](../router/router.py)、[backtest/engine.py](../backtest/engine.py)、[strategies/mean_reversion.py](../strategies/mean_reversion.py)、[strategies/trend_breakout.py](../strategies/trend_breakout.py)。
 
@@ -637,7 +686,12 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **交付物：** 平仓生命周期契约；跨标的/部分退出集成测试；策略回调兼容说明。
 
-**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+**邮件原始判断（保持2026-09-20审计基线）：**
+
+| 意见 | 当时状态 | 开发依据 |
+| --- | --- | --- |
+| [MAIL-12-2](https://github.com/user-nmmmmm/QuantTradingV2/pull/12#pullrequestreview-5001994647) | 仍存在 | 策略遍历全局所有 CloseEvent，却把调用方当前 bar_index 传给所有 event.symbol；没有按平仓标的取得对应历史索引。强制成交消费还使用组合全局 bar_index。 |
+| [MAIL-16-1](https://github.com/user-nmmmmm/QuantTradingV2/pull/16#pullrequestreview-5027130456) | 仍存在 | 基类仍对每个CloseEvent立即on_trade_closed，is_position_fully_closed仅用于清context；TrendBreakout的cohort聚合减轻其健康误计，但Range依然把部分退出当独立失败，未实现按position聚合一次闭合回调。 |
 
 <a id="fix-12"></a>
 
@@ -647,18 +701,18 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | fix / B3 / P1 |
 | 2026-09-20状态 | 待闭环 |
-| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/FIX-12/20260920-r-series/acceptance.json`，不随源码发布） |
+| 本轮复核状态 | 已验收；[验收证据](../reports/roadmap_v3/FIX-12/20260920-r-series/acceptance.json) |
 | 负责角色 | 交易与风险 |
 | 验收依赖 | [SYS-01](development_details.md#sys-01)、[FIX-11](development_details.md#fix-11) |
 | 历史编号（结合来源阅读） | R1、R2、R3 |
-| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 邮件意见 | MAIL-16-3、MAIL-16-4、MAIL-19-4 |
 | 证据目录 | `reports/roadmap_v3/FIX-12/<run_id>/` |
 
 优先级说明：邮件原 P2；按项目 R1 账务可信度提升为 P1，避免错误 R 与成本驱动研究决策。
 
 **目标契约：** 多次入场和退出分片均可追溯 lot/position/risk；每个关闭数量只分摊对应初始风险；历史无 theoretical_price 的成交不重复扣除滑点。 原始风险以 2026-09-12/14 已批准且不可变的 approved_risk_amount 为准，不能退回成交时 fill_time_equity 重算。
 
-**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+**来源：** [docs/codex_mail_findings_20260920.json（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json)。
 
 **修改范围：** [backtest/reporting/trades.py](../backtest/reporting/trades.py)、[core/lots.py](../core/lots.py)、[core/broker/fill_service.py](../core/broker/fill_service.py)、[backtest/reporting/__init__.py](../backtest/reporting/__init__.py)、[core/metrics/attribution.py](../core/metrics/attribution.py)、[scripts/run_phase5_analysis.py](../scripts/run_phase5_analysis.py)。
 
@@ -681,7 +735,13 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **交付物：** lot→leg 事实映射规范；数量/费用/风险守恒测试；旧成本数据迁移与降级规则。
 
-**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+**邮件原始判断（保持2026-09-20审计基线）：**
+
+| 意见 | 当时状态 | 开发依据 |
+| --- | --- | --- |
+| [MAIL-16-3](https://github.com/user-nmmmmm/QuantTradingV2/pull/16#pullrequestreview-5027130456) | 仍存在 | 报告仍逐入场fill压栈、逐配对位置消费lot_closes，而真实lot合并同一订单多次入场；一笔退出覆盖多个入场碎片时只有首碎片有lot/position/risk，后续缺失。新增round-trip汇总因缺position_id也无法修正该情形。 |
+| [MAIL-16-4](https://github.com/user-nmmmmm/QuantTradingV2/pull/16#pullrequestreview-5027130456) | 部分修复 | CloseEvent风险已按qty_closed/qty_original比例分摊；主报告改按position汇总并按lot去重总初始风险，完整往返的R不再重复分母。但原LotClose.initial_risk和重建legs仍重复完整风险，直接消费legs的旧研究入口仍未统一；且部分入场匹配缺失仍影响此链。 |
+| [MAIL-19-4](https://github.com/user-nmmmmm/QuantTradingV2/pull/19#pullrequestreview-5032066890) | 仍存在 | 缺 theoretical_price 时仍回退fill price，并照样生成gross_pnl_theoretical；成本敏感度再扣slippage，旧档案仍重复计入滑点。 |
 
 <a id="fix-13"></a>
 
@@ -691,18 +751,18 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | fix / B3 / P1 |
 | 2026-09-20状态 | 待闭环 |
-| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/FIX-13/20260920-r-series/acceptance.json`，不随源码发布） |
+| 本轮复核状态 | 已验收；[验收证据](../reports/roadmap_v3/FIX-13/20260920-r-series/acceptance.json) |
 | 负责角色 | 交易与风险 |
 | 验收依赖 | [SYS-01](development_details.md#sys-01) |
 | 历史编号（结合来源阅读） | R1、S3、SR3 |
-| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 邮件意见 | MAIL-17-3 |
 | 证据目录 | `reports/roadmap_v3/FIX-13/<run_id>/` |
 
 优先级说明：邮件原 P2；按正式账务错误提升为 P1，避免新空仓承担无仓期间利息。
 
 **目标契约：** 借币利息仅按实际借贷/持仓存续时段累积，完全平仓至重新开空之间不继续计息。
 
-**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+**来源：** [docs/codex_mail_findings_20260920.json（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json)。
 
 **修改范围：** [core/broker/financing.py](../core/broker/financing.py)、[backtest/signal_ghost.py](../backtest/signal_ghost.py)、[backtest/signal_meta_replay.py](../backtest/signal_meta_replay.py)。
 
@@ -723,7 +783,11 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **交付物：** 正式计息生命周期修复；分段手算融资夹具；正式/影子口径对照。
 
-**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+**邮件原始判断（保持2026-09-20审计基线）：**
+
+| 意见 | 当时状态 | 开发依据 |
+| --- | --- | --- |
+| [MAIL-17-3](https://github.com/user-nmmmmm/QuantTradingV2/pull/17#pullrequestreview-5028474123) | 仍存在 | 正式Broker在flat期间仍跳过symbol且不清_last_borrow_time；仅Ghost/P3影子路径自行pop，不修复正式路径再开空仓的跨空窗利息。 |
 
 <a id="fix-14"></a>
 
@@ -733,18 +797,18 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | fix / B3 / P0 |
 | 2026-09-20状态 | 待闭环 |
-| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/FIX-14/20260920-r-series/acceptance.json`，不随源码发布） |
+| 本轮复核状态 | 已验收；[验收证据](../reports/roadmap_v3/FIX-14/20260920-r-series/acceptance.json) |
 | 负责角色 | 交易与风险 |
 | 验收依赖 | [SYS-01](development_details.md#sys-01) |
 | 历史编号（结合来源阅读） | R4、R6、SR2、SR3 |
-| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 邮件意见 | MAIL-18-1 |
 | 证据目录 | `reports/roadmap_v3/FIX-14/<run_id>/` |
 
 优先级说明：原邮件 P1 升级 P0：未知归属持仓可能没有策略退出与最大持有期控制，符合旧 Roadmap 未知仓位风险定义。
 
 **目标契约：** 每个同步持仓必须是可恢复归属的 managed position，或进入显式 unowned 接管/减险流程；无历史归属不能被静默视作普通可交易持仓。
 
-**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+**来源：** [docs/codex_mail_findings_20260920.json（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json)。
 
 **修改范围：** [core/live_broker/account_sync.py](../core/live_broker/account_sync.py)、[core/live_broker/__init__.py](../core/live_broker/__init__.py)、[core/live_broker/submission.py](../core/live_broker/submission.py)、[router/router.py](../router/router.py)、[live_trading/tick_orchestrator.py](../live_trading/tick_orchestrator.py)。
 
@@ -766,7 +830,11 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **交付物：** 外部持仓政策及状态机；同步/重启/保护失败集成测试；接管审计记录。
 
-**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+**邮件原始判断（保持2026-09-20审计基线）：**
+
+| 意见 | 当时状态 | 开发依据 |
+| --- | --- | --- |
+| [MAIL-18-1](https://github.com/user-nmmmmm/QuantTradingV2/pull/18#pullrequestreview-5031311051) | 部分修复 | 账户同步已从持久成交账本重建lots/owner，解决本系统有成交历史的重启仓位；不匹配仓位标unowned并禁止新风险，缺保护会尝试具名平仓。但无历史归属的外部持仓仍没有策略owner/entry_time，策略与max-holding退出不会执行，未见完整外部仓位接管验收。 |
 
 <a id="fix-15"></a>
 
@@ -776,18 +844,18 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | fix / B3 / P1 |
 | 2026-09-20状态 | 待闭环 |
-| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/FIX-15/20260920-r-series/acceptance.json`，不随源码发布） |
+| 本轮复核状态 | 已验收；[验收证据](../reports/roadmap_v3/FIX-15/20260920-r-series/acceptance.json) |
 | 负责角色 | 交易与风险 |
 | 验收依赖 | [SYS-01](development_details.md#sys-01)、[FIX-11](development_details.md#fix-11) |
 | 历史编号（结合来源阅读） | R2、R4、R6、SR1 |
-| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 邮件意见 | MAIL-32-1、MAIL-33-2 |
 | 证据目录 | `reports/roadmap_v3/FIX-15/<run_id>/` |
 
 优先级说明：健康生命周期原 P1；状态展示原 P2 随同恢复契约处理。
 
 **目标契约：** probation 成功后已用于验收的交易不会立即再次触发同一亏损串；breaker 自动恢复的同一 tick 中，对外状态与实际风险动作一致。
 
-**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+**来源：** [docs/codex_mail_findings_20260920.json（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json)。
 
 **修改范围：** [core/strategy_health.py](../core/strategy_health.py)、[live_trading/tick_orchestrator.py](../live_trading/tick_orchestrator.py)、[live_trading/engine.py](../live_trading/engine.py)。
 
@@ -809,7 +877,12 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **交付物：** 健康基线迁移规则；正总 R/尾部亏损边界测试；同 tick 状态一致性测试。
 
-**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+**邮件原始判断（保持2026-09-20审计基线）：**
+
+| 意见 | 当时状态 | 开发依据 |
+| --- | --- | --- |
+| [MAIL-32-1](https://github.com/user-nmmmmm/QuantTradingV2/pull/32#pullrequestreview-5090380872) | 仍存在 | probation 通过转 ACTIVE 后未将通过样本加入 streak baseline；ACTIVE 分支只清空时间字段。已有通过测试采用连续盈利样本，遗漏正总R但尾部连续亏损场景。 |
+| [MAIL-33-2](https://github.com/user-nmmmmm/QuantTradingV2/pull/33#pullrequestreview-5124762654) | 仍存在 | 健康状态先于 breaker 自动恢复计算；后续仅 breaker truthy 分支赋值 RISK_HALTED，没有恢复成功后同 tick刷新 HEALTHY 的分支。本地新增 risk_actions 仅写 DEGRADED，也未修复此状态显示问题。 |
 
 <a id="fix-16"></a>
 
@@ -819,18 +892,18 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | fix / B3 / P1 |
 | 2026-09-20状态 | 待闭环 |
-| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/FIX-16/20260920-r-series/acceptance.json`，不随源码发布） |
+| 本轮复核状态 | 已验收；[验收证据](../reports/roadmap_v3/FIX-16/20260920-r-series/acceptance.json) |
 | 负责角色 | 交易与风险 |
 | 验收依赖 | [SYS-01](development_details.md#sys-01) |
 | 历史编号（结合来源阅读） | R1、R2、SR2、SR3 |
-| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 邮件意见 | MAIL-36-1、MAIL-37-2 |
 | 证据目录 | `reports/roadmap_v3/FIX-16/<run_id>/` |
 
 优先级说明：保留邮件 P1；未完成减险与重复成交量预算会扭曲风险和成交事实。
 
 **目标契约：** 风险动作以每个目标持仓的完成状态为准，缺 bar 时待重试；期末合成时间不能重置最后真实 bar 的剩余成交量预算。 跳空止损与强平保留真实可成交价格和参与率，不能用止损价或即时全部成交制造完成。
 
-**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+**来源：** [docs/codex_mail_findings_20260920.json（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json)。
 
 **修改范围：** [backtest/engine.py](../backtest/engine.py)、[core/broker/liquidation.py](../core/broker/liquidation.py)、[core/broker/matching.py](../core/broker/matching.py)。
 
@@ -853,7 +926,12 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **交付物：** 逐持仓风险动作状态；期末流动性来源规则；union 缺 bar/尾部多 pass 集成测试。
 
-**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+**邮件原始判断（保持2026-09-20审计基线）：**
+
+| 意见 | 当时状态 | 开发依据 |
+| --- | --- | --- |
+| [MAIL-36-1](https://github.com/user-nmmmmm/QuantTradingV2/pull/36#pullrequestreview-5125488681) | 仍存在 | force_liquidate 遇无 bar 的持仓直接 continue，不创建残余退出订单；engine 随即将 action 记为已应用，后续非零剩余比例动作不会为该 symbol 重试。已有 block_new 测试验证可管理持仓，但未覆盖 union 缺 bar 后恢复。 |
+| [MAIL-37-2](https://github.com/user-nmmmmm/QuantTradingV2/pull/37#pullrequestreview-5149579832) | 仍存在 | 期末强平仍复制最后完整成交量并改为新 synthetic timestamp，触发按 timestamp 重置预算。已有测试覆盖同 timestamp 多 pass 和期末费用，未覆盖这两条路径组合。 |
 
 <a id="ver-01"></a>
 
@@ -863,18 +941,18 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | verification / B3 / P1 |
 | 2026-09-20状态 | 待验证 |
-| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/VER-01/20260920-r-series/acceptance.json`，不随源码发布） |
+| 本轮复核状态 | 已验收；[验收证据](../reports/roadmap_v3/VER-01/20260920-r-series/acceptance.json) |
 | 负责角色 | 交易与风险 |
 | 验收依赖 | [SYS-01](development_details.md#sys-01) |
 | 历史编号（结合来源阅读） | R1、R2、SR2、SR3 |
-| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 邮件意见 | MAIL-37-1 |
 | 证据目录 | `reports/roadmap_v3/VER-01/<run_id>/` |
 
 优先级说明：沿用原邮件 P1 作为核验优先级，不能当作已确认缺陷或已修复。
 
 **目标契约：** 先建立真实 BacktestEngine+Broker 集成证据，再判定该邮件主张；已知常规 GTC 残单后续会继续成交，缺 bar 问题属于 FIX-16。
 
-**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+**来源：** [docs/codex_mail_findings_20260920.json（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json)。
 
 **修改范围：** [backtest/engine.py](../backtest/engine.py)、[core/broker/liquidation.py](../core/broker/liquidation.py)、[core/broker/matching.py](../core/broker/matching.py)。
 
@@ -891,13 +969,17 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 - 正例：普通流动性不足路径由残余 GTC 持续成交至固定目标，完整事实链可复现。
 - 正例：每个扩展场景有目标数量、残单、实际成交及最终状态证据。
 - 反例：不得仅因 applied_breaker_actions 代码形状就判定永久不重试。
-- 反例：不得用 live 测试代替 backtest 集成结论；不得将 本地审查编号已省略 缺 bar 已确认缺陷重复计为本邮件完成。
+- 反例：不得用 live 测试代替 backtest 集成结论；不得将 MAIL-36-1 缺 bar 已确认缺陷重复计为本邮件完成。
 
 **兼容与迁移：** 本项首先是验证，不能预设要修改行为；发现新缺陷后保留同一来源和证据，明确对 FIX-16 的依赖/边界。
 
 **交付物：** 真实引擎集成复现报告；已覆盖与未覆盖边界表；确认缺陷或证据不足的审计结论。
 
-**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+**邮件原始判断（保持2026-09-20审计基线）：**
+
+| 意见 | 当时状态 | 开发依据 |
+| --- | --- | --- |
+| [MAIL-37-1](https://github.com/user-nmmmmm/QuantTradingV2/pull/37#pullrequestreview-5149579832) | 证据不足 | 引擎确实仍提前记录 applied action，未按目标数量追踪完成；但真实 Broker 将未完成的减仓 GTC 单保留在 active_orders，普通后续撮合会继续成交。因此邮件所述“流动性不足后永久不再减仓”在当前常规路径未复现，不宜直接当作仍存在的已确认缺陷，也不能仅凭代码形状标成修复。所列 partial-risk 测试属于 live 路径，不能代替 backtest 集成覆盖。缺 bar 的明确缺口另列 MAIL-36-1。 |
 
 <a id="fix-17"></a>
 
@@ -907,18 +989,18 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | fix / B4 / P0 |
 | 2026-09-20状态 | 待闭环 |
-| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/FIX-17/20260920-r-series/acceptance.json`，不随源码发布） |
+| 本轮复核状态 | 已验收；[验收证据](../reports/roadmap_v3/FIX-17/20260920-r-series/acceptance.json) |
 | 负责角色 | 运行与持久化 |
 | 验收依赖 | [SYS-01](development_details.md#sys-01) |
 | 历史编号（结合来源阅读） | R4、R6、SR1 |
-| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 邮件意见 | MAIL-33-1、MAIL-4-5 |
 | 证据目录 | `reports/roadmap_v3/FIX-17/<run_id>/` |
 
 优先级说明：熔断日期原 P1 升级 P0：崩溃窗口可错误重置 daily breaker；并发快照原 P2 同时关闭原子状态边界。
 
 **目标契约：** breaker checkpoint 与其交易日属于同一原子版本；快照每次导出使用唯一临时文件，读者只看见完整新旧版本。
 
-**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+**来源：** [docs/codex_mail_findings_20260920.json（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json)。
 
 **修改范围：** [live_trading/tick_orchestrator.py](../live_trading/tick_orchestrator.py)、[live_trading/engine.py](../live_trading/engine.py)、[core/state_store_v2.py](../core/state_store_v2.py)、[live_trading/state_export.py](../live_trading/state_export.py)。
 
@@ -940,7 +1022,12 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **交付物：** checkpoint 版本与迁移契约；崩溃注入恢复记录；并发导出回归。
 
-**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+**邮件原始判断（保持2026-09-20审计基线）：**
+
+| 意见 | 当时状态 | 开发依据 |
+| --- | --- | --- |
+| [MAIL-33-1](https://github.com/user-nmmmmm/QuantTradingV2/pull/33#pullrequestreview-5124762654) | 仍存在 | checkpoint 和 circuit_breaker_day 仍为独立 StateStore.set 事务；重启恢复仍根据独立 day 字段重置 daily breaker。checkpoint 内没有将交易日纳入原子记录。现有 restart 测试覆盖完成 checkpoint 后的重启，不覆盖两次写入间崩溃。 |
+| [MAIL-4-5](https://github.com/user-nmmmmm/QuantTradingV2/pull/4#pullrequestreview-4889477929) | 部分修复 | 临时名已从固定.tmp变成带PID，可区分进程；同进程多个实例或线程写同一目标仍共享同一个PID临时名，未达到每次导出唯一。 |
 
 <a id="fix-18"></a>
 
@@ -950,18 +1037,18 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | fix / B4 / P1 |
 | 2026-09-20状态 | 待闭环 |
-| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/FIX-18/20260920-r-series/acceptance.json`，不随源码发布） |
+| 本轮复核状态 | 已验收；[验收证据](../reports/roadmap_v3/FIX-18/20260920-r-series/acceptance.json) |
 | 负责角色 | 运行与持久化 |
 | 验收依赖 | [SYS-01](development_details.md#sys-01) |
 | 历史编号（结合来源阅读） | R5、R6 |
-| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 邮件意见 | MAIL-23-1、MAIL-23-2、MAIL-23-3 |
 | 证据目录 | `reports/roadmap_v3/FIX-18/<run_id>/` |
 
 优先级说明：wire 幂等原 P1；解码与手册原 P2 合并为存量事实可回放契约。
 
 **目标契约：** 旧 core.ledger 与 core.events 事件可用显式别名解码；同一事实迁移模块后仍判定为同一幂等 payload；运行手册指向真实可执行对账入口。
 
-**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+**来源：** [docs/codex_mail_findings_20260920.json（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json)。
 
 **修改范围：** [core/events/codec.py](../core/events/codec.py)、[core/events/store.py](../core/events/store.py)、[research/audit/reconciliation_job.py](../research/audit/reconciliation_job.py)。
 
@@ -984,7 +1071,13 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **交付物：** wire 类型兼容表；旧库回放与幂等冲突测试；更新的运维命令。
 
-**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+**邮件原始判断（保持2026-09-20审计基线）：**
+
+| 意见 | 当时状态 | 开发依据 |
+| --- | --- | --- |
+| [MAIL-23-1](https://github.com/user-nmmmmm/QuantTradingV2/pull/23#pullrequestreview-5061253521) | 仍存在 | 注册表未接纳core.ledger:CashEvent/MarkPriceEvent，老审计库类型无法解码。 |
+| [MAIL-23-2](https://github.com/user-nmmmmm/QuantTradingV2/pull/23#pullrequestreview-5061253521) | 仍存在 | 新wire名core.events.types:*与旧core.events:*文档仍不同；幂等比较只忽略observed_at，不归一化类型别名。 |
+| [MAIL-23-3](https://github.com/user-nmmmmm/QuantTradingV2/pull/23#pullrequestreview-5061253521) | 仍存在 | 两本运行手册仍引用已删除core.reconciliation_job；实际模块已迁往research.audit。 |
 
 <a id="fix-08"></a>
 
@@ -994,18 +1087,18 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | fix / B5 / P1 |
 | 2026-09-20状态 | 待闭环 |
-| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/FIX-08/20260920-r-series/acceptance.json`，不随源码发布） |
+| 本轮复核状态 | 已验收；[验收证据](../reports/roadmap_v3/FIX-08/20260920-r-series/acceptance.json) |
 | 负责角色 | 报告与研究 |
 | 验收依赖 | [SYS-01](development_details.md#sys-01)、[FIX-02](development_details.md#fix-02)、[FIX-03](development_details.md#fix-03)、[FIX-09](development_details.md#fix-09)、[FIX-19](development_details.md#fix-19) |
 | 历史编号（结合来源阅读） | R0、R3、S1、SR0、SR5、S0-2 |
-| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 邮件意见 | MAIL-11-1、MAIL-19-1、MAIL-19-2、MAIL-19-6 |
 | 证据目录 | `reports/roadmap_v3/FIX-08/<run_id>/` |
 
 优先级说明：保留邮件 P1；配置原 P2 合并进冻结研究契约，不把已见历史重新命名为未见样本。
 
 **目标契约：** 候选只使用预注册train/validation选择；final holdout仅作独立裁决。旧Phase5入口不能用Phase0净值冒充当前实现；所有分区、窗口、压力和门槛来自冻结配置，已见历史与前瞻holdout清楚分开。
 
-**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+**来源：** [docs/codex_mail_findings_20260920.json（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json)。
 
 **修改范围：** [analysis/optimize.py](../analysis/optimize.py)、[scripts/run_phase5_analysis.py](../scripts/run_phase5_analysis.py)、[config/params.yaml](../config/params.yaml)、[analysis/research_validation.py](../analysis/research_validation.py)。
 
@@ -1031,7 +1124,14 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **交付物：** 统一研究运行协议；旧报告失效/迁移索引；冻结配置 manifest 与复现实验。
 
-**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+**邮件原始判断（保持2026-09-20审计基线）：**
+
+| 意见 | 当时状态 | 开发依据 |
+| --- | --- | --- |
+| [MAIL-11-1](https://github.com/user-nmmmmm/QuantTradingV2/pull/11#pullrequestreview-5001918007) | 仍存在 | 路线图仍写“参数优化默认按 OOS 排序”，与同页 train-only 冲突。优化器已有 full-sample 排序的 caveat 并提供单独walk-forward方向，但未修正原验收标准。 |
+| [MAIL-19-1](https://github.com/user-nmmmmm/QuantTradingV2/pull/19#pullrequestreview-5032066890) | 部分修复 | 新的9/19研究明确已见历史不是新holdout，并冻结2026-10-20至2027-04-18前瞻窗口、最早2027-05-08验收；但旧Phase5脚本及报告仍将Phase0既见档案切片标作一次性final holdout，未替换/失效化。前瞻证据尚未成熟。 |
+| [MAIL-19-2](https://github.com/user-nmmmmm/QuantTradingV2/pull/19#pullrequestreview-5032066890) | 部分修复 | 最新9/19批次已有修复前/后冻结源码、配置、输入身份和真实当前引擎运行；但原Phase5入口依然硬编码Phase0档案PRIMARY，并从旧净值/交易计算准入，不反映当前实现。新批次未提交且总验收pending。 |
+| [MAIL-19-6](https://github.com/user-nmmmmm/QuantTradingV2/pull/19#pullrequestreview-5032066890) | 仍存在 | phase5 YAML仍声明分区、窗口和压力参数；run_phase5_analysis无配置读取，继续硬编码60/20/20、730/180/180和默认AdmissionThresholds，修改YAML不会同步该证据生成入口。 |
 
 <a id="fix-19"></a>
 
@@ -1041,18 +1141,18 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | fix / B5 / P1 |
 | 2026-09-20状态 | 待闭环 |
-| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/FIX-19/20260920-r-series/acceptance.json`，不随源码发布） |
+| 本轮复核状态 | 已验收；[验收证据](../reports/roadmap_v3/FIX-19/20260920-r-series/acceptance.json) |
 | 负责角色 | 报告与研究 |
 | 验收依赖 | [SYS-01](development_details.md#sys-01) |
 | 历史编号（结合来源阅读） | R1、R2、R3 |
-| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 邮件意见 | MAIL-11-2、MAIL-21-4、MAIL-29-2、MAIL-36-2 |
 | 证据目录 | `reports/roadmap_v3/FIX-19/<run_id>/` |
 
 优先级说明：metrics.json 原 P1 保留；其余 P2 合并为结果接口契约，不再依赖报告文本猜测数值。
 
 **目标契约：** 常规 ReportGenerator/main 生成标准 metrics.json；空运行含 entry_observations=[]；受承诺的 Metrics 导出可用；矩阵消费不可计算值有显式状态。
 
-**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+**来源：** [docs/codex_mail_findings_20260920.json（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json)。
 
 **修改范围：** [backtest/reporting/__init__.py](../backtest/reporting/__init__.py)、[scripts/run_revalidation60.py](../scripts/run_revalidation60.py)、[scripts/run_p0_recovery_backtest.py](../scripts/run_p0_recovery_backtest.py)、[scripts/run_backtest_matrix.py](../scripts/run_backtest_matrix.py)、[core/metrics/__init__.py](../core/metrics/__init__.py)、[backtest/engine.py](../backtest/engine.py)、[scripts/run_expanded_universe_backtest.py](../scripts/run_expanded_universe_backtest.py)。
 
@@ -1075,7 +1175,14 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **交付物：** 统一结果/metrics schema；常规与空运行契约测试；Metrics 兼容与非有限指标迁移说明。
 
-**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+**邮件原始判断（保持2026-09-20审计基线）：**
+
+| 意见 | 当时状态 | 开发依据 |
+| --- | --- | --- |
+| [MAIL-11-2](https://github.com/user-nmmmmm/QuantTradingV2/pull/11#pullrequestreview-5001918007) | 部分修复 | 专项回测脚本已经写 metrics.json 且磁盘有产物；常规 ReportGenerator.generate/main.py 仍未统一写该文件，文档“backtest/reporting输出metrics.json”仍过度宣称。 |
+| [MAIL-21-4](https://github.com/user-nmmmmm/QuantTradingV2/pull/21#pullrequestreview-5052647523) | 仍存在 | 数值表达式仍不支持inf/nan，会漏掉报告指标。 |
+| [MAIL-29-2](https://github.com/user-nmmmmm/QuantTradingV2/pull/29#pullrequestreview-5078459446) | 仍存在 | 仍承诺旧接口兼容，但Metrics类未导出；直接导入失败。 |
+| [MAIL-36-2](https://github.com/user-nmmmmm/QuantTradingV2/pull/36#pullrequestreview-5125488681) | 仍存在 | empty_result 仍无 entry_observations，而 run_arm 审计路径直接索引该字段；正常结果才有该字段。未找到空数据结果包含该键的专项测试。 |
 
 <a id="fix-20"></a>
 
@@ -1085,18 +1192,18 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | fix / B5 / P2 |
 | 2026-09-20状态 | 待闭环 |
-| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/FIX-20/20260920-r-series/acceptance.json`，不随源码发布） |
+| 本轮复核状态 | 已验收；[验收证据](../reports/roadmap_v3/FIX-20/20260920-r-series/acceptance.json) |
 | 负责角色 | 报告与研究 |
 | 验收依赖 | [SYS-01](development_details.md#sys-01)、[FIX-12](development_details.md#fix-12)、[FIX-19](development_details.md#fix-19) |
 | 历史编号（结合来源阅读） | R2、R3 |
-| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 邮件意见 | MAIL-9-2、MAIL-9-3、MAIL-18-3、MAIL-31-3 |
 | 证据目录 | `reports/roadmap_v3/FIX-20/<run_id>/` |
 
 优先级说明：保留邮件 P2；这些是分析解释层修复，交付前须防止误导比较。
 
 **目标契约：** 滚动回撤峰值来自本窗口；盈亏直方图共享边界；持有期诊断使用运行生效配置；入场漏斗只统计 entry 因果链。
 
-**来源：** docs/codex_mail_findings_20260920.json（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json`，不随源码发布）。
+**来源：** [docs/codex_mail_findings_20260920.json（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json)。
 
 **修改范围：** [backtest/reporting/render/charts.py](../backtest/reporting/render/charts.py)、[core/diagnostics.py](../core/diagnostics.py)、[scripts/run_phase4_analysis.py](../scripts/run_phase4_analysis.py)、[composition/factory.py](../composition/factory.py)、[config/params.yaml](../config/params.yaml)、[core/metrics/attribution.py](../core/metrics/attribution.py)。
 
@@ -1119,7 +1226,14 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **交付物：** 图表/诊断口径说明；窗口/桶边界/配置传播/漏斗测试；新旧展示差异示例。
 
-**历史审查说明：** 逐条原始判断与评论摘录仅保存在本地受限资料中，公开副本保留上方的任务契约及验收要求。
+**邮件原始判断（保持2026-09-20审计基线）：**
+
+| 意见 | 当时状态 | 开发依据 |
+| --- | --- | --- |
+| [MAIL-9-2](https://github.com/user-nmmmmm/QuantTradingV2/pull/9#pullrequestreview-5000638067) | 仍存在 | 滚动回撤仍先全历史cummax，再对全历史水下值rolling(window).min，旧峰值离开窗口后仍影响图。 |
+| [MAIL-9-3](https://github.com/user-nmmmmm/QuantTradingV2/pull/9#pullrequestreview-5000638067) | 仍存在 | 盈利/亏损直方图仍分别传同一整数bins，并未以全部PnL生成共享边界。 |
+| [MAIL-18-3](https://github.com/user-nmmmmm/QuantTradingV2/pull/18#pullrequestreview-5031311051) | 仍存在 | 运行路由读取router.max_holding_days（已从phase4迁移），但build_diagnostics和Phase4分析脚本仍固定365天；非365配置的超时诊断仍与执行政策不一致。 |
+| [MAIL-31-3](https://github.com/user-nmmmmm/QuantTradingV2/pull/31#pullrequestreview-5087145892) | 仍存在 | 仍为任意correlation创建group并计退出链；新增说明承认order_created可超过risk_evaluated，但没有仅筛入场或拆开退出。测试甚至认可退出导致后段更大，未实现邮件要求。 |
 
 <a id="sys-02"></a>
 
@@ -1129,16 +1243,16 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | capability / B5 / P1 |
 | 2026-09-20状态 | 部分实现待验收 |
-| 本轮复核状态 | 已验收；验收证据（仅本地引用：`reports/roadmap_v3/SYS-02/20260920-r-series/acceptance.json`，不随源码发布） |
+| 本轮复核状态 | 已验收；[验收证据](../reports/roadmap_v3/SYS-02/20260920-r-series/acceptance.json) |
 | 负责角色 | 领域内核与报告 |
 | 验收依赖 | [SYS-01](development_details.md#sys-01)、[FIX-10](development_details.md#fix-10)、[FIX-11](development_details.md#fix-11)、[FIX-12](development_details.md#fix-12)、[FIX-13](development_details.md#fix-13)、[FIX-16](development_details.md#fix-16) |
 | 历史编号（结合来源阅读） | R1、BM0、G7、Batch 3–6、B-07、BT-04、S0-3、D-04 |
-| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 邮件意见 | 无直接新增邮件意见；继承能力或治理要求 |
 | 证据目录 | `reports/roadmap_v3/SYS-02/<run_id>/` |
 
 **目标契约：** fills、lots、position cycle、closed trades与资金投影来自同一可回放事实；报告消费投影，不自建另一套FIFO。
 
-**来源：** docs/development_plan.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/development_plan.md`，不随源码发布）；docs/backtest_optimization_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/backtest_optimization_roadmap.md`，不随源码发布）；[docs/authoritative_ledger.md](authoritative_ledger.md)。
+**来源：** [docs/development_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/development_plan.md)；[docs/backtest_optimization_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/backtest_optimization_roadmap.md)；[docs/authoritative_ledger.md](authoritative_ledger.md)。
 
 **修改范围：** [core/lots.py](../core/lots.py)、[core/portfolio.py](../core/portfolio.py)、[backtest/reporting/trades.py](../backtest/reporting/trades.py)、[research/audit/ledger.py](../research/audit/ledger.py)。
 
@@ -1171,16 +1285,16 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | capability / B5 / P1 |
 | 2026-09-20状态 | 部分实现待验收 |
-| 本轮复核状态 | 部分实现待验收；本轮工程验收（仅本地引用：`reports/roadmap_v3/followup/20260920-implementation/SYS-03/acceptance-final.json`，不随源码发布） |
+| 本轮复核状态 | 部分实现待验收；[本轮工程验收](../reports/roadmap_v3/followup/20260920-implementation/SYS-03/acceptance-final.json) |
 | 负责角色 | 领域内核与报告 |
 | 验收依赖 | [SYS-02](development_details.md#sys-02)、[FIX-02](development_details.md#fix-02)、[FIX-09](development_details.md#fix-09)、[FIX-19](development_details.md#fix-19)、[FIX-20](development_details.md#fix-20) |
 | 历史编号（结合来源阅读） | R1、R2、R3、BM0–BM8、Batch 1/2/6–9、G7、G8 |
-| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 邮件意见 | 无直接新增邮件意见；继承能力或治理要求 |
 | 证据目录 | `reports/roadmap_v3/SYS-03/<run_id>/` |
 
 **目标契约：** 常规入口统一生成metrics.json、closed_trades、reconciliation；公式、单位、状态、输入身份与展示分离。
 
-**来源：** docs/backtest_metrics_detailed_development_plan.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/backtest_metrics_detailed_development_plan.md`，不随源码发布）；docs/development_plan.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/development_plan.md`，不随源码发布）。
+**来源：** [docs/backtest_metrics_detailed_development_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/backtest_metrics_detailed_development_plan.md)；[docs/development_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/development_plan.md)。
 
 **修改范围：** [core/metric_result.py](../core/metric_result.py)、[core/metrics](../core/metrics)、[backtest/reporting](../backtest/reporting)、[analysis/validation.py](../analysis/validation.py)、[tests/test_metrics.py](../tests/test_metrics.py)。
 
@@ -1214,16 +1328,16 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | capability / B5 / P0 |
 | 2026-09-20状态 | 部分实现待验收 |
-| 本轮复核状态 | 部分实现待验收；本轮工程验收（仅本地引用：`reports/roadmap_v3/followup/20260920-implementation/SYS-05/acceptance-final.json`，不随源码发布） |
+| 本轮复核状态 | 部分实现待验收；[本轮工程验收](../reports/roadmap_v3/followup/20260920-implementation/SYS-05/acceptance-final.json) |
 | 负责角色 | 领域内核与报告 |
 | 验收依赖 | [SYS-02](development_details.md#sys-02)、[FIX-01](development_details.md#fix-01)、[FIX-14](development_details.md#fix-14)、[FIX-17](development_details.md#fix-17)、[FIX-18](development_details.md#fix-18) |
 | 历史编号（结合来源阅读） | R4、R6、G3、ACCT-01、ACCT-02、T-6.3 |
-| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 邮件意见 | 无直接新增邮件意见；继承能力或治理要求 |
 | 证据目录 | `reports/roadmap_v3/SYS-05/<run_id>/` |
 
 **目标契约：** 周期对账覆盖真实账户全域，不只统计unknown订单；selected account mode的资金与仓位可解释。
 
-**来源：** docs/live_trading_remediation_plan.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/live_trading_remediation_plan.md`，不随源码发布）；docs/phase6_operations.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/phase6_operations.md`，不随源码发布）。
+**来源：** [docs/live_trading_remediation_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/live_trading_remediation_plan.md)；[docs/phase6_operations.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/phase6_operations.md)。
 
 **修改范围：** [core/live_broker/account_sync.py](../core/live_broker/account_sync.py)、[live_trading/recovery.py](../live_trading/recovery.py)、[core/portfolio.py](../core/portfolio.py)、[research/audit/reconciliation_job.py](../research/audit/reconciliation_job.py)。
 
@@ -1254,16 +1368,16 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | capability / B5 / P1 |
 | 2026-09-20状态 | 部分实现待验收 |
-| 本轮复核状态 | 部分实现待验收；验收证据（仅本地引用：`reports/roadmap_v3/SYS-06/20260920-local-closure/acceptance.json`，不随源码发布） |
+| 本轮复核状态 | 部分实现待验收；[验收证据](../reports/roadmap_v3/SYS-06/20260920-local-closure/acceptance.json) |
 | 负责角色 | 领域内核与报告 |
 | 验收依赖 | [SYS-02](development_details.md#sys-02)、[SYS-05](development_details.md#sys-05)、[FIX-18](development_details.md#fix-18) |
 | 历史编号（结合来源阅读） | R5、G4、ARCH-01、Batch 10、G2、EXCH-01、B-01、B-10、S0-4 |
-| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 邮件意见 | 无直接新增邮件意见；继承能力或治理要求 |
 | 证据目录 | `reports/roadmap_v3/SYS-06/<run_id>/` |
 
 **目标契约：** 同一事件流产生相同signal/intent和因果链，mode差异仅存在边界adapter；迁移不重复消费。
 
-**来源：** docs/unified_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/unified_roadmap.md`，不随源码发布）；docs/live_trading_remediation_plan.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/live_trading_remediation_plan.md`，不随源码发布）；[docs/canonical_trading_events.md](canonical_trading_events.md)。
+**来源：** [docs/unified_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/unified_roadmap.md)；[docs/live_trading_remediation_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/live_trading_remediation_plan.md)；[docs/canonical_trading_events.md](canonical_trading_events.md)。
 
 **修改范围：** [core/runtime.py](../core/runtime.py)、[core/events](../core/events)、[backtest/execution_adapter.py](../backtest/execution_adapter.py)、[live_trading/execution_adapter.py](../live_trading/execution_adapter.py)。
 
@@ -1297,16 +1411,16 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | capability / B5 / P1 |
 | 2026-09-20状态 | 部分实现待验收 |
-| 本轮复核状态 | 部分实现待验收；第5/6节追加证据（仅本地引用：`reports/roadmap_v3/SYS-07/20260920-section56/acceptance.json`，不随源码发布）；[完成边界](section56_acceptance_20260920.md) |
+| 本轮复核状态 | 部分实现待验收；[第5/6节追加证据](../reports/roadmap_v3/SYS-07/20260920-section56/acceptance.json)；[完成边界](section56_acceptance_20260920.md) |
 | 负责角色 | 领域内核与报告 |
 | 验收依赖 | [SYS-06](development_details.md#sys-06)、[FIX-11](development_details.md#fix-11)、[FIX-14](development_details.md#fix-14)、[FIX-16](development_details.md#fix-16) |
 | 历史编号（结合来源阅读） | PM1、PM4、SR2、S0-1、C2 |
-| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 邮件意见 | 无直接新增邮件意见；继承能力或治理要求 |
 | 证据目录 | `reports/roadmap_v3/SYS-07/<run_id>/` |
 
 **目标契约：** account+symbol+side+position_id/epoch绑定HOLD/REDUCE_TO/CLOSE/ENSURE_STOP，复用Portfolio与ExecutionPort。
 
-**来源：** docs/position_management_plan.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/position_management_plan.md`，不随源码发布）；docs/current_strategy_remediation_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/current_strategy_remediation_roadmap.md`，不随源码发布）。
+**来源：** [docs/position_management_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/position_management_plan.md)；[docs/current_strategy_remediation_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/current_strategy_remediation_roadmap.md)。
 
 **修改范围：** [strategies/base.py](../strategies/base.py)、[router/router.py](../router/router.py)、[core/protective_stops.py](../core/protective_stops.py)、[live_trading/risk_actions.py](../live_trading/risk_actions.py)、[core/execution_port.py](../core/execution_port.py)。
 
@@ -1335,16 +1449,16 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | capability / B5 / P0 |
 | 2026-09-20状态 | 部分实现待验收 |
-| 本轮复核状态 | 部分实现待验收；验收证据（仅本地引用：`reports/roadmap_v3/SYS-08/20260920-local-closure/acceptance.json`，不随源码发布） |
+| 本轮复核状态 | 部分实现待验收；[验收证据](../reports/roadmap_v3/SYS-08/20260920-local-closure/acceptance.json) |
 | 负责角色 | 领域内核与报告 |
 | 验收依赖 | [SYS-02](development_details.md#sys-02)、[SYS-07](development_details.md#sys-07)、[FIX-10](development_details.md#fix-10)、[FIX-12](development_details.md#fix-12)、[FIX-16](development_details.md#fix-16)、[FIX-17](development_details.md#fix-17)、[VER-01](development_details.md#ver-01) |
 | 历史编号（结合来源阅读） | PM2、SR3-1、SR3-2、SR3-3、S3-5、T-3.1–T-3.3、T-4.9–T-4.10 |
-| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 邮件意见 | 无直接新增邮件意见；继承能力或治理要求 |
 | 证据目录 | `reports/roadmap_v3/SYS-08/<run_id>/` |
 
 **目标契约：** 预算在批准、预留、在途订单、真实lot和退出之间守恒，缩量不扩大不可变订单批准风险。
 
-**来源：** docs/portfolio_risk_contract.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/portfolio_risk_contract.md`，不随源码发布）；docs/research/strategy_remediation_contract_20260914.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/research/strategy_remediation_contract_20260914.md`，不随源码发布）。
+**来源：** [docs/portfolio_risk_contract.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/portfolio_risk_contract.md)；[docs/research/strategy_remediation_contract_20260914.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/research/strategy_remediation_contract_20260914.md)。
 
 **修改范围：** [core/risk/drawdown_budget.py](../core/risk/drawdown_budget.py)、[core/risk/portfolio_governor.py](../core/risk/portfolio_governor.py)、[core/risk/reservation.py](../core/risk/reservation.py)、[core/allocation.py](../core/allocation.py)、[live_trading/risk_actions.py](../live_trading/risk_actions.py)。
 
@@ -1374,16 +1488,16 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | capability / B5 / P1 |
 | 2026-09-20状态 | 部分实现待验收 |
-| 本轮复核状态 | 部分实现待验收；验收证据（仅本地引用：`reports/roadmap_v3/SYS-09/20260920-local-closure/acceptance.json`，不随源码发布） |
+| 本轮复核状态 | 部分实现待验收；[验收证据](../reports/roadmap_v3/SYS-09/20260920-local-closure/acceptance.json) |
 | 负责角色 | 领域内核与报告 |
 | 验收依赖 | [SYS-02](development_details.md#sys-02)、[SYS-07](development_details.md#sys-07)、[FIX-15](development_details.md#fix-15) |
 | 历史编号（结合来源阅读） | PM3、SR1、SR6-1、P0/P1/P2/P3 |
-| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 邮件意见 | 无直接新增邮件意见；继承能力或治理要求 |
 | 证据目录 | `reports/roadmap_v3/SYS-09/<run_id>/` |
 
 **目标契约：** 健康裁决冻结cohort/R/样本边界；独立shadow只采证据，不改正式准入或人工锁定。
 
-**来源：** docs/position_management_plan.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/position_management_plan.md`，不随源码发布）；docs/strategy_health_contract.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/strategy_health_contract.md`，不随源码发布）；docs/p23_signal_meta_layer.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/p23_signal_meta_layer.md`，不随源码发布）。
+**来源：** [docs/position_management_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/position_management_plan.md)；[docs/strategy_health_contract.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/strategy_health_contract.md)；[docs/p23_signal_meta_layer.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/p23_signal_meta_layer.md)。
 
 **修改范围：** [core/strategy_health.py](../core/strategy_health.py)、[core/strategy_governance.py](../core/strategy_governance.py)、[core/signal_observation.py](../core/signal_observation.py)、[backtest/signal_meta_replay.py](../backtest/signal_meta_replay.py)。
 
@@ -1412,16 +1526,16 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | capability / B6 / P1 |
 | 2026-09-20状态 | 部分实现待验收 |
-| 本轮复核状态 | 部分实现待验收；验收证据（仅本地引用：`reports/roadmap_v3/SYS-10/20260920-delivery-recovery/acceptance.json`，不随源码发布） |
+| 本轮复核状态 | 部分实现待验收；[验收证据](../reports/roadmap_v3/SYS-10/20260920-delivery-recovery/acceptance.json) |
 | 负责角色 | 研究与数据 |
 | 验收依赖 | [SYS-03](development_details.md#sys-03)、[SYS-04](development_details.md#sys-04)、[SYS-08](development_details.md#sys-08)、[SYS-09](development_details.md#sys-09)、[FIX-08](development_details.md#fix-08) |
 | 历史编号（结合来源阅读） | SR0、SR4、SR5、Phase 5、P0/P1/P2/P3 |
-| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 邮件意见 | 无直接新增邮件意见；继承能力或治理要求 |
 | 证据目录 | `reports/roadmap_v3/SYS-10/<run_id>/` |
 
 **目标契约：** 工程通过、证据完整和策略准入分别出具结果；把既有研究pending内容闭环而不隐藏失败。
 
-**来源：** docs/current_strategy_remediation_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/current_strategy_remediation_roadmap.md`，不随源码发布）；docs/p23_signal_meta_layer.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/p23_signal_meta_layer.md`，不随源码发布）；reports/strategy_review_20260919/README.md（仅本地引用：`reports/strategy_review_20260919/README.md`，不随源码发布）。
+**来源：** [docs/current_strategy_remediation_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/current_strategy_remediation_roadmap.md)；[docs/p23_signal_meta_layer.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/p23_signal_meta_layer.md)；[reports/strategy_review_20260919/README.md](../reports/strategy_review_20260919/README.md)。
 
 **修改范围：** [scripts/complete_strategy_review.py](../scripts/complete_strategy_review.py)、[scripts/package_strategy_review.py](../scripts/package_strategy_review.py)、[scripts/summarize_strategy_review_meta.py](../scripts/summarize_strategy_review_meta.py)、[scripts/publish_strategy_review.py](../scripts/publish_strategy_review.py)。
 
@@ -1450,16 +1564,16 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | capability / B6 / P1 |
 | 2026-09-20状态 | 待证据 |
-| 本轮复核状态 | 待证据；第5/6节追加证据（仅本地引用：`reports/roadmap_v3/SYS-11/20260920-section56-successor-02/acceptance.json`，不随源码发布）；[完成边界](section56_acceptance_20260920.md) |
+| 本轮复核状态 | 待证据；[第5/6节追加证据](../reports/roadmap_v3/SYS-11/20260920-section56-successor-02/acceptance.json)；[完成边界](section56_acceptance_20260920.md) |
 | 负责角色 | 研究与数据 |
 | 验收依赖 | [SYS-04](development_details.md#sys-04)、[SYS-10](development_details.md#sys-10)、[FIX-01](development_details.md#fix-01)、[FIX-02](development_details.md#fix-02)、[FIX-08](development_details.md#fix-08)、[FIX-09](development_details.md#fix-09) |
 | 历史编号（结合来源阅读） | R3、G8、SR5、G-S1–G-S10、S1-3、S4§9.1、RES-01、BM8 |
-| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 邮件意见 | 无直接新增邮件意见；继承能力或治理要求 |
 | 证据目录 | `reports/roadmap_v3/SYS-11/<run_id>/` |
 
 **目标契约：** 候选版本、参数选择与最终未见样本隔离；输出admit/reject/continue_research，不把回顾性最优当准入。
 
-**来源：** docs/current_strategy_remediation_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/current_strategy_remediation_roadmap.md`，不随源码发布）；docs/strategy_development_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md`，不随源码发布）；reports/strategy_review_20260919/prospective_protocol.json（仅本地引用：`reports/strategy_review_20260919/prospective_protocol.json`，不随源码发布）。
+**来源：** [docs/current_strategy_remediation_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/current_strategy_remediation_roadmap.md)；[docs/strategy_development_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md)；[reports/strategy_review_20260919/prospective_protocol.json](../reports/strategy_review_20260919/prospective_protocol.json)。
 
 **修改范围：** [analysis/walk_forward.py](../analysis/walk_forward.py)、[analysis/research_validation.py](../analysis/research_validation.py)、[scripts/run_strategy_review.py](../scripts/run_strategy_review.py)、[core/strategy_governance.py](../core/strategy_governance.py)。
 
@@ -1468,7 +1582,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 1. 固定train/validation/final区间、purge/embargo、最大lookback、trials和候选身份；最终区间只执行一次裁决。
 2. 完成预登记消融、参数邻域/平台、trade与cohort双口径、块bootstrap、多重检验、头部移除和成本/相关性压力。
 3. 按来源、周期与市场状态披露一致性；统计支持不足拒绝自动准入，历史已见区间明确回顾性。
-4. 保留现有前瞻协议start,end)与mature_after；修复若改变candidate hash先登记影响并按协议处理，不提前看结果选参。
+4. 保留现有前瞻协议[start,end)与mature_after；修复若改变candidate hash先登记影响并按协议处理，不提前看结果选参。
 
 **验收：**
 
@@ -1489,16 +1603,16 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | capability / B6 / P1 |
 | 2026-09-20状态 | 部分实现待验收 |
-| 本轮复核状态 | 部分实现待验收；[验收证据（仅本地引用：`reports/roadmap_v3/SYS-16/20260920-local-closure/acceptance.json`，不随源码发布） |
+| 本轮复核状态 | 部分实现待验收；[验收证据](../reports/roadmap_v3/SYS-16/20260920-local-closure/acceptance.json) |
 | 负责角色 | 运行与运维 |
 | 验收依赖 | [SYS-05](development_details.md#sys-05)、[SYS-06](development_details.md#sys-06)、[SYS-07](development_details.md#sys-07)、[SYS-08](development_details.md#sys-08)、[SYS-09](development_details.md#sys-09)、[FIX-01](development_details.md#fix-01)、[FIX-17](development_details.md#fix-17)、[FIX-18](development_details.md#fix-18) |
 | 历史编号（结合来源阅读） | R6、G5、OBS、MON、ALERT、OPS、FM3、FM4、FM6、G1 |
-| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 邮件意见 | 无直接新增邮件意见；继承能力或治理要求 |
 | 证据目录 | `reports/roadmap_v3/SYS-16/<run_id>/` |
 
 **目标契约：** 健康、告警、快照、守护、备份恢复和实际操作形成证据闭环，组件存在不等于演练通过。
 
-**来源：** docs/live_trading_remediation_plan.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/live_trading_remediation_plan.md`，不随源码发布）；[docs/r6_operations.md](r6_operations.md)；docs/r7_sandbox_runbook.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/r7_sandbox_runbook.md`，不随源码发布）。
+**来源：** [docs/live_trading_remediation_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/live_trading_remediation_plan.md)；[docs/r6_operations.md](r6_operations.md)；[docs/r7_sandbox_runbook.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/r7_sandbox_runbook.md)。
 
 **修改范围：** [live_trading/state_export.py](../live_trading/state_export.py)、[core/alerting.py](../core/alerting.py)、[core/supervisor.py](../core/supervisor.py)、[core/sqlite_utils.py](../core/sqlite_utils.py)、[dashboard](../dashboard)、[run_live.py](../run_live.py)。
 
@@ -1529,16 +1643,16 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | capability / B7 / P1 |
 | 2026-09-20状态 | 待证据 |
-| 本轮复核状态 | 待证据；验收证据（仅本地引用：`reports/roadmap_v3/SYS-17/20260920-r-series/acceptance.json`，不随源码发布） |
+| 本轮复核状态 | 待证据；[验收证据](../reports/roadmap_v3/SYS-17/20260920-r-series/acceptance.json) |
 | 负责角色 | 运行与运维 |
 | 验收依赖 | [SYS-11](development_details.md#sys-11)、[SYS-16](development_details.md#sys-16) |
 | 历史编号（结合来源阅读） | R7、G6、SR6-1–SR6-3、PM4、T-6.1–T-6.5 |
-| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 邮件意见 | 无直接新增邮件意见；继承能力或治理要求 |
 | 证据目录 | `reports/roadmap_v3/SYS-17/<run_id>/` |
 
 **目标契约：** 精确冻结候选、账户与版本的连续真实观察满足门槛，历史回测和工具测试不得代替。
 
-**来源：** docs/unified_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/unified_roadmap.md`，不随源码发布）；docs/phase6_operations.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/phase6_operations.md`，不随源码发布）；docs/r7_sandbox_runbook.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/r7_sandbox_runbook.md`，不随源码发布）。
+**来源：** [docs/unified_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/unified_roadmap.md)；[docs/phase6_operations.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/phase6_operations.md)；[docs/r7_sandbox_runbook.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/r7_sandbox_runbook.md)。
 
 **修改范围：** [core/admission_gates.py](../core/admission_gates.py)、[core/r7_acceptance.py](../core/r7_acceptance.py)、[tests/test_exchange_sandbox_e2e.py](../tests/test_exchange_sandbox_e2e.py)、[run_live.py](../run_live.py)。
 
@@ -1569,16 +1683,16 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | capability / B8 / P1 |
 | 2026-09-20状态 | 待证据 |
-| 本轮复核状态 | 待证据；本轮工程验收（仅本地引用：`reports/roadmap_v3/followup/20260920-implementation/SYS-18/acceptance-final.json`，不随源码发布） |
+| 本轮复核状态 | 待证据；[本轮工程验收](../reports/roadmap_v3/followup/20260920-implementation/SYS-18/acceptance-final.json) |
 | 负责角色 | 运行与运维 |
 | 验收依赖 | [SYS-17](development_details.md#sys-17) |
 | 历史编号（结合来源阅读） | R8、G10、SR6-4、T-6.6–T-6.8 |
-| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 邮件意见 | 无直接新增邮件意见；继承能力或治理要求 |
 | 证据目录 | `reports/roadmap_v3/SYS-18/<run_id>/` |
 
 **目标契约：** 准入证据、人工批准与真实小额观察绑定精确版本和范围；扩容每次仅改变一个维度。
 
-**来源：** docs/unified_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/unified_roadmap.md`，不随源码发布）；docs/live_trading_remediation_plan.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/live_trading_remediation_plan.md`，不随源码发布）；docs/phase6_operations.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/phase6_operations.md`，不随源码发布）。
+**来源：** [docs/unified_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/unified_roadmap.md)；[docs/live_trading_remediation_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/live_trading_remediation_plan.md)；[docs/phase6_operations.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/phase6_operations.md)。
 
 **修改范围：** [core/gray_release.py](../core/gray_release.py)、[core/admission_gates.py](../core/admission_gates.py)、[run_live.py](../run_live.py)。
 
@@ -1607,16 +1721,16 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | capability / BX / P3 |
 | 2026-09-20状态 | 后续扩展 |
-| 本轮复核状态 | 部分实现待验收；第5/6节追加证据（仅本地引用：`reports/roadmap_v3/SYS-12/20260920-section56/acceptance.json`，不随源码发布）；[完成边界](section56_acceptance_20260920.md) |
+| 本轮复核状态 | 部分实现待验收；[第5/6节追加证据](../reports/roadmap_v3/SYS-12/20260920-section56/acceptance.json)；[完成边界](section56_acceptance_20260920.md) |
 | 负责角色 | 研究与数据 |
 | 验收依赖 | [SYS-04](development_details.md#sys-04)、[SYS-07](development_details.md#sys-07)、[SYS-08](development_details.md#sys-08)、[FIX-08](development_details.md#fix-08)、[FIX-09](development_details.md#fix-09) |
 | 历史编号（结合来源阅读） | S2-1–S2-7、C4、FM5-03 |
-| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 邮件意见 | 无直接新增邮件意见；继承能力或治理要求 |
 | 证据目录 | `reports/roadmap_v3/SYS-12/<run_id>/` |
 
 **目标契约：** 历史universe→过滤→因子排名→TopN/分层目标权重→换仓/换手→受约束执行完整接线。
 
-**来源：** docs/strategy_development_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md`，不随源码发布）；docs/backtest_optimization_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/backtest_optimization_roadmap.md`，不随源码发布）；docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md`，不随源码发布）。
+**来源：** [docs/strategy_development_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md)；[docs/backtest_optimization_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/backtest_optimization_roadmap.md)；[docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md)。
 
 **修改范围：** [core/universe.py](../core/universe.py)、[core/factors](../core/factors)、[core/allocation.py](../core/allocation.py)、[router/router.py](../router/router.py)。
 
@@ -1645,16 +1759,16 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | capability / BX / P3 |
 | 2026-09-20状态 | 后续扩展 |
-| 本轮复核状态 | 部分实现待验收；第5/6节追加证据（仅本地引用：`reports/roadmap_v3/SYS-13/20260920-section56/acceptance.json`，不随源码发布）；[完成边界](section56_acceptance_20260920.md) |
+| 本轮复核状态 | 部分实现待验收；[第5/6节追加证据](../reports/roadmap_v3/SYS-13/20260920-section56/acceptance.json)；[完成边界](section56_acceptance_20260920.md) |
 | 负责角色 | 领域内核与报告 |
 | 验收依赖 | [SYS-02](development_details.md#sys-02)、[SYS-07](development_details.md#sys-07)、[SYS-08](development_details.md#sys-08)、[FIX-08](development_details.md#fix-08) |
 | 历史编号（结合来源阅读） | S3-4、S3-5、S3-6、C2、PM2、FM5-04–FM5-06 |
-| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 邮件意见 | 无直接新增邮件意见；继承能力或治理要求 |
 | 证据目录 | `reports/roadmap_v3/SYS-13/<run_id>/` |
 
 **目标契约：** 将目标波动与目标权重转换为有预算约束的分批持仓，统计模型失效有保守回退。
 
-**来源：** docs/strategy_development_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md`，不随源码发布）；docs/position_management_plan.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/position_management_plan.md`，不随源码发布）；docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md`，不随源码发布）。
+**来源：** [docs/strategy_development_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md)；[docs/position_management_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/position_management_plan.md)；[docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md)。
 
 **修改范围：** [core/risk/position_sizing.py](../core/risk/position_sizing.py)、[core/risk/portfolio_governor.py](../core/risk/portfolio_governor.py)、[core/allocation.py](../core/allocation.py)。
 
@@ -1683,16 +1797,16 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | capability / BX / P3 |
 | 2026-09-20状态 | 后续扩展 |
-| 本轮复核状态 | 后续扩展；验收证据（仅本地引用：`reports/roadmap_v3/SYS-14/20260920-status/acceptance.json`，不随源码发布） |
+| 本轮复核状态 | 后续扩展；[验收证据](../reports/roadmap_v3/SYS-14/20260920-status/acceptance.json) |
 | 负责角色 | 领域内核与报告 |
 | 验收依赖 | [SYS-04](development_details.md#sys-04)、[SYS-05](development_details.md#sys-05)、[SYS-07](development_details.md#sys-07)、[SYS-08](development_details.md#sys-08)、[FIX-08](development_details.md#fix-08) |
 | 历史编号（结合来源阅读） | S3-1–S3-3、S4-1–S4-4、T-3.4–T-3.12、FM7 |
-| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 邮件意见 | 无直接新增邮件意见；继承能力或治理要求 |
 | 证据目录 | `reports/roadmap_v3/SYS-14/<run_id>/` |
 
 **目标契约：** 逐账户类型验证保证金/成本/强平/容量，再独立研究基差、跨期或合约多空候选。
 
-**来源：** docs/strategy_development_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md`，不随源码发布）；docs/phase3_implementation.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/phase3_implementation.md`，不随源码发布）；docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md`，不随源码发布）。
+**来源：** [docs/strategy_development_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md)；[docs/phase3_implementation.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/phase3_implementation.md)；[docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md)。
 
 **修改范围：** [core/account_cost_contract.py](../core/account_cost_contract.py)、[core/portfolio.py](../core/portfolio.py)、[core/broker/financing.py](../core/broker/financing.py)、[core/exchange](../core/exchange)、[strategies](../strategies)。
 
@@ -1721,16 +1835,16 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | capability / BX / P3 |
 | 2026-09-20状态 | 后续扩展 |
-| 本轮复核状态 | 后续扩展；验收证据（仅本地引用：`reports/roadmap_v3/SYS-15/20260920-status/acceptance.json`，不随源码发布） |
+| 本轮复核状态 | 后续扩展；[验收证据](../reports/roadmap_v3/SYS-15/20260920-status/acceptance.json) |
 | 负责角色 | 领域内核与报告 |
 | 验收依赖 | [SYS-03](development_details.md#sys-03) |
 | 历史编号（结合来源阅读） | S1-1、S1-2、S1-4、S1-5、D3、D4、FM1、FM2、FM5、FM6、C3 |
-| 审查来源 | 历史审查映射仅保存在本地受限资料中；以本任务技术契约执行 |
+| 邮件意见 | 无直接新增邮件意见；继承能力或治理要求 |
 | 证据目录 | `reports/roadmap_v3/SYS-15/<run_id>/` |
 
 **目标契约：** 图表和观察指标来自标准结果；只补研究需要的可解释能力，不让展示重新定义交易事实。
 
-**来源：** docs/strategy_development_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md`，不随源码发布）；docs/backtest_optimization_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/backtest_optimization_roadmap.md`，不随源码发布）；docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md（快照）（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/sources/docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md`，不随源码发布）。
+**来源：** [docs/strategy_development_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md)；[docs/backtest_optimization_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/backtest_optimization_roadmap.md)；[docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md)。
 
 **修改范围：** [backtest/reporting/render](../backtest/reporting/render)、[core/factors](../core/factors)、[core/metrics](../core/metrics)、[docs/glossary.md](glossary.md)。
 
@@ -1753,9 +1867,36 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **交付物：** contract.md（契约及变更边界）；acceptance.json（逐项通过/失败/不足/待证据）；evidence_manifest.json（源码、配置、输入、结果摘要）；tests或运行记录、对账和新旧差异、已知限制。
 
-## 历史回归登记范围
+## 已修复邮件回归登记
 
-本地基线登记的 24 条已修复意见仅用于受影响契约的针对性回归，不构成完整项目验收。逐条评论标题、摘录及邮件映射不包含在公开副本中；当前任务与技术验收要求保持原样。
+以下24条在2026-09-20审计中已有修复证据，不生成新的缺陷任务。它们不构成完整项目验收；关联模块改动时复核原契约。原证据可能来自静态审阅、专项用例或历史运行，各自验证范围保持原样。
+
+| 意见 | 原问题 | 当时的修复证据与验证范围 |
+| --- | --- | --- |
+| [MAIL-4-1](https://github.com/user-nmmmmm/QuantTradingV2/pull/4#pullrequestreview-4889477929) | Isolate alert-delivery failures from the trading loop | _alert 已独立 try/except 告警 sink.notify 异常并记录 alert_delivery_failed，避免投递失败从健康故障处理链逃出。 验证：静态确认异常边界；未连接Webhook或交易所。 |
+| [MAIL-4-2](https://github.com/user-nmmmmm/QuantTradingV2/pull/4#pullrequestreview-4889477929) | Recompute recorded slippage after clamping limit fills | 交易记录 slip 现在取 abs(fill_price-price)，限价夹紧后以实际价差记录，原TotalSlippage错误路径已修正。注意CostBreakdown分量仍按理论滑点另算，属于额外一致性问题，不扩大此条修复结论。 验证：静态核对限价夹紧及成交记录字段。 |
+| [MAIL-4-3](https://github.com/user-nmmmmm/QuantTradingV2/pull/4#pullrequestreview-4889477929) | Classify broker synchronization exceptions as account failures | 行情更新与账户同步现在有独立异常分支，broker.sync 抛异常标记 ACCOUNT_SYNC_FAILED。 验证：静态核对_tick_once异常处理。 |
+| [MAIL-4-4](https://github.com/user-nmmmmm/QuantTradingV2/pull/4#pullrequestreview-4889477929) | Preserve subjects when deduplicating health alerts | risk_halt context 现在保留(code,subject)；HysteresisAlertSink根据完整稳定context生成key，因此不同标的同原因可分辨。 验证：静态追踪健康告警context和去重key。 |
+| [MAIL-10-2](https://github.com/user-nmmmmm/QuantTradingV2/pull/10#pullrequestreview-5000967232) | Supply lifecycle observations to the diagnostic suite | 引擎返回每策略 observed_close_events；main 将其传入报告，报告传给 build_diagnostics，生命周期覆盖率链路已经接通。 验证：定向合跑 diagnostics/close_events 共25 passed、3因系统临时目录PermissionError失败；引擎close_event计数测试通过，报告写文件测试被环境权限阻断，静态接线已确认。 |
+| [MAIL-11-3](https://github.com/user-nmmmmm/QuantTradingV2/pull/11#pullrequestreview-5001918007) | Optimize the strategies behind the routing names | 优化器现在直接构造 TrendBreakoutStrategy/TrendBreakdownStrategy，并以 entry_window/exit_window 网格驱动，不再只是旧类改字典名。 验证：静态检查导入、构造工厂和单组任务入口。 |
+| [MAIL-12-1](https://github.com/user-nmmmmm/QuantTradingV2/pull/12#pullrequestreview-5001994647) | Consume circuit-breaker fills outside Router.route | 当前强制减仓/熔断成交在引擎里立即形成 forced_trades，并显式遍历策略消费 CloseEvent；不再依赖恢复 Router.route 才消费熔断平仓。 验证：静态核对实际引擎消费路径；定向 tests/test_close_events.py 所有6个参数化/测试案例通过（与diagnostics合跑）。 |
+| [MAIL-16-2](https://github.com/user-nmmmmm/QuantTradingV2/pull/16#pullrequestreview-5027130456) | Cancel outstanding entries before tail liquidation | 期末尾仓处理在读取待平数量、提交EndOfBacktest订单和处理合成bar之前取消保护单及所有pending/active订单，剩余开仓不会借合成bar的大成交量补成交。 验证：静态确认取消顺序；2026-09-20 定向回归40 passed含期末估值/强制退出测试。 |
+| [MAIL-17-1](https://github.com/user-nmmmmm/QuantTradingV2/pull/17#pullrequestreview-5028474123) | Continue routing exits after blocking new entries | 共享运行时已分离持仓管理与新仓候选，BLOCK_NEW仍调用退出管理，只有entry collection/allocation被禁用。 验证：2026-09-20 定向回归40 passed包含test_block_new_runs_position_management_but_never_collects_entry。 |
+| [MAIL-18-2](https://github.com/user-nmmmmm/QuantTradingV2/pull/18#pullrequestreview-5031311051) | Batch live candidates before allocating portfolio risk | 实盘先收集候选并按close_time分批，再调用组合allocator一次分配，已不再按每个symbol立即消耗风险预算。该文件当前有其他未提交改动，结论针对当前工作区。 验证：静态核对真实tick接线；2026-09-20 定向回归40 passed含Phase4批量排名测试。 |
+| [MAIL-22-1](https://github.com/user-nmmmmm/QuantTradingV2/pull/22#pullrequestreview-5061172508) | Remove the pre-listing SUI price series | 当前SUI数据从2023-05-03开始，PIT universe同步上市日；不等于所有其他缓存来源均通过审计。 验证：本次读取CSV首行与universe记录 |
+| [MAIL-25-1](https://github.com/user-nmmmmm/QuantTradingV2/pull/25#pullrequestreview-5064031605) | Preserve the broker logger name after splitting | 包化后logger为core.broker.matching/fill_service，均属于core.broker子层级，恢复父logger handler传播。 验证：本次读取实际logger名称确认 |
+| [MAIL-26-1](https://github.com/user-nmmmmm/QuantTradingV2/pull/26#pullrequestreview-5065127391) | Preserve restored daily breakers in risk decisions | 同日恢复同步设置daily_loss_triggered；断点与交易日原子性另见MAIL-33-1。 验证：静态核对 |
+| [MAIL-26-2](https://github.com/user-nmmmmm/QuantTradingV2/pull/26#pullrequestreview-5065127391) | Finish liquidating every position before terminating | 终止前检查是否仍有仓位；未平时保留risk-only执行并记录unresolved。HEAD已有。 验证：本次breaker lifecycle既有测试通过；缺bar专项未另加测试 |
+| [MAIL-27-1](https://github.com/user-nmmmmm/QuantTradingV2/pull/27#pullrequestreview-5074006738) | Ignore pre-probation losses when evaluating probation | 试运行判定只取新cohort，样本数足够后才评估；与通过后清空亏损基线缺口MAIL-32-1分别跟踪。 验证：本次相关逻辑测试通过；同文件1项SQLite临时目录权限受阻 |
+| [MAIL-27-2](https://github.com/user-nmmmmm/QuantTradingV2/pull/27#pullrequestreview-5074006738) | Fail closed when protective-order submission is rejected | 已检查submit结果，未确认保护时告警且尝试风险平仓；HEAD已含accepted检查。 验证：静态核对；真实交易所拒绝场景未重跑 |
+| [MAIL-27-3](https://github.com/user-nmmmmm/QuantTradingV2/pull/27#pullrequestreview-5074006738) | Validate the account mode selected by the live CLI | 运行入口将CLI market_type送入成本/账户模式验证，别名映射已存在。 验证：静态核对及已有测试 |
+| [MAIL-28-1](https://github.com/user-nmmmmm/QuantTradingV2/pull/28#pullrequestreview-5074542286) | Exclude resident stops from the opening-order pass | 开盘撮合明确排除保护止损，止损由独立pass处理。 验证：本次该测试文件7项通过 |
+| [MAIL-28-2](https://github.com/user-nmmmmm/QuantTradingV2/pull/28#pullrequestreview-5074542286) | Carry the consumed volume budget into the stop pass | 按bar时间戳复用成交量余额，不为第二次撮合重建额度。 验证：本次相关测试通过 |
+| [MAIL-28-3](https://github.com/user-nmmmmm/QuantTradingV2/pull/28#pullrequestreview-5074542286) | Ignore closed historical entries during live risk rechecks | 按client_order_id匹配仍未平仓lot；已关闭历史开仓不会减后来仓位。HEAD已含此修复。 验证：静态核对及已有针对性测试，本次未执行该测试 |
+| [MAIL-29-1](https://github.com/user-nmmmmm/QuantTradingV2/pull/29#pullrequestreview-5078459446) | Update the checksum to match the modified lockfile | 当前锁文件校验已通过；历史修复提交44f9178。 验证：本次实际执行verify_lock通过 |
+| [MAIL-31-2](https://github.com/user-nmmmmm/QuantTradingV2/pull/31#pullrequestreview-5087145892) | Restart the TTL clock after partial-fill progress stops | 改为按总 matchable-bar age 硬TTL，部分成交不再重置寿命；虽不是邮件建议的 idle-progress 实现，但消除了无限保留预留/锁的原始问题，且明确记录了语义。 验证：本次离线 pytest TestPartialFillsDoNotResetTheClock 两个测试通过，覆盖部分成交仍到期与同bar多pass只计龄一次。 |
+| [MAIL-35-1](https://github.com/user-nmmmmm/QuantTradingV2/pull/35#pullrequestreview-5125276758) | Require the complete 60-symbol universe | 原下载/研究脚本已要求 len(expanded)==60，否则在运行比较前失败；新增 revalidation runner 也有缺币 fail-closed 测试。 验证：静态确认严格60/60 gate；本次 test_predeclared_unique_sixty_symbols 通过。缺币 runner pytest 因临时目录权限无法完成，未声称运行通过。 |
+| [MAIL-37-3](https://github.com/user-nmmmmm/QuantTradingV2/pull/37#pullrequestreview-5149579832) | Restore reservations from the persisted reference price | 恢复预留时已优先使用持久化 intent.reference_price，回归测试也覆盖 reference_price 持久化及重建后的正 pending notional。 验证：已独立离线内存调用实际 LiveBroker._restore_reservations：price=None、reference_price=100、qty=1，生成1个 reservation 事件，pending_notional=100。现有 pytest 用例因临时目录权限错误未完成，不能声称其通过。 |
 
 <a id="sys-19"></a>
 
@@ -1765,7 +1906,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | capability / B6 / P2 |
 | 2026-09-20状态 | 待闭环（今日自动化草案新增范围） |
-| 本轮复核状态 | 部分实现待验收；本轮工程验收（仅本地引用：`reports/roadmap_v3/followup/20260920-implementation/SYS-19/acceptance-final.json`，不随源码发布）、[实现与限制](followup_completion_20260920.md) |
+| 本轮复核状态 | 部分实现待验收；[本轮工程验收](../reports/roadmap_v3/followup/20260920-implementation/SYS-19/acceptance-final.json)、[实现与限制](followup_completion_20260920.md) |
 | 负责角色 | Codex（工程）；项目运行负责人（待指定） |
 | 验收依赖 | [SYS-01](development_details.md#sys-01)、[FIX-08](development_details.md#fix-08)、[FIX-19](development_details.md#fix-19) |
 | 证据目录 | `reports/roadmap_v3/followup/20260920-implementation/SYS-19/` |

@@ -71,7 +71,8 @@ class TestP0Metrics(unittest.TestCase):
         self.assertEqual(low_sample["loss_count"], 1)
         self.assertTrue(math.isfinite(low_sample["value"]))
         self.assertIsNotNone(low_sample["lower"])
-        self.assertIsNotNone(low_sample["upper"])
+        self.assertIsNone(low_sample["upper"])
+        self.assertTrue(low_sample["resampling"]["upper_unbounded"])
 
     def test_drawdown_dates_duration_recovery_and_open_state(self):
         index = pd.date_range("2024-01-01", periods=6, freq="D")
@@ -426,7 +427,8 @@ class TestBM8Robustness(unittest.TestCase):
     def test_bootstrap_return_distribution_recovers_known_mean(self):
         returns = [0.01] * 50  # constant returns: bootstrap mean must equal 0.01 exactly
         result = bootstrap_return_distribution(returns, statistic="mean", n_samples=200)
-        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["status"], "diagnostic")
+        self.assertFalse(result["evidence_eligible"])
         self.assertAlmostEqual(result["value"], 0.01)
         self.assertAlmostEqual(result["lower"], 0.01)
         self.assertAlmostEqual(result["upper"], 0.01)

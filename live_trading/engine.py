@@ -24,7 +24,7 @@ import os
 import time
 import math
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
@@ -90,6 +90,7 @@ class LiveTradingEngine(TickOrchestratorMixin, RecoveryMixin, StateExportMixin):
         state_export_interval_ticks: int = 5,
         market_data_workers: Optional[int] = None,
         runtime_policy: Optional[RuntimeSchedulePolicy] = None,
+        temporal_policy: Any = None,
     ) -> None:
         if isinstance(interval_seconds, bool) or not math.isfinite(interval_seconds) or interval_seconds <= 0:
             raise ValueError("interval_seconds must be finite and positive")
@@ -104,8 +105,23 @@ class LiveTradingEngine(TickOrchestratorMixin, RecoveryMixin, StateExportMixin):
         self.timeframe = timeframe
         self.close_grace_seconds = close_grace_seconds
         self.bar_claim_lease_seconds = bar_claim_lease_seconds
-        self.fetcher = data_fetcher or DataFetcher()
+        self.temporal_policy = temporal_policy if temporal_policy is not None else (configuration.get("data") or {}).get("temporal_policy")
+        self.fetcher = data_fetcher or DataFetcher(temporal_policy=self.temporal_policy)
         self._owns_fetcher = data_fetcher is None
+        self.quote_sampler = None
+        observation_settings = configuration.get("execution_observations") or {}
+        if observation_settings.get("enabled", False):
+            from core.quote_observations import BackgroundQuoteSampler, QuoteObservationStore
+            environment = getattr(broker, "environment", None)
+            if environment not in {"live", "sandbox"}:
+                raise ValueError("independent quote sampling requires the broker's explicit live/sandbox environment")
+            self.quote_sampler = BackgroundQuoteSampler(exchange_id=broker.exchange_id,
+                symbols=[symbol.replace("-", "/") for symbol in symbols], market_type=broker.market_type,
+                environment=environment, store=QuoteObservationStore(observation_settings.get("path") or
+                    os.path.join(os.path.dirname(os.path.abspath(state_file)), "execution_quotes.sqlite3")),
+                interval_seconds=observation_settings.get("interval_seconds", 1.),
+                timeout_seconds=observation_settings.get("timeout_seconds", 5.),
+                stale_after_seconds=observation_settings.get("stale_after_seconds", 5.))
         self.clock = coerce_clock(clock)
         self.health_monitor = DataHealthMonitor(health_policy)
         self.health_assessment: Optional[HealthAssessment] = None
@@ -190,6 +206,7 @@ class LiveTradingEngine(TickOrchestratorMixin, RecoveryMixin, StateExportMixin):
             close_grace_seconds=close_grace_seconds,
             exchange_id=getattr(broker, "exchange_id", None),
             market_type=str(getattr(broker, "market_type", "spot")),
+            temporal_policy=self.temporal_policy,
             max_workers=(market_data_workers if market_data_workers is not None
                          else 4 if type(self.fetcher) is DataFetcher else 1),
         )
@@ -424,6 +441,8 @@ class LiveTradingEngine(TickOrchestratorMixin, RecoveryMixin, StateExportMixin):
     def run(self):
         logger.info("Starting Main Loop...")
         try:
+            if getattr(self, "quote_sampler", None) is not None:
+                self.quote_sampler.start()
             while True:
                 started = time.monotonic()
                 healthy_tick = self._tick()
@@ -443,6 +462,8 @@ class LiveTradingEngine(TickOrchestratorMixin, RecoveryMixin, StateExportMixin):
         except KeyboardInterrupt:
             logger.info("Live Trading Stopped by User")
         finally:
+            if getattr(self, "quote_sampler", None) is not None:
+                self.quote_sampler.stop(join_timeout_seconds=1.)
             controls = getattr(self, "runtime_controls", None)
             if controls is not None:
                 controls.close()

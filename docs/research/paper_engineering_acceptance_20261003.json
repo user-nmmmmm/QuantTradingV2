@@ -1,0 +1,85 @@
+{
+  "schema": "paper-engineering-acceptance/v1",
+  "report_directory": "D:\\QuantTradingV1\\reports\\paper_roadmap_20261003_v3",
+  "status": "engineering_integrations_and_retrospective_experiments_verified",
+  "acceptance_sha256": "df530a1efaae2228edc5706a3daedb1e942f6ef401acc61daf4fac10c88f362d",
+  "completed_runs": 110,
+  "failed_runs": 0,
+  "source_files_verified": 281,
+  "artifact_hashes_verified": 1082,
+  "raw_and_record_snapshots_verified": true,
+  "accounting_checks_passed": 110,
+  "max_accounting_residual_usdt": 4.656612873077393e-10,
+  "minimum_cash_usdt": 602.5797418332653,
+  "label_accounting_runs": 12,
+  "label_candidate_lot_closes": 2542,
+  "max_label_account_residual_usdt": 1.2732925824820995e-11,
+  "stress_paths": 51,
+  "stress_inventory_timestamps": 35496,
+  "finite_liquidation_paths": 51,
+  "stress_bridges_ok": true,
+  "max_stress_bridge_residual_usdt": 1.0913936421275139e-11,
+  "v2_v3_account_comparisons_identical": true,
+  "tests": {
+    "name": "pytest",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "0",
+    "tests": "564",
+    "time": "183.487",
+    "timestamp": "2026-10-03T23:04:39.945736+08:00",
+    "hostname": "vivobook",
+    "junit_xml": "D:\\QuantTradingV1\\reports\\paper_engineering_20261003\\pytest_final.xml",
+    "sha256": "2005c0e1875d89fe14b2edf806f355e7f1119c982aa35991b1e55db1b1b28ebd",
+    "scope": "35 related test files; not the entire repository"
+  },
+  "ruff": "passed",
+  "diff_check": "passed_with_windows_CRLF_recognized",
+  "quote_collection_attempts": [
+    {
+      "calibration_status": "insufficient",
+      "error_categories": [
+        "NetworkError"
+      ],
+      "fills": 0,
+      "health": "degraded",
+      "lifecycle": "stopped",
+      "observations": 0,
+      "output": "D:\\QuantTradingV1\\reports\\paper_engineering_quotes_20261003",
+      "real_venue_calibration": false,
+      "status": "unavailable",
+      "summary_sha256": "0d6edfdd22b1739f93307f278086bb753fc151dd014047ce85434b8350dfe0d3"
+    },
+    {
+      "calibration_status": "insufficient",
+      "error_categories": [
+        "RequestTimeout"
+      ],
+      "fills": 0,
+      "health": "degraded",
+      "lifecycle": "stopped",
+      "observations": 0,
+      "output": "D:\\QuantTradingV1\\reports\\paper_engineering_quotes_20261003_network_check",
+      "real_venue_calibration": false,
+      "status": "unavailable",
+      "summary_sha256": "829a603792cfb040d30b32e3b6f8688bfeca0de87e9a95441e9b0f28509fa594"
+    }
+  ],
+  "strict_meta_training": "rejected_until_label_revision_availability_protocol_exists",
+  "point_in_time_complete": false,
+  "real_venue_calibration": false,
+  "historical_global_search_complete": false,
+  "independent_holdout": false,
+  "promotions": [],
+  "remaining_engineering": [
+    "versioned label availability for strict P1/P2/P3 training",
+    "public market connectivity and continuous observation operations"
+  ],
+  "remaining_evidence": [
+    "historical publication/revisions and tradable membership",
+    "complete parent-consistent fine data for barrier first touch",
+    "full-market capitalization factors",
+    "independent live quotes, request receipts and fills across sufficient dates",
+    "new untouched prospective holdout"
+  ]
+}

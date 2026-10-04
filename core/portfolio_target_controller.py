@@ -13,11 +13,14 @@ import math
 import pandas as pd
 
 from core.accounts import AccountMode
+from core.cost_aware_allocation import CostAwareAllocationPolicy
 from core.domain import OrderIntent
 from core.entry_audit import capture
 from core.events import OrderEvent
 from core.margin_rebalance import MarginBudgetSnapshot, MarginQuote, plan_margin_targets
 from core.quote_borrow import utc
+from core.temporal_data import (strict_market_event, strategy_market_prices,
+                                strategy_market_view, strategy_decision_cutoff)
 from core.risk.portfolio_governor import (PortfolioRiskGovernor, CorrelationClusterPolicy,
                                          crypto_beta_open_stop_risk, open_risk_by_cluster,
                                          exposure_by_cluster)
@@ -56,7 +59,8 @@ class PortfolioTargetController:
 
     def __init__(self, *, strategy, target_provider, quote_borrow_policy=None,
                  max_weekly_turnover=.5, relative_tolerance=.1, participation=.01,
-                 state_store=None, checkpoint_key="portfolio_target_v3", metadata=None):
+                 state_store=None, checkpoint_key="portfolio_target_v3", metadata=None,
+                 cost_aware_policy: CostAwareAllocationPolicy | None = None):
         if not 0 < max_weekly_turnover <= 1 or not 0 <= relative_tolerance < 1:
             raise ValueError("invalid turnover or tolerance")
         if not 0 < participation <= 1:
@@ -67,6 +71,7 @@ class PortfolioTargetController:
         self.participation = participation
         self.state_store, self.checkpoint_key = state_store, checkpoint_key
         self.metadata = metadata or {}
+        self.cost_aware_policy = cost_aware_policy or CostAwareAllocationPolicy()
         self.policy_identity = _digest({
             "strategy": self.strategy.name,
             "strategy_parameters": getattr(self.strategy, "trend_parameters_identity", None),
@@ -75,6 +80,9 @@ class PortfolioTargetController:
             "borrow_mode": getattr(quote_borrow_policy, "mode", None),
             "assumed_rate": getattr(quote_borrow_policy, "assumed_annual_rate", None),
             "assumed_limit": getattr(quote_borrow_policy, "assumed_limit", None)})
+        if self.cost_aware_policy.enabled:
+            self.policy_identity = _digest({"native_policy_identity": self.policy_identity,
+                                            "cost_aware_policy": asdict(self.cost_aware_policy)})
         self.audit = []
         self._orders = {}
         self._prepared = None
@@ -132,11 +140,14 @@ class PortfolioTargetController:
         return max(0., math.nextafter(remaining/price, 0.))
 
     def export(self):
-        return {"schema_version": "portfolio-target-controller/v1", "checkpoint": self.checkpoint(),
+        result = {"schema_version": "portfolio-target-controller/v1", "checkpoint": self.checkpoint(),
                 "audit": list(self.audit), "formal_routing_enabled": False,
                 "quote_borrow_mode": getattr(self.quote_borrow_policy, "mode", "cash_only"),
                 "max_weekly_turnover": self.max_weekly_turnover,
                 "relative_tolerance": self.relative_tolerance}
+        if self.cost_aware_policy.enabled:
+            result["cost_aware_policy"] = asdict(self.cost_aware_policy)
+        return result
 
     def prepare(self, *, event, portfolio, broker, current_prices):
         """Select once, then tell the runtime which symbols require state work.
@@ -144,12 +155,20 @@ class PortfolioTargetController:
         All prices still enter account valuation. Closed symbols remain in the
         runtime pass so their authoritative close events reach strategy health.
         """
-        as_of = utc(event.timestamp)+pd.Timedelta(days=1)
+        current_prices = strategy_market_prices(event, current_prices)
+        # Known fills supply a diagnostic cost basis when there is no market
+        # mark; process() blocks new risk until every held asset has a mark.
+        if strict_market_event(event):
+            current_prices = {**{symbol: float(position["avg_price"])
+                                for symbol, position in portfolio.positions.items() if position["qty"]},
+                              **current_prices}
+        as_of = strategy_decision_cutoff(event, utc(event.timestamp)+pd.Timedelta(days=1))
         equity = float(portfolio.get_equity(dict(current_prices)))
         held = tuple(symbol for symbol, position in portfolio.positions.items() if position["qty"] != 0)
         existing = {symbol: portfolio.get_position(symbol)["qty"]*current_prices.get(symbol, 0.)/equity
                     for symbol in held} if equity > 0 else {}
-        result = self.target_provider(event=event, as_of=as_of, held_symbols=held, existing_weights=existing)
+        result = self.target_provider(event=strategy_market_view(event), as_of=as_of,
+                                      held_symbols=held, existing_weights=existing)
         snapshot = result.to_dict() if hasattr(result, "to_dict") else dict(result)
         if utc(snapshot.get("as_of", as_of)) > as_of:
             raise ValueError("target snapshot is not yet available")
@@ -247,6 +266,19 @@ class PortfolioTargetController:
         # confirmed. Protective/reducing orders are never canceled here.
         broker.cancel_opening_orders(set(self._state["targets"]), timestamp=as_of)
         weights = snapshot.get("target_weights", {})
+        mandatory_weights = {}
+        if self.cost_aware_policy.enabled:
+            sizing = snapshot.get("sizing") or snapshot
+            audit = sizing.get("cost_aware_audit")
+            if not audit or audit.get("policy") != asdict(self.cost_aware_policy):
+                raise ValueError("enabled cost-aware controller requires matching allocator audit")
+            mandatory_weights = sizing.get("mandatory_reduction_weights") or {}
+            if sum(float(w) for w in weights.values()) > self.cost_aware_policy.max_gross_weight+1e-7:
+                raise ValueError("cost-aware weights exceed declared gross budget")
+            if any(not math.isfinite(float(w)) or float(w) < 0 for w in mandatory_weights.values()):
+                raise ValueError("invalid mandatory reduction weight")
+            broker.cancel_opening_orders(set(mandatory_weights), timestamp=as_of)
+            self._state["cost_aware_audit"] = audit
         targets = {}
         health = float(self.strategy.health_risk_multiplier())
         if not math.isfinite(health) or not 0 <= health <= 1:
@@ -271,6 +303,8 @@ class PortfolioTargetController:
                                "account_multiplier": account_multiplier,
                                "sizing_multiplier": health*account_multiplier,
                                "approved_capacity_risk": max(0., target_qty-qty)*max(0., price-stop)}
+            if symbol in mandatory_weights:
+                targets[symbol]["mandatory_reduction_quantity"] = equity*float(mandatory_weights[symbol])/price
         frozen = {"as_of": as_of.isoformat(), "targets": targets, "account": self._state["account"],
                   "policy_identity": self.policy_identity}
         self._state.update(week=_week(as_of), target_id=_digest(frozen), targets=targets,
@@ -280,11 +314,20 @@ class PortfolioTargetController:
     def process(self, *, event, portfolio, broker, risk_manager, current_prices,
                 risk_decision, risk_governor=None, market_states=None):
         self.bind(broker)
+        strict = strict_market_event(event)
+        current_prices = strategy_market_prices(event, current_prices)
+        missing_marks = sorted(symbol for symbol, position in portfolio.positions.items()
+                               if position["qty"] and symbol not in current_prices) if strict else []
+        if strict:
+            current_prices = {**{symbol: float(position["avg_price"])
+                                for symbol, position in portfolio.positions.items() if position["qty"]},
+                              **current_prices}
+        strategy_event = strategy_market_view(event)
         if portfolio.account_mode not in {AccountMode.SPOT, AccountMode.SPOT_MARGIN}:
             raise ValueError("V3 target execution only supports spot or spot-margin accounts")
         if event.timeframe not in {"1d", "daily", "D", "unknown"}:
             raise ValueError("V3 portfolio controller requires daily bars")
-        as_of = utc(event.timestamp)+pd.Timedelta(days=1)
+        as_of = strategy_decision_cutoff(event, utc(event.timestamp)+pd.Timedelta(days=1))
         if self._state["last_processed"] is not None and as_of < utc(self._state["last_processed"]):
             raise ValueError("portfolio event time regressed")
         equity = float(portfolio.get_equity(dict(current_prices)))
@@ -303,7 +346,7 @@ class PortfolioTargetController:
         if as_of.weekday() == 0 and self._state["week"] != _week(as_of):
             self._freeze(snapshot, event=event, as_of=as_of, portfolio=portfolio,
                          broker=broker, prices=current_prices, equity=equity,
-                         account_multiplier=float(risk_manager.risk_multiplier))
+                         account_multiplier=0. if missing_marks else float(risk_manager.risk_multiplier))
         working = self._working(broker)
         self._suppress_exits(broker, as_of, working)
         forced = set(snapshot.get("forced_exits", ()))
@@ -340,6 +383,7 @@ class PortfolioTargetController:
                 mapping[order.symbol] = mapping.get(order.symbol, 0.)+float(order.remaining_qty)
         targets = self._state["targets"]
         buy, sell, quotes, distances, approvals = {}, {}, {}, {}, {}
+        mandatory_sales = set()
         symbol_audit = {}
         health = float(self.strategy.health_risk_multiplier())
         if not math.isfinite(health) or not 0 <= health <= 1:
@@ -347,7 +391,7 @@ class PortfolioTargetController:
         account_multiplier = float(risk_manager.risk_multiplier)
         if not math.isfinite(account_multiplier) or not 0 <= account_multiplier <= 1:
             raise ValueError("account multiplier must be in [0,1]")
-        for symbol in sorted(set(targets) | forced):
+        for symbol in sorted(set(targets) | forced | set(snapshot.get("target_weights", {}))):
             target = targets.get(symbol, {})
             detail = {"target_weight": target.get("weight", 0.),
                       "target_quantity": target.get("quantity", 0.), "reasons": []}
@@ -355,14 +399,22 @@ class PortfolioTargetController:
             if symbol not in event.bars:
                 detail["reasons"].append("missing_real_bar")
                 continue
-            bar = event.bars[symbol]
-            price = float(current_prices[symbol])
+            current, identities = self._positions(portfolio, symbol)
+            mandatory_qty = max(0., current-pending_sells.get(symbol, 0.)-
+                target.get("mandatory_reduction_quantity", current)) if self.cost_aware_policy.enabled else 0.
+            if strict and symbol not in strategy_event.bars and symbol not in forced and mandatory_qty <= 1e-10:
+                detail["reasons"].append("temporal_current_bar_unavailable")
+                continue
+            # Only mandatory reductions can consult the realised bar when the
+            # current observation is unavailable. Ordinary quotes use visible
+            # price AND volume, even when called without the shared runtime.
+            bar = strategy_event.bars.get(symbol, event.bars[symbol])
+            price = float(current_prices.get(symbol, bar["close"]))
             metadata = self.metadata.get(symbol, {})
             quote = MarginQuote(price, max(0., float(bar.get("volume", 0.))),
                                 float(metadata.get("quantity_step", 1e-8)),
                                 float(metadata.get("min_notional", 5.)))
             quotes[symbol] = quote
-            current, identities = self._positions(portfolio, symbol)
             target = targets.get(symbol, {"quantity": 0., "weight": 0., "position_ids": identities})
             detail.update(current_quantity=current, current_weight=current*price/equity,
                           pending_buy_quantity=pending_buys.get(symbol, 0.),
@@ -370,6 +422,20 @@ class PortfolioTargetController:
             if symbol in forced:
                 sell[symbol] = max(0., current-pending_sells.get(symbol, 0.))
                 detail["reasons"].append("forced_exit_bypasses_turnover")
+                continue
+            if self.cost_aware_policy.enabled and "mandatory_reduction_quantity" in target:
+                mandatory_qty = max(0., current-pending_sells.get(symbol, 0.)-target["mandatory_reduction_quantity"])
+                if mandatory_qty > 1e-10:
+                    sell[symbol] = mandatory_qty
+                    mandatory_sales.add(symbol)
+                    detail["reasons"].append("mandatory_risk_reduction_bypasses_adjustment_and_turnover")
+                    detail["mandatory_reduction_quantity"] = target["mandatory_reduction_quantity"]
+                    continue
+            history = event.histories.get(symbol)
+            strict_temporal = (event.source == "historical_strict" or (history is not None and
+                (history.attrs.get("temporal_audit") or {}).get("mode") == "strict"))
+            if strict_temporal and (history is None or history.empty or event.timestamp not in history.index):
+                detail["reasons"].append("temporal_current_bar_unavailable")
                 continue
             if target["position_ids"]:
                 if current and not set(identities).intersection(target["position_ids"]):
@@ -397,6 +463,7 @@ class PortfolioTargetController:
                 "target_satisfied": delta <= 0,
                 "same_week_buy_suppressed": symbol in self._state["suppressed"],
                 "account_blocks_new_risk": not risk_decision.allow_new_entries,
+                "temporal_held_mark_unavailable": bool(missing_marks),
                 "strategy_health_blocks_new_risk": not health_allows,
                 "daily_add_signal_unavailable": not snapshot.get("add_allowed", {}).get(symbol, False),
                 "market_membership_blocks_entry": bool(bar.get("entry_blocked", False)),
@@ -554,12 +621,12 @@ class PortfolioTargetController:
                                       for symbol, target in targets.items()),
             fee_rate=float(getattr(broker, "commission_rate", .001)),
             slippage_rate=float(getattr(broker, "slippage", .001)), participation=self.participation,
-            forced_exits=forced, financing_allowed=financing_allowed)
+            forced_exits=forced | mandatory_sales, financing_allowed=financing_allowed)
         planned_symbols = {item["symbol"] for item in plan["orders"]}
         for symbol in set(buy) | set(sell):
             if symbol not in planned_symbols:
                 symbol_audit[symbol]["reasons"].append("no_quantity_after_budget_participation_or_venue_minimum")
-            if plan["turnover_scale"] < 1 and symbol not in forced:
+            if plan["turnover_scale"] < 1 and symbol not in forced | mandatory_sales:
                 symbol_audit[symbol]["reasons"].append("weekly_turnover_budget")
             if plan["buy_scale"] < 1 and symbol in buy:
                 symbol_audit[symbol]["reasons"].append("shared_cash_margin_gross_or_stop_budget")
@@ -597,7 +664,8 @@ class PortfolioTargetController:
                 initial_stop=price-distances[symbol] if side == "buy" else None,
                 approved_risk_amount=quantity*distances[symbol] if side == "buy" else None,
                 signal_id=self._state["target_id"], causation_id=self._state["target_id"],
-                exit_reason="v3_forced_exit" if proposal["forced"] else "v3_rebalance")
+                exit_reason=("v3_risk_reduction" if symbol in mandatory_sales else
+                             "v3_forced_exit" if proposal["forced"] else "v3_rebalance"))
             record = {"symbol": symbol, "side": side, "qty": quantity, "filled_qty": 0.,
                       "remaining_qty": quantity, "status": "created", "target_id": self._state["target_id"],
                       "turnover_budget": quantity*price,

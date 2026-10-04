@@ -7,7 +7,7 @@ than which roadmap phase asked for it.
 from __future__ import annotations
 
 from collections import Counter, defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from core.entry_audit import capture, note
 from enum import Enum
 from typing import Any, Iterable, Mapping, Optional, Sequence
@@ -16,6 +16,7 @@ import pandas as pd
 
 from core.logger import get_logger
 from core.risk.portfolio_governor import PortfolioRiskGovernor
+from core.position_management import CapitalAllocationPolicy, SmartCapitalPlanner
 
 logger = get_logger(__name__)
 
@@ -36,6 +37,7 @@ class EntryCandidate:
     signal: Mapping[str, Any]
     score: float
     audit: Optional[dict] = field(default=None, compare=False, repr=False)
+    capital_allocation: Optional[Mapping[str, Any]] = field(default=None, compare=False)
 
     @property
     def strategy_name(self) -> str:
@@ -57,6 +59,8 @@ class AllocationDecision:
     ordering: str = "score"
     #: SR3-2: what the correlated-risk budget did to this candidate.
     risk_budget: Optional[Mapping[str, Any]] = None
+    capital_allocation: Optional[Mapping[str, Any]] = None
+    timestamp: Optional[str] = None
 
 
 class PortfolioSignalAllocator:
@@ -75,10 +79,15 @@ class PortfolioSignalAllocator:
     per-trade risk independently.
     """
 
-    def __init__(self, risk_governor: Optional[PortfolioRiskGovernor] = None) -> None:
+    def __init__(self, risk_governor: Optional[PortfolioRiskGovernor] = None,
+                 capital_policy: Optional[CapitalAllocationPolicy] = None) -> None:
         self.audit: list[AllocationDecision] = []
         self.risk_governor = risk_governor or PortfolioRiskGovernor()
         self.degenerate_batches = 0
+        self.capital_planner = SmartCapitalPlanner(capital_policy or CapitalAllocationPolicy())
+        self.capital_audit: list[dict[str, Any]] = []
+        self.last_capital_summary: dict[str, Any] = {
+            "enabled": self.capital_planner.policy.enabled, "status": "no_candidates"}
 
     @staticmethod
     def rank(candidates: Iterable[EntryCandidate]) -> list[EntryCandidate]:
@@ -111,8 +120,30 @@ class PortfolioSignalAllocator:
                 session = item.bar_index
             break
         self.risk_governor.begin_session(session)
+        plans: dict[str, dict[str, Any]] = {}
+        if self.capital_planner.policy.enabled and ordered:
+            plans, summary = self.capital_planner.plan(
+                ordered, portfolio=portfolio, broker=broker, risk_manager=risk_manager,
+                current_prices=current_prices, risk_governor=self.risk_governor,
+            )
+            self.last_capital_summary = {**summary, "timestamp": str(session)}
+            self.capital_audit.append(self.last_capital_summary)
+            ordering = "score_volatility_correlation_budget"
         decisions = []
         for rank, candidate in enumerate(ordered, start=1):
+            allocation = plans.get(candidate.symbol)
+            if self.capital_planner.policy.enabled:
+                allocation = allocation or {"approved_qty": 0., "reason": "missing_capital_plan"}
+                candidate = replace(candidate, capital_allocation=allocation)
+                if allocation.get("approved_qty", 0.) <= 0:
+                    with capture(candidate.audit):
+                        note("allocation_rejected", capital_allocation=allocation)
+                    decision = AllocationDecision(candidate.symbol, candidate.strategy_name,
+                        float(candidate.score), rank, False, str(allocation["reason"]),
+                        ordering=ordering, capital_allocation=allocation, timestamp=str(session))
+                    decisions.append(decision)
+                    self.audit.append(decision)
+                    continue
             with capture(candidate.audit):
                 note("allocation_rejected", rank=rank, score=float(candidate.score))
                 result = candidate.strategy.submit_entry_candidate(
@@ -133,6 +164,8 @@ class PortfolioSignalAllocator:
                 "accepted" if accepted else "risk_or_execution_rejected",
                 ordering=ordering,
                 risk_budget=budget,
+                capital_allocation=allocation,
+                timestamp=str(session),
             )
             decisions.append(decision)
             self.audit.append(decision)
@@ -179,7 +212,7 @@ def joint_entry_exit_attribution(closed_trades: Iterable[Mapping[str, Any]]) -> 
 
 def holding_period_audit(closed_trades: Iterable[Mapping[str, Any]], *,
                          max_holding_days: Optional[float] = None) -> dict[str, Any]:
-    records = []
+    records: list[dict[str, Any]] = []
     for trade in closed_trades:
         start = pd.to_datetime(trade.get("entry_time"), utc=True, errors="coerce")
         end = pd.to_datetime(trade.get("exit_time"), utc=True, errors="coerce")

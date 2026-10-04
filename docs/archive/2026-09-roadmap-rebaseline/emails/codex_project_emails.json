@@ -1,0 +1,1506 @@
+{
+  "schema": "codex_project_email_archive/v1",
+  "snapshot_date": "2026-09-20",
+  "mailbox": "mnm799063@gmail.com",
+  "baseline": "ab15bc2+dirty",
+  "scope": "Previously retrieved project-related Codex notification emails only; no new mailbox query in this archival step.",
+  "source_file": "tmp/roadmap_audit_20260920/source_emails.json",
+  "source_file_sha256": "5519a30141e9d085c67f3031592512867fb46757cc71a42dd2e5229faa00398a",
+  "counts": {
+    "emails": 45,
+    "pull_requests": 30,
+    "findings": 77,
+    "fixed": 24,
+    "partial": 7,
+    "remaining": 45,
+    "insufficient_evidence": 1
+  },
+  "emails": [
+    {
+      "archive_id": "EMAIL-001",
+      "message_id": "19fe2c1bced78d32",
+      "thread_id": "19fe2c1bced78d32",
+      "date_original": "Sat, 08 Aug 2026 12:02:55 -0700",
+      "date_utc": "2026-08-08T19:02:55+00:00",
+      "date_singapore": "2026-08-09T03:02:55+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Add fault tolerance, alerting, and SQLite durability hardening (PR #4)",
+      "type": "具体审查意见",
+      "pr": 4,
+      "finding_ids": [
+        "MAIL-4-1",
+        "MAIL-4-2",
+        "MAIL-4-3",
+        "MAIL-4-4",
+        "MAIL-4-5"
+      ],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/4#pullrequestreview-4889477929",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/19fe2c1bced78d32",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/4#pullrequestreview-4889477929",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/4#discussion_r3741378046",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/4#discussion_r3741378047",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/4#discussion_r3741378048",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/4#discussion_r3741378049",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/4#discussion_r3741378052",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/4"
+      ],
+      "body": "@chatgpt-codex-connector[bot] commented on this pull request.\n\n### 💡 Codex Review\n\nHere are some automated review suggestions for this pull request.\n\n**Reviewed commit:** `254bd84761`\n    \n\n> +                self.alert_sink.notify(\n+                    \"critical\", \"health_unhealthy\",\n+                    {\"reason_codes\": sorted(current_codes),\n+                     \"assessed_at\": assessment.assessed_at.isoformat()},\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Isolate alert-delivery failures from the trading loop**\n\nWhen a custom alert sink raises—for example, because a webhook is unavailable—this call lets the exception escape `_assess_health`; several `_tick()` error handlers invoke this method, and `run()` only catches `KeyboardInterrupt`, so an alerting outage terminates the live-trading process instead of leaving it safely halted and retrying on the next tick. Catch and log sink failures independently from health-state transitions.\n\nUseful? React with 👍 / 👎.\n\n> @@ -424,6 +424,14 @@ def _execute_trade(\n         else:\n             return None\n \n+        if order.order_type == OrderType.LIMIT:\n+            # Slippage must never push a limit fill past the limit price:\n+            # the exchange guarantees the limit as a worst-case bound.\n+            if order.side in {\"buy\", \"cover\"}:\n+                fill_price = min(fill_price, order.price)\n\n**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Recompute recorded slippage after clamping limit fills**\n\nWhen requested slippage would cross the limit, this clamp changes the actual `fill_price`, but the trade record still stores `price * total_slip_rate` as its unit `slip`. `ReportGenerator` treats that field as the actual unit price difference and includes it in `TotalSlippage`, so limit-order backtests can substantially overstate trading costs—for example, a buy based at 9,490 with 5% slippage is filled at 9,500 but records 474.5 of unit slippage rather than 10.\n\nUseful? React with 👍 / 👎.\n\n> +            self._update_data()\n+            sync_result = self.broker.sync()\n+        except Exception as exc:\n+            self._assess_health(now, HealthReason(\n+                \"MARKET_DATA_REFRESH_FAILED\", \"market_data\", \"data\",\n\n**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Classify broker synchronization exceptions as account failures**\n\nWhen `_update_data()` succeeds but `broker.sync()` raises, the shared exception handler reports `MARKET_DATA_REFRESH_FAILED` and says the data refresh failed. This sends the wrong health reason to the dashboard and alert sink during an account/exchange synchronization outage, which can misdirect incident response; the two operations need separate exception classification.\n\nUseful? React with 👍 / 👎.\n\n> @@ -132,11 +136,24 @@ def _assess_health(self, now: datetime, *extra: HealthReason) -> HealthAssessmen\n                 assessment.assessed_at, tuple(assessment.reasons) + tuple(extra)\n             )\n         self._set_health_assessment(assessment)\n+        current_codes = frozenset(assessment.reason_codes)\n\n**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Preserve subjects when deduplicating health alerts**\n\nWhen different symbols fail for the same reason code, reducing the assessment to a `frozenset` of codes makes those incidents indistinguishable. For example, if BTC is stale and the next assessment instead finds ETH stale, both keys are `{\"MARKET_DATA_STALE\"}`, so no new alert is emitted and the alert context does not identify the affected symbol; include each reason's subject in the deduplication identity and notification context.\n\nUseful? React with 👍 / 👎.\n\n> +            tmp_path = f\"{self.state_file}.tmp\"\n+            with open(tmp_path, \"w\") as handle:\n                 json.dump(state_data, handle, indent=2)\n+            os.replace(tmp_path, self.state_file)\n\n**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Give concurrent state exports unique temporary files**\n\nWhen two engine instances or threads export the same state file concurrently, both use the same `.tmp` path. One writer can replace that pathname while the other still has it open, causing the second `os.replace()` to fail; worse, one writer can rename a file that the other has truncated and is still writing, briefly exposing partial JSON and defeating the atomicity guarantee. Create the temporary file with a unique name in the destination directory before replacing the target.\n\nUseful? React with 👍 / 👎.",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "db108937b1206c201fb299f20c9763fc7c707268a5c907cae13698cac0ece77b"
+    },
+    {
+      "archive_id": "EMAIL-002",
+      "message_id": "1a02a70299f1110e",
+      "thread_id": "1a02a70299f1110e",
+      "date_original": "Sat, 22 Aug 2026 10:06:28 -0700",
+      "date_utc": "2026-08-22T17:06:28+00:00",
+      "date_singapore": "2026-08-23T01:06:28+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Add pre-trade cash sufficiency check and three backtest report charts (PR #9)",
+      "type": "具体审查意见",
+      "pr": 9,
+      "finding_ids": [
+        "MAIL-9-1",
+        "MAIL-9-2",
+        "MAIL-9-3"
+      ],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/9#pullrequestreview-5000638067",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a02a70299f1110e",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/9#pullrequestreview-5000638067",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/9#discussion_r3836549680",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/9#discussion_r3836549682",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/9#discussion_r3836549689",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/9"
+      ],
+      "body": "@chatgpt-codex-connector[bot] commented on this pull request.\n\n### 💡 Codex Review\n\nHere are some automated review suggestions for this pull request.\n\n**Reviewed commit:** `3a3d7b40e7`\n    \n\n> +        if action != \"short\":\n+            free_cash = portfolio.cash - reserved_exposure\n\n**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Exclude pending shorts from reserved cash**\n\nWhen a cash-funded buy is checked while a short order is pending, `reserved_exposure` includes that short because `RiskReservationProjection.pending_notional()` aggregates both `buy` and `short` reservations without preserving their actions. Subtracting the entire amount here can therefore reject an otherwise funded buy, even though this change explicitly exempts shorts from cash consumption. Track buy-side reserved notional separately for this cash calculation while retaining both sides for leverage and concentration checks.\n\nUseful? React with 👍 / 👎.\n\n> +            rolling_max = equity.cummax()\n+            rolling_drawdown = (equity - rolling_max) / rolling_max\n+            rolling_max_dd = rolling_drawdown.rolling(window).min().dropna()\n\n**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Compute drawdown peaks within each trailing window**\n\nFor a series that crashes from an old peak and then remains flat, this calculation continues measuring every point against the all-time peak even after that peak has left the requested 30-period window. The chart can consequently show a large rolling maximum drawdown indefinitely, whereas the maximum drawdown of the current trailing window may be zero. Each plotted value needs to calculate its peak-to-trough decline using observations contained within that window.\n\nUseful? React with 👍 / 👎.\n\n> +            ax.hist(wins, bins=bins, color=\"green\", alpha=0.6, label=f\"Wins (n={len(wins)})\")\n+            ax.hist(losses, bins=bins, color=\"red\", alpha=0.6, label=f\"Losses (n={len(losses)})\")\n\n**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Use common bin edges for the PnL histogram**\n\nWhen wins and losses span different ranges, these two independent `hist` calls derive separate bin edges despite receiving the same bin count. A win bar may therefore represent a much narrower PnL interval than a loss bar, making their heights visually incomparable in a chart labeled as one PnL distribution. Derive edges once from all `net_pnls` and pass those shared edges to both calls.\n\nUseful? React with 👍 / 👎.",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "dd38d384be53dbc7d3d2e3cb52eed152275a2b0d8a690d4b52c74fefc0b68626"
+    },
+    {
+      "archive_id": "EMAIL-003",
+      "message_id": "1a02b1be8ad56f7d",
+      "thread_id": "1a02b1be8ad56f7d",
+      "date_original": "Sat, 22 Aug 2026 13:14:04 -0700",
+      "date_utc": "2026-08-22T20:14:04+00:00",
+      "date_singapore": "2026-08-23T04:14:04+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Fix/engine baseline linux precision (PR #10)",
+      "type": "具体审查意见",
+      "pr": 10,
+      "finding_ids": [
+        "MAIL-10-1",
+        "MAIL-10-2"
+      ],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/10#pullrequestreview-5000967232",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a02b1be8ad56f7d",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/10#pullrequestreview-5000967232",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/10#discussion_r3836916725",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/10#discussion_r3836916729",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/10"
+      ],
+      "body": "@chatgpt-codex-connector[bot] commented on this pull request.\n\n### 💡 Codex Review\n\nHere are some automated review suggestions for this pull request.\n\n**Reviewed commit:** `43d54561f1`\n    \n\n> +        # Stay strictly inside the caps: qty*price can round just above budget,\n+        # which check_entry_risk would then reject as a limit breach.\n+        return budget * (1.0 - self.CAP_SAFETY_MARGIN)\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Reserve execution costs when clamping to available cash**\n\nWhen cash is the binding cap, `budget` equals essentially all free cash, and the `1e-9` margin leaves far less than the configured commission or buy-side slippage. `Broker._fill_order` then requires `value + commission <= portfolio.cash` and rejects the supposedly valid clamped order, so entries are silently lost whenever cash headroom is tighter than the leverage/concentration caps. Compute the cash budget net of expected fees and execution-price effects, or perform an affordability clamp at execution.\n\nUseful? React with 👍 / 👎.\n\n> +        metrics[\"Diagnostics\"] = build_diagnostics(\n+            closed_trades, equity_curve[\"equity\"]\n+        )\n\n**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Supply lifecycle observations to the diagnostic suite**\n\nEvery production report calls `build_diagnostics` without `observed_close_events`, so `build_diagnostics` omits `lifecycle_coverage` entirely and the report's lifecycle warning section is unreachable. Thus the newly advertised diagnostic cannot expose the missed router-driven close callbacks it was introduced to detect; the report-generation path needs to receive or derive the per-strategy callback counts.\n\nUseful? React with 👍 / 👎.",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "56312fe6d8c17fc7ff6a062d0ad1c36c72fe00b067e3004340571c4b7a5795c6"
+    },
+    {
+      "archive_id": "EMAIL-004",
+      "message_id": "1a02d94cc4bbcb96",
+      "thread_id": "1a02d94cc4bbcb96",
+      "date_original": "Sun, 23 Aug 2026 00:45:21 -0700",
+      "date_utc": "2026-08-23T07:45:21+00:00",
+      "date_singapore": "2026-08-23T15:45:21+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Add the S0-S4 strategy capability roadmap (PR #11)",
+      "type": "具体审查意见",
+      "pr": 11,
+      "finding_ids": [
+        "MAIL-11-1",
+        "MAIL-11-2",
+        "MAIL-11-3"
+      ],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/11#pullrequestreview-5001918007",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a02d94cc4bbcb96",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/11#pullrequestreview-5001918007",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/11#discussion_r3837991591",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/11#discussion_r3837991593",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/11#discussion_r3837991594",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/11"
+      ],
+      "body": "@chatgpt-codex-connector[bot] commented on this pull request.\n\n### 💡 Codex Review\n\nHere are some automated review suggestions for this pull request.\n\n**Reviewed commit:** `e9c7dc032c`\n    \n\n> +\n+1. 价格图 + 进出场标记（看策略在哪买哪卖）\n+2. 信号价 vs 成交价散点（滑点可视化）\n+3. 组合敞口时序（复用 `calculate_exposure`）\n+4. 按策略/regime 分组净值 + regime 区间高亮\n+5. 参数敏感性热力图（依赖 S0-2）\n+\n+验收：图表只读标准结果文件，不重复计算；无数据时跳过而非画空图。\n+\n+### S1-3 样本外与稳健性接线 P1\n+\n+任务：`main.py` / `optimize.py` 接入 `train_test_split_returns` 与\n+`walk_forward_windows`（函数已存在，未接线）；参数选择只允许发生在 train 段；\n+报告输出 IS/OOS 差异。\n+\n+验收：OOS Sharpe/PF 进入报告；参数优化默认按 OOS 排序。\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Keep OOS results out of parameter ranking**\n\nRanking parameter candidates by OOS performance uses the test segment to select parameters, directly contradicting the train-only selection requirement immediately above and the untouched-test requirement in `docs/backtest_optimization_roadmap.md:134-136`. Following this acceptance criterion would contaminate the reported OOS Sharpe/PF and make it in-sample selection evidence; rank candidates on train/validation results and use OOS only for the final selected candidate's evaluation.\n\nUseful? React with 👍 / 👎.\n\n> +`unified_roadmap.md` 管的是**系统可靠性**（账本、事件管线、实盘放行）。\n+本文件管的是**策略能力**：回测能不能支撑决策 → 选币能不能取代手动指定 →\n+仓位/保证金能不能支撑合约 → 合约策略本身。两条线共用同一套验收基建\n+（fixtures、回归基线、诊断模块），冲突时以 `unified_roadmap.md` 为准。\n+\n+**本文件不承诺盈利能力**。它承诺的是：每个阶段结束时，我们能用可信的证据\n+判断某个策略/参数/币种是否有效——判断结论是\"无效\"同样算达成。\n+\n+## 2. 当前真实状态（截至 2026-08-23）\n+\n+### 2.1 已完成（有代码 + 测试 + 实测证据）\n+\n+| 能力 | 证据 |\n+| --- | --- |\n+| BM0–BM8 指标体系 | `core/metrics.py` 约 25 个函数，空值语义/年化推断/纯函数已落地 |\n+| 报告接线 | `backtest/reporting.py` 输出 `metrics.json` + `report.txt` 分节 |\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Leave metrics.json serialization on the roadmap**\n\nThis capability is not implemented in the inspected tree: `ReportGenerator.generate` writes `equity.csv`, `benchmark.csv`, `trades.csv`, `report.txt`, and charts (`backtest/reporting.py:173-215`), while a repo-wide search finds no production writer for `metrics.json`; `docs/development_plan.md:80-87` also still lists it as unfinished. Marking it complete removes the prerequisite that S1-2 later assumes, so those charts cannot read their claimed standard structured result; retain an explicit serialization task or point to an actual generated artifact.\n\nUseful? React with 👍 / 👎.\n\n> +任务：策略字典键名与 `params.yaml` 的 `routing` 对齐；新增测试断言\n+\"optimize 构造的策略集合能被 Router 全部解析\"（现有\n+`test_strategy_routing_consistency.py` 只覆盖注册表，覆盖不到此处）。\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Optimize the strategies behind the routing names**\n\nThe stated fix can pass its acceptance checks while optimizing the wrong algorithms: `analysis/optimize.py:83-89` constructs legacy `TrendUpStrategy`/`TrendDownStrategy` instances with SMA/ATR parameters, whereas the production registry uses `TrendBreakoutStrategy`/`TrendBreakdownStrategy` with entry/exit-window parameters (`core/system_factory.py:15-20`). Merely changing the dictionary keys makes Router resolve these legacy instances under misleading production names, and both nonzero trades and parameter-dependent results can still pass; require construction of the registered strategy classes and a matching parameter grid (or explicitly re-register the legacy strategies) as part of S0-2.\n\nUseful? React with 👍 / 👎.",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "0d129bc473cce15e4fb4da41865cce14cf99ed7e8381c9ceb31e52afdda84be3"
+    },
+    {
+      "archive_id": "EMAIL-005",
+      "message_id": "1a02dbffa40b1065",
+      "thread_id": "1a02dbffa40b1065",
+      "date_original": "Sun, 23 Aug 2026 01:32:31 -0700",
+      "date_utc": "2026-08-23T08:32:31+00:00",
+      "date_singapore": "2026-08-23T16:32:31+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Refactor strategy routing and trade lifecycle handling (PR #12)",
+      "type": "具体审查意见",
+      "pr": 12,
+      "finding_ids": [
+        "MAIL-12-1",
+        "MAIL-12-2"
+      ],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/12#pullrequestreview-5001994647",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a02dbffa40b1065",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/12#pullrequestreview-5001994647",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/12#discussion_r3838076839",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/12#discussion_r3838076842",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/12"
+      ],
+      "body": "@chatgpt-codex-connector[bot] commented on this pull request.\n\n### 💡 Codex Review\n\nHere are some automated review suggestions for this pull request.\n\n**Reviewed commit:** `dc331000b4`\n    \n\n> +        # opening strategy must observe Router/CircuitBreaker closing fills.\n+        for strategy in self.strategies.values():\n+            strategy._consume_execution_trades(symbol, i, portfolio, broker)\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Consume circuit-breaker fills outside Router.route**\n\nMove fill consumption to an unconditional event-processing path. When the circuit breaker is active, `EventProcessor.process` skips every call to `Router.route`; therefore a CircuitBreaker flatten that fills on the next market event is not consumed here while the breaker remains active. The opening strategy's `on_trade_closed` callback is delayed until routing resumes, or missed entirely if the run ends first, leaving lifecycle coverage and loss-based health gates incorrect.\n\nUseful? React with 👍 / 👎.\n\n> +            if portfolio.get_position(trade_symbol).get(\"qty\", 0.0) == 0:\n                 realized = float(ctx[\"_realized_exit_pnl\"])\n                 self.observed_close_events += 1\n-                self.on_trade_closed(symbol, realized, trade, bar_index)\n-                self.context[symbol] = {}\n+                self.on_trade_closed(trade_symbol, realized, trade, bar_index)\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Pass the closing symbol's bar index to its callback**\n\nDerive the callback index from `trade_symbol` rather than reusing the current routed symbol's `bar_index`. The new global cursor lets the first routed symbol consume fills for every symbol, but historical processing uses a union-of-real-bars timeline, so per-symbol dataframe positions can differ; a close for symbol B consumed while routing symbol A consequently gives B the wrong index. `RangeStrategy.on_trade_closed` sets `cooldown_until = bar_index + 24`, so missing histories or different listing dates can make its cooldown substantially too long or too short and alter backtest trades.\n\nUseful? React with 👍 / 👎.",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "d66e8cf7690139dc60964e857fbae97616411298393909082a010fa70f5af699"
+    },
+    {
+      "archive_id": "EMAIL-006",
+      "message_id": "1a032a2aa81b7066",
+      "thread_id": "1a032a2aa81b7066",
+      "date_original": "Mon, 24 Aug 2026 00:18:36 -0700",
+      "date_utc": "2026-08-24T07:18:36+00:00",
+      "date_singapore": "2026-08-24T15:18:36+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Add extended factors library (trend/momentum/volatility/volume/suppor… (PR #13)",
+      "type": "具体审查意见",
+      "pr": 13,
+      "finding_ids": [
+        "MAIL-13-1",
+        "MAIL-13-2",
+        "MAIL-13-3"
+      ],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/13#pullrequestreview-5005367713",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a032a2aa81b7066",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/13#pullrequestreview-5005367713",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/13#discussion_r3841372567",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/13#discussion_r3841372571",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/13#discussion_r3841372575",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/13"
+      ],
+      "body": "@chatgpt-codex-connector[bot] commented on this pull request.\n\n### 💡 Codex Review\n\nHere are some automated review suggestions for this pull request.\n\n**Reviewed commit:** `0123132ea5`\n    \n\n> +        rolling_max = high.rolling(window=2 * order + 1, center=True).max()\n+        return high.where(high == rolling_max)\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Delay swing markers until their confirmation bar**\n\nWhen `Factors.calculate_all` is applied to a complete historical frame, `center=True` calculates each marker using the following `order` candles. A strategy consuming the resulting rows through `HistoricalMarketDataAdapter` can therefore see `SWING_HIGH` and `SWING_LOW` up to five bars before those extrema could actually be confirmed, introducing look-ahead bias into backtests; shift the markers by `order` or otherwise expose them only on the confirmation bar.\n\nUseful? React with 👍 / 👎.\n\n> +            batch = exchange.fetchOpenInterestHistory(\n+                symbol, timeframe=timeframe, since=since, limit=limit\n+            )\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Paginate open-interest history through the requested end**\n\nWhen the requested interval contains more than `limit` observations—such as 30 days of hourly Binance data with the default limit of 500—this performs only the first request from `since` and silently omits the remaining interval through `end_date`. This produces incomplete open-interest factors despite accepting a date range; advance `since` and fetch additional pages until the end boundary or the provider exhausts its history, as the funding-rate method already does.\n\nUseful? React with 👍 / 👎.\n\n> +                bar_volume = volumes[i]\n+                if bar_volume <= 0:\n+                    continue\n+                if bar_high <= bar_low:\n+                    idx = np.clip(np.searchsorted(edges, bar_low) - 1, 0, bins - 1)\n+                    bin_volumes[idx] += bar_volume\n+                    continue\n+\n+                lo_idx = np.clip(np.searchsorted(edges, bar_low, side=\"right\") - 1, 0, bins - 1)\n+                hi_idx = np.clip(np.searchsorted(edges, bar_high, side=\"right\") - 1, 0, bins - 1)\n+                span = hi_idx - lo_idx + 1\n+                bin_volumes[lo_idx : hi_idx + 1] += bar_volume / span\n+\n+            poc_idx = int(np.argmax(bin_volumes))\n+            poc_price = (edges[poc_idx] + edges[poc_idx + 1]) / 2\n+            poc.iloc[end] = poc_price\n\n**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Leave POC empty for zero-volume windows**\n\nWhen every bar in a rolling window has zero or negative volume, `bin_volumes` remains all zeros and `argmax` selects bin 0, so this writes a seemingly valid POC near the window low before the subsequent total-volume check leaves only VAH and VAL empty. That false support level can be consumed as a real signal; check `total_volume` before assigning POC so all three outputs remain undefined for such windows.\n\nUseful? React with 👍 / 👎.",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "497f8a3cf7d1d47183b16e89e5a96a350b034c565e074a9ab29efca9fb81dbdf"
+    },
+    {
+      "archive_id": "EMAIL-007",
+      "message_id": "1a0393b4b7581a5c",
+      "thread_id": "1a0393b4b7581a5c",
+      "date_original": "Tue, 25 Aug 2026 07:03:02 -0700",
+      "date_utc": "2026-08-25T14:03:02+00:00",
+      "date_singapore": "2026-08-25T22:03:02+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Freeze Phase 0 baseline: lock commit/config and archive last 5 backtests (PR #15)",
+      "type": "具体审查意见",
+      "pr": 15,
+      "finding_ids": [
+        "MAIL-15-1",
+        "MAIL-15-2",
+        "MAIL-15-3"
+      ],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/15#pullrequestreview-5019831836",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a0393b4b7581a5c",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/15#pullrequestreview-5019831836",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/15#discussion_r3853759650",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/15#discussion_r3853759661",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/15#discussion_r3853759666",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/15"
+      ],
+      "body": "@chatgpt-codex-connector[bot] commented on this pull request.\n\n### 💡 Codex Review\n\nHere are some automated review suggestions for this pull request.\n\n**Reviewed commit:** `009dd2c079`\n    \n\n> +        \"sha256\": \"fdf23e1a11f316d1f89519f272135cb2b9adbc9f38b617de0055543c02da6269\",\n+        \"size_bytes\": 21727\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Regenerate hashes after Git line-ending normalization**\n\nOn a normal checkout, this first archived CSV is 21,005 bytes with SHA-256 `ff37867c...`, rather than the recorded 21,727 bytes and `fdf23e1a...`; the same CRLF-to-LF mismatch affects every archived text artifact and both configuration snapshots. Consequently, the verification command documented in `README.md` immediately raises `AssertionError`, so the integrity manifest cannot validate this frozen experiment baseline. Generate the manifest from the committed bytes (or enforce the intended line endings before hashing).\n\nUseful? React with 👍 / 👎.\n\n> +# T-0.1 基线锁定记录（代码版本 / 分支 / 工作区状态）\n+\n+- **锁定时间**：2026-08-25\n+- **仓库**：QuantTradingV1（远程 `origin` = https://github.com/user-nmmmmm/QuantTradingV2.git，旧远程 `old-origin` = https://github.com/user-nmmmmm/QuantTrading--.git）\n+- **分支（branch）**：`feature/factors-extended-indicators`\n+- **Git SHA（commit）**：`ff14fb8cce57310f1e0828349a0357225ce33956`\n+- **上游跟踪**：`origin/feature/factors-extended-indicators`（本地与远程一致，无 ahead/behind）\n+- **工作区状态（dirty status）**：`git status --porcelain` 输出为空 → **clean**（无未提交改动、无未追踪文件）\n+- **最近提交**：`ff14fb8 Wire extended factors into strategy entry confirmations`（2026-08-24T16:32:46+08:00）\n+\n+## 复核方法\n+\n+任何人可通过以下命令复核本记录：\n+\n+```bash\n+git rev-parse HEAD                  # 应输出 ff14fb8cce57310f1e0828349a0357225ce33956\n\n**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Replace the HEAD check with a check of the recorded commit**\n\nWhen these instructions are read from the commit that introduces them, `git rev-parse HEAD` returns `12fe631...`, not the recorded baseline `ff14fb8...`; checking out `ff14fb8` also removes this document because it is the parent commit. On later branch commits the result drifts further, so this command cannot perform the promised verification. Check that the recorded object exists and that the snapshots correspond to it instead of asserting that the caller's current HEAD equals it.\n\nUseful? React with 👍 / 👎.\n\n> +| [archived_reports/](./archived_reports/) + [reports_manifest.json](./reports_manifest.json) | T-0.2 | 最近 5 组回测的 report.txt / trades.csv / equity.csv / benchmark.csv / data_quality_report.json 及图表，文件已设为只读（chmod 444），并附 SHA-256 哈希清单 |\n+| [config_snapshot/](./config_snapshot/) | T-0.3 | `config/config.py`、`config/params.yaml` 的只读快照及哈希清单 |\n\n**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Enforce read-only archives rather than relying on chmod 444**\n\nOn every fresh Git checkout these purportedly read-only files are writable: the tree records mode `100644`, and Git does not preserve the owner/group/other write-bit distinctions made by `chmod 444`. Thus the stated freeze protection disappears as soon as another researcher clones or checks out the commit. Either remove the read-only claim or add an enforceable guard, such as a validation hook or CI check that rejects modifications under this directory.\n\nUseful? React with 👍 / 👎.",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "8831cd7c12431633590ed77dbde38a40855ada9ae1b681322646b1a888d9d730"
+    },
+    {
+      "archive_id": "EMAIL-008",
+      "message_id": "1a03c9a15252cd08",
+      "thread_id": "1a03c9a15252cd08",
+      "date_original": "Tue, 25 Aug 2026 22:45:25 -0700",
+      "date_utc": "2026-08-26T05:45:25+00:00",
+      "date_singapore": "2026-08-26T13:45:25+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Phase 1: lot ledger, unified close events, cost contract, accounting check, EndOfBacktest (PR #16)",
+      "type": "具体审查意见",
+      "pr": 16,
+      "finding_ids": [
+        "MAIL-16-1",
+        "MAIL-16-2",
+        "MAIL-16-3",
+        "MAIL-16-4"
+      ],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/16#pullrequestreview-5027130456",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03c9a15252cd08",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/16#pullrequestreview-5027130456",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/16#discussion_r3859966843",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/16#discussion_r3859966850",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/16#discussion_r3859966856",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/16#discussion_r3859966858",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/16"
+      ],
+      "body": "@chatgpt-codex-connector[bot] commented on this pull request.\n\n### 💡 Codex Review\n\nHere are some automated review suggestions for this pull request.\n\n**Reviewed commit:** `b4dd5b21da`\n    \n\n> -                self.observed_close_events += 1\n-                self.on_trade_closed(trade_symbol, realized, trade, bar_index)\n-                self.context[trade_symbol] = {}\n+            self._consumed_close_event_ids.add(event.close_event_id)\n+            self.observed_close_events += 1\n+            trade = {\n+                \"symbol\": event.symbol,\n+                \"lot_id\": event.lot_id,\n+                \"position_id\": event.position_id,\n+                \"qty\": event.qty,\n+                \"fill_price\": event.exit_price,\n+                \"theoretical_price\": event.theoretical_exit_price,\n+                \"exit_reason\": event.exit_reason,\n+                \"strategy_id\": event.opening_strategy_id,\n+            }\n+            self.on_trade_closed(event.symbol, event.realized_pnl, trade, bar_index)\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Aggregate close callbacks until the position is flat**\n\nWhen an exit is partially filled, or one closing fill spans multiple pyramided lots, the broker emits multiple `CloseEvent`s and this invokes `on_trade_closed` for each one regardless of `is_position_fully_closed`. Consequently `TrendBreakoutStrategy` counts one position as several trades and `RangeStrategy` can advance its consecutive-loss cooldown while the position is still open; the previous implementation accumulated partial PnL and invoked the hook only after the position became flat. Aggregate events by position and deliver a single lifecycle callback at the full close.\n\nUseful? React with 👍 / 👎.\n\n> +                timestamp=last_event_timestamp,\n+                strategy_id=\"EndOfBacktest\",\n+                exit_reason=\"EndOfBacktest\",\n+                zero_cost=zero_cost,\n+            )\n+            synthetic_bars[symbol] = pd.Series(\n+                {\n+                    \"open\": mark_price, \"high\": mark_price, \"low\": mark_price,\n+                    \"close\": mark_price, \"volume\": 1e18,\n+                },\n+                name=synthetic_time,\n+            )\n+        if not synthetic_bars:\n+            return\n+\n+        broker.process_orders(synthetic_bars)\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Cancel outstanding entries before tail liquidation**\n\nIf the final real bar leaves a partially filled GTC entry active, `process_orders` processes that existing entry before the newly submitted EndOfBacktest order. Because the synthetic bar has enormous volume, the entry's entire remainder fills, while the liquidation order was sized from the smaller pre-synthetic position; the run therefore ends with the newly filled remainder still open and absent from closed-trade analytics. Outstanding orders should be canceled before sizing and processing the tail close.\n\nUseful? React with 👍 / 👎.\n\n>                          matched = min(remaining, s_qty)\n+                        lot_detail = _next_lot_detail()\n\n**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Preserve lot details across partial entry fills**\n\nWhen one entry order fills across multiple bars, `LotBook` merges those fills into one lot, so a later close supplies one `lot_closes` detail. The report reconstruction still keeps each entry fill as a separate stack item and calls `_next_lot_detail()` once per matched item; only the first reconstructed fragment receives the lot ID, initial risk, MAE, and MFE, while the remaining fragments are excluded from risk analytics. The reconstruction needs to merge same-order entry fills or associate each match using lot/quantity information rather than positional consumption.\n\nUseful? React with 👍 / 👎.\n\n> +            close_qty = min(remaining, lot.qty_open)\n+            entry_cost_share = lot.entry_cost_per_unit * close_qty\n+            lot.qty_open -= close_qty\n+            remaining -= close_qty\n+            fully_closed = lot.qty_open <= _QTY_EPS\n+            closes.append(\n+                LotClose(\n+                    lot_id=lot.lot_id,\n+                    position_id=lot.position_id,\n+                    symbol=self.symbol,\n+                    side=lot.side,\n+                    qty_closed=close_qty,\n+                    entry_price=lot.entry_price,\n+                    strategy_id=lot.strategy_id,\n+                    order_id=lot.order_id,\n+                    initial_risk=lot.initial_risk,\n\n**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Scale initial risk to the quantity being closed**\n\nFor a partial reduction, each `LotClose` receives the lot's full original dollar risk even though its PnL covers only `qty_closed`; subsequent reductions of the same lot receive that full risk again. Since `calculate_r_multiple_stats` computes each reconstructed record as `net_pnl / initial_risk`, partial exits understate R-multiples and double-count the risk denominator. Allocate the lot's initial risk proportionally to the closed quantity.\n\nUseful? React with 👍 / 👎.",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "6c087042a222dea3da7973109098e886155da595188cdb20ebfa5a79f892bdec"
+    },
+    {
+      "archive_id": "EMAIL-009",
+      "message_id": "1a03d457a7ef033c",
+      "thread_id": "1a03d457a7ef033c",
+      "date_original": "Wed, 26 Aug 2026 01:52:38 -0700",
+      "date_utc": "2026-08-26T08:52:38+00:00",
+      "date_singapore": "2026-08-26T16:52:38+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Expand quantitative trading system capabilities (PR #17)",
+      "type": "具体审查意见",
+      "pr": 17,
+      "finding_ids": [
+        "MAIL-17-1",
+        "MAIL-17-2",
+        "MAIL-17-3"
+      ],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/17#pullrequestreview-5028474123",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03d457a7ef033c",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/17#pullrequestreview-5028474123",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/17#discussion_r3861115880",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/17#discussion_r3861115887",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/17#discussion_r3861115893",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/17"
+      ],
+      "body": "@chatgpt-codex-connector[bot] commented on this pull request.\n\n### 💡 Codex Review\n\nHere are some automated review suggestions for this pull request.\n\n**Reviewed commit:** `e3158e960f`\n    \n\n>              )\n-            return True\n-            \n-        return False\n+\n+        return self._blocks_new_risk()\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Continue routing exits after blocking new entries**\n\nWhen high-water drawdown reaches `portfolio_drawdown_block` but remains below the liquidation threshold, this returns `True`; `EventProcessor.process()` consequently skips its entire symbol-routing loop, including hard stops and `should_exit`, while `BacktestEngine` does not force liquidation for `block_new`. Because this state is sticky, existing positions remain unmanaged until the stronger liquidation threshold is reached or the backtest ends; block only entry submission while continuing to route exit logic.\n\nUseful? React with 👍 / 👎.\n\n> +            if membership.delisted_at is not None:\n+                current = current.loc[current.index < membership.delisted_at]\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Close positions when point-in-time membership ends**\n\nWhen a symbol is held at its last eligible bar and `delisted_at` occurs before the other series end, clipping all later bars prevents the runtime from routing any exit for that position. The engine then carries it at its stale last price and `_close_tail_positions` closes it only at the overall backtest end, creating artificial exposure and PnL after delisting; membership expiry needs an explicit close or delisting valuation policy at the last tradable bar.\n\nUseful? React with 👍 / 👎.\n\n> +                previous = self._last_borrow_time.get(symbol)\n+                self._last_borrow_time[symbol] = timestamp\n+                if previous is None or timestamp <= previous:\n+                    continue\n+                elapsed_seconds = (timestamp - previous).total_seconds()\n\n**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Reset borrow accrual when a short is flat**\n\nIf a margin short is closed and the same symbol is shorted again later, `_last_borrow_time` still contains the timestamp from the previous loan because `accrue_carry` only visits currently open positions. The first accrual after reopening therefore charges borrow cost for the entire flat interval; clear this timestamp when the short closes or initialize it when a new short is opened.\n\nUseful? React with 👍 / 👎.",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "0b6399cfc2679d91966d4f530c2dd534c2edd8d7552415c527f8543fe888c8fc"
+    },
+    {
+      "archive_id": "EMAIL-010",
+      "message_id": "1a03e5f0dec59b1e",
+      "thread_id": "1a03e5f0dec59b1e",
+      "date_original": "Wed, 26 Aug 2026 07:00:11 -0700",
+      "date_utc": "2026-08-26T14:00:11+00:00",
+      "date_singapore": "2026-08-26T22:00:11+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Complete Phase 4 routing and portfolio remediation (PR #18)",
+      "type": "具体审查意见",
+      "pr": 18,
+      "finding_ids": [
+        "MAIL-18-1",
+        "MAIL-18-2",
+        "MAIL-18-3"
+      ],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/18#pullrequestreview-5031311051",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03e5f0dec59b1e",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/18#pullrequestreview-5031311051",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/18#discussion_r3863477847",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/18#discussion_r3863477853",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/18#discussion_r3863477861",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/18"
+      ],
+      "body": "@chatgpt-codex-connector[bot] commented on this pull request.\n\n### 💡 Codex Review\n\nHere are some automated review suggestions for this pull request.\n\n**Reviewed commit:** `10efaf61de`\n    \n\n> +            opening_name = self._opening_strategy_name(symbol, portfolio)\n+            strategy = self.strategies.get(opening_name or \"\")\n+            if strategy is not None:\n+                strategy.process_exit_only(symbol, i, df, state, portfolio, broker)\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Preserve exit control for synchronized live positions**\n\nWhen a live position is populated by `LiveBroker.sync()`, only `portfolio.positions` is replaced (`core/live_broker.py:859-864`); no opening lot or strategy owner is reconstructed. Consequently `_opening_strategy_name()` returns `None` here, the strategy exit path is skipped, and `_max_holding_expired()` also cannot trigger because its lot list is empty. This affects both positions restored at startup and positions subsequently observed through account sync, leaving them unmanaged by strategy and maximum-holding exits.\n\nUseful? React with 👍 / 👎.\n\n> +        if (candidate is not None and hasattr(type(self.router), \"collect_candidate\")\n+                and allocator is not None):\n+            allocator.allocate(\n+                [candidate], portfolio=self.portfolio, broker=self.execution,\n+                risk_manager=self.risk_manager, current_prices=self.last_prices,\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Batch live candidates before allocating portfolio risk**\n\nWhen multiple live symbols produce candidates for the same close, `live_trading/engine.py:560-568` invokes `process_symbol()` separately for each singleton event. Allocating the candidate immediately here lets the first symbol reserve the available risk budget before later candidates are seen, so the live result remains dependent on `data_map` iteration order and bypasses the score-based same-timestamp ranking implemented by `process()`.\n\nUseful? React with 👍 / 👎.\n\n> @@ -382,6 +384,8 @@ def build_diagnostics(\n     suite: Dict[str, Any] = {\n         \"pnl_concentration\": calculate_pnl_concentration(records),\n         \"exit_attribution\": calculate_exit_attribution(records),\n+        \"joint_entry_exit_attribution\": joint_entry_exit_attribution(records),\n+        \"holding_period_audit\": holding_period_audit(records, max_holding_days=365),\n\n**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Use the configured holding limit in diagnostics**\n\nIf `phase4.max_holding_days` is changed from 365, the router uses the configured value (`core/system_factory.py:61-66`) while this audit continues classifying timeouts against 365 days. Reports will therefore omit actual maximum-holding exits or classify unrelated trades as timeouts, making the new holding-period diagnostic inconsistent with the policy that produced the trades.\n\nUseful? React with 👍 / 👎.",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "d45e2eb9c3979ca046af30796e305f64c8886be4a2c9dcfc84df6024906a1208"
+    },
+    {
+      "archive_id": "EMAIL-011",
+      "message_id": "1a03e9990378d4e3",
+      "thread_id": "1a03e9990378d4e3",
+      "date_original": "Wed, 26 Aug 2026 08:04:06 -0700",
+      "date_utc": "2026-08-26T15:04:06+00:00",
+      "date_singapore": "2026-08-26T23:04:06+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Add configurable indicator confirmations and Phase 5 governance (PR #19)",
+      "type": "具体审查意见",
+      "pr": 19,
+      "finding_ids": [
+        "MAIL-19-1",
+        "MAIL-19-2",
+        "MAIL-19-3",
+        "MAIL-19-4",
+        "MAIL-19-5",
+        "MAIL-19-6"
+      ],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/19#pullrequestreview-5032066890",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03e9990378d4e3",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/19#pullrequestreview-5032066890",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/19#discussion_r3864111763",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/19#discussion_r3864111766",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/19#discussion_r3864111773",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/19#discussion_r3864111783",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/19#discussion_r3864111787",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/19#discussion_r3864111796",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/19"
+      ],
+      "body": "@chatgpt-codex-connector[bot] commented on this pull request.\n\n### 💡 Codex Review\n\nHere are some automated review suggestions for this pull request.\n\n**Reviewed commit:** `029152206e`\n    \n\n> +    equity = _load_equity(PRIMARY / \"equity.csv\")\n+    benchmark = _load_benchmark(PRIMARY / \"benchmark.csv\")\n+    cut_train = int(len(equity) * 0.60)\n+    cut_validation = int(len(equity) * 0.80)\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Reserve a genuinely unseen holdout**\n\nThe selected `PRIMARY` report was already present in `docs/baseline/phase0/archived_reports` with equity, trades, benchmark, and published whole-period results through 2026 before this protocol was created. Slicing its last 20% now cannot make that period an unseen final holdout, so the subsequent Phase 1–4 research and the choice of report may already incorporate its outcomes; `final_holdout_report.json` therefore cannot support the claimed one-time out-of-sample admission. Freeze a period or dataset that was not included in any previously inspected report.\n\nUseful? React with 👍 / 👎.\n\n> +from analysis.phase5 import (\n+    ExperimentRegistry,\n+    HoldoutProtocol,\n+    HoldoutVault,\n+    cross_market_validation,\n+    deflated_sharpe_ratio,\n+    evaluate_holdout_admission,\n+    purged_cv_indices,\n+    walk_forward_splits,\n+)\n+from backtest.reporting import ReportGenerator\n+\n+\n+OUT = ROOT / \"docs\" / \"phase5\"\n+BASELINE = ROOT / \"docs\" / \"baseline\" / \"phase0\" / \"archived_reports\"\n+PRIMARY = BASELINE / \"20260824_163836_3498d_10Syms_Ret-15.8pct\"\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Evaluate the frozen Phase 4 implementation**\n\nThe hard-coded source is a Phase 0 archive generated from the baseline SHA `ff14fb8` documented in `docs/baseline/phase0/baseline_lock.md`, not a run of the later Phase 4 strategy state that this script says it evaluates. Consequently none of the Phase 1–4 remediation or the strategy behavior at this commit is represented in the holdout gates, so the admission decision describes an obsolete system. Generate the holdout artifacts from an explicitly frozen current strategy/configuration instead.\n\nUseful? React with 👍 / 👎.\n\n> +        slippage_multipliers=(1.0, thresholds.required_cost_multiplier, 2.0, 3.0),\n+    )\n+    cost_lookup = {\n+        (row[\"commission_multiplier\"], row[\"slippage_multiplier\"]): row[\"net_pnl\"]\n+        for row in costs.get(\"grid\", [])\n+    }\n+    stressed_net = cost_lookup.get((thresholds.required_cost_multiplier, thresholds.required_cost_multiplier))\n+    concentration_pass = all(row[\"positive\"] for row in concentration.get(\"scenarios\", []))\n+    gates = {\n+        \"G12_positive_oos_edge\": bool(\n+            strategy_return is not None\n+            and excess_return is not None\n+            and strategy_return > 0\n+            and excess_return > 0\n+        ),\n+        \"G13_pf_significance\": bool(pf[\"value\"] is not None and pf[\"value\"] > thresholds.minimum_pf and pf[\"lower\"] is not None and pf[\"lower\"] > thresholds.minimum_pf_ci_lower),\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Reject insufficient profit-factor samples**\n\nWhen the holdout has fewer than 30 trades, `calculate_profit_factor` deliberately returns `status: \"insufficient\"` but can still return a value and bootstrap lower bound. This gate ignores that status, so a small favorable sample can pass `G13_pf_significance` and potentially admit a strategy despite not meeting the configured minimum sample requirement. Require `pf[\"status\"] == \"ok\"` as part of the gate.\n\nUseful? React with 👍 / 👎.\n\n> +    )\n+    vault = HoldoutVault(OUT / \"holdout_protocol.json\")\n+    frozen = vault.freeze(protocol, data_hash=data_hash)\n+    _dump(\"data_partition_protocol.json\", frozen)\n+\n+    research_observations = cut_validation\n+    wf = walk_forward_splits(\n+        research_observations,\n+        train_size=730,\n+        validation_size=180,\n+        test_size=180,\n+        purge_size=30,\n+        embargo_size=30,\n+        expanding=True,\n+    )\n+    all_closed = _closed_trades(PRIMARY / \"trades.csv\")\n\n**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Avoid double-counting legacy slippage**\n\nThe checked-in `PRIMARY/trades.csv` has no `theoretical_price`, so `_reconstruct_closed_trades` falls back to fill prices and its `gross_pnl_theoretical` already reflects realized slippage. Passing those records to `calculate_cost_sensitivity` then subtracts `slippage` again; the committed report exposes this because concentration baseline PnL is 1121.67 while the nominal 1x cost baseline is 1006.17, exactly one additional slippage total lower. Normalize legacy records or use the legacy cost formula before evaluating `G15`, otherwise marginal strategies can be rejected from overstated costs.\n\nUseful? React with 👍 / 👎.\n\n> +    observed = float(values.mean() / std * math.sqrt(periods_per_year))\n+    euler_gamma = 0.5772156649015329\n+    normal = NormalDist()\n+    if trials == 1:\n+        expected_max = 0.0\n+    else:\n+        z1 = normal.inv_cdf(1 - 1 / trials)\n+        z2 = normal.inv_cdf(1 - 1 / (trials * math.e))\n+        expected_max = (1 - euler_gamma) * z1 + euler_gamma * z2\n\n**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Scale the expected maximum Sharpe consistently**\n\nWhen `periods_per_year != 1`, `observed` is annualized by `sqrt(periods_per_year)`, but `expected_max` remains a standard-normal order statistic with no sampling-error or annualization scale. The runner passes 365.25, so the two quantities compared in the probability statistic are not estimates on the same scale and the resulting deflated-Sharpe probability is invalid. Scale the null maximum using the Sharpe estimator variance and the same annualization convention, or perform the full calculation with unannualized Sharpe.\n\nUseful? React with 👍 / 👎.\n\n> +    cut_train = int(len(equity) * 0.60)\n+    cut_validation = int(len(equity) * 0.80)\n\n**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Honor the Phase 5 configuration**\n\nThe new `phase5` values in `config/params.yaml` are never read: this runner hard-codes the 60/20 split, walk-forward sizes, admission thresholds, concentration removals, and cost multipliers. Therefore changing the authoritative YAML appears to configure the governance run but has no effect on its protocol or decision, which can leave generated evidence inconsistent with the reviewed configuration. Load these values through `ConfigLoader` or remove the misleading configuration section.\n\nUseful? React with 👍 / 👎.",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "638b61175204269ec0dd7bd1e60f4ff77909286baf71ee23b49049804632e715"
+    },
+    {
+      "archive_id": "EMAIL-012",
+      "message_id": "1a03ec7aa5b8fd35",
+      "thread_id": "1a03ec7aa5b8fd35",
+      "date_original": "Wed, 26 Aug 2026 08:54:27 -0700",
+      "date_utc": "2026-08-26T15:54:27+00:00",
+      "date_singapore": "2026-08-26T23:54:27+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Implement Phase 6 operational readiness gates (PR #20)",
+      "type": "具体审查意见",
+      "pr": 20,
+      "finding_ids": [
+        "MAIL-20-1",
+        "MAIL-20-2",
+        "MAIL-20-3"
+      ],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/20#pullrequestreview-5032477893",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a03ec7aa5b8fd35",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/20#pullrequestreview-5032477893",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/20#discussion_r3864467641",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/20#discussion_r3864467653",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/20#discussion_r3864467667",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/20"
+      ],
+      "body": "@chatgpt-codex-connector[bot] commented on this pull request.\n\n### 💡 Codex Review\n\nHere are some automated review suggestions for this pull request.\n\n**Reviewed commit:** `573bc94f09`\n    \n\n> +                    \"timestamp\": timestamp,\n+                    \"dimension\": dimension,\n+                    \"reason\": section.get(\"reason\") or \"health_check_failed\",\n+                })\n+    if not snapshots:\n+        issues.append(\"monitoring_snapshots_missing\")\n+    if not alert_delivery_verified:\n+        issues.append(\"critical_alert_delivery_not_verified\")\n+    for dimension, count in dimension_counts.items():\n+        if count != len(snapshots):\n+            issues.append(f\"{dimension}:coverage_incomplete\")\n+    return {\n+        \"schema_version\": 1,\n+        \"task\": \"T-6.5\",\n+        \"generated_at\": _utc_now(),\n+        \"passed\": bool(snapshots) and alert_delivery_verified and not issues,\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Fail admission on unhealthy monitoring snapshots**\n\nWhen any monitoring dimension reports `ok: false`—for example, stale market data—the code only emits a generated alert and does not add an issue, so this expression still marks T-6.5 as passed when alert delivery is verified. T-6.6 consequently permits micro-live admission despite a currently failed health check; make failed dimensions fail the monitoring gate.\n\nUseful? React with 👍 / 👎.\n\n> +            for field, expected_value in expected_record.items():\n+                if field == \"record_id\" or field in _IGNORED_COMPARISON_FIELDS:\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Compare unexpected fields in actual reconciliation records**\n\nWhen an actual lifecycle record contains an additional business field absent from the expected record, such as an exchange-reported fill quantity or status introduced by schema drift, this expected-only iteration never examines it. The layer can therefore report 100% reconciliation and satisfy production admission despite the records not being identical; compare the union of fields while continuing to exclude only the explicitly ignored metadata fields.\n\nUseful? React with 👍 / 👎.\n\n> +    elapsed_days = 0\n+    if timestamps:\n+        elapsed_days = (max(timestamps).date() - min(timestamps).date()).days + 1\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Require continuous evidence across the paper-run interval**\n\nWhen the bundle contains only two observations 55 days apart with two different regimes, this date-span calculation reports 56 elapsed days and T-6.2 passes even though no evidence exists for the intervening weeks. Because this gate feeds real-money admission, require sufficient daily coverage or explicitly detect gaps rather than treating the endpoints as proof of a continuous eight-week paper run.\n\nUseful? React with 👍 / 👎.",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "8a5446916eb4b2cde21aa47a29ee66d01c37351bec43131c0c49c31f6130f22d"
+    },
+    {
+      "archive_id": "EMAIL-013",
+      "message_id": "1a049087b39acea3",
+      "thread_id": "1a049087b39acea3",
+      "date_original": "Fri, 28 Aug 2026 08:41:27 -0700",
+      "date_utc": "2026-08-28T15:41:27+00:00",
+      "date_singapore": "2026-08-28T23:41:27+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Docs/readme architecture and local data (PR #21)",
+      "type": "具体审查意见",
+      "pr": 21,
+      "finding_ids": [
+        "MAIL-21-1",
+        "MAIL-21-2",
+        "MAIL-21-3",
+        "MAIL-21-4"
+      ],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/21#pullrequestreview-5052647523",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a049087b39acea3",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/21#pullrequestreview-5052647523",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/21#discussion_r3881923312",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/21#discussion_r3881923319",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/21#discussion_r3881923335",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/21#discussion_r3881923344",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/21"
+      ],
+      "body": "@chatgpt-codex-connector[bot] commented on this pull request.\n\n### 💡 Codex Review\n\nHere are some automated review suggestions for this pull request.\n\n**Reviewed commit:** `f773b33d98`\n    \n\n> +        part = fetcher.fetch_ccxt(\n+            symbol,\n+            timeframe=timeframe,\n+            start_date=chunk_start,\n+            end_date=chunk_end,\n+            limit=1000,\n+            exchange_id=exchange,\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Reject Yahoo fallback data from the Binance cache**\n\nWhen Binance has no data or all retries fail, `core/data_fetcher.py::fetch_ccxt` automatically calls `_fallback_to_yahoo_crypto`, so this call can silently write Yahoo data into `data/binance/<timeframe>` while the manifest still identifies it as Binance. Yahoo's fallback is also daily regardless of the requested CCXT timeframe, meaning an outage during a `1h` download can produce a cache labeled as Binance hourly data but containing Yahoo daily bars, invalidating subsequent matrix results; require the requested exchange here or verify the returned source/timeframe before caching it.\n\nUseful? React with 👍 / 👎.\n\n> +        part = fetcher.fetch_ccxt(\n+            symbol,\n+            timeframe=timeframe,\n+            start_date=chunk_start,\n+            end_date=chunk_end,\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Split intraday chunks below the fetcher's safety cap**\n\nFor `15m` and `5m` downloads spanning most of a year, each annual chunk contains roughly 35,000 or 105,000 bars, but `DataFetcher._fetch_ccxt_once` stops after 10,000 candles. The loop therefore saves only the beginning of every year and then advances directly to the next year, leaving large silent gaps despite this script explicitly advertising multi-year `5m` support; chunk by the timeframe-derived duration rather than by calendar year.\n\nUseful? React with 👍 / 👎.\n\n> +    print(f\"[fetch] {timeframe} from {eff_start} ({len(symbols)} symbols) ...\", flush=True)\n+    subprocess.run(cmd, check=False, cwd=REPO_ROOT)\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Stop the matrix when a cache refresh fails**\n\nWhen the fetch subprocess returns nonzero, this code discards that status and proceeds to run every backtest. If an older cache exists for a failed symbol, `main.py --source local` still succeeds using that stale, truncated history, while the matrix records the requested `window_end` rather than the cache's effective end; a transient download failure can therefore produce apparently successful but mislabeled experiment results. Propagate the fetch failure or validate every cache's coverage before starting the matrix.\n\nUseful? React with 👍 / 👎.\n\n> +        m = re.search(rf\"^{re.escape(raw_key)}\\s*\\([^)]*\\)\\s*:\\s*(-?[\\d.]+)\", txt, re.M)\n+        if m:\n+            out[col] = float(m.group(1))\n\n**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Parse non-finite metrics emitted by reports**\n\nWhen a run has no losing trades, the report formatter emits `Profit Factor ... : inf`, but this numeric pattern accepts only digits, dots, and an optional minus sign. The successful run then omits `profit_factor` from `summary.csv` and renders it as `nan` in `summary.md`; the same applies to any `nan` metric. Accept the report formatter's non-finite values so the matrix does not silently replace valid report output.\n\nUseful? React with 👍 / 👎.",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "8bede080df77770e8d8a42a15cf61c5518e0b9630dd5a1e7f1f12e453ff0fd63"
+    },
+    {
+      "archive_id": "EMAIL-014",
+      "message_id": "1a0533a93285643a",
+      "thread_id": "1a0533a93285643a",
+      "date_original": "Sun, 30 Aug 2026 08:12:22 -0700",
+      "date_utc": "2026-08-30T15:12:22+00:00",
+      "date_singapore": "2026-08-30T23:12:22+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Refactor codebase and remove obsolete implementations (PR #22)",
+      "type": "审查摘要",
+      "pr": 22,
+      "finding_ids": [],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/22#issuecomment-5469492090",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a0533a93285643a",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/22#issuecomment-5469492090",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/22"
+      ],
+      "body": "chatgpt-codex-connector[bot] left a comment (user-nmmmmm/QuantTradingV2#22)\n\n<!-- codex-pull-request-review-summary -->\n\n## Codex Review Summary\n\nThis comment shows the latest Codex review activity on this pull request.\n\n| Review | Status | Commit | Review trigger |\n| --- | --- | --- | --- |\n| 📝 **Code Review** | 🔄 **Running** since <relative-time datetime=\"2026-08-30T15:11:58.862990Z\">2026-08-30T15:11:58.862990Z</relative-time> | `66af870` | PR opened |",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "b1188a5277908cc4fd22600be339a30f2c71076ca6e5d42b5f1f02a5a64c4e5c"
+    },
+    {
+      "archive_id": "EMAIL-015",
+      "message_id": "1a0533f294b15c46",
+      "thread_id": "1a0533a93285643a",
+      "date_original": "Sun, 30 Aug 2026 08:17:23 -0700",
+      "date_utc": "2026-08-30T15:17:23+00:00",
+      "date_singapore": "2026-08-30T23:17:23+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Refactor codebase and remove obsolete implementations (PR #22)",
+      "type": "具体审查意见",
+      "pr": 22,
+      "finding_ids": [
+        "MAIL-22-1"
+      ],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/22#pullrequestreview-5061172508",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a0533a93285643a",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/22#pullrequestreview-5061172508",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/22#discussion_r3889740326",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/22"
+      ],
+      "body": "@chatgpt-codex-connector[bot] commented on this pull request.\n\n### 💡 Codex Review\n\nHere are some automated review suggestions for this pull request.\n\n**Reviewed commit:** `66af8704db`\n    \n\n> +2022-12-30,0.004523999989032745,0.004536000080406666,0.00445799995213747,0.004486999940127134,34.0\n+2023-05-03,0.1,2.0,0.1,1.4016,446598493.4\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Remove the pre-listing SUI price series**\n\nWhen the default backtest matrix includes `SUI/USDT`, this file splices the unrelated pre-2023 SUI market into the current Binance listing: the series jumps from 0.004487 on 2022-12-30 to an opening price of 0.1 and closing price of 1.4016 on 2023-05-03. A position held across the gap can therefore receive an artificial 30–300x revaluation, while indicators otherwise train on a different asset's history, corrupting SUI and portfolio-level experiment results. Start this dataset at the current listing or represent the earlier market under a separate identity.\n\nUseful? React with 👍 / 👎.",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "8d3e0be9381285dcaf80c6995590a3a398061cf8794eeee82b29ae5d2e5264b1"
+    },
+    {
+      "archive_id": "EMAIL-016",
+      "message_id": "1a05360bc455bee6",
+      "thread_id": "1a05360bc455bee6",
+      "date_original": "Sun, 30 Aug 2026 08:54:03 -0700",
+      "date_utc": "2026-08-30T15:54:03+00:00",
+      "date_singapore": "2026-08-30T23:54:03+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Archive offline ledger tooling and split metrics/events god-files (A3/A4) (PR #23)",
+      "type": "审查摘要",
+      "pr": 23,
+      "finding_ids": [],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/23#issuecomment-5469707798",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05360bc455bee6",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/23#issuecomment-5469707798",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/23"
+      ],
+      "body": "chatgpt-codex-connector[bot] left a comment (user-nmmmmm/QuantTradingV2#23)\n\n<!-- codex-pull-request-review-summary -->\n\n## Codex Review Summary\n\nThis comment shows the latest Codex review activity on this pull request.\n\n| Review | Status | Commit | Review trigger |\n| --- | --- | --- | --- |\n| 📝 **Code Review** | 🔄 **Running** since <relative-time datetime=\"2026-08-30T15:53:39.812847Z\">2026-08-30T15:53:39.812847Z</relative-time> | `1566b9b` | PR opened |",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "76301377b33c905f2fc73c00c7d73c7d4c04b0eff9158d19c15ad3b1584e3793"
+    },
+    {
+      "archive_id": "EMAIL-017",
+      "message_id": "1a05363c9151b8ab",
+      "thread_id": "1a05360bc455bee6",
+      "date_original": "Sun, 30 Aug 2026 08:57:23 -0700",
+      "date_utc": "2026-08-30T15:57:23+00:00",
+      "date_singapore": "2026-08-30T23:57:23+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Archive offline ledger tooling and split metrics/events god-files (A3/A4) (PR #23)",
+      "type": "具体审查意见",
+      "pr": 23,
+      "finding_ids": [
+        "MAIL-23-1",
+        "MAIL-23-2",
+        "MAIL-23-3"
+      ],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/23#pullrequestreview-5061253521",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05360bc455bee6",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/23#pullrequestreview-5061253521",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/23#discussion_r3889830777",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/23#discussion_r3889830782",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/23"
+      ],
+      "body": "@chatgpt-codex-connector[bot] commented on this pull request.\n\n### 💡 Codex Review\n\nhttps://github.com/user-nmmmmm/QuantTradingV2/blob/1566b9b044599dc74a3169ca1b8feb607ebe8576/research/audit/ledger.py#L61\n**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Retain a decoding shim for archived ledger events**\n\nWhen reconciliation opens a ledger database created before this change, stored `CashEvent` and `MarkPriceEvent` payloads contain qualified names such as `core.ledger:CashEvent`; `EventCodec.decode` imports that module to reconstruct each dataclass. Because the move removes `core.ledger` entirely, `AuthoritativeLedger` fails during its initial rebuild with `ModuleNotFoundError`, making existing audit ledgers unreadable; retain a compatibility module or add explicit legacy-name resolution.\n    \n\n> +            raise ValueError(\"client_order_id is required\")\n+        object.__setattr__(self, \"status\", OrderStatus(self.status))\n+        for name in (\"requested_qty\", \"filled_qty\", \"remaining_qty\"):\n+            value = _decimal(getattr(self, name), name)\n+            if name != \"requested_qty\" and value < 0:\n+                raise ValueError(f\"{name} cannot be negative\")\n+            object.__setattr__(self, name, value)\n+        if self.average_fill_price is not None:\n+            price = _decimal(self.average_fill_price, \"average_fill_price\")\n+            if price <= 0:\n+                raise ValueError(\"average_fill_price must be positive\")\n+            object.__setattr__(self, \"average_fill_price\", price)\n+\n+\n+@dataclass(frozen=True)\n+class FillEvent:\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Preserve legacy wire names for moved event classes**\n\nWhen upgrading with a populated SQLite event store, live fill and order retries reuse their idempotency keys (`core/live_broker.py` publishes both this way), but these moved dataclasses now serialize as `core.event_types:FillEvent`/`OrderEvent` instead of `core.events:*`. The resulting event ID is unchanged while `SQLiteEventStore` sees a different document and raises an `Idempotency conflict`, potentially halting processing after a restart; preserve the legacy qualified names on the wire or normalize these aliases during comparison.\n\nUseful? React with 👍 / 👎.\n\n> @@ -201,8 +201,8 @@\n ### `core/retry.py` — 重试包装器\n `with_retry(fn, max_attempts=3, base_delay=0.5, max_delay=8.0, retryable=is_ambiguous_error)`：带指数退避的有界重试，默认只重试\"不确定\"类错误（网络超时等），延迟为 `min(base_delay * 2**attempt, max_delay)`。\n \n-### `core/reconciliation_job.py` — 日终对账\n-`EODReconciliationJob` 调用 `core/ledger.py` 的 `PortfolioProjection.reconcile`，对比外部交易所现金/持仓，原子性地把 JSON 报告落盘到 `<output_dir>/<日期>_<账户>.json`（临时文件 + `os.replace`）。要求 `checked_at` 带时区。产出被 `r7_acceptance.py` 消费，要求整个 soak 期内每天零偏差。\n+### `research/audit/reconciliation_job.py` — 日终对账\n\n**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Update operational reconciliation commands after the move**\n\nThe checked operational runbooks `docs/r6_operations.md:14` and `docs/r7_sandbox_runbook.md:98` still schedule `python -m core.reconciliation_job`, but this commit deletes that module and only provides `research.audit.reconciliation_job`, so both documented EOD commands now exit immediately with “No module named core.reconciliation_job.” Update those commands or retain a forwarding module.\n\nUseful? React with 👍 / 👎.",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "3913ded95809e670c9c1d4a494502cf0ff5446e8ca51eecba8d1ef160b6094f7"
+    },
+    {
+      "archive_id": "EMAIL-018",
+      "message_id": "1a05678bc4e86b9e",
+      "thread_id": "1a05678bc4e86b9e",
+      "date_original": "Sun, 30 Aug 2026 23:19:07 -0700",
+      "date_utc": "2026-08-31T06:19:07+00:00",
+      "date_singapore": "2026-08-31T14:19:07+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Split risk/exchange_boundary/live-engine god-files by change reason (A4/batch 7+8a) (PR #24)",
+      "type": "审查摘要",
+      "pr": 24,
+      "finding_ids": [],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/24#issuecomment-5474525924",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05678bc4e86b9e",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/24#issuecomment-5474525924",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/24"
+      ],
+      "body": "chatgpt-codex-connector[bot] left a comment (user-nmmmmm/QuantTradingV2#24)\n\n<!-- codex-pull-request-review-summary -->\n\n## Codex Review Summary\n\nThis comment shows the latest Codex review activity on this pull request.\n\n| Review | Status | Commit | Review trigger |\n| --- | --- | --- | --- |\n| 📝 **Code Review** | 🔄 **Running** since <relative-time datetime=\"2026-08-31T06:18:42.758441Z\">2026-08-31T06:18:42.758441Z</relative-time> | `1adcd2f` | PR opened |",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "6c506e3164a8fbcc73cf10945604563566db0f1dee601a7020d02d977aaacc77"
+    },
+    {
+      "archive_id": "EMAIL-019",
+      "message_id": "1a056b03f46edc22",
+      "thread_id": "1a056b03f46edc22",
+      "date_original": "Mon, 31 Aug 2026 00:19:45 -0700",
+      "date_utc": "2026-08-31T07:19:45+00:00",
+      "date_singapore": "2026-08-31T15:19:45+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Split core/broker.py and core/live_broker.py by change reason (A4/batch 8b+8c) (PR #25)",
+      "type": "审查摘要",
+      "pr": 25,
+      "finding_ids": [],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/25#issuecomment-5475084244",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a056b03f46edc22",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/25#issuecomment-5475084244",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/25"
+      ],
+      "body": "chatgpt-codex-connector[bot] left a comment (user-nmmmmm/QuantTradingV2#25)\n\n<!-- codex-pull-request-review-summary -->\n\n## Codex Review Summary\n\nThis comment shows the latest Codex review activity on this pull request.\n\n| Review | Status | Commit | Review trigger |\n| --- | --- | --- | --- |\n| 📝 **Code Review** | 🔄 **Running** since <relative-time datetime=\"2026-08-31T07:19:21.227028Z\">2026-08-31T07:19:21.227028Z</relative-time> | `97ac0c4` | PR opened |",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "eb2a1e79cb9ecca5a1a1461e07cbff6fbdd97b787a7624e700d094f73edafbbf"
+    },
+    {
+      "archive_id": "EMAIL-020",
+      "message_id": "1a056b502947e8c8",
+      "thread_id": "1a056b03f46edc22",
+      "date_original": "Mon, 31 Aug 2026 00:24:58 -0700",
+      "date_utc": "2026-08-31T07:24:58+00:00",
+      "date_singapore": "2026-08-31T15:24:58+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Split core/broker.py and core/live_broker.py by change reason (A4/batch 8b+8c) (PR #25)",
+      "type": "具体审查意见",
+      "pr": 25,
+      "finding_ids": [
+        "MAIL-25-1"
+      ],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/25#pullrequestreview-5064031605",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a056b03f46edc22",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/25#pullrequestreview-5064031605",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/25#discussion_r3892479085",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/25"
+      ],
+      "body": "@chatgpt-codex-connector[bot] commented on this pull request.\n\n### 💡 Codex Review\n\nHere are some automated review suggestions for this pull request.\n\n**Reviewed commit:** `97ac0c4e25`\n    \n\n> +bundled into a file-size cleanup.\n+\"\"\"\n+from __future__ import annotations\n+\n+from datetime import datetime, timezone\n+from typing import Any, Dict, List, Optional\n+\n+import pandas as pd\n+\n+from core.broker_types import BacktestOrderStatus, Order, OrderType, TimeInForce\n+from core.domain import OrderIntent\n+from core.events import OrderEvent\n+from core.logger import get_logger\n+from core.risk_reservation import ensure_opening_reservation\n+\n+logger = get_logger(__name__)\n\n**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Preserve the broker logger name after splitting**\n\nWhen a deployment or test attaches a handler/filter specifically to the existing `core.broker` logger, order rejection and cancellation messages now go to the sibling logger `core.broker_matching` instead, and fill messages similarly go to `core.broker_fill_service` at line 22; neither logger is a descendant of `core.broker`, so those records no longer reach its handlers. Use `get_logger(\"core.broker\")` in both extracted modules, as the live-broker mixins already do, to preserve the pre-split logging contract.\n\nUseful? React with 👍 / 👎.",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "e1f43127a16dcfd83370f8878c851a31e8a8c6f880ee3302a70c8183b54798ae"
+    },
+    {
+      "archive_id": "EMAIL-021",
+      "message_id": "1a057317a5d64997",
+      "thread_id": "1a057317a5d64997",
+      "date_original": "Mon, 31 Aug 2026 02:40:55 -0700",
+      "date_utc": "2026-08-31T09:40:55+00:00",
+      "date_singapore": "2026-08-31T17:40:55+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Add breaker lifecycle policies and active-period reporting (PR #26)",
+      "type": "审查摘要",
+      "pr": 26,
+      "finding_ids": [],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/26#issuecomment-5476548528",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a057317a5d64997",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/26#issuecomment-5476548528",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/26"
+      ],
+      "body": "chatgpt-codex-connector[bot] left a comment (user-nmmmmm/QuantTradingV2#26)\n\n<!-- codex-pull-request-review-summary -->\n\n## Codex Review Summary\n\nThis comment shows the latest Codex review activity on this pull request.\n\n| Review | Status | Commit | Review trigger |\n| --- | --- | --- | --- |\n| 📝 **Code Review** | 🔄 **Running** since <relative-time datetime=\"2026-08-31T09:40:29.872318Z\">2026-08-31T09:40:29.872318Z</relative-time> | `b87210d` | PR opened |",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "ab3ba71acd4c0216414d7ecea3a20285b4a9030c88bc6ead506dc20a49fee37b"
+    },
+    {
+      "archive_id": "EMAIL-022",
+      "message_id": "1a05735fd34d03a2",
+      "thread_id": "1a057317a5d64997",
+      "date_original": "Mon, 31 Aug 2026 02:45:50 -0700",
+      "date_utc": "2026-08-31T09:45:50+00:00",
+      "date_singapore": "2026-08-31T17:45:50+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Add breaker lifecycle policies and active-period reporting (PR #26)",
+      "type": "具体审查意见",
+      "pr": 26,
+      "finding_ids": [
+        "MAIL-26-1",
+        "MAIL-26-2"
+      ],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/26#pullrequestreview-5065127391",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a057317a5d64997",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/26#pullrequestreview-5065127391",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/26#discussion_r3893347852",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/26#discussion_r3893347862",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/26"
+      ],
+      "body": "@chatgpt-codex-connector[bot] commented on this pull request.\n\n### 💡 Codex Review\n\nHere are some automated review suggestions for this pull request.\n\n**Reviewed commit:** `b87210d441`\n    \n\n> +            allow_new_entries=(\n+                not daily_block\n+                and _BREAKER_RANK[action] < _BREAKER_RANK[BreakerAction.BLOCK_NEW]\n+            ),\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Preserve restored daily breakers in risk decisions**\n\nOn a same-day live-process restart, `LiveTradingEngine._reset_daily_risk_if_needed` restores only `circuit_breaker_triggered = True`, leaving the newly introduced `daily_loss_triggered` false. If equity has recovered above the daily threshold, this decision therefore allows new entries and evaluates false, causing `TickOrchestrator` to clear the persisted halt and resume trading during a day that is explicitly meant to remain halted after restart. Honor the restored compatibility flag here or restore the dedicated daily flag alongside it.\n\nUseful? React with 👍 / 👎.\n\n>                          broker.force_liquidate(\n                             dict(event.bars),\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Finish liquidating every position before terminating**\n\nWith the default union alignment, `event.bars` can omit an open symbol on the bar where the breaker reaches `liquidate` or `locked`; `LiquidationMixin.force_liquidate` skips any position without a supplied bar. The new lifecycle logic nevertheless breaks immediately afterward and appends a constant cash tail, leaving that lot open while reporting the portfolio as terminated and flat. Termination must wait until all positions are closed, or liquidation must obtain a valid mark for every open symbol.\n\nUseful? React with 👍 / 👎.",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "0d75f01fc2f01b6d5e9fa1d773e648e3e68d09fb48b4524ebc5ad624e526a4ae"
+    },
+    {
+      "archive_id": "EMAIL-023",
+      "message_id": "1a05b34da3e57df6",
+      "thread_id": "1a05b34da3e57df6",
+      "date_original": "Mon, 31 Aug 2026 21:23:05 -0700",
+      "date_utc": "2026-09-01T04:23:05+00:00",
+      "date_singapore": "2026-09-01T12:23:05+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Implement SR0-SR3 of the current-strategy remediation roadmap (PR #27)",
+      "type": "审查摘要",
+      "pr": 27,
+      "finding_ids": [],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/27#issuecomment-5488852225",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05b34da3e57df6",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/27#issuecomment-5488852225",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/27"
+      ],
+      "body": "chatgpt-codex-connector[bot] left a comment (user-nmmmmm/QuantTradingV2#27)\n\n<!-- codex-pull-request-review-summary -->\n\n## Codex Review Summary\n\nThis comment shows the latest Codex review activity on this pull request.\n\n| Review | Status | Commit | Review trigger |\n| --- | --- | --- | --- |\n| 📝 **Code Review** | 🔄 **Running** since <relative-time datetime=\"2026-09-01T04:22:39.276880Z\">2026-09-01T04:22:39.276880Z</relative-time> | `9c8184e` | PR opened |",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "b39e0eb19b28fe569456e3295b14008a4ad1903558669eb4d23baff2a774625e"
+    },
+    {
+      "archive_id": "EMAIL-024",
+      "message_id": "1a05b3824962ccff",
+      "thread_id": "1a05b34da3e57df6",
+      "date_original": "Mon, 31 Aug 2026 21:26:40 -0700",
+      "date_utc": "2026-09-01T04:26:40+00:00",
+      "date_singapore": "2026-09-01T12:26:40+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Implement SR0-SR3 of the current-strategy remediation roadmap (PR #27)",
+      "type": "具体审查意见",
+      "pr": 27,
+      "finding_ids": [
+        "MAIL-27-1",
+        "MAIL-27-2",
+        "MAIL-27-3"
+      ],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/27#pullrequestreview-5074006738",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05b34da3e57df6",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/27#pullrequestreview-5074006738",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/27#discussion_r3900766923",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/27#discussion_r3900766928",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/27#discussion_r3900766931",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/27"
+      ],
+      "body": "@chatgpt-codex-connector[bot] commented on this pull request.\n\n### 💡 Codex Review\n\nHere are some automated review suggestions for this pull request.\n\n**Reviewed commit:** `9c8184e8ef`\n    \n\n> +        consecutive = self.consecutive_negative_cohorts\n+        if consecutive >= self.policy.consecutive_negative_cohorts:\n+            trigger = self._last_counted_cohort()\n+            if self.status is HealthStatus.PROBATION:\n+                self._fail_probation(moment, reason=\"probation_negative_cohorts\")\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Ignore pre-probation losses when evaluating probation**\n\nWhen cooldown expires, the method transitions to `PROBATION` and returns, but the next health check still evaluates the global consecutive-loss streak that originally caused the cooldown. If no nonnegative cohort is ingested between those two checks—which is typical when there is no setup exactly at expiry—the unchanged historical streak immediately calls `_fail_probation`, sending the strategy back to cooldown and eventually `MANUAL_LOCK` without allowing it to collect the required probation cohorts. Scope this check to cohorts closed since `probation_started_at`.\n\nUseful? React with 👍 / 👎.\n\n> +                self.broker.submit_order(\n+                    symbol, intent.side, intent.qty,\n+                    price=intent.stop_price, order_type=\"stop\",\n+                    timestamp=self._now(), strategy_id=\"ProtectiveStop\",\n+                    exit_reason=\"protective_stop\", reduce_only=True,\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Fail closed when protective-order submission is rejected**\n\n`SafeLiveBroker.submit_order()` reports ordinary venue/metadata failures as a rejected or unknown `OrderSubmissionResult` rather than raising, but this code discards that result and treats the protective stop as successfully placed. For example, if a spot venue rejects the `stop` order type, the position remains unprotected without the promised flatten or `position_unprotected` alert; a terminal rejection also disappears from `list_non_terminal()` on the next reconciliation. Inspect the returned status and flatten/alert unless protection is confirmed.\n\nUseful? React with 👍 / 👎.\n\n> +    # SR3-4: refuse to trade a cost model that does not match the account.\n+    try:\n+        validate_account_cost_contract(config)\n\n**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Validate the account mode selected by the live CLI**\n\nThis validates only `config.account.mode`, even though the broker immediately below is created with `args.market_type`. With the committed defaults, `--market-type spot` or `--market-type futures` still validates the configured `spot_margin` fee contract and proceeds, so the new entry-point check does not detect the exact account/cost mismatch it is intended to reject. Pass the CLI-selected mode after mapping margin and derivative aliases to the contract vocabulary.\n\nUseful? React with 👍 / 👎.",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "0757e076dd25beef600cf14e36063cf2d35cf93982ef9c4cdac05d3d8b8e4149"
+    },
+    {
+      "archive_id": "EMAIL-025",
+      "message_id": "1a05b938ac2335df",
+      "thread_id": "1a05b938ac2335df",
+      "date_original": "Mon, 31 Aug 2026 23:06:30 -0700",
+      "date_utc": "2026-09-01T06:06:30+00:00",
+      "date_singapore": "2026-09-01T14:06:30+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Close current-strategy execution safety gaps (PR #28)",
+      "type": "审查摘要",
+      "pr": 28,
+      "finding_ids": [],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/28#issuecomment-5489646520",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05b938ac2335df",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/28#issuecomment-5489646520",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/28"
+      ],
+      "body": "chatgpt-codex-connector[bot] left a comment (user-nmmmmm/QuantTradingV2#28)\n\n<!-- codex-pull-request-review-summary -->\n\n## Codex Review Summary\n\nThis comment shows the latest Codex review activity on this pull request.\n\n| Review | Status | Commit | Review trigger |\n| --- | --- | --- | --- |\n| 📝 **Code Review** | 🔄 **Running** since <relative-time datetime=\"2026-09-01T06:06:04.731364Z\">2026-09-01T06:06:04.731364Z</relative-time> | `172ae21` | PR opened |",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "76803edf0d417f9edc18eedbd1a219ac9c9512e3297e57591dd80f585d85f099"
+    },
+    {
+      "archive_id": "EMAIL-026",
+      "message_id": "1a05b96695069336",
+      "thread_id": "1a05b938ac2335df",
+      "date_original": "Mon, 31 Aug 2026 23:09:39 -0700",
+      "date_utc": "2026-09-01T06:09:39+00:00",
+      "date_singapore": "2026-09-01T14:09:39+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Close current-strategy execution safety gaps (PR #28)",
+      "type": "具体审查意见",
+      "pr": 28,
+      "finding_ids": [
+        "MAIL-28-1",
+        "MAIL-28-2",
+        "MAIL-28-3"
+      ],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/28#pullrequestreview-5074542286",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05b938ac2335df",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/28#pullrequestreview-5074542286",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/28#discussion_r3901252458",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/28#discussion_r3901252466",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/28#discussion_r3901252470",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/28"
+      ],
+      "body": "@chatgpt-codex-connector[bot] commented on this pull request.\n\n### 💡 Codex Review\n\nHere are some automated review suggestions for this pull request.\n\n**Reviewed commit:** `172ae21e13`\n    \n\n> @@ -342,7 +354,14 @@ def run(\n                     waiting_for_recovery = False\n                     flat_bars = 0\n                     health_bars = 0\n-            result = processor.process(event)\n+            # One bar, one order: (1) the previous bar's queued orders fill at\n+            # this open, (2) protection is reconciled against the position that\n+            # now exists and matched against this bar, (3) strategy logic runs\n+            # on the close. Splitting the market event out of ``process`` is\n+            # what puts the resident stop between (1) and (3).\n+            execution.on_market_data(event)\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Exclude resident stops from the opening-order pass**\n\nWhen a resident stop from the prior bar and a queued strategy exit coexist on a bar that breaches the stop, this unfiltered call processes the already-active stop before the newly appended market exit. The position therefore closes at the stop rather than at the opening exit price promised by the documented ordering, and `ResidentStopSimulator.step()` subsequently sees no fill, so `triggered_stops` and the stop audit are also wrong. The initial pass needs to exclude protective stops so they are matched only by the simulator.\n\nUseful? React with 👍 / 👎.\n\n> +        self.audit: List[Dict[str, Any]] = []\n+        #: order id -> the level that order enforces, so a fill can be audited\n+        #: against the stop that fired rather than against its fill price.\n+        self._levels: Dict[str, float] = {}\n+        self.triggered_stops = 0\n+        self.unprotected_position_bars = 0\n+\n+    # ------------------------------------------------------------------ API\n+\n+    def step(self, event: MarketDataSlice, *, bar_index: int = -1) -> List[Dict]:\n+        \"\"\"Reconcile protection, then match it against this bar. Returns fills.\"\"\"\n+        if not self.enabled:\n+            return []\n+        bars = dict(event.bars)\n+        self._sync(bars, timestamp=event.timestamp, bar_index=bar_index)\n+        trades = self.broker.process_orders(bars, order_filter=is_protective_stop)\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Carry the consumed volume budget into the stop pass**\n\nOn an entry bar where the opening fill consumes the symbol's full participation allowance and the newly armed stop is breached, this second `process_orders` invocation constructs a fresh volume budget and can fill the stop using another full allowance. Total simulated volume can consequently reach twice `max_participation_rate`, producing fills and impact costs that the shared-liquidity model should reject or partially fill. The two matching phases must share the bar's remaining budget rather than resetting it here.\n\nUseful? React with 👍 / 👎.\n\n> +\n+        policy = getattr(self, \"entry_risk_policy\", None)\n+        if policy is None or not policy.enabled or self._snapshot is None:\n+            return True\n+        order_store = getattr(self.broker, \"order_store\", None)\n+        list_with_fills = getattr(order_store, \"list_with_fills\", None)\n+        if not callable(list_with_fills):\n+            return True\n+        state_store = self._ensure_state_store()\n+        audit = getattr(self, \"_live_fill_risk_audit\", None)\n+        if audit is None:\n+            audit = []\n+            self._live_fill_risk_audit = audit\n+\n+        all_accepted = True\n+        for record in list_with_fills():\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Ignore closed historical entries during live risk rechecks**\n\nBecause `list_with_fills()` returns every filled order ever retained, this loop also evaluates closed historical entries that lack the newly introduced checkpoint. Such records are initially skipped while no strategy stop exists, but after a later unrelated position opens in the same symbol, they are evaluated using that position's current stop and their old fill quantity; any computed resize is then clamped against and submitted for the current holding. A deployment with pre-existing order history can therefore reduce or flatten the wrong live position unless records are tied to still-open lots or historical fills are durably baselined.\n\nUseful? React with 👍 / 👎.",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "e33b14baf2ca3229bba147a160645bc405c9d9830f17ec2ee28f9ea1b9329243"
+    },
+    {
+      "archive_id": "EMAIL-027",
+      "message_id": "1a05d183fbccf8d3",
+      "thread_id": "1a05d183fbccf8d3",
+      "date_original": "Tue, 01 Sep 2026 06:11:04 -0700",
+      "date_utc": "2026-09-01T13:11:04+00:00",
+      "date_singapore": "2026-09-01T21:11:04+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Codex/refactor codebase boundaries (PR #29)",
+      "type": "审查摘要",
+      "pr": 29,
+      "finding_ids": [],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/29#issuecomment-5494456051",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05d183fbccf8d3",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/29#issuecomment-5494456051",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/29"
+      ],
+      "body": "chatgpt-codex-connector[bot] left a comment (user-nmmmmm/QuantTradingV2#29)\n\n<!-- codex-pull-request-review-summary -->\n\n## Codex Review Summary\n\nThis comment shows the latest Codex review activity on this pull request.\n\n| Review | Status | Commit | Review trigger |\n| --- | --- | --- | --- |\n| 📝 **Code Review** | 🔄 **Running** since <relative-time datetime=\"2026-09-01T13:10:38.997684Z\">2026-09-01T13:10:38.997684Z</relative-time> | `7117610` | PR opened |",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "5b96f107d7c3d586875307912b9e7cfd896e586943c9398423616c89c4c714ff"
+    },
+    {
+      "archive_id": "EMAIL-028",
+      "message_id": "1a05d1bb20c4c13f",
+      "thread_id": "1a05d183fbccf8d3",
+      "date_original": "Tue, 01 Sep 2026 06:14:51 -0700",
+      "date_utc": "2026-09-01T13:14:51+00:00",
+      "date_singapore": "2026-09-01T21:14:51+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Codex/refactor codebase boundaries (PR #29)",
+      "type": "具体审查意见",
+      "pr": 29,
+      "finding_ids": [
+        "MAIL-29-1",
+        "MAIL-29-2"
+      ],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/29#pullrequestreview-5078459446",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05d183fbccf8d3",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/29#pullrequestreview-5078459446",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/29#discussion_r3904450049",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/29#discussion_r3904450053",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/29"
+      ],
+      "body": "@chatgpt-codex-connector[bot] commented on this pull request.\n\n### 💡 Codex Review\n\nHere are some automated review suggestions for this pull request.\n\n**Reviewed commit:** `7117610cd8`\n    \n\n> @@ -1 +1 @@\n-aa22d7f18f74d0a1b4030d8f9d2992442fe28270dfe18ff32fa002d841dbfa67  requirements.lock.txt\n+fa21ee2d837b8bfe65e9da56092372246d0d8a4e19141087e100acbaa65a41a4  requirements.lock.txt\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Update the checksum to match the modified lockfile**\n\nThe committed digest does not match `requirements.lock.txt`: the lockfile hashes to `e5ea5c4c94d3766094fd72adb7162d61ea8ab8ae65497095738f858a0b474d9e`, so `python scripts/verify_lock.py` exits with a checksum mismatch. Because `.github/workflows/tests.yml` runs that verifier before the test suite, every CI run for this commit fails regardless of the code or environment.\n\nUseful? React with 👍 / 👎.\n\n> +    \"calculate_segment_returns\", \"train_test_split_returns\", \"walk_forward_windows\",\n+    \"bootstrap_return_distribution\", \"monte_carlo_trade_sequence\", \"benjamini_hochberg\",\n+]\n\n**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Restore the promised Metrics compatibility export**\n\nThe previous facade explicitly exported the `Metrics` static-method bundle for API compatibility, but the replacement package omits both that class and its `__all__` entry even though its module documentation promises that every former name remains re-exported. Any external consumer using `from core.metrics import Metrics` now receives an `ImportError`; retain the compatibility class or provide an equivalent export during this refactor.\n\nUseful? React with 👍 / 👎.",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "e953e2cf20dcb52860d4d95af52e2a1480a335c04956a6fa34756e4baf33208a"
+    },
+    {
+      "archive_id": "EMAIL-029",
+      "message_id": "1a05d656bd3d0655",
+      "thread_id": "1a05d656bd3d0655",
+      "date_original": "Tue, 01 Sep 2026 07:35:22 -0700",
+      "date_utc": "2026-09-01T14:35:22+00:00",
+      "date_singapore": "2026-09-01T22:35:22+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Refactor reporting metrics and migrate Phase 4 configuration (PR #30)",
+      "type": "审查摘要",
+      "pr": 30,
+      "finding_ids": [],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/30#issuecomment-5495596418",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a05d656bd3d0655",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/30#issuecomment-5495596418",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/30"
+      ],
+      "body": "chatgpt-codex-connector[bot] left a comment (user-nmmmmm/QuantTradingV2#30)\n\n<!-- codex-pull-request-review-summary -->\n\n## Codex Review Summary\n\nThis comment shows the latest Codex review activity on this pull request.\n\n| Review | Status | Commit | Review trigger |\n| --- | --- | --- | --- |\n| 📝 **Code Review** | ✅ **Completed** <relative-time datetime=\"2026-09-01T14:34:58.713630Z\">2026-09-01T14:34:58.713630Z</relative-time> | `0a1ffcc` | PR opened |",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "0e59bab27f228f242aab5ec87639520203aec1d46746bdd20d20fe779219cae6"
+    },
+    {
+      "archive_id": "EMAIL-030",
+      "message_id": "1a06121ba26be8a2",
+      "thread_id": "1a06121ba26be8a2",
+      "date_original": "Wed, 02 Sep 2026 00:59:55 -0700",
+      "date_utc": "2026-09-02T07:59:55+00:00",
+      "date_singapore": "2026-09-02T15:59:55+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Fix backtest fidelity defects and wire the unused research metrics (PR #31)",
+      "type": "审查摘要",
+      "pr": 31,
+      "finding_ids": [],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/31#issuecomment-5506411860",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a06121ba26be8a2",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/31#issuecomment-5506411860",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/31"
+      ],
+      "body": "chatgpt-codex-connector[bot] left a comment (user-nmmmmm/QuantTradingV2#31)\n\n<!-- codex-pull-request-review-summary -->\n\n## Codex Review Summary\n\nThis comment shows the latest Codex review activity on this pull request.\n\n| Review | Status | Commit | Review trigger |\n| --- | --- | --- | --- |\n| 📝 **Code Review** | 🔄 **Running** since <relative-time datetime=\"2026-09-02T07:59:28.439143Z\">2026-09-02T07:59:28.439143Z</relative-time> | `b398df7` | PR opened |",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "ffd334e7955b56ca49c5cdabf95ab210beb77bb11f5649144a894287037ac59b"
+    },
+    {
+      "archive_id": "EMAIL-031",
+      "message_id": "1a061280e2754a60",
+      "thread_id": "1a06121ba26be8a2",
+      "date_original": "Wed, 02 Sep 2026 01:06:49 -0700",
+      "date_utc": "2026-09-02T08:06:49+00:00",
+      "date_singapore": "2026-09-02T16:06:49+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Fix backtest fidelity defects and wire the unused research metrics (PR #31)",
+      "type": "具体审查意见",
+      "pr": 31,
+      "finding_ids": [
+        "MAIL-31-1",
+        "MAIL-31-2",
+        "MAIL-31-3",
+        "MAIL-31-4"
+      ],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/31#pullrequestreview-5087145892",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a06121ba26be8a2",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/31#pullrequestreview-5087145892",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/31#discussion_r3912027567",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/31#discussion_r3912027577",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/31#discussion_r3912027585",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/31#discussion_r3912027594",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/31"
+      ],
+      "body": "@chatgpt-codex-connector[bot] commented on this pull request.\n\n### 💡 Codex Review\n\nHere are some automated review suggestions for this pull request.\n\n**Reviewed commit:** `b398df76aa`\n    \n\n> +                # The selection window already required this much history and\n+                # sits entirely before the test window, so the prefix exists.\n+                warmup_start=timeline[split[\"test_start\"] - config.warmup_period],\n+                config=config,\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Warm up test runs for each candidate's full lookback**\n\nWith the CLI defaults, test windows contain only 60 bars and this prefix contributes 30 more, while the grid includes `entry_window=100`; both trend strategies reject every entry while `i < entry_window`. Consequently, those candidates can be selected using the much longer train/validation run but are structurally unable to trade in any test run, producing falsely flat out-of-sample results and biased candidate/FDR comparisons. Supply at least each candidate's maximum indicator lookback before the test start rather than always using the global 30-bar prefix.\n\nUseful? React with 👍 / 👎.\n\n> +        if order.filled_qty > 0:\n+            order.idle_bars = 0\n+            order.last_counted_bar = current_time\n+            return False\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Restart the TTL clock after partial-fill progress stops**\n\nFor a partially filled opening order, `filled_qty` remains positive forever, so every later bar takes this branch and resets `idle_bars` even when no new quantity fills. A limit entry that fills once and then moves away from its limit therefore never expires, retaining its remaining reservation and active-order lock indefinitely despite the configured TTL. Track whether `filled_qty` increased on the current bar, then resume counting idle bars after the last actual fill.\n\nUseful? React with 👍 / 👎.\n\n>              continue\n         group = groups.setdefault(key, {stage: False for stage in _FUNNEL_STAGES})\n\n**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Restrict funnel groups to entry signal chains**\n\nThe production event log also contains exit order intents, orders, and fills, but exits have no `risk_decision`; creating a group for every correlation ID therefore mixes exit-only chains into an entry funnel. This can make `order_created`, `order_accepted`, or `filled` exceed the preceding stage and yields percentages above 100%, contradicting the report's claim that the funnel only decreases and obscuring actual entry conversion. Build the reported funnel from correlations associated with an opening risk evaluation, or report exits separately.\n\nUseful? React with 👍 / 👎.\n\n> +    procedure = pd.concat(procedure_returns) if procedure_returns else pd.Series(\n+        dtype=float\n+    )\n\n**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Reject overlapping test windows before stitching returns**\n\nWhen callers set `WalkForwardConfig.step` below `test_size`, the accepted split geometry produces overlapping test windows, and this concatenation includes the same calendar returns multiple times. The procedure's sample size, bootstrap evidence, and compounded `total_return` are then inflated even though the module documents the stitched windows as non-overlapping. Either enforce a non-overlapping step for this procedure result or aggregate overlaps without double-counting timestamps.\n\nUseful? React with 👍 / 👎.",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "b1e4d9a04f4f03262f45a274e97e5e205dae281ac9b9b0f24ebfb06e80efa239"
+    },
+    {
+      "archive_id": "EMAIL-032",
+      "message_id": "1a06256a5f1c91e2",
+      "thread_id": "1a06256a5f1c91e2",
+      "date_original": "Wed, 02 Sep 2026 06:37:20 -0700",
+      "date_utc": "2026-09-02T13:37:20+00:00",
+      "date_singapore": "2026-09-02T21:37:20+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Fix strategy-health probation ordering, opening-order TTL, and SUI-USDT listing data (PR #32)",
+      "type": "审查摘要",
+      "pr": 32,
+      "finding_ids": [],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/32#issuecomment-5510416199",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a06256a5f1c91e2",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/32#issuecomment-5510416199",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/32"
+      ],
+      "body": "chatgpt-codex-connector[bot] left a comment (user-nmmmmm/QuantTradingV2#32)\n\n<!-- codex-pull-request-review-summary -->\n\n## Codex Review Summary\n\nThis comment shows the latest Codex review activity on this pull request.\n\n| Review | Status | Commit | Review trigger |\n| --- | --- | --- | --- |\n| 📝 **Code Review** | 🔄 **Running** since <relative-time datetime=\"2026-09-02T13:36:54.420193Z\">2026-09-02T13:36:54.420193Z</relative-time> | `ec17e5f` | PR opened |",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "80aee6d4a49ff252c7e06c07279b5727dc6bdd1077e68d8897b39a8ecc294d94"
+    },
+    {
+      "archive_id": "EMAIL-033",
+      "message_id": "1a0625a5fa3ebcd2",
+      "thread_id": "1a06256a5f1c91e2",
+      "date_original": "Wed, 02 Sep 2026 06:41:24 -0700",
+      "date_utc": "2026-09-02T13:41:24+00:00",
+      "date_singapore": "2026-09-02T21:41:24+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Fix strategy-health probation ordering, opening-order TTL, and SUI-USDT listing data (PR #32)",
+      "type": "具体审查意见",
+      "pr": 32,
+      "finding_ids": [
+        "MAIL-32-1",
+        "MAIL-32-2"
+      ],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/32#pullrequestreview-5090380872",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a06256a5f1c91e2",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/32#pullrequestreview-5090380872",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/32#discussion_r3914711954",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/32#discussion_r3914711960",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/32"
+      ],
+      "body": "@chatgpt-codex-connector[bot] commented on this pull request.\n\n### 💡 Codex Review\n\nHere are some automated review suggestions for this pull request.\n\n**Reviewed commit:** `ec17e5fc3d`\n    \n\n> +            if self.probation_total_r > self.policy.probation_min_total_r:\n+                self.resume_count += 1\n+                self._transition(\n+                    HealthStatus.ACTIVE, moment,\n+                    reason=\"probation_passed\",\n+                )\n+                self.failed_probation_cycles = 0\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Reset the loss streak after probation passes**\n\nWhen `probation_required_cohorts` exceeds `consecutive_negative_cohorts`—both are independently registered candidate parameters—a probation sample can have positive total R but end with enough losses to trigger the streak gate (for example, `+10R, -1R, -1R` with required=3 and consecutive=2). This branch marks the strategy ACTIVE and resets failed cycles, but leaves those probation cohorts outside the baseline; the next `check_health()` therefore immediately sends it back to COOLDOWN using the same sample that just passed, bypassing the intended probation verdict and corrupting those experiment results. Snapshot the passing cohorts into the streak baseline when transitioning to ACTIVE.\n\nUseful? React with 👍 / 👎.\n\n> +            # main.py keeps the user's symbol spelling as the data-map key.\n+            \"symbol\": symbol.replace(\"/\", \"-\"),\n+            \"listed_at\": pd.Timestamp(record[\"first\"]).date().isoformat(),\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Normalize symbols before applying the generated universe**\n\nThe generated universe unconditionally rewrites manifest symbols to hyphen form, but `main.py` retains the exact user spelling as each `data_map` key and `PointInTimeUniverse.apply()` performs an exact lookup. Consequently, using this universe with the repository's 30-symbol defaults (`BTC/USDT`, etc., as used by the fetch and matrix scripts) removes every loaded series and raises `Point-in-time universe removed all requested data`; only hyphen-spelled invocations work. Normalize both sides during lookup or generate symbols in the same convention as the intended caller.\n\nUseful? React with 👍 / 👎.",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "ce94474a9a97fbf7d2f21fa20d1fdc1d9c2aa76de9736ca98442b8872eccedf4"
+    },
+    {
+      "archive_id": "EMAIL-034",
+      "message_id": "1a075dd685d2850b",
+      "thread_id": "1a075dd685d2850b",
+      "date_original": "Sun, 06 Sep 2026 01:37:19 -0700",
+      "date_utc": "2026-09-06T08:37:19+00:00",
+      "date_singapore": "2026-09-06T16:37:19+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Add drawdown recovery with durable breaker state and stop cleanup (PR #33)",
+      "type": "具体审查意见",
+      "pr": 33,
+      "finding_ids": [
+        "MAIL-33-1",
+        "MAIL-33-2"
+      ],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/33#pullrequestreview-5124762654",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a075dd685d2850b",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/33#pullrequestreview-5124762654",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/33#discussion_r3943439021",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/33#discussion_r3943439024",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/33"
+      ],
+      "body": "@chatgpt-codex-connector[bot] commented on this pull request.\n\n### 💡 Codex Review\n\nHere are some automated review suggestions for this pull request.\n\n**Reviewed commit:** `1f0c0e597e`\n    \n\n>          )\n+        state_store.set(\"portfolio_breaker_checkpoint\", self.risk_manager.breaker_checkpoint())\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Persist the breaker day atomically with its checkpoint**\n\nIf the live process stops after this `StateStore.set` commits but before `circuit_breaker_day` is written below, a same-day restart restores the new checkpoint and then treats it as belonging to a previous day in `_reset_daily_risk_if_needed`, clearing `daily_loss_triggered`. Because the daily breaker is intended to remain sticky even if equity subsequently rebounds, this crash window can allow new entries later that day; persist the checkpoint and its associated trading day in one transaction or include the day inside the checkpoint.\n\nUseful? React with 👍 / 👎.\n\n>          breaker = self.risk_manager.check_circuit_breaker(\n-            self._snapshot.equity, float(daily_start)\n+            self._snapshot.equity, float(daily_start), occurred_at=now\n         )\n+        state_store.set(\"portfolio_breaker_checkpoint\", self.risk_manager.breaker_checkpoint())\n\n**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Clear RISK_HALTED when cooldown recovery succeeds**\n\nOn the first healthy tick at or after the cooldown deadline, `_assess_health` has already set `_operational_state` from the pre-recovery breaker state, and this call can then transition the breaker from `BLOCK_NEW` to `REDUCE`. Since only the truthy branch updates `_operational_state`, the engine proceeds to route newly permitted entries and exports the recovery transition while still reporting `RISK_HALTED` until the next tick; refresh the operational state immediately after a successful automatic recovery.\n\nUseful? React with 👍 / 👎.",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "0fe6f6dc6e37ff82d4be52a0769a349e6ad33b683aaece3c80ccf0638318dcbf"
+    },
+    {
+      "archive_id": "EMAIL-035",
+      "message_id": "1a075dd718e32fe1",
+      "thread_id": "1a075dd685d2850b",
+      "date_original": "Sun, 06 Sep 2026 01:37:21 -0700",
+      "date_utc": "2026-09-06T08:37:21+00:00",
+      "date_singapore": "2026-09-06T16:37:21+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Add drawdown recovery with durable breaker state and stop cleanup (PR #33)",
+      "type": "审查摘要",
+      "pr": 33,
+      "finding_ids": [],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/33#issuecomment-5558074781",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a075dd685d2850b",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/33#issuecomment-5558074781",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/33"
+      ],
+      "body": "chatgpt-codex-connector[bot] left a comment (user-nmmmmm/QuantTradingV2#33)\n\n<!-- codex-pull-request-review-summary -->\n\n## Codex Review Summary\n\nThis comment shows the latest Codex review activity on this pull request.\n\n| Review | Status | Commit | Review trigger |\n| --- | --- | --- | --- |\n| 📝 **Code Review** | ✅ **Completed** <relative-time datetime=\"2026-09-06T08:36:57.971456Z\">2026-09-06T08:36:57.971456Z</relative-time> | `1f0c0e5` | PR opened |",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "9ee6043c8a84b21f5c21f6a0a3ed1fb7fedd01a1d6a6a7f1657f319f2e12367e"
+    },
+    {
+      "archive_id": "EMAIL-036",
+      "message_id": "1a07631c34ed8774",
+      "thread_id": "1a07631c34ed8774",
+      "date_original": "Sun, 06 Sep 2026 03:09:27 -0700",
+      "date_utc": "2026-09-06T10:09:27+00:00",
+      "date_singapore": "2026-09-06T18:09:27+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Add main acceptance tooling and verified evidence index (PR #34)",
+      "type": "审查摘要",
+      "pr": 34,
+      "finding_ids": [],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/34#issuecomment-5558526706",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a07631c34ed8774",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/34#issuecomment-5558526706",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/34"
+      ],
+      "body": "chatgpt-codex-connector[bot] left a comment (user-nmmmmm/QuantTradingV2#34)\n\n<!-- codex-pull-request-review-summary -->\n\n## Codex Review Summary\n\nThis comment shows the latest Codex review activity on this pull request.\n\n| Review | Status | Commit | Review trigger |\n| --- | --- | --- | --- |\n| 📝 **Code Review** | 🔄 **Running** since <relative-time datetime=\"2026-09-06T10:09:02.316977Z\">2026-09-06T10:09:02.316977Z</relative-time> | `c49c812` | PR opened |",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "26ff0daf48104718a13a57aa96b6fa546a6aeb0f135f3ece5846d15e8c5de590"
+    },
+    {
+      "archive_id": "EMAIL-037",
+      "message_id": "1a07634b888d646b",
+      "thread_id": "1a07631c34ed8774",
+      "date_original": "Sun, 06 Sep 2026 03:12:40 -0700",
+      "date_utc": "2026-09-06T10:12:40+00:00",
+      "date_singapore": "2026-09-06T18:12:40+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Add main acceptance tooling and verified evidence index (PR #34)",
+      "type": "具体审查意见",
+      "pr": 34,
+      "finding_ids": [
+        "MAIL-34-1"
+      ],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/34#pullrequestreview-5125020002",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a07631c34ed8774",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/34#pullrequestreview-5125020002",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/34#discussion_r3943633806",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/34"
+      ],
+      "body": "@chatgpt-codex-connector[bot] commented on this pull request.\n\n### 💡 Codex Review\n\nHere are some automated review suggestions for this pull request.\n\n**Reviewed commit:** `c49c81297e`\n    \n\n> +    if git(\"diff\", \"--name-only\", base, \"--\", \".\"):\n+        raise ValueError(\"Tracked files differ from acceptance commit; start from a clean main tree\")\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Reject untracked files before accepting a commit**\n\nWhen acceptance runs in a worktree containing an untracked `conftest.py`, Python module, or configuration file, this check still reports the tree as clean because `git diff` omits untracked files. Pytest can automatically load such a `conftest.py`, and application imports can resolve untracked modules, so the recorded results may not represent the commit stored in `base`; use a status check that includes untracked files while explicitly allowing only the acceptance output/tooling paths.\n\nUseful? React with 👍 / 👎.",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "da092cd275e41630d1b66955018133eb4bf1b69f7718d6c4715f1845eecf7e57"
+    },
+    {
+      "archive_id": "EMAIL-038",
+      "message_id": "1a076a5a3d38db27",
+      "thread_id": "1a076a5a3d38db27",
+      "date_original": "Sun, 06 Sep 2026 05:16:01 -0700",
+      "date_utc": "2026-09-06T12:16:01+00:00",
+      "date_singapore": "2026-09-06T20:16:01+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Add opt-in health recovery and 60-symbol backtest research (PR #35)",
+      "type": "审查摘要",
+      "pr": 35,
+      "finding_ids": [],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/35#issuecomment-5559145714",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a076a5a3d38db27",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/35#issuecomment-5559145714",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/35"
+      ],
+      "body": "chatgpt-codex-connector[bot] left a comment (user-nmmmmm/QuantTradingV2#35)\n\n<!-- codex-pull-request-review-summary -->\n\n## Codex Review Summary\n\nThis comment shows the latest Codex review activity on this pull request.\n\n| Review | Status | Commit | Review trigger |\n| --- | --- | --- | --- |\n| 📝 **Code Review** | 🔄 **Running** since <relative-time datetime=\"2026-09-06T12:15:37.405509Z\">2026-09-06T12:15:37.405509Z</relative-time> | `c61a7ee` | PR opened |",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "af2494902b3d4f9a4ddea6e75f53af5240c02fc90c1a5ecd974be0f48f1ab661"
+    },
+    {
+      "archive_id": "EMAIL-039",
+      "message_id": "1a076a89a3cace58",
+      "thread_id": "1a076a5a3d38db27",
+      "date_original": "Sun, 06 Sep 2026 05:19:16 -0700",
+      "date_utc": "2026-09-06T12:19:16+00:00",
+      "date_singapore": "2026-09-06T20:19:16+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Add opt-in health recovery and 60-symbol backtest research (PR #35)",
+      "type": "具体审查意见",
+      "pr": 35,
+      "finding_ids": [
+        "MAIL-35-1",
+        "MAIL-35-2"
+      ],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/35#pullrequestreview-5125276758",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a076a5a3d38db27",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/35#pullrequestreview-5125276758",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/35#discussion_r3943905550",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/35#discussion_r3943905553",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/35"
+      ],
+      "body": "@chatgpt-codex-connector[bot] commented on this pull request.\n\n### 💡 Codex Review\n\nHere are some automated review suggestions for this pull request.\n\n**Reviewed commit:** `c61a7ee225`\n    \n\n> +                    entry = future.result()\n+                    inventory[\"symbols\"][entry[\"symbol\"]] = entry\n+                    print(f\"DATA {symbol}: {entry['rows']} bars, {entry['first']} .. {entry['last']}\", flush=True)\n+                except Exception as exc:\n+                    inventory[\"failures\"][symbol] = str(exc)\n+                    print(f\"FAILED {symbol}: {exc}\", flush=True)\n+                save(root / \"download_manifest.json\", inventory)\n+    else:\n+        inventory = json.loads((root / \"download_manifest.json\").read_text(encoding=\"utf-8\"))\n+        if inventory[\"requested_start\"] != args.start or inventory[\"requested_end_inclusive\"] != args.end:\n+            raise ValueError(\"Requested range differs from downloaded manifest\")\n+    base = [symbol.replace(\"/\", \"-\") for symbol in DEFAULT_SYMBOLS]\n+    if any(symbol not in inventory[\"symbols\"] for symbol in base):\n+        raise ValueError(\"Original basket incomplete; inspect failures before comparing\")\n+    expanded = [symbol.replace(\"/\", \"-\") for symbol in requested if symbol.replace(\"/\", \"-\") in inventory[\"symbols\"]]\n+    if len(expanded) <= len(base):\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Require the complete 60-symbol universe**\n\nIf even one of the 30 added downloads fails, this condition still permits the run as long as one extra symbol succeeded, so the script advertised as a 30-vs-60 experiment can publish results for an arbitrary 31–59-symbol basket. Because transient API failures are collected rather than raised, reruns can silently compare different universes and invalidate the research conclusion; require all requested symbols or explicitly abort unless a fixed reduced universe was predeclared.\n\nUseful? React with 👍 / 👎.\n\n> +            rows.extend(batch)\n+            following = int(batch[-1][0]) + 86_400_000\n+            if following <= cursor:\n+                raise ValueError(\"Kline pagination did not advance\")\n+            cursor = following\n+            if len(batch) < 1000:\n+                break\n+            time.sleep(0.15)\n+    if not rows:\n+        raise ValueError(\"No historical klines returned\")\n+    frame = pd.DataFrame([row[:6] for row in rows], columns=[\"timestamp\", \"open\", \"high\", \"low\", \"close\", \"volume\"])\n+    frame[\"timestamp\"] = pd.to_datetime(frame[\"timestamp\"], unit=\"ms\", utc=True).dt.tz_localize(None)\n+    frame = frame.set_index(\"timestamp\").astype(float).sort_index()\n+    if frame.index.has_duplicates or not np.isfinite(frame.to_numpy()).all():\n+        raise ValueError(\"Duplicate timestamps or non-finite OHLCV\")\n+    frame = frame.loc[(frame.index >= pd.Timestamp(start)) & (frame.index < pd.Timestamp(end) + pd.Timedelta(days=1))]\n\n**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Reject incomplete daily candles**\n\nWhen `--end` is the current UTC date or a future date, Binance returns the currently open daily kline and this filter retains it based only on its opening timestamp. The backtest then treats partial OHLCV and volume as a completed daily bar, which can change indicators, fills, and results; validate the kline close time or require the requested end date to precede the active session.\n\nUseful? React with 👍 / 👎.",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "96a380ef49902d511ec3a25272618bd4ac77e133f60c7e7e082892634a6c6092"
+    },
+    {
+      "archive_id": "EMAIL-040",
+      "message_id": "1a076f2f7fc308cb",
+      "thread_id": "1a076f2f7fc308cb",
+      "date_original": "Sun, 06 Sep 2026 06:40:29 -0700",
+      "date_utc": "2026-09-06T13:40:29+00:00",
+      "date_singapore": "2026-09-06T21:40:29+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] P0: entry attribution, staged recovery and position risk research (PR #36)",
+      "type": "审查摘要",
+      "pr": 36,
+      "finding_ids": [],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/36#issuecomment-5559599421",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a076f2f7fc308cb",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/36#issuecomment-5559599421",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/36"
+      ],
+      "body": "chatgpt-codex-connector[bot] left a comment (user-nmmmmm/QuantTradingV2#36)\n\n<!-- codex-pull-request-review-summary -->\n\n## Codex Review Summary\n\nThis comment shows the latest Codex review activity on this pull request.\n\n| Review | Status | Commit | Review trigger |\n| --- | --- | --- | --- |\n| 📝 **Code Review** | 🔄 **Running** since <relative-time datetime=\"2026-09-06T13:40:03.214608Z\">2026-09-06T13:40:03.214608Z</relative-time> | `39e2695` | PR opened |",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "ba84d5a50b35c9b7aed63776796e7248f7cd560f94025c38d411546719d7feef"
+    },
+    {
+      "archive_id": "EMAIL-041",
+      "message_id": "1a076f73d53b4aef",
+      "thread_id": "1a076f2f7fc308cb",
+      "date_original": "Sun, 06 Sep 2026 06:45:09 -0700",
+      "date_utc": "2026-09-06T13:45:09+00:00",
+      "date_singapore": "2026-09-06T21:45:09+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] P0: entry attribution, staged recovery and position risk research (PR #36)",
+      "type": "具体审查意见",
+      "pr": 36,
+      "finding_ids": [
+        "MAIL-36-1",
+        "MAIL-36-2"
+      ],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/36#pullrequestreview-5125488681",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a076f2f7fc308cb",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/36#pullrequestreview-5125488681",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/36#discussion_r3944119571",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/36#discussion_r3944119575",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/36"
+      ],
+      "body": "@chatgpt-codex-connector[bot] commented on this pull request.\n\n### 💡 Codex Review\n\nHere are some automated review suggestions for this pull request.\n\n**Reviewed commit:** `39e2695101`\n    \n\n> +                forced_trades.extend(broker.force_liquidate(\n+                    dict(event.bars), timestamp=event.timestamp, reason=\"DrawdownReduce\",\n+                    remaining_fraction=float(block_remaining), risk_action_id=portfolio_action_id))\n+                applied_breaker_actions.add(portfolio_action_id)\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Retry BLOCK_NEW reductions for missing-bar positions**\n\nWith the `union` alignment used by the new experiment runner, a transition timestamp may omit bars for some currently held symbols. `force_liquidate` skips those positions, but this code still marks the entire action ID as applied, so the omitted holdings remain at full size when their data resumes and the `staged_derisk` arm no longer implements its configured once-per-BLOCK_NEW reduction. Track completion per held symbol or defer marking the action complete until every position has been processed.\n\nUseful? React with 👍 / 👎.\n\n> @@ -729,6 +737,7 @@ def run(\n             # checked every bar and summarized here for the report/roadmap gate.\n             \"accounting_check\": accounting.result().to_dict(),\n             \"event_log\": tuple(event_pipeline.events),\n+            \"entry_observations\": processor.entry_audit,\n\n**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Include entry observations in empty backtest results**\n\nThis key is added only to the completed-run return mapping, while both no-valid-data exits return `empty_result` without it. Consequently, an audit-enabled caller following the new `run_arm` path and indexing `result[\"entry_observations\"]` raises `KeyError` instead of reconciling an empty audit whenever all supplied frames are empty or removed by normalization. Add the key with an empty list to `empty_result` to preserve the engine's stated stable-result contract.\n\nUseful? React with 👍 / 👎.",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "9f3df0c2ccd9f5bba684b0c2726fc7d84d966781fd8fd1a52d06af4ab5abe41c"
+    },
+    {
+      "archive_id": "EMAIL-042",
+      "message_id": "1a08449bfeb8d915",
+      "thread_id": "1a08449bfeb8d915",
+      "date_original": "Tue, 08 Sep 2026 20:50:20 -0700",
+      "date_utc": "2026-09-09T03:50:20+00:00",
+      "date_singapore": "2026-09-09T11:50:20+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Repair P0-P2 trading safety and add 60-coin revalidation (PR #37)",
+      "type": "审查摘要",
+      "pr": 37,
+      "finding_ids": [],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/37#issuecomment-5595496984",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a08449bfeb8d915",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/37#issuecomment-5595496984",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/37"
+      ],
+      "body": "chatgpt-codex-connector[bot] left a comment (user-nmmmmm/QuantTradingV2#37)\n\n<!-- codex-pull-request-review-summary -->\n\n## Codex Review Summary\n\nThis comment shows the latest Codex review activity on this pull request.\n\n| Review | Status | Commit | Review trigger |\n| --- | --- | --- | --- |\n| 📝 **Code Review** | 🔄 **Running** since <relative-time datetime=\"2026-09-09T03:49:55.322131Z\">2026-09-09T03:49:55.322131Z</relative-time> | `f7c71be` | PR opened |",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "7d964663bac1f100fa9225841994df5ad7a2b09a7fd735ccc7ef2030a4097c50"
+    },
+    {
+      "archive_id": "EMAIL-043",
+      "message_id": "1a08452b051443e1",
+      "thread_id": "1a08449bfeb8d915",
+      "date_original": "Tue, 08 Sep 2026 21:00:06 -0700",
+      "date_utc": "2026-09-09T04:00:06+00:00",
+      "date_singapore": "2026-09-09T12:00:06+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Repair P0-P2 trading safety and add 60-coin revalidation (PR #37)",
+      "type": "具体审查意见",
+      "pr": 37,
+      "finding_ids": [
+        "MAIL-37-1",
+        "MAIL-37-2",
+        "MAIL-37-3"
+      ],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/37#pullrequestreview-5149579832",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a08449bfeb8d915",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/37#pullrequestreview-5149579832",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/37#discussion_r3964506181",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/37#discussion_r3964506186",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/37#discussion_r3964506197",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/37"
+      ],
+      "body": "@chatgpt-codex-connector[bot] commented on this pull request.\n\n### 💡 Codex Review\n\nHere are some automated review suggestions for this pull request.\n\n**Reviewed commit:** `f7c71be585`\n    \n\n> +                if risk_plan is not None and (risk_plan.action_id not in applied_breaker_actions or\n+                                              (risk_plan.remaining_fraction == 0 and portfolio.positions)):\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Retry partial reductions until the target is reached**\n\nWhen a `DrawdownReduce` or `block_new` reduction encounters insufficient bar volume, `force_liquidate` now preserves real liquidity and can leave the position above `remaining_fraction`. The action ID is nevertheless added to `applied_breaker_actions`, and the retry exception only applies to zero-fraction liquidations, so subsequent bars permanently skip the unfinished reduction. Keep retrying any risk action while current positions exceed its target.\n\nUseful? React with 👍 / 👎.\n\n> +                synthetic_bars[symbol] = frame.loc[last_event_timestamp].copy()\n+                synthetic_bars[symbol].name = synthetic_time\n+                synthetic_bars[symbol][\"open\"] = mark_price\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Preserve the final bar's remaining volume budget**\n\nIn forced-liquidation mode, this copies the last real bar's full volume but assigns it `synthetic_time`. `Broker._bar_volume_budget` keys its shared budget by the bar timestamp, so this creates a fresh budget after ordinary orders and stops may already have consumed liquidity from that same historical bar. An end-window exit can therefore pass the liquidity check even when total fills exceed the configured participation limit; the synthetic pass must reuse only the real bar's remaining budget.\n\nUseful? React with 👍 / 👎.\n\n> @@ -243,15 +279,29 @@ def _build_intent(\n             requested_qty=qty, order_type=order_type.lower(), price=price,\n             time_in_force=time_in_force, reduce_only=bool(is_reduce),\n             position_side=position_side, position_mode=self.position_mode,\n+            reference_price=reference_price if reference_price is not None else price,\n\n**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Restore reservations from the persisted reference price**\n\nA market opening order can now persist `reference_price` while leaving `price=None`, but `_restore_reservations` still derives its price only from `intent.price` or the order record's `price`. After a restart such an unresolved order is republished without a `RiskReservation`, causing `pending_open_notional()` to omit it and allowing portfolio-wide limits to admit overlapping risk in other symbols. Include `intent.reference_price` when rebuilding the reservation.\n\nUseful? React with 👍 / 👎.",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "7fbb95513a799999b3a2358e4601c96ba7b60fe94ad3ba0792387a488bea5767"
+    },
+    {
+      "archive_id": "EMAIL-044",
+      "message_id": "1a0b3b74235a6a3e",
+      "thread_id": "1a0b3b74235a6a3e",
+      "date_original": "Fri, 18 Sep 2026 01:52:06 -0700",
+      "date_utc": "2026-09-18T08:52:06+00:00",
+      "date_singapore": "2026-09-18T16:52:06+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Implement signal observation and regime-aware EV meta-layer (PR #38)",
+      "type": "审查摘要",
+      "pr": 38,
+      "finding_ids": [],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/38#issuecomment-5727605674",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a0b3b74235a6a3e",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/38#issuecomment-5727605674",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/38"
+      ],
+      "body": "chatgpt-codex-connector[bot] left a comment (user-nmmmmm/QuantTradingV2#38)\n\n<!-- codex-pull-request-review-summary -->\n\n## Codex Review Summary\n\nThis comment shows the latest Codex review activity on this pull request.\n\n| Review | Status | Commit | Review trigger |\n| --- | --- | --- | --- |\n| 📝 **Code Review** | 🔄 **Running** since <relative-time datetime=\"2026-09-18T08:51:41.981542Z\">2026-09-18T08:51:41.981542Z</relative-time> | `fdcfb76` | PR opened |",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "06859119256e659c4792324c480162fd80f3dc18896678090684978664cc8533"
+    },
+    {
+      "archive_id": "EMAIL-045",
+      "message_id": "1a0b3c4a2fe99731",
+      "thread_id": "1a0b3b74235a6a3e",
+      "date_original": "Fri, 18 Sep 2026 02:06:43 -0700",
+      "date_utc": "2026-09-18T09:06:43+00:00",
+      "date_singapore": "2026-09-18T17:06:43+08:00",
+      "subject": "Re: [user-nmmmmm/QuantTradingV2] Implement signal observation and regime-aware EV meta-layer (PR #38)",
+      "type": "具体审查意见",
+      "pr": 38,
+      "finding_ids": [
+        "MAIL-38-1",
+        "MAIL-38-2"
+      ],
+      "github_url": "https://github.com/user-nmmmmm/QuantTradingV2/pull/38#pullrequestreview-5246104970",
+      "gmail_url": "https://mail.google.com/mail/?authuser=mnm799063%40gmail.com#all/1a0b3b74235a6a3e",
+      "source_github_links": [
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/38#pullrequestreview-5246104970",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/38#discussion_r4045345478",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/38#discussion_r4045345483",
+        "https://github.com/user-nmmmmm/QuantTradingV2/pull/38"
+      ],
+      "body": "@chatgpt-codex-connector[bot] commented on this pull request.\n\n### 💡 Codex Review\n\nHere are some automated review suggestions for this pull request.\n\n**Reviewed commit:** `fdcfb76f2f`\n    \n\n> +        rate = (float(self.costs.get(\"commission_rate_taker\", 0))\n+                + float(self.costs.get(\"slippage_bps\", 0)) / 10000\n+                + max(spread, 0) / 20000\n\n**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Use the resolved broker slippage in the budget**\n\nWhen a backtest supplies the supported `slippage` override (for example through `--slippage`), the broker executes with `self.slippage`, but this budget calculation continues using `execution.slippage_bps` from the global config. Consequently the default-enabled drawdown guard reserves the wrong transaction cost and can admit too much risk, reject otherwise valid entries, or trigger reductions at the wrong point. Populate the budget cost model from the bound broker's resolved values rather than the raw configuration.\n\nUseful? React with 👍 / 👎.\n\n> +        price = float(intent.reference_price or intent.price or 0)\n+        if price <= 0 or not math.isfinite(price):\n+            return \"missing_sizing_reference\"\n\n**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Preserve price-less market-order support in the risk guard**\n\nWhen the drawdown budget is bound—which it is by default in the engine—a caller using the existing supported form `submit_order(..., order_type=\"market\", price=None)` produces an intent without a reference price, so this branch returns `missing_sizing_reference` and the broker rejects the order before it can fill at the next bar's open. This breaks the execution-port contract for direct/custom strategy market submissions; use the guard's current mark for the symbol when an opening market intent has no explicit reference price.\n\nUseful? React with 👍 / 👎.",
+      "trimmed_boilerplate": [
+        "Codex in GitHub usage instructions in <details>",
+        "GitHub email reply/notification/footer metadata; source link retained above"
+      ],
+      "body_transformations": [
+        "CR/CRLF normalized to LF",
+        "Three or more consecutive newlines reduced to two",
+        "Leading/trailing blank space trimmed"
+      ],
+      "source_body_sha256": "248ea8aa9e60db7c18252849113be55d267c2f524caccda1c9ec1daa87ea5e9c"
+    }
+  ]
+}

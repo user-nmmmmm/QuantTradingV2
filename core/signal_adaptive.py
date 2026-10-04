@@ -16,6 +16,7 @@ from core.reproducibility import canonical_json, sha256_bytes
 from core.signal_adaptive_types import AdaptiveEVPolicy, adaptive_implementation_identity
 from core.signal_axis_attribution import combine_axis_score, fit_axis_weights
 from core.signal_ev_ledger import EVLedger
+from core.signal_label_versions import OutcomeRevisionBook
 from core.signal_meta_layer import _exclusions, _validate_input
 from core.signal_observation_types import fingerprint, iso
 from core.signal_regime_model import AXIS_FEATURES, RegimeModel
@@ -60,16 +61,27 @@ def _base_result(payload, policy):
 
 
 def _prepare_fold(ordered, eligible, outcomes, stamps, *, start, cutoff, train_start, policy,
-                  index, result, previous_weights):
+                  index, result, previous_weights, revisions=None, decisions=None):
     fit_cutoff = train_start + pd.Timedelta(days=policy.regime_fit_days)
     fit_groups = defaultdict(list)
     population_labels = []
-    for c, o in eligible:
+    by_id = {c["candidate_id"]: c for c in ordered}
+
+    def visible_eligible(before):
+        return [(by_id[cid], o) for (cid, _), o in revisions.as_of(before).items()
+                if revisions.eligible(o) and not _exclusions(cid, o, decisions)]
+
+    versioned = revisions is not None and revisions.versioned
+    fit_eligible = visible_eligible(fit_cutoff) if versioned else eligible
+    for c, o in fit_eligible:
         entry, label = _stamp(c), as_utc_timestamp(o["available_at"])
         if train_start <= entry < fit_cutoff and label < fit_cutoff:
             fit_groups[_book(c, o["horizon_bars"])].append({"candidate": c, "outcome": o})
-        elif fit_cutoff <= entry and label < cutoff:
+    cutoff_eligible = visible_eligible(cutoff) if versioned else eligible
+    for c, o in cutoff_eligible:
+        if fit_cutoff <= _stamp(c) and as_utc_timestamp(o["available_at"]) < cutoff:
             population_labels.append((c, o))
+    calibration_outcomes = revisions.as_of(cutoff) if versioned else outcomes
     models = {book: RegimeModel.fit(rows, cutoff=fit_cutoff,
                 clusters=policy.regime_clusters, neighbors=policy.regime_neighbors,
                 quantiles=policy.regime_quantiles, min_samples=policy.min_regime_samples,
@@ -85,7 +97,18 @@ def _prepare_fold(ordered, eligible, outcomes, stamps, *, start, cutoff, train_s
     inner_candidates = [c for c in ordered if fit_cutoff <= stamps[c["candidate_id"]] < cutoff]
 
     def drain(before):
-        nonlocal position
+        nonlocal position, ledger
+        if versioned:
+            # Replace revised labels by rebuilding from the versions known at
+            # this forecast instant. Future revisions cannot erase an old label
+            # or retrofit a historical prequential forecast.
+            ledger = EVLedger(policy.ev_policy)
+            known = [(c, o) for c, o in visible_eligible(before) if fit_cutoff <= _stamp(c)]
+            known.sort(key=lambda pair: (as_utc_timestamp(pair[1]["available_at"]),
+                pair[0]["candidate_id"], pair[1]["horizon_bars"]))
+            for c, o in known:
+                ledger.add(c, o, entry_memberships[c["candidate_id"], o["horizon_bars"]], cutoff=before)
+            return
         while position < len(pending) and as_utc_timestamp(pending[position][1]["available_at"]) < before:
             c, o = pending[position]
             ledger.add(c, o, entry_memberships[c["candidate_id"], o["horizon_bars"]], cutoff=before)
@@ -101,7 +124,7 @@ def _prepare_fold(ordered, eligible, outcomes, stamps, *, start, cutoff, train_s
             memberships = model.memberships(candidate, as_of=at) if model is not None else _unknown()
             entry_memberships[cid, horizon] = deepcopy(memberships)
             score = ledger.query(candidate, memberships, horizon, as_of=at)
-            outcome = outcomes[cid, horizon]
+            outcome = calibration_outcomes.get((cid, horizon), {})
             # These forecasts were computed before the current outcome entered
             # the ledger. Labels are attached only for the later cutoff audit.
             record = {"candidate_id": cid, "available_at": iso(at),
@@ -112,6 +135,8 @@ def _prepare_fold(ordered, eligible, outcomes, stamps, *, start, cutoff, train_s
                 "max_training_label_at": score["max_label_available_at"],
                 "model_version": model.manifest()["model_id"] if model is not None else "unavailable",
                 "fold_id": fold_id, **_book_dict(book)}
+            if versioned:
+                record["label_revision_id"] = outcome.get("revision_id")
             result["calibration_predictions"].append(record)
             if record["label_eligible"]:
                 calibration[book].append(record)
@@ -132,6 +157,7 @@ def _prepare_fold(ordered, eligible, outcomes, stamps, *, start, cutoff, train_s
         "train_start": iso(train_start), "regime_fit_cutoff": iso(fit_cutoff), "training_cutoff": iso(cutoff),
         "training_observations": len(pending), "regime_training_observations": sum(map(len, fit_groups.values())),
         "training_digest": training_digest,
+        "label_revisions": [o["revision_id"] for _, o in pending if "revision_id" in o],
         "latest_label_available_at": max((iso(o["available_at"]) for _, o in pending), default=None),
         "model_version": fingerprint({"implementation": result["model_version"], "training": training_digest,
             "models": model_manifests, "weights": [(list(book), weights[book]) for book in used_books],
@@ -148,11 +174,15 @@ def _prepare_fold(ordered, eligible, outcomes, stamps, *, start, cutoff, train_s
 def _build(payload, policy):
     result = _base_result(payload, policy)
     horizons, candidates, decisions, outcomes = _validate_input(payload)
+    revisions = OutcomeRevisionBook(payload, candidates, horizons, outcomes)
     horizons = sorted(horizons)
+    result["protocol"].update(revisions.audit())
     result["input_identity"].update(
         candidates_sha256=fingerprint([candidates[cid] for cid in sorted(candidates)]),
         outcomes_sha256=fingerprint([outcomes[key] for key in sorted(outcomes)]),
         decisions_sha256=sha256_bytes(canonical_json([decisions[cid] for cid in sorted(decisions)]).encode("utf-8")))
+    if revisions.versioned:
+        result["input_identity"]["outcome_revisions_sha256"] = fingerprint(payload["outcome_revisions"])
     ordered = sorted(candidates.values(), key=lambda c: (_stamp(c), c["candidate_id"]))
     stamps = {cid: _stamp(c) for cid, c in candidates.items()}
     eligible = [(candidates[cid], o) for (cid, _), o in sorted(outcomes.items())
@@ -180,7 +210,8 @@ def _build(payload, policy):
             cutoff = start - pd.Timedelta(days=ev.embargo_days)
             fold, ledger, models, weights = _prepare_fold(ordered, eligible, outcomes, stamps,
                 start=start, cutoff=cutoff, train_start=cutoff-pd.Timedelta(days=ev.train_days),
-                policy=policy, index=index, result=result, previous_weights=previous_weights)
+                policy=policy, index=index, result=result, previous_weights=previous_weights,
+                revisions=revisions, decisions=decisions)
             active = index
         for horizon in horizons:
             book = _book(candidate, horizon)

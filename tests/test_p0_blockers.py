@@ -377,21 +377,25 @@ class TestP0Blockers(unittest.TestCase):
         broker = MagicMock()
         broker.market_type = "spot"
         broker.portfolio = Portfolio()
+        broker.order_latency = None  # This fixture does not instrument exchange requests.
         broker.has_unresolved_unknown.return_value = False
         with tempfile.TemporaryDirectory() as directory:
             path = os.path.join(directory, "status.json")
             store = StateStore(os.path.join(directory, "state.db"))
-            engine = LiveTradingEngine(
-                symbols=[], strategies={}, broker=broker,
-                risk_manager=RiskManager(), configuration=config, clock=lambda: NOW,
-                state_file=path, state_store=store, alert_sink=MagicMock(),
-            )
-            engine._export_state()
-            with open(path, encoding="utf-8") as handle:
-                state = json.load(handle)
-            self.assertEqual(state["schema_version"], 1)
-            self.assertFalse(os.path.exists(f"{path}.{os.getpid()}.tmp"))
-            store.close()
+            try:
+                engine = LiveTradingEngine(
+                    symbols=[], strategies={}, broker=broker,
+                    risk_manager=RiskManager(), configuration=config, clock=lambda: NOW,
+                    state_file=path, state_store=store, alert_sink=MagicMock(),
+                )
+                self.assertTrue(engine._export_state())
+                with open(path, encoding="utf-8") as handle:
+                    state = json.load(handle)
+                self.assertEqual(state["schema_version"], 1)
+                self.assertIsNone(state["order_request_observations"])
+                self.assertFalse(any(name.endswith(".tmp") for name in os.listdir(directory)))
+            finally:
+                store.close()
 
     def test_limit_fills_never_cross_limit_after_slippage(self):
         broker = Broker(

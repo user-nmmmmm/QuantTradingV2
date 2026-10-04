@@ -81,7 +81,7 @@ def source_hashes():
     paths = []
     for folder in ("core", "backtest", "strategies", "router", "composition", "config", "analysis", "live_trading", "scripts"):
         paths.extend(p for p in (ROOT / folder).rglob("*") if p.suffix in {".py", ".yaml", ".json"} and "__pycache__" not in p.parts)
-    paths.extend(ROOT / p for p in ("run_live.py", "pyproject.toml", "requirements.lock.txt") if (ROOT / p).exists())
+    paths.extend(ROOT / p for p in ("main.py", "run_live.py", "pyproject.toml", "requirements.lock.txt") if (ROOT / p).exists())
     return {p.relative_to(ROOT).as_posix(): sha256_file(p) for p in sorted(paths)}
 
 

@@ -4,20 +4,19 @@
 
 ## 从哪里开始
 
-1. [统一 Roadmap v3](unified_roadmap.md)：项目当前状态、R0–R8阶段、依赖与放行条件。
-2. [统一开发计划](development_plan.md)：当前任务与批次、优先级、串并行和负责角色；具体数量与状态以该文档和登记表为准。
-3. [开发详情](development_details.md)：每个任务的修改范围、开发步骤、正反例验收、兼容迁移和交付物。
-4. [历史需求与邮件追溯](roadmap_traceability.md)：旧R/BM/G/S/SR/PM/Phase编号和77条邮件意见到新任务的映射。
-5. [过去的Roadmap、计划与Codex邮件](archive/2026-09-roadmap-rebaseline/README.md)：34份原文快照、45封项目邮件正文、来源与校验摘要。
-6. [结构化任务登记](development_task_registry.json)：开发计划的机器可读副本；[2026-09-20审计](codex_mail_roadmap_audit_20260920.md)保存整合前完成情况与证据。
-7. [2026-09-20 后续实施记录](followup_completion_20260920.md)：账户/指标接线、自动化运行、调度部署、验证结果及仍需真实证据的边界。
-8. [指标公式与专项标准](backtest_metrics_detailed_development_plan.md)、[当前回测行为](backtest_assumptions.md)、[部署与运维](deployment.md)：精确定义与当前支持行为。
-9. [固定历史基线](baselines/batch0_fixed_baseline.md)、[代码模块说明](modules/README.md)、[词汇表](glossary.md)：历史证据与开发参考。
-10. [脚本索引](../scripts/README.md)：从常用入口定位运维、验证、研究和历史专项脚本。
-11. [文件保留与生成物规则](file_retention.md)：临时目录、历史证据、行情数据与本机配置的保留和忽略边界。
-12. [工程结构优化路线图](engineering_structure_roadmap.md)：以当前代码和工作树为依据，说明变更集治理、依赖方向、数据身份、CI 环境及引擎拆分的建议顺序和验收条件。
-13. [架构边界审查](architecture_review.md)：解释离线研究账本与交易账户事实的边界、历史导入兼容层及引擎拆包原则。
-14. [账户事实操作说明](account_fact_operations.md)、[自动化回测操作方案](automated_backtest_plan.md)：当前操作入口、输入身份、运行产物及仍待取得的真实证据。
+按当前任务选择入口，无需先读完全部历史材料。
+
+| 阅读目的 | 首选文档 | 补充参考 |
+| --- | --- | --- |
+| 首次安装、回测或打开网页 | [项目 README](../README.md)、[本地研究工作台](../dashboard/README.md) | [依赖与环境](dependency_management.md)、[前端维护](../dashboard/FRONTEND.md) |
+| 理解代码职责和调用关系 | [代码模块说明](modules/README.md) | [架构边界审查](architecture_review.md)、[词汇表](glossary.md) |
+| 查看阶段、依赖与放行条件 | [统一 Roadmap v3](unified_roadmap.md) | [统一开发计划](development_plan.md)、[结构化任务登记](development_task_registry.json) |
+| 实施任务、核对交付和验收 | [开发详情](development_details.md) | [2026-09-20 后续实施记录](followup_completion_20260920.md) |
+| 核对回测假设和指标公式 | [当前回测行为](backtest_assumptions.md) | [指标公式与专项标准](backtest_metrics_detailed_development_plan.md) |
+| 查找研究、采集和验证入口 | [脚本索引](../scripts/README.md) | 下方[最新行为变更](#最新行为变更)中的专项契约与实施记录 |
+| 部署、排障和周期性运行 | [部署与运维](deployment.md)、[账户事实操作说明](account_fact_operations.md) | [自动化回测操作方案](automated_backtest_plan.md) |
+| 整理工程结构与生成物 | [工程结构优化路线图](engineering_structure_roadmap.md) | [文件保留与生成物规则](file_retention.md) |
+| 追溯旧任务和历史结果 | [历史需求与邮件追溯](roadmap_traceability.md)、[固定历史基线](baselines/batch0_fixed_baseline.md) | [2026-09-20 审计](codex_mail_roadmap_audit_20260920.md)、[原文与邮件归档](archive/2026-09-roadmap-rebaseline/README.md) |
 
 ## 权威顺序
 
@@ -29,6 +28,14 @@
 工程结构优化路线图是实施建议与检查清单，不改写上述 Roadmap 阶段或任务登记状态。
 
 ## 最新行为变更
+
+以下按近期主题提供入口。带日期的实施记录说明对应批次的工作和证据，文件日期较新并不自动替代已批准契约或更新项目放行状态。
+
+- [2026-10-04 剩余论文任务](research/paper_remaining_tasks_20261004.md)：执行成本与盘口证据、历史因子输入、前瞻采集和严格标签的实现与缺口；[收益改进复核](research/paper_return_followup_20261004.md)记录固定方案的历史比较，保留主引擎与独立现货账户的口径差异。
+- [论文统计验证契约](research/paper_validation_contract_20261003.md)：PBO、purged/embargo 切分、White Reality Check 与 DSR 的输入、计算和证据不足行为；应用入口见[论文应用清单](research/paper_application_list_20261003.md)和[工程完成记录](research/paper_engineering_completion_20261003.md)。
+- [论文路线图实施](research/paper_roadmap_implementation_20261003.md)、[续办记录](research/paper_continuation_20261003.md)：因果标签、数据版本、融资与账户关联的实施边界及产物索引。
+- [架构与性能路线图](architecture_performance_roadmap_20261002.md)、[验证记录](architecture_performance_validation_20261002.md)、[后续实施](architecture_performance_followup_20261002.md)：行情客户端、请求预算、有限并发、补帧、保护调度与状态导出的工程演进。
+- [网页工作台](../dashboard/README.md)：账户监控、离线回测、实验档案、数据质量与 Walk-forward；模块、API 和验证命令见[前端工程说明](../dashboard/FRONTEND.md)。
 
 - [TrendPortfolioV3 全市场日线研究](trend_portfolio_v3.md)：历史归档及因果成员证据、所有达标资产周调仓、动量/突破两版、两种融资口径、真实组合撮合与固定88次比较；默认关闭，保留V2对照。
 
@@ -56,3 +63,11 @@
 - `unified_roadmap.md` 生效后的几次一次性代码审查/问题清单快照位于 [`archive/2026-08-technical-reviews/`](archive/2026-08-technical-reviews/README.md)。
 
 历史文件不得继续维护项目完成状态。
+
+## 文档与注释维护约定
+
+- README 负责入口与常见操作，模块文档负责职责、调用关系和边界，专项契约负责精确定义；重复内容优先链接到对应来源。
+- 当前行为按代码、配置与相关测试核对。示例写明工作目录、输入、输出和必要前提，避免把计划中的能力写成已支持。
+- 代码注释优先解释处理顺序、时间可用性、单位、失败路径和兼容原因；docstring 说明调用方需要遵守的契约，不逐行复述实现。
+- 日期、测试数量、研究结果和验收结论属于相应批次的证据。后续变化追加有日期的记录，保留历史基线和归档原文。
+- 增加或移动文档时同步更新导航；提交前核对相对链接和代码路径，避免引用仅在个人机器存在的绝对路径。

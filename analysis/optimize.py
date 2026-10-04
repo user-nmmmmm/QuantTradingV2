@@ -4,6 +4,8 @@ import argparse
 import itertools
 import json
 import tempfile
+from pathlib import Path
+from dataclasses import asdict
 from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime, timedelta
 from typing import Any, Dict, List
@@ -26,7 +28,8 @@ from strategies.mean_reversion import RangeStrategy
 
 from analysis.validation import ValidationConfig, validate_parameter_candidates
 from analysis.walk_forward import WalkForwardConfig, candidate_warmup, run_walk_forward
-from core.metrics import one_sided_bootstrap_p_value, train_test_split_returns
+from analysis.research_evidence import ResearchEvidenceRun, candidate_panel_evidence, invalidate_panel_evidence, sharpe_dependence_diagnostic
+from core.metrics import infer_periods_per_year, one_sided_bootstrap_p_value, train_test_split_returns
 
 #: The one grid both search modes read, so a walk-forward run and a full-sample
 #: run are always comparing the same candidates.
@@ -100,11 +103,9 @@ def evaluate_one_candidate(task: tuple) -> Dict[str, Any]:
     returns plain values and a pandas Series - never the engine result, which
     carries the whole event log and order book.
 
-    Indicators are deliberately not shared between candidates. They are
-    recomputed per run at about 17ms against a ~3s bar loop on a 5-year,
-    3-symbol set - 0.6% of the work - so caching them would thread a flag
-    through two layers to buy nothing measurable. Parallelism is where the
-    time actually is.
+    Indicators and strategy state are built afresh for each candidate; only
+    the input data is shared. Warmup resolves the candidate's declared history
+    so longer lookbacks do not start scoring before they are ready.
     """
     data_map, entry_window, exit_window, initial_capital = task
     engine = BacktestEngine(
@@ -145,6 +146,7 @@ def _evaluate_grid(
     param_grid: List[tuple],
     initial_capital: float,
     jobs: int,
+    evidence_run=None,
 ) -> List[Dict[str, Any]]:
     """Evaluate every combination, in parallel when asked.
 
@@ -156,10 +158,30 @@ def _evaluate_grid(
         (data_map, entry_window, exit_window, initial_capital)
         for entry_window, exit_window in param_grid
     ]
+    def evaluate(task, future=None):
+        name = f"entry={task[1]},exit={task[2]}"
+        if evidence_run:
+            evidence_run.record(candidate=name, phase="grid", status="started")
+        try:
+            result = future.result() if future is not None else evaluate_one_candidate(task)
+            result.setdefault("status", "abstained" if "returns" in result and result["returns"].empty else "completed")
+            if evidence_run:
+                evidence_run.record(candidate=name, phase="grid", status=result["status"])
+            return result
+        except (KeyboardInterrupt, SystemExit) as exc:
+            if evidence_run:
+                evidence_run.record(candidate=name, phase="grid", status="interrupted", error=repr(exc))
+            raise
+        except Exception as exc:
+            if evidence_run:
+                evidence_run.record(candidate=name, phase="grid", status="failed", error=repr(exc))
+            return {"name": name, "Entry_Window": task[1], "Exit_Window": task[2],
+                    "status": "failed", "error": repr(exc), "returns": pd.Series(dtype=float)}
     if jobs <= 1:
-        return [evaluate_one_candidate(task) for task in tasks]
+        return [evaluate(task) for task in tasks]
     with ProcessPoolExecutor(max_workers=jobs) as pool:
-        return list(pool.map(evaluate_one_candidate, tasks))
+        futures = [pool.submit(evaluate_one_candidate, task) for task in tasks]
+        return [evaluate(task, future) for task, future in zip(tasks, futures)]
 
 
 def run_grid_search(
@@ -183,25 +205,36 @@ def run_grid_search(
     # Same params for both trend directions, kept in one place so a
     # walk-forward run scores the identical candidate set.
     param_grid = list(itertools.product(ENTRY_WINDOWS, EXIT_WINDOWS))
+    timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S_%f")
+    evidence = ResearchEvidenceRun(
+        candidates=[f"entry={entry},exit={exit_}" for entry, exit_ in param_grid],
+        parameters={"grid": param_grid, "initial_capital": initial_capital,
+                    "selection_partition": "first 70%", "oos": oos}, data_map=data_map,
+        output=Path("reports") / f"optimization_{timestamp}_evidence")
 
     print(f"\nTesting {len(param_grid)} combinations on {jobs or 1} worker(s)...")
     print("-" * 60)
 
-    evaluations = _evaluate_grid(data_map, param_grid, initial_capital, jobs)
+    evaluations = _evaluate_grid(data_map, param_grid, initial_capital, jobs, evidence)
 
     results = []
-    returns_by_candidate = {}
+    returns_by_candidate = {name: pd.Series(dtype=float) for name in evidence.registration["candidates"]}
     for row in evaluations:
         returns_by_candidate[row["name"]] = row["returns"]
+        evidence.record(candidate=row["name"], phase="run", status=row.get("status", "completed"),
+                        rows=len(row["returns"]), error=row.get("error"))
         results.append({
             "Entry_Window": row["Entry_Window"],
             "Exit_Window": row["Exit_Window"],
-            "Total_Ret%": row["Total_Ret%"],
-            "Max_DD%": row["Max_DD%"],
-            "Sharpe": row["Sharpe"],
-            "Trades": row["Trades"],
-            "Win_Rate%": row["Win_Rate%"],
+            "Total_Ret%": row.get("Total_Ret%"),
+            "Max_DD%": row.get("Max_DD%"),
+            "Sharpe": row.get("Sharpe"),
+            "Trades": row.get("Trades"),
+            "Win_Rate%": row.get("Win_Rate%"), "status": row.get("status", "completed"),
         })
+        if row.get("status") == "failed":
+            print(f"{row['name']}: failed, preserved in search accounting")
+            continue
         print(
             f"Entry={row['Entry_Window']:<3} Exit={row['Exit_Window']:<3} | "
             f"Ret: {row['Total_Ret%']:>6.2f}% | DD: {row['Max_DD%']:>6.2f}% | "
@@ -233,15 +266,23 @@ def run_grid_search(
 
     # Save to CSV
     os.makedirs("reports", exist_ok=True)
-    timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
     filename = f"reports/optimization_{timestamp}.csv"
     results_df.to_csv(filename, index=False)
     print(f"\nResults saved to {filename}")
+    observed = next((series for series in returns_by_candidate.values() if len(series)), pd.Series(dtype=float))
+    periods = infer_periods_per_year(observed.index) or 1.0
+    family = candidate_panel_evidence(returns_by_candidate, registered_before_results=True, periods_per_year=periods)
+    family["identity_check"] = evidence.verify_identity(data_map)
+    if family["identity_check"]["identity_changed"]:
+        invalidate_panel_evidence(family, "registered source or data identity changed during execution")
+    (evidence.output / "candidate_family.json").write_text(
+        json.dumps(family, ensure_ascii=False, indent=2, default=str, allow_nan=False), encoding="utf-8")
+    if not any(len(series) for series in returns_by_candidate.values()):
+        print("All candidates failed or abstained; no selection or statistical claim.")
+        return
     if oos:
-        # One hypothesis per candidate actually tried. This used to pass an
-        # empty list, so the FDR correction ran over nothing while the grid
-        # above tested len(param_grid) combinations - exactly the "best of N"
-        # inflation the correction exists to remove.
+        # One training-segment hypothesis per attempted candidate. The final
+        # partition is reserved for evaluation and never drives selection.
         p_values = [
             one_sided_bootstrap_p_value(
                 train_test_split_returns(series, ValidationConfig().train_fraction)["train"],
@@ -260,6 +301,15 @@ def run_grid_search(
         )
         validation["partition_roles"] = {"train": "selection", "test": "final_evaluation"}
         validation["caveat"] = "Historical data is retrospective evidence, not a new unseen holdout."
+        validation["candidate_family_evidence"] = family
+        validation["research_journal"] = evidence.snapshot()
+        validation["admission_eligible"] = False
+        selected = validation["selected_candidate"]
+        validation["deflated_sharpe"] = family.get("dsr", {}).get(selected, {"status": "invalid", "probability": None})
+        validation["sharpe_dependence"] = sharpe_dependence_diagnostic(returns_by_candidate[selected], periods_per_year=periods)
+        if family["status"] == "invalid":
+            validation["multiple_testing"].update(status="diagnostic_incomplete_family",
+                rejected=[False] * len(p_values), rejected_count=0)
         validation_path = filename.replace(".csv", "_oos.json")
         with open(validation_path, "w", encoding="utf-8") as handle:
             json.dump(validation, handle, ensure_ascii=False, indent=2, default=str)
@@ -272,8 +322,8 @@ def run_grid_search(
         )
         print(f"OOS evidence saved to {validation_path}")
         print(
-            "NOTE: this split is post-hoc. For a selection that never sees its "
-            "test window run --walk-forward."
+            "NOTE: selection uses training returns only; this historical split "
+            "is retrospective evidence. Use --walk-forward for per-window selection."
         )
 
 
@@ -307,7 +357,10 @@ def run_walk_forward_search(
         f"\nWalk-forward over {len(candidates)} candidates "
         f"(train={train}, validation={validation}, test={test}, purge={purge})..."
     )
-    report = run_walk_forward(data_map, candidates, config)
+    timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S_%f")
+    evidence = ResearchEvidenceRun(candidates=list(candidates), parameters=asdict(config), data_map=data_map,
+        output=Path("reports") / f"walk_forward_{timestamp}_evidence")
+    report = run_walk_forward(data_map, candidates, config, evidence_run=evidence)
 
     for window in report["windows"]:
         print(
@@ -335,7 +388,6 @@ def run_walk_forward_search(
     )
 
     os.makedirs("reports", exist_ok=True)
-    timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
     path = f"reports/walk_forward_{timestamp}.json"
     with open(path, "w", encoding="utf-8") as handle:
         json.dump(report, handle, ensure_ascii=False, indent=2, default=str)
@@ -361,8 +413,8 @@ def main():
         "--oos",
         action="store_true",
         help=(
-            "emit post-hoc split evidence for the full-sample ranking "
-            "(selection has already seen the test half - prefer --walk-forward)"
+            "emit training-only selection and final-partition evaluation evidence "
+            "on historical data (not an independent unseen holdout)"
         ),
     )
     parser.add_argument(

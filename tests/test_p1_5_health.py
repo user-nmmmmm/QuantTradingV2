@@ -137,6 +137,7 @@ class TestHealthFailClosed(unittest.TestCase):
         broker = MagicMock()
         broker.market_type = "spot"
         broker.portfolio = Portfolio(10000)
+        broker.order_latency = None  # No exchange request telemetry in this health fixture.
         with tempfile.TemporaryDirectory() as directory:
             path = os.path.join(directory, "status.json")
             engine = LiveTradingEngine(
@@ -145,11 +146,12 @@ class TestHealthFailClosed(unittest.TestCase):
                 clock=lambda: NOW, state_file=path,
             )
             engine._set_health_assessment(self.unhealthy)
-            engine._export_state()
+            self.assertTrue(engine._export_state())
             with open(path, encoding="utf-8") as handle:
                 payload = json.load(handle)
 
         self.assertEqual(payload["health_reason_codes"], ["MARKET_DATA_STALE"])
+        self.assertIsNone(payload["order_request_observations"])
         self.assertFalse(payload["health_assessment"]["allows_new_risk"])
         self.assertEqual(
             payload["health_assessment"]["reasons"][0]["subject"],

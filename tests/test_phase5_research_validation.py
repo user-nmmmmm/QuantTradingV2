@@ -114,9 +114,9 @@ def test_t5_7_t5_10_holdout_admission_checks_all_phase5_gates():
             "gross_pnl_theoretical": pnl + 0.2,
             "commission": 0.1,
             "slippage": 0.1,
-            "strategy": "Stable",
+            "strategy": "Stable", "exit_time": pd.Timestamp("2025-01-01") + pd.Timedelta(days=i),
         }
-        for pnl in pnls
+        for i, pnl in enumerate(pnls)
     ]
     index = pd.date_range("2025-01-01", periods=61)
     equity = pd.Series([100.0 + i for i in range(61)], index=index)
@@ -155,6 +155,6 @@ def test_t5_9_registry_is_idempotent_and_deflated_sharpe_counts_trials(tmp_path)
     assert first["experiment_id"] == second["experiment_id"]
     assert len(registry.records()) == 1
     result = deflated_sharpe_ratio([0.01, 0.02, -0.005, 0.015] * 20, trials=12)
-    assert result["status"] == "ok"
+    assert result["status"] == "insufficient"
     assert result["trials"] == 12
-    assert 0 <= result["probability"] <= 1
+    assert result["probability"] is None

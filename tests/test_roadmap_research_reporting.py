@@ -43,9 +43,10 @@ def test_missing_pnl_cannot_inflate_valid_sample_count():
 
 def test_dsr_annualization_preserves_probability_and_scales_both_terms():
     values = [0.01, -.005, .02, -.01, .005] * 20
-    period = deflated_sharpe_ratio(values, trials=4)
-    annual = deflated_sharpe_ratio(values, trials=4, periods_per_year=365)
-    assert annual["probability"] == pytest.approx(period["probability"])
+    period = deflated_sharpe_ratio(values, trials=4, trial_sharpe_std=.05)
+    annual = deflated_sharpe_ratio(values, trials=4, trial_sharpe_std=.05, periods_per_year=365)
+    assert annual["probability"] is None and period["probability"] is None
+    assert annual["diagnostic_probability"] == pytest.approx(period["diagnostic_probability"])
     for name in ("observed_sharpe", "expected_max_sharpe"):
         assert annual[name] == pytest.approx(period[name] * np.sqrt(365))
 

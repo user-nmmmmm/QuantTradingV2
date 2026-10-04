@@ -22,6 +22,7 @@ class Router:
         log_flush_every: int = 256,
         max_holding_days: Optional[float] = None,
         risk_governor: Optional[Any] = None,
+        capital_policy: Optional[Any] = None,
     ):
         self.strategies = strategies
         self.cooldown_bars = cooldown_bars
@@ -41,7 +42,7 @@ class Router:
         )
         # SR3-2: one governor for the whole run so a session's entries
         # share a correlated-risk budget instead of each claiming it.
-        self.allocator = PortfolioSignalAllocator(risk_governor)
+        self.allocator = PortfolioSignalAllocator(risk_governor, capital_policy)
 
     def collect_candidate(
         self,

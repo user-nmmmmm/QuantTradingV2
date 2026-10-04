@@ -1,0 +1,29 @@
+{
+  "schema": "paper-roadmap-verification/v1",
+  "report_directory": "D:\\QuantTradingV1\\reports\\paper_roadmap_20261003_v2",
+  "acceptance_sha256": "400b5daea10afa9bddd274922f9734b7eff96ab98be31180150479d3777a8b11",
+  "status": "retrospective_experiments_completed",
+  "planned_runs": 110,
+  "completed_runs": 110,
+  "failed_runs": 0,
+  "source_files_verified": 275,
+  "artifact_hashes_verified": 1018,
+  "raw_and_record_snapshots_verified": true,
+  "accounting_checks_passed": 110,
+  "stress_checks_passed": 51,
+  "max_accounting_residual_usdt": 4.656612873077393e-10,
+  "minimum_cash_usdt": 602.5797418332653,
+  "v1_v2_comparisons_identical": true,
+  "tests": {
+    "passed": 349,
+    "subtests_passed": 4,
+    "elapsed_seconds": 63.1,
+    "suite": "24 related test files including general optimization/walk-forward, data, labels, risk and live order regression"
+  },
+  "ruff": "passed",
+  "diff_check": "passed",
+  "point_in_time_complete": false,
+  "real_venue_calibration": false,
+  "independent_holdout": false,
+  "promotions": []
+}

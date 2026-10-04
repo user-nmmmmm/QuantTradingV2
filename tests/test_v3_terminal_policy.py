@@ -23,7 +23,7 @@ class Hold(Strategy):
 
 
 def run_case(monkeypatch, missing_tail=False):
-    def factory(strategies, configuration, log_path=None):
+    def factory(strategies, configuration, log_path=None, capital_policy=None):
         return Router(strategies, regime_map={s.name: "Hold" for s in MarketState}, log_path=log_path)
     monkeypatch.setattr("backtest.engine.build_router", factory)
     settings = deepcopy(config._config)

@@ -230,6 +230,11 @@ class PortfolioRiskGovernor:
         self._state_store = state_store
         self._order_store = order_store
 
+    @property
+    def session_risk_used(self) -> float:
+        """Already accepted risk, including durable same-session reservations."""
+        return self._session_risk
+
     def begin_session(self, session: Any) -> None:
         if session != self._session:
             self._session = session

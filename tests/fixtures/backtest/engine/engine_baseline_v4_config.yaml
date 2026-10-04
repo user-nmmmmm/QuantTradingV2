@@ -1,0 +1,288 @@
+# System Configuration & Parameters
+
+# 1. Execution & Fees
+execution:
+  # SR3-4 (STR-P1-06): the fee schedule must name the venue and market type it
+  # came from, and core.account_cost_contract refuses to run when it disagrees
+  # with account.mode. The previous futures rates under a spot_margin account
+  # were a venue that does not exist.
+  fee_schedule:
+    venue: binance
+    market_type: spot_margin
+    source: "Binance spot/margin standard tier (taker 0.10%, maker 0.10%)"
+  commission_rate_taker: 0.001  # 0.10% Binance spot-margin taker
+  commission_rate_maker: 0.001  # 0.10% Binance spot-margin maker
+  slippage_bps: 5               # 5 basis points (0.05%)
+  spread_bps: 2                 # Default full bid/ask spread; bar spread_bps overrides it
+  volatility_slippage_factor: 0.02 # Additional slip = intrabar range * factor
+  use_impact_cost: true         # Non-linear participation-rate market impact
+  impact_coefficient: 0.10
+  impact_exponent: 1.5
+  max_participation_rate: 0.05  # Split fills across bars above 5% participation
+  # B-01: hard limit on an opening order's total matchable-bar age. Partial
+  # fills do not reset it, so a negligible fill cannot renew a GTC reservation
+  # and symbol lock forever. 0 disables the rule. Exits and resident protective
+  # stops are exempt by construction (sell/cover, never opening orders).
+  opening_order_ttl_bars: 10
+  reconciliation_interval_seconds: 300  # Independent order reconciliation cadence
+  strategy_failure_threshold: 3         # Consecutive strategy failures before HALTED
+  state_export_interval_ticks: 5          # Export live_status periodically or on state change
+
+# 2. Risk Management
+risk:
+  max_leverage: 3.0
+  risk_per_trade: 0.02          # 2% of equity per trade (was 1% — doubled to improve capital use)
+  max_drawdown_limit: 0.20      # Compatibility alias: portfolio liquidation threshold
+  liquidity_limit_pct: 0.01     # Max order size as % of bar volume
+  max_pos_size_pct: 0.30        # 30% max per position (was 20% — allows meaningful sizing)
+  minimum_entry:
+    scale_with_risk: true
+    research_notional_floor: 10.0  # USDT assumption, not historical venue metadata
+
+drawdown_budget:
+  enabled: true
+  headroom_fraction: 0.50
+
+# 2a. Portfolio drawdown control. Daily loss resets at a UTC day boundary;
+# Terminal high-water actions require RiskManager.manual_resume().
+# BLOCK_NEW may recover through the bounded cooldown/probation policy below.
+drawdown:
+  daily_loss_limit: 0.05
+  reduce_threshold: 0.10
+  block_threshold: 0.15
+  liquidate_threshold: 0.20
+  lock_threshold: 0.25
+  reduced_risk_multiplier: 0.50
+  # P0: time-limited block, followed by reduced-risk re-entry. The original
+  # high-water mark and the liquidation/lock thresholds are never reset.
+  recovery:
+    enabled: true
+    cooldown_days: 30
+    probation_risk_multiplier: 0.25
+    probation_loss_limit: 0.03
+
+# 2b. Explicit selected account mode: spot | spot_margin | perpetual.
+account:
+  mode: spot_margin
+  initial_margin_rate: 0.3333333333
+  maintenance_margin_rate: 0.10
+  funding_interval_hours: 8
+  funding_rate_required: true
+  default_borrow_rate_annual: 0.08
+  borrow_availability_required: false
+  default_borrow_limit_qty: 1000000000000
+  liquidation_penalty_bps: 25
+
+capacity:
+  capital_levels: [10000, 100000, 1000000, 10000000]
+
+# 2b. Market State
+state:
+  stability_period: 5           # Phase 4 knee analysis across 2/3/5/10 candidates.
+  stability_candidates: [2, 3, 5, 10]  # Registered research candidates.
+  ma_fast: 20
+  ma_slow: 60
+  adx_period: 14
+  adx_threshold: 25
+  atr_period: 14
+  atr_pct_threshold: 0.025      # 2.5%: crypto typical ATR is 2-4%; was 5% which rarely triggers on OKX data
+
+# 3. Strategy Routing (Regime Map)
+# Map Market State to Strategy Class Name
+routing:
+  TREND_UP: "TrendBreakout"
+  TREND_DOWN: "Cash"            # Paused pending redesigned short-side admission review (T-4.5)
+  SIDEWAYS: "Cash"              # RangeMeanReversion paused pending redesign (T-4.6)
+  VOLATILE: "Cash"              # VolatilityReversion remains isolated research-only (T-4.7)
+
+# 3b. Router Parameters
+router:
+  cooldown_bars: 2              # Issue2 fix: reduced from 3 → faster re-entry after state switch
+  transition_action: stop_new_entries
+  max_holding_days: 365         # Explicit time exit; prevents multi-year capital lock-up.
+
+allocation:
+  order: score_strategy_symbol
+
+# P0 passive candidate measurement. Research notionals are not order budgets.
+# Enable per run with main.py --observe-signals; never gates/sizes real orders.
+signal_observation:
+  enabled: false
+  horizons: [1, 3, 5, 20]
+  reference_notional: 1000.0
+  ghost_horizon: 5
+  ghost_capital: 10000.0
+
+# P1 passive conditional-EV research. No order, routing, health or sizing use.
+# --signal-meta-layer also enables P0 collection, with a separate model identity.
+signal_meta_layer:
+  enabled: false
+  half_life_days: 90.0
+  prior_strength: 20.0
+  min_effective_samples: 20.0
+  min_effective_blocks: 8.0
+  min_weight_mass: 5.0
+  confidence_z: 1.96
+  min_std_bps: 50.0
+  min_ev_bps: 0.0
+  train_days: 365
+  test_days: 90
+  embargo_days: 20
+  block_days: 5
+  schema: signal_ev/v1
+
+# SR3-1 (STR-P1-03): candidate ranking must have economic meaning. With every
+# score at 0 the allocator fell through to the alphabetical tie-break whenever
+# capital ran out. All inputs are signal-time facts; portfolio-relative terms
+# are applied by portfolio_risk below.
+candidate_scoring:
+  enabled: true
+  adx_threshold: 25
+  liquidity_reference_notional: 10000000
+  component_cap: 5.0
+  weights:
+    breakout_extent: 1.0        # how far price cleared the channel, in ATR
+    trend_strength: 0.5         # ADX above threshold
+    volume_confirmation: 0.3    # OBV accumulation over the entry window
+    liquidity: 0.2              # log-scaled traded notional
+
+# SR3-2 (STR-P1-04): correlated coins are not independent positions. Notional
+# caps are enforced by RiskManager (same source of truth as the clamp); risk
+# caps are metered per session/cluster by core.portfolio_risk at allocation.
+portfolio_risk:
+  enabled: true
+  clusters:
+    default: crypto_beta        # an unmapped coin is assumed correlated
+    BTC: major
+    ETH: major
+  max_cluster_exposure_pct: 1.5     # one cluster's gross notional / equity
+  max_crypto_beta_exposure: 2.0     # all crypto-correlated gross / equity
+  max_same_session_entry_risk: 0.06 # initial risk opened in one session / equity
+  max_correlated_stop_risk: 0.10    # open initial risk inside one cluster / equity
+
+# SR2-2/SR2-3: protective stop stack. The ATR legs are registered research
+# candidates and default to OFF, so the frozen baseline still runs arm A (pure
+# Donchian). SR2-2 compares A (Donchian) / B (pure ATR) / C (hybrid max) before
+# any of these becomes the production stop.
+stops:
+  use_atr_initial_stop: false
+  use_trailing_stop: false
+  atr_period: 14
+  initial_atr_multiple: 2.0      # candidates [1.5, 2.0, 2.5, 3.0]
+  trailing_atr_multiple: 3.0     # candidates [2.5, 3.0, 4.0]
+  # Pre-registered risk-distance band. Closer than the minimum is rejected
+  # (never sized into a huge position); wider than the maximum is clamped.
+  # Replaces the old implicit `close * 0.95` fallback.
+  min_stop_distance_pct: 0.005
+  max_stop_distance_pct: 0.35
+  breakeven_after_r: null        # optional, off until SR5 says otherwise
+  breakeven_cost_buffer: 0.0
+
+# SR2-5: venue-resident protective stops. Protection is created from the entry
+# fill, tracks the net position, only ratchets, and anything the venue cannot
+# confirm fails closed into a flatten. See docs/protective_stop_contract.md.
+protective_orders:
+  enabled: true
+  # STR-P1-01: the backtest holds the same resident stop and triggers it inside
+  # the bar on the pre-registered conservative path
+  # (open -> adverse extreme -> favourable extreme -> close), instead of
+  # discovering the breach at the close and exiting at the next open. Turning
+  # this off falls back to that legacy close-based path, which is *not*
+  # equivalent to a venue stop and is only for comparing against old baselines.
+  backtest_resident: true
+
+# SR2-4: post-fill risk verification. The reservation is made at the signal
+# close; the fill can gap. Actual risk above budget + tolerance triggers a
+# named GapRiskResize instead of silently carrying more than the configured 2%.
+entry_risk:
+  enabled: true
+  tolerance: 0.10
+  action: resize                 # resize | audit_only
+  min_remaining_fraction: 0.10
+
+# SR1-3: strategy health lifecycle (ACTIVE -> COOLDOWN -> PROBATION ->
+# MANUAL_LOCK). Values are the registered research candidates' midpoints, not
+# validated production constants - see
+# docs/research/current_strategy_experiment_registry.jsonl.
+strategy_health:
+  enabled: true
+  consecutive_negative_cohorts: 3   # candidates [2, 3, 4]
+  cooldown_days: 30                 # candidates [14, 30, 60]
+  probation_risk_multiplier: 0.25   # candidates [0.25, 0.50]
+  probation_required_cohorts: 5     # fixed remediation protocol, not a tuned optimum
+  probation_min_total_r: 0.0
+  max_failed_probation_cycles: 2
+  # Automatic performance failures remain recoverable; explicit/legacy manual
+  # locks and account liquidation still require separate authorized recovery.
+  repeated_failure_action: extended_cooldown
+  extended_cooldown_days: 90
+  recovery_risk_multiplier: 0.10
+  unified_recovery: true
+  recovery_stages: [0.10, 0.25, 0.50, 1.00]
+  recovery_stage_min_days: 30
+  probation_min_distinct_symbols: 3
+  probation_require_positive_without_best: true
+  rolling_cohort_window: 20
+  # STR-P0-04 / SR3-3: account-level risk exits (DailyLossLimit,
+  # AccountLiquidation, ...) are recorded as cohorts and reported, but do not
+  # by themselves prove the alpha stopped working, so they never trigger the
+  # health gate.
+  counted_controllers: [strategy, router]
+
+strategy_governance:
+  # SR0-2: no independent holdout evidence exists for the current version, so
+  # the strategy is research/shadow only until SR5 closes. Nothing may read
+  # this as production-ready.
+  TrendBreakout: paused_revalidation
+  TrendBreakdown: paused_redesign
+  RangeMeanReversion: paused_redesign
+  VolatilityReversion: isolated_research
+
+# Phase 5 research governance. The final holdout is opened once and never used
+# for parameter selection; failing a gate requires a new hypothesis/protocol.
+phase5:
+  partition:
+    train_fraction: 0.60
+    validation_fraction: 0.20
+    holdout_fraction: 0.20
+  walk_forward:
+    train_bars: 730
+    validation_bars: 180
+    test_bars: 180
+    purge_bars: 30
+    embargo_bars: 30
+  admission:
+    minimum_profit_factor: 1.15
+    minimum_profit_factor_ci_lower: 1.0
+    maximum_drawdown: 0.20
+    concentration_remove_top: [5, 10]
+    cost_multipliers: [1.0, 1.5, 2.0, 3.0]
+
+
+# 4. Data
+data:
+  check_quality: true           # Generate data quality report
+  alignment_mode: union         # union routes only symbols with a real bar; intersection requires all symbols
+  timeframe: 1d
+  timezone: UTC
+
+# 4b. Auditable benchmark definitions (Phase 2)
+benchmark:
+  mode: fixed                   # fixed = equal-weight buy-and-hold; dynamic = equal-weight rebalance
+  dynamic_rebalance_cost_bps: 5.0
+
+# 5. Backtest lifecycle
+backtest:
+  breaker_policy:
+    on_reduce: continue_reduced
+    on_block_new: exit_only
+    on_liquidate: terminate
+    on_locked: terminate
+    shadow_diagnostics: true
+    recovery:
+      mode: none
+  # T-1.11: how to handle positions still open when the backtest ends.
+  # mark_to_market - close at the last price with zero extra commission/slippage
+  #                  (matches the equity curve's existing mark-to-market value).
+  # forced_liquidation - close like a real exit, with normal commission/slippage.
+  end_of_backtest_mode: mark_to_market

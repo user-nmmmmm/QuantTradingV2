@@ -7,6 +7,7 @@ from dataclasses import asdict
 
 from core.risk import RiskManager
 from core.candidate_scoring import CandidateScorePolicy
+from core.position_management import CapitalAllocationPolicy
 from core.risk.portfolio_governor import CorrelationClusterPolicy, PortfolioRiskGovernor
 from core.protective_stops import ProtectiveStopPolicy
 from core.strategy_health import StrategyHealthPolicy
@@ -29,6 +30,64 @@ class Configuration(Protocol):
 
 
 DERIVATIVE_MARKET_TYPES = {"future", "futures", "swap", "margin"}
+
+
+def build_portfolio_target_controller(configuration: Configuration, strategies, *, state_store=None):
+    """Explicit application opt-in to the existing weekly V3 execution path.
+
+    Membership facts must be supplied by the caller; present-day venue metadata
+    is never manufactured into historical listing or publication evidence.
+    """
+    settings = configuration.get("portfolio_targets") or {}
+    if not isinstance(settings, Mapping):
+        raise ValueError("portfolio_targets must be a mapping")
+    if not settings.get("enabled", False):
+        return None
+    allowed = {"enabled", "metadata", "cost_aware", "max_weekly_turnover", "relative_tolerance", "participation"}
+    if set(settings) - allowed or settings.get("enabled") is not True:
+        raise ValueError("invalid portfolio_targets settings")
+    strategy = strategies.get("TrendPortfolioV3")
+    if strategy is None:
+        raise ValueError("portfolio_targets requires an explicitly routed TrendPortfolioV3")
+    metadata = settings.get("metadata")
+    if not isinstance(metadata, Mapping) or not metadata:
+        raise ValueError("portfolio_targets requires explicit point-in-time membership metadata")
+    from core.cost_aware_allocation import CostAwareAllocationPolicy
+    from core.portfolio_target_controller import PortfolioTargetController
+    from core.selection_v2 import select_all_qualified, size_portfolio_targets
+    import pandas as pd
+
+    cost_policy = CostAwareAllocationPolicy.from_mapping(settings.get("cost_aware"))
+    clusters = build_correlation_cluster_policy(configuration)
+    frozen = {"week": None, "weights": {}, "sizing": None}
+
+    def targets(*, event, as_of, held_symbols, existing_weights):
+        point = pd.Timestamp(as_of)
+        week = (point.normalize() - pd.Timedelta(days=point.weekday())).isoformat()
+        if frozen["week"] is None and controller._state.get("week") is not None:
+            frozen.update(week=controller._state["week"], weights={
+                s: row["weight"] for s, row in controller._state["targets"].items()})
+        weekly = point.weekday() == 0 and frozen["week"] != week
+        relevant = set(frozen["weights"]) | set(held_symbols)
+        histories = event.histories if weekly else {s: f for s, f in event.histories.items() if s in relevant}
+        selected = select_all_qualified(histories, metadata, as_of=as_of,
+            held_symbols=held_symbols, policy=strategy.selection_policy)
+        if weekly:
+            sized = size_portfolio_targets(selected, existing_weights=existing_weights,
+                clusters={s: clusters.cluster_for(s) for s in selected.selected_symbols},
+                cost_aware_policy=cost_policy)
+            frozen.update(week=week, weights=dict(sized.target_weights), sizing=sized.to_dict())
+        rows = {s: row.to_dict() for s, row in selected.rows.items()}
+        return {"target_weights": dict(frozen["weights"]), "as_of": as_of,
+            "add_allowed": {s: bool(row.get("add_allowed", False)) for s, row in rows.items()},
+            "stop_prices": {s: row["stop_price"] for s, row in rows.items() if row.get("stop_price") is not None},
+            "forced_exits": [s for s, row in rows.items() if row.get("force_exit")],
+            "selection_rows": rows, "sizing": frozen["sizing"]}
+
+    controller = PortfolioTargetController(strategy=strategy, target_provider=targets,
+        metadata=metadata, cost_aware_policy=cost_policy, state_store=state_store,
+        **{key: settings[key] for key in ("max_weekly_turnover", "relative_tolerance", "participation") if key in settings})
+    return controller
 
 
 def build_strategy_registry(
@@ -229,6 +288,7 @@ def build_router(
     configuration: Configuration,
     log_path: Optional[str] = None,
     allow_short: bool = True,
+    capital_policy: Optional[CapitalAllocationPolicy] = None,
 ) -> Router:
     routing_config = dict(configuration.require("routing"))
     for name, controls in (configuration.get("research") or {}).get("regime_controls", {}).items():
@@ -250,6 +310,8 @@ def build_router(
         risk_governor=PortfolioRiskGovernor(
             build_correlation_cluster_policy(configuration)
         ),
+        capital_policy=capital_policy if capital_policy is not None else
+            CapitalAllocationPolicy.from_mapping((configuration.get("allocation") or {}).get("capital")),
     )
 
 

@@ -70,7 +70,7 @@ def _run_engine() -> dict:
     import backtest.engine as engine_module
     from router.router import Router
 
-    def _router_factory(strategies, _configuration, log_path=None):
+    def _router_factory(strategies, _configuration, log_path=None, capital_policy=None):
         return Router(
             strategies,
             regime_map={state.name: "StopArming" for state in MarketState},

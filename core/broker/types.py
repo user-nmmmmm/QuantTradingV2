@@ -87,6 +87,9 @@ class Order:
     # bars but no longer control expiry.
     idle_bars: int = 0
     last_counted_bar: Any = None
+    # Opt-in event-clock research orders may match exactly at this known
+    # earliest instant. Ordinary signal-bar orders retain next-bar semantics.
+    match_not_before: Any = None
 
     @property
     def accepted(self) -> bool:

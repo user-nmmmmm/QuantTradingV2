@@ -1,0 +1,366 @@
+{
+  "artifact_sha256": {
+    "docs/research/paper_remaining_tasks_20261004.md": "548d8c6457e9680447dad8be0764645d0532ee9fdc65fa292c5c396d669f6417",
+    "reports/paper_execution_depth_20261004_post_sync_attempt/clock_diagnostics.json": "36917f84385c919a1ebaa534a8ab518eb2c1608de89fa72cf44a5f60105711a5",
+    "reports/paper_execution_depth_20261004_session2/clock_diagnostics.json": "64c32dad8a54f1bd6b912261f798a06152826877e6d9bdf3b25f0947cbb6ecaf",
+    "reports/paper_execution_readiness_20261004_final/readiness.json": "4add7461bf909d8887b1346c357dd9ccd0f73d189fae09375bc1a897ee780dab",
+    "reports/paper_execution_validation_20261004.json": "a18438a1fa449382595be161686e72552a56f1152a6ea4e005a814476d4db5ac",
+    "reports/paper_factor_evidence_20261004/public_subset/manifest.json": "b0c04d1a821dc57a8d7cafe3437ced74a4379108d357161a3acb3e01505e45ce",
+    "reports/paper_factor_evidence_20261004/public_subset/verification.json": "050aa1008aa5332accac00963db9bd7c232308b5479ef2ca63158908ef5a02bd",
+    "reports/paper_remaining_20261004/pytest_main_final.xml": "bc910b8408e4beb95086315bb3c58e161be9bdd78e9e4abc252abe17491512ce",
+    "reports/paper_remaining_20261004/windows_time_sync.json": "4258f660c29ab096a24368d6db325bb2d1cf8e6a276d0dbfadf698706ababb67",
+    "reports/paper_strategy_forward_20261004/intake_registration_ref.json": "c0a9ed180d3c371f04ae007018212498b6a868db020363689df465ea24143ca1",
+    "reports/paper_strategy_forward_20261004/prospective_protocol.json": "893925413374c1b65f9e80729c5621b442d3442f686d0880c2cce0e7ae7f67f4",
+    "reports/paper_strategy_forward_20261004/source_manifest.json": "49e4596d895909266340db40be0a876d287875ff740f39de520b30ea59844a57"
+  },
+  "execution": {
+    "blockers": [
+      "no_qualified_live_execution_fills",
+      "insufficient_disjoint_mature_execution_days",
+      "direction_size_holdout_coverage_gaps",
+      "no_sequenced_event_time_depth",
+      "exchange_local_clock_conflict",
+      "realized_capacity_requires_real_size_varying_fills_and_out_of_sample_validation"
+    ],
+    "calendar": {
+      "minimum_test_days": 5,
+      "minimum_train_days": 10,
+      "missing_test_days": 5,
+      "missing_train_days": 10,
+      "test_days": [],
+      "test_start": null,
+      "train_days": []
+    },
+    "coverage": {
+      "cost_qualified_fills": 0,
+      "depth_clock_conflicts": 544,
+      "event_time_quotes": 0,
+      "fill_exclusion_reasons": {
+        "simulation": 1
+      },
+      "independent_quotes": 110,
+      "ledger_fills": 1,
+      "order_statuses": {
+        "partial": 1,
+        "rejected": 305
+      },
+      "orders": 306,
+      "orders_by_evidence_class": {
+        "simulation": 1,
+        "unknown_environment": 305
+      },
+      "price_execution_qualified_fills": 0,
+      "qualified_live_fills": 0,
+      "raw_synchronized_depth_observations": 544,
+      "request_observations": 0,
+      "submission_attempted_orders": 1,
+      "synchronized_depth_observations": 0
+    },
+    "depth_sessions": [
+      {
+        "collector_run_id": "1fff708faea443a2b1addcb409b65609",
+        "depth_observations": 0,
+        "journal_records": 26,
+        "journal_sha256": "097252c752409e2e831118363d6c168bfa801dafbbbff6d80c586f63204ca092",
+        "orders_submitted": 0,
+        "output": "D:\\QuantTradingV1\\reports\\paper_execution_depth_20261004_session1",
+        "quotes": 0,
+        "real_venue_calibration": false,
+        "realized_capacity_validated": false,
+        "realized_fills": 0,
+        "schema": "sequenced-depth-summary/v1",
+        "source_identity_unchanged": true,
+        "status": "incomplete"
+      },
+      {
+        "clock_conflicts": 548,
+        "collector_run_id": "861b058bfb8f4e28b6a0494608fddc48",
+        "depth_observations": 548,
+        "journal_records": 1127,
+        "journal_sha256": "edc66192f3404e4bd508a6f22d98396d1215521b70a02f1157daa9a12c4c7e83",
+        "orders_submitted": 0,
+        "output": "D:\\QuantTradingV1\\reports\\paper_execution_depth_20261004_session2",
+        "quotes": 0,
+        "real_venue_calibration": false,
+        "realized_capacity_validated": false,
+        "realized_fills": 0,
+        "schema": "sequenced-depth-summary/v1",
+        "source_identity_unchanged": true,
+        "status": "clock_conflict"
+      },
+      {
+        "clock_conflicts": 544,
+        "collector_run_id": "ca459676d4404336a5c3238c6c23d3a5",
+        "depth_observations": 544,
+        "journal_records": 1104,
+        "journal_sha256": "591f14ca874d112abaa855dd65b4c70945a3a5c0f66ee22f235f1073c6164bc1",
+        "orders_submitted": 0,
+        "output": "D:\\QuantTradingV1\\reports\\paper_execution_depth_20261004_post_sync_attempt",
+        "quotes": 0,
+        "real_venue_calibration": false,
+        "realized_capacity_validated": false,
+        "realized_fills": 0,
+        "schema": "sequenced-depth-summary/v1",
+        "source_identity_unchanged": true,
+        "status": "clock_conflict"
+      }
+    ],
+    "included_simulation_fixture_fills": 1,
+    "last_clock_probe": {
+      "assumption": "serverTime sampled between local send and receive; no clock step during request",
+      "collector_run_id": "ca459676d4404336a5c3238c6c23d3a5",
+      "exchange_minus_local_offset_lower_seconds": 30.974663,
+      "exchange_minus_local_offset_upper_seconds": 31.0958,
+      "journal_sequence": 2,
+      "kind": "public_server_time_probe",
+      "previous_sha256": "cd3586742fe5842388f719062e53eefe20f371586029071da704dd3ef4a0339a",
+      "request_sent_at": "2026-10-03T16:46:41.596200+00:00",
+      "response_received_at": "2026-10-03T16:46:41.717337+00:00",
+      "round_trip_monotonic_seconds": 0.12114199999996345,
+      "server_time": "2026-10-03T16:47:12.692000+00:00",
+      "server_time_ms": 1791046032692,
+      "sha256": "1a3654194364fe6ce871c80ea0de6b81ae8ac13a3f84c4e7ad1c86a6c3a62e0c",
+      "system_clock_modified": false,
+      "timestamps_corrected": false
+    },
+    "legacy_live_named_orders": 305,
+    "legacy_orders_actually_submitted": 0,
+    "readiness": "reports/paper_execution_readiness_20261004_final/readiness.json",
+    "real_venue_calibration": false,
+    "realized_capacity_validated": false,
+    "realized_live_fills": 0,
+    "time_sync": {
+      "attempts": [
+        {
+          "operation": "Start-Service W32Time",
+          "outcome": "insufficient_service_control_permission",
+          "service_started": false
+        },
+        {
+          "helper_started": false,
+          "operation": "normal Windows RunAs administrator confirmation for bounded helper",
+          "outcome": "ERROR_CANCELLED",
+          "system_message": "操作已被用户取消"
+        }
+      ],
+      "authorization_scope": "start Windows Time, request one synchronization, and repeat public sampling",
+      "evidence_origin": "transcribed from completed local execution tool results",
+      "helper": "D:\\QuantTradingV1\\tmp\\synchronize_clock_20261004.ps1",
+      "observed_service": {
+        "name": "W32Time",
+        "start_type": "Manual",
+        "status": "Stopped"
+      },
+      "remaining_requirement": "Windows administrator execution of the already authorized bounded synchronization, then independent server-time verification",
+      "resync_requests_executed": 0,
+      "schema": "authorized-windows-time-sync/v1",
+      "service_start_type_changed": false,
+      "status": "not_executed_os_administrator_confirmation_cancelled",
+      "system_clock_modified": false,
+      "user_authorized": true
+    }
+  },
+  "historical_factors": {
+    "full_factor_status": "unavailable",
+    "full_universe_rebuilt": false,
+    "gaps": [
+      "Full historical listing/delisting and suspended-asset universe absent",
+      "Historical revision/publication availability unknown; today's capture is retrospective",
+      "Provider current-supply market cap differs from circulating/free-float market cap"
+    ],
+    "historical_visible_records_at_2026_09_20": 0,
+    "input_rows": 14624,
+    "input_snapshot_id": "03f3a166531acd71d9f1cd04092dac1204475e0e0746de8cfc48023c393208f6",
+    "lifecycle": {
+      "current_metadata_is_historical": false,
+      "full_universe_rebuilt": false,
+      "margin_or_withdrawal_events_are_spot_delistings": false,
+      "records": 20,
+      "snapshot_id": "ec8dca26ee5c75fd29dc6066339266efe5edc1d0183a561a7f79dd1e5c01a909"
+    },
+    "proxy_production": {
+      "assets": [
+        "ada",
+        "btc",
+        "eth",
+        "ltc",
+        "xrp"
+      ],
+      "conventions": {
+        "execution": "diagnostic return series; no executable shorting or costs assumed",
+        "market_weights": "prior daily current-supply capitalization, unit gross",
+        "momentum": "prior 60-day return sort, each leg gross 0.5; boundary ties zero",
+        "odd_cohort": "median asset excluded from both long/short legs, included in market proxy",
+        "returns": "Coin Metrics PriceUSD close-to-close simple USD returns",
+        "size": "prior-cap bottom half minus top half, each leg gross 0.5"
+      },
+      "file": "public_subset_factor_proxies.csv",
+      "full_factor_status": "unavailable",
+      "historical_pit_verified": false,
+      "market_proxy_rows": 2425,
+      "momentum_proxy_rows": 2036,
+      "rows": 2454,
+      "schema": "retrospective-factor-production/v1",
+      "selection_rule": "current provider metric entitlement only; not historical eligible universe",
+      "sha256": "f8b2eb6ec01cc1ea6bb5960f4bc9179f8b10b45b2e3a1e58ec58504815e7a57e",
+      "size_proxy_rows": 2425,
+      "survivorship_bias_resolved": false,
+      "unavailable_rows": 29
+    }
+  },
+  "orders_submitted_in_this_task": 0,
+  "production_approved": false,
+  "schema": "paper-remaining-acceptance/v1",
+  "services_deployed": false,
+  "source_manifest_sha256": "49e4596d895909266340db40be0a876d287875ff740f39de520b30ea59844a57",
+  "status": "engineering_verified_with_explicit_market_evidence_gaps",
+  "strategy_forward": {
+    "background_service_installed": false,
+    "code_hash": "4908eb734e36769edb7fd5b5cb152dadcf9c88e863d218312d1ce57964ee9e30",
+    "first_session": {
+      "coverage": {
+        "ADA/USDT": {
+          "expected": 0,
+          "missing": [],
+          "received": 0,
+          "shortened": []
+        },
+        "BTC/USDT": {
+          "expected": 0,
+          "missing": [],
+          "received": 0,
+          "shortened": []
+        },
+        "ETH/USDT": {
+          "expected": 0,
+          "missing": [],
+          "received": 0,
+          "shortened": []
+        },
+        "LTC/USDT": {
+          "expected": 0,
+          "missing": [],
+          "received": 0,
+          "shortened": []
+        },
+        "SOL/USDT": {
+          "expected": 0,
+          "missing": [],
+          "received": 0,
+          "shortened": []
+        },
+        "XRP/USDT": {
+          "expected": 0,
+          "missing": [],
+          "received": 0,
+          "shortened": []
+        }
+      },
+      "ended_at": "2026-10-03T16:42:02.214943+00:00",
+      "errors": [],
+      "independent_holdout_complete": false,
+      "next_start": {
+        "ADA/USDT": "2026-10-04T00:00:00+00:00",
+        "BTC/USDT": "2026-10-04T00:00:00+00:00",
+        "ETH/USDT": "2026-10-04T00:00:00+00:00",
+        "LTC/USDT": "2026-10-04T00:00:00+00:00",
+        "SOL/USDT": "2026-10-04T00:00:00+00:00",
+        "XRP/USDT": "2026-10-04T00:00:00+00:00"
+      },
+      "orders_submitted": 0,
+      "performance_disclosed": false,
+      "phase": "before_observation",
+      "prior_snapshots": [],
+      "protocol_hash": "32ac3c146838c39fe24e554acfb138775766ea7af1435d325d0a02cd52df0237",
+      "public_read_only": true,
+      "record_snapshot": "23908f0bbe8447e1524829c0b0fd0dd002d4e642d283dea2ea1c5c6a205bf2ce",
+      "registered_at": "2026-10-03T16:42:01.602161+00:00",
+      "requests": 0,
+      "schema": "strategy-forward-capture/v1",
+      "session_id": "20261003T164201601426Z_9b04c2e3",
+      "start": {
+        "ADA/USDT": "2026-10-04T00:00:00+00:00",
+        "BTC/USDT": "2026-10-04T00:00:00+00:00",
+        "ETH/USDT": "2026-10-04T00:00:00+00:00",
+        "LTC/USDT": "2026-10-04T00:00:00+00:00",
+        "SOL/USDT": "2026-10-04T00:00:00+00:00",
+        "XRP/USDT": "2026-10-04T00:00:00+00:00"
+      },
+      "status": "awaiting_closed_forward_bars",
+      "stop_exclusive": "2026-10-03T00:00:00+00:00",
+      "strategy_evaluated": false
+    },
+    "formal_configuration_unchanged": true,
+    "independent_holdout_complete": false,
+    "new_candidate_inherits_old_elapsed_days": false,
+    "old_protocol_unchanged_and_unopened": true,
+    "protocol": {
+      "admission": "paused_revalidation",
+      "candidate": "repaired_official_defaults_not_matrix_winner",
+      "code_hash": "4908eb734e36769edb7fd5b5cb152dadcf9c88e863d218312d1ce57964ee9e30",
+      "config_hash": "49665830ead75ec74f6ef736f3f8b1ee7fdb3122ba9f334cda9d944b26decb4e",
+      "data_access_log": [],
+      "embargo_days": 30,
+      "experiment_registry_hash": "424eabccf35b01a07ca4ac60d2e771c763c190d8d59f691f0327d83d66c4790e",
+      "mature_after": "2027-05-22T00:00:00+00:00",
+      "minimum_cohorts": 30,
+      "observation_boundary": "2026-10-04T00:00:00+00:00",
+      "opened_at": null,
+      "protocol_hash": "32ac3c146838c39fe24e554acfb138775766ea7af1435d325d0a02cd52df0237",
+      "registered_at": "2026-10-03T16:41:22.175414+00:00",
+      "schema": "strategy_review_forward/v1",
+      "status": "pending_unseen_evidence",
+      "test_end_exclusive": "2027-05-02T00:00:00+00:00",
+      "test_start": "2026-11-03T00:00:00+00:00"
+    },
+    "registration_snapshot": {
+      "snapshot_id": "ca65b38065580d0aa2adc47993bc6fcde1bb97aa6891778a977a842828ec91f3"
+    },
+    "session_snapshots": [
+      "597a4151037e1fbca2e852a3d41077af5f8de95639a8f6488ba9366d862a14db"
+    ],
+    "source_current_and_frozen_verified": true,
+    "source_files": 554
+  },
+  "strict_training": {
+    "delayed_execution": "independent_spot_market_research_scheduler_verified",
+    "financing_amounts_independently_recomputed": true,
+    "financing_evidence": "supported_conditionally_for_complete_versioned_fixed_position_evidence",
+    "full_margin_liquidation_account_reconstruction": false,
+    "future_versions_do_not_change_old_candidate_identity": true,
+    "main_engine_delayed_training": "still_ineligible",
+    "real_historical_financing_evidence_obtained": false,
+    "report_and_replay_inputs_sealed": true,
+    "source_retractions": "implemented_with_no_fallback_and_cutoff_preservation"
+  },
+  "validation": {
+    "distinct_tests_passed_excluding_subtests": 912,
+    "entire_repository_test_suite_run": false,
+    "execution_evidence": {
+      "command": ".venv\\Scripts\\python.exe -m pytest tests/test_execution_readiness.py tests/test_binance_depth_observer.py tests/test_execution_calibration.py tests/test_quote_observations.py -q --basetemp D:\\QuantTradingV1\\.test_tmp_depth_20261004_a6",
+      "evidence_origin": "transcribed from completed exec_command tool result; tests were not repeated for this file",
+      "execution_scope": "local fake-data regression tests; no venue network calls and no orders",
+      "exit_code": 0,
+      "permission_context": "require_escalated: Windows restricted sandbox blocks asyncio event-loop local socketpair initialization",
+      "result": "63 passed in 9.05s",
+      "schema": "test-run-evidence/v1",
+      "test_files": [
+        "tests/test_execution_readiness.py",
+        "tests/test_binance_depth_observer.py",
+        "tests/test_execution_calibration.py",
+        "tests/test_quote_observations.py"
+      ]
+    },
+    "execution_tests_passed": 63,
+    "initial_main_failures": "5 Windows default-temp cleanup permission errors; full main suite passed using workspace temp",
+    "main_junit": "reports/paper_remaining_20261004/pytest_main_final.xml",
+    "main_tests_passed": 849,
+    "ruff": "passed",
+    "skipped": 0,
+    "subtests_passed": 5,
+    "test_files": 58,
+    "tracked_diff_whitespace_check": "passed",
+    "unresolved_failures": 0
+  },
+  "verified_at": "2026-10-03T16:50:01.577426+00:00"
+}

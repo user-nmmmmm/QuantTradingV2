@@ -2,7 +2,7 @@
 
 `core/` 提供行情适配、状态识别、共享决策运行时、经纪商接口及具体实现、订单风控与运维基础设施。回测（`backtest/`）和实盘（`live_trading/`）共用 `EventProcessor`、路由、策略和部分领域类型；各自的调度、执行、持久化和安全流程仍由对应模式实现。部分具体适配器也位于 `core/`，不能把整个 `core/` 视为纯领域层。
 
-本文档按子系统分组说明，每个文件给出：职责、关键类/函数、需要注意的行为。
+本文档按子系统说明职责、主要接口和边界行为。调度与启动流程分别见 [回测模块](backtest.md) 和 [实盘模块](live_trading.md)；此处重点解释共享组件之间的契约。涉及时间版本的数据接口应连同证据来源一起阅读，开启 `strict` 或保存快照本身不代表已通过研究准入。
 
 ---
 
@@ -15,24 +15,76 @@
 - `analyze_quality(df, symbol)` / `generate_quality_report(...)`：检测重复时间戳、缺口（间隔 > 1.5 倍中位数间隔）、异常波动（单根 bar 涨跌幅 > 20%）。
 
 ### `core/data_fetcher.py` — 统一历史数据获取
+
 `DataFetcher` 是数据获取的统一入口，支持三种来源，返回统一格式的小写列名 OHLCV DataFrame：
-- `fetch_yahoo(symbol, start, end)`：Yahoo Finance。
-- `fetch_ccxt(symbol, timeframe, start_date, end_date, limit, exchange_id)`：CCXT 交易所数据，默认按 `binance → okx → kraken → coinbase` 顺序尝试，每个交易所重试 3 次（2s/4s 指数退避），全部失败后回退到 Yahoo 的加密货币代码。分页上限 10,000 根 K 线。
+
+- `fetch_yahoo(symbol, start_date, end_date)`：Yahoo Finance。
+- `fetch_ccxt(...)`：未指定交易所时按 `binance → okx → kraken → coinbase` 尝试，失败后可回退到 Yahoo 加密货币代码；显式指定 `exchange_id` 时只使用该交易所，不切换来源。历史下载默认最多尝试 3 次，间隔为 2s/4s；`max_retries=1` 供实盘快照使用。
+- 未传日期区间时，`fetch_ccxt(...)` 只读取最新一页；指定区间时分页抓取。分页达到 10,000 根安全阈值且尚未满足结束条件，默认 `strict=True` 抛 `IncompleteDataError`，避免把截断数据当作完整历史；`strict=False` 仅返回带 `pagination_termination` 标记的数据。
+- `fetch_ccxt_since(...)`：从明确的时间游标读取一页，用于实盘缺口补取；页长限制为 1–1,000 根。
 - `generate_scenario(symbol, start, end)`：合成三段式行情（趋势上涨→震荡→趋势下跌），用于无网络依赖的回测。
 
 **需要注意**：日期字符串按 `data_timezone`（默认 `Asia/Shanghai`）解释后再换算成 UTC 毫秒边界，是 `[start, end_next_day)` 半开区间，不是字面 UTC 日期。未显式传入 `proxy_url` 时只读取 `QUANT_PROXY_URL`；环境变量未设置就不配置代理，传 `proxy_url=None` 也会禁用代理。
 
+`fetch_ccxt` 的 `strict` 检查下载是否被安全阈值截断；`temporal_policy.mode="strict"` 则控制历史可用性，二者是不同的约束。启用时间版本采集后，完整响应的接收时间只能形成 `local_receipt` 证据，不能据此推断交易所过去的发布时间。
+
 ### `core/market_data.py` — 行情适配器（回测/实盘共用协议）
+
 把原始数据转换成 `core/runtime.py` 定义的统一时间线 `MarketDataSlice`：
-- `normalize_market_frame(df)`：排序、按最后一条去重、去时区转 naive UTC。
-- `HistoricalMarketDataAdapter(data_map, timeframe, calculate_indicators=True)`：回测用，`.stream()` 构建跨标的的"真实 bar 并集"时间线，预先计算好指标。
-- `LiveMarketDataAdapter(symbols, fetcher, timeframe, lookback, close_grace_seconds)`：实盘用，`.refresh()` 拉新数据、重算指标、追踪时间戳倒退的标的（`regressed_symbols`）；`.poll(now)` 提供按标的水位线筛选新收盘 bar 的接口。当前 `LiveTradingEngine` 在 `tick_orchestrator.py` 内调用 `.refresh()`，再用 `closed_bars(...)` 和 `StateStore` 租约组织处理，未直接调用 `.poll(now)`。`.stream()` 不适用于实盘轮询，会抛 `RuntimeError`。
+
+- `normalize_market_frame(df)`：复制输入、剔除无效时间、重复时间保留末行并排序；带时区索引转换成 naive UTC，无时区索引沿用 UTC 约定。
+- `HistoricalMarketDataAdapter(...)`：`alignment_mode="union"` 默认使用真实 bar 并集，也支持 `"intersection"`；不填造缺失 bar。常规模式预计算指标，以分块行号查找控制稀疏多标的时间线的额外内存。`stream(fast_bars=True)` 可使用行快照加速标量访问，不适用的列类型仍回退到 pandas 行对象。
+- 历史 `temporal_policy.mode="strict"`：决策截止时间为 bar 开盘时间 + 周期 + `decision_delay_seconds`，每个时点重新选择可见的原始版本并重算指标。事件 `bars` 保留已实现的撮合/估值行情，`histories` 只包含当时可见历史；当前 bar 无证据时不生成对应 `positions`。共享运行时通过 `strategy_market_view(...)` 隔离这两种输入。
+- `LiveMarketDataAdapter.refresh()`：按 `lookback` 合并滚动行情，原始缓存与策略派生列分开保存。原始值和公开视图均未变化时复用指标；历史值被修订时重建派生视图。`max_workers` 控制并发抓取数，缓存提交与指标计算仍由调用线程串行完成。
+- 实盘刷新失败保留旧缓存，并在 `failed_symbols`/`refresh_metrics` 记录原因；提供商最新时间倒退记入 `regressed_symbols`。缓存仍在不代表新一轮抓取成功，健康检查必须消费这些状态。
+- `poll(now)` 按进程内标的水位线返回新收盘 bar；水位线不持久化。当前 `LiveTradingEngine` 通过 `tick_orchestrator.py` 调度刷新，再用 `closed_bars(...)` 和 `StateStore` 租约组织处理；启用可选运行控制后，限时抓取由 `RuntimeControls` 接管。`.stream()` 不适用于实盘轮询，会抛 `RuntimeError`。
+
+### `core/public_data_clients.py` / `core/request_budget.py` — 公共客户端与共享请求预算
+
+- `PublicDataClientPool` 按工作线程、交易所和市场类型复用公共 CCXT 客户端，避免在线程间共享可变 Session/timeout；`close()` 负责释放 Session。
+- `SharedRequestBudget` 使用同一路径的 SQLite 数据库，按交易所协调已接入进程的请求间隔和窗口权重。`cost` 来自 CCXT 端点权重，行情、研究和账户请求共同计入预算；`critical` 保留部分容量，但仍受总预算与间隔约束。
+- `request_scope(deadline=..., priority=...)` 传播基于单调时钟的截止时间；嵌套作用域只能收紧截止时间。`install_exchange_budget(...)` 把限流等待和 SDK 请求超时纳入剩余预算，请求结束后恢复原 timeout。
+- 默认共享文件为 `reports/request_budget.sqlite3`，可通过 `QUANT_REQUEST_BUDGET_DB` 指定。跨进程协调要求使用同一数据库路径；未接入的外部程序不会自动纳入统计。
+
+### `core/market_read_batch.py` — 有截止时间的只读批次
+
+`BoundedMarketReads.read(symbols, fetch, timeout_seconds=...)` 去重标的，在统一截止时间内返回成功值与失败原因。线程池限制同时抓取数；同一标的的旧任务仍在执行时返回 `fetch_in_progress`，不会再提交重复任务。
+
+超时只结束本轮等待：排队任务可以取消，已运行的网络调用可能继续。晚到结果不会被下一轮采用，`fetch` 也不应修改运行时状态；调用方根据批次结果统一提交。该组件用于显式启用的 `live_trading/runtime_controls.py`，不能把它的截止时间保证套到普通 `LiveMarketDataAdapter.refresh()` 上。
+
+### `core/data_versions.py` / `core/temporal_data.py` — 不可变数据版本与历史可用性
+
+`DataVersionStore` 保存原始对象、快照清单和不可变修订身份。相同 `record_id/revision_id` 对应不同内容会报错；内容哈希证明使用了哪些字节，不证明这些字节当时已公开。`TemporalOHLCV` 在此基础上追加 OHLCV 修订批次，并通过 `as_of(...)` 返回可见的原始历史。
+
+| 时间或字段 | 契约 |
+| --- | --- |
+| OHLCV 索引 / `event_time` | bar 开盘时间；完整 bar 不能在收盘前可用 |
+| `available_at` | 有证据支持的可用时刻；需配套 `availability_evidence.kind/reference` |
+| `observed_at` | 本地观察到这个版本的时刻 |
+| `knowledge="local"` | 在 strict 读取中，`available_at` 和 `observed_at` 均不能晚于截止时间 |
+| `knowledge="published"` | 在 strict 读取中，要求 `source_publication` 证据；本地可以晚于该截止时间才收集到记录 |
+
+默认 `mode="retrospective"` 保留最终数据回放兼容行为，并标记历史可用性未获证明。`mode="strict"` 只采用符合截止时间和知识口径的版本；缺少可用性证据时由 `unknown="exclude"` 或 `"raise"` 决定跳过或拒绝。单独的 CSV `available_at` 列不构成完整证据。
+
+`import_identity(...)` 只恢复冻结身份指向的版本批次，核对 OHLCV 与摘要，不能自动跟随磁盘中新增加的版本。`retract(...)` 用 `tombstone` 显式撤回记录；读取先选最新版本，再移除已撤回行，因此不会回退到旧值。数据源本轮没有返回某行不等同撤回。
+
+`as_of(...)` 的 `temporal_source_versions` 属性保留带哈希的版本证据，包括撤回事实。指标计算期间暂时移走这份大映射，策略计算视图也不携带它，避免 pandas 切列时反复复制；原始事件保留证据，供标签观察器核对可用性。
+
+### `core/temporal_labels.py` / `core/temporal_financing.py` — 版本化标签与融资证据
+
+- `VersionedOutcomeTracker` 接收 strict 历史，核对源记录哈希、身份、可用时间和完整持有窗口，复用既有收益计算器生成固定名义金额诊断。`results` 提供各候选/持有期的最新结果，`revisions` 保留全部历史。
+- 标签 `available_at` 不能早于候选可用时间、源版本可用时间（local 还包括观察时间）、窗口收盘和首次实际计算的观察时刻。缺失证据需等待补齐，`finish(...)` 不能用文件结束或墙钟时间创造可用性。
+- 训练消费方先选择训练截止时间**之前**可用的最新标签版本，再检查 `training_eligible`。最新版本失效或被撤回时，不能跳回较旧的成熟结果。延迟候选可按可用时间顺延模拟入场，但当前 v1 不给予这类候选训练资格。
+- `TemporalFinancing` 保存资金费、借款、条款/许可及完整性声明的修订；`financing_cost(...)` 核对持有窗口所需证据。永续合约需要版本化线性合约条款和完整结算事件；`spot_margin` 需要决策时已知的借款许可、连续计息区间及显式费用。
+- 缺失或撤回的融资证据返回不完整状态，不能假定零成本；格式、哈希或身份冲突直接报错。资金费按结算事件计算，借款按固定本金、ACT/365F、非复利口径计算。这些输出属于独立模拟诊断，不是实际成交记录或账户债务账本。
 
 ### `core/indicators.py` — 指标库
+
 `Indicators` 静态类，原地给 DataFrame 添加指标列：`SMA_10/30/120`、`ATR_14`、`BB_UPPER/MIDDLE/LOWER`、`ADX_14`。ATR/ADX 用 Wilder 平滑（`ewm(alpha=1/n)`），并**故意**把前 `n-1` 个值强制设为 NaN（尽管 `ewm` 本身会更早给出数值），避免用不可靠的早期值。
 
 ### `core/timeframes.py` — 时间周期工具
-`timeframe_delta(tf)` 解析 `"1m/5m/1h/1d/1w"` 等字符串；`as_utc_timestamp`/`as_utc_datetime` 统一转 UTC；`closed_bars(df, timeframe, now, grace_seconds)` 只返回已经安全过去（开盘时间 + 周期 + 宽限期 < 现在）的 bar，被 `LiveMarketDataAdapter.poll` 和健康监控使用。
+
+`timeframe_delta(tf)` 解析 `"1m/5m/1h/1d/1w"` 等固定周期；`as_utc_timestamp`/`as_utc_datetime` 统一转 UTC。`closed_bars(...)` 使用开盘时间语义，返回满足 **开盘时间 + 周期 + 非负宽限期 ≤ now** 的 bar，包含恰好到达截止边界的记录；已排序索引用二分查找截取。`observed_bars_after(...)` 按实际观察到的 bar 计数，避免滚动窗口行号移动导致策略冷却期无法结束。
 
 ---
 
@@ -48,6 +100,7 @@
 ### `core/runtime.py` — 事件处理核心（EventProcessor）
 **这是整个系统里回测和实盘真正共用的枢纽**，串联行情、状态机、路由、组合、执行、风控。
 - `MarketDataSlice`（frozen dataclass）：标准行情事件，包含 timestamp/bars/histories/positions/timeframe/source；历史适配器直接构建，实盘调度器也会构建。
+- strict 事件的 `bars` 与 `histories` 用途不同：`EventProcessor` 先通过 `strategy_market_view(...)` 和 `strategy_market_prices(...)` 构造决策输入，防止撮合视图中的事后修订价格影响信号、风险额度或下单参数。缺少策略可见的持仓标记价时禁止新增风险。
 - `MarketDataAdapter`（Protocol，`.stream()`）定义历史时间线接口；实盘适配器提供 `.poll(now)`，当前实盘调度器则用 `.refresh()` 和 `StateStore` 组织新 bar。`RuntimeExecutionAdapter`（`ExecutionPort` + `.on_market_data()`）定义共享决策链路所需的执行端接口。
 - `EventProcessor` 构造时必须注入 `portfolio`、`execution`、`risk_manager`、`state_machine`、`router` 和 `allocator`；`warmup_period`、`initial_equity` 等参数可选。
   - `.process(event, execute_market_event=True, ...)`：按需先调用执行适配器的 `on_market_data`，更新价格与风控状态；逐标的先处理已有仓位，再收集新开仓候选，最后统一调用 `allocator.allocate(...)`。回测引擎会先自行执行撮合与保护单，再以 `execute_market_event=False` 调用此方法。
@@ -223,7 +276,7 @@
 
 ---
 
-## 小结：模块关系速览
+## 八、模块关系与核对入口
 
 ```
 data_fetcher/data → market_data(适配器) → runtime.EventProcessor
@@ -246,3 +299,17 @@ data_fetcher/data → market_data(适配器) → runtime.EventProcessor
 ```
 
 `live_safety.py`、`risk/persistent_guard.py`、`health.py`、`alerting.py`、`operations/`、`core/account_reconciliation.py`、`r7_acceptance.py` 共同构成实盘运行的"安全护栏"，回测路径基本不涉及这些模块。`research/audit/reconciliation_job.py` 是离线日终证据工具，未接入实盘订单路径。
+
+时间版本链路附着在行情与研究观察路径上：`DataVersionStore → TemporalOHLCV → strict histories → VersionedOutcomeTracker`；带融资成本的标签同时依赖 `TemporalFinancing`。撮合使用的已实现行情与策略当时可见历史分开保留，不能用最终回测结果替代训练截止时刻的证据选择。
+
+维护这些契约时，可优先核对以下已有测试：
+
+| 契约 | 测试入口 |
+| --- | --- |
+| 行情修订、指标缓存、并发抓取与失败保留 | [`test_live_market_performance.py`](../../tests/test_live_market_performance.py) |
+| 稀疏时间线、行快照与额外内存 | [`test_market_data_memory.py`](../../tests/test_market_data_memory.py) |
+| 截止时间、迟到请求隔离与跨进程请求预算 | [`test_runtime_roadmap_followup.py`](../../tests/test_runtime_roadmap_followup.py) |
+| 决策可见历史、冻结身份和实际接收时间 | [`test_temporal_data_integration.py`](../../tests/test_temporal_data_integration.py) |
+| 标签版本、晚到修订和训练截止时间 | [`test_temporal_labels.py`](../../tests/test_temporal_labels.py) |
+| 显式撤回与禁止回退到旧版本 | [`test_temporal_retractions.py`](../../tests/test_temporal_retractions.py) |
+| 资金费/借款证据完整性与修订重放 | [`test_temporal_financing.py`](../../tests/test_temporal_financing.py) |

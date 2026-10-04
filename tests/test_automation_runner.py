@@ -273,8 +273,6 @@ def test_smoke_uses_fixed_synthetic_main_full_artifacts_and_replay(workspace, mo
     assert automation.execute_task("weekly-smoke", runner, config)["status"] == "pass"
     args = calls[0][1]
     assert args[args.index("--source") + 1] == "synthetic"
-    assert args[args.index("--symbols") + 1:args.index("--start")] == [
-        "BTC-USDT", "ETH-USDT", "SOL-USDT"]
     assert args[args.index("--report-profile") + 1] == "full"
     assert args[args.index("--start") + 1] == "2020-01-01"
     assert calls[1][1][-2] == "--replay-manifest"

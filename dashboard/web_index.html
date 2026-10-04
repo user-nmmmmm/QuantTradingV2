@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Still Water Quant 本地只读交易监控：账户、持仓、风险、历史行情与回测。">
+  <meta name="description" content="Still Water Quant 本地量化工作台：交易监控、网页回测、收益分析与历史行情。">
   <meta name="theme-color" content="#f2f5f3">
   <title>交易监控 · Still Water Quant</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -11,8 +11,11 @@
   <link rel="stylesheet" href="/assets/style.css">
   <link rel="stylesheet" href="/assets/visual.css">
   <link rel="stylesheet" href="/assets/theme.css">
-  <script src="/assets/visual.js" defer></script>
-  <script src="/assets/app.js" defer></script>
+  <link rel="stylesheet" href="/assets/workspace.css">
+  <link rel="stylesheet" href="/assets/lab.css">
+  <script type="module" src="/assets/visual.js"></script>
+  <script type="module" src="/assets/app.js"></script>
+  <script type="module" src="/assets/workspace.js"></script>
 </head>
 <body>
   <svg class="svg-defs" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
@@ -27,14 +30,31 @@
 
   <header class="site-header"><div class="nav-wrap">
     <a class="brand" href="#top" aria-label="Still Water Quant 首页"><span class="brand-mark"><span></span><span></span><span></span></span><span>stillwater<span class="brand-accent">.</span><small>QUANT</small></span></a>
-    <nav class="main-nav" aria-label="主导航"><a class="active" href="#overview">总览</a><a href="#market">行情</a><a href="#positions">持仓</a><a href="#operations">运行检查</a><a href="#activity">动态</a><a href="#backtest">回测</a><a href="#alerts">告警</a></nav>
-    <div class="nav-actions"><span class="nav-readonly"><span class="tiny-dot"></span>只读监控</span><span class="refresh-cadence">自动刷新 <strong id="countdown">15s</strong></span><button class="theme-toggle" id="themeToggle" type="button" aria-label="切换到深色模式" title="切换到深色模式"><svg class="theme-moon"><use href="#i-moon"/></svg><svg class="theme-sun"><use href="#i-sun"/></svg><span id="themeToggleText">深色</span></button><button class="refresh-button" id="refreshButton" type="button" aria-label="立即刷新"><svg><use href="#i-refresh"/></svg><span>刷新</span></button></div>
+<div class="header-context"><span>量化研究工作台</span><span class="header-slash">/</span><span id="workspaceConnection">连接本地数据</span></div>
+    <div class="nav-actions"><span class="nav-readonly"><span class="tiny-dot"></span>本地运行</span><span class="refresh-cadence">自动刷新 <strong id="countdown">15s</strong></span><button class="theme-toggle" id="themeToggle" type="button" aria-label="切换到深色模式" title="切换到深色模式"><svg class="theme-moon"><use href="#i-moon"/></svg><svg class="theme-sun"><use href="#i-sun"/></svg><span id="themeToggleText">深色</span></button><button class="refresh-button" id="refreshButton" type="button" aria-label="立即刷新"><svg><use href="#i-refresh"/></svg><span>刷新</span></button></div>
   </div></header>
 
+  <a class="skip-link" href="#workspaceTitle">跳转到主要内容</a>
+  <aside class="workspace-sidebar" aria-label="工作区导航">
+    <span class="sidebar-label">WORKSPACE</span>
+    <nav class="workspace-nav" aria-label="主导航">
+      <a href="#overview" data-route="overview"><span class="nav-index">01</span><span>工作台总览<small>Overview</small></span><span class="nav-arrow">↗</span></a>
+      <a href="#backtest" data-route="backtest"><span class="nav-index">02</span><span>回测实验室<small>Backtest lab</small></span><span class="nav-arrow">↗</span></a>
+      <a href="#market" data-route="market"><span class="nav-index">03</span><span>市场行情<small>Market data</small></span><span class="nav-arrow">↗</span></a>
+      <a href="#experiments" data-route="experiments"><span class="nav-index">04</span><span>实验与对比<small>Experiments</small></span><span class="nav-arrow">↗</span></a>
+      <a href="#data" data-route="data"><span class="nav-index">05</span><span>数据管理<small>Data quality</small></span><span class="nav-arrow">↗</span></a>
+      <a href="#robust" data-route="robust"><span class="nav-index">06</span><span>稳健性研究<small>Walk-forward</small></span><span class="nav-arrow">↗</span></a>
+      <a href="#operations" data-route="operations"><span class="nav-index">07</span><span>运行监控<small>Operations</small></span><span class="nav-arrow">↗</span></a>
+    </nav>
+    <div class="sidebar-note"><span class="sidebar-label">RESEARCH FLOW</span><ol><li>配置策略实验</li><li>运行本地回测</li><li>分析收益与风险</li></ol><a href="#backtest">开始一次研究 <span>→</span></a></div>
+    <div class="sidebar-footer"><span class="tiny-dot"></span><strong id="sidebarMode">本地工作区</strong><small>LOCAL FIRST · 1D</small></div>
+  </aside>
   <main id="top" class="page-shell">
-    <div class="page-heading" id="overview"><div class="page-title"><span class="eyebrow">OPERATIONS CENTER</span><h1>交易监控 <span class="demo-banner" id="demoBanner" hidden>演示数据</span></h1><p>账户、持仓、风险与系统健康状态</p></div><div class="heading-right"><div class="status-pill" id="statusPill"><span class="status-led"></span><div><strong id="systemState">连接中</strong><small id="systemCaption">正在读取运行数据</small></div></div><div class="heading-meta"><span id="syncStatus">正在读取快照</span><span id="updatedAt">最近更新 —</span></div></div></div>
+    <div class="page-heading" id="overview"><div class="page-title"><span class="eyebrow" id="workspaceEyebrow">WORKSPACE / OVERVIEW</span><h1><span id="workspaceTitle" tabindex="-1">工作台总览</span> <span class="demo-banner" id="demoBanner" hidden>演示数据</span></h1><p id="workspaceDescription">连接账户事实，掌握组合状态。</p></div><div class="heading-right"><div class="status-pill" id="statusPill"><span class="status-led"></span><div><strong id="systemState">连接中</strong><small id="systemCaption">正在读取运行数据</small></div></div><div class="heading-meta"><span id="syncStatus">正在读取快照</span><span id="updatedAt">最近更新 —</span></div></div></div>
 
-    <nav class="mobile-jump-nav" aria-label="页面区域"><a href="#market">K 线</a><a href="#positions">持仓</a><a href="#operations">运行</a><a href="#activity">动态</a><a href="#backtest">回测</a><a href="#alerts">告警</a></nav>
+    <noscript><p class="message-banner">此工作台需要 JavaScript 才能读取数据和提交回测。</p></noscript>
+    <section class="workspace-view" data-view="overview" aria-label="交易监控">
+      <div class="overview-strip"><div><span class="eyebrow">FROM OBSERVATION TO EVIDENCE</span><h2>让每一个策略，都有数据依据。</h2><p>在本地完成回测、比较与复盘，研究结果独立保存。</p></div><a class="primary-button" href="#backtest">打开回测实验室 <span>↗</span></a></div>
 
     <section class="metrics-grid" aria-label="关键指标">
       <article class="metric-card"><div class="metric-top"><span>账户权益</span><span class="metric-icon violet"><svg><use href="#i-bars"/></svg></span></div><div class="metric-value" id="equityValue">—</div><div class="metric-foot"><span class="metric-accent violet-text">EQUITY</span><span>最新账户快照</span></div></article>
@@ -48,26 +68,41 @@
       <article class="panel allocation-panel"><div class="panel-heading"><div><span class="eyebrow">PORTFOLIO MIX</span><h2>资金分布</h2><p>现金与非现金权益的概览</p></div></div><div class="allocation-body"><div class="donut" id="allocationDonut"><div class="donut-inner"><span>现金占比</span><strong id="cashPercent">—</strong></div></div><div class="allocation-legend"><div><span class="legend-dot legend-cash"></span><span>账户现金</span><strong id="legendCash">—</strong></div><div><span class="legend-dot legend-other"></span><span>非现金权益</span><strong id="legendOther">—</strong></div></div></div><p class="allocation-note" id="allocationNote">仅在现金与权益口径可比时显示比例。</p></article>
     </section>
 
-    <section class="panel market-panel" id="market">
-      <div class="panel-heading visual-heading"><div><span class="eyebrow">MARKET DATA / 1D</span><h2>市场 K 线</h2><p>读取本地 Binance 现货日线缓存，显示已保存的历史 K 线</p></div><div class="visual-controls"><select id="marketSymbol" aria-label="选择交易对"><option>加载交易对...</option></select><div class="range-buttons" role="group" aria-label="K 线范围"><button type="button" data-limit="60">60 根</button><button type="button" class="active" data-limit="120">120 根</button><button type="button" data-limit="240">240 根</button></div></div></div>
-      <div class="visual-source"><span class="source-dot"></span><span id="marketStatus">正在读取本地行情缓存</span></div>
-      <div class="candle-summary" id="candleSummary"><div><span>日期</span><strong id="candleDate">—</strong></div><div><span>开盘</span><strong id="candleOpen">—</strong></div><div><span>最高</span><strong id="candleHigh">—</strong></div><div><span>最低</span><strong id="candleLow">—</strong></div><div><span>收盘</span><strong id="candleClose">—</strong></div><div><span>成交量</span><strong id="candleVolume">—</strong></div></div>
-      <div class="visual-chart-shell"><svg id="candleChart" viewBox="0 0 1100 430" preserveAspectRatio="none" role="img" aria-label="历史日线 K 线与成交量"></svg><div class="visual-empty" id="candleEmpty">正在加载 K 线...</div></div>
-      <div class="visual-foot"><span id="candlePeriod">—</span><span>青绿上涨 · 珊瑚红下跌 · 下方为成交量</span></div>
+
+
+    <section class="positions-section"><article class="panel positions-panel" id="positions"><div class="panel-heading"><div><span class="eyebrow">OPEN EXPOSURE</span><h2>当前持仓</h2><p>来自最新状态快照的持仓事实</p></div><span class="panel-chip" id="positionsCount">0 个标的</span></div><div class="table-scroll" tabindex="0" role="region" aria-label="当前持仓，可横向滚动"><table><thead><tr><th>交易对</th><th>方向</th><th>数量</th><th>持仓均价</th><th>保护单</th></tr></thead><tbody id="positionsBody"><tr><td class="empty-cell" colspan="5">正在加载持仓...</td></tr></tbody></table></div></article>
+</section>
+
+
+
+
     </section>
-
-    <section class="detail-grid"><article class="panel positions-panel" id="positions"><div class="panel-heading"><div><span class="eyebrow">OPEN EXPOSURE</span><h2>当前持仓</h2><p>来自最新状态快照的持仓事实</p></div><span class="panel-chip" id="positionsCount">0 个标的</span></div><div class="table-scroll"><table><thead><tr><th>交易对</th><th>方向</th><th>数量</th><th>持仓均价</th><th>保护单</th></tr></thead><tbody id="positionsBody"><tr><td class="empty-cell" colspan="5">正在加载持仓...</td></tr></tbody></table></div></article>
-      <article class="panel operations-panel" id="operations"><div class="panel-heading"><div><span class="eyebrow">SYSTEM CHECK</span><h2>运行检查</h2><p>关键控制条件的当前记录</p></div><span class="panel-chip neutral" id="checksSummary">检查中</span></div><div class="checks-list" id="checksList"></div></article></section>
-
-    <section class="detail-grid bottom-grid"><article class="panel strategies-panel"><div class="panel-heading"><div><span class="eyebrow">STRATEGY HEALTH</span><h2>策略状态</h2><p>策略生命周期及当前可用状态</p></div></div><div id="strategiesList" class="strategy-list"></div></article><article class="panel reasons-panel"><div class="panel-heading"><div><span class="eyebrow">HEALTH REASONS</span><h2>健康原因</h2><p>系统报告的异常与阻断依据</p></div><span class="panel-chip" id="reasonCount">0 条</span></div><div id="reasonsList" class="reasons-list"></div></article></section>
-
-    <section class="panel activity-panel" id="activity">
-      <div class="panel-heading"><div><span class="eyebrow">SESSION OBSERVATIONS</span><h2>动态监控</h2><p>每 15 秒检查运行快照；这里记录本次页面会话观察到的变化</p></div><span class="panel-chip">自动更新</span></div>
-      <div class="activity-layout"><div class="activity-facts"><div><span>最近检查</span><strong id="activityChecked">—</strong></div><div><span>快照时间</span><strong id="activitySnapshot">—</strong></div><div><span>最新告警</span><strong id="activityAlert">—</strong></div></div><div class="activity-feed"><div class="feed-heading">本次会话的变化 <span id="activityCount">0 条</span></div><div id="activityList" class="feed-list"><div class="panel-empty">等待状态快照更新</div></div></div></div>
-    </section>
-
+    <section class="workspace-view" data-view="backtest" aria-label="回测实验室" hidden>
+      <nav class="section-nav" aria-label="回测页章节"><a href="#experiment-config"><span>01</span> 实验配置</a><a href="#backtest"><span>02</span> 收益曲线</a><a href="#trade-diagnostics"><span>03</span> 风险诊断</a><a href="#execution-details"><span>04</span> 成交记录</a></nav>
+      <div class="research-layout">
+        <aside class="panel experiment-panel" id="experiment-config">
+          <div class="panel-heading"><div><span class="eyebrow">01 / CONFIGURE</span><h2>配置实验</h2><p>使用现有策略组合与风控配置</p></div><span class="panel-chip">日线 · 1D</span></div>
+          <form id="backtestForm">
+            <label class="field">数据来源<select id="researchSource" name="source"><option value="local">本地历史行情</option><option value="synthetic">合成数据 · 功能验证</option></select></label>
+            <fieldset class="symbol-field"><legend>交易标的 <span id="symbolLimit">最多 4 个</span></legend><div id="researchSymbols" class="symbol-options">正在读取标的…</div></fieldset>
+            <div class="field-pair"><label class="field">开始日期<input name="start" id="researchStart" type="date" required></label><label class="field">结束日期<input name="end" id="researchEnd" type="date" required></label></div>
+            <label class="field">初始资金 · USDT<input name="capital" id="researchCapital" type="number" min="100" max="1000000000" step="100" value="10000" required></label>
+            <details class="advanced-settings"><summary>执行参数 <span>滑点 / 随机种子</span></summary><div class="field-pair"><label class="field">滑点 · bps<input name="slippage_bps" id="researchSlippage" type="number" min="0" max="100" step="0.1" value="5" required></label><label class="field">随机种子<input name="seed" id="researchSeed" type="number" min="0" max="2147483647" step="1" value="42" required></label></div><p>1 bps = 0.01%。手续费及策略参数使用项目配置。</p></details>
+            <div class="data-note" id="researchDataNote">正在读取可用数据与运行限制…</div>
+            <div id="strategyEditor" class="strategy-editor"></div>
+            <button type="submit" id="runBacktest" class="primary-button" disabled>运行本地回测 <span>↗</span></button>
+            <p id="researchMessage" class="form-message" role="status" aria-live="polite">正在连接回测服务…</p>
+          </form>
+          <div class="experiment-foot"><span class="source-dot historical"></span>历史模拟 · 任务在本机后台执行</div>
+        </aside>
+        <div class="research-main">
+          <section class="panel job-panel" aria-label="回测任务">
+            <div class="panel-heading"><div><span class="eyebrow">02 / EXECUTE</span><h2>实验记录</h2></div><button class="text-button" id="refreshJobs" type="button">刷新记录 ↻</button></div>
+            <div id="jobList" class="job-list"><p class="panel-empty">尚未加载任务</p></div>
+            <details class="job-log"><summary>最近任务日志</summary><pre id="jobLog">提交实验后，日志会显示在这里。</pre></details>
+          </section>
     <section class="panel backtest-panel" id="backtest">
-      <div class="panel-heading visual-heading"><div><span class="eyebrow">RESEARCH / BACKTEST</span><h2>回测可视化</h2><p>从已保存的回测权益文件绘制净值和回撤</p></div><div class="visual-controls"><label class="benchmark-toggle"><input id="benchmarkToggle" type="checkbox"><span>对照基准</span></label><select id="backtestRun" aria-label="选择回测报告"><option>加载回测报告...</option></select></div></div>
+      <div class="panel-heading visual-heading"><div><span class="eyebrow">03 / ANALYZE</span><h2>收益与回撤</h2><p>从已保存的回测权益文件绘制净值和回撤</p></div><div class="visual-controls"><label class="benchmark-toggle"><input id="benchmarkToggle" type="checkbox"><span>对照基准</span></label><select id="backtestRun" aria-label="选择回测报告"><option>加载回测报告...</option></select></div></div>
       <div class="visual-source"><span class="source-dot historical"></span><span id="backtestStatus">正在读取本地回测报告</span></div>
       <div class="backtest-metrics"><div><span>总收益</span><strong id="backtestReturn">—</strong></div><div><span>最大回撤</span><strong id="backtestDrawdown">—</strong></div><div><span>期末权益</span><strong id="backtestEndEquity">—</strong></div><div><span>成交记录</span><strong id="backtestFills">—</strong></div></div>
       <div class="visual-chart-shell backtest-chart-shell"><svg id="backtestChart" viewBox="0 0 1100 390" preserveAspectRatio="none" role="img" aria-label="回测权益与回撤曲线"></svg><div class="visual-empty" id="backtestEmpty">正在加载回测数据...</div></div>
@@ -75,9 +110,46 @@
       <div class="visual-foot"><span id="backtestPeriod">—</span><span>历史回测结果 · 总收益和回撤按 equity.csv 计算</span></div>
     </section>
 
-    <section class="panel alerts-panel" id="alerts"><div class="panel-heading alerts-heading"><div><span class="eyebrow">EVENT STREAM</span><h2>近期告警</h2><p>从告警日志读取的最近记录</p></div><div class="alert-filters" role="group" aria-label="筛选告警"><button type="button" class="active" data-filter="all">全部</button><button type="button" data-filter="high">高优先级</button><button type="button" data-filter="other">其他</button></div></div><div class="alert-list" id="alertsList"></div></section>
 
-    <footer><span class="footer-brand">stillwater<span>.</span> QUANT</span><span>基于本机状态快照的只读视图 · 快照不能代替交易所账户事实</span><a href="#top">返回顶部 ↑</a></footer>
+          <section class="panel" aria-label="回测分析"><div class="panel-heading"><div><span class="eyebrow">PERFORMANCE BREAKDOWN</span><h2>结果拆解</h2><p id="analysisContext">选择报告后查看收益分布和基准比较</p></div><button class="text-button" id="exportAnalysis" type="button" disabled>导出分析 JSON ↓</button></div>
+            <div class="analysis-stats" id="analysisStats"><p class="panel-empty">等待回测报告</p></div>
+            <div class="section-heading"><h3>月度收益</h3><span>首月从首个有效权益点计算</span></div><div id="monthlyReturns" class="monthly-returns"><p class="panel-empty">暂无月度记录</p></div>
+            <details class="methodology"><summary>查看计算口径</summary><div id="analysisMethodology">指标由权益序列计算。</div></details>
+          </section>
+
+          <section class="panel" id="trade-diagnostics" aria-label="交易复盘与风险诊断"><div class="panel-heading"><div><span class="eyebrow">TRADE REVIEW / EVIDENCE</span><h2>交易复盘与风险诊断</h2><p id="diagnosticContext">选择报告后查看完整交易与诊断证据</p></div></div><div id="diagnosticStats" class="analysis-stats"></div><div class="section-heading"><h3>信号到成交</h3><span>未记录的环节显示未知</span></div><p id="noTradeReason" class="data-note"></p><div id="diagnosticFunnel" class="diagnostic-funnel"></div><details class="methodology"><summary>退出归因、回撤事件与计算依据</summary><div id="diagnosticDetails"></div></details><div class="section-heading"><h3>完整交易明细</h3><span id="closedCount">—</span></div><div id="closedTrades" class="trade-table"></div><div class="pagination"><button id="closedPrevious" class="secondary-button" type="button" disabled>← 上一页</button><span id="closedPage">—</span><button id="closedNext" class="secondary-button" type="button" disabled>下一页 →</button></div></section>
+          <section class="panel" id="execution-details" aria-label="成交明细"><div class="panel-heading"><div><span class="eyebrow">EXECUTION DETAILS</span><h2>成交明细</h2><p>每页 25 条 · 时间为 UTC · 成交记录不等于已平仓交易</p></div><span class="panel-chip" id="tradeCount">—</span></div><div class="table-scroll trade-table" tabindex="0" role="region" aria-label="成交记录，可横向滚动"><table class="research-table"><thead id="tradeHead"></thead><tbody id="tradeBody"><tr><td>选择报告后加载成交记录</td></tr></tbody></table></div><div class="pagination"><button class="secondary-button" id="previousTrades" disabled type="button">← 上一页</button><span id="tradePage">—</span><button class="secondary-button" id="nextTrades" disabled type="button">下一页 →</button></div></section>
+        </div>
+      </div>
+    </section>
+    <section class="workspace-view" data-view="market" aria-label="市场行情" hidden>
+    <section class="panel market-panel" id="market">
+      <div class="panel-heading visual-heading"><div><span class="eyebrow">MARKET DATA / 1D</span><h2>市场 K 线</h2><p>读取本地 Binance 现货日线缓存，显示已保存的历史 K 线</p></div><div class="visual-controls"><select id="marketSymbol" aria-label="选择交易对"><option>加载交易对...</option></select><div class="range-buttons" role="group" aria-label="K 线范围"><button type="button" data-limit="60" aria-pressed="false">60 根</button><button type="button" class="active" data-limit="120" aria-pressed="true">120 根</button><button type="button" data-limit="240" aria-pressed="false">240 根</button></div></div></div>
+      <div class="visual-source"><span class="source-dot"></span><span id="marketStatus">正在读取本地行情缓存</span></div>
+      <div class="candle-summary" id="candleSummary"><div><span>日期</span><strong id="candleDate">—</strong></div><div><span>开盘</span><strong id="candleOpen">—</strong></div><div><span>最高</span><strong id="candleHigh">—</strong></div><div><span>最低</span><strong id="candleLow">—</strong></div><div><span>收盘</span><strong id="candleClose">—</strong></div><div><span>成交量</span><strong id="candleVolume">—</strong></div></div>
+      <div class="visual-chart-shell"><svg id="candleChart" viewBox="0 0 1100 430" preserveAspectRatio="none" role="img" aria-label="历史日线 K 线与成交量"></svg><div class="visual-empty" id="candleEmpty">正在加载 K 线...</div></div>
+      <div class="visual-foot"><span id="candlePeriod">—</span><span>青绿上涨 · 珊瑚红下跌 · 下方为成交量</span></div>
+    </section>
+      <div class="context-note market-context"><div><strong>历史行情 · 本地缓存</strong><p>数据日期见图表上方，研究前请确认覆盖区间。</p></div><a href="#data">检查数据质量 →</a><a href="#backtest">发起回测 ↗</a></div>
+      <section class="panel indicator-panel" aria-label="技术指标"><div class="panel-heading"><div><span class="eyebrow">TECHNICAL STUDIES</span><h2>技术指标工作台</h2><p id="indicatorContext">随上方交易对切换，使用历史数据完成预热</p></div><label class="field">指标视图<select id="indicatorStudy" aria-label="指标视图"><option value="trend">趋势 · 均线与布林带</option><option value="averages">SMA · 20 / 50 均线</option><option value="exponential">EMA · 12 / 26 均线</option><option value="rsi">RSI · 相对强弱</option><option value="macd">MACD · 趋势动量</option><option value="atr">ATR · 波动幅度</option><option value="adx">ADX · 趋势强度</option><option value="stoch">Stochastic · 随机指标</option><option value="obv">OBV · 能量潮</option><option value="roc">ROC · 变化率</option><option value="cci">CCI · 顺势指标</option><option value="williams">Williams %R</option></select></label></div><div id="indicatorChart" class="plot-container"></div><div id="indicatorStats" class="analysis-stats indicator-current" aria-live="polite"></div><details class="indicator-library"><summary>全部指标快照 <span>19 项读数</span></summary><div id="indicatorAllStats" class="analysis-stats"></div></details><details class="methodology"><summary>参数与计算口径</summary><div id="indicatorMethodology"></div></details></section>
+    </section>
+    <section class="workspace-view" data-view="experiments" aria-label="实验与对比" hidden>
+      <section class="panel"><div class="panel-heading"><div><span class="eyebrow">EXPERIMENT LIBRARY</span><h2>实验档案</h2><p>保存标签与研究结论，选择 2–4 份报告进行对比</p></div><button id="historyRefresh" class="text-button" type="button">刷新档案 ↻</button></div><form id="historyFilters" class="filter-row"><label class="field">搜索<input id="historySearch" type="search" placeholder="名称、标的、备注"></label><label class="field">状态<select id="historyStatus"><option value="">全部状态</option><option value="succeeded">已完成</option><option value="running">运行中</option><option value="failed">失败</option><option value="interrupted">重启中断</option><option value="cancelled">已取消</option><option value="timed_out">已超时</option></select></label><label class="field">标签<input id="historyTag" placeholder="例如：趋势研究"></label><label class="checkbox-field"><input id="historyFavorite" type="checkbox">仅收藏</label><button class="secondary-button" type="submit">查询</button></form><p id="historyMessage" class="form-message" role="status"></p><div id="historyList" class="history-list"></div><div class="pagination"><button id="historyPrevious" class="secondary-button" type="button">← 上一页</button><span id="historyPage"></span><button id="historyNext" class="secondary-button" type="button">下一页 →</button></div></section>
+      <section class="panel" aria-label="实验对比"><div class="panel-heading"><div><span class="eyebrow">SIDE BY SIDE</span><h2>实验对比</h2><p id="compareSelection">在档案中选择 2–4 份已完成的回测报告</p></div><button id="compareRun" class="primary-button" type="button" disabled>比较实验 →</button></div><p id="compareMessage" class="form-message" role="status"></p><div class="plot-pair"><div><h3>归一化净值 · 起点 100</h3><div id="compareNav" class="plot-container"></div></div><div><h3>回撤</h3><div id="compareDrawdown" class="plot-container"></div></div></div><div id="compareMetrics"></div><details class="methodology"><summary>参数差异与比较口径</summary><div id="compareDifferences"></div></details></section>
+    </section>
+    <section class="workspace-view" data-view="data" aria-label="本地数据管理" hidden><section class="panel"><div class="panel-heading"><div><span class="eyebrow">LOCAL DATA / QUALITY</span><h2>本地日线数据</h2><p>检查覆盖范围、重复、缺失、顺序与 OHLCV 有效性</p></div><button id="qualityRefresh" type="button" class="text-button">重新检查 ↻</button></div><p id="qualityMessage" class="data-note" role="status">正在检查本地数据…</p><div id="qualityStats" class="analysis-stats"></div><div id="qualityTable"></div><details class="methodology"><summary>检查口径</summary><div id="qualityMethodology"></div></details></section></section>
+    <section class="workspace-view" data-view="robust" aria-label="稳健性研究" hidden><div id="robustContent"><p class="panel-empty">正在加载稳健性研究台…</p></div></section>
+    <section class="workspace-view" data-view="operations" aria-label="运行监控" hidden>
+      <article class="panel operations-panel" id="operations"><div class="panel-heading"><div><span class="eyebrow">SYSTEM CHECK</span><h2>运行检查</h2><p>关键控制条件的当前记录</p></div><span class="panel-chip neutral" id="checksSummary">检查中</span></div><div class="checks-list" id="checksList"></div></article>    <section class="detail-grid bottom-grid"><article class="panel strategies-panel"><div class="panel-heading"><div><span class="eyebrow">STRATEGY HEALTH</span><h2>策略状态</h2><p>策略生命周期及当前可用状态</p></div></div><div id="strategiesList" class="strategy-list"></div></article><article class="panel reasons-panel"><div class="panel-heading"><div><span class="eyebrow">HEALTH REASONS</span><h2>健康原因</h2><p>系统报告的异常与阻断依据</p></div><span class="panel-chip" id="reasonCount">0 条</span></div><div id="reasonsList" class="reasons-list"></div></article></section>
+
+    <section class="panel activity-panel" id="activity">
+      <div class="panel-heading"><div><span class="eyebrow">SESSION OBSERVATIONS</span><h2>动态监控</h2><p>每 15 秒检查运行快照；这里记录本次页面会话观察到的变化</p></div><span class="panel-chip">自动更新</span></div>
+      <div class="activity-layout"><div class="activity-facts"><div><span>最近检查</span><strong id="activityChecked">—</strong></div><div><span>快照时间</span><strong id="activitySnapshot">—</strong></div><div><span>最新告警</span><strong id="activityAlert">—</strong></div></div><div class="activity-feed"><div class="feed-heading">本次会话的变化 <span id="activityCount">0 条</span></div><div id="activityList" class="feed-list"><div class="panel-empty">等待状态快照更新</div></div></div></div>
+    </section>
+
+    <section class="panel alerts-panel" id="alerts"><div class="panel-heading alerts-heading"><div><span class="eyebrow">EVENT STREAM</span><h2>近期告警</h2><p>从告警日志读取的最近记录</p></div><div class="alert-filters" role="group" aria-label="筛选告警"><button type="button" class="active" data-filter="all" aria-pressed="true">全部</button><button type="button" data-filter="high" aria-pressed="false">高优先级</button><button type="button" data-filter="other" aria-pressed="false">其他</button></div></div><div class="alert-list" id="alertsList"></div></section>
+    </section>
+    <footer><span class="footer-brand">stillwater<span>.</span> QUANT</span><span>本地研究工作台 · 交易监控只读 · 回测结果独立保存</span><a href="#workspaceTitle">返回顶部 ↑</a></footer>
   </main>
 </body>
 </html>

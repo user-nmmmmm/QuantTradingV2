@@ -87,7 +87,7 @@ def _routed_to_the_only_strategy():
     import backtest.engine as engine_module
     from router.router import Router
 
-    def _router_factory(strategies, _configuration, log_path=None):
+    def _router_factory(strategies, _configuration, log_path=None, capital_policy=None):
         only = next(iter(strategies))
         return Router(
             strategies,
@@ -284,13 +284,15 @@ class TestMultipleTestingIsActuallyFed:
 class TestBootstrapPValue:
     def test_a_bootstrap_never_justifies_p_equals_zero(self):
         """A literal zero would make a candidate survive any FDR threshold."""
-        result = one_sided_bootstrap_p_value([1.0] * 50, n_samples=100)
+        result = one_sided_bootstrap_p_value(pd.Series([1.0] * 50,
+            index=pd.date_range("2024-01-01", periods=50)), n_samples=100)
 
         assert result["p_value"] == pytest.approx(1 / 101)
         assert result["p_value"] > 0.0
 
     def test_losing_returns_are_not_significant(self):
-        result = one_sided_bootstrap_p_value([-0.01] * 50, n_samples=100)
+        result = one_sided_bootstrap_p_value(pd.Series([-0.01] * 50,
+            index=pd.date_range("2024-01-01", periods=50)), n_samples=100)
 
         assert result["p_value"] == pytest.approx(1.0)
 

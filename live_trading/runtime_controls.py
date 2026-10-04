@@ -1,4 +1,8 @@
-"""Opt-in runtime controls staged for review; broker state has one owner."""
+"""显式启用的行情限时读取、保护调度与恢复补帧控制。
+
+工作线程只读取行情；行情缓存提交、状态落盘和 broker 调用均留在引擎线程。
+限时等待不强制终止底层网络请求，也不使保护任务抢占当前同步调用。
+"""
 from types import SimpleNamespace
 import time
 
@@ -14,6 +18,8 @@ from live_trading.protection_schedule import ProtectionSchedule, RuntimeSchedule
 
 
 class RuntimeControls:
+    """协调可选调度组件；调用方负责在退出时关闭行情读取池。"""
+
     def __init__(self, policy=None, *, workers=4):
         self.policy = policy or RuntimeSchedulePolicy()
         self._reads = BoundedMarketReads(workers) if self.policy.enabled else None
@@ -21,6 +27,12 @@ class RuntimeControls:
         self.catchup_status = {}
 
     def update_data(self, engine):
+        """并行读取行情，再由调用线程合并成功标的；失败标的保留旧缓存。
+
+        读取等待使用总预算的 80%，余下时间用于启动逐标的指标刷新。截止
+        检查发生在各标的刷新之前，不会中断已经开始的同步计算。任何失败
+        都在合并可用结果后抛出 MarketDataRefreshError，交由 tick 禁新增风险。
+        """
         if not self.policy.enabled:
             raise RuntimeError("runtime controls require explicit enablement")
         started = time.monotonic()
@@ -36,6 +48,7 @@ class RuntimeControls:
                 **({"market_type": adapter.market_type} if adapter.market_type not in {"spot", "margin"} else {}),
                 **({"max_retries": 1} if type(engine.fetcher) is DataFetcher else {}))
             cursor = cursors.get(symbol)
+            # 内置 DataFetcher 每轮只补取一个有界历史窗口；仍有缺口则由补帧门控等待。
             if (type(engine.fetcher) is DataFetcher and cursor is not None and not frame.empty
                     and as_utc_timestamp(frame.index[0]) > as_utc_timestamp(cursor) + timeframe_delta(engine.timeframe)):
                 since = as_utc_timestamp(cursor) - adapter.lookback * timeframe_delta(engine.timeframe)
@@ -48,7 +61,7 @@ class RuntimeControls:
             return frame
         batch = self._reads.read(engine.symbols, fetch,
             timeout_seconds=self.policy.market_timeout_seconds * .8)
-        # A detached adapter commits only on this caller, never in read workers.
+        # 暂存适配器隔离本轮结果；超时线程的迟到结果不能回写引擎缓存。
         snapshot = SimpleNamespace(fetch_ccxt=lambda symbol, **_: batch.values.get(symbol, pd.DataFrame()))
         staged = LiveMarketDataAdapter([], snapshot, timeframe=adapter.timeframe,
             lookback=adapter.lookback, exchange_id=adapter.exchange_id, market_type=adapter.market_type)
@@ -80,6 +93,7 @@ class RuntimeControls:
             raise MarketDataRefreshError(failures)
 
     def prepare_bar(self, engine, symbol, frame, state_store):
+        """推进有限历史补帧并保存进度，返回可以正常处理的最新 bar。"""
         key = f"catchup_cursor:{symbol}:{engine.timeframe}"
         last = state_store.get(key)
         plan = plan_catchup(frame, last, timeframe=engine.timeframe,
@@ -88,7 +102,7 @@ class RuntimeControls:
             "pending": plan.pending, "gap": plan.gap}
         for timestamp in plan.replay_times:
             replay_state_only(engine, symbol, frame, timestamp)
-            # Cursor and recovered state are a single durable observation.
+            # 游标与恢复状态原子写入，避免重启后游标领先于实际状态。
             state_store.set_many({**runtime_checkpoint(engine), key: timestamp.isoformat()})
         if plan.gap:
             engine._alert("error", "catchup_gap", {"symbol": symbol, "pending": plan.pending})
@@ -96,10 +110,15 @@ class RuntimeControls:
 
     @staticmethod
     def complete_bar(engine, symbol, timestamp, state_store):
+        """为已经完成认领处理的 bar 补齐游标与运行状态；此处不完成 bar 租约。"""
         state_store.set_many({**runtime_checkpoint(engine),
             f"catchup_cursor:{symbol}:{engine.timeframe}": timestamp.isoformat()})
 
     def protect_if_due(self, engine):
+        """到期时串行同步账户、恢复未知订单并核对外部持仓及保护单。
+
+        余额事实不可用时仅告警并结束本次保护回调；返回值不是保护成功标记。
+        """
         def protect():
             from live_trading.recovery import balance_sync_succeeded
             sync = engine.broker.sync()

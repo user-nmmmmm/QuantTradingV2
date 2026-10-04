@@ -136,7 +136,9 @@ def test_old_active_probation_checkpoint_migrates_consumed_boundary():
 
 
 def live_engine(store, risk, now=NOW):
-    return CircuitBreakerRecoveryFaultInjectionTests()._engine(store, risk, now)
+    engine = CircuitBreakerRecoveryFaultInjectionTests()._engine(store, risk, now)
+    engine.broker.order_latency = None  # Fake broker has no request recorder.
+    return engine
 
 
 def test_legacy_torn_checkpoint_cannot_clear_daily_halt(tmp_path):

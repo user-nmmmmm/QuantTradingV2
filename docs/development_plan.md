@@ -1,15 +1,13 @@
 # QuantTrading 开发计划 v3.0
 
-> 公开发布视图：保留任务编号、状态、依赖及技术契约；私人邮件正文、逐条审查摘录和邮箱映射未发布。原始本地登记仍是权威资料。`reports/`、`outputs/`、`tmp/`、`docs/archive/` 及邮件审计文件均为仅本地引用，不随源码发布；公开 CI 的 structure-only 结果不代表这些历史证据已验证。
-
 > 基线日期：2026-09-20。项目阶段以[统一Roadmap](unified_roadmap.md)为准；每个任务的可执行说明见[开发详情](development_details.md)。
-> [结构化任务登记](development_task_registry.json) · [旧计划/邮件映射](roadmap_traceability.md) · 历史资料与邮件（仅本地引用：`docs/archive/2026-09-roadmap-rebaseline/README.md`，不随源码发布）
+> [结构化任务登记](development_task_registry.json) · [旧计划/邮件映射](roadmap_traceability.md) · [历史资料与邮件](archive/2026-09-roadmap-rebaseline/README.md)
 
 ## 1. 本轮范围
 
 原始基线共40个任务：20个邮件缺陷工作包（FIX）、18个历史能力补齐工作包（SYS）、1个验证任务（VER）、1个文档整合任务（DOC）。52条未闭环邮件意见进入20个FIX；1条证据不足意见进入VER；24条已修复意见单列回归登记，不重复开发。40是工作分解数量，不是完成率分母。
 
-原始审计基线仅DOC-01已验收；本次实现后，FIX-01–20、VER-01、SYS-01、SYS-02已完成各自本地工程验收。其余系统按实际边界保留状态；整个R0–R8尚未全部验收，策略仍为paused_revalidation。见[本轮执行报告](r_series_acceptance_20260920.md)与逐项验收索引（仅本地引用：`reports/roadmap_v3/acceptance_index.json`，不随源码发布）。
+原始审计基线仅DOC-01已验收；本次实现后，FIX-01–20、VER-01、SYS-01、SYS-02已完成各自本地工程验收。其余系统按实际边界保留状态；整个R0–R8尚未全部验收，策略仍为paused_revalidation。见[本轮执行报告](r_series_acceptance_20260920.md)与[逐项验收索引](../reports/roadmap_v3/acceptance_index.json)。
 
 第5、6节追加交付：九项冲突规则机器验收、准入门槛及前瞻协议修复、S2选币与研究诊断、S3目标仓位与分批恢复、保护单仓位身份迁移以及新候选独立登记。SYS-12/13更新为“部分实现待验收”；SYS-11继续“待证据”，SYS-14继续“后续扩展”。见[追加执行记录](section56_acceptance_20260920.md)。
 
