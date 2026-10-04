@@ -421,6 +421,8 @@ class BacktestEngine:
             warmup_period=self.warmup_period,
             initial_equity=self.initial_capital,
             entry_audit_enabled=bool((config.get("research") or {}).get("entry_audit", False)),
+            trace_gate_facts=bool((config.get("research") or {}).get(
+                "trace_gate_facts", (config.get("research") or {}).get("entry_audit", False))),
             signal_observer=observer,
             portfolio_controller=self.portfolio_controller,
             candidate_selector=self.candidate_selector,

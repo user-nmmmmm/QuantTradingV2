@@ -124,6 +124,7 @@ class EventProcessor:
         warmup_period: int = 0,
         initial_equity: Optional[float] = None,
         entry_audit_enabled: bool = False,
+        trace_gate_facts: bool = False,
         signal_observer: Any = None,
         portfolio_controller: Any = None,
         candidate_selector: Any = None,
@@ -148,8 +149,11 @@ class EventProcessor:
         self.signal_observer = signal_observer
         self.portfolio_controller = portfolio_controller
         self.candidate_selector = candidate_selector
-        self.entry_audit_enabled = entry_audit_enabled or signal_observer is not None
+        self.trace_gate_facts = bool(trace_gate_facts)
+        self.entry_audit_enabled = entry_audit_enabled or signal_observer is not None or self.trace_gate_facts
         self.entry_audit: list[dict[str, Any]] = []
+        self._audit_order_rows: dict[str, dict[str, Any]] = {}
+        self._audit_registered_rows = 0
         budget = getattr(self.risk_manager, "drawdown_budget", None)
         if budget is not None:
             budget.bind(execution, getattr(router, "strategies", {}))
@@ -279,6 +283,7 @@ class EventProcessor:
 
         if not missing_marks:
             self._previous_session_close_equity = decision_equity
+        self._settle_entry_identities()
         if self.signal_observer is not None:
             self.signal_observer.settle_decisions()
 
@@ -348,9 +353,29 @@ class EventProcessor:
                 candidates, portfolio=self.portfolio, broker=self.execution,
                 risk_manager=self.risk_manager, current_prices=prices,
             )
+        self._settle_entry_identities()
         if self.signal_observer is not None:
             self.signal_observer.settle_decisions()
         return processed
+
+    def _settle_entry_identities(self):
+        """Observe authoritative lot ids after fills; never infer from symbols."""
+        if not self.entry_audit_enabled:
+            return
+        for row in self.entry_audit[self._audit_registered_rows:]:
+            if row.get("order_id"):
+                self._audit_order_rows[str(row["order_id"])] = row
+        self._audit_registered_rows = len(self.entry_audit)
+        for book in getattr(self.portfolio, "lot_books", {}).values():
+            for lot in book.open_lots:
+                observed = self._audit_order_rows.get(str(lot.order_id))
+                if observed is not None:
+                    identities = observed.setdefault("actual_position_ids", [])
+                    if lot.position_id not in identities:
+                        identities.append(lot.position_id)
+                    lots = observed.setdefault("actual_lot_ids", [])
+                    if lot.lot_id not in lots:
+                        lots.append(lot.lot_id)
 
     def _collect_symbol_candidate(
         self, event: MarketDataSlice, symbol: str, *,
@@ -360,9 +385,20 @@ class EventProcessor:
             return self._collect_symbol_candidate_impl(
                 event, symbol, allow_position_management=allow_position_management,
                 allow_new_entries=allow_new_entries)
-        row = {"observation_id": f"{self._utc_datetime(event.timestamp).isoformat()}|{symbol}",
+        identifier = f"{self._utc_datetime(event.timestamp).isoformat()}|{symbol}"
+        row = {"observation_id": identifier,
                "timestamp": event.timestamp, "symbol": symbol, "reason": "not_evaluated",
                "portfolio_action": self.risk_manager.breaker_action.value}
+        if self.trace_gate_facts:
+            # The production audit keeps mode-specific submission status only
+            # at its established top level. Full gate sequences are explicit
+            # research evidence, independent of ordinary audit/observer use.
+            equity = float(self.portfolio.get_total_value(self.last_prices))
+            row.update({"decision_id": identifier, "trace_gate_facts": True,
+                        "cash": float(self.portfolio.cash), "decision_equity": equity,
+                        "cash_fraction": float(self.portfolio.cash) / equity if equity > 0 else None,
+                        "held_symbols": sorted(s for s, p in self.portfolio.positions.items()
+                                               if p.get("qty", 0.))})
         if self.signal_observer is not None:
             self.signal_observer.observe(event, symbol, portfolio=self.portfolio,
                 risk_manager=self.risk_manager, router=self.router, audit=row)
@@ -371,6 +407,15 @@ class EventProcessor:
                 event, symbol, allow_position_management=allow_position_management,
                 allow_new_entries=allow_new_entries)
         if candidate is not None:
+            if self.trace_gate_facts:
+                row.update({"raw_setup": True, "strategy": candidate.strategy_name,
+                            "original_strategy_signal": True,
+                            "as_of": (pd.Timestamp(event.timestamp) + pd.Timedelta(days=1)).isoformat(),
+                            "native_score": float(candidate.score),
+                            "original_signal": dict(candidate.signal),
+                            "signal": dict(candidate.signal),
+                            "requested_qty": candidate.signal.get("requested_qty"),
+                            "action": candidate.signal.get("action")})
             candidate = replace(candidate, audit=row)
         self.entry_audit.append(row)
         return candidate, processed

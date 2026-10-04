@@ -224,6 +224,10 @@ def test_actual_router_and_execution_adapters_produce_same_canonical_intent(tmp_
             broker.close()
     assert rows[0]["intents"] and rows[0]["intents"] == rows[1]["intents"]
     assert canonical_json(rows[0]["signals"]) == canonical_json(rows[1]["signals"])
+    for row in rows:
+        # Ordinary production audits must not automatically opt into the full
+        # research sequence just because they have an observation identity.
+        assert all("gate_facts" not in item and "decision_id" not in item for item in row["entry_audit"])
     replay = RecordedExecutionAdapter(portfolio=Portfolio(10000))
     for _ in range(100):
         replay.replay([EventCodec.decode(document) for document in encoded])
@@ -242,6 +246,68 @@ def test_actual_router_and_execution_adapters_produce_same_canonical_intent(tmp_
             "entry_audit.submission_status": "simulator CREATED is queued; venue ACCEPTED acknowledges the request",
         },
     })
+
+
+@pytest.mark.parametrize("trace_gate_facts", [False, True])
+def test_full_gate_trace_requires_explicit_runtime_research_option(trace_gate_facts):
+    frame = prices(2).tz_localize("UTC")
+    portfolio = Portfolio(10000)
+    broker = Broker(portfolio, commission_rate=0, slippage=0)
+    execution = SimulatedExecutionAdapter(broker)
+    strategy = DailyRaw()
+    router = Router({strategy.name: strategy}, {state.name: strategy.name for state in MarketState})
+    machine = MagicMock()
+    machine.get_state.return_value = MarketState.TREND_UP
+    processor = EventProcessor(portfolio=portfolio, execution=execution, risk_manager=RiskManager(),
+        state_machine=machine, router=router, allocator=router.allocator,
+        entry_audit_enabled=True, trace_gate_facts=trace_gate_facts)
+    event = next(HistoricalMarketDataAdapter({"BTC/USDT": frame}, timeframe="1d").stream())
+    processor.process(event, execute_market_event=False)
+    assert processor.entry_audit
+    row = processor.entry_audit[0]
+    assert row["reason"] == "order_accepted" and row["order_id"]
+    if trace_gate_facts:
+        assert row["decision_id"] == row["observation_id"]
+        assert row["trace_gate_facts"] is True
+        assert row["cash_fraction"] == 1.
+        assert row["original_signal"] == {"action": "buy", "stop_loss": 95.}
+        assert row["gate_facts"][-1]["reason"] == "order_accepted"
+        assert row["gate_facts"][-1]["submission_status"] == str(OrderStatus.CREATED)
+    else:
+        assert "decision_id" not in row and "gate_facts" not in row
+        assert "trace_gate_facts" not in row and "original_signal" not in row
+
+
+@pytest.mark.parametrize("research_options,expected_trace", [
+    ({"entry_audit": True}, True),
+    ({"entry_audit": True, "trace_gate_facts": False}, False),
+    ({"entry_audit": False, "trace_gate_facts": True}, True),
+])
+def test_original_engine_research_trace_preserves_filled_candidate_identity(research_options, expected_trace):
+    from research.ml_selection.environment import FullEngineEnvironment
+    from tests.test_ml_selection_environment import OneUnitHold, market, parameters
+
+    configured = parameters()
+    configured["research"] = research_options
+    environment = FullEngineEnvironment(market(), parameters=configured,
+        engine_options={"initial_capital": 1000., "slippage": 0., "warmup_period": 0,
+                        "terminal_policy": "forced_liquidation"},
+        strategies={"OneUnitHold": OneUnitHold()})
+    episode = environment.run_episode()
+    assert episode.summary["accounting_ok"]
+    opening = next(trade for trade in episode.result["trades"] if trade["side"] == "buy")
+    row = next(item for item in episode.engine.event_processor.entry_audit
+               if item.get("order_id") == opening["order_id"])
+    assert episode.engine.event_processor.trace_gate_facts is expected_trace
+    if expected_trace:
+        assert row["decision_id"] == row["observation_id"]
+        assert row["original_strategy_signal"] is True
+        assert row["signal"] == row["original_signal"]
+        assert row["gate_facts"] and row["cash_fraction"] == 1.
+        assert row["actual_position_ids"] and row["actual_lot_ids"]
+    else:
+        assert "decision_id" not in row and "gate_facts" not in row
+        assert row["actual_position_ids"] and row["actual_lot_ids"]
 
 
 @pytest.mark.parametrize("legacy_time", ["2020-01-01T00:00:00", "2020-01-01T00:00:00+00:00", "2020-01-01T00:00:00Z"])

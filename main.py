@@ -281,6 +281,12 @@ def replay_manifest(manifest_path: str) -> int:
     seed = int(execution["seed"])
     np.random.seed(seed)
     random.seed(seed)
+    try:
+        from backtest.coin_selector import restore_selector
+        candidate_selector = restore_selector(execution, snapshots, path.parent)
+    except (OSError, ValueError, KeyError, TypeError, ImportError) as exc:
+        print(f"Replay refused: frozen coin selector unavailable or changed: {exc}", file=sys.stderr)
+        return 7
     engine = BacktestEngine(
         # Preserve the recorded numeric type too: early flat-account audit
         # rows distinguish JSON 10000 from 10000.0 in byte-exact digests.
@@ -301,6 +307,7 @@ def replay_manifest(manifest_path: str) -> int:
         temporal_policy=replay_temporal_policy,
         temporal_financing=replay_temporal_financing,
         capital_allocation=execution.get("capital_allocation") or {"enabled": False},
+        candidate_selector=candidate_selector,
     )
     result = engine.run(snapshots, routing_log_enabled=False)
     observed = deterministic_result_digest(result)
@@ -533,6 +540,14 @@ def _capital_allocation_options(args):
 def _execute_backtest(args, data_map):
     """Construct the engine and run it with the requested reporting footprint."""
     print("\nInitializing Backtest Engine...")
+    candidate_selector = None
+    selector_identity = {"schema": "backtest-coin-selector/v1", "enabled": False,
+                         "candidate": None, "new_training_updates": 0, "new_threshold_search": 0}
+    if getattr(args, "coin_selector", "off") == "on":
+        from backtest.coin_selector import create_selector
+        candidate_selector, selector_identity = create_selector(
+            data_map, initial_capital=args.capital,
+            bundle_path=getattr(args, "selector_bundle", None))
     engine = BacktestEngine(
         initial_capital=args.capital,
         slippage=args.slippage,
@@ -549,7 +564,9 @@ def _execute_backtest(args, data_map):
         temporal_policy=getattr(args, "resolved_temporal_policy", None),
         temporal_financing=getattr(args, "temporal_financing_evidence", None),
         capital_allocation=_capital_allocation_options(args),
+        candidate_selector=candidate_selector,
     )
+    engine.coin_selector_identity = selector_identity
     print("Running Backtest...")
     reports_dir = os.path.join(os.getcwd(), "reports")
     os.makedirs(reports_dir, exist_ok=True)
@@ -585,7 +602,14 @@ def main(argv=None) -> int:
 
     try:
         _capital_allocation_options(args)
-    except (TypeError, ValueError) as exc:
+        if args.selector_bundle and args.coin_selector != "on":
+            raise ValueError("--selector-bundle requires --coin-selector on")
+        if args.coin_selector == "on":
+            if args.timeframe != "1d":
+                raise ValueError("Coin selection currently requires --timeframe 1d")
+            from backtest.coin_selector import read_bundle
+            read_bundle(args.selector_bundle)
+    except (TypeError, ValueError, OSError, KeyError, ImportError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 2
 
@@ -633,7 +657,11 @@ def main(argv=None) -> int:
         if frame.attrs.get("derivatives"):
             quality_report.setdefault(symbol, {})["derivatives"] = frame.attrs["derivatives"]
 
-    engine, results, temp_routing_log = _execute_backtest(args, data_map)
+    try:
+        engine, results, temp_routing_log = _execute_backtest(args, data_map)
+    except (TypeError, ValueError, OSError, KeyError, ImportError) as exc:
+        print(f"Backtest setup failed: {exc}", file=sys.stderr)
+        return 2
 
     if not results or results["equity_curve"].empty:
         print("\n" + "!" * 50)
@@ -727,6 +755,10 @@ def main(argv=None) -> int:
         },
     }
 
+    # Engines supplied by older callers may predate the CLI selector identity.
+    selector_identity = getattr(engine, "coin_selector_identity", {
+        "schema": "backtest-coin-selector/v1", "enabled": False,
+        "candidate": None, "new_training_updates": 0, "new_threshold_search": 0})
     # Prepare metadata
     metadata = {
         "Days": args.days,
@@ -746,7 +778,13 @@ def main(argv=None) -> int:
         "Timeframe": args.timeframe,
         "MarketType": args.market_type or results.get("account_mode"),
         "AccountMode": results.get("account_mode"),
+        "CoinSelector": "on" if selector_identity["enabled"] else "off",
+        "CoinSelectorModelId": selector_identity.get("model_id"),
     }
+
+    from backtest.coin_selector import write_selector_report
+    selector_summary = write_selector_report(
+        output_path, engine.candidate_selector, selector_identity)
 
     metrics = reporter.generate(
         results["trades"],
@@ -986,9 +1024,13 @@ def main(argv=None) -> int:
         artifact_names.extend(meta_summary.get("artifacts", []))
         artifact_names.extend(adaptive_summary.get("artifacts", []))
         artifact_names.extend(meta_replay_summary.get("artifacts", []))
+        artifact_names.append("coin_selector.json")
+        if selector_summary["enabled"]:
+            artifact_names.append("coin_selection.csv")
         execution_identity = {
             **runtime_identity(),
             "capital": args.capital,
+            "coin_selector": selector_summary,
             "data_symbol_order": list(data_map),
             "seed": args.seed,
             "slippage": engine.slippage,

@@ -8,6 +8,7 @@ import pytest
 from backtest.protective_stops import ResidentStopSimulator
 from core.broker import Broker
 from core.domain import OrderStatus
+from core.events import FillEvent
 from core.order_store import OrderStore
 from core.portfolio import Portfolio
 from core.protective_orders import (
@@ -17,6 +18,7 @@ from core.protective_orders import (
 )
 from tests.test_revalidation_execution import broker, enter, Harness, NOW, SYMBOL
 from tests.test_sr2_protective_orders import _StubBroker, _StubEngine
+from tests.test_sr2_backtest_intrabar_stops import _bar, _event, _harness, _open_long
 
 
 def order(ids=("old",), stop=95, status="open"):
@@ -224,3 +226,50 @@ def test_real_backtest_same_side_epoch_replacement_has_same_shared_target():
     assert current[0].stop_price == 70
     assert not set(old_order.position_ids).intersection(current[0].position_ids)
     assert current[0].position_ids == authoritative_position_ids(broker.portfolio, SYMBOL)
+
+
+def test_real_partial_stop_close_dust_retires_epoch_before_reentry():
+    portfolio, broker, strategy, simulator = _harness(stop=95.)
+    entry = _bar("2024-01-02", 100, 101, 99, 100)
+    opening_qty = 51.91851340000002
+    entry_trades = _open_long(broker, ts="2024-01-01", entry_bar=entry, qty=opening_qty)
+    assert entry_trades[0]["qty"] == opening_qty
+    assert simulator.step(_event("2024-01-02", entry), bar_index=0) == []
+    old_ids = authoritative_position_ids(portfolio, SYMBOL)
+    old_stop_id = simulator._resident_orders()[0].order_id
+    exit_quantities = (14.5496794, 16.180608300000003, 21.188225699999975)
+    for offset, qty in enumerate(exit_quantities, start=3):
+        ts = f"2024-01-0{offset}"
+        breach = _bar(ts, 100, 101, 94, 100, v=qty)
+        trades = simulator.step(_event(ts, breach), bar_index=offset)
+        assert len(trades) == 1
+        assert trades[0]["qty"] == qty
+        assert trades[0]["order_id"] == old_stop_id
+        if offset < 5:
+            assert broker.close_events[-1].is_position_fully_closed is False
+            assert SYMBOL in simulator.manager.tracked_symbols
+            assert authoritative_position_ids(portfolio, SYMBOL) == old_ids
+    fills = [event.payload for event in broker.event_pipeline.events
+             if isinstance(event.payload, FillEvent)]
+    assert [(fill.side, float(fill.qty)) for fill in fills] == [
+        ("buy", opening_qty), *[("sell", qty) for qty in exit_quantities]]
+    assert len(broker.close_events) == 3
+    assert [event.is_position_fully_closed for event in broker.close_events] == [False, False, True]
+    assert broker.orders_by_id[old_stop_id].status is OrderStatus.FILLED
+    assert portfolio.get_position(SYMBOL) == {"qty": 0.0, "avg_price": 0.0}
+    assert portfolio.open_lots(SYMBOL) == []
+    assert authoritative_position_ids(portfolio, SYMBOL) == ()
+    assert simulator._resident_orders() == []
+    assert SYMBOL not in simulator.manager.tracked_symbols
+    strategy.set_stop(70.)
+    reentry = _bar("2024-01-06", 80, 82, 79, 81)
+    _open_long(broker, ts="2024-01-05", entry_bar=reentry, qty=1., price=80., stop=70.)
+    assert simulator.step(_event("2024-01-06", reentry), bar_index=6) == []
+    current = simulator._resident_orders()
+    new_ids = authoritative_position_ids(portfolio, SYMBOL)
+    assert portfolio.get_position(SYMBOL)["qty"] == 1.
+    assert len(current) == 1
+    assert current[0].stop_price == 70.
+    assert current[0].position_ids == new_ids
+    assert not set(old_ids).intersection(new_ids)
+    assert SYMBOL in simulator.manager.tracked_symbols

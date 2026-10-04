@@ -54,7 +54,8 @@ class ResearchSelector:
 
     def __init__(self, dataset, *, mode="model", model=None, policy=None,
                  deterministic=True, seed=42, min_expected_return=0.0,
-                 score_scale=100.0, score_cap=5.0, initial_capital=None):
+                 score_scale=100.0, score_cap=5.0, initial_capital=None,
+                 policy_threshold=None):
         if mode not in {"model", "policy", "momentum", "random", "qualified_native"}:
             raise ValueError("unsupported selection mode")
         if mode in {"model", "policy"} and model is None:
@@ -68,6 +69,14 @@ class ResearchSelector:
                 or not math.isfinite(float(initial_capital)) or initial_capital <= 0):
             raise ValueError("initial_capital must be finite and positive")
         self.mode, self.model, self.policy = mode, model, policy
+        metadata = getattr(policy, "metadata", {}) or {}
+        self.policy_threshold = (metadata.get("evaluation_threshold", .5)
+                                 if policy_threshold is None else policy_threshold)
+        if (isinstance(self.policy_threshold, bool) or
+                not math.isfinite(float(self.policy_threshold)) or
+                not 0 <= float(self.policy_threshold) <= 1):
+            raise ValueError("policy_threshold must be in [0, 1]")
+        self.policy_threshold = float(self.policy_threshold)
         self.deterministic = deterministic
         self.threshold, self.score_scale, self.score_cap = min_expected_return, score_scale, score_cap
         self.rng = np.random.default_rng(seed)
@@ -81,6 +90,26 @@ class ResearchSelector:
         self.trajectory = []
         self.initial_capital = float(initial_capital) if initial_capital is not None else None
         self.high_water = self.initial_capital or 0.0
+
+    def _record(self, candidate, facts):
+        """Share ids with the original passive entry observation, if enabled."""
+        attached = getattr(candidate, "audit", None)
+        identifier = (attached or {}).get("decision_id") or (
+            facts["bar_time"] + "|" + candidate.symbol)
+        signal = getattr(candidate, "signal", None)
+        signal = dict(signal) if isinstance(signal, Mapping) else None
+        row = {"decision_id": identifier, "strategy": candidate.strategy_name,
+               "native_score": float(candidate.score), "original_signal": signal,
+               "signal": signal,
+               "requested_qty": signal.get("requested_qty") if signal is not None else None,
+               "original_strategy_signal": True, **facts}
+        self.audit.append(row)
+        if attached is not None:
+            attached.update({key: value for key, value in row.items() if key != "reason"})
+            attached["selection_reason"] = row["reason"]
+            if not row["selected"]:
+                attached["reason"] = row["reason"]
+        return row
 
     def select(self, candidates, *, event, portfolio, broker, risk_manager, current_prices):
         candidates = list(candidates)
@@ -126,15 +155,19 @@ class ResearchSelector:
         for candidate in candidates:
             key = (candidate.symbol, as_of)
             if key not in self.table.index:
-                self.audit.append({"bar_time": bar_time.isoformat(), "as_of": as_of.isoformat(),
+                self._record(candidate, {"bar_time": bar_time.isoformat(), "as_of": as_of.isoformat(),
                                    "symbol": candidate.symbol, "selected": False,
-                                   "reason": "missing_causal_snapshot"})
+                                   "eligible": None, "membership_qualified": None,
+                                   "data_qualified": False, "mode": self.mode,
+                                   "reason": "missing_causal_snapshot", **account})
                 continue
             row = self.table.loc[key]
             if not bool(row.eligible):
-                self.audit.append({"bar_time": bar_time.isoformat(), "as_of": as_of.isoformat(),
+                self._record(candidate, {"bar_time": bar_time.isoformat(), "as_of": as_of.isoformat(),
                                    "symbol": candidate.symbol, "selected": False,
-                                   "reason": str(row.exclusion_reason)})
+                                   "eligible": False, "membership_qualified": None,
+                                   "data_qualified": False, "mode": self.mode,
+                                   "reason": str(row.exclusion_reason), **account})
                 continue
             valid.append(candidate)
             features.append({**{name: row[name] for name in FEATURE_COLUMNS}, **account})
@@ -145,9 +178,14 @@ class ResearchSelector:
             predictions = np.asarray(self.model.predict(frame), dtype=float)
             if predictions.shape != (len(valid),) or not np.isfinite(predictions).all():
                 raise ValueError("nonfinite or malformed model predictions")
+            expected_returns = (np.asarray(self.model.predict_net_return(frame), dtype=float)
+                                if getattr(self.model, "kind", None) == "lambdarank"
+                                else predictions)
+            if expected_returns.shape != (len(valid),) or not np.isfinite(expected_returns).all():
+                raise ValueError("nonfinite or malformed expected net returns")
             scaled = predictions * self.score_scale
             scores = np.clip(self.score_cap * .5 * (1 + scaled / (1 + np.abs(scaled))), .01, self.score_cap)
-            gates = predictions > self.threshold
+            gates = expected_returns > self.threshold
         elif self.mode == "momentum":
             predictions = frame["return_20d"].to_numpy(dtype=float)
             scaled = predictions * self.score_scale
@@ -161,24 +199,42 @@ class ResearchSelector:
             scores, gates = predictions, np.ones(len(valid), dtype=bool)
         probabilities = np.ones(len(valid))
         if self.mode == "policy":
-            gates, probabilities = self.policy.act(frame, deterministic=self.deterministic)
+            options = {"deterministic": self.deterministic}
+            # Preserve compatibility with older policy adapters at the old
+            # default, while requiring explicit support for changed thresholds.
+            if self.policy_threshold != .5:
+                options["threshold"] = self.policy_threshold
+            gates, probabilities = self.policy.act(frame, **options)
+            gates, probabilities = np.asarray(gates), np.asarray(probabilities, dtype=float)
+            if (gates.shape != (len(valid),) or probabilities.shape != (len(valid),)
+                    or not np.isfinite(probabilities).all()
+                    or np.any((probabilities < 0) | (probabilities > 1))):
+                raise ValueError("malformed policy actions or probabilities")
             if not self.deterministic:
                 for i in range(len(valid)):
                     self.trajectory.append({"bar_time": bar_time, "as_of": as_of,
+                                            "decision_id": (getattr(valid[i], "audit", None) or {}).get("decision_id")
+                                                or (bar_time.isoformat() + "|" + valid[i].symbol),
                                             "features": {name: float(frame.iloc[i][name])
                                                          for name in self.policy.features},
                                             "action": bool(gates[i]),
                                             "probability": float(probabilities[i])})
         selected = []
         for i, candidate in enumerate(valid):
-            self.audit.append({"bar_time": bar_time.isoformat(), "as_of": as_of.isoformat(),
+            self._record(candidate, {"bar_time": bar_time.isoformat(), "as_of": as_of.isoformat(),
                                "symbol": candidate.symbol, "strategy": candidate.strategy_name,
                                "native_score": float(candidate.score),
                                "predicted_value": float(predictions[i]),
+                               "ranking_score": float(predictions[i]),
+                               "expected_net_return": float(expected_returns[i]) if self.mode in {"model", "policy"} else None,
+                               "return_gate_threshold": float(self.threshold) if self.mode in {"model", "policy"} else None,
+                               "eligible": True, "data_qualified": True, "membership_qualified": None,
                                "allocation_score": float(scores[i]),
                                "selection_probability": float(probabilities[i]),
                                "selected": bool(gates[i]), "mode": self.mode,
-                               "reason": "selected" if gates[i] else "model_gate",
+                               "policy_threshold": self.policy_threshold if self.mode == "policy" else None,
+                               "deterministic": bool(self.deterministic) if self.mode == "policy" else None,
+                               "reason": "selected" if gates[i] else "policy_gate" if self.mode == "policy" else "model_gate",
                                **account})
             if gates[i]:
                 selected.append(replace(candidate, score=float(scores[i])))

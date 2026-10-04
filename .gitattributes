@@ -1,5 +1,7 @@
 requirements.lock.txt text eol=lf
 requirements.lock.sha256 text eol=lf
+config/ml_selector_current.json -text
+config/ml_selector_frozen/*.json -text
 docs/baseline/phase0/**/*.csv text eol=lf
 docs/baseline/phase0/**/*.json text eol=lf
 docs/baseline/phase0/**/*.txt text eol=lf

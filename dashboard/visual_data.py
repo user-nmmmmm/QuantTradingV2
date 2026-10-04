@@ -115,10 +115,15 @@ def _report_parameters(run: Path) -> dict[str, Any]:
     if metadata.get("status") != "succeeded" or not isinstance(raw, dict):
         return {}
     result = {}
+    original_preset = (raw.get("preset") == "original_100k" and raw.get("source") == "local"
+                       and raw.get("start") == "2020-01-01" and raw.get("end") == "2026-09-18"
+                       and raw.get("capital") == 100000 and raw.get("seed") == 42)
+    if original_preset:
+        result["preset"] = "original_100k"
     if raw.get("source") in ("local", "synthetic"):
         result["source"] = raw["source"]
     symbols = raw.get("symbols")
-    if (isinstance(symbols, list) and 1 <= len(symbols) <= 4
+    if (isinstance(symbols, list) and 1 <= len(symbols) <= (60 if original_preset else 4)
             and all(isinstance(symbol, str) and _SYMBOL.fullmatch(symbol) for symbol in symbols)):
         result["symbols"] = list(symbols)
     for name in ("start", "end"):
@@ -135,6 +140,8 @@ def _report_parameters(run: Path) -> dict[str, Any]:
     seed = raw.get("seed")
     if isinstance(seed, int) and not isinstance(seed, bool) and 0 <= seed <= 2**32 - 1:
         result["seed"] = seed
+    if metadata.get("kind", "backtest") == "backtest" and (result or "use_selector" in raw):
+        result["use_selector"] = raw.get("use_selector") is True
     if "strategy" in raw:
         from dashboard.strategy_presets import validate_strategy
         try:

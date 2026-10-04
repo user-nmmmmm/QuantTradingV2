@@ -8,6 +8,7 @@ import pytest
 
 from core.lots import LotBook
 from core.portfolio import Portfolio
+from core.protective_orders import authoritative_position_ids
 
 
 class TestLotBookPyramidAndReduce:
@@ -127,3 +128,46 @@ class TestPortfolioLotIntegration:
         lot = pf.open_lots("BTC/USDT")[0]
         assert lot.mfe == pytest.approx(5.0)  # best high (105) - entry (100)
         assert lot.mae == pytest.approx(10.0)  # entry (100) - worst low (90)
+
+    @pytest.mark.parametrize("account_mode,direction", [
+        ("spot", 1), ("spot_margin", 1), ("spot_margin", -1),
+        ("perpetual", 1), ("perpetual", -1),
+    ])
+    def test_real_partial_exit_dust_retires_the_aggregate_position(self, account_mode, direction):
+        # WF1 low-participation UNI exit left 4.26e-14 while the last lot closed.
+        pf = Portfolio(initial_capital=10_000.0, account_mode=account_mode)
+        symbol, opening_qty, entry_price = "UNI/USDT", 51.91851340000002, 8.631926793666135
+        pf.update_position(symbol, direction * opening_qty, entry_price, fee=.2, order_id="entry")
+        old_ids = authoritative_position_ids(pf, symbol)
+        exits = [(14.5496794, 7.107327977484583),
+                 (16.180608300000003, 7.039169977705942),
+                 (21.188225699999975, 7.006581989288353)]
+        expected_cash = 10_000.0 - .2
+        if account_mode == "spot":
+            expected_cash -= direction * opening_qty * entry_price
+        for qty, price in exits:
+            closes = pf.update_position(symbol, -direction * qty, price, fee=.1, order_id="exit")
+            expected_cash += (direction * qty * price if account_mode == "spot"
+                              else direction * qty * (price - entry_price)) - .1
+        assert closes[-1].fully_closed is True
+        assert pf.open_lots(symbol) == []
+        assert pf.get_position(symbol) == {"qty": 0.0, "avg_price": 0.0}
+        assert symbol not in pf.positions
+        assert authoritative_position_ids(pf, symbol) == ()
+        assert pf.cash == pytest.approx(expected_cash, abs=1e-9)
+        assert pf.get_equity({symbol: 7.}) == pf.cash
+        pf.update_position(symbol, direction * 2., 9., order_id="reentry")
+        assert not set(old_ids).intersection(authoritative_position_ids(pf, symbol))
+
+    @pytest.mark.parametrize("direction", [1, -1])
+    def test_above_lot_epsilon_remainder_stays_open(self, direction):
+        pf = Portfolio(initial_capital=10_000.0, account_mode="spot_margin")
+        symbol = "UNI/USDT"
+        pf.update_position(symbol, direction * 5e-12, 8., order_id="entry")
+        old_ids = authoritative_position_ids(pf, symbol)
+        closes = pf.update_position(symbol, -direction * 3e-12, 7., order_id="exit")
+        assert closes[-1].fully_closed is False
+        assert abs(pf.get_position(symbol)["qty"]) > 1e-12
+        assert len(pf.open_lots(symbol)) == 1
+        assert pf.open_lots(symbol)[0].qty_open == pytest.approx(2e-12, abs=1e-24)
+        assert authoritative_position_ids(pf, symbol) == old_ids

@@ -1,0 +1,89 @@
+schema: ml-selection-research/v1
+timeframe: 1d
+account_mode: spot
+evaluation_kind: retrospective
+data_registration: reports/multicoin_100k_20261004/registration.json
+baseline_registration: reports/smart_capital_100k_20261004/registration.json
+baseline_arm: smart
+start: '2020-01-01'
+end: '2026-09-18'
+splits:
+  train_end: '2023-01-01'
+  validation_end: '2024-07-01'
+dataset:
+  horizon_bars: 20
+  min_history: 61
+  min_quote_volume: 5000000.0
+  commission_rate: 0.001
+  slippage_bps: 5.0
+  stop_atr_multiple: 2.0
+models: [ridge, lightgbm, lambdarank]
+model_params:
+  ridge: {alpha: 10.0}
+  lightgbm: {num_boost_round: 150, early_stopping_rounds: 20, num_threads: 2, num_leaves: 15, min_data_in_leaf: 100}
+  lambdarank: {num_boost_round: 150, early_stopping_rounds: 20, num_threads: 2, num_leaves: 15, min_data_in_leaf: 100, relevance_bins: 5, gate_alpha: 10.0}
+selection: {min_expected_return: 0.0, score_scale: 100.0, score_cap: 5.0}
+random_seeds: [42, 43, 44]
+rl:
+  enabled: true
+  episodes: 30
+  min_updates: 20
+  early_stopping_start_updates: 20
+  seed: 42
+  seeds: [42, 43, 44]
+  learning_rate: 0.02
+  entropy_coef: 0.001
+  gamma: 0.995
+  drawdown_penalty: 0.0
+  turnover_penalty: 0.0
+  validation_patience: 3
+  evaluation_threshold: 0.5
+  evaluation_thresholds: [0.49, 0.5, 0.51]
+stress:
+  cost_multipliers: [1.5, 2.0]
+  execution_scenarios:
+    - {name: opening_delay_1d, opening_delay_bars: 1}
+    - {name: low_participation, max_participation_rate: 0.00001, opening_order_ttl_bars: 3}
+    - {name: limited_cash, initial_capital: 10000.0}
+walk_forward:
+  - {train_end: '2022-01-01', validation_end: '2022-07-01', test_end: '2023-01-01'}
+  - {train_end: '2023-01-01', validation_end: '2023-07-01', test_end: '2024-01-01'}
+  - {train_end: '2024-01-01', validation_end: '2024-07-01', test_end: '2025-01-01'}
+  - {train_end: '2025-01-01', validation_end: '2025-07-01', test_end: '2026-01-01'}
+gates:
+  max_drawdown: 0.15
+  require_positive_net_return: true
+  require_outperform_native: true
+  require_positive_after_removing_top_5: true
+next_research:
+  learning_months: [12, 24, 36]
+  exit_probe_count: 12
+  rl_windows: [4]
+  reward_pilot_weights: [0.0, 0.25, 0.5]
+  pilot_episodes: 2
+  experiment_budget:
+    primary_reward: pure_net_log_equity
+    formal_rl_seed_windows: 6
+    minimum_formal_updates: 120
+    maximum_formal_episodes: 180
+    pilot_seed_reward_cells: 9
+    maximum_pilot_updates: 18
+    supervised_models: 3
+    learning_curve_fits: 9
+    historical_walk_forward_windows: 4
+    threshold_candidates: 3
+    multiple_testing: all_registered_attempts_reported_no_independence_claim
+  final_sample:
+    start: '2026-10-06T00:00:00Z'
+    end: '2027-01-01T00:00:00Z'
+    maximum_frozen_candidates: 1
+    opened: false
+    eligibility: requires_fresh_pit_evidence_and_frozen_candidate_before_start
+    status: planned_unopened_not_final_evidence
+  forward_observation:
+    start: '2026-10-06T00:00:00Z'
+    minimum_decision_dates: 30
+    maturity_horizon_bars: 20
+    frozen_candidate_count: 1
+    drift_metrics: feature_missingness_staleness_eligibility_coverage_selection_probability
+    account_result: original_engine_simulated_fills_separate_from_proxy_labels

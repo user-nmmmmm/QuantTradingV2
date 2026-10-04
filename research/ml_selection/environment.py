@@ -228,6 +228,7 @@ class Episode:
     engine: BacktestEngine
     rewards: pd.DataFrame
     summary: dict[str, Any]
+    reward_weights: dict[str, float] | None = None
 
 
 class FullEngineEnvironment:
@@ -242,6 +243,7 @@ class FullEngineEnvironment:
         strategies: Mapping[str, Any] | None = None,
         drawdown_penalty: float = 0.5,
         turnover_penalty: float = 0.0,
+        opening_delay_bars: int = 0,
     ) -> None:
         self.frames = {symbol: frame.copy(deep=True) for symbol, frame in frames.items()}
         self.engine_options = deepcopy(dict(engine_options or {}))
@@ -249,6 +251,9 @@ class FullEngineEnvironment:
         self.strategies = deepcopy(dict(strategies)) if strategies is not None else None
         self.drawdown_penalty = _penalty(drawdown_penalty, "drawdown_penalty")
         self.turnover_penalty = _penalty(turnover_penalty, "turnover_penalty")
+        if type(opening_delay_bars) is not int or opening_delay_bars < 0:
+            raise ValueError("opening_delay_bars must be a nonnegative integer")
+        self.opening_delay_bars = opening_delay_bars
         timeframe = self.engine_options.get("timeframe") or self.parameters["data"]["timeframe"]
         if timeframe != "1d":
             raise ValueError("ML selection environment currently requires timeframe='1d'")
@@ -270,11 +275,14 @@ class FullEngineEnvironment:
             options["calculate_benchmarks"] = False
             options["candidate_selector"] = selector
             engine = BacktestEngine(**options)
-            result = engine.run(
-                self.frames,
-                strategies=deepcopy(self.strategies),
-                routing_log_enabled=False,
-            )
+            self.active_engine = engine
+            from research.ml_selection.execution_stress import opening_delay
+            with opening_delay(self.opening_delay_bars):
+                result = engine.run(
+                    self.frames,
+                    strategies=deepcopy(self.strategies),
+                    routing_log_enabled=False,
+                )
             result["terminal_policy"] = engine.terminal_policy
             rewards = equity_rewards(
                 _evaluated_curve(result), result.get("trades"),
@@ -287,6 +295,8 @@ class FullEngineEnvironment:
             summary["reward_sum"] = float(rewards["reward"].sum())
             summary["drawdown_penalty_sum"] = float(rewards["drawdown_penalty"].sum())
             summary["turnover_penalty_sum"] = float(rewards["turnover_penalty"].sum())
-            return Episode(result=result, engine=engine, rewards=rewards, summary=summary)
+            return Episode(result=result, engine=engine, rewards=rewards, summary=summary,
+                           reward_weights={"drawdown_penalty": self.drawdown_penalty,
+                                           "turnover_penalty": self.turnover_penalty})
         finally:
             config._config = previous

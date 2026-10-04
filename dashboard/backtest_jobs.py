@@ -38,6 +38,8 @@ LIMITS = {
 }
 _FIELDS = {"source", "symbols", "start", "end", "capital", "slippage_bps", "seed"}
 SYNTHETIC_SYMBOLS = ["BTC/USDT", "ETH/USDT", "BNB/USDT", "SOL/USDT"]
+ORIGINAL_PRESET = "original_100k"
+ORIGINAL_PERIOD = ("2020-01-01", "2026-09-18")
 
 
 class JobConflict(RuntimeError):
@@ -106,7 +108,19 @@ class BacktestJobs:
         self.store.delete_preset(identifier)
 
     def history(self, **filters) -> dict[str, Any]:
-        return self.store.search(**filters)
+        result = self.store.search(**filters)
+        for item in result["items"]:
+            self._selector_parameter(item)
+        return result
+
+    @staticmethod
+    def _selector_parameter(job: dict[str, Any]) -> None:
+        """Old ordinary backtests used the original strategy without a selector."""
+        if job.get("kind", "backtest") == "backtest":
+            parameters = job.get("parameters")
+            if not isinstance(parameters, dict):
+                parameters = job["parameters"] = {}
+            parameters["use_selector"] = parameters.get("use_selector") is True
 
     def register_task_type(self, kind: str, command_builder: Any, success_file: str = "result.json") -> None:
         if kind in {"backtest", ""} or not isinstance(kind, str) or not kind.isidentifier() or len(kind) > 30:
@@ -211,7 +225,7 @@ class BacktestJobs:
             "required_symbols": required,
             "defaults": {"source": "local" if use_local else "synthetic", "symbols": chosen,
                          "start": start.isoformat(), "end": end.isoformat(),
-                         "capital": 10000, "slippage_bps": 5, "seed": 42},
+                         "capital": 10000, "slippage_bps": 5, "seed": 42, "use_selector": False},
             "limits": {**LIMITS, "timeout_seconds": self.timeout},
             "cache_range": cache_range,
             "strategy": "当前 config/params.yaml 的策略路由与风控配置",
@@ -220,8 +234,22 @@ class BacktestJobs:
         }
 
     def _validate(self, payload: Any) -> dict[str, Any]:
-        if not isinstance(payload, dict) or not _FIELDS.issubset(payload) or set(payload) - _FIELDS - {"strategy"}:
-            raise ValueError("Expected source, symbols, start, end, capital, slippage_bps, seed and optional strategy")
+        if isinstance(payload, dict) and "preset" in payload:
+            if set(payload) != {"preset", "use_selector"} or payload["preset"] != ORIGINAL_PRESET:
+                raise ValueError("Expected original_100k preset and use_selector only")
+            if type(payload["use_selector"]) is not bool:
+                raise ValueError("use_selector must be a boolean")
+            data, smart = self._original_registration()
+            return {"preset": ORIGINAL_PRESET, "use_selector": payload["use_selector"],
+                    "source": "local", "symbols": list(data["symbols"]),
+                    "start": ORIGINAL_PERIOD[0], "end": ORIGINAL_PERIOD[1], "capital": 100000.0,
+                    "slippage_bps": smart["arms"]["smart"]["parameters"]["execution"]["slippage_bps"],
+                    "seed": 42, "strategy": validate_strategy(None)}
+        if not isinstance(payload, dict) or not _FIELDS.issubset(payload) or set(payload) - _FIELDS - {"strategy", "use_selector"}:
+            raise ValueError("Expected source, symbols, start, end, capital, slippage_bps, seed and optional strategy/use_selector")
+        use_selector = payload.get("use_selector", False)
+        if type(use_selector) is not bool:
+            raise ValueError("use_selector must be a boolean")
         selection = validate_strategy(payload.get("strategy"))
         source = payload["source"]
         if source not in ("local", "synthetic"):
@@ -259,13 +287,49 @@ class BacktestJobs:
         if isinstance(seed, bool) or not isinstance(seed, int) or not 0 <= seed <= 2**32 - 1:
             raise ValueError("seed must be an integer between 0 and 4294967295")
         result = {"source": source, "symbols": list(symbols), "start": start.isoformat(),
-                  "end": end.isoformat(), "capital": capital, "slippage_bps": slippage, "seed": seed}
+                  "end": end.isoformat(), "capital": capital, "slippage_bps": slippage, "seed": seed,
+                  "use_selector": use_selector}
         if "strategy" in payload:
             result["strategy"] = selection
         return result
 
+    @staticmethod
+    def _original_registration() -> tuple[dict[str, Any], dict[str, Any]]:
+        """Read only the fixed preset metadata; the runner verifies every input hash."""
+        try:
+            metadata = []
+            for relative in ("reports/multicoin_100k_20261004/registration.json",
+                             "reports/smart_capital_100k_20261004/registration.json"):
+                with (PROJECT_ROOT / relative).open("rb") as handle:
+                    raw = handle.read(1024 * 1024 + 1)
+                if len(raw) > 1024 * 1024:
+                    raise ValueError("Original registration metadata exceeds size limit")
+                metadata.append(json.loads(raw))
+            data, smart = metadata
+            symbols = data["symbols"]
+            arm = smart["arms"]["smart"]
+            if (not isinstance(symbols, list) or len(symbols) != 60
+                    or any(not isinstance(symbol, str) for symbol in symbols)
+                    or len(set(symbols)) != 60
+                    or set(symbols) != set(data["engine_frame_hashes"])
+                    or data["engine_frame_hashes"] != smart["engine_frame_hashes"]
+                    or data["input_files"] != smart["input_files"]
+                    or (data["start"], data["end"]) != ORIGINAL_PERIOD
+                    or (smart["start"], smart["end"]) != ORIGINAL_PERIOD
+                    or data["initial_capital"] != 100000
+                    or smart["capital"] != 100000
+                    or arm["engine_options"]["initial_capital"] != 100000
+                    or not isinstance(arm["parameters"], dict)
+                    or arm["engine_options"]["capital_allocation"]["enabled"] is not True):
+                raise ValueError("Original preset registration differs from its fixed account")
+            _number(arm["parameters"]["execution"]["slippage_bps"], "registered slippage_bps", 0, 100)
+            return data, smart
+        except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
+            raise ValueError("Original 100k backtest preset metadata is unavailable or invalid") from exc
+
     def _public(self, job: dict[str, Any]) -> dict[str, Any]:
         result = {key: copy.deepcopy(value) for key, value in job.items() if not key.startswith("_") and key != "logs"}
+        self._selector_parameter(result)
         result["logs"] = list(job["logs"])
         if "_created_clock" in job:
             result["elapsed_seconds"] = round((job.get("_finished_clock") or time.monotonic()) - job["_created_clock"], 1)
@@ -309,11 +373,20 @@ class BacktestJobs:
             prefix = "web_" if kind == "backtest" else "research_"
             run_id = prefix + datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S") + "_" + secrets.token_hex(4)
             base, base_digest = load_base_config(PROJECT_ROOT / "config" / "params.yaml")
-            configured = configuration_for_strategy(base, parameters.get("strategy"), experiment_id=run_id)
+            if parameters.get("preset") == ORIGINAL_PRESET:
+                _, smart = self._original_registration()
+                configured = copy.deepcopy(smart["arms"]["smart"]["parameters"])
+            else:
+                configured = configuration_for_strategy(base, parameters.get("strategy"), experiment_id=run_id)
             # 快照绑定本次提交；后续表单或基础配置的编辑不应改变已登记任务。
             # 这里只冻结配置，普通 compact 报告不包含完整代码和行情快照。
             snapshot = self.reports_dir / ".dashboard" / "configs" / f"{run_id}.yaml"
             snapshot_digest = write_config_snapshot(snapshot, configured)
+            selector_fields = {}
+            if kind == "backtest" and parameters.get("use_selector") is True:
+                # Capture weights when the request is admitted, before publishing
+                # a queued task. Serving must never resolve the moving alias later.
+                selector_fields = self._freeze_selector(run_id)
             job = {"id": run_id, "kind": kind, "run_id": None, "status": "queued", "parameters": parameters,
                    "created_at": _now(), "started_at": None, "finished_at": None,
                    "exit_code": None, "error": None, "cancel_requested": False,
@@ -322,6 +395,7 @@ class BacktestJobs:
                    "config_diff": config_diff(base, configured), "config_file": "config.snapshot.yaml",
                    "result_file": "equity.csv" if kind == "backtest" else self._task_types[kind][1],
                    "_config_path": snapshot,
+                   **selector_fields,
                    "logs": deque(maxlen=160), "_created_clock": time.monotonic()}
             self._persist(job, force=True)
             self._jobs[run_id] = job
@@ -333,6 +407,25 @@ class BacktestJobs:
             worker.start()
             return self._public(job)
 
+    def _freeze_selector(self, run_id: str) -> dict[str, Any]:
+        """Validate the submitted package and its copied contents before admission."""
+        from backtest.coin_selector import read_bundle, snapshot_bundle
+        from core.reproducibility import sha256_file
+
+        try:
+            path, package = read_bundle()
+            identity = {"bundle_path": str(path), "bundle_sha256": sha256_file(path)}
+            directory = self.reports_dir / ".dashboard" / "selectors" / run_id
+            manifest = snapshot_bundle(identity, directory)
+            _, frozen = read_bundle(manifest)
+            if sha256_file(manifest) != identity["bundle_sha256"] or frozen != package:
+                raise ValueError("Current selector package changed during submission")
+            return {"_selector_bundle_path": manifest,
+                    "selector_bundle_sha256": identity["bundle_sha256"],
+                    "selector_model_id": frozen["candidate"]["model_id"]}
+        except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
+            raise ValueError("Unable to freeze the current ML coin selector package; task was not created") from exc
+
     def _command(self, run_id: str, parameters: dict[str, Any]) -> list[str]:
         job = self._jobs[run_id]
         if job["kind"] != "backtest":
@@ -340,16 +433,27 @@ class BacktestJobs:
             if not isinstance(command, list) or not command or any(not isinstance(arg, str) for arg in command):
                 raise ValueError("Internal research command builder returned invalid argv")
             return command
-        command = [sys.executable, "-u", "-m", "dashboard.backtest_worker",
-                   "--config", str(job["_config_path"]), "--config-sha256", job["config_sha256"],
-                   "--source", parameters["source"], "--symbols", *parameters["symbols"],
-                   "--start", parameters["start"], "--end", parameters["end"],
-                   "--capital", str(parameters["capital"]),
-                   "--slippage", str(parameters["slippage_bps"] / 10000),
-                   "--seed", str(parameters["seed"]), "--timeframe", "1d",
-                   "--disable-routing-log", "--report-profile", "compact",
-                   "--output-dir", str(self.reports_dir / run_id)]
-        if parameters["source"] == "local":
+        mode = "on" if parameters.get("use_selector") is True else "off"
+        if parameters.get("preset") == ORIGINAL_PRESET:
+            command = [sys.executable, "-u", str(PROJECT_ROOT / "scripts" / "run_selector_backtest.py"),
+                       "--coin-selector", mode, "--output-dir", str(self.reports_dir / run_id)]
+        else:
+            command = [sys.executable, "-u", "-m", "dashboard.backtest_worker",
+                       "--config", str(job["_config_path"]), "--config-sha256", job["config_sha256"],
+                       "--source", parameters["source"], "--symbols", *parameters["symbols"],
+                       "--start", parameters["start"], "--end", parameters["end"],
+                       "--capital", str(parameters["capital"]),
+                       "--slippage", str(parameters["slippage_bps"] / 10000),
+                       "--seed", str(parameters["seed"]), "--timeframe", "1d",
+                       "--coin-selector", mode,
+                       "--disable-routing-log", "--report-profile", "compact",
+                       "--output-dir", str(self.reports_dir / run_id)]
+        if parameters.get("use_selector") is True:
+            manifest = job.get("_selector_bundle_path")
+            if manifest is None:
+                raise ValueError("Enabled backtest has no frozen selector package")
+            command.extend(["--selector-bundle", str(manifest)])
+        if parameters["source"] == "local" and parameters.get("preset") != ORIGINAL_PRESET:
             command.extend(["--data-dir", str(self.data_dir)])
         return command
 
@@ -432,6 +536,7 @@ class BacktestJobs:
                             "created_at": job["created_at"], "finished_at": job["finished_at"],
                             "error": error, "kind": job["kind"], "strategy": job["strategy"],
                             "config_sha256": job["config_sha256"], "base_config_sha256": job["base_config_sha256"],
+                            **{key: job[key] for key in ("selector_bundle_sha256", "selector_model_id") if key in job},
                             "config_diff": job["config_diff"]}, ensure_ascii=False), encoding="utf-8")
                         temporary.replace(marker)
                     except OSError:

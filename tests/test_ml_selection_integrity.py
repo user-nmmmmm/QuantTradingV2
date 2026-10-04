@@ -54,6 +54,17 @@ def frozen_inputs(tmp_path, monkeypatch):
     return folder, frozen, settings, frame, input_path, registration_path, baseline_path
 
 
+def test_frozen_source_archive_preserves_registered_bytes_and_rejects_changes(tmp_path, monkeypatch):
+    folder, frozen, *_ = frozen_inputs(tmp_path, monkeypatch)
+    archived = folder / "frozen_source/source.py"
+    assert archived.read_bytes() == (tmp_path / "source.py").read_bytes()
+    assert sha256_file(archived) == frozen["source_hashes"]["source.py"]
+    protocol.validate_run(folder)
+    archived.write_text("changed_archive = 1\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="frozen source archive changed"):
+        protocol.validate_run(folder)
+
+
 def test_current_registration_cannot_replace_original_frozen_data_consistently(tmp_path, monkeypatch):
     folder, frozen, settings, frame, input_path, registration_path, _ = frozen_inputs(tmp_path, monkeypatch)
     assert protocol.validate_run(folder)["protocol_id"] == frozen["protocol_id"]
