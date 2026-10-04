@@ -27,6 +27,7 @@ jobs:
       - name: Fixed synthetic daily bars, full report, manifest replay and verdict
         run: |
           # Health recovery requires three distinct registered symbols.
+          python scripts/run_automation.py status
           python main.py --source synthetic --symbols BTC-USDT ETH-USDT SOL-USDT --start 2020-01-01 --end 2020-06-28 --timeframe 1d --seed 42 --capital 100000 --report-profile full --disable-routing-log --output-dir outputs/automation/snapshot-smoke/report
           python -c "from pathlib import Path; from scripts.evaluate_matrix import evaluate_report; from scripts.run_automation import save_json; p=Path('outputs/automation/snapshot-smoke'); save_json(p/'verdict.json', evaluate_report(p/'report', maximum_drawdown=0.20))"
           python main.py --replay-manifest outputs/automation/snapshot-smoke/report/run_manifest.json
