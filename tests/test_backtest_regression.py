@@ -84,8 +84,17 @@ class TestBacktestEngineEquivalenceBaseline(unittest.TestCase):
         self.assertEqual(bundle["metadata"]["supersedes"], previous.name)
         self.assertEqual(bundle["metadata"]["text_hash_policy"], "UTF-8 text with CRLF and CR normalized to LF")
         self.assertEqual(bundle["metadata"]["previous_baseline_lf_sha256"], hashlib.sha256(previous.read_text(encoding="utf-8").encode("utf-8")).hexdigest())
+        # Preserve the immutable v4 baseline and its original configuration.
+        # The restored smart allocator is disabled by default; its optional
+        # configuration must be the only semantic difference from v4.
+        import yaml
+        frozen_config = ENGINE_BASELINE_PATH.with_name("engine_baseline_v4_config.yaml")
         self.assertEqual(bundle["metadata"]["config_lf_sha256"], hashlib.sha256(
-            (Path(__file__).resolve().parents[1] / "config" / "params.yaml").read_text(encoding="utf-8").encode("utf-8")).hexdigest())
+            frozen_config.read_text(encoding="utf-8").encode("utf-8")).hexdigest())
+        current_config = yaml.safe_load((Path(__file__).resolve().parents[1] / "config" / "params.yaml").read_text(encoding="utf-8"))
+        capital_policy = current_config["allocation"].pop("capital")
+        self.assertIs(capital_policy["enabled"], False)
+        self.assertEqual(current_config, yaml.safe_load(frozen_config.read_text(encoding="utf-8")))
         previous_bundle = json.loads(previous.read_text(encoding="utf-8"))
         for name in ("seed", "symbols", "bars_per_symbol", "warmup_period", "data_summary", "data_sha256"):
             self.assertEqual(bundle["metadata"][name], previous_bundle["metadata"][name])

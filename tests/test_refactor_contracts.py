@@ -34,6 +34,7 @@ def test_cli_contract_is_declared_outside_the_orchestrator():
         "--temporal-financing-evidence", "--derivatives-contract-file",
         "--derivatives-funding-file", "--derivatives-observations-file",
         "--derivatives-max-age",
+        "--smart-allocation", "--max-positions", "--cash-reserve-pct",
     }
     parsed = parser.parse_args([
         "--source", "local", "--data-dir", "prices", "--start", "2025-01-01",

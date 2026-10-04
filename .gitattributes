@@ -3,3 +3,9 @@ requirements.lock.sha256 text eol=lf
 docs/baseline/phase0/**/*.csv text eol=lf
 docs/baseline/phase0/**/*.json text eol=lf
 docs/baseline/phase0/**/*.txt text eol=lf
+
+reports/deep_recovery_20260909_run.log text eol=crlf
+reports/deep_recovery_engine_tests_20260909.txt text eol=crlf
+reports/deep_recovery_full_tests_20260909.txt text eol=crlf
+reports/p0_recovery_run_20260909.log text eol=crlf
+reports/p0_recovery_tests_20260909.txt text eol=crlf

@@ -48,7 +48,7 @@ class TestNoLookahead(unittest.TestCase):
 
         strategy = MockStrategy()
 
-        def mock_build_router(strategies, _configuration, log_path=None):
+        def mock_build_router(strategies, _configuration, log_path=None, capital_policy=None):
             return Router(
                 strategies,
                 regime_map={
