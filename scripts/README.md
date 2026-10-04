@@ -13,6 +13,8 @@
 | [`fetch_binance_data.py`](fetch_binance_data.py) | 下载并增量缓存 Binance 历史行情及数据 manifest。 |
 | [`run_backtest_matrix.py`](run_backtest_matrix.py) | 运行多标的、多周期、多时间窗的批量回测。 |
 | [`run_portable_tests.py`](run_portable_tests.py) | 在受限 Windows 临时目录中运行 pytest。 |
+| [`train_selector.py`](train_selector.py) | CPU 机器学习选币的准备、训练、历史评价和影子观察；依赖登记数据包及可选 ML 依赖，见[训练指南](../docs/ml_selection_roadmap.md)。 |
+| [`verify_ml_selector_baseline.py`](verify_ml_selector_baseline.py) | 使用原登记数据独立复现旧 smart 基线，核对每日权益、执行与资金摘要；数据包前提见[V1 总结](../docs/ml_selection_v1_review_20261005.md)。 |
 | [`start_dashboard.ps1`](start_dashboard.ps1) | 启动本地网页研究工作台；入口和任务行为见 [Dashboard 使用说明](../dashboard/README.md)。 |
 
 回测主入口是仓库根目录的 [`main.py`](../main.py)，实盘主入口是 [`run_live.py`](../run_live.py)；二者不在 `scripts/` 中。

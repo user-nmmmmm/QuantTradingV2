@@ -87,7 +87,9 @@ class BacktestEngine:
         temporal_policy: Any = None,
         temporal_financing: Any = None,
         capital_allocation: Optional[Dict[str, Any]] = None,
+        candidate_selector: Any = None,
     ) -> None:
+        self.candidate_selector = candidate_selector
         self.capital_allocation_policy = CapitalAllocationPolicy.from_mapping({
             **((config.get("allocation") or {}).get("capital") or {}),
             **(capital_allocation or {}),
@@ -123,6 +125,8 @@ class BacktestEngine:
             else benchmark_rebalance_cost_bps
         )
         timeframe = timeframe or config_data["timeframe"]
+        if candidate_selector is not None and timeframe != "1d":
+            raise ValueError("ML candidate selection currently requires daily bars")
         if alignment_mode not in {"union", "intersection"}:
             raise ValueError("alignment_mode must be 'union' or 'intersection'")
         if benchmark_mode not in {"fixed", "dynamic"}:
@@ -419,6 +423,7 @@ class BacktestEngine:
             entry_audit_enabled=bool((config.get("research") or {}).get("entry_audit", False)),
             signal_observer=observer,
             portfolio_controller=self.portfolio_controller,
+            candidate_selector=self.candidate_selector,
         )
         self.market_data_adapter = market_data
         self.execution_adapter = execution

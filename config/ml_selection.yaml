@@ -1,0 +1,58 @@
+schema: ml-selection-research/v1
+timeframe: 1d
+account_mode: spot
+evaluation_kind: retrospective
+data_registration: reports/multicoin_100k_20261004/registration.json
+baseline_registration: reports/smart_capital_100k_20261004/registration.json
+baseline_arm: smart
+start: '2020-01-01'
+end: '2026-09-18'
+max_symbols: null
+splits:
+  train_end: '2023-01-01'
+  validation_end: '2024-07-01'
+dataset:
+  horizon_bars: 20
+  min_history: 61
+  min_quote_volume: 5000000.0
+  commission_rate: 0.001
+  slippage_bps: 5.0
+  stop_atr_multiple: 2.0
+models: [ridge, lightgbm]
+model_params:
+  ridge:
+    alpha: 10.0
+  lightgbm:
+    num_boost_round: 150
+    early_stopping_rounds: 20
+    num_threads: 2
+    num_leaves: 15
+    min_data_in_leaf: 100
+selection:
+  min_expected_return: 0.0
+  score_scale: 100.0
+  score_cap: 5.0
+random_seeds: [42, 43, 44]
+rl:
+  enabled: true
+  episodes: 6
+  seed: 42
+  seeds: [42, 43, 44]
+  learning_rate: 0.02
+  entropy_coef: 0.001
+  gamma: 0.995
+  drawdown_penalty: 0.5
+  turnover_penalty: 0.0
+  validation_patience: 3
+stress:
+  cost_multipliers: [1.5, 2.0]
+walk_forward:
+  - {train_end: '2022-01-01', validation_end: '2022-07-01', test_end: '2023-01-01'}
+  - {train_end: '2023-01-01', validation_end: '2023-07-01', test_end: '2024-01-01'}
+  - {train_end: '2024-01-01', validation_end: '2024-07-01', test_end: '2025-01-01'}
+  - {train_end: '2025-01-01', validation_end: '2025-07-01', test_end: '2026-01-01'}
+gates:
+  max_drawdown: 0.15
+  require_positive_net_return: true
+  require_outperform_native: true
+  require_positive_after_removing_top_5: true
