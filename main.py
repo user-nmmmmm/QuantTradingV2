@@ -540,6 +540,7 @@ def _capital_allocation_options(args):
 def _execute_backtest(args, data_map):
     """Construct the engine and run it with the requested reporting footprint."""
     print("\nInitializing Backtest Engine...")
+    account_mode = _validate_selector_execution_options(args)
     candidate_selector = None
     selector_identity = {"schema": "backtest-coin-selector/v1", "enabled": False,
                          "candidate": None, "new_training_updates": 0, "new_threshold_search": 0}
@@ -547,7 +548,7 @@ def _execute_backtest(args, data_map):
         from backtest.coin_selector import create_selector
         candidate_selector, selector_identity = create_selector(
             data_map, initial_capital=args.capital,
-            bundle_path=getattr(args, "selector_bundle", None))
+            bundle_path=getattr(args, "selector_bundle", None), account_mode=account_mode)
     engine = BacktestEngine(
         initial_capital=args.capital,
         slippage=args.slippage,
@@ -556,7 +557,7 @@ def _execute_backtest(args, data_map):
         benchmark_mode=args.benchmark_mode,
         benchmark_rebalance_cost_bps=args.benchmark_rebalance_cost_bps,
         timeframe=args.timeframe,
-        account_mode=("spot_margin" if args.market_type == "margin" else args.market_type),
+        account_mode=account_mode,
         signal_observation={"enabled": True} if getattr(args, "observe_signals", False) else None,
         signal_meta_layer={"enabled": True} if getattr(args, "signal_meta_layer", False) else None,
         signal_adaptive={"enabled": True} if getattr(args, "adaptive_signal_meta", False) else None,
@@ -582,6 +583,22 @@ def _execute_backtest(args, data_map):
     return engine, results, temp_routing_log
 
 
+def _validate_selector_execution_options(args):
+    """Reject unsupported execution before loading data or constructing a model."""
+    from config.config import config
+    from core.runtime import validate_selector_execution_path
+
+    enabled = getattr(args, "coin_selector", "off") == "on"
+    validate_selector_execution_path(
+        selector_enabled=enabled,
+        portfolio_targets_enabled=(config.get("portfolio_targets") or {}).get("enabled", False),
+    )
+    market_type = getattr(args, "market_type", None)
+    if market_type is not None:
+        return "spot_margin" if market_type == "margin" else market_type
+    return (config.get("account") or {}).get("mode", "spot")
+
+
 def main(argv=None) -> int:
     """Parse, validate and orchestrate one backtest run."""
     parser = _build_parser()
@@ -602,6 +619,7 @@ def main(argv=None) -> int:
 
     try:
         _capital_allocation_options(args)
+        _validate_selector_execution_options(args)
         if args.selector_bundle and args.coin_selector != "on":
             raise ValueError("--selector-bundle requires --coin-selector on")
         if args.coin_selector == "on":

@@ -38,10 +38,17 @@ class EntryCandidate:
     score: float
     audit: Optional[dict] = field(default=None, compare=False, repr=False)
     capital_allocation: Optional[Mapping[str, Any]] = field(default=None, compare=False)
+    # Research may rank with ML while retaining the strategy score for sizing.
+    # An absent override preserves the original allocation path.
+    selection_rank_score: Optional[float] = field(default=None, compare=False)
 
     @property
     def strategy_name(self) -> str:
         return str(self.strategy.name)
+
+    @property
+    def ranking_score(self) -> float:
+        return float(self.score if self.selection_rank_score is None else self.selection_rank_score)
 
 
 @dataclass(frozen=True)
@@ -93,14 +100,14 @@ class PortfolioSignalAllocator:
     def rank(candidates: Iterable[EntryCandidate]) -> list[EntryCandidate]:
         return sorted(
             candidates,
-            key=lambda item: (-float(item.score), item.strategy_name, item.symbol),
+            key=lambda item: (-item.ranking_score, item.strategy_name, item.symbol),
         )
 
     def allocate(self, candidates: Iterable[EntryCandidate], *, portfolio: Any,
                  broker: Any, risk_manager: Any,
                  current_prices: Mapping[str, float]) -> list[AllocationDecision]:
         ordered = self.rank(candidates)
-        scores = {round(float(item.score), 12) for item in ordered}
+        scores = {round(item.ranking_score, 12) for item in ordered}
         degenerate = len(ordered) > 1 and len(scores) == 1
         if degenerate:
             self.degenerate_batches += 1

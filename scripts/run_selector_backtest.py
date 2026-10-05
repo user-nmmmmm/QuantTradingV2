@@ -112,7 +112,7 @@ def load_registered_baseline(root=ROOT):
     return frames, parameters, options, evidence, historical
 
 
-def _selector(frames, capital, enabled, selector_bundle=None):
+def _selector(frames, capital, enabled, selector_bundle=None, *, account_mode=None):
     if not enabled:
         if selector_bundle is not None:
             raise ValueError("selector_bundle requires coin_selector on")
@@ -120,7 +120,8 @@ def _selector(frames, capital, enabled, selector_bundle=None):
                       "reason": "original registered strategy and smart capital allocation"}
     # Importing/loading ML is confined to the explicitly enabled branch.
     from backtest.coin_selector import create_selector
-    selector, identity = create_selector(frames, initial_capital=capital, bundle_path=selector_bundle)
+    selector, identity = create_selector(frames, initial_capital=capital, bundle_path=selector_bundle,
+                                         account_mode=account_mode)
     if selector is None or not isinstance(identity, dict) or not identity:
         raise ValueError("enabled coin selector requires a verified frozen model identity")
     if (identity.get("enabled") is not True or identity.get("candidate") != "rl"
@@ -156,6 +157,7 @@ def _baseline_validation(result, curve, historical):
 
 
 def run_backtest(output_dir, *, coin_selector="off", selector_bundle=None, root=ROOT):
+    total_started = time.monotonic()
     if coin_selector not in {"off", "on"}:
         raise ValueError("coin_selector must be off or on")
     if coin_selector != "on" and selector_bundle is not None:
@@ -163,8 +165,15 @@ def run_backtest(output_dir, *, coin_selector="off", selector_bundle=None, root=
     output = Path(output_dir).resolve()
     if output.exists():
         raise FileExistsError(f"output directory already exists: {output}")
+    stage_started = time.monotonic()
     frames, parameters, options, evidence, historical = load_registered_baseline(root)
-    selector, identity = _selector(frames, options["initial_capital"], coin_selector == "on", selector_bundle)
+    timings = {"registered_input_load_seconds": time.monotonic() - stage_started}
+    stage_started = time.monotonic()
+    selector, identity = _selector(frames, options["initial_capital"], coin_selector == "on", selector_bundle,
+                                   account_mode=parameters["account"]["mode"])
+    timings["selector_setup_seconds"] = time.monotonic() - stage_started
+    timings["selector_stages"] = deepcopy(identity.get("timing_seconds", {}))
+    stage_started = time.monotonic()
     output.mkdir(parents=True, exist_ok=False)
     identity.update(training_updates=0, threshold_search=False, candidate_search=False,
                     evaluation_kind="retrospective_fixed_policy_comparison", independent_holdout=False)
@@ -175,9 +184,10 @@ def run_backtest(output_dir, *, coin_selector="off", selector_bundle=None, root=
           "source_equality_with_historical_registration_required": False,
           "purpose": "same registered original account; optional fixed current RL weights",
           "evaluation_limit": "current model is applied retrospectively, including its training period"})
+    timings["registration_write_seconds"] = time.monotonic() - stage_started
     prior, logging_state = config._config, logging.root.manager.disable
     py_random, np_random = random.getstate(), np.random.get_state()
-    started = time.monotonic()
+    engine_started = time.monotonic()
     try:
         config._config = deepcopy(parameters)
         random.seed(42)
@@ -190,6 +200,8 @@ def run_backtest(output_dir, *, coin_selector="off", selector_bundle=None, root=
         logging.disable(logging_state)
         random.setstate(py_random)
         np.random.set_state(np_random)
+    timings["engine_seconds"] = time.monotonic() - engine_started
+    report_started = time.monotonic()
     capital = options["initial_capital"]
     curve = requested_period_curve(result["equity_curve"], evidence["start"], evidence["end"],
         capital=capital, lifecycle=result["lifecycle"], activity=result.get("strategy_activity", []))
@@ -220,6 +232,8 @@ def run_backtest(output_dir, *, coin_selector="off", selector_bundle=None, root=
     validation = (_baseline_validation(result, curve, historical) if coin_selector == "off"
                   else {"status": "not_applicable", "reason": "selector changes the original decisions"})
     _save(output / "baseline_validation.json", validation)
+    timings["reporting_and_validation_seconds"] = time.monotonic() - report_started
+    timings["total_seconds"] = time.monotonic() - total_started
     summary = {"coin_selector": coin_selector, "initial_capital": capital, "final_equity": final,
                "net_pnl": final - capital, "return_pct": (final / capital - 1) * 100,
                "max_drawdown_pct": float(((curve.equity.cummax() - curve.equity)
@@ -227,10 +241,12 @@ def run_backtest(output_dir, *, coin_selector="off", selector_bundle=None, root=
                "days": len(curve), "fill_count": len(trades), "start": evidence["start"],
                "end": evidence["end"], "account_mode": parameters["account"]["mode"],
                "symbol_count": len(frames), "accounting_ok": bool(result["accounting_check"]["ok"]),
-               "elapsed_seconds": time.monotonic() - started, "baseline_validation": validation,
+               "elapsed_seconds": timings["total_seconds"], "timing_seconds": timings,
+               "baseline_validation": validation,
                "training_updates": 0, "independent_holdout": False,
                "lifecycle": result["lifecycle"]}
     _save(output / "summary.json", summary)
+    _save(output / "timing.json", timings)
     if not summary["accounting_ok"]:
         raise ValueError("backtest account reconciliation failed")
     if coin_selector == "off" and not validation["all_passed"]:

@@ -33,6 +33,7 @@
 
 - [2026-10-05 机器学习选币 V1 实施总结](ml_selection_v1_review_20261005.md)：CPU 评分与完整回合 REINFORCE、原引擎可选接口、本地历史训练结果、数据包前提与有效性未通过的边界；操作入口见[训练指南](ml_selection_roadmap.md)。
 - [机器学习选币下一阶段 Roadmap](ml_selection_next_roadmap_20261005.md)：V1 合并后的诊断、数据与训练扩展顺序、交付物和验收条件；[学习清单](ml_selection_learning_checklist_20261005.md)列出相关知识、练习和完成标准。这两份专项计划不改写项目统一 Roadmap 或策略放行状态。
+- [ML 选币工程整改与无训练检查](ml_selection_engineering_roadmap.md)：接口与数据修复、候选目标、独立校准合同、消融计划和只读 readiness；训练暂停时使用显式工程测试入口。
 - [2026-10-04 剩余论文任务](research/paper_remaining_tasks_20261004.md)：执行成本与盘口证据、历史因子输入、前瞻采集和严格标签的实现与缺口；[收益改进复核](research/paper_return_followup_20261004.md)记录固定方案的历史比较，保留主引擎与独立现货账户的口径差异。
 - [论文统计验证契约](research/paper_validation_contract_20261003.md)：PBO、purged/embargo 切分、White Reality Check 与 DSR 的输入、计算和证据不足行为；应用入口见[论文应用清单](research/paper_application_list_20261003.md)和[工程完成记录](research/paper_engineering_completion_20261003.md)。
 - [论文路线图实施](research/paper_roadmap_implementation_20261003.md)、[续办记录](research/paper_continuation_20261003.md)：因果标签、数据版本、融资与账户关联的实施边界及产物索引。

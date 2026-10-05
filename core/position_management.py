@@ -225,9 +225,17 @@ class SmartCapitalPlanner:
             self._weights(prepared, held, equity, risk_governor)
         except (ValueError, TypeError, ArithmeticError):
             return reject_all("invalid_allocation_weights")
+        explicit_ranking = [p["selection_rank_score"] is not None for p in prepared]
+        if any(explicit_ranking) and not all(explicit_ranking):
+            return reject_all("mixed_selection_ranking_contract")
+        use_selection_ranking = all(explicit_ranking)
+
+        def priority(item):
+            return item["selection_rank_score"] if use_selection_ranking else item["raw_weight"]
+
         remaining_slots = max(self.policy.max_positions - len(occupied), 0)
         ranked_new = sorted((p for p in prepared if p["symbol"] not in occupied),
-                            key=lambda p: (-p["raw_weight"], p["symbol"]))
+                            key=lambda p: (-priority(p), p["symbol"]))
         selected_new = {p["symbol"] for p in ranked_new[:remaining_slots]}
         selected = []
         for item in prepared:
@@ -260,7 +268,7 @@ class SmartCapitalPlanner:
             if not dust:
                 allocation[live] = result
                 break
-            remove = min(dust, key=lambda j: (selected[live[j]]["raw_weight"],
+            remove = min(dust, key=lambda j: (priority(selected[live[j]]),
                                               selected[live[j]]["symbol"]))
             decisions[selected[live[remove]]["symbol"]]["reason"] = "below_minimum_allocation"
             del live[remove]
@@ -335,6 +343,9 @@ class SmartCapitalPlanner:
             raise ValueError("invalid_price_or_stop")
         if stop >= min(current, price) or not _finite(candidate.score):
             raise ValueError("invalid_stop_or_score")
+        rank_score = getattr(candidate, "selection_rank_score", None)
+        if rank_score is not None and not _finite(rank_score):
+            raise ValueError("invalid_selection_rank_score")
         closes = pd.to_numeric(frame["close"].iloc[max(0, index-self.policy.volatility_lookback):index+1],
                                errors="coerce")
         if len(closes) < self.policy.min_history + 1:
@@ -369,8 +380,12 @@ class SmartCapitalPlanner:
                         history_end=str(frame.index[index]), reference_price=price)
         if cap <= 0 or cap + 1e-8 < minimum:
             raise ValueError("below_minimum_capacity")
+        if rank_score is not None:
+            decision.update(selection_rank_score=float(rank_score),
+                            ranking_source="selector_score", capital_score=float(candidate.score))
         return {"symbol": candidate.symbol, "price": price, "risk_rate": abs(price-stop)/price,
                 "score": float(candidate.score), "volatility": volatility, "returns": returns,
+                "selection_rank_score": float(rank_score) if rank_score is not None else None,
                 "cap": cap, "minimum": minimum}
 
     def _weights(self, prepared, held, equity, governor):

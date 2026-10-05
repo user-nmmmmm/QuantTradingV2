@@ -9,10 +9,16 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from collections import deque
+import hashlib
 import math
 
 import numpy as np
+from numpy.typing import NDArray
 import pandas as pd
+
+from core.reproducibility import canonical_json, sha256_frame
+from core.timeframes import as_utc_timestamp
+from research.ml_selection.membership import interval_mask, validate_membership_evidence
 
 
 DAY = pd.Timedelta(days=1)
@@ -26,19 +32,22 @@ FEATURE_COLUMNS = (
     "btc_return_5d", "btc_return_20d", "btc_volatility_20d",
     "relative_return_20d", "benchmark_available",
 )
-_OUTPUT_COLUMNS = (
+_INFERENCE_COLUMNS = (
     "as_of", "bar_time", "symbol", "eligible", "exclusion_reason",
     "membership_basis", "contiguous_history", "history_available",
-    *FEATURE_COLUMNS, "label_net_return", "label_mae", "label_available_at",
+    *FEATURE_COLUMNS, "available_at", "availability_basis", "quote_volume_basis",
+)
+_OUTPUT_COLUMNS = (
+    *_INFERENCE_COLUMNS, "label_net_return", "label_mae", "label_available_at",
     "label_exit_reason", "label_basis",
 )
 
 
 def _utc(value) -> pd.Timestamp:
-    stamp = pd.Timestamp(value)
+    stamp = as_utc_timestamp(value)
     if pd.isna(stamp):
         raise ValueError("A finite timestamp is required")
-    return stamp.tz_localize("UTC") if stamp.tzinfo is None else stamp.tz_convert("UTC")
+    return stamp
 
 
 def _positive_int(value, name, minimum=1):
@@ -65,12 +74,25 @@ def _normalise(frame: pd.DataFrame) -> pd.DataFrame:
     available = scheduled.copy()
     for column in ("close_time", "available_at"):
         if column in result:
-            supplied = pd.to_datetime(result[column], utc=True, errors="coerce")
+            # Date-only, ISO Z and offset timestamps can coexist after an
+            # append. Parse each representation without inferred-format loss.
+            supplied = pd.to_datetime(result[column], utc=True, errors="coerce", format="mixed")
             # Explicit missing availability evidence fails closed.
             available = available.where(supplied.notna())
             later = supplied.notna() & available.notna() & (supplied > available)
             available.loc[later] = supplied.loc[later]
     result["_available_at"] = available
+    supplied_columns = [column for column in ("close_time", "available_at") if column in result]
+    result["_availability_basis"] = ("supplied_" + "_and_".join(supplied_columns)
+                                      if supplied_columns else "scheduled_close_assumed")
+    if "quote_volume_basis" in result:
+        result["_quote_volume_basis"] = result["quote_volume_basis"].fillna("unknown").astype(str)
+    else:
+        result["_quote_volume_basis"] = ("supplied_quote_volume_unverified" if "quote_volume" in result
+                                          else "close_times_base_volume_proxy")
+    # A source claim never promotes a derived value to an exchange observation.
+    if "quote_volume" not in result:
+        result["_quote_volume_basis"] = "close_times_base_volume_proxy"
     values = result[list(sorted(required))].to_numpy(dtype=float)
     good = np.isfinite(values).all(axis=1)
     good &= (result[["open", "high", "low", "close"]] > 0).all(axis=1).to_numpy()
@@ -90,7 +112,7 @@ def _normalise(frame: pd.DataFrame) -> pd.DataFrame:
 
 
 def _history_count(frame):
-    count = np.zeros(len(frame), dtype=np.int32)
+    count: NDArray[np.int32] = np.zeros(len(frame), dtype=np.int32)
     valid = frame["_valid"].to_numpy(dtype=bool)
     times = frame.index.asi8
     for i in range(len(frame)):
@@ -105,8 +127,8 @@ def _history_available(frame, window):
     available = frame["_available_at"].astype("int64").to_numpy(copy=True)
     available[available == pd.NaT.value] = np.iinfo(np.int64).max
     cutoffs = frame.index.asi8 + DAY.value
-    result = np.zeros(len(frame), dtype=bool)
-    maxima = deque()
+    result: NDArray[np.bool_] = np.zeros(len(frame), dtype=bool)
+    maxima: deque[int] = deque()
     for i, stamp in enumerate(available):
         while maxima and maxima[0] <= i - window:
             maxima.popleft()
@@ -148,19 +170,28 @@ def _feature_table(frame: pd.DataFrame) -> pd.DataFrame:
     return table
 
 
-def _attach_benchmark(table, benchmark):
+def _benchmark_features(benchmark, table=None):
+    """Build benchmark history/availability once for an entire symbol universe."""
+    if benchmark is None:
+        return None
+    table = _feature_table(benchmark) if table is None else table
+    usable = (table["contiguous_history"] >= 21) & _history_available(benchmark, 21)
+    return table[["return_5d", "return_20d", "volatility_20d"]].where(usable, axis=0)
+
+
+def _attach_benchmark(table, benchmark, *, benchmark_features=None):
     if benchmark is None:
         for column in ("btc_return_5d", "btc_return_20d", "btc_volatility_20d",
                        "relative_return_20d"):
             table[column] = 0.0
         table["benchmark_available"] = 0.0
         return table
-    benchmark_table = _feature_table(benchmark)
-    usable = (benchmark_table["contiguous_history"] >= 21) & _history_available(benchmark, 21)
+    benchmark_table = (_benchmark_features(benchmark) if benchmark_features is None
+                       else benchmark_features)
     for source, target in (("return_5d", "btc_return_5d"),
                            ("return_20d", "btc_return_20d"),
                            ("volatility_20d", "btc_volatility_20d")):
-        table[target] = benchmark_table[source].where(usable).reindex(table.index)
+        table[target] = benchmark_table[source].reindex(table.index)
     table["relative_return_20d"] = table["return_20d"] - table["btc_return_20d"]
     table["benchmark_available"] = table["btc_return_20d"].notna().astype(float)
     return table
@@ -177,7 +208,9 @@ def feature_snapshot(frame: pd.DataFrame, *, as_of, benchmark=None) -> dict:
     own = own.loc[own.index + DAY <= cutoff].copy()
     if own.empty:
         return {**dict.fromkeys(FEATURE_COLUMNS, float("nan")), "as_of": cutoff,
-                "bar_time": pd.NaT, "contiguous_history": 0, "history_available": False}
+                "bar_time": pd.NaT, "contiguous_history": 0, "history_available": False,
+                "available_at": pd.NaT, "availability_basis": "unavailable",
+                "quote_volume_basis": "unavailable"}
     # Mask values not yet available; retain their slots so gaps cannot disappear.
     own.loc[own["_available_at"].isna() | (own["_available_at"] > cutoff), "_valid"] = False
     bench = None
@@ -199,45 +232,38 @@ def feature_snapshot(frame: pd.DataFrame, *, as_of, benchmark=None) -> dict:
     return {**result, "as_of": cutoff, "bar_time": own.index[-1],
             "contiguous_history": int(row["contiguous_history"]),
             "history_available": bool(history_available),
+            "available_at": own["_available_at"].iloc[-1],
+            "availability_basis": own["_availability_basis"].iloc[-1],
+            "quote_volume_basis": own["_quote_volume_basis"].iloc[-1],
             "entry_blocked": bool(own["entry_blocked"].iloc[-1]),
             "scheduled_exit": bool(own["scheduled_exit"].iloc[-1])}
 
 
-def _membership_at(membership, symbol, dates):
+def _membership_at(membership, symbol, dates, *, validated=None, require_verified=False):
     if membership is None:
         return np.ones(len(dates), dtype=bool), "observed_history_only"
-    if isinstance(membership, pd.DataFrame):
-        if "symbol" not in membership:
-            raise ValueError("membership requires a symbol column")
-        selected = membership.loc[membership["symbol"] == symbol]
-        if len(selected) > 1:
-            raise ValueError("membership supports one listing interval per symbol")
-        item = selected.iloc[0].to_dict() if len(selected) else None
-    elif isinstance(membership, Mapping):
-        item = membership.get(symbol)
-    else:
-        raise ValueError("membership must be a DataFrame or symbol metadata mapping")
-    if item is None:
+    facts = (validate_membership_evidence(membership, require_sources=require_verified)[0]
+             if validated is None else validated)
+    selected = facts.loc[facts.symbol == symbol]
+    if selected.empty:
         return np.zeros(len(dates), dtype=bool), "membership_unknown"
-    if not isinstance(item, Mapping) or not {"listed_at", "available_at"}.issubset(item):
-        raise ValueError("membership facts require listed_at and available_at")
-    listed, available = _utc(item["listed_at"]), _utc(item["available_at"])
-    active = (dates >= listed) & (dates >= available)
-    delisted = item.get("delisted_at")
-    if delisted is not None and pd.notna(delisted):
-        # Delisting may only influence a decision after its publication.
-        if item.get("delisting_available_at") is None:
-            raise ValueError("delisted_at requires delisting_available_at")
-        inactive = (dates >= _utc(delisted)) & (dates >= _utc(item["delisting_available_at"]))
-        active &= ~inactive
-    return np.asarray(active, dtype=bool), "supplied_point_in_time_facts"
+    reasons = {reason for values in selected.evidence_reasons for reason in values}
+    if "missing_or_invalid_delisting_available_time" in reasons:
+        raise ValueError("delisted_at requires delisting_available_at")
+    if "overlapping_listing_intervals" in reasons:
+        raise ValueError("membership has overlapping listing intervals")
+    active: NDArray[np.bool_] = np.zeros(len(dates), dtype=bool)
+    for item in selected.loc[selected.evidence_valid].to_dict("records"):
+        active |= np.asarray(interval_mask(item, dates), dtype=bool)
+    basis = "source_verified_point_in_time_interval" if require_verified else "supplied_point_in_time_facts"
+    return active, basis
 
 
 def _shadow_labels(frame, table, horizon, commission, slippage, stop_multiple):
     n = len(frame)
     net, mae = np.full(n, np.nan), np.full(n, np.nan)
-    maturity = np.full(n, np.datetime64("NaT"), dtype="datetime64[ns]")
-    reason = np.full(n, "future_unavailable", dtype=object)
+    maturity: NDArray[np.datetime64] = np.full(n, np.datetime64("NaT"), dtype="datetime64[ns]")
+    reason: NDArray[np.object_] = np.full(n, "future_unavailable", dtype=object)
     if not n:
         return net, mae, maturity, reason
     opens, lows, closes = (frame[c].to_numpy(dtype=float) for c in ("open", "low", "close"))
@@ -252,11 +278,11 @@ def _shadow_labels(frame, table, horizon, commission, slippage, stop_multiple):
     active = valid & np.isfinite(atr) & np.isfinite(entry)
     active &= ~frame["entry_blocked"].to_numpy() & ~frame["scheduled_exit"].to_numpy()
     adverse = np.zeros(n)
-    latest = np.zeros(n, dtype=np.int64)
+    latest: NDArray[np.int64] = np.zeros(n, dtype=np.int64)
     forced = frame["scheduled_exit"].to_numpy(dtype=bool)
     for step in range(1, horizon + 1):
         indices = np.flatnonzero(active)
-        future = indices + step
+        future: NDArray[np.intp] = indices + step
         in_range = future < n
         active[indices[~in_range]] = False
         indices, future = indices[in_range], future[in_range]
@@ -375,13 +401,75 @@ def forward_proxy_outcome(frame: pd.DataFrame, *, entry_not_before,
 
 def build_dataset(frames: Mapping[str, pd.DataFrame], *, horizon_bars=20,
                   min_history=61, min_quote_volume=0.0, commission_rate=0.001,
-                  slippage_bps=5.0, stop_atr_multiple=2.0, membership=None) -> pd.DataFrame:
+                  slippage_bps=5.0, stop_atr_multiple=2.0, membership=None,
+                  require_exchange_quote_volume=False, require_verified_membership=False) -> pd.DataFrame:
     """Keep every observed candidate row; eligibility is a separate decision.
 
     A horizon of H trades from the next candle open to that H-th candle close,
     unless the fixed entry ATR stop or a known scheduled exit closes it earlier.
     Missing future bars produce missing labels, never a fabricated flat result.
     """
+    return _build_rows(frames, horizon_bars=horizon_bars, min_history=min_history,
+        min_quote_volume=min_quote_volume, commission_rate=commission_rate,
+        slippage_bps=slippage_bps, stop_atr_multiple=stop_atr_multiple, membership=membership,
+        require_exchange_quote_volume=require_exchange_quote_volume,
+        require_verified_membership=require_verified_membership, include_labels=True)
+
+
+def build_inference_dataset(frames: Mapping[str, pd.DataFrame], *, horizon_bars=20,
+                            min_history=61, min_quote_volume=0.0, commission_rate=0.001,
+                            slippage_bps=5.0, stop_atr_multiple=2.0, membership=None,
+                            require_exchange_quote_volume=False,
+                            require_verified_membership=False) -> pd.DataFrame:
+    """Build the same causal features/eligibility without inspecting outcomes.
+
+    Label options remain accepted so immutable serving bundles need no edits.
+    They are validated but do not trigger future traversal or label creation.
+    Provenance and per-symbol watermarks are retained in columns and attrs.
+    Default eligibility preserves historical proxy-liquidity compatibility;
+    callers can require exchange quote volume or source-verified membership.
+    """
+    return _build_rows(frames, horizon_bars=horizon_bars, min_history=min_history,
+        min_quote_volume=min_quote_volume, commission_rate=commission_rate,
+        slippage_bps=slippage_bps, stop_atr_multiple=stop_atr_multiple, membership=membership,
+        require_exchange_quote_volume=require_exchange_quote_volume,
+        require_verified_membership=require_verified_membership, include_labels=False)
+
+
+def _data_identity(frames, prepared, result, *, policy, membership):
+    def timestamp(value):
+        return None if pd.isna(value) else _utc(value).isoformat().replace("+00:00", "Z")
+
+    symbols = {}
+    for symbol, frame in prepared.items():
+        eligible = result.loc[(result.symbol == symbol) & result.eligible, "as_of"]
+        symbols[symbol] = {
+            "rows": len(frame), "frame_sha256": sha256_frame(frames[symbol]),
+            "first_bar_time": timestamp(frame.index.min()),
+            "latest_bar_time": timestamp(frame.index.max()),
+            "latest_scheduled_close": timestamp(frame.index.max() + DAY),
+            "latest_available_at": timestamp(frame["_available_at"].max()),
+            "latest_eligible_as_of": timestamp(eligible.max()),
+            "missing_availability_rows": int(frame["_available_at"].isna().sum()),
+            "availability_basis_counts": frame["_availability_basis"].value_counts().to_dict(),
+            "quote_volume_basis_counts": frame["_quote_volume_basis"].value_counts().to_dict(),
+            "quote_volume_column_present": "quote_volume" in frame,
+        }
+    # Hash the actual input identities and serving contract; a newer last date
+    # alone cannot identify changed historical prices or lifecycle evidence.
+    identity = {"schema": "ml-selection-data-identity/v1", "timezone": "UTC",
+                "symbols": symbols, "feature_columns": list(FEATURE_COLUMNS),
+                "eligibility_policy": policy,
+                "membership_sha256": hashlib.sha256(canonical_json(membership).encode()).hexdigest(),
+                "availability_limit": "scheduled_close_is_assumed_when_receipt_evidence_is_absent"}
+    identity["data_identity_sha256"] = hashlib.sha256(canonical_json(identity).encode()).hexdigest()
+    return identity
+
+
+def _build_rows(frames, *, horizon_bars, min_history, min_quote_volume,
+                commission_rate, slippage_bps, stop_atr_multiple, membership,
+                require_exchange_quote_volume, require_verified_membership,
+                include_labels):
     _positive_int(horizon_bars, "horizon_bars")
     _positive_int(min_history, "min_history", MIN_FEATURE_HISTORY)
     parameters = {"min_quote_volume": min_quote_volume, "commission_rate": commission_rate,
@@ -393,18 +481,33 @@ def build_dataset(frames: Mapping[str, pd.DataFrame], *, horizon_bars=20,
         raise ValueError("Commission/slippage must be below 100%; stop multiple must be positive")
     if not isinstance(frames, Mapping):
         raise ValueError("frames must be a symbol -> DataFrame mapping")
+    if type(require_exchange_quote_volume) is not bool or type(require_verified_membership) is not bool:
+        raise ValueError("Strict quote-volume and membership requirements must be boolean")
     prepared = {str(symbol): _normalise(frame) for symbol, frame in frames.items()}
+    if len(prepared) != len(frames):
+        raise ValueError("Symbols must remain unique after string normalization")
+    membership_facts, membership_report = (validate_membership_evidence(membership,
+        require_sources=require_verified_membership) if membership is not None else (None, None))
     benchmark_symbol = next((s for s in sorted(prepared)
                              if s.upper().replace("/", "").replace("-", "") in {"BTCUSDT", "BTCUSD", "BTC"}), None)
     benchmark = prepared.get(benchmark_symbol) if benchmark_symbol else None
+    benchmark_table = _feature_table(benchmark) if benchmark is not None else None
+    benchmark_features = _benchmark_features(benchmark, benchmark_table)
     results = []
     for symbol, frame in prepared.items():
-        table = _attach_benchmark(_feature_table(frame), benchmark)
+        own_features = (benchmark_table.copy() if symbol == benchmark_symbol and benchmark_table is not None
+                        else _feature_table(frame))
+        table = _attach_benchmark(own_features, benchmark, benchmark_features=benchmark_features)
         dates = frame.index + DAY
-        active_member, membership_basis = _membership_at(membership, symbol, dates)
-        history_available = _history_available(frame, min_history)
+        active_member, membership_basis = _membership_at(membership, symbol, dates,
+            validated=membership_facts, require_verified=require_verified_membership)
+        if require_verified_membership and membership is None:
+            active_member[:] = False
+            membership_basis = "membership_unknown"
+        history_available = (table["history_available"].to_numpy(dtype=bool)
+                             if min_history == MIN_FEATURE_HISTORY else _history_available(frame, min_history))
         finite = np.isfinite(table[list(FEATURE_COLUMNS)].to_numpy()).all(axis=1)
-        reason = np.full(len(frame), "", dtype=object)
+        reason: NDArray[np.object_] = np.full(len(frame), "", dtype=object)
         # First matching exclusion is deterministic and easy to audit.
         conditions = (
             (~frame["_valid"].to_numpy(), "invalid_ohlcv"),
@@ -414,31 +517,44 @@ def build_dataset(frames: Mapping[str, pd.DataFrame], *, horizon_bars=20,
             (table["contiguous_history"].to_numpy() < min_history, "missing_daily_history"),
             (~history_available, "history_unavailable"),
             (~finite, "feature_unavailable"),
+            (require_exchange_quote_volume & ~frame["_quote_volume_basis"].eq("exchange_quote_volume").to_numpy(),
+             "quote_volume_source_unverified"),
             ((table["_quote_volume"].to_numpy() < min_quote_volume)
              | (table["_quote_volume"].to_numpy() <= 0) | (frame["volume"].to_numpy() <= 0), "insufficient_liquidity"),
         )
         for mask, text in conditions:
             reason[(reason == "") & mask] = text
-        net, mae, maturity, exit_reason = _shadow_labels(frame, table, horizon_bars,
-                                                        commission_rate, slippage_bps / 10000,
-                                                        stop_atr_multiple)
         output = table[list(FEATURE_COLUMNS)].copy()
         output["as_of"], output["bar_time"], output["symbol"] = dates, frame.index, symbol
         output["eligible"], output["exclusion_reason"] = reason == "", reason
         output["membership_basis"] = membership_basis
         output["contiguous_history"] = table["contiguous_history"]
         output["history_available"] = history_available
+        output["available_at"] = frame["_available_at"]
+        output["availability_basis"] = frame["_availability_basis"]
+        output["quote_volume_basis"] = frame["_quote_volume_basis"]
         # Excluded/unavailable historical values cannot be exposed as serving inputs.
         output.loc[~history_available, list(FEATURE_COLUMNS)] = np.nan
-        output["label_net_return"], output["label_mae"] = net, mae
-        output["label_available_at"] = pd.to_datetime(maturity, utc=True)
-        output["label_exit_reason"] = exit_reason
-        output["label_basis"] = "independent_shadow_proxy_not_portfolio"
+        if include_labels:
+            net, mae, maturity, exit_reason = _shadow_labels(frame, table, horizon_bars,
+                commission_rate, slippage_bps / 10000, stop_atr_multiple)
+            output["label_net_return"], output["label_mae"] = net, mae
+            output["label_available_at"] = pd.to_datetime(maturity, utc=True)
+            output["label_exit_reason"] = exit_reason
+            output["label_basis"] = "independent_shadow_proxy_not_portfolio"
         results.append(output.reset_index(drop=True))
-    if not results:
-        return pd.DataFrame(columns=_OUTPUT_COLUMNS)
-    return (pd.concat(results, ignore_index=True).sort_values(["as_of", "symbol"])
-            .reset_index(drop=True).loc[:, list(_OUTPUT_COLUMNS)])
+    columns = _OUTPUT_COLUMNS if include_labels else _INFERENCE_COLUMNS
+    result = (pd.concat(results, ignore_index=True).sort_values(["as_of", "symbol"])
+              .reset_index(drop=True).loc[:, list(columns)]) if results else pd.DataFrame(columns=columns)
+    result.attrs["data_identity"] = _data_identity(
+        {str(symbol): frame for symbol, frame in frames.items()}, prepared, result,
+        policy={"min_history": min_history, "min_quote_volume": min_quote_volume,
+                "require_exchange_quote_volume": require_exchange_quote_volume,
+                "require_verified_membership": require_verified_membership},
+        membership=membership_facts.to_dict("records") if membership_facts is not None else None)
+    result.attrs["membership_evidence"] = membership_report
+    result.attrs["future_labels_computed"] = include_labels
+    return result
 
 
 def chronological_split(dataset: pd.DataFrame, *, train_end, validation_end,

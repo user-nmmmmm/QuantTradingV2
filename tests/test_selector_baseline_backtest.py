@@ -133,8 +133,8 @@ def test_enabled_injects_fixed_policy_without_changing_original_engine(registere
     calls = engine_probe(monkeypatch, registered_account)
     factory_calls = []
 
-    def factory(frames, *, initial_capital, bundle_path):
-        factory_calls.append((list(frames), initial_capital, bundle_path))
+    def factory(frames, *, initial_capital, bundle_path, account_mode):
+        factory_calls.append((list(frames), initial_capital, bundle_path, account_mode))
         return selector, identity
 
     def write_report(directory, observed_selector, observed_identity):
@@ -147,7 +147,7 @@ def test_enabled_injects_fixed_policy_without_changing_original_engine(registere
     target = registered_account.root / "on"
     summary = runner.run_backtest(target, coin_selector="on", selector_bundle=pinned_bundle,
                                  root=registered_account.root)
-    assert factory_calls == [(["A/USDT"], 100000., pinned_bundle)]
+    assert factory_calls == [(["A/USDT"], 100000., pinned_bundle, "spot_margin")]
     assert calls[0]["options"]["candidate_selector"] is selector
     assert calls[0]["parameters"] == registered_account.arm["parameters"]
     assert calls[0]["options"]["terminal_policy"] == "forced_liquidation"
@@ -251,3 +251,49 @@ def test_config_is_restored_when_engine_fails(registered_account, monkeypatch):
     with pytest.raises(ValueError, match="actual engine failure"):
         runner.run_backtest(registered_account.root / "failed", root=registered_account.root)
     assert config._config is prior
+
+
+def test_elapsed_time_covers_loading_selector_engine_and_reporting(registered_account, monkeypatch):
+    """A controlled clock catches a timer starting only after model/features."""
+    clock = [100.]
+    monkeypatch.setattr(runner.time, "monotonic", lambda: clock[0])
+    original_loader = runner.load_registered_baseline
+    original_selector = runner._selector
+    original_validation = runner._baseline_validation
+
+    def loader(*args, **kwargs):
+        result = original_loader(*args, **kwargs)
+        clock[0] += 2
+        return result
+
+    def selector(*args, **kwargs):
+        result = original_selector(*args, **kwargs)
+        clock[0] += 3
+        return result
+
+    def validate(*args, **kwargs):
+        result = original_validation(*args, **kwargs)
+        clock[0] += 7
+        return result
+
+    class Engine:
+        def __init__(self, **kwargs):
+            pass
+
+        def run(self, *args, **kwargs):
+            clock[0] += 5
+            return deepcopy(registered_account.result)
+
+    monkeypatch.setattr(runner, "load_registered_baseline", loader)
+    monkeypatch.setattr(runner, "_selector", selector)
+    monkeypatch.setattr(runner, "_baseline_validation", validate)
+    monkeypatch.setattr(runner, "BacktestEngine", Engine)
+    output = registered_account.root / "timed"
+    summary = runner.run_backtest(output, root=registered_account.root)
+    stages = summary["timing_seconds"]
+    assert stages["registered_input_load_seconds"] == 2
+    assert stages["selector_setup_seconds"] == 3
+    assert stages["engine_seconds"] == 5
+    assert stages["reporting_and_validation_seconds"] == 7
+    assert summary["elapsed_seconds"] == stages["total_seconds"] == 17
+    assert json.loads((output / "timing.json").read_text()) == stages

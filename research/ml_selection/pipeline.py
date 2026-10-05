@@ -13,12 +13,12 @@ import numpy as np
 import pandas as pd
 
 from core.reproducibility import canonical_json, deterministic_result_digest, sha256_file, sha256_frame
-from research.ml_selection.dataset import (FEATURE_COLUMNS, build_dataset, chronological_split,
+from research.ml_selection.dataset import (FEATURE_COLUMNS, build_dataset, build_inference_dataset, chronological_split,
                                           forward_proxy_outcome)
 from research.ml_selection.environment import FullEngineEnvironment, discounted_returns
 from research.ml_selection.models import BernoulliPolicy, fit_model, load_model, ranking_metrics, calibration_metrics
 from research.ml_selection.protocol import (ROOT, freeze_protocol, load_inputs, save_json,
-                                            validate_run)
+                                            validate_run, evaluation_contract, evaluation_range)
 from research.ml_selection.selector import ACCOUNT_FEATURES, ResearchSelector, utc
 
 
@@ -38,8 +38,37 @@ def load_dataset(folder):
 
 
 def splits(dataset, settings):
-    return chronological_split(dataset, **settings["splits"],
-                               test_end=utc(settings["end"]) + pd.Timedelta(days=1))
+    """Purge maturity at each role boundary, retaining complete decision cohorts."""
+    boundaries = settings["splits"]
+    rows = dataset
+    if "train_start" in boundaries:
+        rows = rows.loc[rows.as_of >= utc(boundaries["train_start"])]
+    end = utc(settings["end"]) + pd.Timedelta(days=1)
+    calibration_end = boundaries.get("calibration_end")
+    parts = chronological_split(rows, train_end=boundaries["train_end"],
+        validation_end=boundaries["validation_end"], test_end=calibration_end or end)
+    if calibration_end:
+        parts["calibration"] = parts.pop("test")
+        parts["test"] = chronological_split(rows, train_end=boundaries["validation_end"],
+            validation_end=calibration_end, test_end=end)["test"]
+    return parts
+
+
+def training_partitions(dataset, settings):
+    """Keep candidate-domain training independent of the market serving table."""
+    if "training_data" not in settings:
+        return splits(dataset, settings), {"domain": "eligible_coin_days", "target": "independent_proxy"}
+    from research.ml_selection.candidate_dataset import load_candidate_training_rows
+    from research.ml_selection.protocol import resolve_path
+    declared = settings["training_data"]
+    rows, receipt = load_candidate_training_rows(resolve_path(declared["candidate_dataset_directory"]),
+        target_type=declared["target_type"], account_mode=settings["account_mode"], data_identity=declared["data_identity"])
+    partition = splits(rows, settings)
+    if partition["train"].empty or partition["validation"].empty:
+        raise ValueError("candidate-domain fitting requires mature complete training and early-validation cohorts")
+    return partition, {"domain": "original_strategy_candidates", "target": declared["target_type"],
+        "serving_table": "separate_full_causal_market_table", "receipt": receipt,
+        "split_rows": {name: len(part) for name, part in partition.items()}}
 
 
 def prepare(settings, folder):
@@ -69,7 +98,8 @@ def prepare(settings, folder):
                   "membership_basis": "provided_source_intervals_partial_coverage" if membership_report else "observed_history_only",
                   "membership_evidence": membership_report,
                   "independent_holdout": False}
-    if any(len(partition[name]) == 0 for name in ("train", "validation", "test")):
+    statistics["evaluation_scope"] = evaluation_contract(settings)
+    if any(len(rows) == 0 for rows in partition.values()):
         raise ValueError("one or more mature chronological partitions are empty")
     save_json(Path(folder) / "dataset_summary.json", statistics)
     progress(folder, "R2", "训练数据准备完成", **statistics)
@@ -78,22 +108,33 @@ def prepare(settings, folder):
 
 def supervised(folder, protocol, dataset):
     settings = protocol["settings"]
-    partition = splits(dataset, settings)
+    partition, training_receipt = training_partitions(dataset, settings)
     diagnostics, models = {}, {}
     for kind in settings.get("models", ["ridge", "lightgbm"]):
         progress(folder, "R3", "正在训练评分模型", model=kind)
         path = Path(folder) / "models" / f"{kind}.json"
         if path.exists():
             model = load_model(path)
+            if "evaluation_protocol" in settings and model.metadata.get("evaluation_scope") != evaluation_contract(settings):
+                raise ValueError("cached model evaluation/account contract differs; start a new run")
+            if "training_data" in settings and model.metadata.get("training_data") != training_receipt:
+                raise ValueError("cached model candidate-training evidence differs; start a new run")
         else:
             model = fit_model(partition["train"], partition["validation"], features=FEATURE_COLUMNS,
                               kind=kind, seed=settings.get("seed", 42),
                               params=settings.get("model_params", {}).get(kind, {}))
+            model.metadata = deepcopy(model.metadata)
+            model.metadata["evaluation_scope"] = evaluation_contract(settings)
+            model.metadata["training_data"] = training_receipt
+            if "evaluation_protocol" in settings:
+                model.metadata["account_contract"] = evaluation_contract(settings)["account_contract"]
             model.save(path)
         models[kind] = model
         diagnostic_rows = dataset.loc[dataset.eligible &
             (dataset.as_of >= utc(settings["splits"]["train_end"])) &
             (dataset.as_of < utc(settings["splits"]["validation_end"]))]
+        if "training_data" in settings:
+            diagnostic_rows = partition["validation"]
         diagnostics[kind] = {"model_id": model.model_id, "metadata": model.metadata,
                              "validation": ranking_metrics(diagnostic_rows,
                                  model.predict(diagnostic_rows),
@@ -101,6 +142,7 @@ def supervised(folder, protocol, dataset):
                              "return_calibration": calibration_metrics(diagnostic_rows,
                                  getattr(model, "predict_net_return", model.predict)(diagnostic_rows),
                                  mature_as_of=utc(settings["splits"]["validation_end"]))}
+        diagnostics[kind]["training_data"] = training_receipt
     save_json(Path(folder) / "supervised_validation.json", diagnostics)
     return models
 
@@ -120,6 +162,10 @@ def slice_frames(frames, start, end, warmup=130):
 
 def make_environment(frames, protocol, *, start, end, multiplier=1.0, execution_scenario=None):
     options, parameters = deepcopy(protocol["engine_options"]), deepcopy(protocol["parameters"])
+    if "evaluation_protocol" in protocol["settings"]:
+        expected = protocol["settings"]["account_mode"]
+        if options.get("account_mode") != expected or parameters.get("account", {}).get("mode") != expected:
+            raise ValueError("engine account differs from the registered training/deployment account")
     options["trading_start"] = utc(start).tz_convert(None)
     options["run_id"] = "ml-selection-offline"
     parameters.setdefault("research", {})["entry_audit"] = True
@@ -197,7 +243,9 @@ def persist_episode(folder, name, episode, selector=None):
 
 
 def selection(dataset, settings, kind, models, *, policy=None, seed=42, deterministic=True):
-    options = settings.get("selection", {})
+    options = dict(settings.get("selection", {}))
+    if kind != "rl":
+        options.pop("policy_gate_mode", None)
     if kind == "native":
         return None
     if kind in {"qualified_native", "momentum", "random"}:
@@ -210,12 +258,7 @@ def selection(dataset, settings, kind, models, *, policy=None, seed=42, determin
 
 def matrix(folder, protocol, frames, dataset, models, *, segment, policy=None):
     settings = protocol["settings"]
-    if segment == "validation":
-        start, end = settings["splits"]["train_end"], settings["splits"]["validation_end"]
-    elif segment == "test":
-        start, end = settings["splits"]["validation_end"], utc(settings["end"]) + pd.Timedelta(days=1)
-    else:
-        raise ValueError("only predeclared validation/test segments supported")
+    start, end = evaluation_range(settings, segment)
     for kind, model in models.items():
         if kind == "primary":
             continue
@@ -337,6 +380,10 @@ def _rl_budget_receipt(folder, history, policy, limits, stale, *, wall_seconds):
                "completed_checkpoint_update_count": actual,
                "evaluation_thresholds": limits["evaluation_thresholds"],
                "selection_segment": "validation", "test_used_for_selection": False,
+               "trial_counts": {"checkpoint_validation_accounts": sum(
+                   len(row.get("validation_thresholds", {})) or 1 for row in history),
+                   "threshold_calibration_accounts": 0},
+               "evaluation_scope": policy.metadata.get("evaluation_scope"),
                "cash_is_legal": True, "forced_trade_reward": False,
                "updates_are_replayed_parameter_steps_not_independent_market_samples": True,
                "invocation_wall_seconds": wall_seconds, **_rl_process_memory()}
@@ -355,22 +402,41 @@ def train_policy(folder, protocol, frames, dataset, models):
     started = time.monotonic()
     limits = _rl_budget_options(options)
     episodes = limits["episodes"]
-    partition = splits(dataset, settings)
+    partition, training_receipt = training_partitions(dataset, settings)
     training = partition["train"].copy()
     defaults = {"cash_fraction": 1., "gross_exposure_fraction": 0., "portfolio_drawdown": 0.,
                 "held_count_fraction": 0., "pending_count_fraction": 0.}
     for name, value in defaults.items():
         training[name] = value
-    policy = BernoulliPolicy((*FEATURE_COLUMNS, *ACCOUNT_FEATURES), seed=options.get("seed", 42))
+    context_features = options.get("context_features", [])
+    for name in context_features:
+        # These constants define a unit reference scale, not observed strategy
+        # state on arbitrary coin-days. Actual values arrive only at the hook.
+        training[name] = 0.
+    policy = BernoulliPolicy((*FEATURE_COLUMNS, *ACCOUNT_FEATURES, *context_features), seed=options.get("seed", 42))
     policy.fit_scaler(training)
     policy.metadata.update(algorithm="episodic_bernoulli_REINFORCE", research_only=True,
-                           train_end=settings["splits"]["train_end"],
-                           validation_end=settings["splits"]["validation_end"],
+                           train_end=(settings["splits"]["train_end"] if isinstance(settings["splits"]["train_end"], str)
+                                      else utc(settings["splits"]["train_end"]).isoformat()),
+                           validation_end=(settings["splits"]["validation_end"] if isinstance(settings["splits"]["validation_end"], str)
+                                           else utc(settings["splits"]["validation_end"]).isoformat()),
                            parent_model_id=models["primary"].model_id,
                            account_feature_scaling="fixed_neutral_state_unit_scale",
                            evaluation_threshold=limits["evaluation_threshold"],
                            preregistered_evaluation_thresholds=limits["evaluation_thresholds"],
                            threshold_selected_using="validation_only", cash_is_legal=True)
+    policy.metadata["evaluation_scope"] = evaluation_contract(settings)
+    policy.metadata["training_data"] = training_receipt
+    policy.metadata["credit_assignment"] = "episode_account_discounted_return_to_go_not_individual_candidate_pnl"
+    if context_features:
+        policy.metadata["context_feature_scaling"] = "fixed_zero_reference_unit_scale_not_observed_training_state"
+    if "policy_gate_mode" in settings.get("selection", {}):
+        policy.metadata["policy_gate_mode"] = settings["selection"]["policy_gate_mode"]
+    if "evaluation_protocol" in settings:
+        policy.metadata["account_contract"] = evaluation_contract(settings)["account_contract"]
+    independent_calibration = "calibration_end" in settings["splits"]
+    if independent_calibration:
+        policy.metadata["threshold_selected_using"] = "fixed_during_checkpoint_and_seed_selection"
     best_value, best_path, stale, history, baseline = -np.inf, None, 0, [], 0.0
     history_path = Path(folder) / "rl_training.json"
     latest_path = Path(folder) / "models/policy_latest.json"
@@ -387,6 +453,10 @@ def train_policy(folder, protocol, frames, dataset, models):
             if not checkpoint.is_file():
                 raise ValueError(f"committed RL checkpoint is missing: {checkpoint.name}")
             saved = BernoulliPolicy.load(checkpoint)
+            if "evaluation_protocol" in settings and saved.metadata.get("evaluation_scope") != evaluation_contract(settings):
+                raise ValueError("policy evaluation/account contract changed; start a new run")
+            if "training_data" in settings and saved.metadata.get("training_data") != training_receipt:
+                raise ValueError("policy candidate-training evidence changed; start a new run")
             if saved.metadata.get("parent_model_id") != models["primary"].model_id:
                 raise ValueError("policy parent model changed")
             if "checkpoint_model_id" in row and row["checkpoint_model_id"] != saved.model_id:
@@ -430,7 +500,7 @@ def train_policy(folder, protocol, frames, dataset, models):
         progress(folder, "R6", "正在运行奖励驱动训练", episode=number + 1, maximum=episodes,
                  actual_updates=policy.update_count, min_updates=limits["min_updates"])
         selector = selection(dataset, settings, "rl", models, policy=policy, deterministic=False)
-        episode = make_environment(frames, protocol, start=settings["start"],
+        episode = make_environment(frames, protocol, start=settings["splits"].get("train_start", settings["start"]),
                                    end=settings["splits"]["train_end"]).run_episode(selector)
         training_summary = persist_episode(folder, f"rl_train_{number+1:03d}", episode, selector)
         trajectory = selector.trajectory
@@ -461,6 +531,8 @@ def train_policy(folder, protocol, frames, dataset, models):
         # Order the default first so reward ties preserve the preregistered default.
         thresholds = [limits["evaluation_threshold"], *[threshold for threshold in limits["evaluation_thresholds"]
                                                        if threshold != limits["evaluation_threshold"]]]
+        if independent_calibration:
+            thresholds = [limits["evaluation_threshold"]]
         for threshold in thresholds:
             policy.metadata["evaluation_threshold"] = threshold
             valid_selector = selection(dataset, settings, "rl", models, policy=policy, deterministic=True)
@@ -504,6 +576,60 @@ def train_policy(folder, protocol, frames, dataset, models):
     return BernoulliPolicy.load(best_path) if best_path else None
 
 
+def calibrate_policy(folder, protocol, frames, dataset, models, policy):
+    """Calibrate only the frozen winning seed/checkpoint, never update weights."""
+    settings = protocol["settings"]
+    if "calibration_end" not in settings["splits"]:
+        return policy
+    start, end = evaluation_range(settings, "calibration")
+    registered_range = {"start": utc(start).isoformat(), "end": utc(end).isoformat()}
+    limits = _rl_budget_options(settings.get("rl", {}))
+    receipt_path = Path(folder) / "threshold_calibration.json"
+    if receipt_path.exists():
+        saved = json.loads(receipt_path.read_text(encoding="utf-8"))
+        if (saved["checkpoint_before_calibration"] != policy.model_id
+                or saved["range"] != registered_range
+                or saved["registered_thresholds"] != limits["evaluation_thresholds"]):
+            raise ValueError("threshold calibration contract changed; start a new run")
+        restored = BernoulliPolicy.load(Path(folder) / "models/policy_calibrated.json")
+        if restored.model_id != saved["calibrated_policy_id"]:
+            raise ValueError("calibrated policy identity differs from its receipt")
+        return restored
+    if splits(dataset, settings)["calibration"].empty:
+        raise ValueError("independent threshold calibration has no mature complete cohorts")
+    source_id = policy.model_id
+    thresholds = [limits["evaluation_threshold"], *[value for value in limits["evaluation_thresholds"]
+                                                    if value != limits["evaluation_threshold"]]]
+    results = {}
+    for threshold in thresholds:
+        policy.metadata["evaluation_threshold"] = threshold
+        selector = selection(dataset, settings, "rl", models, policy=policy, deterministic=True)
+        episode = make_environment(frames, protocol, start=start, end=end).run_episode(selector)
+        results[str(threshold)] = persist_episode(folder,
+            f"rl_calibration_threshold_{str(threshold).replace('.', '_')}", episode, selector)
+        if not np.isfinite(float(results[str(threshold)]["reward_sum"])):
+            raise ValueError("threshold calibration reward must be finite")
+    selected = max(thresholds, key=lambda value: results[str(value)]["reward_sum"])
+    selected_result = results[str(selected)]
+    qualification = (selected_result.get("net_return", 0.) > 0
+        and selected_result.get("max_drawdown", 1.) <= settings.get("gates", {}).get("max_drawdown", .15)
+        and selected_result.get("accounting_ok") is True)
+    policy.metadata.update(evaluation_threshold=selected,
+        threshold_selected_using="disjoint_calibration_after_checkpoint_and_seed_freeze")
+    policy.save(Path(folder) / "models/policy_calibrated.json")
+    save_json(receipt_path, {"schema": "ml-selection-threshold-calibration/v1",
+        "checkpoint_before_calibration": source_id, "calibrated_policy_id": policy.model_id,
+        "range": registered_range, "registered_thresholds": limits["evaluation_thresholds"],
+        "selected_threshold": selected, "results": results,
+        "calibration_qualification_passed": qualification,
+        "qualification_is_economic_admission": False,
+        "sample_sufficiency": {"status": "unmeasured", "independent_event_groups_proven": False},
+        "trial_counts": {"threshold_calibration_accounts": len(thresholds)},
+        "weights_updated": False, "checkpoint_or_seed_selected_using_calibration": False,
+        "independent_final_evidence": False})
+    return policy
+
+
 def train_policies(folder, protocol, frames, dataset, models):
     options = protocol["settings"].get("rl", {})
     if not options.get("enabled", True):
@@ -528,12 +654,17 @@ def train_policies(folder, protocol, frames, dataset, models):
     if not policies:
         return None
     winner = max(policies, key=lambda seed: comparisons[seed]["validation"]["reward_sum"])
+    policies[winner] = calibrate_policy(folder, protocol, frames, dataset, models, policies[winner])
     policies[winner].save(Path(folder) / "models/policy_best.json")
     save_json(Path(folder) / "rl_training.json", histories[winner])
     save_json(Path(folder) / "rl_budget_receipt.json", {**comparisons[winner]["budget"],
         "selected_seed": int(winner), "all_seed_actual_updates": {
             seed: row["budget"]["actual_updates"] for seed, row in comparisons.items()},
-        "all_seed_minimum_budgets_met": all(row["budget"]["minimum_budget_met"] for row in comparisons.values())})
+        "all_seed_minimum_budgets_met": all(row["budget"]["minimum_budget_met"] for row in comparisons.values()),
+        "trial_counts": {"checkpoint_validation_accounts": sum(
+            len(row.get("validation_thresholds", {})) or 1 for history in histories.values() for row in history),
+            "threshold_calibration_accounts": len(options.get("evaluation_thresholds", [options.get("evaluation_threshold", .5)]))
+                if "calibration_end" in protocol["settings"]["splits"] else 0}})
     return policies[winner]
 
 
@@ -546,17 +677,21 @@ def walk_forward(folder, protocol, frames, dataset):
     settings = protocol["settings"]
     for number, window in enumerate(settings.get("walk_forward", []), 1):
         current = deepcopy(protocol)
-        current["settings"]["splits"] = {"train_end": window["train_end"], "validation_end": window["validation_end"]}
+        current["settings"]["splits"] = {key: value for key, value in window.items() if key != "test_end"}
         current["settings"]["end"] = (utc(window["test_end"]) - pd.Timedelta(days=1)).date().isoformat()
         child = Path(folder) / "walk_forward" / f"window_{number:02d}"
         child.mkdir(parents=True, exist_ok=True)
-        partition = splits(dataset, current["settings"])
+        partition, training_receipt = training_partitions(dataset, current["settings"])
         model_results, trained = {}, {}
         for kind in settings.get("models", ["ridge", "lightgbm"]):
             path = child / "models" / f"{kind}.json"
             model = load_model(path) if path.exists() else fit_model(partition["train"], partition["validation"],
                 features=FEATURE_COLUMNS, kind=kind, params=settings.get("model_params", {}).get(kind, {}))
             if not path.exists():
+                model.metadata["evaluation_scope"] = evaluation_contract(current["settings"])
+                model.metadata["training_data"] = training_receipt
+                if "evaluation_protocol" in current["settings"]:
+                    model.metadata["account_contract"] = evaluation_contract(current["settings"])["account_contract"]
                 model.save(path)
             trained[kind] = model
             selector = selection(dataset, current["settings"], kind, trained)
@@ -572,7 +707,8 @@ def walk_forward(folder, protocol, frames, dataset):
             name = kind if kind != "random" else f"random_{seed}"
             progress(folder, "R7-WF", "正在运行滚动样本外对照", window=number, arm=name)
             selector = selection(dataset, current["settings"], kind, trained, seed=seed)
-            episode = make_environment(frames, current, start=window["validation_end"], end=window["test_end"]).run_episode(selector)
+            episode = make_environment(frames, current, start=window.get("calibration_end", window["validation_end"]),
+                                       end=window["test_end"]).run_episode(selector)
             outcomes[name] = persist_episode(child, f"test_{name}", episode, selector)
         summaries.append({"window": window, "candidate": choice, "results": outcomes,
                           "candidate_excess_return": outcomes[choice]["net_return"] - outcomes["native"]["net_return"]})
@@ -636,6 +772,15 @@ def freeze_candidate(folder, protocol, models, validation, policy=None):
               "test_used_for_selection": False,
               "model_id": policy.model_id if name == "rl" else models[name].model_id,
               "parent_model_id": models["primary"].model_id}
+    calibration_path = Path(folder) / "threshold_calibration.json"
+    calibration = json.loads(calibration_path.read_text(encoding="utf-8")) if calibration_path.exists() else None
+    save_json(Path(folder) / "candidate_evidence.json", {
+        "validation_qualification_passed": name in qualified,
+        "qualification_basis": "early_stopping_development_validation_not_final_efficacy",
+        "evaluation_scope": evaluation_contract(protocol["settings"]),
+        "threshold_calibration": calibration,
+        "sample_sufficiency": {"status": "unmeasured", "independent_event_groups_proven": False},
+        "economic_admission": False, "production_enabled": False})
     path = Path(folder) / "candidate.json"
     saved = json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
     if "next_research" in protocol["settings"]:
@@ -745,7 +890,7 @@ def evaluate(folder, protocol, frames, dataset, models, policy=None):
     identity = policy.model_id if candidate == "rl" else models[candidate].model_id
     if identity != frozen["model_id"]:
         raise ValueError("evaluation candidate identity mismatch")
-    start, end = settings["splits"]["validation_end"], utc(settings["end"]) + pd.Timedelta(days=1)
+    start, end = evaluation_range(settings, "test")
     stress = {}
     for multiplier in settings.get("stress", {}).get("cost_multipliers", [1.5, 2.0]):
         selector = selection(dataset, settings, candidate, models, policy=policy)
@@ -781,6 +926,15 @@ def evaluate(folder, protocol, frames, dataset, models, policy=None):
                     "outstanding": ["historical PIT universe evidence", "independent final adjudication",
                                     "cohort-level concentration and multiple-testing evidence",
                                     "future observation and label maturity"]}
+    minimum = settings.get("evaluation_protocol", {}).get("minimum_event_groups", 6)
+    # Counts do not establish event independence. Unknown evidence remains
+    # unknown, including otherwise profitable development accounts.
+    groups = concentration.get("cohort_count")
+    adjudication["sample_sufficiency"] = {"minimum_groups": minimum, "observed_groups": groups,
+            "group_basis": concentration.get("cohort_basis", "fixed_five_day_entry_cohorts"),
+        "count_requirement_met": groups >= minimum if isinstance(groups, int) else None,
+        "independent_event_groups_proven": False, "economic_admission": False}
+    adjudication["evaluation_scope"] = evaluation_contract(settings)
     if "next_research" in settings:
         adjudication["separate_verdicts"] = {
             "return": {"positive_net_return": checks["positive_net_return"],
@@ -882,7 +1036,7 @@ def shadow(folder, protocol, *, market_data_dir=None, as_of=None, account_state=
         source_kind = "user_supplied_forward_files_universe_unverified"
     if not frames:
         raise ValueError("no available shadow market inputs")
-    dataset = build_dataset(frames, **settings.get("dataset", {}))
+    dataset = build_inference_dataset(frames, **settings.get("dataset", {}))
     latest = dataset.loc[dataset.as_of <= now].sort_values("as_of").groupby("symbol").tail(1)
     fresh = latest.as_of >= now.normalize()
     eligible = latest.eligible & fresh

@@ -20,6 +20,17 @@ from core.temporal_data import strict_market_event, strategy_market_prices, stra
 from dataclasses import replace
 
 
+def validate_selector_execution_path(*, selector_enabled: bool,
+                                     portfolio_controller: Any = None,
+                                     portfolio_targets_enabled: bool = False) -> None:
+    """Reject target-weight execution until its selector bridge is implemented."""
+    if selector_enabled and (portfolio_controller is not None or portfolio_targets_enabled):
+        raise ValueError(
+            "coin selection is not supported with a portfolio target controller "
+            "(TrendPortfolioV3); disable coin selection or portfolio targets"
+        )
+
+
 @dataclass(frozen=True)
 class MarketDataSlice:
     """One deterministic market-data event on the shared runtime timeline."""
@@ -129,6 +140,8 @@ class EventProcessor:
         portfolio_controller: Any = None,
         candidate_selector: Any = None,
     ) -> None:
+        validate_selector_execution_path(selector_enabled=candidate_selector is not None,
+                                         portfolio_controller=portfolio_controller)
         self.portfolio = portfolio
         self.execution = execution
         self.risk_manager = risk_manager
