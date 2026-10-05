@@ -58,7 +58,8 @@ def test_enabled_cli_only_adds_selector_without_replacing_risk_or_allocation(mon
     args = entrypoint._build_parser().parse_args([
         "--coin-selector", "on", "--capital", "100000", "--smart-allocation"])
     engine, _, _ = entrypoint._execute_backtest(args, {})
-    load.assert_called_once_with({}, initial_capital=100000.0, bundle_path=None)
+    load.assert_called_once_with({}, initial_capital=100000.0, bundle_path=None,
+                                 account_mode="spot_margin")
     assert factory.call_args.kwargs["candidate_selector"] is selector
     assert factory.call_args.kwargs["capital_allocation"]["enabled"] is True
     assert engine.coin_selector_identity == identity

@@ -62,7 +62,7 @@ def complete_walk_forward(folder, protocol, frames, dataset):
     rl_windows = settings["next_research"].get("rl_windows", [])
     for number, window in enumerate(settings.get("walk_forward", []), 1):
         current = deepcopy(protocol)
-        current["settings"]["splits"] = {key: window[key] for key in ("train_end", "validation_end")}
+        current["settings"]["splits"] = {key: value for key, value in window.items() if key != "test_end"}
         current["settings"]["end"] = (utc(window["test_end"]) - pd.Timedelta(days=1)).date().isoformat()
         current["settings"]["rl"]["enabled"] = number in rl_windows
         child = Path(folder) / "walk_forward" / f"window_{number:02d}"
@@ -93,7 +93,7 @@ def complete_walk_forward(folder, protocol, frames, dataset):
 def _supervised_extensions(folder, protocol, frames, dataset):
     from composition.factory import build_strategy_registry
     from config.config import config
-    from research.ml_selection.pipeline import (make_environment, persist_episode, splits, selection, progress)
+    from research.ml_selection.pipeline import (make_environment, persist_episode, training_partitions, selection, progress)
     from research.ml_selection.label_experiments import ExitLabelContract, run_exit_label_probe
     from research.ml_selection.learning import run_learning_curve
     from research.ml_selection.membership import audit_membership
@@ -135,7 +135,7 @@ def _supervised_extensions(folder, protocol, frames, dataset):
     _, membership = audit_membership(settings.get("dataset", {}).get("membership"),
                                     dataset[["symbol", "as_of"]], missing_policy="downgrade")
     save_json(Path(folder) / "membership_evidence.json", membership)
-    partition = splits(dataset, settings)
+    partition, _ = training_partitions(dataset, settings)
     curves = {}
     for kind in settings["models"]:
         def portfolio_evaluator(model, train, validation, month):
@@ -200,8 +200,19 @@ def formal_budget_summary(folder, settings):
                 continue
             row = json.loads(path.read_text(encoding="utf-8"))
             receipts.append({"directory": cell, **row})
+    from research.ml_selection.protocol import evaluation_contract
+    calibration_counts = 0
+    for parent in parents:
+        calibration = parent / "threshold_calibration.json"
+        if calibration.is_file():
+            calibration_counts += json.loads(calibration.read_text(encoding="utf-8"))["trial_counts"]["threshold_calibration_accounts"]
     return {"rl_budgets": receipts, "expected_rl_budget_cells": expected,
             "missing_rl_budget_cells": missing,
+            "evaluation_scope": evaluation_contract(settings),
+            "trial_counts": {"checkpoint_validation_accounts": sum(
+                row.get("trial_counts", {}).get("checkpoint_validation_accounts", 0) for row in receipts),
+                "threshold_calibration_accounts": calibration_counts,
+                "legacy_counts_missing": any("trial_counts" not in row for row in receipts)},
             "actual_updates": sum(row.get("actual_updates", 0) for row in receipts),
             "all_minimum_budgets_met": bool(expected) and not missing
                 and all(row.get("minimum_budget_met") is True for row in receipts)}

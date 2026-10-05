@@ -37,7 +37,7 @@ from core.logger import get_logger
 from core.market_data import HistoricalMarketDataAdapter, normalize_market_frame
 from core.portfolio import Portfolio
 from core.position_management import CapitalAllocationPolicy
-from core.runtime import EventProcessor, MarketDataSlice
+from core.runtime import EventProcessor, MarketDataSlice, validate_selector_execution_path
 from core.risk.actions import plan_risk_action
 from backtest.drawdown_budget import BacktestDrawdownReducer
 from core.protective_stops import EntryRiskPolicy, evaluate_fill_risk
@@ -89,6 +89,11 @@ class BacktestEngine:
         capital_allocation: Optional[Dict[str, Any]] = None,
         candidate_selector: Any = None,
     ) -> None:
+        validate_selector_execution_path(
+            selector_enabled=candidate_selector is not None,
+            portfolio_controller=portfolio_controller,
+            portfolio_targets_enabled=(config.get("portfolio_targets") or {}).get("enabled", False),
+        )
         self.candidate_selector = candidate_selector
         self.capital_allocation_policy = CapitalAllocationPolicy.from_mapping({
             **((config.get("allocation") or {}).get("capital") or {}),
@@ -217,6 +222,13 @@ class BacktestEngine:
         routing_log_path: Optional[str] = None,
         routing_log_enabled: bool = True,
     ) -> Dict[str, Any]:
+        # Configuration and injected components can change between construction
+        # and reuse. Fail before creating a broker or running any market event.
+        validate_selector_execution_path(
+            selector_enabled=self.candidate_selector is not None,
+            portfolio_controller=self.portfolio_controller,
+            portfolio_targets_enabled=(config.get("portfolio_targets") or {}).get("enabled", False),
+        )
         if self._automatic_portfolio_controller:
             self.portfolio_controller = None
             self._automatic_portfolio_controller = False

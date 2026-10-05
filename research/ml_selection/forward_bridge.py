@@ -13,6 +13,10 @@ import pandas as pd
 
 from core.reproducibility import canonical_json
 from research.ml_selection.selector import ResearchSelector, utc
+from research.ml_selection.policy_context import (
+    PolicyContextUnavailable, build_policy_context, decision_context_snapshot,
+    validate_decision_context_snapshot,
+)
 
 
 def _identity(payload):
@@ -35,10 +39,13 @@ class BridgeCandidate:
     score: float
     signal: dict = field(default_factory=dict)
     audit: dict | None = None
+    selection_rank_score: float | None = None
+    decision_context: dict | None = None
 
 
 def capture_hook_state(candidates, *, event, portfolio, broker, risk_manager,
-                       current_prices, protocol_id, policy_id, parent_model_id):
+                       current_prices, protocol_id, policy_id, parent_model_id,
+                       context_features=()):
     """Capture causal facts at the existing hook, after strategy collection."""
     candidates = list(candidates)
     venue = getattr(broker, "broker", broker)
@@ -64,6 +71,8 @@ def capture_hook_state(candidates, *, event, portfolio, broker, risk_manager,
     if budget is None:
         raise ValueError("state bridge requires original risk budget state")
     budget_state = budget.snapshot().to_dict()
+    equity = portfolio.get_total_value(dict(current_prices))
+    as_of = utc(event.timestamp) + pd.Timedelta(days=1)
     health, rows = {}, []
     for candidate in candidates:
         name = candidate.strategy_name
@@ -71,9 +80,17 @@ def capture_hook_state(candidates, *, event, portfolio, broker, risk_manager,
         health[name] = (strategy.health_snapshot() if hasattr(strategy, "health_snapshot") else {})
         if not health[name]:
             health[name] = {"status": "not_health_managed", "allows_new_entries": True}
+        try:
+            features = build_policy_context(candidate, requested_features=context_features,
+                batch_candidate_count=len(candidates), current_prices=current_prices, equity=equity,
+                risk_manager=risk_manager, as_of=as_of)
+        except PolicyContextUnavailable as error:
+            features = error.available_features
         rows.append({"symbol": candidate.symbol, "strategy_name": name, "score": candidate.score,
-                     "signal": dict(candidate.signal), "audit": dict(candidate.audit or {})})
-    equity = portfolio.get_total_value(dict(current_prices))
+                     "signal": dict(candidate.signal), "audit": dict(candidate.audit or {}),
+                     "selection_rank_score": getattr(candidate, "selection_rank_score", None),
+                     "decision_context": decision_context_snapshot(candidate, current_prices=current_prices,
+                                                                   as_of=as_of, features=features)})
     payload = {"schema": "ml-rl-hook-state/v1", "source": "original_engine_candidate_hook",
         "protocol_id": protocol_id, "policy_id": policy_id, "parent_model_id": parent_model_id,
         "bar_time": utc(event.timestamp), "as_of": utc(event.timestamp) + pd.Timedelta(days=1),
@@ -189,6 +206,13 @@ def validate_hook_state(snapshot, *, protocol_id, policy_id, parent_model_id, in
         _finite(candidate["score"], "native candidate score")
         if not isinstance(candidate.get("signal"), dict) or candidate["signal"].get("action") != "buy":
             raise ValueError("RL bridge requires original spot entry signals")
+        captured_context = candidate.get("decision_context")
+        if captured_context is not None:
+            validate_decision_context_snapshot(captured_context, as_of=as_of)
+            if (captured_context.get("strategy") != candidate["strategy_name"]
+                    or captured_context.get("native_candidate_score") != candidate["score"]
+                    or captured_context.get("current_price") != payload["prices"].get(candidate["symbol"])):
+                raise ValueError("captured policy decision context disagrees with candidate or causal price")
         health = payload["strategy_health"].get(candidate["strategy_name"])
         if not isinstance(health, dict) or health.get("allows_new_entries") is not True:
             raise ValueError("candidate lacks permitting strategy health state")
@@ -205,7 +229,8 @@ def bridge_decision(snapshot, dataset, model, policy, *, protocol_id, informatio
     selector = ResearchSelector(dataset, mode="policy", model=model, policy=policy,
         deterministic=True, initial_capital=account["initial_capital"], **dict(selection_options or {}))
     candidates = [BridgeCandidate(row["symbol"], row["strategy_name"], row["score"],
-                                 dict(row["signal"]), dict(row.get("audit") or {}))
+                                 dict(row["signal"]), dict(row.get("audit") or {}),
+                                 row.get("selection_rank_score"), row.get("decision_context"))
                   for row in state["candidates"]]
     selected = selector.select(candidates,
         event=SimpleNamespace(timestamp=utc(state["bar_time"]), timeframe="1d"), portfolio=portfolio,
@@ -244,7 +269,8 @@ class RecordingSelector:
         state = None
         try:
             state = capture_hook_state(candidates, protocol_id=self.protocol_id,
-                policy_id=self.selector.policy.model_id, parent_model_id=self.selector.model.model_id, **context)
+                policy_id=self.selector.policy.model_id, parent_model_id=self.selector.model.model_id,
+                context_features=self.selector.requested_context_features, **context)
             self.snapshots.append(state)
         except Exception as error:
             self.verification_errors.append({"stage": "capture", "bar_time": str(context["event"].timestamp),
@@ -253,11 +279,17 @@ class RecordingSelector:
         selected = self.selector.select(candidates, **context)
         if self.selector.deterministic and state is not None:
             try:
+                selection_options = {"min_expected_return": self.selector.threshold,
+                    "score_scale": self.selector.score_scale, "score_cap": self.selector.score_cap,
+                    "policy_threshold": self.selector.policy_threshold,
+                    "capital_score_source": self.selector.capital_score_source}
+                if self.selector.gate_contract_source == "explicit_selector_contract":
+                    selection_options["selector_contract"] = self.selector.selector_contract
+                elif self.selector.gate_contract_source == "explicit_override":
+                    selection_options["policy_gate_mode"] = self.selector.policy_gate_mode
                 replay = bridge_decision(state, self.selector.table.reset_index(), self.selector.model, self.selector.policy,
                     protocol_id=self.protocol_id, information_cutoff=state["available_at"],
-                    selection_options={"min_expected_return": self.selector.threshold,
-                        "score_scale": self.selector.score_scale, "score_cap": self.selector.score_cap,
-                        "policy_threshold": self.selector.policy_threshold})
+                    selection_options=selection_options)
                 actual = [{"symbol": row.symbol, "strategy": row.strategy_name, "score": row.score} for row in selected]
                 # Compare complete causal decisions, including probabilities, scores,
                 # signals and account features rather than selected IDs alone.

@@ -378,6 +378,12 @@ class BacktestJobs:
                 configured = copy.deepcopy(smart["arms"]["smart"]["parameters"])
             else:
                 configured = configuration_for_strategy(base, parameters.get("strategy"), experiment_id=run_id)
+            if kind == "backtest":
+                from core.runtime import validate_selector_execution_path
+                validate_selector_execution_path(
+                    selector_enabled=parameters.get("use_selector") is True,
+                    portfolio_targets_enabled=(configured.get("portfolio_targets") or {}).get("enabled", False),
+                )
             # 快照绑定本次提交；后续表单或基础配置的编辑不应改变已登记任务。
             # 这里只冻结配置，普通 compact 报告不包含完整代码和行情快照。
             snapshot = self.reports_dir / ".dashboard" / "configs" / f"{run_id}.yaml"

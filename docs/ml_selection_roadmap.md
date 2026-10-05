@@ -54,7 +54,7 @@ reward = net_log_equity_return
 
 保持登记与 CSV 字节、文件名及目录关系一致；程序逐项核对文件和解析后行情身份。不能用新下载的数据覆盖旧登记或手工重写哈希。若使用其他可信数据包，应创建对应的新登记与实验配置。旧基线复现还需要原登记绑定的参考报告，详见 [V1 实施总结](ml_selection_v1_review_20261005.md)。
 
-仅验证代码时，安装研究依赖后运行 `python -m pytest -q tests/test_ml_selection_*.py`；这些测试使用合成行情，不依赖上述历史目录。GitHub CI 单独安装可选 ML 依赖并执行这些测试。
+只检查工程且禁止训练时，安装研究依赖后运行 `python scripts/check_ml_code.py --pytest-arg=-q`。该入口只运行显式清单，阻断真实模型拟合与策略更新；含合成模型训练的完整 ML 套件不在清单内。工程整改、数据与校准合同见[代码整改记录](ml_selection_engineering_roadmap.md)。完整 `python -m pytest -q tests/test_ml_selection_*.py` 使用合成行情并包含真实拟合，不依赖上述历史目录；GitHub CI 单独安装可选 ML 依赖执行完整测试。
 
 ## 在这台电脑上启动
 
