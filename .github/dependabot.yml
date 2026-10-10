@@ -1,0 +1,12 @@
+version: 2
+updates:
+  # GitHub Actions versions are safe to bump independently.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+  # Python dependencies are intentionally not enabled here: requirements.txt is
+  # pinned and checked against requirements.lock.txt / requirements.lock.sha256
+  # (scripts/verify_lock.py), so a bump must regenerate the lock in the same PR.
+  # Enable the "pip" ecosystem once the lock regeneration is scripted.
