@@ -1,6 +1,6 @@
 """SR3 tests: ranking, correlated risk budgets and account cost semantics.
 
-Covers docs/current_strategy_remediation_roadmap.md §13.3 for the parts SR3
+Covers docs/archive/2026-10-doc-consolidation/current_strategy_remediation_roadmap.md §13.3 for the parts SR3
 implements: candidate ranking that is not a disguised alphabetical order,
 correlation-cluster exposure and risk caps, spot-margin quote borrow, and the
 account-mode / fee-schedule contract.

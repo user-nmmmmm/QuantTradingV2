@@ -1,11 +1,11 @@
 # 当前策略修复、止损升级与重新准入 Roadmap
 
-> 文档定位（2026-09-20）：领域参考。排期、优先级和当前完成状态统一见[Roadmap](unified_roadmap.md)、[开发计划](development_plan.md)与[开发详情](development_details.md)。本文件的公式、设计依据和未冲突的专项验收要求继续保留；下文旧状态与排期为历史记录。整合前原文见[冻结快照](archive/2026-09-roadmap-rebaseline/sources/docs/current_strategy_remediation_roadmap.md)。
+> 文档定位（2026-09-20）：领域参考。排期、优先级和当前完成状态统一见[Roadmap](../../unified_roadmap.md)、[开发计划](../../development_plan.md)与[开发详情](../../development_details.md)。本文件的公式、设计依据和未冲突的专项验收要求继续保留；下文旧状态与排期为历史记录。整合前原文见[冻结快照](../2026-09-roadmap-rebaseline/sources/docs/current_strategy_remediation_roadmap.md)。
 
 > 文档状态：Active v1.0  
 > 生效日期：2026-08-31  
 > 适用基线：`reports/20260831_214432_3239d_30Syms_Ret173.8pct` 及当前 `TrendBreakout` 生产路由  
-> 上位路线图：[`unified_roadmap.md`](unified_roadmap.md)  
+> 上位路线图：[`unified_roadmap.md`](../../unified_roadmap.md)  
 > 相关路线图：[`strategy_development_roadmap.md`](strategy_development_roadmap.md)、[`backtest_optimization_roadmap.md`](backtest_optimization_roadmap.md)  
 > 放行原则：本 Roadmap 全部 P0/P1 和重新准入门槛完成前，`TrendBreakout` 仅允许研究、shadow 或 sandbox，不得按“已验证生产 Alpha”扩大真实资金。
 
@@ -612,9 +612,9 @@ B0/B1 必须先完成；B2 的纯指标和 shadow 计算可与 B1 后半段并�
 ## 17. 实施状态（2026-09-01）
 
 > 本节记录 roadmap 各条目的**代码落地状态**，与 §16 的完成定义配合阅读。
-> 契约细节见 [`strategy_health_contract.md`](strategy_health_contract.md)、
-> [`protective_stop_contract.md`](protective_stop_contract.md) 与
-> [`portfolio_risk_contract.md`](portfolio_risk_contract.md)。
+> 契约细节见 [`strategy_health_contract.md`](../../strategy_health_contract.md)、
+> [`protective_stop_contract.md`](../../protective_stop_contract.md) 与
+> [`portfolio_risk_contract.md`](../../portfolio_risk_contract.md)。
 
 ### 17.1 已完成（含测试）
 
@@ -654,7 +654,7 @@ B0/B1 必须先完成；B2 的纯指标和 shadow 计算可与 B1 后半段并�
 ### 17.2 未完成（按优先级）
 
 **2026-09-06 状态更正**：下表是历史缺口快照，其中 SR0-1 的修复后 30 标的三次冻结复核
-已完成，见 [`baselines/main_20260906/README.md`](baselines/main_20260906/README.md)。
+已完成，见 [`baselines/main_20260906/README.md`](../../baselines/main_20260906/README.md)。
 验收包含源码/输入/输出校验与本地归档，不表示 SR4 数据独立复核、SR5 或 SR6 已完成。
 
 | 条目 | 阻塞原因 |

@@ -4,7 +4,7 @@
 > 生效日期：2026-09-01
 > 实现：[`core/protective_stops.py`](../core/protective_stops.py)、[`strategies/trend_breakout.py`](../strategies/trend_breakout.py)、[`backtest/engine.py`](../backtest/engine.py)
 > 测试：[`tests/test_sr2_protective_stops.py`](../tests/test_sr2_protective_stops.py)
-> 上位文档：[`current_strategy_remediation_roadmap.md`](current_strategy_remediation_roadmap.md) SR2
+> 上位文档：[`current_strategy_remediation_roadmap.md`](archive/2026-10-doc-consolidation/current_strategy_remediation_roadmap.md) SR2
 
 ## 1. 三层退出保护
 

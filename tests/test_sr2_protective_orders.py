@@ -1,6 +1,6 @@
 """SR2-5 protective-order lifecycle tests.
 
-Covers docs/current_strategy_remediation_roadmap.md §4.4 and §13.2: the
+Covers docs/archive/2026-10-doc-consolidation/current_strategy_remediation_roadmap.md §4.4 and §13.2: the
 protective order must exist only after the entry fills, must equal the net
 position, must ratchet in one direction only, must never survive a flat
 position, and must fail closed on any state the venue cannot confirm.

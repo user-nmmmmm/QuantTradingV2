@@ -1,13 +1,13 @@
 # 回测指标详细开发计划
 
-> 文档定位（2026-09-20）：领域参考。排期、优先级和当前完成状态统一见[Roadmap](unified_roadmap.md)、[开发计划](development_plan.md)与[开发详情](development_details.md)。本文件的公式、设计依据和未冲突的专项验收要求继续保留；下文旧状态与排期为历史记录。整合前原文见[冻结快照](archive/2026-09-roadmap-rebaseline/sources/docs/backtest_metrics_detailed_development_plan.md)。
+> 文档定位（2026-09-20）：领域参考。排期、优先级和当前完成状态统一见[Roadmap](../../unified_roadmap.md)、[开发计划](../../development_plan.md)与[开发详情](../../development_details.md)。本文件的公式、设计依据和未冲突的专项验收要求继续保留；下文旧状态与排期为历史记录。整合前原文见[冻结快照](../2026-09-roadmap-rebaseline/sources/docs/backtest_metrics_detailed_development_plan.md)。
 
 > 制定日期：2026-08-02  
-> 上位路线图：[unified_roadmap.md](unified_roadmap.md)
+> 上位路线图：[unified_roadmap.md](../../unified_roadmap.md)
 >
-> 执行计划：[development_plan.md](development_plan.md)
+> 执行计划：[development_plan.md](../../development_plan.md)
 >
-> 历史需求来源：[backtest_metrics_development_roadmap.md](archive/2026-08-roadmap-consolidation/backtest_metrics_development_roadmap.md)
+> 历史需求来源：[backtest_metrics_development_roadmap.md](../2026-08-roadmap-consolidation/backtest_metrics_development_roadmap.md)
 >
 > 目标：把 BM0–BM6 从指标清单拆成可实现、可测试、可验收的工程任务。
 
@@ -70,7 +70,7 @@
 
 为了兼容已有调用方，可以先保留旧的扁平字段，同时新增 `metric_details`；待报告和测试迁移完成后再移除旧接口。
 
-当前正式 JSON 使用 `quanttrading.metrics/v1` 容器及 `metric-result/v2` 状态版本；非 `ok` 结果为 `null` 并携带原因。`invalid_input` 与 `insufficient_data` 分开；旧 `insufficient` 由版本化序列化适配成 `insufficient_data`，旧 `NaN/Infinity` 归一为 `null` 并记入 `nonfinite_values`。旧四态示意不能覆盖此契约，见 [POL-06](roadmap_policy_contract.md)。
+当前正式 JSON 使用 `quanttrading.metrics/v1` 容器及 `metric-result/v2` 状态版本；非 `ok` 结果为 `null` 并携带原因。`invalid_input` 与 `insufficient_data` 分开；旧 `insufficient` 由版本化序列化适配成 `insufficient_data`，旧 `NaN/Infinity` 归一为 `null` 并记入 `nonfinite_values`。旧四态示意不能覆盖此契约，见 [POL-06](../../roadmap_policy_contract.md)。
 
 ### 3.3 统一计算约定
 

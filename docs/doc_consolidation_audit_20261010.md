@@ -98,3 +98,11 @@
 有意保留:`paper_remaining_tasks_20261004.md`(被验收 JSON 按 SHA-256 锁定)、`baseline/phase0`、`baselines/`(代码与归档清单依赖)、`phase5/README.md`、`strategy_health_lock_investigation.md`。源码注释与冻结协议 JSON 中的旧路径未改(会改变源码/协议哈希身份)。`docs/archive/2026-08*`、`2026-09*` 快照未改。
 
 第二批(被登记表/校验脚本锁定的合并、旧路线图归档与校验路径更新)另提 PR。
+
+### 第二批:被锁定文档合并、旧路线图归档与校验路径更新
+
+合并:`signal_meta_layer.md`(`p0_signal_observation`、`p1_signal_meta_layer`、`p23_signal_meta_layer`)、`roadmap_acceptance_log.md`(R 系列、第 5/6/7 节、`followup_completion`、`r_series_metrics_contract`、`missing_capabilities_acceptance`)、`live_safety.md`(G1、G2)。
+归档到 `docs/archive/2026-10-doc-consolidation/`:`strategy_development_roadmap`、`backtest_optimization_roadmap`、`current_strategy_remediation_roadmap`、`live_trading_remediation_plan`、`backtest_metrics_detailed_development_plan`、`codex_mail_roadmap_audit_20260920`、`automated_backtest_plan`、`position_management_plan`。
+路径同步:`scripts/verify_roadmap_policy.py`(规则中的"路径+旧编号"键)、`docs/development_task_registry.json`、`roadmap_traceability.md`、`unified_roadmap.md`、`development_*.md`、各契约文档及 `tests/test_sr*.py` 中读取这些文档的路径。
+未改:`tests/test_roadmap_policy.py`(其中路径只是 `trace_key` 的字符串样例)、源码注释与冻结协议 JSON 中的旧路径(会改变哈希身份)、2026-08/09 归档快照。
+注意:任务登记表内容已变,若在含完整 `reports/` 的环境运行 `verify_roadmap_completion.py` 完整证据模式,验收索引中记录的登记表摘要需要重新生成。

@@ -447,7 +447,7 @@ python scripts/run_trend_portfolio_v2.py --help
 python scripts/run_trend_portfolio_v3.py --help
 ```
 
-`--observe-signals` 通过被动接口收集原始候选，默认配置关闭该观察功能。P1 条件 EV、P2 软状态/轴归因与 P3 影子账户也属于默认关闭的统计研究，不直接改变正式下单、风险预算或策略准入。具体观察和研究产物见[P0 文档](../p0_signal_observation.md)、[P1 文档](../p1_signal_meta_layer.md)及[P2/P3 文档](../p23_signal_meta_layer.md)。
+`--observe-signals` 通过被动接口收集原始候选，默认配置关闭该观察功能。P1 条件 EV、P2 软状态/轴归因与 P3 影子账户也属于默认关闭的统计研究，不直接改变正式下单、风险预算或策略准入。具体观察和研究产物见[P0 文档](../signal_meta_layer.md)、[P1 文档](../signal_meta_layer.md)及[P2/P3 文档](../signal_meta_layer.md)。
 
 ## 12. 新策略扩展与验证
 

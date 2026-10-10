@@ -5,7 +5,7 @@
 
 ## 本轮复核说明
 
-原卡片“2026-09-20状态”保留审计基线；新增“本轮复核状态”及证据为本次实现后的判断。完整验证和未闭环事项见[执行报告](r_series_acceptance_20260920.md)。
+原卡片“2026-09-20状态”保留审计基线；新增“本轮复核状态”及证据为本次实现后的判断。完整验证和未闭环事项见[执行报告](roadmap_acceptance_log.md)。
 
 ## 统一开发契约
 
@@ -135,7 +135,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | capability / B0 / P1 |
 | 2026-09-20状态 | 部分实现待验收 |
-| 本轮复核状态 | 已验收；[第5/6节追加证据](../reports/roadmap_v3/SYS-01/20260920-section56-freeze-02/acceptance.json)；[完成边界](section56_acceptance_20260920.md) |
+| 本轮复核状态 | 已验收；[第5/6节追加证据](../reports/roadmap_v3/SYS-01/20260920-section56-freeze-02/acceptance.json)；[完成边界](roadmap_acceptance_log.md) |
 | 负责角色 | 工程验收 |
 | 验收依赖 | [DOC-01](development_details.md#doc-01) |
 | 历史编号（结合来源阅读） | R0、G0、G9、Batch 0、T-0.1–T-0.5 |
@@ -144,7 +144,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **目标契约：** 固定此次实际工作区，不把HEAD或历史CI当作未提交源码的身份；区分准备基线与每批修复后的新基线。
 
-**来源：** [docs/development_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/development_plan.md)；[docs/live_trading_remediation_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/live_trading_remediation_plan.md)；[docs/baseline/phase0/README.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/baseline/phase0/README.md)。
+**来源：** [docs/development_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/development_plan.md)；[docs/archive/2026-10-doc-consolidation/live_trading_remediation_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/live_trading_remediation_plan.md)；[docs/baseline/phase0/README.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/baseline/phase0/README.md)。
 
 **修改范围：** [scripts/main_acceptance.py](../scripts/main_acceptance.py)、[scripts/run_portable_tests.py](../scripts/run_portable_tests.py)、[tests/test_backtest_regression.py](../tests/test_backtest_regression.py)、[scripts/verify_lock.py](../scripts/verify_lock.py)。
 
@@ -572,7 +572,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **目标契约：** 每根研究输入可追到交易所/账户类型/标的/周期/获取时间/哈希与PIT可交易区间；已知限制可见。
 
-**来源：** [docs/current_strategy_remediation_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/current_strategy_remediation_roadmap.md)；[docs/strategy_development_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md)；[docs/backtest_optimization_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/backtest_optimization_roadmap.md)。
+**来源：** [docs/archive/2026-10-doc-consolidation/current_strategy_remediation_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/current_strategy_remediation_roadmap.md)；[docs/archive/2026-10-doc-consolidation/strategy_development_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md)；[docs/archive/2026-10-doc-consolidation/backtest_optimization_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/backtest_optimization_roadmap.md)。
 
 **修改范围：** [core/data_fetcher.py](../core/data_fetcher.py)、[core/data.py](../core/data.py)、[core/universe.py](../core/universe.py)、[scripts/fetch_binance_data.py](../scripts/fetch_binance_data.py)、[config/universe_binance_spot_1d.csv](../config/universe_binance_spot_1d.csv)。
 
@@ -1252,7 +1252,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **目标契约：** fills、lots、position cycle、closed trades与资金投影来自同一可回放事实；报告消费投影，不自建另一套FIFO。
 
-**来源：** [docs/development_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/development_plan.md)；[docs/backtest_optimization_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/backtest_optimization_roadmap.md)；[docs/authoritative_ledger.md](authoritative_ledger.md)。
+**来源：** [docs/development_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/development_plan.md)；[docs/archive/2026-10-doc-consolidation/backtest_optimization_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/backtest_optimization_roadmap.md)；[docs/authoritative_ledger.md](authoritative_ledger.md)。
 
 **修改范围：** [core/lots.py](../core/lots.py)、[core/portfolio.py](../core/portfolio.py)、[backtest/reporting/trades.py](../backtest/reporting/trades.py)、[research/audit/ledger.py](../research/audit/ledger.py)。
 
@@ -1279,7 +1279,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 ## SYS-03 指标契约与BM0–BM8标准结果验收
 
-**今日后续实现：** 同步分组权益/资金流的回撤贡献、未成交机会成本、独立中间价与可执行报价偏差已接入标准报告。缺真实事实时继续输出明确空值状态；数据来源、账户桥接和BM8独立样本仍待验收。分组资金流仅支持区间末发生，报价偏差不代表因果市场冲击。见[后续实现记录](followup_completion_20260920.md)。
+**今日后续实现：** 同步分组权益/资金流的回撤贡献、未成交机会成本、独立中间价与可执行报价偏差已接入标准报告。缺真实事实时继续输出明确空值状态；数据来源、账户桥接和BM8独立样本仍待验收。分组资金流仅支持区间末发生，报价偏差不代表因果市场冲击。见[后续实现记录](roadmap_acceptance_log.md)。
 
 | 属性 | 内容 |
 | --- | --- |
@@ -1294,7 +1294,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **目标契约：** 常规入口统一生成metrics.json、closed_trades、reconciliation；公式、单位、状态、输入身份与展示分离。
 
-**来源：** [docs/backtest_metrics_detailed_development_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/backtest_metrics_detailed_development_plan.md)；[docs/development_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/development_plan.md)。
+**来源：** [docs/archive/2026-10-doc-consolidation/backtest_metrics_detailed_development_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/backtest_metrics_detailed_development_plan.md)；[docs/development_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/development_plan.md)。
 
 **修改范围：** [core/metric_result.py](../core/metric_result.py)、[core/metrics](../core/metrics)、[backtest/reporting](../backtest/reporting)、[analysis/validation.py](../analysis/validation.py)、[tests/test_metrics.py](../tests/test_metrics.py)。
 
@@ -1337,7 +1337,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **目标契约：** 周期对账覆盖真实账户全域，不只统计unknown订单；selected account mode的资金与仓位可解释。
 
-**来源：** [docs/live_trading_remediation_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/live_trading_remediation_plan.md)；[docs/phase6_operations.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/phase6_operations.md)。
+**来源：** [docs/archive/2026-10-doc-consolidation/live_trading_remediation_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/live_trading_remediation_plan.md)；[docs/phase6_operations.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/phase6_operations.md)。
 
 **修改范围：** [core/live_broker/account_sync.py](../core/live_broker/account_sync.py)、[live_trading/recovery.py](../live_trading/recovery.py)、[core/portfolio.py](../core/portfolio.py)、[research/audit/reconciliation_job.py](../research/audit/reconciliation_job.py)。
 
@@ -1377,7 +1377,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **目标契约：** 同一事件流产生相同signal/intent和因果链，mode差异仅存在边界adapter；迁移不重复消费。
 
-**来源：** [docs/unified_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/unified_roadmap.md)；[docs/live_trading_remediation_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/live_trading_remediation_plan.md)；[docs/canonical_trading_events.md](canonical_trading_events.md)。
+**来源：** [docs/unified_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/unified_roadmap.md)；[docs/archive/2026-10-doc-consolidation/live_trading_remediation_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/live_trading_remediation_plan.md)；[docs/canonical_trading_events.md](canonical_trading_events.md)。
 
 **修改范围：** [core/runtime.py](../core/runtime.py)、[core/events](../core/events)、[backtest/execution_adapter.py](../backtest/execution_adapter.py)、[live_trading/execution_adapter.py](../live_trading/execution_adapter.py)。
 
@@ -1411,7 +1411,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | capability / B5 / P1 |
 | 2026-09-20状态 | 部分实现待验收 |
-| 本轮复核状态 | 部分实现待验收；[第5/6节追加证据](../reports/roadmap_v3/SYS-07/20260920-section56/acceptance.json)；[完成边界](section56_acceptance_20260920.md) |
+| 本轮复核状态 | 部分实现待验收；[第5/6节追加证据](../reports/roadmap_v3/SYS-07/20260920-section56/acceptance.json)；[完成边界](roadmap_acceptance_log.md) |
 | 负责角色 | 领域内核与报告 |
 | 验收依赖 | [SYS-06](development_details.md#sys-06)、[FIX-11](development_details.md#fix-11)、[FIX-14](development_details.md#fix-14)、[FIX-16](development_details.md#fix-16) |
 | 历史编号（结合来源阅读） | PM1、PM4、SR2、S0-1、C2 |
@@ -1420,7 +1420,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **目标契约：** account+symbol+side+position_id/epoch绑定HOLD/REDUCE_TO/CLOSE/ENSURE_STOP，复用Portfolio与ExecutionPort。
 
-**来源：** [docs/position_management_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/position_management_plan.md)；[docs/current_strategy_remediation_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/current_strategy_remediation_roadmap.md)。
+**来源：** [docs/archive/2026-10-doc-consolidation/position_management_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/position_management_plan.md)；[docs/archive/2026-10-doc-consolidation/current_strategy_remediation_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/current_strategy_remediation_roadmap.md)。
 
 **修改范围：** [strategies/base.py](../strategies/base.py)、[router/router.py](../router/router.py)、[core/protective_stops.py](../core/protective_stops.py)、[live_trading/risk_actions.py](../live_trading/risk_actions.py)、[core/execution_port.py](../core/execution_port.py)。
 
@@ -1497,7 +1497,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **目标契约：** 健康裁决冻结cohort/R/样本边界；独立shadow只采证据，不改正式准入或人工锁定。
 
-**来源：** [docs/position_management_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/position_management_plan.md)；[docs/strategy_health_contract.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/strategy_health_contract.md)；[docs/p23_signal_meta_layer.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/p23_signal_meta_layer.md)。
+**来源：** [docs/archive/2026-10-doc-consolidation/position_management_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/position_management_plan.md)；[docs/strategy_health_contract.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/strategy_health_contract.md)；[docs/signal_meta_layer.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/p23_signal_meta_layer.md)。
 
 **修改范围：** [core/strategy_health.py](../core/strategy_health.py)、[core/strategy_governance.py](../core/strategy_governance.py)、[core/signal_observation.py](../core/signal_observation.py)、[backtest/signal_meta_replay.py](../backtest/signal_meta_replay.py)。
 
@@ -1535,7 +1535,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **目标契约：** 工程通过、证据完整和策略准入分别出具结果；把既有研究pending内容闭环而不隐藏失败。
 
-**来源：** [docs/current_strategy_remediation_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/current_strategy_remediation_roadmap.md)；[docs/p23_signal_meta_layer.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/p23_signal_meta_layer.md)；[reports/strategy_review_20260919/README.md](../reports/strategy_review_20260919/README.md)。
+**来源：** [docs/archive/2026-10-doc-consolidation/current_strategy_remediation_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/current_strategy_remediation_roadmap.md)；[docs/signal_meta_layer.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/p23_signal_meta_layer.md)；[reports/strategy_review_20260919/README.md](../reports/strategy_review_20260919/README.md)。
 
 **修改范围：** [scripts/complete_strategy_review.py](../scripts/complete_strategy_review.py)、[scripts/package_strategy_review.py](../scripts/package_strategy_review.py)、[scripts/summarize_strategy_review_meta.py](../scripts/summarize_strategy_review_meta.py)、[scripts/publish_strategy_review.py](../scripts/publish_strategy_review.py)。
 
@@ -1564,7 +1564,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | capability / B6 / P1 |
 | 2026-09-20状态 | 待证据 |
-| 本轮复核状态 | 待证据；[第5/6节追加证据](../reports/roadmap_v3/SYS-11/20260920-section56-successor-02/acceptance.json)；[完成边界](section56_acceptance_20260920.md) |
+| 本轮复核状态 | 待证据；[第5/6节追加证据](../reports/roadmap_v3/SYS-11/20260920-section56-successor-02/acceptance.json)；[完成边界](roadmap_acceptance_log.md) |
 | 负责角色 | 研究与数据 |
 | 验收依赖 | [SYS-04](development_details.md#sys-04)、[SYS-10](development_details.md#sys-10)、[FIX-01](development_details.md#fix-01)、[FIX-02](development_details.md#fix-02)、[FIX-08](development_details.md#fix-08)、[FIX-09](development_details.md#fix-09) |
 | 历史编号（结合来源阅读） | R3、G8、SR5、G-S1–G-S10、S1-3、S4§9.1、RES-01、BM8 |
@@ -1573,7 +1573,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **目标契约：** 候选版本、参数选择与最终未见样本隔离；输出admit/reject/continue_research，不把回顾性最优当准入。
 
-**来源：** [docs/current_strategy_remediation_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/current_strategy_remediation_roadmap.md)；[docs/strategy_development_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md)；[reports/strategy_review_20260919/prospective_protocol.json](../reports/strategy_review_20260919/prospective_protocol.json)。
+**来源：** [docs/archive/2026-10-doc-consolidation/current_strategy_remediation_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/current_strategy_remediation_roadmap.md)；[docs/archive/2026-10-doc-consolidation/strategy_development_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md)；[reports/strategy_review_20260919/prospective_protocol.json](../reports/strategy_review_20260919/prospective_protocol.json)。
 
 **修改范围：** [analysis/walk_forward.py](../analysis/walk_forward.py)、[analysis/research_validation.py](../analysis/research_validation.py)、[scripts/run_strategy_review.py](../scripts/run_strategy_review.py)、[core/strategy_governance.py](../core/strategy_governance.py)。
 
@@ -1612,7 +1612,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **目标契约：** 健康、告警、快照、守护、备份恢复和实际操作形成证据闭环，组件存在不等于演练通过。
 
-**来源：** [docs/live_trading_remediation_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/live_trading_remediation_plan.md)；[docs/r6_operations.md](r6_operations.md)；[docs/r7_sandbox_runbook.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/r7_sandbox_runbook.md)。
+**来源：** [docs/archive/2026-10-doc-consolidation/live_trading_remediation_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/live_trading_remediation_plan.md)；[docs/r6_operations.md](r6_operations.md)；[docs/r7_sandbox_runbook.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/r7_sandbox_runbook.md)。
 
 **修改范围：** [live_trading/state_export.py](../live_trading/state_export.py)、[core/alerting.py](../core/alerting.py)、[core/supervisor.py](../core/supervisor.py)、[core/sqlite_utils.py](../core/sqlite_utils.py)、[dashboard](../dashboard)、[run_live.py](../run_live.py)。
 
@@ -1677,7 +1677,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 ## SYS-18 小额灰度与单变量扩容
 
-**今日后续修复：** 灰度启动不再接受旧报告的总体通过标记；必须提供固定摘要的原始Phase6证据，并重算56日/两状态等准入门槛。批准与实际源码、配置、账户、唯一策略、额度和有效期匹配，每次新增风险前再次检查；旧格式、14日、未来/过期/身份不符证据明确拒绝，保护性退出保留。专项88项通过，真实批准和实际灰度仍未取得。见[Phase6操作说明](phase6_operations.md)及[后续完成记录](followup_completion_20260920.md)。
+**今日后续修复：** 灰度启动不再接受旧报告的总体通过标记；必须提供固定摘要的原始Phase6证据，并重算56日/两状态等准入门槛。批准与实际源码、配置、账户、唯一策略、额度和有效期匹配，每次新增风险前再次检查；旧格式、14日、未来/过期/身份不符证据明确拒绝，保护性退出保留。专项88项通过，真实批准和实际灰度仍未取得。见[Phase6操作说明](phase6_operations.md)及[后续完成记录](roadmap_acceptance_log.md)。
 
 | 属性 | 内容 |
 | --- | --- |
@@ -1692,7 +1692,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **目标契约：** 准入证据、人工批准与真实小额观察绑定精确版本和范围；扩容每次仅改变一个维度。
 
-**来源：** [docs/unified_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/unified_roadmap.md)；[docs/live_trading_remediation_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/live_trading_remediation_plan.md)；[docs/phase6_operations.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/phase6_operations.md)。
+**来源：** [docs/unified_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/unified_roadmap.md)；[docs/archive/2026-10-doc-consolidation/live_trading_remediation_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/live_trading_remediation_plan.md)；[docs/phase6_operations.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/phase6_operations.md)。
 
 **修改范围：** [core/gray_release.py](../core/gray_release.py)、[core/admission_gates.py](../core/admission_gates.py)、[run_live.py](../run_live.py)。
 
@@ -1721,7 +1721,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | capability / BX / P3 |
 | 2026-09-20状态 | 后续扩展 |
-| 本轮复核状态 | 部分实现待验收；[第5/6节追加证据](../reports/roadmap_v3/SYS-12/20260920-section56/acceptance.json)；[完成边界](section56_acceptance_20260920.md) |
+| 本轮复核状态 | 部分实现待验收；[第5/6节追加证据](../reports/roadmap_v3/SYS-12/20260920-section56/acceptance.json)；[完成边界](roadmap_acceptance_log.md) |
 | 负责角色 | 研究与数据 |
 | 验收依赖 | [SYS-04](development_details.md#sys-04)、[SYS-07](development_details.md#sys-07)、[SYS-08](development_details.md#sys-08)、[FIX-08](development_details.md#fix-08)、[FIX-09](development_details.md#fix-09) |
 | 历史编号（结合来源阅读） | S2-1–S2-7、C4、FM5-03 |
@@ -1730,7 +1730,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **目标契约：** 历史universe→过滤→因子排名→TopN/分层目标权重→换仓/换手→受约束执行完整接线。
 
-**来源：** [docs/strategy_development_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md)；[docs/backtest_optimization_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/backtest_optimization_roadmap.md)；[docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md)。
+**来源：** [docs/archive/2026-10-doc-consolidation/strategy_development_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md)；[docs/archive/2026-10-doc-consolidation/backtest_optimization_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/backtest_optimization_roadmap.md)；[docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md)。
 
 **修改范围：** [core/universe.py](../core/universe.py)、[core/factors](../core/factors)、[core/allocation.py](../core/allocation.py)、[router/router.py](../router/router.py)。
 
@@ -1759,7 +1759,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | capability / BX / P3 |
 | 2026-09-20状态 | 后续扩展 |
-| 本轮复核状态 | 部分实现待验收；[第5/6节追加证据](../reports/roadmap_v3/SYS-13/20260920-section56/acceptance.json)；[完成边界](section56_acceptance_20260920.md) |
+| 本轮复核状态 | 部分实现待验收；[第5/6节追加证据](../reports/roadmap_v3/SYS-13/20260920-section56/acceptance.json)；[完成边界](roadmap_acceptance_log.md) |
 | 负责角色 | 领域内核与报告 |
 | 验收依赖 | [SYS-02](development_details.md#sys-02)、[SYS-07](development_details.md#sys-07)、[SYS-08](development_details.md#sys-08)、[FIX-08](development_details.md#fix-08) |
 | 历史编号（结合来源阅读） | S3-4、S3-5、S3-6、C2、PM2、FM5-04–FM5-06 |
@@ -1768,7 +1768,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **目标契约：** 将目标波动与目标权重转换为有预算约束的分批持仓，统计模型失效有保守回退。
 
-**来源：** [docs/strategy_development_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md)；[docs/position_management_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/position_management_plan.md)；[docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md)。
+**来源：** [docs/archive/2026-10-doc-consolidation/strategy_development_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md)；[docs/archive/2026-10-doc-consolidation/position_management_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/position_management_plan.md)；[docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md)。
 
 **修改范围：** [core/risk/position_sizing.py](../core/risk/position_sizing.py)、[core/risk/portfolio_governor.py](../core/risk/portfolio_governor.py)、[core/allocation.py](../core/allocation.py)。
 
@@ -1806,7 +1806,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **目标契约：** 逐账户类型验证保证金/成本/强平/容量，再独立研究基差、跨期或合约多空候选。
 
-**来源：** [docs/strategy_development_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md)；[docs/phase3_implementation.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/phase3_implementation.md)；[docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md)。
+**来源：** [docs/archive/2026-10-doc-consolidation/strategy_development_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md)；[docs/phase3_implementation.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/phase3_implementation.md)；[docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md)。
 
 **修改范围：** [core/account_cost_contract.py](../core/account_cost_contract.py)、[core/portfolio.py](../core/portfolio.py)、[core/broker/financing.py](../core/broker/financing.py)、[core/exchange](../core/exchange)、[strategies](../strategies)。
 
@@ -1844,7 +1844,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **目标契约：** 图表和观察指标来自标准结果；只补研究需要的可解释能力，不让展示重新定义交易事实。
 
-**来源：** [docs/strategy_development_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md)；[docs/backtest_optimization_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/backtest_optimization_roadmap.md)；[docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md)。
+**来源：** [docs/archive/2026-10-doc-consolidation/strategy_development_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md)；[docs/archive/2026-10-doc-consolidation/backtest_optimization_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/backtest_optimization_roadmap.md)；[docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md)。
 
 **修改范围：** [backtest/reporting/render](../backtest/reporting/render)、[core/factors](../core/factors)、[core/metrics](../core/metrics)、[docs/glossary.md](glossary.md)。
 
@@ -1906,7 +1906,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 | --- | --- |
 | 类型 / 批次 / 优先级 | capability / B6 / P2 |
 | 2026-09-20状态 | 待闭环（今日自动化草案新增范围） |
-| 本轮复核状态 | 部分实现待验收；[本轮工程验收](../reports/roadmap_v3/followup/20260920-implementation/SYS-19/acceptance-final.json)、[实现与限制](followup_completion_20260920.md) |
+| 本轮复核状态 | 部分实现待验收；[本轮工程验收](../reports/roadmap_v3/followup/20260920-implementation/SYS-19/acceptance-final.json)、[实现与限制](roadmap_acceptance_log.md) |
 | 负责角色 | Codex（工程）；项目运行负责人（待指定） |
 | 验收依赖 | [SYS-01](development_details.md#sys-01)、[FIX-08](development_details.md#fix-08)、[FIX-19](development_details.md#fix-19) |
 | 证据目录 | `reports/roadmap_v3/followup/20260920-implementation/SYS-19/` |
@@ -1929,4 +1929,4 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **兼容与迁移：** 现有手动CLI继续可用；自动化要求新建独占目录及full报告。历史报告/研究fail/策略锁不改写，合成证据不迁移为真实运行证据。
 
-**来源与操作：** [自动化方案](automated_backtest_plan.md)。六项Windows调度已注册，本轮真实矩阵与研究流程已运行；当前1个真实自然日，14天连续记录、独立标的证据和实际告警送达仍未取得，整体保留待验收。远端CI按具体提交的独立回执判断。
+**来源与操作：** [自动化方案](archive/2026-10-doc-consolidation/automated_backtest_plan.md)。六项Windows调度已注册，本轮真实矩阵与研究流程已运行；当前1个真实自然日，14天连续记录、独立标的证据和实际告警送达仍未取得，整体保留待验收。远端CI按具体提交的独立回执判断。

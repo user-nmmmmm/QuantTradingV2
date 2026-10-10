@@ -3,7 +3,7 @@
 > 文档状态：技术分析 v1.0
 > 生成日期：2026-08-31
 > 分析范围：`strategies/`、`router/`、`composition/factory.py`、`core/state.py`、`core/allocation.py`（路由/分配部分）、`core/risk/`（策略集成面）、`core/indicators.py`、`core/factors/`（策略实际使用的子集）
-> 关联文档：[`docs/modules/strategies.md`](../../modules/strategies.md)、[`docs/modules/router.md`](../../modules/router.md)、[`docs/strategy_development_roadmap.md`](../../strategy_development_roadmap.md)、[`docs/backtest_assumptions.md`](../../backtest_assumptions.md)
+> 关联文档：[`docs/modules/strategies.md`](../../modules/strategies.md)、[`docs/modules/router.md`](../../modules/router.md)、[`docs/strategy_development_roadmap.md`](strategy_development_roadmap.md)、[`docs/backtest_assumptions.md`](../../backtest_assumptions.md)
 
 ---
 

@@ -149,7 +149,7 @@ python run_live.py --sandbox --exchange binance --market-type margin --account-i
 
 `SYS-05` 的工程接入与一次算术对账通过，不能关闭真实账户证据要求。`SYS-17 / R7` 仍须
 至少 56 个连续自然日、至少两种市场状态、完整逐笔及日终对账和相关运行前置；
-[自动化方案](automated_backtest_plan.md) 的 14 日行情刷新统计既不是账户对账，也不能替代
+[自动化方案](archive/2026-10-doc-consolidation/automated_backtest_plan.md) 的 14 日行情刷新统计既不是账户对账，也不能替代
 这 56 日要求。真实告警送达、人工操作、交易所恢复和灰度批准依然需要实际回执。
 
 本说明与[开发计划](development_plan.md)、[统一路线图](unified_roadmap.md)、

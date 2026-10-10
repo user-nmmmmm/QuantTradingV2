@@ -172,7 +172,7 @@ S06、S09、S12至S16不全部并行开展。主线得到结果后，选择一�
 | Funding/OI采集、资金流函数、永续融资账本 | 补合约身份、时间对齐与结算事件，不从零编写采集和账本。默认OHLCV入口尚未完整接线。 |
 | 执行质量指标、订单延迟及沙盒测量工具 | 补真实样本和执行校准；已有本地性能结果不能代替交易所ACK及成交证据。 |
 
-依据：[研究验证实现](../../analysis/research_validation.py)、[趋势专项验证](../../analysis/trend_portfolio_validation.py)、[P1契约](../p1_signal_meta_layer.md)、[P2/P3契约](../p23_signal_meta_layer.md)、[V3数据manifest](../../reports/trend_portfolio_v3_20260921/market_data/manifest.json)、[10月2日追加执行记录](../architecture_performance.md)。
+依据：[研究验证实现](../../analysis/research_validation.py)、[趋势专项验证](../../analysis/trend_portfolio_validation.py)、[P1契约](../signal_meta_layer.md)、[P2/P3契约](../signal_meta_layer.md)、[V3数据manifest](../../reports/trend_portfolio_v3_20260921/market_data/manifest.json)、[10月2日追加执行记录](../architecture_performance.md)。
 
 ### 阶段安排
 

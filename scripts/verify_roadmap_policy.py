@@ -14,13 +14,13 @@ import xml.etree.ElementTree as ET
 ROOT = Path(__file__).resolve().parents[1]
 ARCHIVE = "docs/archive/2026-09-roadmap-rebaseline/sources"
 ACTIVE_DOCUMENTS = {
-    "docs/strategy_development_roadmap.md": (
+    "docs/archive/2026-10-doc-consolidation/strategy_development_roadmap.md": (
         ["train/validation", "roadmap_policy_contract.md"], ["参数优化默认按 OOS 排序"]),
-    "docs/backtest_optimization_roadmap.md": (
+    "docs/archive/2026-10-doc-consolidation/backtest_optimization_roadmap.md": (
         ["最终 OOS/holdout 不参与排名", "roadmap_policy_contract.md"],
         ["筛选指标改为 OOS Sharpe/PF"]),
     "docs/phase6_operations.md": (["不可降低的下限为 56", "连续自然日"], ["默认至少 56"]),
-    "docs/backtest_metrics_detailed_development_plan.md": (
+    "docs/archive/2026-10-doc-consolidation/backtest_metrics_detailed_development_plan.md": (
         ["metric-result/v2", "invalid_input"], []),
 }
 
@@ -33,8 +33,8 @@ def rule(number, title, sources, code, tests):
 
 POLICIES = [
     rule(1, "train/validation selection; single-use final holdout",
-         [("docs/strategy_development_roadmap.md", "S1-3"),
-          ("docs/backtest_optimization_roadmap.md", "D5")],
+         [("docs/archive/2026-10-doc-consolidation/strategy_development_roadmap.md", "S1-3"),
+          ("docs/archive/2026-10-doc-consolidation/backtest_optimization_roadmap.md", "D5")],
          ["analysis/optimize.py", "analysis/walk_forward.py", "analysis/research_validation.py",
           "analysis/strategy_review.py", "scripts/register_strategy_successor.py"],
          ["tests/test_phase5_research_validation.py::test_t5_1_frozen_holdout_is_disjoint_and_single_use",
@@ -65,14 +65,14 @@ POLICIES = [
           "tests/test_entry_risk_contract.py::test_venue_quantity_rounding_tightens_budget_and_restart_restores_reservation",
           "tests/test_entry_risk_contract.py::test_old_checkpoint_is_rechecked_against_frozen_budget"]),
     rule(5, "real fills, finite shared liquidity and persistent target reduction",
-         [("docs/backtest_optimization_roadmap.md", "A4"),
+         [("docs/archive/2026-10-doc-consolidation/backtest_optimization_roadmap.md", "A4"),
           ("docs/research/strategy_remediation_contract_20260914.md", "组合预算与风险转移")],
          ["core/broker/matching.py", "core/broker/fill_service.py", "live_trading/risk_actions.py", "backtest/engine.py"],
          ["tests/test_backtest_stop_pass_and_liquidity.py::TestParticipationCapIsPerBar::test_a_second_pass_over_one_bar_gets_no_fresh_allowance",
           "tests/test_r_series_trading_facts.py::test_ver01_original_gtc_reduction_continues_through_real_engine",
           "tests/test_live_risk_action_lifecycle.py::test_partial_reduce_keeps_residual_protection_and_pending_order_across_restart"]),
     rule(6, "null plus status and reason; versioned invalid-input/legacy migration",
-         [("docs/backtest_metrics_detailed_development_plan.md", "BM0")],
+         [("docs/archive/2026-10-doc-consolidation/backtest_metrics_detailed_development_plan.md", "BM0")],
          ["core/metric_result.py", "backtest/reporting/serialization.py"],
          ["tests/test_roadmap_research_reporting.py::test_strict_json_preserves_unavailable_values_and_legacy_adapter",
           "tests/test_roadmap_research_reporting.py::test_metric_v2_pandas_and_numpy_missing_values",
@@ -80,19 +80,19 @@ POLICIES = [
           "tests/test_roadmap_system_metrics.py::test_execution_bad_facts_never_return_valid_headlines"]),
     rule(7, "authoritative persisted trading events and lot facts, not research audit output",
          [("docs/authoritative_ledger.md", "Scope and invariants"),
-          ("docs/backtest_optimization_roadmap.md", "B1")],
+          ("docs/archive/2026-10-doc-consolidation/backtest_optimization_roadmap.md", "B1")],
          ["core/events/store.py", "core/lots.py", "core/live_broker/fill_projection.py", "research/audit/ledger.py"],
          ["tests/test_p1_authoritative_ledger.py::TestAppendOnlyEventStore::test_persists_ordered_events_is_idempotent_and_rejects_mutation",
           "tests/test_p1_authoritative_ledger.py::TestAuthoritativeLedger::test_snapshot_is_fully_rebuilt_and_reversal_pnl_is_correct",
           "tests/test_r_series_trading_facts.py::test_merged_partial_entries_and_exits_conserve_authoritative_lot_facts"]),
     rule(8, "distinct benchmark identity; frozen BTC/ETH first-open cash sleeves",
          [("docs/research/strategy_remediation_contract_20260914.md", "报告与冻结实验"),
-          ("docs/backtest_optimization_roadmap.md", "B2")],
+          ("docs/archive/2026-10-doc-consolidation/backtest_optimization_roadmap.md", "B2")],
          ["core/benchmarks.py"],
          ["tests/test_roadmap_system_metrics.py::test_benchmarks_keep_distinct_policies_and_reproduce_frozen_first_open",
           "tests/test_roadmap_system_metrics.py::test_rebalanced_benchmark_charges_actual_drift_turnover"]),
     rule(9, "source document path plus old ID is the traceability key",
-         [("docs/live_trading_remediation_plan.md", "BT-01"),
+         [("docs/archive/2026-10-doc-consolidation/live_trading_remediation_plan.md", "BT-01"),
           ("docs/archive/2026-08-roadmap-consolidation/current_system_remediation_roadmap.md", "BT-01")],
          ["scripts/verify_roadmap_policy.py"],
          ["tests/test_roadmap_policy.py::test_source_path_and_old_id_preserve_distinct_legacy_tasks",

@@ -11,12 +11,12 @@
 | 首次安装、回测或打开网页 | [项目 README](../README.md)、[本地研究工作台](../dashboard/README.md) | [依赖与环境](dependency_management.md)、[前端维护](../dashboard/README.md) |
 | 理解代码职责和调用关系 | [代码模块说明](modules/README.md) | [架构边界审查](architecture_review.md)、[词汇表](glossary.md) |
 | 查看阶段、依赖与放行条件 | [统一 Roadmap v3](unified_roadmap.md) | [统一开发计划](development_plan.md)、[结构化任务登记](development_task_registry.json) |
-| 实施任务、核对交付和验收 | [开发详情](development_details.md) | [2026-09-20 后续实施记录](followup_completion_20260920.md) |
-| 核对回测假设和指标公式 | [当前回测行为](backtest_assumptions.md) | [指标公式与专项标准](backtest_metrics_detailed_development_plan.md) |
+| 实施任务、核对交付和验收 | [开发详情](development_details.md) | [2026-09-20 后续实施记录](roadmap_acceptance_log.md) |
+| 核对回测假设和指标公式 | [当前回测行为](backtest_assumptions.md) | [指标公式与专项标准](archive/2026-10-doc-consolidation/backtest_metrics_detailed_development_plan.md) |
 | 查找研究、采集和验证入口 | [脚本索引](../scripts/README.md) | 下方[最新行为变更](#最新行为变更)中的专项契约与实施记录 |
-| 部署、排障和周期性运行 | [部署与运维](deployment.md)、[账户事实操作说明](account_fact_operations.md) | [自动化回测操作方案](automated_backtest_plan.md) |
+| 部署、排障和周期性运行 | [部署与运维](deployment.md)、[账户事实操作说明](account_fact_operations.md) | [自动化回测操作方案](archive/2026-10-doc-consolidation/automated_backtest_plan.md) |
 | 整理工程结构与生成物 | [工程结构优化路线图](engineering_structure_roadmap.md) | [文件保留与生成物规则](file_retention.md) |
-| 追溯旧任务和历史结果 | [历史需求与邮件追溯](roadmap_traceability.md)、[固定历史基线](baselines/batch0_fixed_baseline.md) | [2026-09-20 审计](codex_mail_roadmap_audit_20260920.md)、[原文与邮件归档](archive/2026-09-roadmap-rebaseline/README.md) |
+| 追溯旧任务和历史结果 | [历史需求与邮件追溯](roadmap_traceability.md)、[固定历史基线](baselines/batch0_fixed_baseline.md) | [2026-09-20 审计](archive/2026-10-doc-consolidation/codex_mail_roadmap_audit_20260920.md)、[原文与邮件归档](archive/2026-09-roadmap-rebaseline/README.md) |
 
 ## 权威顺序
 
@@ -40,18 +40,13 @@
 
 - [TrendPortfolio V2/V3 研究策略](trend_portfolio.md)：趋势分数、状态风险倍率、波动率目标、全市场周调仓与固定对照；工程验证和策略准入分开记录。
 
-- [Roadmap 第7节验收记录](section7_acceptance_20260920.md)：优先级和依赖阻断、七项完成定义、24项历史本地验收的显式证据适配，以及完整证据检查与CI结构检查的区别；[完成定义契约](roadmap_completion_contract.md)。
+- [Roadmap 验收记录](roadmap_acceptance_log.md)：R 系列、第 5/6 节、第 7 节、后续完成记录与 M-01–M-20 能力矩阵；机器验收入口见脚本索引。
 
-- [Roadmap 第5、6节执行记录](section56_acceptance_20260920.md)：九规则验证入口、连续观察与前瞻协议校验、S2/S3隔离能力、新候选登记及未完成边界；[选币契约](s2_selection_contract.md)、[仓位能力契约](s3_position_capabilities.md)。
-
-- [`p1_signal_meta_layer.md`](p1_signal_meta_layer.md)：2026-09-18 P1 条件 EV、时间衰减、收缩、有效样本与冻结滚动研究；默认关闭，不影响正式账户或准入。
-- [`p23_signal_meta_layer.md`](p23_signal_meta_layer.md)：P2 因果软状态与动态轴归因、P3 三组有限资本影子账户；默认关闭，包含复现及论文实现差异。
-
-- [`p0_signal_observation.md`](p0_signal_observation.md)：2026-09-18 P0 原始候选、因果标签、实际成交关联与 Ghost 诊断；默认关闭，不改变策略准入。
+- [信号元层 P0–P3](signal_meta_layer.md)：P0 候选观察、P1 条件 EV、P2/P3 因果软状态与影子账户；默认关闭，不影响正式账户或准入。
 
 - [`baselines/main_20260906/README.md`](baselines/main_20260906/README.md)：合并提交 `8a89116` 的主分支 CI、本地覆盖率、三次固定历史回测与本地证据归档索引。
 
-- [`strategy_health_lock_investigation.md`](strategy_health_lock_investigation.md)：人工锁定根因、旧止损残留修复与更新回测；后续仓位模块草案见 [`position_management_plan.md`](position_management_plan.md)。
+- [`strategy_health_lock_investigation.md`](strategy_health_lock_investigation.md)：人工锁定根因、旧止损残留修复与更新回测；后续仓位模块草案见 [`position_management_plan.md`](archive/2026-10-doc-consolidation/position_management_plan.md)。
 
 - [`p0_drawdown_recovery.md`](p0_drawdown_recovery.md)：2026-09-05 组合 BLOCK_NEW 冷静期恢复契约、重启兼容性与两组历史 A/B 回测；不代表策略重新准入或实盘放行。
 
