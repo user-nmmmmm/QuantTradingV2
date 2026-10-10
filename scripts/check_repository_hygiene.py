@@ -63,6 +63,21 @@ def _verify_frozen_file(entry: dict[str, object], errors: list[str]) -> None:
         errors.append(f"Frozen artifact checksum changed: {path}")
 
 
+def _verify_external_archive(entry: dict[str, object], tracked: set[str], errors: list[str]) -> None:
+    """Archives kept outside git: metadata must be complete; a local copy, if any, must match."""
+    name, size, digest, url = (entry.get(key) for key in ("name", "size_bytes", "sha256", "url"))
+    if (not isinstance(name, str) or "/" in name or not isinstance(size, int)
+            or not isinstance(digest, str) or len(digest) != 64
+            or not isinstance(url, str) or not url.startswith("https://")):
+        errors.append(f"Invalid external-archive entry: {entry!r}")
+        return
+    if any(path.rsplit("/", 1)[-1] == name for path in tracked):
+        errors.append(f"External archive must not be tracked in git: {name}")
+    local = ROOT / "reports" / name
+    if local.is_file():  # optional local copy, e.g. downloaded from the release
+        _verify_frozen_file({"path": f"reports/{name}", "size_bytes": size, "sha256": digest}, errors)
+
+
 def check() -> list[str]:
     tracked = _tracked_paths()
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
@@ -101,6 +116,13 @@ def check() -> list[str]:
         for path in AUTOMATION_ENTRYPOINTS:
             if path not in tracked:
                 errors.append(f"Automation workflow dependency is not tracked: {path}")
+
+    external = manifest.get("external_archives", {})
+    external_names = [entry.get("name") for entry in external.get("files", [])]
+    if len(set(external_names)) != len(external_names):
+        errors.append("Duplicate external archive in file retention manifest")
+    for entry in external.get("files", []):
+        _verify_external_archive(entry, tracked, errors)
 
     for entry in manifest["reference_documents"]:
         if entry["path"] not in tracked:
