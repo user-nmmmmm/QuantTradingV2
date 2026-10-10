@@ -25,8 +25,6 @@ import time
 import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 
 OWNER = "quanttrading-automation/v1"
 TASKS = ("nightly-data", "weekly-matrix", "weekly-smoke", "monthly-universe", "monthly-optimize", "quarterly-robust")

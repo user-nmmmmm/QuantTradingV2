@@ -9,13 +9,11 @@ import argparse
 from datetime import datetime, timezone
 from pathlib import Path
 import random
-import sys
 
 import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 
 from backtest.engine import BacktestEngine
 from backtest.reporting.signal_observation import write_signal_observation_report

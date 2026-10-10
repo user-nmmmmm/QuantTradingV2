@@ -489,6 +489,7 @@ QuantTradingV1/
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.\.venv\Scripts\python.exe -m pip install -e . --no-deps
 .\.venv\Scripts\Activate.ps1
 ```
 
@@ -498,7 +499,14 @@ Linux / macOS：
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements-dev.txt
+python -m pip install -e . --no-deps
 ```
+
+`pip install -e .` 把仓库注册为可编辑安装，之后在任意目录都能 `import core` 等，脚本和测试
+不再需要 `sys.path` 补丁；同时提供 `quant-backtest`、`quant-live`、`quant-resolve-order`、
+`quant-dashboard` 命令（分别等价于 `python main.py`、`run_live.py`、`resolve_live_order.py`、
+`python -m dashboard`）。受限于许多模块按检出目录定位 `config/`、`data/`、`reports/`，目前只
+支持可编辑安装，不支持把 wheel 安装到别处。
 
 `requirements-dev.txt` 已包含运行依赖。只运行项目时可改用 `requirements.txt`；需要固定
 传递依赖时使用 `requirements.lock.txt`，具体区别见[依赖管理](docs/dependency_management.md)。

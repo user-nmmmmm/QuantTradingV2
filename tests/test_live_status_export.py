@@ -3,12 +3,9 @@ from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 import json
 import os
-import sys
 import tempfile
 import pandas as pd
 
-# Add project root
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config.config import config
 from live_trading.engine import LiveTradingEngine

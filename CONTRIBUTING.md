@@ -4,9 +4,15 @@
 ```bash
 python -m venv .venv && . .venv/bin/activate      # Windows: .venv\Scripts\activate
 python -m pip install -r requirements-dev.txt
+python -m pip install -e . --no-deps      # makes `import core` etc. work from any directory
 # optional ML research dependencies
 python -m pip install -r requirements-ml.txt
 ```
+The editable install is the supported mode: many modules resolve `config/`,
+`data/` and `reports/` relative to the checkout, so wheels are not supported
+yet. Do not add `sys.path` tweaks to scripts or tests; import the packages
+directly. Console entry points: `quant-backtest`, `quant-live`,
+`quant-resolve-order`, `quant-dashboard`.
 CI uses Python 3.11; the repository pin in `.python-version` is for local use.
 
 ## Before opening a PR

@@ -11,13 +11,11 @@ from dataclasses import asdict
 import hashlib
 import json
 from pathlib import Path
-import sys
 
 import pandas as pd
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 from analysis.research_validation import AdmissionThresholds, evaluate_holdout_admission, walk_forward_splits
 from backtest.reporting import ReportGenerator
 from backtest.reporting.serialization import metrics_document

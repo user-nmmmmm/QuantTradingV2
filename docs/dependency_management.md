@@ -18,7 +18,11 @@ python scripts/check_environment.py --strict-lock
 
 # 开发/CI 工具；当前 CI 走这一入口
 python -m pip install -r requirements-dev.txt
+python -m pip install -e . --no-deps   # 注册项目本身；依赖仍由上面的 requirements 文件固定
 python scripts/verify_lock.py
 ```
+
+`pyproject.toml` 的 `[project]` 通过 `dynamic` 读取 `requirements.txt` 作为运行依赖，`ml` 额外依赖与
+`requirements-ml.txt` 一致；版本固定仍只在这些文件和锁文件中维护，修改时需同步两处。
 
 `verify_lock.py` 核验精确版本和已提交的 SHA-256；`check_environment.py --strict-lock` 将当前环境与运行锁比较。开发工具的安装路径可能解析出与运行锁不同的传递版本，所以不能仅凭 `requirements-dev.txt` 安装成功宣称环境已按运行锁复现。更新运行依赖时，应在同一变更中更新锁文件和校验值，并在目标 Python 版本上验证安装、测试与报告生成。需要平台标记时将其直接记录在锁文件中。

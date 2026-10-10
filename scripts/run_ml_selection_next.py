@@ -1,10 +1,8 @@
 """Run the post-V1 research protocol in a new immutable experiment directory."""
 import argparse
 from pathlib import Path
-import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 
 
 def main(argv=None):

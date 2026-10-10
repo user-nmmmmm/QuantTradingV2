@@ -7,11 +7,9 @@ import hashlib
 import json
 import math
 from pathlib import Path
-import sys
 from uuid import uuid4
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 
 from analysis.paper_study import write_json
 from core.binance_depth_observer import DepthJournal, observe_depth, verify_depth_journal, displayed_depth_sweep, PublicDepthSnapshot

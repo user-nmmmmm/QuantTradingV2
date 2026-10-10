@@ -55,3 +55,8 @@ reports/*/
 dummy_output/
 .codex_patch_probe
 .claude/settings.local.json
+
+# Packaging artifacts
+*.egg-info/
+build/
+dist/

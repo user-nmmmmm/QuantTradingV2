@@ -10,13 +10,11 @@ from datetime import datetime, timezone
 import json
 import math
 from pathlib import Path
-import sys
 import time
 
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 
 from scripts.fetch_spot_intraday import BinanceSpotKlineClient, SOURCE, retry_after_seconds, save_json, sha256
 from core.quote_observations import quote_error_details, utc_now

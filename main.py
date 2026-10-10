@@ -18,8 +18,6 @@ import pandas as pd
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-# 直接运行脚本时也能解析仓库内的包。
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from core.data_fetcher import DataFetcher
 from core.temporal_data import compatibility_audit, freeze_ohlcv, temporal_policy as parse_temporal_policy

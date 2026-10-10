@@ -14,13 +14,11 @@ from pathlib import Path
 from queue import Queue, Empty
 import socket
 import ssl
-import sys
 from threading import Thread
 import time
 from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 
 OFFICIAL_HOSTS = ("api.binance.com", "data-api.binance.vision")
 OFFICIAL_DOCS = [

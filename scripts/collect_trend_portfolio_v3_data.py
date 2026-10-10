@@ -13,14 +13,12 @@ from datetime import datetime, timezone
 import json
 from pathlib import Path
 import re
-import sys
 import threading
 import traceback
 
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 
 from core.trend_portfolio_data import (
     ARCHIVE, CMS, DAY, SCHEMA, EvidenceStore, archive_jobs, build_market_metadata,
