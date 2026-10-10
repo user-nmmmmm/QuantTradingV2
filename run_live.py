@@ -1,11 +1,9 @@
 import argparse
 import os
-import sys
 import hashlib
 import json
 from pathlib import Path
 
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from composition.factory import build_risk_manager, build_strategy_registry
 from config.config import config

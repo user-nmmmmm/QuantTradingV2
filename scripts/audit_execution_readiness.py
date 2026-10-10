@@ -5,10 +5,8 @@ import argparse
 import csv
 import json
 from pathlib import Path
-import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 
 from analysis.execution_calibration import read_execution_ledger, execution_readiness_report
 from analysis.paper_study import write_json

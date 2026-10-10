@@ -12,12 +12,9 @@ import hashlib
 import json
 from pathlib import Path, PurePosixPath
 import re
-import sys
 import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 
 from scripts.roadmap_priority import validate_tasks
 from scripts.roadmap_evidence import verify_source_binding

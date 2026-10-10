@@ -11,7 +11,6 @@ from __future__ import annotations
 import argparse
 import os
 from pathlib import Path
-import sys
 from typing import Sequence
 
 
@@ -59,7 +58,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         if not path.is_file() or not path.is_relative_to(ROOT / "tests"):
             parser.error(f"Expected an existing test file inside tests/: {node}")
 
-    sys.path.insert(0, str(ROOT))
     import pytest
     from scripts.ml_training_guard import NoTrainingGuard
 

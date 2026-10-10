@@ -4,10 +4,8 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
-import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 
 from analysis.execution_calibration import execution_sample_report, read_fill_provenance
 from analysis.paper_study import write_json

@@ -18,7 +18,6 @@ import sys
 from time import perf_counter
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 
 from core.domain import FillRecord, OrderIntent, OrderStatus
 from core.live_broker.fill_projection import replay_fill_projection

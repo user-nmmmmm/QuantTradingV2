@@ -13,13 +13,11 @@ import hashlib
 import json
 import math
 from pathlib import Path
-import sys
 import time
 
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 
 from core.quote_observations import _PublicBookFetcher, quote_error_details, utc_now
 from core.request_budget import request_scope

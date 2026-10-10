@@ -6,10 +6,8 @@ import hashlib
 import json
 from pathlib import Path
 import shutil
-import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 
 
 def main():

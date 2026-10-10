@@ -1,3 +1,45 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "quant-trading"
+# Placeholder until a release process exists (see CONTRIBUTING.md).
+version = "3.0.0.dev0"
+description = "Quant trading research, backtesting and exchange-connected runtime"
+readme = "README.md"
+requires-python = ">=3.11"
+dynamic = ["dependencies"]
+
+[project.optional-dependencies]
+ml = ["lightgbm==4.7.0", "scikit-learn==1.9.1"]
+
+[project.scripts]
+quant-backtest = "main:main"
+quant-live = "run_live:main"
+quant-resolve-order = "resolve_live_order:main"
+quant-dashboard = "dashboard.__main__:main"
+
+# Runtime pins stay in requirements.txt (verified against requirements.lock.txt
+# by scripts/verify_lock.py); pyproject reads them so there is one source.
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+
+# Many modules locate config/, data/ and reports/ relative to the checkout, so
+# the supported mode is an editable install from a clone: `pip install -e .`.
+# Wheels are not a supported distribution format yet.
+[tool.setuptools]
+py-modules = ["main", "run_live", "resolve_live_order"]
+
+[tool.setuptools.packages.find]
+include = ["analysis*", "backtest*", "composition*", "config*", "core*", "dashboard*",
+           "live_trading*", "research*", "router*", "scripts*", "strategies*"]
+namespaces = true
+
+[tool.setuptools.package-data]
+config = ["*.yaml", "*.json", "*.csv", "ml_selector_frozen/*.json"]
+dashboard = ["*.js", "*.css", "*.html", "*.svg"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 norecursedirs = ["outputs", "reports", ".venv", ".venv-linux"]

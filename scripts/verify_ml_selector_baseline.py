@@ -6,10 +6,8 @@ import json
 import logging
 from pathlib import Path
 import random
-import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 
 import numpy as np
 import pandas as pd

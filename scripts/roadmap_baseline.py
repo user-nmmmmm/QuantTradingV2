@@ -46,7 +46,6 @@ def save(path: Path, value) -> None:
 
 
 def worker(output: Path) -> None:
-    sys.path.insert(0, str(ROOT))
     import pandas as pd
     from backtest.engine import BacktestEngine
     from backtest.reporting import ReportGenerator
