@@ -893,11 +893,11 @@ python -m pytest -q
 | [`docs/development_plan.md`](docs/development_plan.md) | 当前开发批次、任务顺序和验收产物 |
 | [`docs/backtest_assumptions.md`](docs/backtest_assumptions.md) | 执行模型、费率/滑点、数据对齐与局限性 |
 | [`docs/authoritative_ledger.md`](docs/authoritative_ledger.md) | 离线研究账本与会计口径；不接管交易账户事实 |
-| [`docs/p0_signal_observation.md`](docs/p0_signal_observation.md) | P0 信号观察契约、门控诊断、有限本金影子回放与验收 |
-| [`docs/p1_signal_meta_layer.md`](docs/p1_signal_meta_layer.md) | P1 条件 EV 账本、支持门槛、冻结滚动验证与复现证据 |
-| [`docs/p23_signal_meta_layer.md`](docs/p23_signal_meta_layer.md) | P2 软状态与动态归因、P3 影子账户、完整验收与论文差异 |
+| [`docs/signal_meta_layer.md`](docs/signal_meta_layer.md) | P0 信号观察契约、门控诊断、有限本金影子回放与验收 |
+| [`docs/signal_meta_layer.md`](docs/signal_meta_layer.md) | P1 条件 EV 账本、支持门槛、冻结滚动验证与复现证据 |
+| [`docs/signal_meta_layer.md`](docs/signal_meta_layer.md) | P2 软状态与动态归因、P3 影子账户、完整验收与论文差异 |
 | [`docs/canonical_trading_events.md`](docs/canonical_trading_events.md) | 规范交易事件模型 |
-| [`docs/g1_live_safety.md`](docs/g1_live_safety.md) / [`docs/g2_order_lifecycle.md`](docs/g2_order_lifecycle.md) | 实盘安全与订单生命周期门槛 |
+| [`docs/live_safety.md`](docs/live_safety.md) / [`docs/live_safety.md`](docs/live_safety.md) | 实盘安全与订单生命周期门槛 |
 | [`docs/deployment.md`](docs/deployment.md) / [`docs/r6_operations.md`](docs/r6_operations.md) / [`docs/r7_sandbox_runbook.md`](docs/r7_sandbox_runbook.md) | 部署、运维与 sandbox 手册 |
 | [`docs/phase6_operations.md`](docs/phase6_operations.md) | Phase 6 影子/纸面/准入运营流程 |
 | [`docs/glossary.md`](docs/glossary.md) | 中英文词汇表与计算口径 |

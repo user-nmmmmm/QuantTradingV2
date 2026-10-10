@@ -2,10 +2,10 @@
 
 - 更新日期：2026-09-20。
 - 对应任务：`SYS-19`，工程入口已实现，真实持续运行验收仍待证据；当前任务登记为 41 项、24 项已验收、17 项开放，整体保持部分完成。
-- 当前依据：[自动化配置](../config/automation.json)、[编排入口](../scripts/run_automation.py)、[裁决入口](../scripts/evaluate_matrix.py)、[研究执行入口](../scripts/run_research_automation.py)。
-- 原始草案按原字节保存在[历史草案](archive/2026-09-followup/automated_backtest_plan.draft.md)。当前操作以本文和代码为准。
+- 当前依据：[自动化配置](../../../config/automation.json)、[编排入口](../../../scripts/run_automation.py)、[裁决入口](../../../scripts/evaluate_matrix.py)、[研究执行入口](../../../scripts/run_research_automation.py)。
+- 原始草案按原字节保存在[历史草案](../2026-09-followup/automated_backtest_plan.draft.md)。当前操作以本文和代码为准。
 
-证据范围：第 7–8 节的调度、真实数据和远端 CI 结果是 2026-09-20 的历史记录，分别绑定文中注明的本地运行身份和 PR #39 的提交身份。2026-09-27 核对时，本检出分支的 HEAD 为 `ab15bc2`，早于所述 main 合并提交；本工作区的自动化工作流仍是未跟踪文件，不能据历史 CI 结论推断当前工作区已受同一次验证。文中指向 `reports/roadmap_v3/…`、`outputs/automation/…` 的回执为本机保留且被 Git 忽略的证据，干净检出不会自带这些文件；可移植的结论摘要见[后续完成记录](followup_completion_20260920.md)，完整复核需取得对应原始回执。
+证据范围：第 7–8 节的调度、真实数据和远端 CI 结果是 2026-09-20 的历史记录，分别绑定文中注明的本地运行身份和 PR #39 的提交身份。2026-09-27 核对时，本检出分支的 HEAD 为 `ab15bc2`，早于所述 main 合并提交；本工作区的自动化工作流仍是未跟踪文件，不能据历史 CI 结论推断当前工作区已受同一次验证。文中指向 `reports/roadmap_v3/…`、`outputs/automation/…` 的回执为本机保留且被 Git 忽略的证据，干净检出不会自带这些文件；可移植的结论摘要见[后续完成记录](../../roadmap_acceptance_log.md)，完整复核需取得对应原始回执。
 
 ## 1. 已交付范围与验收边界
 
@@ -44,7 +44,7 @@ python scripts/run_automation.py quarterly-robust --synthetic --pin
 
 `nightly-data` 和真实矩阵会访问行情提供方；这些命令是操作入口，不代表已运行或已部署。`weekly-smoke` 始终使用合成数据。研究任务的 `--synthetic` 生成合成行情，同时把配置研究起点之后的窗口限制到最多 365 天；仍需有效且未打开的前瞻协议。
 
-默认配置为 [config/automation.json](../config/automation.json)：
+默认配置为 [config/automation.json](../../../config/automation.json)：
 
 | 参数 | 当前默认 |
 |---|---|
@@ -70,7 +70,7 @@ python scripts/run_automation.py quarterly-robust --synthetic --pin
 
 自动化真实矩阵和冒烟均使用 `main.py --report-profile full`。只有完整 manifest、固定输入快照和审计产物才能进入裁决与回放；`compact` 或 `workbook` 输出不能仅凭复制一个缓存 manifest 就宣称可以精确重放。
 
-[evaluate_matrix.py](../scripts/evaluate_matrix.py) 检查配置所要求的全部单元是否齐全且没有重复，子进程是否退出 0，报告是否在当前矩阵目录内，并核验：
+[evaluate_matrix.py](../../../scripts/evaluate_matrix.py) 检查配置所要求的全部单元是否齐全且没有重复，子进程是否退出 0，报告是否在当前矩阵目录内，并核验：
 
 - `run_manifest.json` schema 2.0，已登记产物与 `data_inputs` 快照哈希一致。
 - `metrics.json` 标准 schema、有效交易输入、事件审计覆盖以及 `reconciliation.json` 逐笔对账通过。
@@ -160,7 +160,7 @@ python scripts/run_automation.py prune
 
 ## 7. 调度计划与离线 CI
 
-[Windows 调度脚本](../scripts/register_automation_tasks.ps1) 默认仅打印计划：
+[Windows 调度脚本](../../../scripts/register_automation_tasks.ps1) 默认仅打印计划：
 
 ```powershell
 powershell -NoProfile -File scripts/register_automation_tasks.ps1
@@ -181,16 +181,16 @@ powershell -NoProfile -File scripts/register_automation_tasks.ps1
 
 2026-09-20 已手动通过一次真实 BTC/ETH 行情刷新（各2454根、2020-01-01至2026-09-19的已收盘日线），并通过四时间窗矩阵及逐项完整回放。前一次从未验证旧缓存迁移时，行数回退检查阻断了运行；旧缓存已单独归档，成功回执来自随后通过验证的刷新，没有覆盖该失败记录。当前仅积累1个真实UTC刷新日；缓存起点不代表交易所上市日期。
 
-最终followup-successor-03版本已重新执行上述刷新/矩阵，并用同一真实缓存完成月度优化和季度稳健性/容量流程；两项工程执行通过，研究结论均为样本不足（每候选6个有效交易群组，要求至少30个）。月度universe检查因缺独立上市/退市证据退出1并留下告警。完整回执见[最终自动化汇总](../reports/roadmap_v3/followup/20260920-implementation/final-automation-summary.json)，旧版本回执不用于新身份连续计数。
+最终followup-successor-03版本已重新执行上述刷新/矩阵，并用同一真实缓存完成月度优化和季度稳健性/容量流程；两项工程执行通过，研究结论均为样本不足（每候选6个有效交易群组，要求至少30个）。月度universe检查因缺独立上市/退市证据退出1并留下告警。完整回执见[最终自动化汇总](../../../reports/roadmap_v3/followup/20260920-implementation/final-automation-summary.json)，旧版本回执不用于新身份连续计数。
 
-[backtest-automation.yml](../.github/workflows/backtest-automation.yml) 在 PR、main push、手动触发及每周 UTC 周日 19:17 运行离线回归、合成冒烟、完整回放并上传回执。CI 不抓币安数据，不提供交易所凭据。该工作流文件已交付；远程是否执行及通过仍须查看实际 CI 结果，不能把本地测试写成远程验收。
+[backtest-automation.yml](../../../.github/workflows/backtest-automation.yml) 在 PR、main push、手动触发及每周 UTC 周日 19:17 运行离线回归、合成冒烟、完整回放并上传回执。CI 不抓币安数据，不提供交易所凭据。该工作流文件已交付；远程是否执行及通过仍须查看实际 CI 结果，不能把本地测试写成远程验收。
 
-用户明确授权后，干净隔离提交 `a2581d1cc1fd799a36008a2deacbbd9101dda205` 已通过PR #39合并到main，合并提交 `aee11221cfa80e559858a2cea39d6966135a7d69` 的 `quality` 与 `synthetic-smoke-and-regression` 两项远端CI再次通过。工程检查不改变策略或实盘准入。见[远端CI回执](../reports/roadmap_v3/followup/20260920-implementation/remote-ci.json)、[main合并回执](../reports/roadmap_v3/followup/20260920-implementation/merge-main.json)及[后续完成记录](followup_completion_20260920.md)。
+用户明确授权后，干净隔离提交 `a2581d1cc1fd799a36008a2deacbbd9101dda205` 已通过PR #39合并到main，合并提交 `aee11221cfa80e559858a2cea39d6966135a7d69` 的 `quality` 与 `synthetic-smoke-and-regression` 两项远端CI再次通过。工程检查不改变策略或实盘准入。见[远端CI回执](../../../reports/roadmap_v3/followup/20260920-implementation/remote-ci.json)、[main合并回执](../../../reports/roadmap_v3/followup/20260920-implementation/merge-main.json)及[后续完成记录](../../roadmap_acceptance_log.md)。
 
 ## 8. 仍需获得的真实证据
 
-本地已完成一次[封存的合成冒烟](../outputs/automation/runs/20260920T084254_994688Z_weekly-smoke_4a82469e/run_log.json)：完整报告、工程裁决和 manifest 回放通过，运行期间源码与配置身份保持一致。该回执明确为 `synthetic=true`、`production_evidence=false`、`live_admission=false`；它只证明该源码版本的离线执行链路通过。
+本地已完成一次[封存的合成冒烟](../../../outputs/automation/runs/20260920T084254_994688Z_weekly-smoke_4a82469e/run_log.json)：完整报告、工程裁决和 manifest 回放通过，运行期间源码与配置身份保持一致。该回执明确为 `synthetic=true`、`production_evidence=false`、`live_admission=false`；它只证明该源码版本的离线执行链路通过。
 
 `status` 只统计每个 UTC 日期最后一次真实 `nightly-data` 的结果，并重新验证封存回执、原配置/有效配置、源码清单和缓存身份。每个标的必须具有完整已收盘 bar 覆盖，缓存采集时间须属于声称的 UTC 运行日；连续段要求同一源码与配置身份。合成、未来、未封存或封存被改写的回执不计入；缺日、当日最后一次失败或身份切换会打断连续计数。达到 14 日后，字段 `daily_data_observation` 可以通过，但完整自动化运营验收仍要求真实周矩阵和告警送达/人工回执证据。本次工程交付不制造已经流逝的 14 日。
 
-上述 14 日行情刷新计数与 `SYS-17 / R7` 要求的至少 56 个连续自然日、至少两种市场状态、逐笔和日终账户对账不是同一验收。账户来源、真实运维、未来样本和灰度批准继续按[开发计划](development_plan.md)、[统一路线图](unified_roadmap.md)及[账户事实操作说明](account_fact_operations.md)推进。策略保持 `paused_revalidation`。
+上述 14 日行情刷新计数与 `SYS-17 / R7` 要求的至少 56 个连续自然日、至少两种市场状态、逐笔和日终账户对账不是同一验收。账户来源、真实运维、未来样本和灰度批准继续按[开发计划](../../development_plan.md)、[统一路线图](../../unified_roadmap.md)及[账户事实操作说明](../../account_fact_operations.md)推进。策略保持 `paused_revalidation`。

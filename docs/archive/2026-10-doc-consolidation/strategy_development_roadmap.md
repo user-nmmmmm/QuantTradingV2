@@ -1,13 +1,13 @@
 # 策略能力开发 Roadmap（S0–S4）
 
-> 文档定位（2026-09-20）：领域参考。排期、优先级和当前完成状态统一见[Roadmap](unified_roadmap.md)、[开发计划](development_plan.md)与[开发详情](development_details.md)。本文件的公式、设计依据和未冲突的专项验收要求继续保留；下文旧状态与排期为历史记录。整合前原文见[冻结快照](archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md)。
+> 文档定位（2026-09-20）：领域参考。排期、优先级和当前完成状态统一见[Roadmap](../../unified_roadmap.md)、[开发计划](../../development_plan.md)与[开发详情](../../development_details.md)。本文件的公式、设计依据和未冲突的专项验收要求继续保留；下文旧状态与排期为历史记录。整合前原文见[冻结快照](../2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md)。
 
 > 当前代码路径提示：下文 2026-08-23 快照中的 `core/metrics.py` 现为 `core/metrics/` 包；历史测试数量和策略表现只对当时样本、配置与提交有效，当前结论以统一 Roadmap 和新证据为准。
 
 > 文档状态：Active v1.0
 > 生效日期：2026-08-23
-> 上位路线图：[`unified_roadmap.md`](unified_roadmap.md)（R0–R8，基础设施与放行门槛）
-> 相关：[`backtest_optimization_roadmap.md`](backtest_optimization_roadmap.md)、[`backtest_assumptions.md`](backtest_assumptions.md)、[`glossary.md`](glossary.md)
+> 上位路线图：[`unified_roadmap.md`](../../unified_roadmap.md)（R0–R8，基础设施与放行门槛）
+> 相关：[`backtest_optimization_roadmap.md`](backtest_optimization_roadmap.md)、[`backtest_assumptions.md`](../../backtest_assumptions.md)、[`glossary.md`](../../glossary.md)
 
 ## 1. 范围与边界
 
@@ -149,7 +149,7 @@ S0 策略层缺陷清理（P0/P1）
 
 ### S1-1 术语文档 P2
 
-现有 [`glossary.md`](glossary.md) 需按新增内容补齐：诊断模块五项指标、
+现有 [`glossary.md`](../../glossary.md) 需按新增内容补齐：诊断模块五项指标、
 clamp 语义、四状态定义、`not_modeled` 口径。目标是让报告里每个字段都能查到定义。
 
 ### S1-2 补齐研究图表 P2
@@ -170,7 +170,7 @@ clamp 语义、四状态定义、`not_modeled` 口径。目标是让报告里每
 `walk_forward_windows`（历史接线任务）；参数选择只允许发生在 train/validation 段；
 报告输出 IS/OOS 差异。
 
-验收：参数排名只用 train/validation 的预注册指标；独立 OOS Sharpe/PF 进入报告但不参与排序、调参或修复方案选择。最终 holdout 冻结后只作单次独立评价；已见区间明确标记为回顾性研究。此条按 [统一规则 POL-01](roadmap_policy_contract.md) 替换原“按 OOS 排序”口径，原文保存在归档快照。
+验收：参数排名只用 train/validation 的预注册指标；独立 OOS Sharpe/PF 进入报告但不参与排序、调参或修复方案选择。最终 holdout 冻结后只作单次独立评价；已见区间明确标记为回顾性研究。此条按 [统一规则 POL-01](../../roadmap_policy_contract.md) 替换原“按 OOS 排序”口径，原文保存在归档快照。
 
 ### S1-4 指标库扩展 P3
 

@@ -3,7 +3,7 @@
 > 2026-09-20。当前执行：[Roadmap](unified_roadmap.md) → [开发计划](development_plan.md) → [开发详情](development_details.md)。
 > 联合资料库：[34份文档快照与45封Codex项目邮件](archive/2026-09-roadmap-rebaseline/README.md)。
 
-第5、6节追加追溯：九项旧计划冲突使用 [POL-01–09](roadmap_policy_contract.md)登记“原文档路径+旧ID”和行为回归；S2-1–S2-7→SYS-12，S3-4–S3-6→SYS-13，PM1保护身份→SYS-07，信号P0–P3交付→SYS-10，新候选重新登记→SYS-11，S4前置检查→SYS-14。每项的新证据与未闭环部分见[追加执行记录](section56_acceptance_20260920.md)，原审计和历史完成标记保持原义。
+第5、6节追加追溯：九项旧计划冲突使用 [POL-01–09](roadmap_policy_contract.md)登记“原文档路径+旧ID”和行为回归；S2-1–S2-7→SYS-12，S3-4–S3-6→SYS-13，PM1保护身份→SYS-07，信号P0–P3交付→SYS-10，新候选重新登记→SYS-11，S4前置检查→SYS-14。每项的新证据与未闭环部分见[追加执行记录](roadmap_acceptance_log.md)，原审计和历史完成标记保持原义。
 
 ## 1. 覆盖口径
 
@@ -166,21 +166,21 @@
 | --- | --- |
 | `docs/unified_roadmap.md` | [原文快照](archive/2026-09-roadmap-rebaseline/sources/docs/unified_roadmap.md) |
 | `docs/development_plan.md` | [原文快照](archive/2026-09-roadmap-rebaseline/sources/docs/development_plan.md) |
-| `docs/live_trading_remediation_plan.md` | [原文快照](archive/2026-09-roadmap-rebaseline/sources/docs/live_trading_remediation_plan.md) |
-| `docs/backtest_metrics_detailed_development_plan.md` | [原文快照](archive/2026-09-roadmap-rebaseline/sources/docs/backtest_metrics_detailed_development_plan.md) |
-| `docs/strategy_development_roadmap.md` | [原文快照](archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md) |
-| `docs/current_strategy_remediation_roadmap.md` | [原文快照](archive/2026-09-roadmap-rebaseline/sources/docs/current_strategy_remediation_roadmap.md) |
-| `docs/position_management_plan.md` | [原文快照](archive/2026-09-roadmap-rebaseline/sources/docs/position_management_plan.md) |
-| `docs/backtest_optimization_roadmap.md` | [原文快照](archive/2026-09-roadmap-rebaseline/sources/docs/backtest_optimization_roadmap.md) |
-| `docs/codex_mail_roadmap_audit_20260920.md` | [原文快照](archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_roadmap_audit_20260920.md) |
+| `docs/archive/2026-10-doc-consolidation/live_trading_remediation_plan.md` | [原文快照](archive/2026-09-roadmap-rebaseline/sources/docs/live_trading_remediation_plan.md) |
+| `docs/archive/2026-10-doc-consolidation/backtest_metrics_detailed_development_plan.md` | [原文快照](archive/2026-09-roadmap-rebaseline/sources/docs/backtest_metrics_detailed_development_plan.md) |
+| `docs/archive/2026-10-doc-consolidation/strategy_development_roadmap.md` | [原文快照](archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md) |
+| `docs/archive/2026-10-doc-consolidation/current_strategy_remediation_roadmap.md` | [原文快照](archive/2026-09-roadmap-rebaseline/sources/docs/current_strategy_remediation_roadmap.md) |
+| `docs/archive/2026-10-doc-consolidation/position_management_plan.md` | [原文快照](archive/2026-09-roadmap-rebaseline/sources/docs/position_management_plan.md) |
+| `docs/archive/2026-10-doc-consolidation/backtest_optimization_roadmap.md` | [原文快照](archive/2026-09-roadmap-rebaseline/sources/docs/backtest_optimization_roadmap.md) |
+| `docs/archive/2026-10-doc-consolidation/codex_mail_roadmap_audit_20260920.md` | [原文快照](archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_roadmap_audit_20260920.md) |
 | `docs/codex_mail_findings_20260920.json` | [原文快照](archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json) |
 | `docs/phase3_implementation.md` | [原文快照](archive/2026-09-roadmap-rebaseline/sources/docs/phase3_implementation.md) |
 | `docs/phase4_implementation.md` | [原文快照](archive/2026-09-roadmap-rebaseline/sources/docs/phase4_implementation.md) |
 | `docs/phase5/README.md` | [原文快照](archive/2026-09-roadmap-rebaseline/sources/docs/phase5/README.md) |
 | `docs/phase6_operations.md` | [原文快照](archive/2026-09-roadmap-rebaseline/sources/docs/phase6_operations.md) |
-| `docs/p0_signal_observation.md` | [原文快照](archive/2026-09-roadmap-rebaseline/sources/docs/p0_signal_observation.md) |
-| `docs/p1_signal_meta_layer.md` | [原文快照](archive/2026-09-roadmap-rebaseline/sources/docs/p1_signal_meta_layer.md) |
-| `docs/p23_signal_meta_layer.md` | [原文快照](archive/2026-09-roadmap-rebaseline/sources/docs/p23_signal_meta_layer.md) |
+| `docs/signal_meta_layer.md` | [原文快照](archive/2026-09-roadmap-rebaseline/sources/docs/p0_signal_observation.md) |
+| `docs/signal_meta_layer.md` | [原文快照](archive/2026-09-roadmap-rebaseline/sources/docs/p1_signal_meta_layer.md) |
+| `docs/signal_meta_layer.md` | [原文快照](archive/2026-09-roadmap-rebaseline/sources/docs/p23_signal_meta_layer.md) |
 | `docs/p0_drawdown_recovery.md` | [原文快照](archive/2026-09-roadmap-rebaseline/sources/docs/p0_drawdown_recovery.md) |
 | `docs/research/strategy_remediation_contract_20260914.md` | [原文快照](archive/2026-09-roadmap-rebaseline/sources/docs/research/strategy_remediation_contract_20260914.md) |
 | `docs/r7_sandbox_runbook.md` | [原文快照](archive/2026-09-roadmap-rebaseline/sources/docs/r7_sandbox_runbook.md) |
@@ -199,7 +199,7 @@
 | `docs/portfolio_risk_contract.md` | [原文快照](archive/2026-09-roadmap-rebaseline/sources/docs/portfolio_risk_contract.md) |
 | `docs/baseline/phase0/README.md` | [原文快照](archive/2026-09-roadmap-rebaseline/sources/docs/baseline/phase0/README.md) |
 
-邮件正文集中在[45封正文汇编](archive/2026-09-roadmap-rebaseline/emails/codex_project_emails.md)，按时间浏览见[邮件索引](archive/2026-09-roadmap-rebaseline/emails/README.md)。原审计推理和证据定位见[审计报告](codex_mail_roadmap_audit_20260920.md)，机器读取用[77条记录](codex_mail_findings_20260920.json)。
+邮件正文集中在[45封正文汇编](archive/2026-09-roadmap-rebaseline/emails/codex_project_emails.md)，按时间浏览见[邮件索引](archive/2026-09-roadmap-rebaseline/emails/README.md)。原审计推理和证据定位见[审计报告](archive/2026-10-doc-consolidation/codex_mail_roadmap_audit_20260920.md)，机器读取用[77条记录](codex_mail_findings_20260920.json)。
 
 ## 5. 缺失、冲突及状态维护
 

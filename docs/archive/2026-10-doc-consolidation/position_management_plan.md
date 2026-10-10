@@ -1,9 +1,9 @@
 # 仓位管理模块实施边界（PM）
 
-> 文档定位（2026-09-20）：领域参考。排期、优先级和当前完成状态统一见[Roadmap](unified_roadmap.md)、[开发计划](development_plan.md)与[开发详情](development_details.md)。本文件的公式、设计依据和未冲突的专项验收要求继续保留；下文旧状态与排期为历史记录。整合前原文见[冻结快照](archive/2026-09-roadmap-rebaseline/sources/docs/position_management_plan.md)。
+> 文档定位（2026-09-20）：领域参考。排期、优先级和当前完成状态统一见[Roadmap](../../unified_roadmap.md)、[开发计划](../../development_plan.md)与[开发详情](../../development_details.md)。本文件的公式、设计依据和未冲突的专项验收要求继续保留；下文旧状态与排期为历史记录。整合前原文见[冻结快照](../2026-09-roadmap-rebaseline/sources/docs/position_management_plan.md)。
 
 状态：设计草案，2026-09-05；不是已经上线的模块。依据本轮
-[`策略锁定排查`](strategy_health_lock_investigation.md) 和已有共享 EventProcessor、Portfolio、
+[`策略锁定排查`](../../strategy_health_lock_investigation.md) 和已有共享 EventProcessor、Portfolio、
 ProtectiveOrderManager、RiskManager 设计。项目准入仍服从统一路线图与当前策略专项。
 
 ## 1. 要解决的具体问题

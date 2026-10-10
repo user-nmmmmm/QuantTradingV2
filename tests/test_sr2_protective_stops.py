@@ -1,4 +1,4 @@
-"""SR2 protective-stop tests (docs/current_strategy_remediation_roadmap.md §13.2).
+"""SR2 protective-stop tests (docs/archive/2026-10-doc-consolidation/current_strategy_remediation_roadmap.md §13.2).
 
 Covers the hand-computed stop fixtures, the no-lookahead contract, the
 Chandelier monotonicity property, and the post-fill risk recheck that turns a

@@ -5,7 +5,7 @@
 约定：
 - "代码位置"给出实现该概念的函数/字段/配置键，便于查证口径而非凭记忆解释；标注"（未实现）"的条目是已识别的能力缺口，列入词汇表仅为统一语言。
 - 涉及“空值语义”的指标遵循统一规则：`0` 表示计算结果确实为零；样本不足记为 `null` + `insufficient`；数学上不可定义（如分母为零）记为 `null` + `undefined`；不输出 `inf`/`-inf`。该规则的权威定义见 [`docs/backtest_assumptions.md`](backtest_assumptions.md) 第 8 节。
-- 指标结果对象遵循 `{value, status, reason, unit, sample_size, periods_per_year, parameters}` 契约，见 [`docs/backtest_metrics_detailed_development_plan.md`](backtest_metrics_detailed_development_plan.md)。
+- 指标结果对象遵循 `{value, status, reason, unit, sample_size, periods_per_year, parameters}` 契约，见 [`docs/archive/2026-10-doc-consolidation/backtest_metrics_detailed_development_plan.md`](archive/2026-10-doc-consolidation/backtest_metrics_detailed_development_plan.md)。
 
 ---
 
@@ -224,6 +224,6 @@
 - 指标口径的权威说明：[`docs/backtest_assumptions.md §8`](backtest_assumptions.md)
 - 指标实现：[`core/metrics/`](../core/metrics/__init__.py)（`performance.py` / `trade_quality.py` / `attribution.py` / `validation.py`）
 - 交易所边界与合约能力检测：[`core/exchange/`](../core/exchange/__init__.py)
-- 能力验收矩阵：[`docs/missing_capabilities_acceptance.md`](missing_capabilities_acceptance.md)
+- 能力验收矩阵：[`docs/roadmap_acceptance_log.md`](roadmap_acceptance_log.md)
 - 止损/健康/账本契约：[`docs/protective_stop_contract.md`](protective_stop_contract.md)、[`docs/strategy_health_contract.md`](strategy_health_contract.md)、[`docs/authoritative_ledger.md`](authoritative_ledger.md)
-- 自动化回测总体方案：[`docs/automated_backtest_plan.md`](automated_backtest_plan.md)
+- 自动化回测总体方案：[`docs/archive/2026-10-doc-consolidation/automated_backtest_plan.md`](archive/2026-10-doc-consolidation/automated_backtest_plan.md)
