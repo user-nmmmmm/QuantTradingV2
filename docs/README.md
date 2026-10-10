@@ -32,6 +32,7 @@
 以下按近期主题提供入口。带日期的实施记录说明对应批次的工作和证据，文件日期较新并不自动替代已批准契约或更新项目放行状态。
 
 - [2026-10-05 机器学习选币 V1 实施总结](ml_selection_v1_review_20261005.md)：CPU 评分与完整回合 REINFORCE、原引擎可选接口、本地历史训练结果、数据包前提与有效性未通过的边界；操作入口见[训练指南](ml_selection_roadmap.md)。
+- [V4 整体架构设计（提案）](v4_architecture_design.md)：分层内核、统一 AlphaView 契约、ML 选币器、策略平面与可裁决回测流程；未实施，不改变现有 Roadmap 或放行状态。
 - [机器学习选币下一阶段 Roadmap](ml_selection_next_roadmap_20261005.md)：V1 合并后的诊断、数据与训练扩展顺序、交付物和验收条件；[学习清单](ml_selection_learning_checklist_20261005.md)列出相关知识、练习和完成标准。这两份专项计划不改写项目统一 Roadmap 或策略放行状态。
 - [ML 选币工程整改与无训练检查](ml_selection_engineering_roadmap.md)：接口与数据修复、候选目标、独立校准合同、消融计划和只读 readiness；训练暂停时使用显式工程测试入口。
 - [2026-10-04 剩余论文任务](research/paper_remaining_tasks_20261004.md)：执行成本与盘口证据、历史因子输入、前瞻采集和严格标签的实现与缺口；[收益改进复核](research/paper_return_followup_20261004.md)记录固定方案的历史比较，保留主引擎与独立现货账户的口径差异。
