@@ -8,7 +8,7 @@
 
 | 阅读目的 | 首选文档 | 补充参考 |
 | --- | --- | --- |
-| 首次安装、回测或打开网页 | [项目 README](../README.md)、[本地研究工作台](../dashboard/README.md) | [依赖与环境](dependency_management.md)、[前端维护](../dashboard/FRONTEND.md) |
+| 首次安装、回测或打开网页 | [项目 README](../README.md)、[本地研究工作台](../dashboard/README.md) | [依赖与环境](dependency_management.md)、[前端维护](../dashboard/README.md) |
 | 理解代码职责和调用关系 | [代码模块说明](modules/README.md) | [架构边界审查](architecture_review.md)、[词汇表](glossary.md) |
 | 查看阶段、依赖与放行条件 | [统一 Roadmap v3](unified_roadmap.md) | [统一开发计划](development_plan.md)、[结构化任务登记](development_task_registry.json) |
 | 实施任务、核对交付和验收 | [开发详情](development_details.md) | [2026-09-20 后续实施记录](followup_completion_20260920.md) |
@@ -31,18 +31,14 @@
 
 以下按近期主题提供入口。带日期的实施记录说明对应批次的工作和证据，文件日期较新并不自动替代已批准契约或更新项目放行状态。
 
-- [2026-10-05 机器学习选币 V1 实施总结](ml_selection_v1_review_20261005.md)：CPU 评分与完整回合 REINFORCE、原引擎可选接口、本地历史训练结果、数据包前提与有效性未通过的边界；操作入口见[训练指南](ml_selection_roadmap.md)。
-- [机器学习选币下一阶段 Roadmap](ml_selection_next_roadmap_20261005.md)：V1 合并后的诊断、数据与训练扩展顺序、交付物和验收条件；[学习清单](ml_selection_learning_checklist_20261005.md)列出相关知识、练习和完成标准。这两份专项计划不改写项目统一 Roadmap 或策略放行状态。
-- [ML 选币工程整改与无训练检查](ml_selection_engineering_roadmap.md)：接口与数据修复、候选目标、独立校准合同、消融计划和只读 readiness；训练暂停时使用显式工程测试入口。
-- [2026-10-04 剩余论文任务](research/paper_remaining_tasks_20261004.md)：执行成本与盘口证据、历史因子输入、前瞻采集和严格标签的实现与缺口；[收益改进复核](research/paper_return_followup_20261004.md)记录固定方案的历史比较，保留主引擎与独立现货账户的口径差异。
-- [论文统计验证契约](research/paper_validation_contract_20261003.md)：PBO、purged/embargo 切分、White Reality Check 与 DSR 的输入、计算和证据不足行为；应用入口见[论文应用清单](research/paper_application_list_20261003.md)和[工程完成记录](research/paper_engineering_completion_20261003.md)。
-- [论文路线图实施](research/paper_roadmap_implementation_20261003.md)、[续办记录](research/paper_continuation_20261003.md)：因果标签、数据版本、融资与账户关联的实施边界及产物索引。
-- [架构与性能路线图](architecture_performance_roadmap_20261002.md)、[验证记录](architecture_performance_validation_20261002.md)、[后续实施](architecture_performance_followup_20261002.md)：行情客户端、请求预算、有限并发、补帧、保护调度与状态导出的工程演进。
-- [网页工作台](../dashboard/README.md)：账户监控、离线回测、实验档案、数据质量与 Walk-forward；模块、API 和验证命令见[前端工程说明](../dashboard/FRONTEND.md)。
+- [机器学习选币:现状与历史记录](ml_selection.md)：操作说明、工程整改、回测开关与下一阶段 Roadmap 见 [ml_selection.md](ml_selection.md)；V1 复核、本轮执行、冻结回测、诊断与稳健性解读见 [ml_selection_history.md](ml_selection_history.md)；[学习清单](ml_selection_learning_checklist_20261005.md)。均为研究/工程记录，`formal_admission=false` 保持不变。
+- [2026-10-04 剩余论文任务](research/paper_remaining_tasks_20261004.md)：执行成本与盘口证据、历史因子输入、前瞻采集和严格标签的实现与缺口；[收益改进复核](research/paper_applications.md)记录固定方案的历史比较，保留主引擎与独立现货账户的口径差异。
+- [论文统计验证契约](research/paper_validation_contract_20261003.md)：PBO、purged/embargo 切分、White Reality Check 与 DSR 的输入、计算和证据不足行为；应用入口见[论文应用清单](research/paper_applications.md)和[工程完成记录](research/paper_applications.md)。
+- [论文应用](research/paper_applications.md)：32 篇清单、路线图、十项实现、工程收口、续办与收益复核的时间线合集；[剩余任务](research/paper_remaining_tasks_20261004.md)与[统计验证契约](research/paper_validation_contract_20261003.md)保持独立。
+- [架构与性能](architecture_performance.md)：AP01–AP13 的路线图、验证记录与后续实施；[回测性能优化记录](backtest_performance.md)。
+- [网页工作台](../dashboard/README.md)：账户监控、离线回测、实验档案、数据质量与 Walk-forward；模块、API 和验证命令见[前端工程说明](../dashboard/README.md)。
 
-- [TrendPortfolioV3 全市场日线研究](trend_portfolio_v3.md)：历史归档及因果成员证据、所有达标资产周调仓、动量/突破两版、两种融资口径、真实组合撮合与固定88次比较；默认关闭，保留V2对照。
-
-- [TrendPortfolioV2 研究策略](trend_portfolio_v2.md)：20/60/120 趋势分数、状态风险倍率、波动率目标仓位、ATR 退出及双交易所五组固定对照；工程验证和策略准入分开记录。
+- [TrendPortfolio V2/V3 研究策略](trend_portfolio.md)：趋势分数、状态风险倍率、波动率目标、全市场周调仓与固定对照；工程验证和策略准入分开记录。
 
 - [Roadmap 第7节验收记录](section7_acceptance_20260920.md)：优先级和依赖阻断、七项完成定义、24项历史本地验收的显式证据适配，以及完整证据检查与CI结构检查的区别；[完成定义契约](roadmap_completion_contract.md)。
 

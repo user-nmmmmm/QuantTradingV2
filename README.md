@@ -606,7 +606,7 @@ python -m dashboard --status reports/live_status.json --alerts reports/live_aler
 终端监控在状态快照缺失或非法时以退出码 `2` 结束。网页监控则显示不可用状态，
 离线研究仍可使用。启动参数、任务限制和结果口径见
 [`dashboard/README.md`](dashboard/README.md)，接口与前端维护见
-[`dashboard/FRONTEND.md`](dashboard/FRONTEND.md)。
+[`dashboard/README.md`](dashboard/README.md)。
 
 ---
 
@@ -876,7 +876,7 @@ python -m pytest -q
 指标、执行端口与各阶段 Gate。
 
 网页前端另有 Node.js 原生测试；它们不需要 npm 安装或构建。测试命令及对应模块见
-[`dashboard/FRONTEND.md`](dashboard/FRONTEND.md)。Windows 临时目录受限时可使用
+[`dashboard/README.md`](dashboard/README.md)。Windows 临时目录受限时可使用
 [`scripts/run_portable_tests.py`](scripts/run_portable_tests.py)。
 
 ## 文档索引

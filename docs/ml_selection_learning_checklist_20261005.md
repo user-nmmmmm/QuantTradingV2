@@ -6,7 +6,7 @@
 
 **用户学会知识，不等于模型增加训练。** 手算、合成数据和阅读报告用于验证理解；重训模型需要新的实验配置、冻结记录、预算及评价。工程 CI 通过说明实现通过对应检查，不证明模型有收益增量。
 
-完整实现与本轮结论见 [V1 实施与研究复核](ml_selection_v1_review_20261005.md)，运行入口见 [训练说明](ml_selection_roadmap.md)，后续实验见 [下一阶段 Roadmap](ml_selection_next_roadmap_20261005.md)。
+完整实现与本轮结论见 [V1 实施与研究复核](ml_selection_history.md)，运行入口见 [训练说明](ml_selection.md)，后续实验见 [下一阶段 Roadmap](ml_selection.md)。
 
 ## 从实际不足选择学习重点
 

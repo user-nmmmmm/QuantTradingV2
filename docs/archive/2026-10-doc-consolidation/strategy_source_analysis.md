@@ -3,13 +3,13 @@
 > 文档状态：技术分析 v1.0
 > 生成日期：2026-08-31
 > 分析范围：`strategies/`、`router/`、`composition/factory.py`、`core/state.py`、`core/allocation.py`（路由/分配部分）、`core/risk/`（策略集成面）、`core/indicators.py`、`core/factors/`（策略实际使用的子集）
-> 关联文档：[`docs/modules/strategies.md`](modules/strategies.md)、[`docs/modules/router.md`](modules/router.md)、[`docs/strategy_development_roadmap.md`](strategy_development_roadmap.md)、[`docs/backtest_assumptions.md`](backtest_assumptions.md)
+> 关联文档：[`docs/modules/strategies.md`](../../modules/strategies.md)、[`docs/modules/router.md`](../../modules/router.md)、[`docs/strategy_development_roadmap.md`](../../strategy_development_roadmap.md)、[`docs/backtest_assumptions.md`](../../backtest_assumptions.md)
 
 ---
 
 ## 0. 阅读前须知
 
-1. 本文是 2026-08-31 的策略源码分析快照，用于追溯当时的判断。§11.1 所列模块文档偏差已修正；阅读当前路由与策略行为时，应同时核对 [`modules/router.md`](modules/router.md)、[`modules/strategies.md`](modules/strategies.md) 和实际代码。
+1. 本文是 2026-08-31 的策略源码分析快照，用于追溯当时的判断。§11.1 所列模块文档偏差已修正；阅读当前路由与策略行为时，应同时核对 [`modules/router.md`](../../modules/router.md)、[`modules/strategies.md`](../../modules/strategies.md) 和实际代码。
 2. 本文不评估策略盈利能力。`strategy_development_roadmap.md` §2.2 已给出结论：当前策略组合在 2017–2026 六标的日线上**统计上无法排除“不赚钱”**。
 3. 配置层面，`config/params.yaml` 目前把除 `TrendBreakout` 外的所有 regime 都路由到 `Cash`（见 §10）。也就是说“默认跑起来”只有一个策略在实际下单。
 

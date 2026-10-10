@@ -11,7 +11,7 @@
 | [`strategies.md`](strategies.md) | `strategies/`：基类接口与成交生命周期、默认策略规则、TrendPortfolioV2/V3、配对研究、配置和扩展验证 |
 | [`analysis_dashboard_research_config.md`](analysis_dashboard_research_config.md) | `analysis/`、`dashboard/`、`research/`、`config/`，以及根目录的 `main.py`/`run_live.py` 入口脚本 |
 | [`../authoritative_ledger.md`](../authoritative_ledger.md) | 离线事件账本的设计约束、计算口径及与交易运行时的集成边界 |
-| [`../../dashboard/FRONTEND.md`](../../dashboard/FRONTEND.md) | 本地网页工作台的前后端模块、HTTP 接口、实验持久化和验证命令 |
+| [`../../dashboard/FRONTEND.md`](../../dashboard/README.md) | 本地网页工作台的前后端模块、HTTP 接口、实验持久化和验证命令 |
 
 ## 阅读建议
 
@@ -22,6 +22,6 @@
 - 想找到数据抓取、验收或研究脚本：见 [`../../scripts/README.md`](../../scripts/README.md) 的用途索引。
 - 想区分交易持仓事实与离线事件账本：先看 [`core.md`](core.md) 的“账本、组合与快照”，再看 [`../authoritative_ledger.md`](../authoritative_ledger.md)。
 - 想理解论文研究如何使用时间版本和执行证据：先看 [`core.md`](core.md) 的行情与时间版本说明，再看 [`analysis_dashboard_research_config.md`](analysis_dashboard_research_config.md)；批次结果从[文档总索引](../README.md#最新行为变更)进入。
-- 想运行网页回测或维护界面：先看[工作台使用说明](../../dashboard/README.md)，再看[前端工程说明](../../dashboard/FRONTEND.md)。
+- 想运行网页回测或维护界面：先看[工作台使用说明](../../dashboard/README.md)，再看[前端工程说明](../../dashboard/README.md)。
 
 这些文档基于当前代码库结构手工整理，不是自动生成；代码演进后如与文档不符，以代码为准，并欢迎更新对应文档。
