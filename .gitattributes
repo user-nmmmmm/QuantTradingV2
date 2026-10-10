@@ -11,3 +11,9 @@ reports/deep_recovery_engine_tests_20260909.txt text eol=crlf
 reports/deep_recovery_full_tests_20260909.txt text eol=crlf
 reports/p0_recovery_run_20260909.log text eol=crlf
 reports/p0_recovery_tests_20260909.txt text eol=crlf
+
+# Frozen text report: its recorded size is the LF size, so keep LF on every platform.
+reports/strategy_security_review_20260908.md text eol=lf
+
+# Binary delivery archives
+*.zip binary
