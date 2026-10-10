@@ -97,7 +97,7 @@
       ],
       "sources": [
         "docs/development_plan.md",
-        "docs/live_trading_remediation_plan.md",
+        "docs/archive/2026-10-doc-consolidation/live_trading_remediation_plan.md",
         "docs/baseline/phase0/README.md"
       ],
       "dependencies": [
@@ -1131,9 +1131,9 @@
         "D2"
       ],
       "sources": [
-        "docs/current_strategy_remediation_roadmap.md",
-        "docs/strategy_development_roadmap.md",
-        "docs/backtest_optimization_roadmap.md"
+        "docs/archive/2026-10-doc-consolidation/current_strategy_remediation_roadmap.md",
+        "docs/archive/2026-10-doc-consolidation/strategy_development_roadmap.md",
+        "docs/archive/2026-10-doc-consolidation/backtest_optimization_roadmap.md"
       ],
       "dependencies": [
         "SYS-01",
@@ -2543,7 +2543,7 @@
       "evidence": [
         {
           "mail_id": "MAIL-11-1",
-          "location": "docs/strategy_development_roadmap.md:169"
+          "location": "docs/archive/2026-10-doc-consolidation/strategy_development_roadmap.md:169"
         },
         {
           "mail_id": "MAIL-11-1",
@@ -2721,7 +2721,7 @@
       "evidence": [
         {
           "mail_id": "MAIL-11-2",
-          "location": "docs/strategy_development_roadmap.md:25"
+          "location": "docs/archive/2026-10-doc-consolidation/strategy_development_roadmap.md:25"
         },
         {
           "mail_id": "MAIL-11-2",
@@ -2952,7 +2952,7 @@
       ],
       "sources": [
         "docs/development_plan.md",
-        "docs/backtest_optimization_roadmap.md",
+        "docs/archive/2026-10-doc-consolidation/backtest_optimization_roadmap.md",
         "docs/authoritative_ledger.md"
       ],
       "dependencies": [
@@ -3020,7 +3020,7 @@
         "G8"
       ],
       "sources": [
-        "docs/backtest_metrics_detailed_development_plan.md",
+        "docs/archive/2026-10-doc-consolidation/backtest_metrics_detailed_development_plan.md",
         "docs/development_plan.md"
       ],
       "dependencies": [
@@ -3094,7 +3094,7 @@
         "T-6.3"
       ],
       "sources": [
-        "docs/live_trading_remediation_plan.md",
+        "docs/archive/2026-10-doc-consolidation/live_trading_remediation_plan.md",
         "docs/phase6_operations.md"
       ],
       "dependencies": [
@@ -3174,7 +3174,7 @@
       ],
       "sources": [
         "docs/unified_roadmap.md",
-        "docs/live_trading_remediation_plan.md",
+        "docs/archive/2026-10-doc-consolidation/live_trading_remediation_plan.md",
         "docs/canonical_trading_events.md"
       ],
       "dependencies": [
@@ -3256,8 +3256,8 @@
         "C2"
       ],
       "sources": [
-        "docs/position_management_plan.md",
-        "docs/current_strategy_remediation_roadmap.md"
+        "docs/archive/2026-10-doc-consolidation/position_management_plan.md",
+        "docs/archive/2026-10-doc-consolidation/current_strategy_remediation_roadmap.md"
       ],
       "dependencies": [
         "SYS-06",
@@ -3434,9 +3434,9 @@
         "P0/P1/P2/P3"
       ],
       "sources": [
-        "docs/position_management_plan.md",
+        "docs/archive/2026-10-doc-consolidation/position_management_plan.md",
         "docs/strategy_health_contract.md",
-        "docs/p23_signal_meta_layer.md"
+        "docs/signal_meta_layer.md"
       ],
       "dependencies": [
         "SYS-02",
@@ -3502,8 +3502,8 @@
         "P0/P1/P2/P3"
       ],
       "sources": [
-        "docs/current_strategy_remediation_roadmap.md",
-        "docs/p23_signal_meta_layer.md",
+        "docs/archive/2026-10-doc-consolidation/current_strategy_remediation_roadmap.md",
+        "docs/signal_meta_layer.md",
         "reports/strategy_review_20260919/README.md"
       ],
       "dependencies": [
@@ -3581,8 +3581,8 @@
         "BM8"
       ],
       "sources": [
-        "docs/current_strategy_remediation_roadmap.md",
-        "docs/strategy_development_roadmap.md",
+        "docs/archive/2026-10-doc-consolidation/current_strategy_remediation_roadmap.md",
+        "docs/archive/2026-10-doc-consolidation/strategy_development_roadmap.md",
         "reports/strategy_review_20260919/prospective_protocol.json"
       ],
       "dependencies": [
@@ -3673,7 +3673,7 @@
         "G1"
       ],
       "sources": [
-        "docs/live_trading_remediation_plan.md",
+        "docs/archive/2026-10-doc-consolidation/live_trading_remediation_plan.md",
         "docs/r6_operations.md",
         "docs/r7_sandbox_runbook.md"
       ],
@@ -3827,7 +3827,7 @@
       ],
       "sources": [
         "docs/unified_roadmap.md",
-        "docs/live_trading_remediation_plan.md",
+        "docs/archive/2026-10-doc-consolidation/live_trading_remediation_plan.md",
         "docs/phase6_operations.md"
       ],
       "dependencies": [
@@ -3889,8 +3889,8 @@
         "FM5-03"
       ],
       "sources": [
-        "docs/strategy_development_roadmap.md",
-        "docs/backtest_optimization_roadmap.md",
+        "docs/archive/2026-10-doc-consolidation/strategy_development_roadmap.md",
+        "docs/archive/2026-10-doc-consolidation/backtest_optimization_roadmap.md",
         "docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md"
       ],
       "dependencies": [
@@ -3976,8 +3976,8 @@
         "FM5-04–FM5-06"
       ],
       "sources": [
-        "docs/strategy_development_roadmap.md",
-        "docs/position_management_plan.md",
+        "docs/archive/2026-10-doc-consolidation/strategy_development_roadmap.md",
+        "docs/archive/2026-10-doc-consolidation/position_management_plan.md",
         "docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md"
       ],
       "dependencies": [
@@ -4059,7 +4059,7 @@
         "FM7"
       ],
       "sources": [
-        "docs/strategy_development_roadmap.md",
+        "docs/archive/2026-10-doc-consolidation/strategy_development_roadmap.md",
         "docs/phase3_implementation.md",
         "docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md"
       ],
@@ -4136,8 +4136,8 @@
         "C3"
       ],
       "sources": [
-        "docs/strategy_development_roadmap.md",
-        "docs/backtest_optimization_roadmap.md",
+        "docs/archive/2026-10-doc-consolidation/strategy_development_roadmap.md",
+        "docs/archive/2026-10-doc-consolidation/backtest_optimization_roadmap.md",
         "docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md"
       ],
       "dependencies": [
@@ -4204,7 +4204,7 @@
         "自动化方案G-5"
       ],
       "sources": [
-        "docs/automated_backtest_plan.md"
+        "docs/archive/2026-10-doc-consolidation/automated_backtest_plan.md"
       ],
       "dependencies": [
         "SYS-01",
@@ -5267,7 +5267,7 @@
       "disposition": "旧回测批次迁入跨领域批次；技术公式仍参考指标详情"
     },
     {
-      "source_doc": "docs/live_trading_remediation_plan.md",
+      "source_doc": "docs/archive/2026-10-doc-consolidation/live_trading_remediation_plan.md",
       "old_id": "G0/G9、ENG-01",
       "task_ids": [
         "SYS-01",
@@ -5276,7 +5276,7 @@
       "disposition": "基线/CI/仓库治理"
     },
     {
-      "source_doc": "docs/live_trading_remediation_plan.md",
+      "source_doc": "docs/archive/2026-10-doc-consolidation/live_trading_remediation_plan.md",
       "old_id": "G1、SAFE-01",
       "task_ids": [
         "SYS-16",
@@ -5285,7 +5285,7 @@
       "disposition": "历史安全启动能力保留；在SYS-17前复验"
     },
     {
-      "source_doc": "docs/live_trading_remediation_plan.md",
+      "source_doc": "docs/archive/2026-10-doc-consolidation/live_trading_remediation_plan.md",
       "old_id": "G2、ORD-01/02/03",
       "task_ids": [
         "SYS-06",
@@ -5296,7 +5296,7 @@
       "disposition": "历史订单能力保留；事务边界及当前版本回归"
     },
     {
-      "source_doc": "docs/live_trading_remediation_plan.md",
+      "source_doc": "docs/archive/2026-10-doc-consolidation/live_trading_remediation_plan.md",
       "old_id": "G3、ACCT-01/02",
       "task_ids": [
         "SYS-05"
@@ -5304,7 +5304,7 @@
       "disposition": "完整账户快照与六层对账"
     },
     {
-      "source_doc": "docs/live_trading_remediation_plan.md",
+      "source_doc": "docs/archive/2026-10-doc-consolidation/live_trading_remediation_plan.md",
       "old_id": "G4、ARCH-01",
       "task_ids": [
         "SYS-06",
@@ -5313,7 +5313,7 @@
       "disposition": "共享事件/执行与持仓"
     },
     {
-      "source_doc": "docs/live_trading_remediation_plan.md",
+      "source_doc": "docs/archive/2026-10-doc-consolidation/live_trading_remediation_plan.md",
       "old_id": "G5、OPS-01/TEST-01",
       "task_ids": [
         "SYS-16",
@@ -5323,7 +5323,7 @@
       "disposition": "故障/告警/恢复演练"
     },
     {
-      "source_doc": "docs/live_trading_remediation_plan.md",
+      "source_doc": "docs/archive/2026-10-doc-consolidation/live_trading_remediation_plan.md",
       "old_id": "G6、PAPER-01",
       "task_ids": [
         "SYS-17"
@@ -5331,7 +5331,7 @@
       "disposition": "连续观察，不按首尾日期宣称满时长"
     },
     {
-      "source_doc": "docs/live_trading_remediation_plan.md",
+      "source_doc": "docs/archive/2026-10-doc-consolidation/live_trading_remediation_plan.md",
       "old_id": "G7、BT-01/02",
       "task_ids": [
         "SYS-02",
@@ -5340,7 +5340,7 @@
       "disposition": "此处BT-01是指标JSON；BT-02是账本桥接"
     },
     {
-      "source_doc": "docs/live_trading_remediation_plan.md",
+      "source_doc": "docs/archive/2026-10-doc-consolidation/live_trading_remediation_plan.md",
       "old_id": "G8、RES-01",
       "task_ids": [
         "SYS-11",
@@ -5351,7 +5351,7 @@
       "disposition": "独立研究准入"
     },
     {
-      "source_doc": "docs/live_trading_remediation_plan.md",
+      "source_doc": "docs/archive/2026-10-doc-consolidation/live_trading_remediation_plan.md",
       "old_id": "G10",
       "task_ids": [
         "SYS-18"
@@ -5359,7 +5359,7 @@
       "disposition": "人工评审真实资金"
     },
     {
-      "source_doc": "docs/backtest_metrics_detailed_development_plan.md",
+      "source_doc": "docs/archive/2026-10-doc-consolidation/backtest_metrics_detailed_development_plan.md",
       "old_id": "BM0–BM8",
       "task_ids": [
         "SYS-03",
@@ -5379,7 +5379,7 @@
       "disposition": "旧交易路径BM6→现BM7；旧稳健性BM7→现BM8，不能按数字直接对应"
     },
     {
-      "source_doc": "docs/backtest_metrics_detailed_development_plan.md",
+      "source_doc": "docs/archive/2026-10-doc-consolidation/backtest_metrics_detailed_development_plan.md",
       "old_id": "BM4 执行质量",
       "task_ids": [
         "SYS-03",
@@ -5388,7 +5388,7 @@
       "disposition": "成交/部分成交/拒绝/取消/过期、成交耗时、参与率、IS继续保留；不能只做成本"
     },
     {
-      "source_doc": "docs/strategy_development_roadmap.md",
+      "source_doc": "docs/archive/2026-10-doc-consolidation/strategy_development_roadmap.md",
       "old_id": "S0-1/S0-2/S0-3/S0-4",
       "task_ids": [
         "SYS-07",
@@ -5399,7 +5399,7 @@
       "disposition": "持仓上下文、真实候选路由、增量消费、pending释放"
     },
     {
-      "source_doc": "docs/strategy_development_roadmap.md",
+      "source_doc": "docs/archive/2026-10-doc-consolidation/strategy_development_roadmap.md",
       "old_id": "S1-1–S1-5",
       "task_ids": [
         "SYS-03",
@@ -5409,7 +5409,7 @@
       "disposition": "当前缺陷先修，展示扩展BX；S1-3按OOS选参条款已替换"
     },
     {
-      "source_doc": "docs/strategy_development_roadmap.md",
+      "source_doc": "docs/archive/2026-10-doc-consolidation/strategy_development_roadmap.md",
       "old_id": "S2-1–S2-7",
       "task_ids": [
         "SYS-04",
@@ -5419,7 +5419,7 @@
       "disposition": "PIT基础进主线，完整动态选币/权重进BX"
     },
     {
-      "source_doc": "docs/strategy_development_roadmap.md",
+      "source_doc": "docs/archive/2026-10-doc-consolidation/strategy_development_roadmap.md",
       "old_id": "S3-1–S3-6",
       "task_ids": [
         "SYS-02",
@@ -5431,7 +5431,7 @@
       "disposition": "当前账户/成本/风险主线必做；新模式与仓位扩展分开"
     },
     {
-      "source_doc": "docs/strategy_development_roadmap.md",
+      "source_doc": "docs/archive/2026-10-doc-consolidation/strategy_development_roadmap.md",
       "old_id": "S4-1–S4-4、S4§9.1、G-S1–G-S10",
       "task_ids": [
         "SYS-11",
@@ -5440,7 +5440,7 @@
       "disposition": "研究门槛保留，候选策略后续扩展"
     },
     {
-      "source_doc": "docs/current_strategy_remediation_roadmap.md",
+      "source_doc": "docs/archive/2026-10-doc-consolidation/current_strategy_remediation_roadmap.md",
       "old_id": "SR0",
       "task_ids": [
         "SYS-01",
@@ -5451,7 +5451,7 @@
       "disposition": "冻结与交付身份"
     },
     {
-      "source_doc": "docs/current_strategy_remediation_roadmap.md",
+      "source_doc": "docs/archive/2026-10-doc-consolidation/current_strategy_remediation_roadmap.md",
       "old_id": "SR1/SR2/SR3",
       "task_ids": [
         "SYS-07",
@@ -5466,7 +5466,7 @@
       "disposition": "生命周期、健康、风险"
     },
     {
-      "source_doc": "docs/current_strategy_remediation_roadmap.md",
+      "source_doc": "docs/archive/2026-10-doc-consolidation/current_strategy_remediation_roadmap.md",
       "old_id": "SR4/SR5",
       "task_ids": [
         "SYS-04",
@@ -5482,7 +5482,7 @@
       "disposition": "数据修复与重验，不用收益挑修复"
     },
     {
-      "source_doc": "docs/current_strategy_remediation_roadmap.md",
+      "source_doc": "docs/archive/2026-10-doc-consolidation/current_strategy_remediation_roadmap.md",
       "old_id": "SR6-1–SR6-4",
       "task_ids": [
         "SYS-09",
@@ -5492,7 +5492,7 @@
       "disposition": "隔离影子证据、连续运行与灰度"
     },
     {
-      "source_doc": "docs/position_management_plan.md",
+      "source_doc": "docs/archive/2026-10-doc-consolidation/position_management_plan.md",
       "old_id": "PM0–PM4",
       "task_ids": [
         "SYS-07",
@@ -5504,7 +5504,7 @@
       "disposition": "共享持仓/预算/健康/重放，扩展目标仓位另排"
     },
     {
-      "source_doc": "docs/backtest_optimization_roadmap.md",
+      "source_doc": "docs/archive/2026-10-doc-consolidation/backtest_optimization_roadmap.md",
       "old_id": "B-01/B-10、A1",
       "task_ids": [
         "SYS-06",
@@ -5513,7 +5513,7 @@
       "disposition": "TTL/TIF、pending和预算释放、持仓耗尽终态"
     },
     {
-      "source_doc": "docs/backtest_optimization_roadmap.md",
+      "source_doc": "docs/archive/2026-10-doc-consolidation/backtest_optimization_roadmap.md",
       "old_id": "B-02/B-03、A2",
       "task_ids": [
         "FIX-10",
@@ -5524,7 +5524,7 @@
       "disposition": "现金/杠杆/融资/资金费当前模型闭环"
     },
     {
-      "source_doc": "docs/backtest_optimization_roadmap.md",
+      "source_doc": "docs/archive/2026-10-doc-consolidation/backtest_optimization_roadmap.md",
       "old_id": "B-04/B-05/B-06、A3/A4/A5",
       "task_ids": [
         "SYS-07",
@@ -5535,7 +5535,7 @@
       "disposition": "止损和减仓按真实跳空/流动性；不采纳理想价无限强平"
     },
     {
-      "source_doc": "docs/backtest_optimization_roadmap.md",
+      "source_doc": "docs/archive/2026-10-doc-consolidation/backtest_optimization_roadmap.md",
       "old_id": "B-07/B-11、B1/B3",
       "task_ids": [
         "SYS-02",
@@ -5547,7 +5547,7 @@
       "disposition": "权威交易聚合与指标接线"
     },
     {
-      "source_doc": "docs/backtest_optimization_roadmap.md",
+      "source_doc": "docs/archive/2026-10-doc-consolidation/backtest_optimization_roadmap.md",
       "old_id": "B-08/B-09、B2",
       "task_ids": [
         "SYS-03",
@@ -5556,7 +5556,7 @@
       "disposition": "陈旧估值明确标记；基准公共时间轴/上市前现金及不同再平衡政策分开"
     },
     {
-      "source_doc": "docs/backtest_optimization_roadmap.md",
+      "source_doc": "docs/archive/2026-10-doc-consolidation/backtest_optimization_roadmap.md",
       "old_id": "B-12/B-13/B-15、D1/D2",
       "task_ids": [
         "SYS-04"
@@ -5564,7 +5564,7 @@
       "disposition": "多周期/缓存/合成压力模板/数据来源"
     },
     {
-      "source_doc": "docs/backtest_optimization_roadmap.md",
+      "source_doc": "docs/archive/2026-10-doc-consolidation/backtest_optimization_roadmap.md",
       "old_id": "B-14、B4/D5",
       "task_ids": [
         "FIX-08",
@@ -5574,7 +5574,7 @@
       "disposition": "训练验证选参和最终样本独立；取消按最终OOS结果选择"
     },
     {
-      "source_doc": "docs/backtest_optimization_roadmap.md",
+      "source_doc": "docs/archive/2026-10-doc-consolidation/backtest_optimization_roadmap.md",
       "old_id": "C2/C3/C4、D3/D4",
       "task_ids": [
         "SYS-07",
@@ -5671,7 +5671,7 @@
       "disposition": "公式/监控必要能力主线，扩展观察与新策略BX"
     },
     {
-      "source_doc": "docs/p0_signal_observation.md",
+      "source_doc": "docs/signal_meta_layer.md",
       "old_id": "信号P0",
       "task_ids": [
         "SYS-09",
@@ -5680,7 +5680,7 @@
       "disposition": "已合入；隔离和完整交付证据复核"
     },
     {
-      "source_doc": "docs/p1_signal_meta_layer.md",
+      "source_doc": "docs/signal_meta_layer.md",
       "old_id": "信号P1",
       "task_ids": [
         "SYS-09",
@@ -5690,7 +5690,7 @@
       "disposition": "已合入；有效性与正式准入未通过"
     },
     {
-      "source_doc": "docs/p23_signal_meta_layer.md",
+      "source_doc": "docs/signal_meta_layer.md",
       "old_id": "信号P2/P3",
       "task_ids": [
         "SYS-09",
@@ -5945,7 +5945,7 @@
   "followup_execution": {
     "run_id": "20260920-followup-final",
     "date": "2026-09-20",
-    "report": "docs/followup_completion_20260920.md",
+    "report": "docs/roadmap_acceptance_log.md",
     "original_task_count": 40,
     "additional_tasks": [
       "SYS-19"

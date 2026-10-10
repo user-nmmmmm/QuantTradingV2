@@ -1,4 +1,4 @@
-"""SR1 health lifecycle tests (docs/current_strategy_remediation_roadmap.md §13.1).
+"""SR1 health lifecycle tests (docs/archive/2026-10-doc-consolidation/current_strategy_remediation_roadmap.md §13.1).
 
 These cover the exact failure that produced 2022-2026 with zero trades: one
 portfolio-level risk action closing many correlated symbols was counted as many

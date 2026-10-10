@@ -1,13 +1,13 @@
 # 回测优化 Roadmap 与开发计划
 
-> 文档定位（2026-09-20）：领域参考。排期、优先级和当前完成状态统一见[Roadmap](unified_roadmap.md)、[开发计划](development_plan.md)与[开发详情](development_details.md)。本文件的公式、设计依据和未冲突的专项验收要求继续保留；下文旧状态与排期为历史记录。整合前原文见[冻结快照](archive/2026-09-roadmap-rebaseline/sources/docs/backtest_optimization_roadmap.md)。
+> 文档定位（2026-09-20）：领域参考。排期、优先级和当前完成状态统一见[Roadmap](../../unified_roadmap.md)、[开发计划](../../development_plan.md)与[开发详情](../../development_details.md)。本文件的公式、设计依据和未冲突的专项验收要求继续保留；下文旧状态与排期为历史记录。整合前原文见[冻结快照](../2026-09-roadmap-rebaseline/sources/docs/backtest_optimization_roadmap.md)。
 
 > 当前代码路径提示：历史任务中的 `core/metrics.py` 已拆为 `core/metrics/` 包；`core/trade_ledger.py` 并不存在，当前回测的 FIFO 闭合交易重建位于 `backtest/reporting/trades.py`，逐批次持仓记账位于 `core/lots.py`。旧任务文本保留原表述供追溯，实施时按现有职责和代码核对。
 
 > 文档状态：Draft v0.1
 > 生效日期：2026-08-13
-> 上位路线图：[`unified_roadmap.md`](unified_roadmap.md)
-> 回测可信内核（R0/R1，fixtures/指标契约/trade ledger/对账）：[`development_plan.md`](development_plan.md)
+> 上位路线图：[`unified_roadmap.md`](../../unified_roadmap.md)
+> 回测可信内核（R0/R1，fixtures/指标契约/trade ledger/对账）：[`development_plan.md`](../../development_plan.md)
 > 本文件范围：回测模块的**正确性修复、真实感建模、策略能力、数据/指标/图表扩展**，与 `development_plan.md` 不重复、共享其验收基建。
 
 ## 1. 目标与边界
@@ -200,7 +200,7 @@ E 质量保证（贯穿）
   1. `optimize.py` 接入 B4 的独立切分，筛选只使用 train/validation 的预注册指标；最终 OOS/holdout 不参与排名或调参；
   2. 增加参数扰动检验（±10% 邻域）与 `benjamini_hochberg` 多重检验（`core/metrics.py:741-771`）；
   3. 输出参数热力图 CSV + 图表（D4-8）。
-- 验收：保存 train/validation 的选择过程和独立 OOS 评价；最终 holdout 只打开一次，已见样本标记为回顾性研究，禁止按最终 OOS 排名重新选择参数。多重检验披露全部尝试，并使用冻结协议规定的校正；原 BH 展示不代替正式准入。见 [统一规则 POL-01](roadmap_policy_contract.md)。
+- 验收：保存 train/validation 的选择过程和独立 OOS 评价；最终 holdout 只打开一次，已见样本标记为回顾性研究，禁止按最终 OOS 排名重新选择参数。多重检验披露全部尝试，并使用冻结协议规定的校正；原 BH 展示不代替正式准入。见 [统一规则 POL-01](../../roadmap_policy_contract.md)。
 
 ## 8. 质量保证（阶段 E，贯穿）
 

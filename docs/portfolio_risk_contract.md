@@ -4,7 +4,7 @@
 > 生效日期：2026-09-01
 > 实现：[`core/candidate_scoring.py`](../core/candidate_scoring.py)、[`core/risk/portfolio_governor.py`](../core/risk/portfolio_governor.py)、[`core/account_cost_contract.py`](../core/account_cost_contract.py)、[`core/allocation.py`](../core/allocation.py)
 > 测试：[`tests/test_sr3_portfolio_risk.py`](../tests/test_sr3_portfolio_risk.py)
-> 上位文档：[`current_strategy_remediation_roadmap.md`](current_strategy_remediation_roadmap.md) SR3
+> 上位文档：[`current_strategy_remediation_roadmap.md`](archive/2026-10-doc-consolidation/current_strategy_remediation_roadmap.md) SR3
 
 ## 1. 候选排序（SR3-1 / STR-P1-03）
 

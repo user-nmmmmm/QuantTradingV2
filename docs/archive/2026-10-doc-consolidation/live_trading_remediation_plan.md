@@ -1,9 +1,9 @@
 # QuantTrading 实盘交易领域执行计划
 
-> 文档定位（2026-09-20）：领域参考。排期、优先级和当前完成状态统一见[Roadmap](unified_roadmap.md)、[开发计划](development_plan.md)与[开发详情](development_details.md)。本文件的公式、设计依据和未冲突的专项验收要求继续保留；下文旧状态与排期为历史记录。整合前原文见[冻结快照](archive/2026-09-roadmap-rebaseline/sources/docs/live_trading_remediation_plan.md)。
+> 文档定位（2026-09-20）：领域参考。排期、优先级和当前完成状态统一见[Roadmap](../../unified_roadmap.md)、[开发计划](../../development_plan.md)与[开发详情](../../development_details.md)。本文件的公式、设计依据和未冲突的专项验收要求继续保留；下文旧状态与排期为历史记录。整合前原文见[冻结快照](../2026-09-roadmap-rebaseline/sources/docs/live_trading_remediation_plan.md)。
 
 > 文档状态：Active v1.1  
-> 上位路线图：[`unified_roadmap.md`](unified_roadmap.md)（项目级阶段、优先级定义和放行门槛的唯一权威来源）  
+> 上位路线图：[`unified_roadmap.md`](../../unified_roadmap.md)（项目级阶段、优先级定义和放行门槛的唯一权威来源）  
 > 回测领域对应文档：[`backtest_metrics_detailed_development_plan.md`](backtest_metrics_detailed_development_plan.md)  
 > 当前结论：仅允许研究、回测和交易所 sandbox；禁止真实资金无人值守运行
 
@@ -23,7 +23,7 @@ unified_roadmap.md
 
 - 测试基线以当前虚拟环境下 `pytest`/`unittest` 全量结果为准，历史通过数字不作为最新状态引用；
 - 实盘引擎已有已收盘 bar 过滤、账户同步失败时停止交易、bar claim 和本地状态存储的初步实现；
-- G1（安全启动与凭据治理）各项任务已完成，详见 §6 勾选状态与 [`g1_live_safety.md`](g1_live_safety.md)；
+- G1（安全启动与凭据治理）各项任务已完成，详见 §6 勾选状态与 [`g1_live_safety.md`](../../live_safety.md)；
 - G2 起的对账、恢复、监控闭环仍是当前阻断项，详见各 G 阶段任务清单。
 
 ## 3. 总体执行路径
