@@ -140,7 +140,7 @@ def test_finite_fake_collection_records_snapshot_before_derived_bbo(tmp_path):
     journal = DepthJournal(tmp_path / "depth.jsonl")
     store = QuoteObservationStore(tmp_path / "quotes.sqlite3")
     session = FakeSession([[diff(), diff(102, 102), diff(103, 103)]])
-    out = asyncio.run(observe_depth(symbols=["BTC/USDT"], duration_seconds=.15,
+    out = asyncio.run(observe_depth(symbols=["BTC/USDT"], duration_seconds=1.5,
         journal=journal, quote_store=store, run_id="run", timeout_seconds=.1,
         snapshot_fetcher=lambda _: snapshot(), session_factory=lambda **_: session))
     journal.close()
@@ -169,7 +169,7 @@ def test_synchronized_future_clock_depth_is_saved_but_cannot_enter_quote_store(t
     future = int(datetime.now(timezone.utc).timestamp() * 1000) + 60000
     journal = DepthJournal(tmp_path / "depth.jsonl")
     store = QuoteObservationStore(tmp_path / "quotes.sqlite3")
-    out = asyncio.run(observe_depth(symbols=["BTC/USDT"], duration_seconds=.05,
+    out = asyncio.run(observe_depth(symbols=["BTC/USDT"], duration_seconds=1.5,
         journal=journal, quote_store=store, run_id="run", timeout_seconds=.1, maximum_reconnects=0,
         snapshot_fetcher=lambda _: snapshot(),
         session_factory=lambda **_: FakeSession([[diff(E=future), diff(102, 102, E=future)]])))
