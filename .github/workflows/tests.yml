@@ -75,7 +75,7 @@ jobs:
           --junitxml=outputs/ml-research-tests.xml
       - name: Preserve ML test receipt
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ml-research-tests
           path: outputs/ml-research-tests.xml
