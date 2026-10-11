@@ -112,8 +112,16 @@ def trace_key(source_path: str, old_id: str) -> tuple[str, str]:
     return path.as_posix(), old_id.strip()
 
 
+def _moved_documents(root: Path) -> dict:
+    """Old path -> current path for documents that were merged or archived (docs/doc_index.json)."""
+    index = root / "docs" / "doc_index.json"
+    return json.loads(index.read_text(encoding="utf-8"))["moved"] if index.is_file() else {}
+
+
 def file_at(root: Path, name: str) -> Path:
     relative, _ = trace_key(name, "file")
+    if not (root / relative).is_file():
+        relative = _moved_documents(root).get(relative, relative)  # a move must not break verification
     path = (root / relative).resolve()
     if not path.is_relative_to(root.resolve()) or not path.is_file():
         raise ValueError(f"missing or outside repository: {name}")

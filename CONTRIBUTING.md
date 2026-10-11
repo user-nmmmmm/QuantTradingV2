@@ -22,6 +22,7 @@ python -m mypy core/domain.py core/runtime.py live_trading/execution_adapter.py
 python -m pytest -q
 python scripts/check_repository_hygiene.py
 python scripts/verify_roadmap_completion.py --structure-only
+python scripts/check_markdown_links.py
 ```
 
 ## Rules of thumb
@@ -34,5 +35,9 @@ python scripts/verify_roadmap_completion.py --structure-only
 - Keep dependency changes in their own PR and regenerate
   `requirements.lock.txt` / `requirements.lock.sha256` with it
   (`docs/dependency_management.md`).
+- Moving, merging or archiving a tracked document: append an entry to `docs/doc_index.json`
+  (old path -> new path); the link check and the roadmap verifiers resolve moves through it.
+- Changes under `config/frozen_scope.json` paths: CI prints the frozen-scope identity impact in the job
+  summary; comment/layout-only edits do not change it (`docs/identity.md`).
 - Docs: one topic, one file; append dated sections instead of creating
   `*_YYYYMMDD.md` copies. See `docs/README.md`.
