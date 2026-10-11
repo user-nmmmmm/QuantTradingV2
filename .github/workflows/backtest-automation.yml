@@ -38,7 +38,7 @@ jobs:
         run: python scripts/run_automation.py status
       - name: Preserve receipts, logs and synthetic audit artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: offline-backtest-evidence
           path: outputs/automation/
