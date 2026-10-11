@@ -164,6 +164,7 @@ def test_strict_training_rejects_unproven_or_mutated_evidence(mutation):
     assert not result["predictions"]
 
 
+@pytest.mark.slow
 def test_normal_engine_runs_strict_p0_through_p3_without_changing_official_account(tmp_path, monkeypatch):
     from backtest.engine import BacktestEngine
     from core.reproducibility import deterministic_result_digest

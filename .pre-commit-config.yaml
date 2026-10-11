@@ -1,0 +1,30 @@
+# Optional local hooks that mirror CI. Install once with:
+#   python -m pip install pre-commit && pre-commit install
+# They run the project's own tools from your active environment (no extra pinned repos).
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-gate
+        name: ruff (hard gate)
+        entry: python -m ruff check .
+        language: system
+        types: [python]
+        pass_filenames: false
+      - id: quality-ratchet
+        name: quality ratchet (ruff + mypy, no new findings)
+        entry: python scripts/quality_ratchet.py check
+        language: system
+        types: [python]
+        pass_filenames: false
+      - id: markdown-links
+        name: markdown links
+        entry: python scripts/check_markdown_links.py
+        language: system
+        files: '(\.md$|doc_index\.json$)'
+        pass_filenames: false
+      - id: repository-hygiene
+        name: repository hygiene (tracked files, frozen artifacts)
+        entry: python scripts/check_repository_hygiene.py
+        language: system
+        always_run: true
+        pass_filenames: false

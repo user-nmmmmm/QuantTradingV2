@@ -87,6 +87,7 @@ def test_p3_horizon_must_be_preregistered_without_extending_p0():
 
 
 @pytest.mark.parametrize("random_slip", [False, True])
+@pytest.mark.slow
 def test_research_replays_leave_official_p0_p1_outputs_and_random_sequence_unchanged(runs, random_slip):
     _, results = runs
     _, off = results[random_slip, False]

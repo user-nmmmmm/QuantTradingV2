@@ -82,6 +82,7 @@ def test_frozen_coefficients_predict_normally_with_training_guard_installed():
         np.testing.assert_allclose(model.predict(pd.DataFrame({"x": [1., 3.]})), [.5, 3.5])
 
 
+@pytest.mark.slow
 def test_optional_backend_aliases_are_blocked_without_executing_fit():
     lightgbm = pytest.importorskip("lightgbm")
     pytest.importorskip("sklearn")
