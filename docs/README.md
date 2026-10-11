@@ -36,6 +36,7 @@
 - [论文统计验证契约](research/paper_validation_contract_20261003.md)：PBO、purged/embargo 切分、White Reality Check 与 DSR 的输入、计算和证据不足行为；应用入口见[论文应用清单](research/paper_applications.md)和[工程完成记录](research/paper_applications.md)。
 - [论文应用](research/paper_applications.md)：32 篇清单、路线图、十项实现、工程收口、续办与收益复核的时间线合集；[剩余任务](research/paper_remaining_tasks_20261004.md)与[统计验证契约](research/paper_validation_contract_20261003.md)保持独立。
 - [架构与性能](architecture_performance.md)：AP01–AP13 的路线图、验证记录与后续实施；[回测性能优化记录](backtest_performance.md)。
+- [V4 架构设计(草案)](v4_architecture_design.md)：分层包结构、统一特征管线、选币协议、策略插件接口、两层回测与实施路线；[文档整理审计](doc_consolidation_audit_20261010.md)记录了本轮文档合并。尚未登记进统一 Roadmap。
 - [网页工作台](../dashboard/README.md)：账户监控、离线回测、实验档案、数据质量与 Walk-forward；模块、API 和验证命令见[前端工程说明](../dashboard/README.md)。
 
 - [TrendPortfolio V2/V3 研究策略](trend_portfolio.md)：趋势分数、状态风险倍率、波动率目标、全市场周调仓与固定对照；工程验证和策略准入分开记录。
