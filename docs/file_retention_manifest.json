@@ -3,12 +3,6 @@
   "reviewed_on": "2026-09-26",
   "tracked_reports": [
     {
-      "path": "reports/deep_recovery_20260909_delivery.zip",
-      "size_bytes": 6424423,
-      "sha256": "b9fbd4ed37de8f538536832c75e5c3f5f5fbc5ffb573e9cd514f81a871062c22",
-      "purpose": "Historical recovery delivery archive"
-    },
-    {
       "path": "reports/deep_recovery_20260909_run.log",
       "size_bytes": 3223,
       "sha256": "41d23fe9ce5cb760880be5c05319037d6f2a87f5839008ae7de6d09500c82733",
@@ -39,18 +33,6 @@
       "purpose": "Historical P0 recovery test evidence"
     },
     {
-      "path": "reports/revalidation_60_20260908_delivery.zip",
-      "size_bytes": 7236330,
-      "sha256": "5b17777fc958822d217451d619f62cbb6475e960ff323f2727cacaab2b005c6d",
-      "purpose": "Historical revalidation delivery archive"
-    },
-    {
-      "path": "reports/strategy_remediation_20260914_delivery.zip",
-      "size_bytes": 49711435,
-      "sha256": "ccde58ba4ef4fb108adce8c805201acd73f3afda5e6a45837bc2077159ad6b05",
-      "purpose": "Historical strategy remediation delivery archive"
-    },
-    {
       "path": "reports/strategy_security_review_20260908.md",
       "size_bytes": 17641,
       "sha256": "b358a7749c8ac7b6568aa663a9bf0e61622ec98a066095736d091b52b5a6a697",
@@ -70,5 +52,36 @@
       "sha256": "9c512d397ff16c8969f49606fde4e5ab5910a8f552fc8b96f70f8a821093f792",
       "purpose": "Research source formerly stored in tmp/pdfs"
     }
-  ]
+  ],
+  "external_archives": {
+    "release": "evidence-archive-2026-09",
+    "moved_on": "2026-10-10",
+    "note": "No longer tracked in the working tree. Download from the release and verify size and SHA-256 before use; entries are immutable.",
+    "files": [
+      {
+        "name": "deep_recovery_20260909_delivery.zip",
+        "size_bytes": 6424423,
+        "sha256": "b9fbd4ed37de8f538536832c75e5c3f5f5fbc5ffb573e9cd514f81a871062c22",
+        "purpose": "Historical recovery delivery archive",
+        "url": "https://github.com/user-nmmmmm/QuantTradingV2/releases/download/evidence-archive-2026-09/deep_recovery_20260909_delivery.zip",
+        "former_path": "reports/deep_recovery_20260909_delivery.zip"
+      },
+      {
+        "name": "revalidation_60_20260908_delivery.zip",
+        "size_bytes": 7236330,
+        "sha256": "5b17777fc958822d217451d619f62cbb6475e960ff323f2727cacaab2b005c6d",
+        "purpose": "Historical revalidation delivery archive",
+        "url": "https://github.com/user-nmmmmm/QuantTradingV2/releases/download/evidence-archive-2026-09/revalidation_60_20260908_delivery.zip",
+        "former_path": "reports/revalidation_60_20260908_delivery.zip"
+      },
+      {
+        "name": "strategy_remediation_20260914_delivery.zip",
+        "size_bytes": 49711435,
+        "sha256": "ccde58ba4ef4fb108adce8c805201acd73f3afda5e6a45837bc2077159ad6b05",
+        "purpose": "Historical strategy remediation delivery archive",
+        "url": "https://github.com/user-nmmmmm/QuantTradingV2/releases/download/evidence-archive-2026-09/strategy_remediation_20260914_delivery.zip",
+        "former_path": "reports/strategy_remediation_20260914_delivery.zip"
+      }
+    ]
+  }
 }
