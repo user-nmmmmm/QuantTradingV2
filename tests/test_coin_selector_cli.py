@@ -78,6 +78,7 @@ def test_explicit_off_replays_the_original_economic_path(monkeypatch, tmp_path):
     assert observed["accounting_check"]["ok"]
 
 
+@pytest.mark.slow
 def test_frozen_serving_uses_current_weights_and_never_exposes_future_labels(frozen_ml_runtime):
     selector, identity = create_selector(candles(), initial_capital=100000)
     assert identity["model_id"] == "9db8c77c77e58997798c005b016f34a07bfb85a3fb7d77eacdce8f25bb8b851f"

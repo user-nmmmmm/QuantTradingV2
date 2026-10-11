@@ -9,6 +9,7 @@ from backtest.reporting.render.pdf import (
     calculate_portfolio_risk_metrics,
 )
 from backtest.reporting import ReportGenerator
+import pytest
 
 
 class TestPdfReport(unittest.TestCase):
@@ -30,6 +31,7 @@ class TestPdfReport(unittest.TestCase):
         self.assertIn("beta", result)
         self.assertIn("information_ratio", result)
 
+    @pytest.mark.slow
     def test_compact_profile_keeps_pdf_dashboard_and_core_csvs(self):
         with tempfile.TemporaryDirectory() as directory:
             ReportGenerator(directory).generate(

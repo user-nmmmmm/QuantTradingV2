@@ -187,6 +187,7 @@ class TestSummary:
 
 
 class TestReportSurfaces:
+    @pytest.mark.slow
     def test_exposure_reaches_extended_analytics_and_report_text(self, result):
         with tempfile.TemporaryDirectory() as directory:
             metrics = ReportGenerator(directory).generate(

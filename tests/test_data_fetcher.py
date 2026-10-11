@@ -3,6 +3,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from core.data_fetcher import DataFetcher
+import pytest
 
 
 class TestDataFetcherProxyConfig(unittest.TestCase):
@@ -54,6 +55,7 @@ class TestDataFetcherProxyConfig(unittest.TestCase):
 
     @patch("ccxt.okx")
     @patch("ccxt.binance")
+    @pytest.mark.slow
     def test_fetch_ccxt_falls_back_to_next_exchange(self, mock_binance, mock_okx):
         failing_exchange = MagicMock()
         failing_exchange.session = MagicMock()

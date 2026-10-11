@@ -54,6 +54,7 @@ def join(events, requests, quotes, proof, context, **kwargs):
         market_context=context, as_of="2020-02-01T00:00:00Z", **kwargs)
 
 
+@pytest.mark.slow
 def test_quote_store_restart_append_only_history_and_whitelist(tmp_path):
     path = tmp_path/"quotes.sqlite3"
     store = QuoteObservationStore(path)

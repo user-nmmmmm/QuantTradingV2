@@ -43,6 +43,13 @@ dashboard = ["*.js", "*.css", "*.html", "*.svg"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 norecursedirs = ["outputs", "reports", ".venv", ".venv-linux"]
+addopts = "--strict-markers"
+# Hard stop for a hung test (needs pytest-timeout from requirements-dev.txt).
+timeout = 600
+markers = [
+    "slow: test takes roughly 5 s or more; deselect for a quick loop with -m 'not slow'",
+    "network: needs a real network connection (none do today; keep new ones opt-in)",
+]
 
 [tool.ruff]
 target-version = "py311"
@@ -58,3 +65,13 @@ ignore_missing_imports = true
 follow_imports = "skip"
 check_untyped_defs = true
 warn_unused_ignores = true
+
+# Quality ratchet (scripts/quality_ratchet.py): wider than [tool.ruff.lint] / the mypy gate in CI.
+# Existing findings are recorded in scripts/quality_baseline.json and may only decrease.
+[tool.quality_ratchet.ruff]
+select = ["F", "E4", "E7", "E9", "B"]
+# B905 (zip without strict=) is excluded: adding strict=True changes runtime behavior.
+ignore = ["B905"]
+
+[tool.quality_ratchet.mypy]
+paths = ["core", "backtest", "live_trading", "strategies", "router", "composition"]

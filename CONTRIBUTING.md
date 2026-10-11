@@ -18,12 +18,16 @@ CI uses Python 3.11; the repository pin in `.python-version` is for local use.
 ## Before opening a PR
 ```bash
 python -m ruff check .
+python scripts/quality_ratchet.py check
 python -m mypy core/domain.py core/runtime.py live_trading/execution_adapter.py
-python -m pytest -q
+python -m pytest -q -n 4          # add -m "not slow" for a quick loop
 python scripts/check_repository_hygiene.py
 python scripts/verify_roadmap_completion.py --structure-only
 python scripts/check_markdown_links.py
 ```
+
+Optional: `python -m pip install pre-commit && pre-commit install` runs the same checks
+before each commit. How the quality gates and the ratchet work: `docs/quality.md`.
 
 ## Rules of thumb
 - One PR, one kind of change: moving files, behavior changes and doc edits are

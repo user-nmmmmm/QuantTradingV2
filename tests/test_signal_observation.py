@@ -255,6 +255,7 @@ def test_actual_partial_closes_link_order_and_exclude_valuation_transfer():
 
 
 @pytest.mark.parametrize("random_slip", [False, True])
+@pytest.mark.slow
 def test_observation_never_changes_official_fills_equity_health_or_risk(random_slip, tmp_path):
     data = build_synthetic_data_map()
     def run(enabled):

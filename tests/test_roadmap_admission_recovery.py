@@ -244,6 +244,7 @@ def test_failed_export_preserves_target_and_other_sessions_temporary_file(tmp_pa
     store.close()
 
 
+@pytest.mark.slow
 def test_multiple_processes_export_complete_snapshots(tmp_path):
     script = (
         "import sys; from core.state_store_v2 import StateStore; from core.risk import RiskManager; "
