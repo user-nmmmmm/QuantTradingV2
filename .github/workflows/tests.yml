@@ -34,6 +34,14 @@ jobs:
         run: python scripts/verify_baseline_archive.py
       - name: Check tracked files and frozen artifacts
         run: python scripts/check_repository_hygiene.py
+      - name: Check Markdown links
+        run: python scripts/check_markdown_links.py
+      - name: Report frozen-scope identity impact (informational)
+        if: github.event_name == 'pull_request'
+        run: >-
+          python scripts/identity_report.py
+          --base "origin/${{ github.base_ref }}" --head HEAD
+          --summary-file "$GITHUB_STEP_SUMMARY"
       - name: Verify roadmap completion structure
         run: python scripts/verify_roadmap_completion.py --structure-only
       - name: Type check critical runtime contracts

@@ -10,7 +10,7 @@
 - [ ] No change to order, fill, fee, risk or protective-stop semantics (or the change is described above with a rollback plan)
 - [ ] No secrets, API keys or account identifiers in code, docs, fixtures or logs
 - [ ] Frozen artifacts untouched (`docs/file_retention_manifest.json`, `docs/archive/2026-0[89]*`, `reports/` receipts), or the change is explained
-- [ ] Source/config identity of frozen research candidates considered (comment-only edits also change source hashes)
+- [ ] Frozen-scope identity impact reviewed (CI job summary, `docs/identity.md`); behavioral changes are called out above
 
 ## Test plan
 - [ ] `python -m pytest -q`
