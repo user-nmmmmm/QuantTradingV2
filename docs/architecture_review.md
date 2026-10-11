@@ -6,7 +6,7 @@
 
 交易路径中的持仓、现金与批次事实由 `core/portfolio.py`、`core/lots.py` 及对应状态存储维护。`research/audit/ledger.py` 的 `AuthoritativeLedger` 和 `PortfolioProjection` 是离线事件重放、对账研究的独立投影；其名称并不表示它已经接管实盘或回测下单路径。不能把离线投影的成功重放当成交易所账户已对账或真实资金可运行的证据。具体接口与限制见[研究账本说明](authoritative_ledger.md)。
 
-设计上，`core/` 的通用事件编码不应依赖 `research/` 的具体类型。当前 `core/events/codec.py` 的 `_resolve_type` 仍延迟导入 `research.audit.ledger` 中的 `CashEvent`、`MarkPriceEvent`，这是尚待消除的依赖倒置。迁移时应先固定旧事件的编码、解码及历史名称兼容样本，再将共享事件类型移动到稳定的核心契约位置；该迁移尚未完成。
+`core/` 的通用事件编码不依赖 `research/` 的具体类型（2026-10-11 已完成）：`CashEvent`、`MarkPriceEvent` 及其小型辅助函数移到 `core/events/ledger_events.py`，`research.audit.ledger` 继续导出这些名字。持久化的类型名是线上格式的一部分，所以 `core/events/codec.py` 用显式的 `_PERSISTED_NAMES` 保持 `research.audit.ledger:CashEvent` 等历史名称不变，并继续接受 `core.ledger:*` 旧名称；`tests/test_event_wire_compat.py` 在移动前的代码上先通过，用来固定这一点。
 
 ## A4：按变更原因拆分大模块
 
@@ -15,3 +15,14 @@
 部分拆分通过 mixin 复用同一个实例状态，例如 `core/broker/` 和 `live_trading/engine.py`。未来若改为独立协作对象，需要单独固定订单、成交、恢复与状态写入的行为，再进行有针对性的迁移和回归验证。
 
 若需要追溯更早的架构判断，可读[2026-08 技术复盘归档](archive/2026-08-technical-reviews/README.md)和[历史项目文件分析](archive/2026-08-roadmap-consolidation/project_file_and_architecture_analysis.md)。这些材料保留当时快照，不维护当前完成状态。
+
+## 导入方向（import-linter）
+
+包之间的依赖方向由 `pyproject.toml` 的 `[tool.importlinter]` 声明并在 CI 里用 `lint-imports` 检查（包括函数内的延迟导入）。分层从高到低：`dashboard` → `research | analysis` → `backtest | live_trading` → `composition` → `router` → `strategies` → `config` → `core`；高层可以导入低层，反之不行，同层的 `|` 两侧互相独立。另有一条规则禁止 `core` 依赖任何其他项目包。`scripts/` 与 `tests/` 在规则之外。
+
+目前有 4 条"向上"的导入作为已知例外登记（`ignore_imports`），都是函数内的延迟导入，且只许减少、不许增加（`tests/test_architecture_boundaries.py::test_layer_exceptions_do_not_grow`）：
+
+| 导入 | 原因 | 处理方向 |
+|---|---|---|
+| `backtest.engine` → `analysis.label_account_reconciliation` | 引擎结束时调用标签账户对账 | 对账函数下沉到 `core` 或改为注入 |
+| `backtest.coin_selector` → `research.ml_selection.{dataset,models,selector}` | `--coin-selector on` 加载冻结的 ML 选币器 | 随 V4 选币器统一（见 [V4 设计](v4_architecture_design.md) 第 4 节）搬到研究侧并以端口接入 |

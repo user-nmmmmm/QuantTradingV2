@@ -19,6 +19,7 @@ CI uses Python 3.11; the repository pin in `.python-version` is for local use.
 ```bash
 python -m ruff check .
 python scripts/quality_ratchet.py check
+lint-imports
 python -m mypy core/domain.py core/runtime.py live_trading/execution_adapter.py
 python -m pytest -q -n 4          # add -m "not slow" for a quick loop
 python scripts/check_repository_hygiene.py

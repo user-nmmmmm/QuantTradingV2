@@ -75,3 +75,48 @@ ignore = ["B905"]
 
 [tool.quality_ratchet.mypy]
 paths = ["core", "backtest", "live_trading", "strategies", "router", "composition"]
+
+# Import direction (import-linter, run in CI: `lint-imports`). Higher layers may import lower ones,
+# never the reverse. Scripts and tests are outside the rule set on purpose (they sit above everything).
+[tool.importlinter]
+root_packages = [
+    "core", "config", "strategies", "router", "composition",
+    "backtest", "live_trading", "analysis", "research", "dashboard",
+]
+include_external_packages = false
+
+[[tool.importlinter.contracts]]
+name = "Layered architecture (high -> low)"
+type = "layers"
+layers = [
+    "dashboard",
+    "research | analysis",
+    "backtest | live_trading",
+    "composition",
+    "router",
+    "strategies",
+    "config",
+    "core",
+]
+# KNOWN EXCEPTIONS: imports that point the wrong way today. This list may only shrink; the test
+# tests/test_architecture_boundaries.py::test_layer_exceptions_do_not_grow pins it.
+# Both are lazy (function-level) imports of research-side code from the backtest engine/CLI helper and
+# belong to the V4 selector/feature unification (docs/v4_architecture_design.md, section 4).
+ignore_imports = [
+    # reconciliation of observation labels; the module belongs below the engine (move to core or inject)
+    "backtest.engine -> analysis.label_account_reconciliation",
+    # loads the frozen ML selector for the optional `--coin-selector on` backtest toggle
+    "backtest.coin_selector -> research.ml_selection.dataset",
+    "backtest.coin_selector -> research.ml_selection.models",
+    "backtest.coin_selector -> research.ml_selection.selector",
+]
+
+[[tool.importlinter.contracts]]
+name = "core depends on no other project package"
+type = "forbidden"
+source_modules = ["core"]
+forbidden_modules = [
+    "config", "strategies", "router", "composition",
+    "backtest", "live_trading", "analysis", "research", "dashboard",
+]
+

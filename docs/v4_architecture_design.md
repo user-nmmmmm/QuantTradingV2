@@ -11,7 +11,7 @@ V4 的搬迁与重构依赖下列工程底座;它们与本文的 V4.0 重叠的�
 | 0.1 卫生与护栏 | `.gitignore`/`.gitattributes` 修正;PR 模板、CODEOWNERS、SECURITY、CONTRIBUTING、Dependabot(仅 Actions) | 已合并(#54) |
 | 0.2 可安装包 | `pip install -e .`、控制台入口、删除 71 处 `sys.path` 补丁、`install-smoke` CI(已设为必需检查) | 已合并(#60) |
 | 0.3 质量棘轮 | ruff 分档加规则、mypy 扩围、覆盖率门槛上调、测试标记/超时、pre-commit | 未开始 |
-| 0.4 依赖方向 | import-linter;消除 `core → research`、`backtest ↔ analysis/research` | 未开始(并入本文 V4.0) |
+| 0.4 依赖方向 | import-linter 分层规则;消除 `core → research`;`backtest → analysis/research` 登记为只减不增的已知例外 | 已完成(例外随 V4.2 选币统一清零) |
 | 0.5 冻结身份解耦 | 身份绑定发布标签与证据清单;校验脚本不再写死文档路径;CI 断链检查 | 未开始 |
 | 0.6 开发体验 | 统一任务入口、devcontainer、`docs/adr/`、脚本索引 | 未开始 |
 
