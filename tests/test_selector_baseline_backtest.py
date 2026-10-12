@@ -129,6 +129,7 @@ def test_default_off_never_imports_or_loads_ml_and_keeps_original_account(regist
 @pytest.mark.parametrize("pinned_bundle", [None, "queued_model/manifest.json"])
 def test_enabled_injects_fixed_policy_without_changing_original_engine(registered_account, monkeypatch, pinned_bundle):
     from backtest import coin_selector
+    from research.ml_selection import serving
     selector, identity = policy_identity()
     calls = engine_probe(monkeypatch, registered_account)
     factory_calls = []
@@ -142,7 +143,7 @@ def test_enabled_injects_fixed_policy_without_changing_original_engine(registere
         runner._save(directory / "coin_selector.json", observed_identity)
         return observed_identity
 
-    monkeypatch.setattr(coin_selector, "create_selector", factory)
+    monkeypatch.setattr(serving, "create_selector", factory)
     monkeypatch.setattr(coin_selector, "write_selector_report", write_report)
     target = registered_account.root / "on"
     summary = runner.run_backtest(target, coin_selector="on", selector_bundle=pinned_bundle,
@@ -161,10 +162,10 @@ def test_enabled_injects_fixed_policy_without_changing_original_engine(registere
 @pytest.mark.parametrize("key,value", [("model_id", "wrong-policy"), ("parent_model_id", "wrong-parent"),
     ("policy_threshold", .5), ("new_training_updates", 1), ("new_threshold_search", 1)])
 def test_enabled_rejects_policy_identity_or_budget_mismatch(registered_account, monkeypatch, key, value):
-    from backtest import coin_selector
+    from research.ml_selection import serving
     selector, identity = policy_identity()
     identity[key] = value
-    monkeypatch.setattr(coin_selector, "create_selector", lambda *args, **kwargs: (selector, identity))
+    monkeypatch.setattr(serving, "create_selector", lambda *args, **kwargs: (selector, identity))
     target = registered_account.root / "invalid-on"
     with pytest.raises(ValueError, match="identity differs"):
         runner.run_backtest(target, coin_selector="on", root=registered_account.root)

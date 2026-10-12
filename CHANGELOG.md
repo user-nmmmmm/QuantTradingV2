@@ -9,6 +9,7 @@
 ## [Unreleased]
 
 ### Changed
+- 分层规则不再有已知例外（ADR 0017）：`paper_labels`、`paper_label_execution`、`label_account_reconciliation` 从 `analysis/` 搬到 `signal_meta/`；`create_selector`、`restore_selector` 从 `backtest.coin_selector` 搬到 `research.ml_selection.serving`，导入路径随之改变。
 - 10 个基础件模块从 `core/` 根移到 `core/foundation/`，导入路径随之改变（`core.domain` → `core.foundation.domain`）；CI 的 mypy 目标、`scripts/dev.py` 同步更新；不留兼容垫片（ADR 0016）。至此 `core/` 根没有平铺模块。
 - 7 个审计、诊断、健康与指标模块从 `core/` 根移到 `core/analytics/`，导入路径随之改变（`core.indicators` → `core.analytics.indicators`）；不留兼容垫片（ADR 0015）。
 - 7 个选币、打分、分配与目标仓位模块从 `core/` 根移到 `core/planning/`，`portfolio`、`valuation` 并入 `core/trading/`，导入路径随之改变（`core.allocation` → `core.planning.allocation`，`core.portfolio` → `core.trading.portfolio`）；不留兼容垫片（ADR 0014）。

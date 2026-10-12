@@ -12,7 +12,7 @@ import math
 import numpy as np
 import pandas as pd
 
-from analysis.paper_labels import LabelCosts, _time
+from signal_meta.paper_labels import LabelCosts, _time
 
 
 def fixed_horizon_cost_labels(outcomes, *, costs: LabelCosts, horizon=5):

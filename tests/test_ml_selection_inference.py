@@ -6,7 +6,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from backtest.coin_selector import _account_compatibility, create_selector, restore_selector, write_selector_report
+from backtest.coin_selector import _account_compatibility, write_selector_report
+from research.ml_selection.serving import create_selector, restore_selector
 from research.ml_selection import dataset as data
 from research.ml_selection.membership import audit_membership
 from tests.test_ml_selection_dataset import candles

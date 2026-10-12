@@ -7,11 +7,12 @@ from __future__ import annotations
 
 from dataclasses import asdict
 import math
+from typing import Any
 
 import numpy as np
 import pandas as pd
 
-from analysis.paper_labels import BarrierConfig, LabelCosts, _frame, _time, label_candidates
+from signal_meta.paper_labels import BarrierConfig, LabelCosts, _frame, _time, label_candidates
 from core.market.timeframes import timeframe_delta
 from core.market.universe import normalize_symbol
 
@@ -128,7 +129,8 @@ def reconcile_label_cashflows(label, fills, financing=(), *, financing_complete=
     No equal-quantity closed round trip means no net-return claim.
     """
     identity = label["candidate_id"]
-    seen, unique, currencies = {}, [], set()
+    seen: dict[Any, Any] = {}
+    unique, currencies = [], set()
     for item in fills:
         if item.get("candidate_id") != identity:
             continue
@@ -160,7 +162,8 @@ def reconcile_label_cashflows(label, fills, financing=(), *, financing_complete=
     entry_qty, exit_qty = (sum(float(f["qty"]) for f in group) for group in (entries, exits))
     if not math.isclose(entry_qty, exit_qty, rel_tol=1e-9, abs_tol=1e-12):
         return {**base, "reason": "open_or_mismatched_quantity", "actual_net_bps": None}
-    charges, seen_financing = 0., {}
+    charges = 0.
+    seen_financing: dict[Any, Any] = {}
     for event in financing:
         if event.get("candidate_id") != identity:
             continue

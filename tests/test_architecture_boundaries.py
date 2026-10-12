@@ -46,14 +46,9 @@ def _import_roots(path: Path) -> list[tuple[int, str]]:
     return imports
 
 
-# The only imports allowed to point "upwards" (see [tool.importlinter] in pyproject.toml). This set may
-# only shrink: removing an entry is a cleanup, adding one needs an explicit design decision.
-KNOWN_LAYER_EXCEPTIONS = {
-    "backtest.engine -> analysis.label_account_reconciliation",
-    "backtest.coin_selector -> research.ml_selection.dataset",
-    "backtest.coin_selector -> research.ml_selection.models",
-    "backtest.coin_selector -> research.ml_selection.selector",
-}
+# Imports allowed to point "upwards" (see [tool.importlinter] in pyproject.toml). The last four were cleared in
+# B3 (ADR 0017); adding one needs an explicit design decision and an entry here.
+KNOWN_LAYER_EXCEPTIONS: set[str] = set()
 
 
 def test_layer_exceptions_do_not_grow() -> None:
@@ -62,6 +57,17 @@ def test_layer_exceptions_do_not_grow() -> None:
     contracts = config["tool"]["importlinter"]["contracts"]
     layered = next(item for item in contracts if item["type"] == "layers")
     assert set(layered.get("ignore_imports", [])) <= KNOWN_LAYER_EXCEPTIONS
+    assert "ignore_imports" not in layered, "the layered contract has no exceptions left"
+
+
+def test_backtest_coin_selector_does_not_pull_in_research() -> None:
+    import subprocess
+    import sys
+    code = ("import sys, backtest.coin_selector; "
+            "bad = sorted(m for m in sys.modules if m.split('.')[0] in {'research', 'analysis'}); "
+            "assert not bad, bad")
+    result = subprocess.run([sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
 
 
 def test_package_import_boundaries() -> None:

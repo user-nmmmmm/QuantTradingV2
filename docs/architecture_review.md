@@ -20,9 +20,9 @@
 
 包之间的依赖方向由 `pyproject.toml` 的 `[tool.importlinter]` 声明并在 CI 里用 `lint-imports` 检查（包括函数内的延迟导入）。分层从高到低：`dashboard` → `research | analysis` → `backtest | live_trading` → `composition` → `router` → `strategies` → `config` → `ops | signal_meta` → `core`；高层可以导入低层，反之不行，同层的 `|` 两侧互相独立。另有一条规则禁止 `core` 依赖任何其他项目包。`scripts/` 与 `tests/` 在规则之外。
 
-目前有 4 条"向上"的导入作为已知例外登记（`ignore_imports`），都是函数内的延迟导入，且只许减少、不许增加（`tests/test_architecture_boundaries.py::test_layer_exceptions_do_not_grow`）：
+分层契约**没有已知例外**（`ignore_imports` 为空，由 `tests/test_architecture_boundaries.py::test_layer_exceptions_do_not_grow` 固定；最后 4 条在 [ADR 0017](adr/0017-clear-layer-exceptions.md) 中清零）。历史上的 4 条例外及其处理：
 
 | 导入 | 原因 | 处理方向 |
 |---|---|---|
-| `backtest.engine` → `analysis.label_account_reconciliation` | 引擎结束时调用标签账户对账 | 对账函数下沉到 `core` 或改为注入 |
-| `backtest.coin_selector` → `research.ml_selection.{dataset,models,selector}` | `--coin-selector on` 加载冻结的 ML 选币器 | 随 V4 选币器统一（见 [V4 设计](v4_architecture_design.md) 第 4 节）搬到研究侧并以端口接入 |
+| `backtest.engine` → `signal_meta.label_account_reconciliation` | 引擎结束时调用标签账户对账 | 已完成：对账模块及其两个依赖搬到 `signal_meta/`（ADR 0017） |
+| `backtest.coin_selector` → `research.ml_selection.{dataset,models,selector}` | `--coin-selector on` 加载冻结的 ML 选币器 | 已完成：`create_selector` / `restore_selector` 搬到 `research/ml_selection/serving.py`（ADR 0017）；选币器统一仍属 [V4 设计](v4_architecture_design.md) 第 4 节 |

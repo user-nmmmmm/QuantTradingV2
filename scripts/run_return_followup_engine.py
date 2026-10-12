@@ -52,7 +52,7 @@ def source_identity():
                      and "__pycache__" not in p.parts)
     paths.extend(ROOT / name for name in (
         "analysis/__init__.py", "analysis/paper_study.py", "analysis/paper_data_audit.py",
-        "analysis/paper_labels.py", "analysis/paper_validation.py", "analysis/research_validation.py",
+        "signal_meta/paper_labels.py", "analysis/paper_validation.py", "analysis/research_validation.py",
         "scripts/run_paper_applications.py", "scripts/run_revalidation60.py",
         "scripts/run_return_followup_engine.py", "pyproject.toml", "requirements.lock.txt") if (ROOT / name).is_file())
     return {p.relative_to(ROOT).as_posix(): sha256_file(p) for p in sorted(set(paths))}

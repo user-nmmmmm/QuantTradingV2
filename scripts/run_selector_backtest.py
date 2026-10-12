@@ -117,7 +117,7 @@ def _selector(frames, capital, enabled, selector_bundle=None, *, account_mode=No
         return None, {"enabled": False, "mode": "off", "model_id": None,
                       "reason": "original registered strategy and smart capital allocation"}
     # Importing/loading ML is confined to the explicitly enabled branch.
-    from backtest.coin_selector import create_selector
+    from research.ml_selection.serving import create_selector
     selector, identity = create_selector(frames, initial_capital=capital, bundle_path=selector_bundle,
                                          account_mode=account_mode)
     if selector is None or not isinstance(identity, dict) or not identity:

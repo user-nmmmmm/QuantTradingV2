@@ -100,18 +100,8 @@ layers = [
     "ops | signal_meta",
     "core",
 ]
-# KNOWN EXCEPTIONS: imports that point the wrong way today. This list may only shrink; the test
-# tests/test_architecture_boundaries.py::test_layer_exceptions_do_not_grow pins it.
-# Both are lazy (function-level) imports of research-side code from the backtest engine/CLI helper and
-# belong to the V4 selector/feature unification (docs/v4_architecture_design.md, section 4).
-ignore_imports = [
-    # reconciliation of observation labels; the module belongs below the engine (move to core or inject)
-    "backtest.engine -> analysis.label_account_reconciliation",
-    # loads the frozen ML selector for the optional `--coin-selector on` backtest toggle
-    "backtest.coin_selector -> research.ml_selection.dataset",
-    "backtest.coin_selector -> research.ml_selection.models",
-    "backtest.coin_selector -> research.ml_selection.selector",
-]
+# No exceptions: ``ignore_imports`` must stay absent. tests/test_architecture_boundaries.py pins it, and
+# adding one needs an explicit design decision (ADR 0017 cleared the last four).
 
 [[tool.importlinter.contracts]]
 name = "core depends on no other project package"

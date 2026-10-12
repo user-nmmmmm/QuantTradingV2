@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 
 from analysis.paper_data_audit import audit_frame
-from analysis.paper_labels import BarrierConfig, LabelCosts, label_candidates
+from signal_meta.paper_labels import BarrierConfig, LabelCosts, label_candidates
 from analysis.paper_study import (
     ARMS, WINDOWS, arm_parameters, chronological_label_baseline, coverage_report,
     equity_returns, factor_attribution, factor_proxies, fixed_benchmark,
