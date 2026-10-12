@@ -1,6 +1,6 @@
 # 基础设施路线图（2026-10 起）
 
-> 核对日期：2026-10-12，依据 `main` 的 `e5fcc85` 及实测数据。本文是**工程路线图**：排列基础设施与结构整理的顺序、依赖和退出条件。它不维护项目阶段（R0–R8）、任务状态或实盘准入，这些仍以[统一 Roadmap](unified_roadmap.md)为准；它也不改变任何策略研究结论。与之配套：[V4 架构设计（草案）](v4_architecture_design.md)、[架构决策记录](adr/README.md)、[质量门槛](quality.md)、[身份说明](identity.md)。本文取代[工程结构优化路线图](engineering_structure_roadmap.md)中仍然适用的部分。
+> 核对日期：2026-10-12，依据 `main` 的 `176e90c`（#69）及实测数据；第 4 节末尾的"当前状态"和第 9 节"交接说明"记录了这一天的进度和未决问题。本文是**工程路线图**：排列基础设施与结构整理的顺序、依赖和退出条件。它不维护项目阶段（R0–R8）、任务状态或实盘准入，这些仍以[统一 Roadmap](unified_roadmap.md)为准；它也不改变任何策略研究结论。与之配套：[V4 架构设计（草案）](v4_architecture_design.md)、[架构决策记录](adr/README.md)、[质量门槛](quality.md)、[身份说明](identity.md)。本文取代[工程结构优化路线图](engineering_structure_roadmap.md)中仍然适用的部分。
 
 ## 1. 目标与原则
 
@@ -26,6 +26,7 @@
 | 0.6 | `dev.py check`、ADR 0001–0006、dev container（未实际运行）、脚本索引补全 | 已完成 | #67 |
 | — | 交付 ZIP 迁到 GitHub Release；文档整理（160→约 140 个 Markdown）；分支保护、密钥扫描、Dependabot alerts | 已完成 | #62、#52/#59、仓库设置 |
 | V4.0-1 | 12 个运维/治理模块移到顶层包 `ops/`（ADR 0007） | 已完成 | #68 |
+| — | 本路线图 | 已完成 | #69 |
 
 当前规模（`main`，2026-10-12）：`core/` 78 个平铺模块 + 7 个子包；246 个测试文件、约 3945 个测试，CI 并行约 3 分钟；覆盖率 89.1%；ruff 621、mypy 869 项存量；`BacktestEngine.run` 所在文件 1296 行，`main.py` 1126 行；5 个 mixin 类；`scripts/` 97 个脚本；0 个发布标签。
 
@@ -83,12 +84,25 @@ G0 的结论有三种，对应不同的后续：
 ### 轨道 D：仓库、数据与环境
 | 编号 | 工作 | 规模 | 依赖 | 退出条件 |
 |---|---|---|---|---|
-| D1 | 分支与 worktree 清理：42 个已合并远端分支、3 个 Dependabot 旧分支、`old-origin` 的 3 个分支、10 个 worktree（4 个已失效）；3 个未合并分支逐个决定。**先列清单，经确认后执行**（不可逆） | S | 你的确认 | 远端只保留 `main` 与进行中的分支 |
+| D1 | 分支与 worktree 清理：42 个已合并远端分支、3 个 Dependabot 旧分支、`old-origin` 的 3 个分支、10 个 worktree（4 个已失效）；3 个未合并分支逐个决定（其中两个有不在 `main` 上的 8 月提交：本地 `docs/readme-architecture-and-local-data` 的 `80b6833`、远端 `docs/readme-glossary-update` 的 `29f3a71`，先与 `main` 对比再定，第三个是 `claude/canonical-trading-events-*`）。**先列清单，经确认后执行**（不可逆） | S | 你的确认 | 远端只保留 `main` 与进行中的分支 |
 | D2 | **数据身份**（旧路线图阶段 2，仍未完成）：`data/binance/1d/_manifest.json` 只记录 2 个标的，已跟踪 CSV 共 30 个；分离"下载缓存清单"与"冻结研究输入清单"，为每个采用的文件登记来源、范围、行数、SHA-256；无法证实的标"未核验" | M | — | 冻结清单覆盖全部被采用的输入；缺失/替换使校验失败 |
 | D3 | **环境收敛**（旧路线图阶段 3，仍未完成）：CI 目前从 `requirements-dev.txt` 安装（只固定直接依赖），锁文件仅被校验；做"锁文件再生成脚本"，让 CI 从锁安装并严格比对；之后才启用 Dependabot 的 pip 与安全更新 | M | — | CI 在锁定环境运行；`verify_lock` 与 `check_environment --strict-lock` 都在 CI 中 |
 | D4 | Dependabot 策略：频率改为每月或分组；主版本升级的评审约定 | S | — | `dependabot.yml` 更新；噪音可控 |
 | D5 | 静态分析：评估启用 CodeQL；dev container 实际验证；`install-smoke` 稳定后评估是否纳入更多平台 | S | — | 各项有"启用 / 不启用 + 理由" |
 | D6 | 生成物与文档：架构图（`架构图/`，路径仍是旧的）由脚本从 `core`/`ops` 现状重新生成并加入检查；文档数量与 `doc_index.json` 的维护约定 | S | B1 | 架构图与代码一致且有检查 |
+
+### 当前状态（2026-10-12）
+
+| 编号 | 状态 | 备注 |
+|---|---|---|
+| G0 | **未决** | 等待确认观察窗绑定的源码身份；在此之前冻结范围不动 |
+| A1–A4 | 未开始 | A1 依赖 G0 的答案；A2 不依赖，可立即开始 |
+| B1–B5 | 未开始（受 G0 约束） | B1 的依赖图分析已做过：14 个模块、约 3500 行、导入点约 61 处，`temporal_data` 必须留在 `core`；`backtest/signal_meta_replay.py` 的指纹键需保持旧名 |
+| C1 | 已约定、未写入 CONTRIBUTING | 每个 PR 顺手减少触碰文件的存量 |
+| C2–C5 | 未开始 | C2 的可疑模式清单已在 `docs/quality.md` |
+| D1 | 待你确认清单 | 清单见上表 D1 行 |
+| D2、D3 | 未开始 | 数据清单只登记 2 个标的而已跟踪 CSV 有 30 个；CI 从 `requirements-dev.txt` 安装而不是锁文件 |
+| D4–D6 | 未开始 | — |
 
 ## 5. 依赖与顺序
 
@@ -149,3 +163,25 @@ M1 之后的功能轨道（特征管线 → 回测两层化 → 选币统一 →
 - 新决定写成 ADR（`docs/adr/`），本文只引用它。
 - 与统一 Roadmap 的关系：本文不改阶段与任务状态；若某项工作需要登记为 SYS 任务，在[开发计划](development_plan.md)里按其规则登记，并在这里引用编号。
 - 每个里程碑结束时回看第 3 节（先决问题）与第 7 节（风险）是否仍然成立。
+
+## 9. 交接说明（给下一个维护者或新会话）
+
+**工作方式（已在 #52–#69 中沿用）：**
+
+- 流程：从最新 `origin/main` 拉分支 → 实现并本地跑 `python scripts/dev.py check`（`--no-tests` 跳过长测试）→ 提交 → 推送 → 开 PR → 等 CI。**合并由仓库所有者操作**，AI 助手的合并操作会被权限系统拦下；严格分支保护要求分支是最新的，所以每合并一个，其余 PR 需要先更新分支并重跑 CI。
+- 必需检查共 5 项：`quality` 与 `install-smoke`（ubuntu/windows × 3.11/3.13）。Dependabot 只管 GitHub Actions，每周一次，同时最多 3 个 PR。
+- 不可逆或对外可见的操作先列清单、经确认再做：删除分支、迁出文件、改仓库设置、发布 Release。
+- 提交信息末尾带 `Co-Authored-By` 行，PR 描述末尾带 `Generated with Claude Code` 行（由会话的归属规则给出）。
+
+**机器检查与它们的文档：** `scripts/dev.py list`；[质量门槛](quality.md)（棘轮、覆盖率、标记）；[身份说明](identity.md)（行为身份、`doc_index.json`、断链检查）；[架构边界](architecture_review.md)（分层与已知例外）；[ADR](adr/README.md)。
+
+**已知陷阱：**
+
+- 本地 Windows 上 `tests/test_ml_selection_candidate_dataset.py::test_archived_default_inputs_cannot_escape_via_symlink` 因没有符号链接权限（WinError 1314）而失败，Linux CI 上会通过（C4 计划加跳过条件）。
+- 工作区是 CRLF、仓库内容是 LF：读取工作区文件做哈希前要按 git 规则规范化（`core/source_identity.py` 已处理）；批量改写文本文件时保留原有换行符。
+- 在某些 shell 工具里，heredoc 中的反斜杠转义会被改写（出现过 `\0` 变成真正的空字节）。需要写含转义的 Python 时，先把脚本写成文件再运行，或用 `chr(…)` / `bytes([…])` 构造。
+- `pip install -e .` 在联网不稳时可能挂起；已装好依赖时用 `--no-deps --no-build-isolation`。给 `pyproject.toml` 增加包后需要重新执行可编辑安装，否则新包导入不到。
+- 链接检查只看已被 git 跟踪的文件：新增文档要先 `git add`。
+- 冻结的历史证据（`docs/archive/2026-08*`、`2026-09*`、`docs/research/ml_selection_next_acceptance_20261005.json`、`docs/codex_mail_findings_20260920.json`、`docs/research/current_strategy_protocol.json`、`reports/` 回执）不得改写；移动文档要在 `docs/doc_index.json` 追加一条。
+
+**第一件事：** 向仓库所有者确认 G0，再按第 5 节"现在"一栏开始（A1、A2、D1、C4、C2）。
