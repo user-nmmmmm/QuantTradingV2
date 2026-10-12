@@ -37,6 +37,7 @@
 - [论文应用](research/paper_applications.md)：32 篇清单、路线图、十项实现、工程收口、续办与收益复核的时间线合集；[剩余任务](research/paper_remaining_tasks_20261004.md)与[统计验证契约](research/paper_validation_contract_20261003.md)保持独立。
 - [架构与性能](architecture_performance.md)：AP01–AP13 的路线图、验证记录与后续实施；[回测性能优化记录](backtest_performance.md)。
 - [基础设施路线图](infrastructure_roadmap.md)：2026-10 起的身份与发布、结构搬迁、质量债务、仓库/数据/环境四条轨道，先决问题（前向观察窗的身份约束）、依赖与进入 V4 功能开发的条件。
+- [发布约定](releasing.md)：语义化版本、`CHANGELOG.md`、带注解的发布标签，以及标签与行为身份回执的绑定记录（ADR 0009、0010）。
 - [架构决策记录（ADR）](adr/README.md)：已采纳的结构、工具链与研究完整性决定及其取舍。
 - [质量门槛与棘轮](quality.md)：硬门槛、ruff/mypy 棘轮基线、覆盖率门槛、测试并行/超时/标记与本地钩子。
 - [源码身份、文档移动与断链检查](identity.md)：行为身份（忽略注释与排版）、冻结范围、PR 影响报告、`doc_index.json` 与 Markdown 断链检查。
