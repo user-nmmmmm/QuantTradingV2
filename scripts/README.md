@@ -96,6 +96,30 @@
 
 需要新目录的研究脚本会拒绝覆盖既有证据。部分脚本的默认路径绑定历史批次，复用时应显式指定新的 `--output`；续传仅使用该脚本公开提供的 `--resume` 或 `--resume-store`，不手工重写登记和哈希。
 
+## 开发与质量门槛
+
+| 脚本 | 用途 |
+| --- | --- |
+| [`dev.py`](dev.py) | 统一入口：`check`（与 CI `quality` 作业一致的顺序）、`lint`、`types`、`imports`、`ratchet`、`test`、`fast`、`setup`；也安装为 `quant-dev`。见[质量门槛](../docs/quality.md)。 |
+| [`quality_ratchet.py`](quality_ratchet.py) | ruff / mypy 存量问题的"只减不增"棘轮；基线在 `quality_baseline.json`。 |
+| [`check_markdown_links.py`](check_markdown_links.py) | 检查被跟踪 Markdown 的相对链接；移动过的文档通过 `docs/doc_index.json` 提示新位置。 |
+| [`identity_report.py`](identity_report.py) | 比较两个提交（或工作区）对冻结范围行为身份的影响，可写出和核对回执。见[身份说明](../docs/identity.md)。 |
+
+## 机器学习选币（离线）
+
+训练暂停期间使用显式的工程检查入口；这些脚本不代表选币器已获准入。操作细节见[机器学习选币](../docs/ml_selection.md)。
+
+| 脚本 | 用途 |
+| --- | --- |
+| [`check_ml_code.py`](check_ml_code.py) | 在禁用真实拟合的前提下运行显式的 ML 工程测试清单（`--list-tests` 查看清单）。 |
+| [`ml_training_guard.py`](ml_training_guard.py) | 上一脚本使用的守卫：在内存中拦截模型拟合并在退出时恢复。 |
+| [`audit_ml_readiness.py`](audit_ml_readiness.py) | 只读审计现有选币器证据；不训练、不下载、不回测。 |
+| [`build_selector_candidates.py`](build_selector_candidates.py) | 只读已有不可变实验账本，生成原策略候选数据；不训练、不重放回测。 |
+| [`plan_selector_comparison.py`](plan_selector_comparison.py) | 写出选币消融计划，或比较已有的成对账户回执。 |
+| [`run_ml_selection_next.py`](run_ml_selection_next.py) | 在新的不可变实验目录中执行合并后的六阶段研究协议。 |
+| [`collect_ml_selection_forward.py`](collect_ml_selection_forward.py) | 追加公开、不可变、已收盘的日线现货输入，用于影子观察。 |
+| [`run_selector_backtest.py`](run_selector_backtest.py) | 复现原 10 万本金账户，可选开启冻结的 RL 选币器（`--coin-selector on/off`）。 |
+
 ## 历史专项：策略审查交付
 
 以下脚本服务于已登记的策略审查批次，包含固定输入、独立任务、汇总、归档和交付。它们不是通用回测或实盘入口；应从相应的批次文档和证据目录复现。
