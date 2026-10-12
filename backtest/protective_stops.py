@@ -63,7 +63,7 @@ import pandas as pd
 
 from core.broker.matching import PROTECTIVE_EXIT_REASON, is_protective_stop
 from core.broker.types import BacktestOrderStatus
-from core.logger import get_logger
+from core.foundation.logger import get_logger
 from core.trading.protective_orders import (
     ProtectiveAction,
     ProtectiveOrder,
@@ -73,7 +73,7 @@ from core.trading.protective_orders import (
     parse_protective_position_reference,
     protective_position_reference,
 )
-from core.runtime import MarketDataSlice
+from core.foundation.runtime import MarketDataSlice
 
 logger = get_logger(__name__)
 

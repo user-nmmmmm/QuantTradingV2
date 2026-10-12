@@ -19,7 +19,7 @@ from typing import Optional
 import math
 import pandas as pd
 
-from core.logger import get_logger
+from core.foundation.logger import get_logger
 
 logger = get_logger(__name__)
 

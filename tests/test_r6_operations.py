@@ -5,7 +5,7 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from core.alerting import AlertState, HysteresisAlertSink
+from core.foundation.alerting import AlertState, HysteresisAlertSink
 from core.events.store import SQLiteEventStore
 from research.audit.ledger import AuthoritativeLedger
 from research.audit.reconciliation_job import EODReconciliationJob

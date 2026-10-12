@@ -21,5 +21,5 @@
 ## 后果
 - 运行手册里的 `python -m core.admission_gates` 等命令变成 `python -m ops.admission_gates`，已同步到现行文档；历史记录里仍是旧写法。
 - 冻结身份的逐字节哈希会因文件移动而变化（行为身份报告显示为删除 + 新增，内容未改）。
-- `ops/` 之后若要再拆（例如 `core.alerting` 随 `live_broker` 重构迁出），按同样的依赖图方法评估。
+- `ops/` 之后若要再拆（例如 `core.foundation.alerting` 随 `live_broker` 重构迁出），按同样的依赖图方法评估。
 - 同一方法将用于 `signal_meta/`（信号元层，14 个模块）。

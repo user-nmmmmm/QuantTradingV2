@@ -1379,7 +1379,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **来源：** [docs/unified_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/unified_roadmap.md)；[docs/archive/2026-10-doc-consolidation/live_trading_remediation_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/live_trading_remediation_plan.md)；[docs/canonical_trading_events.md](canonical_trading_events.md)。
 
-**修改范围：** [core/runtime.py](../core/runtime.py)、[core/events](../core/events)、[backtest/execution_adapter.py](../backtest/execution_adapter.py)、[live_trading/execution_adapter.py](../live_trading/execution_adapter.py)。
+**修改范围：** [core/foundation/runtime.py](../core/foundation/runtime.py)、[core/events](../core/events)、[backtest/execution_adapter.py](../backtest/execution_adapter.py)、[live_trading/execution_adapter.py](../live_trading/execution_adapter.py)。
 
 **开发步骤：**
 
@@ -1614,7 +1614,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **来源：** [docs/archive/2026-10-doc-consolidation/live_trading_remediation_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/live_trading_remediation_plan.md)；[docs/r6_operations.md](r6_operations.md)；[docs/r7_sandbox_runbook.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/r7_sandbox_runbook.md)。
 
-**修改范围：** [live_trading/state_export.py](../live_trading/state_export.py)、[core/alerting.py](../core/alerting.py)、[ops/supervisor.py](../ops/supervisor.py)、[core/trading/sqlite_utils.py](../core/trading/sqlite_utils.py)、[dashboard](../dashboard)、[run_live.py](../run_live.py)。
+**修改范围：** [live_trading/state_export.py](../live_trading/state_export.py)、[core/foundation/alerting.py](../core/foundation/alerting.py)、[ops/supervisor.py](../ops/supervisor.py)、[core/trading/sqlite_utils.py](../core/trading/sqlite_utils.py)、[dashboard](../dashboard)、[run_live.py](../run_live.py)。
 
 **开发步骤：**
 

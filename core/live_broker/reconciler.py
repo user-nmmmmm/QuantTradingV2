@@ -13,8 +13,8 @@ from enum import Enum
 import math
 from typing import Any, Dict, Mapping, Optional
 
-from core.domain import FillRecord, OrderErrorCode, OrderStatus, OrderSubmissionResult
-from core.logger import get_logger
+from core.foundation.domain import FillRecord, OrderErrorCode, OrderStatus, OrderSubmissionResult
+from core.foundation.logger import get_logger
 from core.trading.orders import TERMINAL_STATUSES, classify_order_exception
 
 # Same logger name as core.live_broker (logging.getLogger caches by name, so

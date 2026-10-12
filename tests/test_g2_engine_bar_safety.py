@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 import pandas as pd
 
 from config.config import config
-from core.domain import SyncResult
+from core.foundation.domain import SyncResult
 from core.trading.portfolio import Portfolio
 from core.risk import RiskManager
 from core.trading.state_store_v2 import StateStore

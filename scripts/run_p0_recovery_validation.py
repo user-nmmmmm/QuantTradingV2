@@ -7,7 +7,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 from config.config import config
-from core.reproducibility import canonical_json
+from core.foundation.reproducibility import canonical_json
 from scripts.run_revalidation60 import load_inputs, protocol, run_one, save, source_hashes
 
 

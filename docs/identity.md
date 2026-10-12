@@ -6,7 +6,7 @@
 
 既有的源码身份（`research/ml_selection/protocol.py::source_identity`、`scripts/roadmap_baseline.py::source_manifest` 等）对文件字节做哈希，所以改一行注释、重排空行或统一换行符都会让身份变化。结果是：任何整理代码的改动都会被当成"冻结候选的源码变了"，需要重新登记，反而阻碍了无风险的整理。
 
-`core/source_identity.py` 提供第二种方案 `code-token/v1`：
+`core/foundation/source_identity.py` 提供第二种方案 `code-token/v1`：
 
 | 文件类型 | 如何哈希 | 改什么不会改变身份 |
 |---|---|---|

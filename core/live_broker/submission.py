@@ -17,9 +17,9 @@ import math
 from dataclasses import replace
 from typing import Any, Dict, Optional
 
-from core.domain import OrderErrorCode, OrderIntent, OrderStatus, OrderSubmissionResult
+from core.foundation.domain import OrderErrorCode, OrderIntent, OrderStatus, OrderSubmissionResult
 from core.exchange import ExchangeBoundaryError
-from core.logger import get_logger
+from core.foundation.logger import get_logger
 from core.trading.orders import TERMINAL_STATUSES, classify_order_exception, is_ambiguous_error
 from core.risk.reservation import OpeningRiskRejected, ensure_opening_reservation
 

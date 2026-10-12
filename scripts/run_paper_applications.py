@@ -30,7 +30,7 @@ from backtest.engine import BacktestEngine
 from backtest.reporting import ReportGenerator
 from config.config import config
 from core.metrics.execution import calculate_execution_quality
-from core.reproducibility import deterministic_result_digest, sha256_file, sha256_frame
+from core.foundation.reproducibility import deterministic_result_digest, sha256_file, sha256_frame
 from scripts.run_revalidation60 import source_hashes
 
 

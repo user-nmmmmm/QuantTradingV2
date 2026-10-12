@@ -9,7 +9,7 @@ import pandas as pd
 import pytest
 
 from core.broker.types import Order, OrderStatus
-from core.reproducibility import canonical_json
+from core.foundation.reproducibility import canonical_json
 from research.ml_selection.dataset import build_dataset
 from research.ml_selection.forward_bridge import (RecordingSelector, capture_hook_state,
                                                   bridge_decision, validate_hook_state)

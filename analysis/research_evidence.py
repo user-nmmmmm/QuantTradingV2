@@ -11,7 +11,7 @@ from typing import Mapping
 import numpy as np
 import pandas as pd
 
-from core.reproducibility import canonical_json, sha256_bytes, sha256_file, sha256_frame
+from core.foundation.reproducibility import canonical_json, sha256_bytes, sha256_file, sha256_frame
 
 
 def source_identity(root=None):

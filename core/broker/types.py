@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Optional
 
-from core.domain import OrderIntent, OrderStatus
+from core.foundation.domain import OrderIntent, OrderStatus
 
 
 class TimeInForce(Enum):

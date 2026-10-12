@@ -26,7 +26,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from core.source_identity import (Impact, Scope, SCHEME, bind_release, build_manifest, compare, identity_digest,
+from core.foundation.source_identity import (Impact, Scope, SCHEME, bind_release, build_manifest, compare, identity_digest,
                                   receipt, scope_sha256, verify_binding, verify_receipt)
 
 ROOT = Path(__file__).resolve().parents[1]

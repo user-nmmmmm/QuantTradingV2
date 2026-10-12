@@ -10,9 +10,9 @@ from config.config import config
 from core.trading.portfolio import Portfolio
 from core.trading.order_store import OrderStore
 from core.trading.state_store_v2 import StateStore
-from core.runtime_identity import RuntimeIdentity
-from core.logger import configure_logging, get_logger
-from core.live_safety import (
+from core.foundation.runtime_identity import RuntimeIdentity
+from core.foundation.logger import configure_logging, get_logger
+from core.foundation.live_safety import (
     SafetyConfigurationError,
     StartupSafetyPolicy,
     credentials_from_environment,
@@ -225,8 +225,8 @@ def main() -> int:
     safety_guard = PersistentOrderSafetyGuard(policy, str(identity.directory / "safety.db"), identity=identity)
     if gray_policy is not None:
         safety_guard = AdmissionBoundOrderGuard(safety_guard, gray_policy, current_release_identity)
-    from core.alerting import build_default_alert_sink
-    from core.logger import get_logger
+    from core.foundation.alerting import build_default_alert_sink
+    from core.foundation.logger import get_logger
     broker = SafeLiveBroker(
         portfolio=portfolio,
         exchange_id=args.exchange,

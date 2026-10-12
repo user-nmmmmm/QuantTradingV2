@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 
 from core.broker import Broker
-from core.domain import OrderIntent, OrderStatus
+from core.foundation.domain import OrderIntent, OrderStatus
 from core.events import (
     EVENT_SCHEMA_VERSION,
     EventCodec,

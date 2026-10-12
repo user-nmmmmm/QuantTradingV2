@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 from backtest.engine import BacktestEngine
 from backtest.reporting.signal_observation import write_signal_observation_report
 from core.market.data import DataHandler
-from core.reproducibility import (
+from core.foundation.reproducibility import (
     artifact_hashes, build_run_manifest, canonical_json, data_identity,
     deterministic_result_digest, runtime_identity, save_data_snapshots, write_manifest,
 )

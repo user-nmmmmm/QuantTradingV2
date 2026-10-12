@@ -53,7 +53,7 @@
 | R8 / G10 | 小额灰度入口和门控代码 | 前置验收、批准、真实小额运行与回滚证据未闭环，未放行 |
 | G9 工程治理 | 锁文件、lint/type/test、覆盖率门槛及历史 CI 证据 | 当前工作区重新冻结；验收工具拒绝未跟踪文件；完整多平台兼容证据 |
 
-主要依据：[9月6日验收索引](../../baselines/main_20260906/README.md)、[独立审计账本边界](../../authoritative_ledger.md)、[共享运行核心](../../../core/runtime.py)、[订单恢复检查](../../../live_trading/recovery.py)、[R7要求](../../r7_sandbox_runbook.md)、[Phase6要求](../../phase6_operations.md)。
+主要依据：[9月6日验收索引](../../baselines/main_20260906/README.md)、[独立审计账本边界](../../authoritative_ledger.md)、[共享运行核心](../../../core/foundation/runtime.py)、[订单恢复检查](../../../live_trading/recovery.py)、[R7要求](../../r7_sandbox_runbook.md)、[Phase6要求](../../phase6_operations.md)。
 
 BM1–BM8 是已具备基础能力，并非详细需求全部验收；各项退出门槛仍沿用原路线图。本次不按勾选数计算百分比，因为任务粒度不同，且若干文档状态明显滞后。
 
@@ -140,7 +140,7 @@ MAIL-37-1 的原始“部分减仓永远不重试”判断需要区别于 MAIL-3
 **MAIL-4-4 · P2 · 已修复** — [Preserve subjects when deduplicating health alerts](https://github.com/user-nmmmmm/QuantTradingV2/pull/4#pullrequestreview-4889477929)
 
 - 当前核对：risk_halt context 现在保留(code,subject)；HysteresisAlertSink根据完整稳定context生成key，因此不同标的同原因可分辨。
-- 代码/既有测试：[live_trading/engine.py:246](../../../live_trading/engine.py)；[core/alerting.py:200](../../../core/alerting.py)。
+- 代码/既有测试：[live_trading/engine.py:246](../../../live_trading/engine.py)；[core/foundation/alerting.py:200](../../../core/foundation/alerting.py)。
 - 验证方式：静态追踪健康告警context和去重key。
 **MAIL-4-5 · P2 · 部分修复** — [Give concurrent state exports unique temporary files](https://github.com/user-nmmmmm/QuantTradingV2/pull/4#pullrequestreview-4889477929)
 
@@ -274,7 +274,7 @@ MAIL-37-1 的原始“部分减仓永远不重试”判断需要区别于 MAIL-3
 **MAIL-17-1 · P1 · 已修复** — [Continue routing exits after blocking new entries](https://github.com/user-nmmmmm/QuantTradingV2/pull/17#pullrequestreview-5028474123)
 
 - 当前核对：共享运行时已分离持仓管理与新仓候选，BLOCK_NEW仍调用退出管理，只有entry collection/allocation被禁用。
-- 代码/既有测试：[core/runtime.py:214](../../../core/runtime.py)；[core/runtime.py:219](../../../core/runtime.py)；[core/runtime.py:354](../../../core/runtime.py)；[tests/test_breaker_lifecycle.py:38](../../../tests/test_breaker_lifecycle.py)。
+- 代码/既有测试：[core/foundation/runtime.py:214](../../../core/foundation/runtime.py)；[core/foundation/runtime.py:219](../../../core/foundation/runtime.py)；[core/foundation/runtime.py:354](../../../core/foundation/runtime.py)；[tests/test_breaker_lifecycle.py:38](../../../tests/test_breaker_lifecycle.py)。
 - 验证方式：2026-09-20 定向回归40 passed包含test_block_new_runs_position_management_but_never_collects_entry。
 **MAIL-17-2 · P1 · 仍存在** — [Close positions when point-in-time membership ends](https://github.com/user-nmmmmm/QuantTradingV2/pull/17#pullrequestreview-5028474123)
 

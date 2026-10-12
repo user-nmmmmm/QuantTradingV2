@@ -13,7 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 from core.market.data_versions import DataVersionStore
-from core.reproducibility import sha256_file
+from core.foundation.reproducibility import sha256_file
 from scripts.register_strategy_successor import register_successor
 
 

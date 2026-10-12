@@ -11,7 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 import numpy as np
 import pandas as pd
-from core.reproducibility import canonical_json, sha256_file, sha256_frame
+from core.foundation.reproducibility import canonical_json, sha256_file, sha256_frame
 from backtest.reporting.operating_periods import requested_period_curve, split_execution_records
 from scripts.run_revalidation60 import (
     load_inputs, protocol, run_one, save, source_hashes, concentration,

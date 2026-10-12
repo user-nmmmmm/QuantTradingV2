@@ -6,7 +6,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from core.live_safety import StartupSafetyPolicy
+from core.foundation.live_safety import StartupSafetyPolicy
 from ops.startup_preflight import build_startup_report, write_startup_report
 
 

@@ -4,10 +4,10 @@ from datetime import datetime, timezone
 import pandas as pd
 
 from core.events import FillEvent, OrderEvent, TradingEventPipeline
-from core.domain import OrderStatus
+from core.foundation.domain import OrderStatus
 from core.market.market_data import HistoricalMarketDataAdapter, LiveMarketDataAdapter
 from core.trading.portfolio import Portfolio
-from core.runtime import EventProcessor
+from core.foundation.runtime import EventProcessor
 from live_trading.execution_adapter import RecordedExecutionAdapter
 
 

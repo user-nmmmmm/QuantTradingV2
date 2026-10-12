@@ -7,10 +7,10 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 from config.config import config
-from core.alerting import JsonlAlertSink
+from core.foundation.alerting import JsonlAlertSink
 from core.trading.accounts import AccountMode
 from core.broker import Broker, Order, OrderType
-from core.domain import OrderErrorCode, OrderStatus, SyncResult
+from core.foundation.domain import OrderErrorCode, OrderStatus, SyncResult
 from core.live_broker import LiveBroker
 from core.risk.persistent_guard import PersistentOrderSafetyGuard
 from core.trading.order_store import OrderStore

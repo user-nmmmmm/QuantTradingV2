@@ -2,7 +2,7 @@
 
 - 状态：已采纳
 - 日期：2026-10-11
-- 相关：[PR #64](https://github.com/user-nmmmmm/QuantTradingV2/pull/64)，`core/source_identity.py`，[身份说明](../identity.md)
+- 相关：[PR #64](https://github.com/user-nmmmmm/QuantTradingV2/pull/64)，`core/foundation/source_identity.py`，[身份说明](../identity.md)
 
 ## 背景
 既有的冻结身份对源文件字节做哈希，所以改注释、重排空行、统一换行符都会让身份变化，任何整理代码的改动都被当成"冻结候选的源码变了"。但旧记录里存的是旧方案的哈希，改写会让这些记录失去可验证性，削弱研究完整性控制。

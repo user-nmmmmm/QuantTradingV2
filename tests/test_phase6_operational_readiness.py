@@ -6,9 +6,9 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from ops.gray_release import GrayReleasePolicy
-from core.runtime_identity import RuntimeIdentity
+from core.foundation.runtime_identity import RuntimeIdentity
 from core.trading.state_store_v2 import StateStore
-from core.live_safety import SafetyConfigurationError, StartupSafetyPolicy
+from core.foundation.live_safety import SafetyConfigurationError, StartupSafetyPolicy
 from ops.admission_gates import (
     EXPANSION_DIMENSIONS,
     MONITORING_DIMENSIONS,

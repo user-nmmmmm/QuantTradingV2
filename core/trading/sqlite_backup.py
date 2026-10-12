@@ -187,7 +187,7 @@ def main() -> int:
     else:
         identity = None
         if args.identity_file is not None:
-            from core.runtime_identity import RuntimeIdentity
+            from core.foundation.runtime_identity import RuntimeIdentity
             identity = RuntimeIdentity(**json.loads(args.identity_file.read_text(encoding="utf-8")))
         path = restore_snapshot(args.snapshot, args.database, expected_identity=identity)
     print(path)

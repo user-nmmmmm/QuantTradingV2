@@ -10,7 +10,7 @@ from typing import Dict, Optional
 
 from core.trading.accounts import AccountMode
 from core.trading.entry_audit import note
-from core.logger import get_logger
+from core.foundation.logger import get_logger
 from core.trading.portfolio import Portfolio
 from core.risk.portfolio_governor import exposure_by_cluster
 from core.risk.reservation import RiskReservationProjection

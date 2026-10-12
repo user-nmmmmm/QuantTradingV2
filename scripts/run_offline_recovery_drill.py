@@ -19,12 +19,12 @@ from time import perf_counter
 
 ROOT = Path(__file__).resolve().parents[1]
 
-from core.domain import FillRecord, OrderIntent, OrderStatus
+from core.foundation.domain import FillRecord, OrderIntent, OrderStatus
 from core.live_broker.fill_projection import replay_fill_projection
-from core.live_safety import StartupSafetyPolicy
+from core.foundation.live_safety import StartupSafetyPolicy
 from core.trading.order_store import OrderStore
 from core.risk.persistent_guard import PersistentOrderSafetyGuard
-from core.runtime_identity import RuntimeIdentity
+from core.foundation.runtime_identity import RuntimeIdentity
 from core.trading.sqlite_utils import DatabaseIntegrityError
 from core.trading.state_store_v2 import StateStore
 

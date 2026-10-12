@@ -20,7 +20,7 @@ from backtest.plot_style import (
     save_figure,
     style_axes,
 )
-from core.logger import get_logger
+from core.foundation.logger import get_logger
 from core.metrics import infer_periods_per_year, monthly_returns
 
 logger = get_logger(__name__)

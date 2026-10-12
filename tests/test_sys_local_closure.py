@@ -15,16 +15,16 @@ from backtest.execution_adapter import SimulatedExecutionAdapter
 from composition.factory import build_strategy_registry
 from config.config import config
 from core.broker import Broker
-from core.domain import OrderIntent, OrderStatus
+from core.foundation.domain import OrderIntent, OrderStatus
 from core.events import EventCodec, Signal, TradingEventPipeline
 from core.live_broker import LiveBroker
 from core.market.market_data import HistoricalMarketDataAdapter, LiveMarketDataAdapter
 from core.trading.order_store import OrderStore
 from core.trading.portfolio import Portfolio
-from core.reproducibility import canonical_json, deterministic_result_digest
+from core.foundation.reproducibility import canonical_json, deterministic_result_digest
 from core.risk import RiskManager
-from core.runtime import EventProcessor
-from core.runtime_identity import RuntimeIdentity
+from core.foundation.runtime import EventProcessor
+from core.foundation.runtime_identity import RuntimeIdentity
 from core.trading.sqlite_backup import SQLiteSnapshotManager, restore_snapshot
 from core.trading.sqlite_utils import DatabaseIntegrityError
 from core.trading.state import MarketState

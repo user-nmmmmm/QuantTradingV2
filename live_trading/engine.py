@@ -34,17 +34,17 @@ from composition.factory import (
     build_state_machine,
     market_type_supports_shorts,
 )
-from core.alerting import AlertSink, build_default_alert_sink
-from core.clock import ClockLike, coerce_clock
+from core.foundation.alerting import AlertSink, build_default_alert_sink
+from core.foundation.clock import ClockLike, coerce_clock
 from core.market.data_fetcher import DataFetcher
 from ops.health import DataHealthMonitor, DataHealthPolicy, HealthAssessment, HealthReason
 from core.live_broker import LiveBroker
-from core.logger import get_logger
+from core.foundation.logger import get_logger
 from core.market.market_data import LiveMarketDataAdapter
 from core.market.market_data_errors import MarketDataRefreshError
 from core.trading.protective_stops import EntryRiskPolicy
 from core.risk import RiskManager
-from core.runtime import EventProcessor
+from core.foundation.runtime import EventProcessor
 from ops.strategy_registration import register_health_policies
 from core.trading.state_store_v2 import StateStore, default_state_db_path
 from core.trading.sqlite_backup import SQLiteSnapshotManager

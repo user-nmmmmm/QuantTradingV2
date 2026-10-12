@@ -11,7 +11,7 @@ from types import SimpleNamespace
 
 import pandas as pd
 
-from core.reproducibility import canonical_json
+from core.foundation.reproducibility import canonical_json
 from research.ml_selection.selector import ResearchSelector, utc
 from research.ml_selection.policy_context import (
     PolicyContextUnavailable, build_policy_context, decision_context_snapshot,

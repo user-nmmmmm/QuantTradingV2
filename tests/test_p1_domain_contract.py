@@ -3,7 +3,7 @@ import json
 import unittest
 from dataclasses import replace
 
-from core.domain import FillRecord, OrderIntent, OrderStatus
+from core.foundation.domain import FillRecord, OrderIntent, OrderStatus
 from core.trading.orders import TERMINAL_STATUSES, normalize_exchange_status, validate_transition
 
 

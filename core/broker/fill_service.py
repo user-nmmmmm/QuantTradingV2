@@ -16,7 +16,7 @@ from core.trading.accounts import AccountMode
 from core.broker.types import BacktestOrderStatus, Order, OrderType
 from core.broker.cost_model import CostBreakdown, market_slippage_components
 from core.events import FillEvent
-from core.logger import get_logger
+from core.foundation.logger import get_logger
 from core.trading.lots import CloseEvent
 
 logger = get_logger(__name__)

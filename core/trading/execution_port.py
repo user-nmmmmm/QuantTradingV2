@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional, Protocol
 
-from core.domain import OrderIntent
+from core.foundation.domain import OrderIntent
 
 
 class ExecutionResult(Protocol):

@@ -5,7 +5,7 @@ import pandas as pd
 from backtest.engine import BacktestEngine
 from config.config import config
 from core.trading.state import MarketState
-from core.runtime import MarketDataSlice
+from core.foundation.runtime import MarketDataSlice
 from router.router import Router
 from strategies.base import Strategy
 

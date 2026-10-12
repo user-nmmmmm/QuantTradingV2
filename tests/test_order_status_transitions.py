@@ -1,6 +1,6 @@
 import unittest
 
-from core.domain import OrderStatus
+from core.foundation.domain import OrderStatus
 from core.trading.orders import validate_transition
 
 

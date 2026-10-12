@@ -5,10 +5,10 @@ from unittest.mock import patch
 
 import pytest
 
-from core.domain import OrderStatus
-from core.domain import FillRecord
+from core.foundation.domain import OrderStatus
+from core.foundation.domain import FillRecord
 from core.live_broker.safe import SafeLiveBroker
-from core.live_safety import StartupSafetyPolicy
+from core.foundation.live_safety import StartupSafetyPolicy
 from core.trading.order_store import OrderStore
 from core.trading.portfolio import Portfolio
 from core.trading.protective_orders import ProtectiveState

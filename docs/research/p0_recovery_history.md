@@ -36,7 +36,7 @@
 
 `数据/预热 → 持仓及组合权限 → 市场路由/冷却 → 突破/OBV/止损有效性 → 策略健康 → 定仓/名义限额/最小仓位 → 同日及相关性预算 → 最后风险检查 → 提交 → 成交关联`
 
-实现：`core/trading/entry_audit.py`、`core/runtime.py`、`router/router.py`、策略/分配/风控链路。研究脚本显式启用 `research.entry_audit`；默认关闭，ContextVar 退出后恢复，避免跨调用串行污染。
+实现：`core/trading/entry_audit.py`、`core/foundation/runtime.py`、`router/router.py`、策略/分配/风控链路。研究脚本显式启用 `research.entry_audit`；默认关闭，ContextVar 退出后恢复，避免跨调用串行污染。
 
 当前生产路由只有 TrendBreakout 入场；其突破/OBV/止损内部原因已接入。未来新策略仍需明确自己的内部信号原因，不能将通用 `no_signal` 宣称为已完成所有策略的内部归因。
 

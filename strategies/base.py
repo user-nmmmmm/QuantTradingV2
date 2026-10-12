@@ -13,7 +13,7 @@ from core.events import Signal
 from core.risk import RiskManager
 from core.planning.allocation import EntryCandidate
 from core.trading.entry_audit import note
-from core.domain import OrderStatus
+from core.foundation.domain import OrderStatus
 from core.trading.order_lifecycle import order_fact, terminal_fact
 from core.trading.protective_orders import authoritative_position_ids
 

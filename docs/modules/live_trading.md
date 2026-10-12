@@ -1,6 +1,6 @@
 # live_trading/ 模块说明
 
-`live_trading/` 负责实盘/沙盒的轮询调度、订单恢复、账户与保护单对账、健康监控、告警和状态导出。状态识别、仓位管理与新开仓候选收集复用 `core/runtime.py` 的 `EventProcessor`；实盘还要在下单前核对独立账户事实与最新风险限制。
+`live_trading/` 负责实盘/沙盒的轮询调度、订单恢复、账户与保护单对账、健康监控、告警和状态导出。状态识别、仓位管理与新开仓候选收集复用 `core/foundation/runtime.py` 的 `EventProcessor`；实盘还要在下单前核对独立账户事实与最新风险限制。
 
 ## `live_trading/engine.py` — LiveTradingEngine
 

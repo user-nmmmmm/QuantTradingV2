@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 
 from core.trading.portfolio import Portfolio
-from core.domain import OrderStatus
+from core.foundation.domain import OrderStatus
 from core.trading.protective_orders import (
     ProtectiveAction,
     ProtectiveOrder,

@@ -2,7 +2,7 @@ from datetime import datetime
 from math import isfinite
 from typing import Dict
 
-from core.domain import PortfolioSnapshot
+from core.foundation.domain import PortfolioSnapshot
 from core.trading.portfolio import Portfolio
 
 

@@ -12,7 +12,7 @@ import time
 import numpy as np
 import pandas as pd
 
-from core.reproducibility import canonical_json, deterministic_result_digest, sha256_file, sha256_frame
+from core.foundation.reproducibility import canonical_json, deterministic_result_digest, sha256_file, sha256_frame
 from research.ml_selection.dataset import (FEATURE_COLUMNS, build_dataset, build_inference_dataset, chronological_split,
                                           forward_proxy_outcome)
 from research.ml_selection.environment import FullEngineEnvironment, discounted_returns

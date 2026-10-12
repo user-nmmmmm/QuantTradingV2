@@ -10,7 +10,7 @@ from backtest.engine import BacktestEngine
 from backtest.execution_adapter import SimulatedExecutionAdapter
 from core.planning.allocation import EntryCandidate
 from core.broker import Broker
-from core.domain import OrderIntent, OrderStatus, RiskDecision, RiskReservation
+from core.foundation.domain import OrderIntent, OrderStatus, RiskDecision, RiskReservation
 from core.trading.entry_risk import resolve_approved_risk
 from core.trading.order_store import OrderStore
 from core.trading.portfolio import Portfolio

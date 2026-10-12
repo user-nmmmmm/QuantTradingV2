@@ -82,7 +82,7 @@ Ridge 提供简单基准。填充和标准化参数只能来自训练集；截�
 
 - [ ] **要懂的概念：**现金、持仓市值、净权益、实际手续费、未实现盈亏；成交换手；回撤增加惩罚与最大回撤的区别。
 
-源码入口：[environment.py](../research/ml_selection/environment.py) 的 `equity_rewards`；原执行入口为 [backtest/engine.py](../backtest/engine.py) 与 [core/runtime.py](../core/runtime.py)；练习参考 [环境测试](../tests/test_ml_selection_environment.py)。
+源码入口：[environment.py](../research/ml_selection/environment.py) 的 `equity_rewards`；原执行入口为 [backtest/engine.py](../backtest/engine.py) 与 [core/foundation/runtime.py](../core/foundation/runtime.py)；练习参考 [环境测试](../tests/test_ml_selection_environment.py)。
 
 项目奖励来自扣费后的实际权益。手续费已经影响权益，奖励不能再次扣费；未成交目标不产生实际成交换手。回撤惩罚按路径增加量累计，不能直接拿最大回撤乘权重替代。
 

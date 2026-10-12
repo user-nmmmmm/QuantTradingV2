@@ -17,7 +17,7 @@ from typing import Deque, List, Dict, Any, Optional, Tuple
 from backtest.reporting.risk_metrics import summarize_exposure
 from backtest.reporting.serialization import write_metrics_json
 from core.analytics.diagnostics import build_diagnostics
-from core.logger import get_logger
+from core.foundation.logger import get_logger
 from core.analytics.metric_result import MetricResult
 from core.metrics import (
     calculate_attribution,

@@ -15,7 +15,7 @@ from typing import Any
 
 import pandas as pd
 
-from core.reproducibility import sha256_file
+from core.foundation.reproducibility import sha256_file
 
 
 ROOT = Path(__file__).resolve().parents[1]

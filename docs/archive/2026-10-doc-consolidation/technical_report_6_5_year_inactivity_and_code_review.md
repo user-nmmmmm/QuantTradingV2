@@ -33,7 +33,7 @@
 
 ### 2.2 代码范围
 
-- `core/runtime.py`
+- `core/foundation/runtime.py`
 - `core/risk/circuit_breaker.py`
 - `core/risk/`
 - `backtest/engine.py`
@@ -178,7 +178,7 @@ for event in market_data.stream():
 
 ### [P0] `BLOCK_NEW` 错误关闭已有仓位退出路径
 
-**位置**：`core/runtime.py:164-190`，关联 `router/router.py:50-113`  
+**位置**：`core/foundation/runtime.py:164-190`，关联 `router/router.py:50-113`  
 **证据**：2020-02-19 到 02-25 路由为 0，但仍持有 10 个仓位。  
 **影响**：hard stop、Donchian exit、状态退出、最大持有期全部失效，组合只能等待更高级别清算。  
 **风险**：扩大损失；使 `BLOCK_NEW` 的实际行为偏离名称和配置含义；实盘中也可能在最需要退出时失去策略级退出管理。  
@@ -193,7 +193,7 @@ for event in market_data.stream():
 
 ### [P1] `breaker` 布尔值命名和返回语义过载
 
-**位置**：`core/risk/circuit_breaker.py:87-90, 120-184`；`core/runtime.py:164-201`  
+**位置**：`core/risk/circuit_breaker.py:87-90, 120-184`；`core/foundation/runtime.py:164-201`  
 **问题**：同一个布尔值同时表示日内熔断、组合禁止开仓和运行时是否应完全跳过路由。  
 **影响**：调用方无法区分“禁止开仓”“必须减仓”“必须清算”“完全锁定”。  
 **建议**：返回结构化 `RiskControlDecision`，至少包含：
@@ -233,7 +233,7 @@ locked
 
 ### [P1] 日线回测中的 daily-loss 基准可能退化为同值比较
 
-**位置**：`core/runtime.py:156-169`  
+**位置**：`core/foundation/runtime.py:156-169`  
 **问题**：跨日时先使用“当前事件更新后的权益”覆盖 `_daily_start_equity`，随后立刻用相同当前权益检查日内回撤。对于每天只有一个 event 的 1D 回测，daily drawdown 在该检查点通常为 0。  
 **影响**：`daily_loss_limit` 在日线回测中可能无法表达前收至今收的单日损失；现有测试只检查 reset 调用次数，没有检查传入基准值。  
 **建议**：明确日线定义。若定义为前一交易日收盘权益，则保存 previous-session close equity；若定义为当日开盘权益，则需用开盘价格重估后再比较。增加 1D 与 intraday 两套测试。

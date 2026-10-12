@@ -198,7 +198,7 @@ S06、S09、S12至S16不全部并行开展。主线得到结果后，选择一�
 
 每组登记假设、训练/验证/最终样本边界、参数集合、基准、佣金、滑点、融资、候选数量及允许调整的范围。结果出来后不得更换基准或把失败试验移出统计。记录试验族之间的重用关系，模型版本、随机种子、资产子集和成本变体均计入搜索历史。
 
-复用位置：[ExperimentRegistry](../../analysis/research_validation.py)、[Walk-Forward](../../analysis/walk_forward.py)、[复现信息](../../core/reproducibility.py)。工作区已有大量未提交改动，冻结时须包含实际工作树内容，不能只记录HEAD后继承旧验证结果。
+复用位置：[ExperimentRegistry](../../analysis/research_validation.py)、[Walk-Forward](../../analysis/walk_forward.py)、[复现信息](../../core/foundation/reproducibility.py)。工作区已有大量未提交改动，冻结时须包含实际工作树内容，不能只记录HEAD后继承旧验证结果。
 
 ### 阶段2的实施范围
 

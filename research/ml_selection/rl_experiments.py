@@ -9,7 +9,7 @@ import time
 
 import numpy as np
 
-from core.reproducibility import canonical_json, sha256_frame
+from core.foundation.reproducibility import canonical_json, sha256_frame
 from research.ml_selection.protocol import save_json
 
 

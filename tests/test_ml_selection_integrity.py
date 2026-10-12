@@ -10,8 +10,8 @@ import pytest
 import yaml
 
 from core.broker import Order, OrderType
-from core.domain import OrderStatus
-from core.reproducibility import canonical_frame_csv, sha256_file, sha256_frame
+from core.foundation.domain import OrderStatus
+from core.foundation.reproducibility import canonical_frame_csv, sha256_file, sha256_frame
 from research.ml_selection import protocol
 from research.ml_selection.dataset import FEATURE_COLUMNS
 from research.ml_selection.selector import ResearchSelector

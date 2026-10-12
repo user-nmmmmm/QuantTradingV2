@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 import pandas as pd
 
-from core.reproducibility import canonical_json, sha256_file
+from core.foundation.reproducibility import canonical_json, sha256_file
 from research.ml_selection.readiness import audit_readiness, describe_serving_drift
 
 

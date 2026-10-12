@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-from core.domain import OrderErrorCode, OrderStatus
+from core.foundation.domain import OrderErrorCode, OrderStatus
 
 
 _ALLOWED = {

@@ -49,7 +49,7 @@ jobs:
       - name: Verify roadmap completion structure
         run: python scripts/verify_roadmap_completion.py --structure-only
       - name: Type check critical runtime contracts
-        run: python -m mypy core/domain.py core/runtime.py live_trading/execution_adapter.py
+        run: python -m mypy core/foundation/domain.py core/foundation/runtime.py live_trading/execution_adapter.py
       - name: Tests and coverage gate
         run: >-
           python -m pytest -q -n 4 --durations=20

@@ -13,7 +13,7 @@ import pytest
 from config.config import config
 from core.broker import Broker
 from core.market.data_fetcher import DataFetcher
-from core.domain import SyncResult
+from core.foundation.domain import SyncResult
 from core.market.market_data import LiveMarketDataAdapter
 from core.market.market_data_errors import MarketDataRefreshError
 from core.trading.portfolio import Portfolio

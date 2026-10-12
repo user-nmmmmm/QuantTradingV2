@@ -14,7 +14,7 @@ from signal_meta.signal_ev_types import EVPolicy, CONTEXT_DEFINITION, context_me
 from signal_meta.signal_ev_ledger import EVLedger
 from signal_meta.signal_label_versions import OutcomeRevisionBook
 from signal_meta.signal_observation_types import finite, fingerprint, iso
-from core.reproducibility import canonical_json, sha256_bytes
+from core.foundation.reproducibility import canonical_json, sha256_bytes
 from core.market.timeframes import as_utc_timestamp, timeframe_delta
 
 

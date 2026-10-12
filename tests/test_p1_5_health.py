@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 
 from config.config import config
-from core.domain import OrderStatus
+from core.foundation.domain import OrderStatus
 from ops.health import (
     DataHealthMonitor,
     DataHealthPolicy,

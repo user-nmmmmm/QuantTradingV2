@@ -9,7 +9,7 @@ from datetime import date
 from threading import RLock
 from typing import Callable, Optional
 
-from core.live_safety import SafetyConfigurationError, StartupSafetyPolicy, utc_date
+from core.foundation.live_safety import SafetyConfigurationError, StartupSafetyPolicy, utc_date
 from core.trading.sqlite_backup import SQLiteSnapshotManager
 from core.trading.sqlite_utils import ensure_schema_version, open_durable_connection
 
@@ -32,7 +32,7 @@ class PersistentOrderSafetyGuard:
         self._connection = open_durable_connection(path)
         with self._connection:
             if identity is not None:
-                from core.runtime_identity import bind_database_identity
+                from core.foundation.runtime_identity import bind_database_identity
                 bind_database_identity(self._connection, identity)
             ensure_schema_version(self._connection, "persistent_risk_guard", 1)
             self._connection.execute(

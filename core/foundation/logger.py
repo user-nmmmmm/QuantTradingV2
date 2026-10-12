@@ -2,7 +2,7 @@ import logging
 import os
 import re
 from typing import Optional, Union
-from core.redaction import sanitize_text
+from core.foundation.redaction import sanitize_text
 
 
 _DEFAULT_FORMAT = "%(asctime)s %(levelname)s %(name)s %(message)s"

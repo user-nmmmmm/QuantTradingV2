@@ -32,7 +32,7 @@
 | B-05 | 熔断强平是 Next-Bar 且被成交量限速 | `backtest/engine.py:115-128` | 极端行情回撤被低估 | P1 |
 | B-06 | 成交量双重 1% 限速，大单被拆 100+ 根 | `backtest/engine.py:72-75`、`core/risk/__init__.py:161-166` | 成交价系统性偏离信号价 | P1 |
 | B-07 | ~~部分成交把一次往返算成多笔交易~~（已修） | `backtest/reporting/trades.py` | TotalTrades/WinRate 失真 | P2 |
-| B-08 | 多标的用"最近已知价"估值 | `core/runtime.py:118-123` | 指标/熔断轻微失真 | P2 |
+| B-08 | 多标的用"最近已知价"估值 | `core/foundation/runtime.py:118-123` | 指标/熔断轻微失真 | P2 |
 | B-09 | 基准时间轴不齐用 fillna(0) 近似 | `backtest/engine.py:146-164` | 超额收益不可比 | P2 |
 | B-10 | 部分成交卖单在持仓耗尽后标 REJECTED | `core/broker/__init__.py:434-442,378-380` | 成交统计含假拒单 | P2 |
 | B-11 | ~~`metrics.py` 指标函数未接入报告~~（已修：exposure / signal_funnel / drawdown_events / trade_quality / attribution / r_multiple / cost_sensitivity 全部接线） | `backtest/reporting/` | 研究能力闲置 | P2 |

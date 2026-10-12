@@ -8,7 +8,7 @@
 现有登记（例如 `followup-successor-03`）把"身份"定义为一份源码清单的哈希，清单里是 395 个文件的逐字节哈希。ADR 0008 实测：重构后这份身份与 `main` 相差 536 个文件，而其中大部分只是搬迁或导入路径变化。逐字节身份既挡住了无风险的整理，又不能回答"这个身份对应哪个可读的版本"。ADR 0003 引入了行为身份 `code-token/v1`，并把"绑定发布标签 + 证据清单"留作后续；ADR 0009 提供了标签。
 
 ## 决定
-- 新增绑定记录 `release-bound-identity/v1`：带注解的发布标签名、标签所指提交、该提交上 `config/frozen_scope.json` 的哈希，以及该提交的行为身份回执（`frozen-scope-identity/v1`：`code-token/v1` 的整体哈希和逐文件哈希，另含用于识别移动的 `body`）。生成与核对用 `scripts/identity_report.py --bind-release / --write-binding / --verify-binding`，逻辑在 `core/source_identity.py`。
+- 新增绑定记录 `release-bound-identity/v1`：带注解的发布标签名、标签所指提交、该提交上 `config/frozen_scope.json` 的哈希，以及该提交的行为身份回执（`frozen-scope-identity/v1`：`code-token/v1` 的整体哈希和逐文件哈希，另含用于识别移动的 `body`）。生成与核对用 `scripts/identity_report.py --bind-release / --write-binding / --verify-binding`，逻辑在 `core/foundation/source_identity.py`。
 - 绑定只能指向**带注解**的标签；生成时范围声明从标签所指提交读取，所以记录只取决于标签本身。
 - 核对会报告：标签已被移动或删除、范围声明与记录不同、冻结范围的行为改变；移动和仅导入路径的变化单独列出（`changes_behavior` 为假），但**导入目标本身不由此报告验证**，由分层规则和测试负责。仅注释/排版的修改不改变身份。
 - **旧记录不动**：已有登记、旧回执和旧校验继续按各自创建时的逐字节方式验证，不改写、不放宽。本 ADR 只规定之后新登记怎么写；`scripts/register_strategy_successor.py` 接入绑定记录的改动留给真正的新身份登记（见 ADR 0008 的顺序），那时也要先说明 `capital:` 配置块的变更。

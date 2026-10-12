@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 
 import main as backtest_entrypoint
-from core.domain import SyncResult
+from core.foundation.domain import SyncResult
 from core.live_broker import LiveBroker
 from core.market.market_data import LiveMarketDataAdapter, normalize_market_frame
 from core.trading.order_store import OrderStore, OrderStoreClosedError

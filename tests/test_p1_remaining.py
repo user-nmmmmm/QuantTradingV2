@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 
 from config.config import config
-from core.domain import OrderStatus, SyncResult
+from core.foundation.domain import OrderStatus, SyncResult
 from core.exchange import OrderParser
 from core.live_broker import LiveBroker
 from core.trading.lots import CloseEvent

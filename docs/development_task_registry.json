@@ -3200,7 +3200,7 @@
         "不合法数量/精度/模式/reduce-only在交易所请求前拒绝，拒绝原因可定位。"
       ],
       "files": [
-        "core/runtime.py",
+        "core/foundation/runtime.py",
         "core/events",
         "backtest/execution_adapter.py",
         "live_trading/execution_adapter.py"
@@ -3703,7 +3703,7 @@
       ],
       "files": [
         "live_trading/state_export.py",
-        "core/alerting.py",
+        "core/foundation/alerting.py",
         "ops/supervisor.py",
         "core/trading/sqlite_utils.py",
         "dashboard",

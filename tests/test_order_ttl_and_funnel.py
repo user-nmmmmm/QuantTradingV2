@@ -209,7 +209,7 @@ class TestSignalFunnelReadsRealEvents:
     """Payloads are dataclasses in the pipeline and dicts once serialised."""
 
     def test_dataclass_payloads_no_longer_raise(self):
-        from core.domain import RiskDecision
+        from core.foundation.domain import RiskDecision
         from core.events import FillEvent, OrderEvent
 
         class _Envelope:

@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 import yaml
 
-from core.reproducibility import canonical_json, sha256_file, sha256_frame
+from core.foundation.reproducibility import canonical_json, sha256_file, sha256_frame
 from research.ml_selection.readiness import audit_readiness, describe_serving_drift
 
 

@@ -10,7 +10,7 @@ from backtest.drawdown_budget import BacktestDrawdownReducer
 from composition.factory import build_strategy_registry, build_router, build_risk_manager
 from config.config import config
 from core.broker import Broker
-from core.domain import OrderStatus, OrderIntent, OrderSubmissionResult
+from core.foundation.domain import OrderStatus, OrderIntent, OrderSubmissionResult
 from core.trading.order_store import OrderStore
 from core.trading.portfolio import Portfolio
 from core.trading.protective_orders import ProtectiveOrder, authoritative_position_ids

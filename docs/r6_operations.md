@@ -166,7 +166,7 @@ Two independent channels, both driven by the same bot credentials:
 
 1. **Real-time critical alerts.** Set `TELEGRAM_BOT_TOKEN` and
    `TELEGRAM_CHAT_ID` in the environment before starting the live engine.
-   `build_default_alert_sink()` (`core/alerting.py`) picks them up
+   `build_default_alert_sink()` (`core/foundation/alerting.py`) picks them up
    automatically and adds a `TelegramAlertSink` alongside the existing
    logging/JSONL/webhook sinks — halts, circuit-breaker trips, and
    reconciliation discrepancies are pushed the moment they happen, subject
