@@ -37,6 +37,7 @@ from typing import Tuple
 from core.foundation.domain import OrderIntent
 from core.events import TradingEventPipeline
 from core.foundation.domain import RiskDecision
+from functools import cached_property
 
 __all__ = ["BreakerAction", "RiskControlDecision", "RiskManager"]
 
@@ -45,6 +46,18 @@ class RiskManager:
     # Shrink a clamped order this far below the cap so float rounding in
     # qty*price cannot push it back over the limit it was clamped to.
     CAP_SAFETY_MARGIN = 1e-9
+
+    @cached_property
+    def _circuit_breaker(self) -> CircuitBreaker:
+        return CircuitBreaker(self)
+
+    @cached_property
+    def _position_sizing(self) -> PositionSizing:
+        return PositionSizing(self)
+
+    @cached_property
+    def _entry_policy(self) -> EntryPolicy:
+        return EntryPolicy(self)
 
     def __init__(
         self,
@@ -78,9 +91,6 @@ class RiskManager:
           上限后若低于该门槛，则放弃这笔交易——避免只剩一点点额度时成交出
           纯付手续费的尘埃仓位。
         """
-        self._circuit_breaker = CircuitBreaker(self)
-        self._position_sizing = PositionSizing(self)
-        self._entry_policy = EntryPolicy(self)
         self.risk_per_trade = risk_per_trade
         self.max_leverage = max_leverage
         self.max_drawdown_limit = max_drawdown_limit

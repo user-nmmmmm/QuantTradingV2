@@ -44,6 +44,7 @@ from core.foundation.domain import OrderIntent
 from datetime import datetime
 from typing import Callable
 from typing import Iterable
+from functools import cached_property
 
 logger = get_logger(__name__)
 
@@ -53,6 +54,22 @@ __all__ = [
 
 
 class Broker:
+    @cached_property
+    def _matching(self) -> Matching:
+        return Matching(self)
+
+    @cached_property
+    def _fill_service(self) -> FillService:
+        return FillService(self)
+
+    @cached_property
+    def _financing(self) -> Financing:
+        return Financing(self)
+
+    @cached_property
+    def _liquidation(self) -> Liquidation:
+        return Liquidation(self)
+
     def __init__(
         self,
         portfolio: Portfolio,
@@ -78,10 +95,6 @@ class Broker:
         account_id: str = "backtest",
         timeframe: str = "unknown",
     ):
-        self._matching = Matching(self)
-        self._fill_service = FillService(self)
-        self._financing = Financing(self)
-        self._liquidation = Liquidation(self)
         self.portfolio = portfolio
         self.event_pipeline = event_pipeline or TradingEventPipeline()
         self.reservation_projection = RiskReservationProjection(self.event_pipeline)

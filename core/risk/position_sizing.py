@@ -24,10 +24,10 @@ logger = get_logger(__name__)
 class PositionSizing:
     """Notional-cap and qty-clamping logic.
 
-    Expects ``self`` to carry ``risk_per_trade``, ``max_leverage``,
+    Needs from the host: ``risk_per_trade``, ``max_leverage``,
     ``max_pos_size_pct``, ``min_entry_notional_pct``, ``liquidity_limit_pct``,
     ``CAP_SAFETY_MARGIN``, plus the ``risk_multiplier``/``_blocks_new_risk``/
-    ``_health_allows_new_risk`` gates from ``CircuitBreakerMixin``, and sets
+    ``_health_allows_new_risk`` gates from ``CircuitBreaker``, and sets
     ``self._last_entry_context``.
     """
 
