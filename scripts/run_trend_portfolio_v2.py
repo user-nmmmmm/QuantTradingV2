@@ -23,11 +23,11 @@ import numpy as np
 from backtest.engine import BacktestEngine, DEFAULT_INITIAL_CAPITAL
 from composition.factory import build_strategy_registry
 from config.config import config
-from core.data import DataHandler
-from core.market_data import normalize_market_frame
+from core.market.data import DataHandler
+from core.market.market_data import normalize_market_frame
 from core.reproducibility import canonical_json, sha256_file, sha256_frame
-from core.state import MarketState
-from core.universe import PointInTimeUniverse, UniverseMembership, normalize_symbol
+from core.trading.state import MarketState
+from core.market.universe import PointInTimeUniverse, UniverseMembership, normalize_symbol
 
 WARMUP_BARS = 120
 V2_NAME = "TrendPortfolioV2"

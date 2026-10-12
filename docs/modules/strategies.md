@@ -195,7 +195,7 @@ V2 用趋势符号分数替代这组评分，V3 用连续动量替代。配置 `
 
 ### 4.3 初始止损、硬止损与移动止损
 
-[保护止损函数](../../core/protective_stops.py)支持三种初始模式：
+[保护止损函数](../../core/trading/protective_stops.py)支持三种初始模式：
 
 | 模式 | 多头 | 空头 |
 | --- | --- | --- |
@@ -209,7 +209,7 @@ V2 用趋势符号分数替代这组评分，V3 用连续动量替代。配置 `
 
 移动止损在本根硬止损检查后更新，只约束后续 bar。Chandelier 多头采用 `max(旧止损, 初始止损, 持仓最高价 - k × ATR)`，空头取镜像的 `min`，不会放松保护。保本腿默认关闭。
 
-基类硬止损是收盘决策流程中的检测与订单提交；[常驻保护单](../../core/protective_orders.py)及[回测盘中保护模拟](../../backtest/protective_stops.py)另有成交路径。当前 `protective_orders.enabled=true`、`backtest_resident=true`；盘中回测使用登记的保守路径，不将所有止损视为下一开盘成交。完整行为见[保护止损契约](../protective_stop_contract.md)。
+基类硬止损是收盘决策流程中的检测与订单提交；[常驻保护单](../../core/trading/protective_orders.py)及[回测盘中保护模拟](../../backtest/protective_stops.py)另有成交路径。当前 `protective_orders.enabled=true`、`backtest_resident=true`；盘中回测使用登记的保守路径，不将所有止损视为下一开盘成交。完整行为见[保护止损契约](../protective_stop_contract.md)。
 
 ## 5. TrendBreakout / TrendBreakdown
 

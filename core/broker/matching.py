@@ -23,12 +23,12 @@ from core.domain import OrderIntent
 from core.events import OrderEvent
 from core.logger import get_logger
 from core.risk.reservation import OpeningRiskRejected, ensure_opening_reservation
-from core.timeframes import as_utc_timestamp
+from core.market.timeframes import as_utc_timestamp
 
 logger = get_logger(__name__)
 
 #: ``exit_reason`` carried by every venue-resident protective stop, in the
-#: backtest exactly as in live (see ``core/protective_orders.py``). Matching,
+#: backtest exactly as in live (see ``core/trading/protective_orders.py``). Matching,
 #: forced liquidation and end-of-backtest all key off this so that a resident
 #: stop is never filled twice or filled by a path that is not the stop.
 PROTECTIVE_EXIT_REASON = "protective_stop"

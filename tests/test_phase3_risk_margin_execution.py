@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 
 from backtest.capacity import run_capacity_curve
-from core.accounts import AccountMode
+from core.trading.accounts import AccountMode
 from core.broker import BacktestOrderStatus, Broker
 from core.portfolio import Portfolio
 from core.risk import BreakerAction, RiskManager

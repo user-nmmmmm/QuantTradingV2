@@ -7,12 +7,12 @@ import pandas as pd
 import pytest
 
 from core.runtime import MarketDataSlice
-from core.signal_observation import SignalObserver
-from core.signal_observation_types import ObservationPolicy, fingerprint, iso
-from core.signal_outcomes import ForwardOutcomeTracker, ObservationCosts
-from core.state import MarketState
-from core.temporal_data import TemporalOHLCV
-from core.temporal_labels import LABEL_PROTOCOL, TemporalLabelError, VersionedOutcomeTracker
+from signal_meta.signal_observation import SignalObserver
+from signal_meta.signal_observation_types import ObservationPolicy, fingerprint, iso
+from signal_meta.signal_outcomes import ForwardOutcomeTracker, ObservationCosts
+from core.trading.state import MarketState
+from core.market.temporal_data import TemporalOHLCV
+from signal_meta.temporal_labels import LABEL_PROTOCOL, TemporalLabelError, VersionedOutcomeTracker
 from tests.test_signal_observation import candidate, prices, DailyRaw
 
 
@@ -291,8 +291,8 @@ def test_observer_initial_marker_strict_routing_and_legacy_payload_shape():
 
 
 def test_producer_payload_passes_training_contract_and_latest_invalid_revision_blocks_old_label():
-    from core.signal_meta_layer import _validate_input
-    from core.signal_label_versions import OutcomeRevisionBook
+    from signal_meta.signal_meta_layer import _validate_input
+    from signal_meta.signal_label_versions import OutcomeRevisionBook
     from core.portfolio import Portfolio
     from core.risk import RiskManager
 
@@ -346,15 +346,15 @@ def test_label_correction_outside_indicator_lookback_is_still_observed_from_raw_
 
 
 def test_indicator_computation_strips_heavy_proof_but_historical_and_live_events_restore_it(monkeypatch):
-    from core.market_data import HistoricalMarketDataAdapter, LiveMarketDataAdapter
-    from core.temporal_data import strategy_market_view
+    from core.market.market_data import HistoricalMarketDataAdapter, LiveMarketDataAdapter
+    from core.market.temporal_data import strategy_market_view
 
     calls = []
     def calculate(frame):
         assert "temporal_source_versions" not in frame.attrs
         calls.append(len(frame))
         frame["fixture_mean"] = frame.close.rolling(2, min_periods=1).mean()
-    monkeypatch.setattr("core.market_data.Indicators.calculate_all", calculate)
+    monkeypatch.setattr("core.market.market_data.Indicators.calculate_all", calculate)
     historical = HistoricalMarketDataAdapter({"X": documented()}, timeframe="1d", temporal_policy="strict")
     events = list(historical.stream())
     assert calls and all(e.histories["X"].attrs["temporal_source_versions"] for e in events)

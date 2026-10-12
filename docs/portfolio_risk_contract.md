@@ -2,7 +2,7 @@
 
 > 文档状态：Active v1.0
 > 生效日期：2026-09-01
-> 实现：[`core/candidate_scoring.py`](../core/candidate_scoring.py)、[`core/risk/portfolio_governor.py`](../core/risk/portfolio_governor.py)、[`core/account_cost_contract.py`](../core/account_cost_contract.py)、[`core/allocation.py`](../core/allocation.py)
+> 实现：[`core/candidate_scoring.py`](../core/candidate_scoring.py)、[`core/risk/portfolio_governor.py`](../core/risk/portfolio_governor.py)、[`core/trading/account_cost_contract.py`](../core/trading/account_cost_contract.py)、[`core/allocation.py`](../core/allocation.py)
 > 测试：[`tests/test_sr3_portfolio_risk.py`](../tests/test_sr3_portfolio_risk.py)
 > 上位文档：[`current_strategy_remediation_roadmap.md`](archive/2026-10-doc-consolidation/current_strategy_remediation_roadmap.md) SR3
 
@@ -102,7 +102,7 @@ symbol 为 `__QUOTE__`。
 ### 4.2 费率必须与账户模式一致
 
 `execution.fee_schedule` 现在必须写明 venue / market_type / source，
-`core.account_cost_contract.validate_account_cost_contract` 在**回测和实盘两个
+`core.trading.account_cost_contract.validate_account_cost_contract` 在**回测和实盘两个
 入口**都会校验：
 
 - fee_schedule 的 market_type 必须与 `account.mode` 兼容；

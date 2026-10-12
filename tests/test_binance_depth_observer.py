@@ -6,9 +6,9 @@ from types import SimpleNamespace
 import aiohttp
 import pytest
 
-from core.binance_depth_observer import (DepthGap, DepthJournal, SequencedDepthBook,
+from core.market.binance_depth_observer import (DepthGap, DepthJournal, SequencedDepthBook,
     displayed_depth_sweep, observe_depth, verify_depth_journal)
-from core.quote_observations import QuoteObservationStore
+from core.market.quote_observations import QuoteObservationStore
 
 
 AT = "2020-01-01T00:00:01+00:00"

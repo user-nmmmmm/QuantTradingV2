@@ -2,7 +2,7 @@
 
 > 文档状态：Active v1.1（2026-09-12 批准风险预算契约）
 > 生效日期：2026-09-01
-> 实现：[`core/protective_stops.py`](../core/protective_stops.py)、[`strategies/trend_breakout.py`](../strategies/trend_breakout.py)、[`backtest/engine.py`](../backtest/engine.py)
+> 实现：[`core/trading/protective_stops.py`](../core/trading/protective_stops.py)、[`strategies/trend_breakout.py`](../strategies/trend_breakout.py)、[`backtest/engine.py`](../backtest/engine.py)
 > 测试：[`tests/test_sr2_protective_stops.py`](../tests/test_sr2_protective_stops.py)
 > 上位文档：[`current_strategy_remediation_roadmap.md`](archive/2026-10-doc-consolidation/current_strategy_remediation_roadmap.md) SR2
 
@@ -136,7 +136,7 @@ entry_risk:
 
 ## 7. 保护单生命周期（SR2-5）
 
-实现：[`core/protective_orders.py`](../core/protective_orders.py)，
+实现：[`core/trading/protective_orders.py`](../core/trading/protective_orders.py)，
 实盘接入点在 `live_trading/tick_orchestrator.py::_reconcile_protective_orders`。
 
 `ProtectiveOrderManager` 是一个**对事实的纯状态机**：输入当前净持仓、策略希望

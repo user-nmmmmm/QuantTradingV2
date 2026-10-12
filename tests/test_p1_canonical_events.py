@@ -20,7 +20,7 @@ from core.events import (
     event_id_for,
 )
 from core.live_broker import LiveBroker
-from core.order_store import OrderStore
+from core.trading.order_store import OrderStore
 from core.portfolio import Portfolio
 from core.live_broker.safe import SafeLiveBroker
 

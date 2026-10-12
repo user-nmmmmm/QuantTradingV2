@@ -1,9 +1,9 @@
 """Backtest engine composed from the shared runtime and historical adapters."""
 
 from __future__ import annotations
-from core.entry_audit import forced_trade_cost
-from core.entry_risk import resolve_approved_risk
-from core.orders import TERMINAL_STATUSES
+from core.trading.entry_audit import forced_trade_cost
+from core.trading.entry_risk import resolve_approved_risk
+from core.trading.orders import TERMINAL_STATUSES
 from ops.strategy_registration import register_health_policies
 from dataclasses import asdict, replace
 
@@ -25,8 +25,8 @@ from composition.factory import (
 )
 from config.config import config
 from core.accounting_check import AccountingReconciler
-from core.account_cost_contract import validate_account_cost_contract
-from core.accounts import AccountMode
+from core.trading.account_cost_contract import validate_account_cost_contract
+from core.trading.accounts import AccountMode
 from core.benchmarks import (
     dynamic_equal_weight_rebalanced,
     fixed_equal_weight_buy_hold,
@@ -34,22 +34,22 @@ from core.benchmarks import (
 from core.broker import Broker
 from core.events import TradingEventPipeline
 from core.logger import get_logger
-from core.market_data import HistoricalMarketDataAdapter, normalize_market_frame
+from core.market.market_data import HistoricalMarketDataAdapter, normalize_market_frame
 from core.portfolio import Portfolio
-from core.position_management import CapitalAllocationPolicy
+from core.trading.position_management import CapitalAllocationPolicy
 from core.runtime import EventProcessor, MarketDataSlice, validate_selector_execution_path
 from core.risk.actions import plan_risk_action
 from backtest.drawdown_budget import BacktestDrawdownReducer
-from core.protective_stops import EntryRiskPolicy, evaluate_fill_risk
+from core.trading.protective_stops import EntryRiskPolicy, evaluate_fill_risk
 from core.strategy_health import cohort_rows, transition_rows
-from core.signal_observation import SignalObserver
-from core.signal_observation_types import ObservationPolicy
-from core.signal_outcomes import ObservationCosts
-from core.signal_actuals import reconcile_actuals
-from core.signal_ev_types import EVPolicy
-from core.signal_meta_layer import build_signal_meta_layer
-from core.signal_adaptive_types import AdaptiveEVPolicy, MetaReplayPolicy
-from core.signal_adaptive import build_adaptive_signal_meta
+from signal_meta.signal_observation import SignalObserver
+from signal_meta.signal_observation_types import ObservationPolicy
+from signal_meta.signal_outcomes import ObservationCosts
+from signal_meta.signal_actuals import reconcile_actuals
+from signal_meta.signal_ev_types import EVPolicy
+from signal_meta.signal_meta_layer import build_signal_meta_layer
+from signal_meta.signal_adaptive_types import AdaptiveEVPolicy, MetaReplayPolicy
+from signal_meta.signal_adaptive import build_adaptive_signal_meta
 from backtest.signal_ghost import replay_ghosts
 from backtest.signal_meta_replay import replay_signal_meta
 
@@ -104,11 +104,11 @@ class BacktestEngine:
                 (config.get("portfolio_targets") or {}).get("enabled", False)):
             raise ValueError("smart capital allocation cannot run with a portfolio target controller")
         config_data = config.require("data")
-        from core.temporal_data import temporal_policy as parse_temporal_policy
+        from core.market.temporal_data import temporal_policy as parse_temporal_policy
         self.temporal_policy = parse_temporal_policy(temporal_policy if temporal_policy is not None else config_data.get("temporal_policy"))
         self.temporal_financing = temporal_financing
         if temporal_financing is not None:
-            from core.temporal_financing import TemporalFinancing
+            from signal_meta.temporal_financing import TemporalFinancing
             from pathlib import Path
             if isinstance(temporal_financing, (str, Path)):
                 self.temporal_financing = TemporalFinancing.from_json(temporal_financing)
@@ -612,7 +612,7 @@ class BacktestEngine:
                 if self.temporal_policy.mode != "strict":
                     processor._previous_session_close_equity = result.equity
                 else:
-                    from core.temporal_data import strategy_market_prices
+                    from core.market.temporal_data import strategy_market_prices
                     known_marks = strategy_market_prices(event, processor.last_prices)
                     if all(not position.get("qty") or symbol in known_marks
                            for symbol, position in portfolio.positions.items()):

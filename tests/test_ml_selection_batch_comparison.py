@@ -10,7 +10,7 @@ from core.broker import Broker
 from core.portfolio import Portfolio
 from core.risk import RiskManager
 from core.risk.portfolio_governor import CorrelationClusterPolicy, PortfolioRiskGovernor
-from core.state import MarketState
+from core.trading.state import MarketState
 from research.ml_selection.batch_comparison import BatchAllocationComparisonSelector, copy_allocation_graph
 from strategies.base import Strategy
 

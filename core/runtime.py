@@ -12,11 +12,11 @@ from typing import Any, Dict, Iterable, Mapping, Optional, Protocol, Sequence
 
 import pandas as pd
 
-from core.execution_port import ExecutionPort
+from core.trading.execution_port import ExecutionPort
 from core.portfolio import Portfolio
 from core.risk import BreakerAction, RiskControlDecision, RiskManager
-from core.entry_audit import capture, note
-from core.temporal_data import strict_market_event, strategy_market_prices, strategy_market_view
+from core.trading.entry_audit import capture, note
+from core.market.temporal_data import strict_market_event, strategy_market_prices, strategy_market_view
 from dataclasses import replace
 
 

@@ -18,10 +18,10 @@ from statistics import stdev
 from typing import Any, Mapping, Sequence
 
 from core.domain import OrderStatus
-from core.entry_risk import resolve_approved_risk
+from core.trading.entry_risk import resolve_approved_risk
 from core.exchange.metadata import MarketSpecification
 from core.risk.portfolio_governor import CorrelationClusterPolicy
-from core.universe import normalize_symbol
+from core.market.universe import normalize_symbol
 
 
 def _number(value: Any, name: str, *, positive: bool = False) -> Decimal:

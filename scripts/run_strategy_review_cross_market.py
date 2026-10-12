@@ -217,7 +217,7 @@ def run_job(batch, source_root, data_root, job_name):
     sys.path.insert(0, str(source_root.resolve()))
     from backtest.engine import BacktestEngine
     from config.config import config
-    from core.state import MarketStateMachine
+    from core.trading.state import MarketStateMachine
     from analysis.strategy_review import cohort_evidence, evaluate_gates
     from analysis.strategy_review_diagnostics import write_review_diagnostics
     if not Path(sys.modules["backtest.engine"].__file__).resolve().is_relative_to(source_root.resolve()):

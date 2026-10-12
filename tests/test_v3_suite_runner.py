@@ -2,7 +2,7 @@ from copy import deepcopy
 
 from config.config import config
 from scripts.run_trend_portfolio_v3 import effective_config, source_hashes, suite_specs
-from core.market_data import HistoricalMarketDataAdapter
+from core.market.market_data import HistoricalMarketDataAdapter
 import pandas as pd
 
 

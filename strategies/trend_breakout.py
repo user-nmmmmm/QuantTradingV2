@@ -18,8 +18,8 @@
 
 from typing import Dict, Any, Optional
 import pandas as pd
-from core.state import MarketState
-from core.entry_audit import note
+from core.trading.state import MarketState
+from core.trading.entry_audit import note
 from core.portfolio import Portfolio
 from core.factors import VolumeFactors
 from core.candidate_scoring import (
@@ -27,7 +27,7 @@ from core.candidate_scoring import (
     score_breakout_candidate,
 )
 from core.indicators import Indicators
-from core.protective_stops import (
+from core.trading.protective_stops import (
     ProtectiveStopPolicy,
     plan_initial_stop,
     update_trailing_stop,

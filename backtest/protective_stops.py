@@ -8,7 +8,7 @@ remaining execution-risk gap in
 ``docs/current_strategy_remediation_roadmap.md`` (§17.2).
 
 What this simulator does is keep the *same* resident stop intent the live path
-keeps - it drives :class:`core.protective_orders.ProtectiveOrderManager`, the
+keeps - it drives :class:`core.trading.protective_orders.ProtectiveOrderManager`, the
 exact object ``live_trading/tick_orchestrator.py`` drives - and lets the
 historical matcher fill it inside the bar.
 
@@ -64,7 +64,7 @@ import pandas as pd
 from core.broker.matching import PROTECTIVE_EXIT_REASON, is_protective_stop
 from core.broker.types import BacktestOrderStatus
 from core.logger import get_logger
-from core.protective_orders import (
+from core.trading.protective_orders import (
     ProtectiveAction,
     ProtectiveOrder,
     ProtectiveOrderManager,

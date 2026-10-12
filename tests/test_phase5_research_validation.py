@@ -20,7 +20,7 @@ from analysis.research_validation import (
     walk_forward_splits,
 )
 from core.portfolio import Portfolio
-from core.state import MarketState
+from core.trading.state import MarketState
 from strategies.mean_reversion import RangeStrategy
 from strategies.trend_breakout import TrendBreakoutStrategy
 from strategies.volatility import VolatilityReversionStrategy

@@ -51,6 +51,12 @@
       ]
     },
     {
+      "prefix": "signal_meta/",
+      "suffixes": [
+        ".py"
+      ]
+    },
+    {
       "prefix": "config/",
       "suffixes": [
         ".py",

@@ -4,10 +4,10 @@ from datetime import datetime, timezone
 import pytest
 
 from core.domain import OrderIntent
-from core.order_store import OrderStore
+from core.trading.order_store import OrderStore
 from core.runtime_identity import RuntimeIdentity
-from core.sqlite_backup import SQLiteSnapshotManager, restore_snapshot, validate_database
-from core.sqlite_utils import DatabaseIntegrityError
+from core.trading.sqlite_backup import SQLiteSnapshotManager, restore_snapshot, validate_database
+from core.trading.sqlite_utils import DatabaseIntegrityError
 from core.live_safety import StartupSafetyPolicy, SafetyConfigurationError
 from core.risk.persistent_guard import PersistentOrderSafetyGuard
 from core.risk.actions import plan_risk_action

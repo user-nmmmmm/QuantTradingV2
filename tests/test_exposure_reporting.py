@@ -23,7 +23,7 @@ import pytest
 from backtest.engine import BacktestEngine
 from backtest.reporting import ReportGenerator
 from backtest.reporting.risk_metrics import EXPOSURE_COLUMNS, summarize_exposure
-from core.state import MarketState
+from core.trading.state import MarketState
 from strategies.base import Strategy
 
 SYMBOL = "BTC/USDT"

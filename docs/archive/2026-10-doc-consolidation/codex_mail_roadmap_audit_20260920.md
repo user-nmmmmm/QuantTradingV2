@@ -220,7 +220,7 @@ MAIL-37-1 的原始“部分减仓永远不重试”判断需要区别于 MAIL-3
 **MAIL-13-2 · P1 · 仍存在** — [Paginate open-interest history through the requested end](https://github.com/user-nmmmmm/QuantTradingV2/pull/13#pullrequestreview-5005367713)
 
 - 当前核对：OI 历史仍只有一次 fetchOpenInterestHistory；end_date 仅过滤返回结果，未继续分页。
-- 代码/既有测试：[core/data_fetcher.py:455](../../../core/data_fetcher.py)；[core/data_fetcher.py:456](../../../core/data_fetcher.py)；[core/data_fetcher.py:475](../../../core/data_fetcher.py)。
+- 代码/既有测试：[core/market/data_fetcher.py:455](../../../core/market/data_fetcher.py)；[core/market/data_fetcher.py:456](../../../core/market/data_fetcher.py)；[core/market/data_fetcher.py:475](../../../core/market/data_fetcher.py)。
 - 验证方式：静态检查完整函数，无交易所调用。
 **MAIL-13-3 · P2 · 仍存在** — [Leave POC empty for zero-volume windows](https://github.com/user-nmmmmm/QuantTradingV2/pull/13#pullrequestreview-5005367713)
 
@@ -261,12 +261,12 @@ MAIL-37-1 的原始“部分减仓永远不重试”判断需要区别于 MAIL-3
 **MAIL-16-3 · P2 · 仍存在** — [Preserve lot details across partial entry fills](https://github.com/user-nmmmmm/QuantTradingV2/pull/16#pullrequestreview-5027130456)
 
 - 当前核对：报告仍逐入场fill压栈、逐配对位置消费lot_closes，而真实lot合并同一订单多次入场；一笔退出覆盖多个入场碎片时只有首碎片有lot/position/risk，后续缺失。新增round-trip汇总因缺position_id也无法修正该情形。
-- 代码/既有测试：[backtest/reporting/trades.py:121](../../../backtest/reporting/trades.py)；[backtest/reporting/trades.py:207](../../../backtest/reporting/trades.py)；[backtest/reporting/trades.py:345](../../../backtest/reporting/trades.py)；[core/lots.py:240](../../../core/lots.py)。
+- 代码/既有测试：[backtest/reporting/trades.py:121](../../../backtest/reporting/trades.py)；[backtest/reporting/trades.py:207](../../../backtest/reporting/trades.py)；[backtest/reporting/trades.py:345](../../../backtest/reporting/trades.py)；[core/trading/lots.py:240](../../../core/trading/lots.py)。
 - 验证方式：2026-09-20 真实本地Broker撮合25单位开仓分10/10/5、一次卖25：报告3条legs的lot_id=[LOT-000000001,null,null]，被汇总成3个roundtrips。详见 mid_verification.json MAIL-16-3。
 **MAIL-16-4 · P2 · 部分修复** — [Scale initial risk to the quantity being closed](https://github.com/user-nmmmmm/QuantTradingV2/pull/16#pullrequestreview-5027130456)
 
 - 当前核对：CloseEvent风险已按qty_closed/qty_original比例分摊；主报告改按position汇总并按lot去重总初始风险，完整往返的R不再重复分母。但原LotClose.initial_risk和重建legs仍重复完整风险，直接消费legs的旧研究入口仍未统一；且部分入场匹配缺失仍影响此链。
-- 代码/既有测试：[core/lots.py:203](../../../core/lots.py)；[core/broker/fill_service.py:235](../../../core/broker/fill_service.py)；[core/broker/fill_service.py:250](../../../core/broker/fill_service.py)；[backtest/reporting/trades.py:367](../../../backtest/reporting/trades.py)；[backtest/reporting/__init__.py:216](../../../backtest/reporting/__init__.py)；[tests/test_round_trip_aggregation.py:143](../../../tests/test_round_trip_aggregation.py)；[tests/test_round_trip_aggregation.py:151](../../../tests/test_round_trip_aggregation.py)。
+- 代码/既有测试：[core/trading/lots.py:203](../../../core/trading/lots.py)；[core/broker/fill_service.py:235](../../../core/broker/fill_service.py)；[core/broker/fill_service.py:250](../../../core/broker/fill_service.py)；[backtest/reporting/trades.py:367](../../../backtest/reporting/trades.py)；[backtest/reporting/__init__.py:216](../../../backtest/reporting/__init__.py)；[tests/test_round_trip_aggregation.py:143](../../../tests/test_round_trip_aggregation.py)；[tests/test_round_trip_aggregation.py:151](../../../tests/test_round_trip_aggregation.py)。
 - 验证方式：2026-09-20 定向回归40 passed含完整往返risk只计一次；现有test_legs_each_repeat_the_lots_full_risk明确仍断言每条leg完整250，而roundtrip250。
 
 ### PR #17
@@ -279,7 +279,7 @@ MAIL-37-1 的原始“部分减仓永远不重试”判断需要区别于 MAIL-3
 **MAIL-17-2 · P1 · 仍存在** — [Close positions when point-in-time membership ends](https://github.com/user-nmmmmm/QuantTradingV2/pull/17#pullrequestreview-5028474123)
 
 - 当前核对：--universe-file路径仍只是截断delisted_at之后bars，没有在最后可交易bar生成退出标记；引擎新增scheduled_exit/AnnouncedMarginDelisting能力，但普通PointInTimeUniverse.apply未接入，旧路径仍可能持仓带到总体期末。
-- 代码/既有测试：[core/universe.py:66](../../../core/universe.py)；[core/universe.py:79](../../../core/universe.py)；[main.py:433](../../../main.py)；[backtest/engine.py:443](../../../backtest/engine.py)；[backtest/engine.py:1061](../../../backtest/engine.py)。
+- 代码/既有测试：[core/market/universe.py:66](../../../core/market/universe.py)；[core/market/universe.py:79](../../../core/market/universe.py)；[main.py:433](../../../main.py)；[backtest/engine.py:443](../../../backtest/engine.py)；[backtest/engine.py:1061](../../../backtest/engine.py)。
 - 验证方式：静态追踪CSV universe输入→apply→引擎；已有scheduled_exit分支不能证明通用PIT路径已关闭缺口。
 **MAIL-17-3 · P2 · 仍存在** — [Reset borrow accrual when a short is flat](https://github.com/user-nmmmmm/QuantTradingV2/pull/17#pullrequestreview-5028474123)
 
@@ -361,12 +361,12 @@ MAIL-37-1 的原始“部分减仓永远不重试”判断需要区别于 MAIL-3
 **MAIL-21-1 · P1 · 仍存在** — [Reject Yahoo fallback data from the Binance cache](https://github.com/user-nmmmmm/QuantTradingV2/pull/21#pullrequestreview-5052647523)
 
 - 当前核对：通用下载路径仍可回退Yahoo且缓存脚本未验证实际来源/周期；新研究专用采集器不关闭此旧路径。
-- 代码/既有测试：[scripts/fetch_binance_data.py:115](../../../scripts/fetch_binance_data.py)；[core/data_fetcher.py:239](../../../core/data_fetcher.py)；[core/data_fetcher.py:251](../../../core/data_fetcher.py)。
+- 代码/既有测试：[scripts/fetch_binance_data.py:115](../../../scripts/fetch_binance_data.py)；[core/market/data_fetcher.py:239](../../../core/market/data_fetcher.py)；[core/market/data_fetcher.py:251](../../../core/market/data_fetcher.py)。
 - 验证方式：静态核对
 **MAIL-21-2 · P1 · 仍存在** — [Split intraday chunks below the fetcher's safety cap](https://github.com/user-nmmmmm/QuantTradingV2/pull/21#pullrequestreview-5052647523)
 
 - 当前核对：依旧按自然年分块；15m/5m全年超过单次10000根上限。
-- 代码/既有测试：[scripts/fetch_binance_data.py:92](../../../scripts/fetch_binance_data.py)；[scripts/fetch_binance_data.py:113](../../../scripts/fetch_binance_data.py)；[core/data_fetcher.py:324](../../../core/data_fetcher.py)。
+- 代码/既有测试：[scripts/fetch_binance_data.py:92](../../../scripts/fetch_binance_data.py)；[scripts/fetch_binance_data.py:113](../../../scripts/fetch_binance_data.py)；[core/market/data_fetcher.py:324](../../../core/market/data_fetcher.py)。
 - 验证方式：静态核对
 **MAIL-21-3 · P1 · 仍存在** — [Stop the matrix when a cache refresh fails](https://github.com/user-nmmmmm/QuantTradingV2/pull/21#pullrequestreview-5052647523)
 
@@ -508,7 +508,7 @@ MAIL-37-1 的原始“部分减仓永远不重试”判断需要区别于 MAIL-3
 **MAIL-32-2 · P1 · 仍存在** — [Normalize symbols before applying the generated universe](https://github.com/user-nmmmmm/QuantTradingV2/pull/32#pullrequestreview-5090380872)
 
 - 当前核对：生成 universe 仍改为连字符符号；apply 仍按原字符串 exact lookup，CLI没有统一 key。现有 PIT 测试未覆盖 slash/hyphen 同一币对混用。
-- 代码/既有测试：[scripts/repair_binance_point_in_time_data.py:67](../../../scripts/repair_binance_point_in_time_data.py)；[core/universe.py:82](../../../core/universe.py)；[main.py:435](../../../main.py)；[tests/test_phase2_reproducibility_audit.py:172](../../../tests/test_phase2_reproducibility_audit.py)。
+- 代码/既有测试：[scripts/repair_binance_point_in_time_data.py:67](../../../scripts/repair_binance_point_in_time_data.py)；[core/market/universe.py:82](../../../core/market/universe.py)；[main.py:435](../../../main.py)；[tests/test_phase2_reproducibility_audit.py:172](../../../tests/test_phase2_reproducibility_audit.py)。
 - 验证方式：已离线复现：membership BTC-USDT，data_map BTC/USDT，apply 返回空映射。 Git边界：缺口已提交；main.py 本地其它修改未解决。
 
 ### PR #33
@@ -516,7 +516,7 @@ MAIL-37-1 的原始“部分减仓永远不重试”判断需要区别于 MAIL-3
 **MAIL-33-1 · P1 · 仍存在** — [Persist the breaker day atomically with its checkpoint](https://github.com/user-nmmmmm/QuantTradingV2/pull/33#pullrequestreview-5124762654)
 
 - 当前核对：checkpoint 和 circuit_breaker_day 仍为独立 StateStore.set 事务；重启恢复仍根据独立 day 字段重置 daily breaker。checkpoint 内没有将交易日纳入原子记录。现有 restart 测试覆盖完成 checkpoint 后的重启，不覆盖两次写入间崩溃。
-- 代码/既有测试：[live_trading/tick_orchestrator.py:220](../../../live_trading/tick_orchestrator.py)；[live_trading/tick_orchestrator.py:247](../../../live_trading/tick_orchestrator.py)；[live_trading/engine.py:304](../../../live_trading/engine.py)；[live_trading/engine.py:308](../../../live_trading/engine.py)；[core/state_store_v2.py:43](../../../core/state_store_v2.py)；[tests/test_drawdown_recovery.py:94](../../../tests/test_drawdown_recovery.py)。
+- 代码/既有测试：[live_trading/tick_orchestrator.py:220](../../../live_trading/tick_orchestrator.py)；[live_trading/tick_orchestrator.py:247](../../../live_trading/tick_orchestrator.py)；[live_trading/engine.py:304](../../../live_trading/engine.py)；[live_trading/engine.py:308](../../../live_trading/engine.py)；[core/trading/state_store_v2.py:43](../../../core/trading/state_store_v2.py)；[tests/test_drawdown_recovery.py:94](../../../tests/test_drawdown_recovery.py)。
 - 验证方式：静态检查写入/恢复/事务边界；未做进程崩溃注入测试。 Git边界：HEAD 与工作区均存在此边界；tick_orchestrator.py 有其它本地改动。
 **MAIL-33-2 · P2 · 仍存在** — [Clear RISK_HALTED when cooldown recovery succeeds](https://github.com/user-nmmmmm/QuantTradingV2/pull/33#pullrequestreview-5124762654)
 

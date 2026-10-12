@@ -5,7 +5,7 @@ import pandas as pd
 
 from core.events import FillEvent, OrderEvent, TradingEventPipeline
 from core.domain import OrderStatus
-from core.market_data import HistoricalMarketDataAdapter, LiveMarketDataAdapter
+from core.market.market_data import HistoricalMarketDataAdapter, LiveMarketDataAdapter
 from core.portfolio import Portfolio
 from core.runtime import EventProcessor
 from live_trading.execution_adapter import RecordedExecutionAdapter

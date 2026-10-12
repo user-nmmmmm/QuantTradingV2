@@ -10,7 +10,7 @@ from analysis.validation import ValidationConfig, validate_parameter_candidates
 from core.broker.cost_model import CostModel
 from ops.gray_release import GrayReleasePolicy
 from core.runtime_identity import RuntimeIdentity
-from core.state_store_v2 import StateStore
+from core.trading.state_store_v2 import StateStore
 from core.live_safety import SafetyConfigurationError, StartupSafetyPolicy
 from core.metric_result import MetricResult
 from ops.supervisor import RestartPolicy, supervise

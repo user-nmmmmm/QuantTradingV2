@@ -10,8 +10,8 @@ from typing import Any, Dict, List
 
 import pandas as pd
 
-from core.accounts import AccountMode
-from core.timeframes import timeframe_delta
+from core.trading.accounts import AccountMode
+from core.market.timeframes import timeframe_delta
 
 
 class FinancingMixin:

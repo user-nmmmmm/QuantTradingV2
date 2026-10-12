@@ -12,14 +12,14 @@ from uuid import uuid4
 ROOT = Path(__file__).resolve().parents[1]
 
 from analysis.paper_study import write_json
-from core.binance_depth_observer import DepthJournal, observe_depth, verify_depth_journal, displayed_depth_sweep, PublicDepthSnapshot
-from core.quote_observations import QuoteObservationStore, utc_now
+from core.market.binance_depth_observer import DepthJournal, observe_depth, verify_depth_journal, displayed_depth_sweep, PublicDepthSnapshot
+from core.market.quote_observations import QuoteObservationStore, utc_now
 
 
 def source_identity():
     return {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest() for name in
-        ("scripts/collect_execution_depth.py", "core/binance_depth_observer.py",
-         "core/quote_observations.py", "core/request_budget.py")}
+        ("scripts/collect_execution_depth.py", "core/market/binance_depth_observer.py",
+         "core/market/quote_observations.py", "core/market/request_budget.py")}
 
 
 def main(argv=None):

@@ -4,7 +4,7 @@
 
 ## A3：交易账户事实与研究投影
 
-交易路径中的持仓、现金与批次事实由 `core/portfolio.py`、`core/lots.py` 及对应状态存储维护。`research/audit/ledger.py` 的 `AuthoritativeLedger` 和 `PortfolioProjection` 是离线事件重放、对账研究的独立投影；其名称并不表示它已经接管实盘或回测下单路径。不能把离线投影的成功重放当成交易所账户已对账或真实资金可运行的证据。具体接口与限制见[研究账本说明](authoritative_ledger.md)。
+交易路径中的持仓、现金与批次事实由 `core/portfolio.py`、`core/trading/lots.py` 及对应状态存储维护。`research/audit/ledger.py` 的 `AuthoritativeLedger` 和 `PortfolioProjection` 是离线事件重放、对账研究的独立投影；其名称并不表示它已经接管实盘或回测下单路径。不能把离线投影的成功重放当成交易所账户已对账或真实资金可运行的证据。具体接口与限制见[研究账本说明](authoritative_ledger.md)。
 
 `core/` 的通用事件编码不依赖 `research/` 的具体类型（2026-10-11 已完成）：`CashEvent`、`MarkPriceEvent` 及其小型辅助函数移到 `core/events/ledger_events.py`，`research.audit.ledger` 继续导出这些名字。持久化的类型名是线上格式的一部分，所以 `core/events/codec.py` 用显式的 `_PERSISTED_NAMES` 保持 `research.audit.ledger:CashEvent` 等历史名称不变，并继续接受 `core.ledger:*` 旧名称；`tests/test_event_wire_compat.py` 在移动前的代码上先通过，用来固定这一点。
 
@@ -18,7 +18,7 @@
 
 ## 导入方向（import-linter）
 
-包之间的依赖方向由 `pyproject.toml` 的 `[tool.importlinter]` 声明并在 CI 里用 `lint-imports` 检查（包括函数内的延迟导入）。分层从高到低：`dashboard` → `research | analysis` → `backtest | live_trading` → `composition` → `router` → `strategies` → `config` → `ops` → `core`；高层可以导入低层，反之不行，同层的 `|` 两侧互相独立。另有一条规则禁止 `core` 依赖任何其他项目包。`scripts/` 与 `tests/` 在规则之外。
+包之间的依赖方向由 `pyproject.toml` 的 `[tool.importlinter]` 声明并在 CI 里用 `lint-imports` 检查（包括函数内的延迟导入）。分层从高到低：`dashboard` → `research | analysis` → `backtest | live_trading` → `composition` → `router` → `strategies` → `config` → `ops | signal_meta` → `core`；高层可以导入低层，反之不行，同层的 `|` 两侧互相独立。另有一条规则禁止 `core` 依赖任何其他项目包。`scripts/` 与 `tests/` 在规则之外。
 
 目前有 4 条"向上"的导入作为已知例外登记（`ignore_imports`），都是函数内的延迟导入，且只许减少、不许增加（`tests/test_architecture_boundaries.py::test_layer_exceptions_do_not_grow`）：
 

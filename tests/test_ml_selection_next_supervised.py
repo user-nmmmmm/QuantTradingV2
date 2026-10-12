@@ -225,7 +225,7 @@ def test_real_exit_target_uses_actual_cash_flows_and_fees_once():
 
 def test_probe_runs_original_exit_and_does_not_force_missing_signal():
     from config.config import config
-    from core.state import MarketState
+    from core.trading.state import MarketState
     from strategies.base import Strategy
 
     class Original(Strategy):

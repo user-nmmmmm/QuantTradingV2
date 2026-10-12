@@ -9,7 +9,7 @@ import pytest
 import main as entrypoint
 from config.config import config
 from core.allocation import EntryCandidate, PortfolioSignalAllocator
-from core.position_management import CapitalAllocationPolicy, SmartCapitalPlanner
+from core.trading.position_management import CapitalAllocationPolicy, SmartCapitalPlanner
 from dashboard.backtest_jobs import BacktestJobs
 
 

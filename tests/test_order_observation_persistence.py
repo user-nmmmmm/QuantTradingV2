@@ -4,7 +4,7 @@ import time
 
 import pytest
 
-from core.order_latency import (OrderLatencyRecorder, order_observation_sidecar_path,
+from core.trading.order_latency import (OrderLatencyRecorder, order_observation_sidecar_path,
                                 read_order_observations)
 
 

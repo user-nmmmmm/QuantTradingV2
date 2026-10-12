@@ -8,7 +8,7 @@ import pandas as pd
 from backtest.engine import BacktestEngine
 from core.broker import BacktestOrderStatus, Broker
 from core.portfolio import Portfolio
-from core.state import MarketState
+from core.trading.state import MarketState
 
 
 def frame(dates):

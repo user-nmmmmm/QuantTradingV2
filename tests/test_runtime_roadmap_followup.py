@@ -11,20 +11,20 @@ from types import SimpleNamespace
 import pandas as pd
 import pytest
 
-from core.market_read_batch import BoundedMarketReads
-from core.request_budget import SharedRequestBudget, request_scope, RequestBudgetExpired
+from core.market.market_read_batch import BoundedMarketReads
+from core.market.request_budget import SharedRequestBudget, request_scope, RequestBudgetExpired
 from live_trading.catchup import plan_catchup, replay_state_only
 from live_trading.protection_schedule import ProtectionSchedule, RuntimeSchedulePolicy
-from core.state import MarketState
+from core.trading.state import MarketState
 from router.router import Router
-from core.market_data import LiveMarketDataAdapter
-from core.market_data_errors import MarketDataRefreshError
-from core.state_store_v2 import StateStore
-from core.order_latency import OrderLatencyRecorder
+from core.market.market_data import LiveMarketDataAdapter
+from core.market.market_data_errors import MarketDataRefreshError
+from core.trading.state_store_v2 import StateStore
+from core.trading.order_latency import OrderLatencyRecorder
 from live_trading.runtime_controls import RuntimeControls
-from core.websocket_market import ClosedBarBuffer
+from core.market.websocket_market import ClosedBarBuffer
 from scripts.measure_sandbox_orders import probe
-from core.data_fetcher import DataFetcher
+from core.market.data_fetcher import DataFetcher
 from core.portfolio import Portfolio
 from core.risk import RiskManager
 from core.domain import SyncResult
@@ -162,7 +162,7 @@ def test_shared_budget_serializes_weighted_mixed_load_across_processes(tmp_path)
     path = str(tmp_path / "multiprocess.db")
     code = """
 import json, sys, time
-from core.request_budget import SharedRequestBudget
+from core.market.request_budget import SharedRequestBudget
 b = SharedRequestBudget(sys.argv[1], window_seconds=2.)
 out = []
 for _ in range(4):

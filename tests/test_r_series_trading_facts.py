@@ -9,12 +9,12 @@ import pytest
 from backtest.engine import BacktestEngine
 from backtest.reporting.trades import TradeReconstructionMixin
 from config.config import config
-from core.accounts import AccountMode
+from core.trading.accounts import AccountMode
 from core.broker import Broker, BacktestOrderStatus
 from core.portfolio import Portfolio
 from core.risk import RiskManager
 from core.risk.actions import RiskActionPlan
-from core.state import MarketState
+from core.trading.state import MarketState
 from strategies.base import Strategy
 
 
@@ -319,7 +319,7 @@ def test_pit_member_exits_at_own_final_bar_and_uses_local_index(tmp_path, exit_v
 
 def test_durable_live_projection_keeps_approved_risk_across_gap_and_replay(tmp_path):
     from core.domain import FillRecord, OrderIntent
-    from core.order_store import OrderStore
+    from core.trading.order_store import OrderStore
     from core.live_broker.fill_projection import replay_fill_projection
     store = OrderStore(str(tmp_path / "fills.sqlite"))
     opening = OrderIntent(exchange="paper", account="test", symbol="A/USDT", timeframe="1d",

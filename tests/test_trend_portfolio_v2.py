@@ -12,10 +12,10 @@ import pytest
 from core.allocation import PortfolioSignalAllocator
 from core.candidate_scoring import CandidateScorePolicy
 from core.portfolio import Portfolio
-from core.protective_stops import ProtectiveStopPolicy
+from core.trading.protective_stops import ProtectiveStopPolicy
 from core.risk import RiskManager
-from core.signal_observation import strategy_identity
-from core.state import MarketState
+from signal_meta.signal_observation import strategy_identity
+from core.trading.state import MarketState
 from core.strategy_health import HealthStatus, StrategyHealthPolicy
 from strategies.trend_breakout import TrendBreakoutStrategy
 from strategies.trend_portfolio_v2 import TrendPortfolioV2Strategy

@@ -567,7 +567,7 @@
       ],
       "files": [
         "scripts/fetch_binance_data.py",
-        "core/data_fetcher.py",
+        "core/market/data_fetcher.py",
         "scripts/run_backtest_matrix.py"
       ],
       "compatibility": "既有无来源缓存不自动删除；标记待重取并隔离，兼容通用多源 fetcher 但专用 Binance 写入边界必须严格。",
@@ -621,11 +621,11 @@
         },
         {
           "mail_id": "MAIL-21-1",
-          "location": "core/data_fetcher.py:239"
+          "location": "core/market/data_fetcher.py:239"
         },
         {
           "mail_id": "MAIL-21-1",
-          "location": "core/data_fetcher.py:251"
+          "location": "core/market/data_fetcher.py:251"
         },
         {
           "mail_id": "MAIL-21-2",
@@ -637,7 +637,7 @@
         },
         {
           "mail_id": "MAIL-21-2",
-          "location": "core/data_fetcher.py:324"
+          "location": "core/market/data_fetcher.py:324"
         },
         {
           "mail_id": "MAIL-21-3",
@@ -693,7 +693,7 @@
         "反例：当前未收盘/未来日线即便 OHLCV 完整也必须拒绝或显式剔除。"
       ],
       "files": [
-        "core/data_fetcher.py",
+        "core/market/data_fetcher.py",
         "scripts/run_expanded_universe_backtest.py"
       ],
       "compatibility": "不改变数据源可保留历史的事实；超出可取范围应返回不可满足原因。旧 CSV 缺 close_time 时必须用明确周期边界重验。",
@@ -732,15 +732,15 @@
       "evidence": [
         {
           "mail_id": "MAIL-13-2",
-          "location": "core/data_fetcher.py:455"
+          "location": "core/market/data_fetcher.py:455"
         },
         {
           "mail_id": "MAIL-13-2",
-          "location": "core/data_fetcher.py:456"
+          "location": "core/market/data_fetcher.py:456"
         },
         {
           "mail_id": "MAIL-13-2",
-          "location": "core/data_fetcher.py:475"
+          "location": "core/market/data_fetcher.py:475"
         },
         {
           "mail_id": "MAIL-35-2",
@@ -902,7 +902,7 @@
         "反例：不得等组合全局期末才把已退市币种强平。"
       ],
       "files": [
-        "core/universe.py",
+        "core/market/universe.py",
         "main.py",
         "backtest/engine.py",
         "scripts/repair_binance_point_in_time_data.py"
@@ -943,11 +943,11 @@
       "evidence": [
         {
           "mail_id": "MAIL-17-2",
-          "location": "core/universe.py:66"
+          "location": "core/market/universe.py:66"
         },
         {
           "mail_id": "MAIL-17-2",
-          "location": "core/universe.py:79"
+          "location": "core/market/universe.py:79"
         },
         {
           "mail_id": "MAIL-17-2",
@@ -967,7 +967,7 @@
         },
         {
           "mail_id": "MAIL-32-2",
-          "location": "core/universe.py:82"
+          "location": "core/market/universe.py:82"
         },
         {
           "mail_id": "MAIL-32-2",
@@ -1156,9 +1156,9 @@
         "普通入口timeframe=4h可运行；相同数据请求二次命中缓存且零网络，来源/周期/范围不同不能错命中。"
       ],
       "files": [
-        "core/data_fetcher.py",
-        "core/data.py",
-        "core/universe.py",
+        "core/market/data_fetcher.py",
+        "core/market/data.py",
+        "core/market/universe.py",
         "scripts/fetch_binance_data.py",
         "config/universe_binance_spot_1d.csv"
       ],
@@ -1517,7 +1517,7 @@
       ],
       "files": [
         "backtest/reporting/trades.py",
-        "core/lots.py",
+        "core/trading/lots.py",
         "core/broker/fill_service.py",
         "backtest/reporting/__init__.py",
         "core/metrics/attribution.py",
@@ -1582,11 +1582,11 @@
         },
         {
           "mail_id": "MAIL-16-3",
-          "location": "core/lots.py:240"
+          "location": "core/trading/lots.py:240"
         },
         {
           "mail_id": "MAIL-16-4",
-          "location": "core/lots.py:203"
+          "location": "core/trading/lots.py:203"
         },
         {
           "mail_id": "MAIL-16-4",
@@ -2229,7 +2229,7 @@
       "files": [
         "live_trading/tick_orchestrator.py",
         "live_trading/engine.py",
-        "core/state_store_v2.py",
+        "core/trading/state_store_v2.py",
         "live_trading/state_export.py"
       ],
       "compatibility": "保留读取旧 checkpoint 的迁移分支；第一次成功保存生成新原子版本。临时文件清理仅针对本次唯一文件，不扫描删除其它会话。",
@@ -2284,7 +2284,7 @@
         },
         {
           "mail_id": "MAIL-33-1",
-          "location": "core/state_store_v2.py:43"
+          "location": "core/trading/state_store_v2.py:43"
         },
         {
           "mail_id": "MAIL-33-1",
@@ -2978,7 +2978,7 @@
         "增量消费工作量随新增成交增长，历史长度增加不导致每bar全表重扫；游标重启/重复事件不漏记不重记。"
       ],
       "files": [
-        "core/lots.py",
+        "core/trading/lots.py",
         "core/portfolio.py",
         "backtest/reporting/trades.py",
         "research/audit/ledger.py"
@@ -3122,7 +3122,7 @@
         "live_trading/recovery.py",
         "core/portfolio.py",
         "research/audit/reconciliation_job.py",
-        "core/account_source.py",
+        "core/trading/account_source.py",
         "live_trading/tick_orchestrator.py",
         "run_live.py",
         "tests/test_account_source_integration.py",
@@ -3280,9 +3280,9 @@
       "files": [
         "strategies/base.py",
         "router/router.py",
-        "core/protective_stops.py",
+        "core/trading/protective_stops.py",
         "live_trading/risk_actions.py",
-        "core/execution_port.py"
+        "core/trading/execution_port.py"
       ],
       "compatibility": "不创建第二本资金账；迁移保留原position ID映射和旧checkpoint备份。",
       "owner_role": "领域内核与报告",
@@ -3458,7 +3458,7 @@
       "files": [
         "core/strategy_health.py",
         "ops/strategy_governance.py",
-        "core/signal_observation.py",
+        "signal_meta/signal_observation.py",
         "backtest/signal_meta_replay.py"
       ],
       "compatibility": "沿用版本化健康checkpoint迁移，保留旧样本边界与映射审计。",
@@ -3705,7 +3705,7 @@
         "live_trading/state_export.py",
         "core/alerting.py",
         "ops/supervisor.py",
-        "core/sqlite_utils.py",
+        "core/trading/sqlite_utils.py",
         "dashboard",
         "run_live.py"
       ],
@@ -3913,7 +3913,7 @@
         "只完成选择器不改变正式路由；进入正式账户须另过SYS-11。"
       ],
       "files": [
-        "core/universe.py",
+        "core/market/universe.py",
         "core/factors",
         "core/allocation.py",
         "router/router.py"
@@ -4083,7 +4083,7 @@
         "账户工程通过与策略有效性、真实运行批准分别验收。"
       ],
       "files": [
-        "core/account_cost_contract.py",
+        "core/trading/account_cost_contract.py",
         "core/portfolio.py",
         "core/broker/financing.py",
         "core/exchange",

@@ -11,7 +11,7 @@ money-path code and is deliberately left for a dedicated pass, not bundled
 into a file-size cleanup.
 """
 from __future__ import annotations
-from core.order_latency import record_order_call
+from core.trading.order_latency import record_order_call
 
 import math
 from dataclasses import replace
@@ -20,7 +20,7 @@ from typing import Any, Dict, Optional
 from core.domain import OrderErrorCode, OrderIntent, OrderStatus, OrderSubmissionResult
 from core.exchange import ExchangeBoundaryError
 from core.logger import get_logger
-from core.orders import TERMINAL_STATUSES, classify_order_exception, is_ambiguous_error
+from core.trading.orders import TERMINAL_STATUSES, classify_order_exception, is_ambiguous_error
 from core.risk.reservation import OpeningRiskRejected, ensure_opening_reservation
 
 # Same logger name as core.live_broker (logging.getLogger caches by name, so

@@ -9,12 +9,12 @@ import pytest
 
 from composition.factory import build_strategy_registry
 from core.portfolio import Portfolio
-from core.protective_stops import ProtectiveStopPolicy
+from core.trading.protective_stops import ProtectiveStopPolicy
 from core.selection_v2 import (
     SelectionPolicyV2, completed_history, select_all_qualified, signal_facts,
     size_portfolio_targets,
 )
-from core.state import MarketState
+from core.trading.state import MarketState
 from core.strategy_health import HealthStatus
 from strategies.trend_portfolio_v3 import TrendPortfolioV3Strategy
 

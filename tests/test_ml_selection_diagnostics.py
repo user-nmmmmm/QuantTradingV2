@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 
 from core.allocation import EntryCandidate
-from core.entry_audit import capture, note
+from core.trading.entry_audit import capture, note
 from core.runtime import EventProcessor, MarketDataSlice
 from core.reproducibility import canonical_json, sha256_file
 from research.ml_selection.dataset import FEATURE_COLUMNS

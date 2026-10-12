@@ -15,16 +15,16 @@ from unittest.mock import MagicMock
 
 import pandas as pd
 
-from core.lots import CloseEvent
+from core.trading.lots import CloseEvent
 from core.portfolio import Portfolio
-from core.state_store_v2 import StateStore
+from core.trading.state_store_v2 import StateStore
 from core.strategy_health import (
     HealthStatus,
     StrategyHealthMachine,
     StrategyHealthPolicy,
     classify_exit_controller,
 )
-from core.state import MarketState
+from core.trading.state import MarketState
 from strategies.trend_breakout import TrendBreakoutStrategy
 
 

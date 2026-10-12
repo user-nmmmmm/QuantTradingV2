@@ -17,7 +17,7 @@ from numpy.typing import NDArray
 import pandas as pd
 
 from core.reproducibility import canonical_json, sha256_frame
-from core.timeframes import as_utc_timestamp
+from core.market.timeframes import as_utc_timestamp
 from research.ml_selection.membership import interval_mask, validate_membership_evidence
 
 

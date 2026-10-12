@@ -7,12 +7,12 @@ from types import SimpleNamespace
 import pandas as pd
 import pytest
 
-from core.signal_label_versions import OutcomeRevisionBook
-from core.signal_meta_layer import _validate_input
-from core.signal_observation_types import ObservationPolicy, fingerprint, iso
-from core.signal_outcomes import ObservationCosts
-from core.temporal_financing import TemporalFinancing
-from core.temporal_labels import VersionedOutcomeTracker
+from signal_meta.signal_label_versions import OutcomeRevisionBook
+from signal_meta.signal_meta_layer import _validate_input
+from signal_meta.signal_observation_types import ObservationPolicy, fingerprint, iso
+from signal_meta.signal_outcomes import ObservationCosts
+from signal_meta.temporal_financing import TemporalFinancing
+from signal_meta.temporal_labels import VersionedOutcomeTracker
 from tests.test_temporal_labels import reader, event
 from tests.test_signal_observation import candidate
 
@@ -316,8 +316,8 @@ def test_financing_provider_future_versions_do_not_change_candidate_or_label_pre
 def test_observer_financing_export_enters_consumer_without_future_provider_identity_in_candidate():
     from core.portfolio import Portfolio
     from core.risk import RiskManager
-    from core.signal_observation import SignalObserver
-    from core.state import MarketState
+    from signal_meta.signal_observation import SignalObserver
+    from core.trading.state import MarketState
     from tests.test_signal_observation import DailyRaw
 
     state = SimpleNamespace(get_states=lambda frame: frame.__setitem__("market_state", MarketState.TREND_UP))

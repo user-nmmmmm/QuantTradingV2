@@ -10,11 +10,11 @@ from typing import Any, Mapping, Sequence
 import pandas as pd
 
 from core.candidate_scoring import ScoreBreakdown
-from core.entry_audit import note
-from core.protective_stops import ProtectiveStopPolicy
+from core.trading.entry_audit import note
+from core.trading.protective_stops import ProtectiveStopPolicy
 from core.selection_v2 import (SelectionPolicyV2, _signal_facts_prepared, completed_history,
                                signal_facts, utc_time)
-from core.state import MarketState
+from core.trading.state import MarketState
 from strategies.trend_breakout import TrendBreakoutStrategy
 from strategies.trend_portfolio_v2 import TrendPortfolioV2Strategy
 

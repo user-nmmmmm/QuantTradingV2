@@ -11,11 +11,11 @@ from composition.factory import build_strategy_registry, build_router, build_ris
 from config.config import config
 from core.broker import Broker
 from core.domain import OrderStatus, OrderIntent, OrderSubmissionResult
-from core.order_store import OrderStore
+from core.trading.order_store import OrderStore
 from core.portfolio import Portfolio
-from core.protective_orders import ProtectiveOrder, authoritative_position_ids
-from core.state import MarketState
-from core.state_store_v2 import StateStore
+from core.trading.protective_orders import ProtectiveOrder, authoritative_position_ids
+from core.trading.state import MarketState
+from core.trading.state_store_v2 import StateStore
 from ops.strategy_registration import register_health_policies
 from strategies.base import Strategy
 from tests.test_strategy_remediation import setup_budget, machine, probation, cohorts

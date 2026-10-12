@@ -10,8 +10,8 @@ ROOT = Path(__file__).resolve().parents[1]
 from analysis.execution_calibration import execution_sample_report, read_fill_provenance
 from analysis.paper_study import write_json
 from core.events import EventCodec
-from core.order_latency import read_order_observations
-from core.quote_observations import read_quote_observations
+from core.trading.order_latency import read_order_observations
+from core.market.quote_observations import read_quote_observations
 
 
 def main():

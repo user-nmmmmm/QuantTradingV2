@@ -9,8 +9,8 @@ from core.alerting import AlertState, HysteresisAlertSink
 from core.events.store import SQLiteEventStore
 from research.audit.ledger import AuthoritativeLedger
 from research.audit.reconciliation_job import EODReconciliationJob
-from core.sqlite_backup import SQLiteSnapshotManager, restore_snapshot
-from core.state_store_v2 import StateStore
+from core.trading.sqlite_backup import SQLiteSnapshotManager, restore_snapshot
+from core.trading.state_store_v2 import StateStore
 from dashboard.__main__ import load_dashboard, render_text
 
 

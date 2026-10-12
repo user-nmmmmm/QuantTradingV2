@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 from ops.gray_release import GrayReleasePolicy
 from core.runtime_identity import RuntimeIdentity
-from core.state_store_v2 import StateStore
+from core.trading.state_store_v2 import StateStore
 from core.live_safety import SafetyConfigurationError, StartupSafetyPolicy
 from ops.admission_gates import (
     EXPANSION_DIMENSIONS,

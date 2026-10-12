@@ -10,7 +10,7 @@ import json
 from typing import Mapping
 from urllib.parse import urlparse
 
-from core.data_versions import DataVersionStore
+from core.market.data_versions import DataVersionStore
 
 
 def validate_factor_definition(definition: Mapping) -> dict:

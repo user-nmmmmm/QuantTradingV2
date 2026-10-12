@@ -19,8 +19,8 @@ import pandas as pd
 from core.cost_aware_allocation import CostAwareAllocationPolicy, allocate_cost_aware
 
 from core.indicators import Indicators
-from core.protective_stops import ProtectiveStopPolicy, plan_initial_stop
-from core.universe import normalize_symbol
+from core.trading.protective_stops import ProtectiveStopPolicy, plan_initial_stop
+from core.market.universe import normalize_symbol
 
 
 def utc_time(value: Any) -> pd.Timestamp:

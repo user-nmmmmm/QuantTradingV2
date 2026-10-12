@@ -5,7 +5,7 @@
 > live or backtest order processing. The class name `AuthoritativeLedger`
 > describes authority **within its persisted research event stream**; trading
 > account and position facts continue to come from `core/portfolio.py` and
-> `core/lots.py`. This document describes the component's contracts, not an
+> `core/trading/lots.py`. This document describes the component's contracts, not an
 > assertion of live accounting adoption or trading approval.
 
 ## Scope and invariants

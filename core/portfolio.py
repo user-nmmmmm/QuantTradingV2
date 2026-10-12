@@ -1,7 +1,7 @@
 from typing import Any, Dict, List, Optional
 
-from core.accounts import AccountMode, FinancingEntry, MarginSnapshot
-from core.lots import Lot, LotBook, LotClose, LotIdAllocator, _QTY_EPS
+from core.trading.accounts import AccountMode, FinancingEntry, MarginSnapshot
+from core.trading.lots import Lot, LotBook, LotClose, LotIdAllocator, _QTY_EPS
 
 """
 Portfolio（组合/账户）模块
@@ -48,7 +48,7 @@ class Portfolio:
         self.cash = initial_capital
         # positions: symbol -> {'qty': float, 'avg_price': float}
         self.positions: Dict[str, Dict[str, float]] = {}
-        # lot_books: symbol -> LotBook (FIFO batch ledger, see core/lots.py)
+        # lot_books: symbol -> LotBook (FIFO batch ledger, see core/trading/lots.py)
         self.lot_books: Dict[str, LotBook] = {}
         # Shared across every LotBook this Portfolio creates, so re-running the
         # same backtest from a fresh Portfolio yields identical lot/position

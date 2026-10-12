@@ -18,10 +18,15 @@ FORBIDDEN = {
         "research",
         "dashboard",
         "ops",
+        "signal_meta",
     },
     "ops": {
         "config", "router", "strategies", "composition", "backtest", "live_trading", "analysis", "research",
-        "dashboard",
+        "dashboard", "signal_meta",
+    },
+    "signal_meta": {
+        "config", "router", "strategies", "composition", "backtest", "live_trading", "analysis", "research",
+        "dashboard", "ops",
     },
     "strategies": {"router", "backtest", "live_trading", "config"},
     "router": {"backtest", "live_trading", "config"},

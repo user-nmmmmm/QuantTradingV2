@@ -19,8 +19,8 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 
-from core.quote_observations import _PublicBookFetcher, quote_error_details, utc_now
-from core.request_budget import request_scope
+from core.market.quote_observations import _PublicBookFetcher, quote_error_details, utc_now
+from core.market.request_budget import request_scope
 
 SYMBOLS = ("BTCUSDT", "ETHUSDT")
 HOUR_MS = 3_600_000
@@ -124,7 +124,7 @@ def download_intraday(output, *, start="2020-01-01T00:00:00Z", end_exclusive="20
         "short_candle_policy": "retain original venue close time and flag; never fill missing hours",
         "public_read_only": True, "credentials_used": False, "orders_submitted": 0}
     source_hashes = {str(p.relative_to(ROOT)): sha256(p.read_bytes()) for p in
-        (Path(__file__).resolve(), ROOT/"core/quote_observations.py")}
+        (Path(__file__).resolve(), ROOT/"core/market/quote_observations.py")}
     registration = output/"registration.json"
     if resume:
         prior = json.loads(registration.read_text(encoding="utf-8"))

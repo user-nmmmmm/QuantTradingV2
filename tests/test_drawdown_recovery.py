@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 
 from core.risk import RiskManager, BreakerAction
-from core.state_store_v2 import StateStore
+from core.trading.state_store_v2 import StateStore
 
 
 def manager():

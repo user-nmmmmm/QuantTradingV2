@@ -7,7 +7,7 @@ from analysis.historical_factor_inputs import (
     coinmetrics_records, freeze_factor_inputs, build_factor_proxies, lifecycle_evidence_records, public_metric_groups,
 )
 from analysis.factor_registry import historical_input_proxy_definitions, default_proxy_definitions
-from core.data_versions import DataVersionStore
+from core.market.data_versions import DataVersionStore
 from scripts.collect_factor_evidence import collect, PublicArchive, BASE, DOCS, sha
 
 

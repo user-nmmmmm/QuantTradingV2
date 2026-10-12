@@ -11,9 +11,9 @@ import pandas as pd
 import main as backtest_entrypoint
 from core.domain import SyncResult
 from core.live_broker import LiveBroker
-from core.market_data import LiveMarketDataAdapter, normalize_market_frame
-from core.order_store import OrderStore, OrderStoreClosedError
-from core.timeframes import closed_bars
+from core.market.market_data import LiveMarketDataAdapter, normalize_market_frame
+from core.trading.order_store import OrderStore, OrderStoreClosedError
+from core.market.timeframes import closed_bars
 from dashboard.__main__ import load_dashboard, render_text
 
 
@@ -137,9 +137,9 @@ class TestP201ToP210(unittest.TestCase):
             ["BTC/USDT"], fetcher, lookback=3, close_grace_seconds=0
         )
         with patch(
-            "core.market_data.normalize_market_frame",
+            "core.market.market_data.normalize_market_frame",
             wraps=normalize_market_frame,
-        ) as normalize, patch("core.market_data.Indicators.calculate_all"):
+        ) as normalize, patch("core.market.market_data.Indicators.calculate_all"):
             adapter.refresh()
             adapter.refresh()
         self.assertEqual(normalize.call_count, 2)

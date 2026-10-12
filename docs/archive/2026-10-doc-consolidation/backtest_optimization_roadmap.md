@@ -2,7 +2,7 @@
 
 > 文档定位（2026-09-20）：领域参考。排期、优先级和当前完成状态统一见[Roadmap](../../unified_roadmap.md)、[开发计划](../../development_plan.md)与[开发详情](../../development_details.md)。本文件的公式、设计依据和未冲突的专项验收要求继续保留；下文旧状态与排期为历史记录。整合前原文见[冻结快照](../2026-09-roadmap-rebaseline/sources/docs/backtest_optimization_roadmap.md)。
 
-> 当前代码路径提示：历史任务中的 `core/metrics.py` 已拆为 `core/metrics/` 包；`core/trade_ledger.py` 并不存在，当前回测的 FIFO 闭合交易重建位于 `backtest/reporting/trades.py`，逐批次持仓记账位于 `core/lots.py`。旧任务文本保留原表述供追溯，实施时按现有职责和代码核对。
+> 当前代码路径提示：历史任务中的 `core/metrics.py` 已拆为 `core/metrics/` 包；`core/trade_ledger.py` 并不存在，当前回测的 FIFO 闭合交易重建位于 `backtest/reporting/trades.py`，逐批次持仓记账位于 `core/trading/lots.py`。旧任务文本保留原表述供追溯，实施时按现有职责和代码核对。
 
 > 文档状态：Draft v0.1
 > 生效日期：2026-08-13
@@ -36,8 +36,8 @@
 | B-09 | 基准时间轴不齐用 fillna(0) 近似 | `backtest/engine.py:146-164` | 超额收益不可比 | P2 |
 | B-10 | 部分成交卖单在持仓耗尽后标 REJECTED | `core/broker/__init__.py:434-442,378-380` | 成交统计含假拒单 | P2 |
 | B-11 | ~~`metrics.py` 指标函数未接入报告~~（已修：exposure / signal_funnel / drawdown_events / trade_quality / attribution / r_multiple / cost_sensitivity 全部接线） | `backtest/reporting/` | 研究能力闲置 | P2 |
-| B-12 | 只跑日线，`resample_ohlcv` 未接线 | `main.py:51`、`core/data.py:81-108` | 无法多周期验证 | P2 |
-| B-13 | 合成数据不可控/无极端场景模板 | `core/data_fetcher.py:332-401` | 压力测试缺失 | P2 |
+| B-12 | 只跑日线，`resample_ohlcv` 未接线 | `main.py:51`、`core/market/data.py:81-108` | 无法多周期验证 | P2 |
+| B-13 | 合成数据不可控/无极端场景模板 | `core/market/data_fetcher.py:332-401` | 压力测试缺失 | P2 |
 | B-14 | ~~`optimize.py` 无样本外/稳健性校验~~（已修：`analysis/walk_forward.py` + `--walk-forward`） | `analysis/optimize.py` | 参数过拟合 | P1 |
 | B-15 | 无本地数据缓存 | `main.py:240-253` | 重复拉取、不可复现 | P3 |
 
@@ -153,7 +153,7 @@ E 质量保证（贯穿）
 
 ### C3 多周期与时间过滤
 - 任务：
-  1. 接入 `MarketStateMachine.align_state_to_lower_tf`（`core/state.py:187-205`）做 HTF 确认；
+  1. 接入 `MarketStateMachine.align_state_to_lower_tf`（`core/trading/state.py:187-205`）做 HTF 确认；
   2. 增加可选 session / 最小连续确认 bar 过滤。
 - 验收：策略按 HTF 状态过滤前后结果差异记录；测试覆盖对齐无 lookahead。
 
@@ -169,13 +169,13 @@ E 质量保证（贯穿）
 
 ### D1 多周期与缓存（B-12、B-15）
 - 任务：
-  1. `main.py` 增加 `--timeframe`，接线 `DataHandler.resample_ohlcv`（`core/data.py:81-108`），回测引擎支持任意周期；
+  1. `main.py` 增加 `--timeframe`，接线 `DataHandler.resample_ohlcv`（`core/market/data.py:81-108`），回测引擎支持任意周期；
   2. 本地 parquet/csv 缓存（按 symbol+timeframe+日期范围键控），二次运行命中缓存。
 - 验收：`--timeframe 4h` 可跑通；连续两次运行命中缓存不重拉网络。
 
 ### D2 数据扩展（B-13 + 资金费率）
 - 任务：
-  1. Synthetic 增加可复现 seed 与极端场景模板（跳空、闪崩、单边停牌、高波动 regime），`generate_scenario` 支持 `seed` 参数（`core/data_fetcher.py:332-401`）；
+  1. Synthetic 增加可复现 seed 与极端场景模板（跳空、闪崩、单边停牌、高波动 regime），`generate_scenario` 支持 `seed` 参数（`core/market/data_fetcher.py:332-401`）；
   2. 可选接入资金费率/借券费率数据源（ccxt `fetch_funding_rate`），回填 A2 做空成本。
 - 验收：压力模板触发熔断/强平路径；funding 数据缺失时成本字段标 `not_modeled` 且不静默为 0。
 

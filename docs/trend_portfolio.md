@@ -126,7 +126,7 @@ V1→A 同时包含分数、仓位模型和预登记的状态确认 3 / 冷却 0
 ### 数据与接口
 
 `core.selection_v2` 提供独立 `all_qualified` 接口；S2 v1 的 TopN/现金契约不变。
-`core.margin_rebalance` 规划受账户批准额度约束的订单；`core.portfolio_target_controller` 在共享运行内核中协调
+`core.trading.margin_rebalance` 规划受账户批准额度约束的订单；`core.portfolio_target_controller` 在共享运行内核中协调
 目标、持仓、挂单、保护单和已消耗预算。它默认关闭，通过研究 runner 显式注入。
 
 采集目录保存原始响应字节、校验文件、分页信息、每市场CSV和清单。CSV包含基础币 volume 和实际 quote_volume，

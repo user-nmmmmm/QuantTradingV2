@@ -11,8 +11,8 @@ from copy import deepcopy
 from datetime import timezone
 from typing import Any, Dict, Optional
 
-from core.account_reconciliation import reconcile_account_snapshots
-from core.account_source import (
+from core.trading.account_reconciliation import reconcile_account_snapshots
+from core.trading.account_source import (
     AccountSourceError, build_local_account_projection, normalize_account_source,
 )
 from core.domain import SyncResult
@@ -44,7 +44,7 @@ class AccountSyncMixin:
         """Inject a read-only source before syncing a full account.
 
         ``source.read(identity=..., checked_at=...)`` returns AccountSourceBundle.
-        See core.account_source for the pinned export contract and the trusted
+        See core.trading.account_source for the pinned export contract and the trusted
         external provenance verifier. Configuration never grants new risk.
         Runtime consumers must check ``account_reconciliation_report`` and its
         capture age on every new-risk decision; arithmetic-only fixture success
@@ -127,7 +127,7 @@ class AccountSyncMixin:
             # balances. Runtime sync always supplies its separate observation.
             report["venue_balance_observation_compared"] = False
             return
-        from core.account_source import _time
+        from core.trading.account_source import _time
         if not 0 <= (now - _time(observed.get("observed_at"), "balance.observed_at")).total_seconds() <= self._account_source_maximum_age:
             report["issues"].append("observed_account_balance_stale_or_future")
         if self.market_type == "margin":

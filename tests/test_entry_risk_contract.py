@@ -11,15 +11,15 @@ from backtest.execution_adapter import SimulatedExecutionAdapter
 from core.allocation import EntryCandidate
 from core.broker import Broker
 from core.domain import OrderIntent, OrderStatus, RiskDecision, RiskReservation
-from core.entry_risk import resolve_approved_risk
-from core.order_store import OrderStore
+from core.trading.entry_risk import resolve_approved_risk
+from core.trading.order_store import OrderStore
 from core.portfolio import Portfolio
-from core.protective_stops import EntryRiskPolicy, evaluate_fill_risk
+from core.trading.protective_stops import EntryRiskPolicy, evaluate_fill_risk
 from core.risk import RiskManager
 from core.risk.circuit_breaker import BreakerAction
 from core.risk.portfolio_governor import CorrelationClusterPolicy, PortfolioRiskGovernor
-from core.state import MarketState
-from core.state_store_v2 import StateStore
+from core.trading.state import MarketState
+from core.trading.state_store_v2 import StateStore
 from strategies.trend_breakout import TrendBreakoutStrategy
 from tests.test_revalidation_execution import Harness, NOW, SYMBOL, broker
 

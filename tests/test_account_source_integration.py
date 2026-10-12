@@ -7,10 +7,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from core.account_source import AccountSourceError, PinnedAccountExport
+from core.trading.account_source import AccountSourceError, PinnedAccountExport
 from core.domain import FillRecord, OrderIntent, OrderStatus
 from core.live_broker import LiveBroker
-from core.order_store import OrderStore
+from core.trading.order_store import OrderStore
 from core.portfolio import Portfolio
 
 

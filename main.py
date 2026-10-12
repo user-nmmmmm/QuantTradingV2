@@ -19,9 +19,9 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 
-from core.data_fetcher import DataFetcher
-from core.temporal_data import compatibility_audit, freeze_ohlcv, temporal_policy as parse_temporal_policy
-from core.data import DataHandler
+from core.market.data_fetcher import DataFetcher
+from core.market.temporal_data import compatibility_audit, freeze_ohlcv, temporal_policy as parse_temporal_policy
+from core.market.data import DataHandler
 from core.backtest_audit import (
     cross_verify_top_trades,
     validate_audit_coverage,
@@ -41,7 +41,7 @@ from core.reproducibility import (
     sha256_file,
     write_manifest,
 )
-from core.universe import PointInTimeUniverse, normalize_symbol, static_universe_manifest
+from core.market.universe import PointInTimeUniverse, normalize_symbol, static_universe_manifest
 from backtest.engine import BacktestEngine, DEFAULT_INITIAL_CAPITAL
 from backtest.cli import build_backtest_parser
 from backtest.reporting import ReportGenerator, format_primary_metrics
@@ -78,7 +78,7 @@ def _load_local_ohlcv(symbol: str, start: str, end: str, data_dir: str, *,
     raw_identity = None
     if temporal_policy is not None and parse_temporal_policy(temporal_policy).store_path:
         import io
-        from core.data_versions import DataVersionStore
+        from core.market.data_versions import DataVersionStore
         policy = parse_temporal_policy(temporal_policy)
         store = DataVersionStore(policy.store_path)
         raw_identity = store.freeze_files(f"raw-csv:{path.resolve()}", {path.name: path},
@@ -129,7 +129,7 @@ def get_data(
     - days：回测天数（ccxt 作为 limit 的近似）
     - data_dir：source=local 时的本地缓存目录（如 data/binance/1d）
     """
-    from core.derivatives_data import LinearContractSpec, load_derivatives_bundle, merge_derivative_features
+    from core.market.derivatives_data import LinearContractSpec, load_derivatives_bundle, merge_derivative_features
 
     market_type = "margin" if market_type == "spot_margin" else market_type
     if market_type not in {"spot", "margin", "perpetual"}:
@@ -244,7 +244,7 @@ def replay_manifest(manifest_path: str) -> int:
     if meta_policy.get("enabled", False) and not execution.get("signal_meta_layer_digest"):
         print("Replay refused: enabled P1 policy has no recorded research digest.", file=sys.stderr)
         return 7
-    from core.signal_adaptive_types import AdaptiveEVPolicy, MetaReplayPolicy
+    from signal_meta.signal_adaptive_types import AdaptiveEVPolicy, MetaReplayPolicy
     try:
         adaptive_policy = AdaptiveEVPolicy.from_mapping(execution.get("signal_adaptive") or {"enabled": False})
         meta_replay_policy = MetaReplayPolicy.from_mapping(execution.get("signal_meta_replay") or {"enabled": False})
@@ -369,7 +369,7 @@ def _temporal_report_payload(engine, results, data_map):
         payload["inputs"][symbol] = entry
     financing = getattr(engine, "temporal_financing", None)
     if financing is not None:
-        from core.temporal_financing import TemporalFinancing
+        from signal_meta.temporal_financing import TemporalFinancing
         if isinstance(financing, TemporalFinancing):
             payload["financing_evidence"] = financing.export()
     return payload
@@ -380,7 +380,7 @@ def _restore_temporal_financing(execution, report_dir):
     expected = execution.get("temporal_financing_sha256")
     if expected is None:
         return None
-    from core.signal_observation_types import fingerprint
+    from signal_meta.signal_observation_types import fingerprint
     path = Path(report_dir) / "temporal_data.json"
     if sha256_file(path) != execution.get("temporal_data_sha256"):
         raise ValueError("temporal financing report hash mismatch")
@@ -391,7 +391,7 @@ def _restore_temporal_financing(execution, report_dir):
 
 
 def _restore_temporal_replay_inputs(data_map, execution, report_dir):
-    from core.temporal_data import TemporalDataError, TemporalOHLCV
+    from core.market.temporal_data import TemporalDataError, TemporalOHLCV
 
     # Explicit compatibility policy prevents an old manifest inheriting today's
     # config. Strict replay must restore identical evidence, never re-import it.
@@ -523,7 +523,7 @@ def _load_requested_data(args, start_date: datetime, end_date: datetime):
 def _capital_allocation_options(args):
     """Validate per-run CLI overrides without changing the shared configuration."""
     from config.config import config
-    from core.position_management import CapitalAllocationPolicy
+    from core.trading.position_management import CapitalAllocationPolicy
     enabled = getattr(args, "smart_allocation", False)
     values = {key: getattr(args, key, None) for key in ("max_positions", "cash_reserve_pct")}
     if not enabled and any(value is not None for value in values.values()):
@@ -1076,8 +1076,8 @@ def main(argv=None) -> int:
             "temporal_data_sha256": sha256_file(output_path / "temporal_data.json"),
         }
         if getattr(engine, "temporal_financing", None) is not None:
-            from core.temporal_financing import TemporalFinancing
-            from core.signal_observation_types import fingerprint
+            from signal_meta.temporal_financing import TemporalFinancing
+            from signal_meta.signal_observation_types import fingerprint
             if isinstance(engine.temporal_financing, TemporalFinancing):
                 execution_identity["temporal_financing_sha256"] = fingerprint(engine.temporal_financing.export())
         manifest = build_run_manifest(

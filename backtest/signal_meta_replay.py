@@ -12,13 +12,13 @@ from pathlib import Path
 import pandas as pd
 
 from backtest.signal_ghost import clone_research_broker
-from core.orders import TERMINAL_STATUSES
+from core.trading.orders import TERMINAL_STATUSES
 from core.reproducibility import canonical_json, sha256_bytes
 from core.runtime import MarketDataSlice
-from core.signal_adaptive_types import MetaReplayPolicy
-from core.signal_meta_layer import EXCLUDED_GATES
-from core.signal_observation_types import finite, fingerprint, iso
-from core.timeframes import as_utc_timestamp, timeframe_delta
+from signal_meta.signal_adaptive_types import MetaReplayPolicy
+from signal_meta.signal_meta_layer import EXCLUDED_GATES
+from signal_meta.signal_observation_types import finite, fingerprint, iso
+from core.market.timeframes import as_utc_timestamp, timeframe_delta
 
 
 ARMS = ("baseline", "gate", "sizing")
@@ -38,12 +38,18 @@ class _Account:
 
 def _identity(policy):
     root = Path(__file__).resolve().parents[1]
-    names = ("backtest/signal_meta_replay.py", "backtest/signal_ghost.py",
-             "core/signal_adaptive_types.py", "core/broker/__init__.py",
-             "core/broker/matching.py", "core/broker/fill_service.py",
-             "core/broker/financing.py", "core/portfolio.py")
+    # key -> file. The keys keep the names they had before ``signal_meta`` was split out of ``core``
+    # (B1), so the fingerprint structure is unchanged; only where the file lives moved.
+    files = {"backtest/signal_meta_replay.py": "backtest/signal_meta_replay.py",
+             "backtest/signal_ghost.py": "backtest/signal_ghost.py",
+             "core/signal_adaptive_types.py": "signal_meta/signal_adaptive_types.py",
+             "core/broker/__init__.py": "core/broker/__init__.py",
+             "core/broker/matching.py": "core/broker/matching.py",
+             "core/broker/fill_service.py": "core/broker/fill_service.py",
+             "core/broker/financing.py": "core/broker/financing.py",
+             "core/portfolio.py": "core/portfolio.py"}
     return fingerprint({"policy": policy.to_dict(), "sources": {
-        name: (root/name).read_text(encoding="utf-8") for name in names}})
+        key: (root/path).read_text(encoding="utf-8") for key, path in files.items()}})
 
 
 def _validate_inputs(p0, p2, policy, timeframe):

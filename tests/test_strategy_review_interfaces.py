@@ -9,10 +9,10 @@ from composition.factory import build_strategy_registry
 from core.broker import Broker
 from core.candidate_scoring import CandidateScorePolicy
 from core.portfolio import Portfolio
-from core.protective_stops import (
+from core.trading.protective_stops import (
     ProtectiveStopPolicy, plan_initial_stop, update_trailing_stop,
 )
-from core.state import MarketState
+from core.trading.state import MarketState
 from ops.strategy_governance import GovernanceError, assert_live_admission
 from strategies.trend_breakout import TrendBreakoutStrategy
 from strategies.volatility import VolatilityReversionStrategy

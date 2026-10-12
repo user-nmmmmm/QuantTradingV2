@@ -90,15 +90,15 @@ flowchart TB
     end
 
     subgraph BOUND["边界层 Adapters & Ports"]
-        MDA["MarketDataAdapter（core/market_data.py）"]
-        EXP["ExecutionPort（core/execution_port.py）"]
+        MDA["MarketDataAdapter（core/market/market_data.py）"]
+        EXP["ExecutionPort（core/trading/execution_port.py）"]
         EB["ExchangeBoundary（core/exchange/）"]
-        DF["DataFetcher（core/data_fetcher.py）"]
+        DF["DataFetcher（core/market/data_fetcher.py）"]
     end
 
     subgraph KERNEL["共享决策内核 Shared Decision Core"]
         EP["EventProcessor（core/runtime.py）"]
-        SM["MarketStateMachine（core/state.py）"]
+        SM["MarketStateMachine（core/trading/state.py）"]
         RT["Router + PortfolioSignalAllocator（router/, core/allocation.py）"]
         ST["Strategies（strategies/）"]
         RK["RiskManager + 分级熔断（core/risk/）"]
@@ -709,7 +709,7 @@ Phase 6 准入证据的 fail-closed 评估由 `python -m ops.admission_gates` �
 | `QUANT_ALLOWED_EXCHANGES` | 允许连接的交易所白名单 |
 | `QUANT_ALLOWED_SYMBOLS` | 允许交易的标的白名单 |
 | `QUANT_ALLOWED_ACCOUNT_TYPES` | 允许的账户/市场类型白名单 |
-| `QUANT_PROXY_URL` | 代理地址，`core/data_fetcher.py` 用于设置 `HTTP_PROXY`/`HTTPS_PROXY` |
+| `QUANT_PROXY_URL` | 代理地址，`core/market/data_fetcher.py` 用于设置 `HTTP_PROXY`/`HTTPS_PROXY` |
 | `QUANT_LOG_LEVEL` | 日志级别 |
 | `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | Telegram 心跳与告警凭据 |
 | `LIVE_ALERT_WEBHOOK_URL` | 实盘告警 Webhook 地址 |
@@ -782,7 +782,7 @@ python main.py --source synthetic --days 365 --seed 42 --report-profile full
 | 复现 | `run_manifest.json` | 代码 / 配置 / 数据 / 执行身份指纹，配合 `--replay-manifest` 校验 |
 
 `research/audit/ledger.py` 的事件账本仅用于离线审计研究；当前回测与实盘交易路径的
-本地组合/批次账本使用 `core/portfolio.py` 和 `core/lots.py`，实盘仍须与交易所账户事实对账。
+本地组合/批次账本使用 `core/portfolio.py` 和 `core/trading/lots.py`，实盘仍须与交易所账户事实对账。
 
 实盘侧产物：`reports/live_status.json`（状态快照）、`reports/live_alerts.jsonl`（告警）、
 `reports/live_orders.db`（订单状态机与审计账本）、`reports/startup_preflight.json`（启动自检）。
@@ -912,7 +912,7 @@ python -m pytest -q
 
 ## 常见问题（FAQ）
 
-- **CCXT / Yahoo 拉数失败**：`core/data_fetcher.py` 的 `DataFetcher` 会从 `QUANT_PROXY_URL`
+- **CCXT / Yahoo 拉数失败**：`core/market/data_fetcher.py` 的 `DataFetcher` 会从 `QUANT_PROXY_URL`
   读取代理地址并设置 `HTTP_PROXY` / `HTTPS_PROXY`；未设置时不使用代理。若需要代理但仍失败，
   检查 `QUANT_PROXY_URL` 是否正确指向本机代理端口，也可在构造 `DataFetcher(...)` 时用
   `proxy_url=` 显式覆盖。

@@ -8,9 +8,9 @@ import pandas as pd
 
 from core.broker import Broker
 from core.events import TradingEventPipeline
-from core.orders import TERMINAL_STATUSES
+from core.trading.orders import TERMINAL_STATUSES
 from core.portfolio import Portfolio
-from core.signal_observation_types import ObservationPolicy, close_time, iso
+from signal_meta.signal_observation_types import ObservationPolicy, close_time, iso
 
 
 @dataclass

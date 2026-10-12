@@ -36,18 +36,18 @@ from composition.factory import (
 )
 from core.alerting import AlertSink, build_default_alert_sink
 from core.clock import ClockLike, coerce_clock
-from core.data_fetcher import DataFetcher
+from core.market.data_fetcher import DataFetcher
 from ops.health import DataHealthMonitor, DataHealthPolicy, HealthAssessment, HealthReason
 from core.live_broker import LiveBroker
 from core.logger import get_logger
-from core.market_data import LiveMarketDataAdapter
-from core.market_data_errors import MarketDataRefreshError
-from core.protective_stops import EntryRiskPolicy
+from core.market.market_data import LiveMarketDataAdapter
+from core.market.market_data_errors import MarketDataRefreshError
+from core.trading.protective_stops import EntryRiskPolicy
 from core.risk import RiskManager
 from core.runtime import EventProcessor
 from ops.strategy_registration import register_health_policies
-from core.state_store_v2 import StateStore, default_state_db_path
-from core.sqlite_backup import SQLiteSnapshotManager
+from core.trading.state_store_v2 import StateStore, default_state_db_path
+from core.trading.sqlite_backup import SQLiteSnapshotManager
 from live_trading.execution_adapter import RecordedExecutionAdapter
 from live_trading.recovery import RecoveryMixin, account_new_risk_gate, balance_sync_succeeded
 from live_trading.state_export import StateExportMixin
@@ -111,7 +111,7 @@ class LiveTradingEngine(TickOrchestratorMixin, RecoveryMixin, StateExportMixin):
         self.quote_sampler = None
         observation_settings = configuration.get("execution_observations") or {}
         if observation_settings.get("enabled", False):
-            from core.quote_observations import BackgroundQuoteSampler, QuoteObservationStore
+            from core.market.quote_observations import BackgroundQuoteSampler, QuoteObservationStore
             environment = getattr(broker, "environment", None)
             if environment not in {"live", "sandbox"}:
                 raise ValueError("independent quote sampling requires the broker's explicit live/sandbox environment")

@@ -46,7 +46,7 @@ import pandas as pd
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
-from core.timeframes import timeframe_delta  # noqa: E402
+from core.market.timeframes import timeframe_delta  # noqa: E402
 
 PY = sys.executable
 

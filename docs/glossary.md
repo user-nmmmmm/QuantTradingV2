@@ -19,17 +19,17 @@
 | 限价单 | Limit Order | 指定价格挂单；触及即成交，开盘直接穿价按开盘价（Taker），盘中触及按限价成交（Maker）。 | `core/broker/` |
 | 止损单 | Stop Order | 触发价被触及后转为市价单，按更不利的“开盘价/触发价”成交（Taker）。 | `core/broker/` |
 | 常驻止损（回测模拟） | Resident Protective Stop | 每个净持仓配一张只减仓止损单，在 bar **内部**按预注册的保守路径（open → 不利极值 → 有利极值 → close）撮合，而不是等收盘发现破位后次日开盘才离场。多头止损对 low 测试，跳空按 `min(open, stop)` 成交。契约见 [`docs/protective_stop_contract.md`](protective_stop_contract.md)。 | `backtest/protective_stops.py`；`config/params.yaml: protective_orders.backtest_resident` |
-| 挂单方 / Maker | Maker | 提供流动性的一方（限价单盘中被动成交）。费率表必须标注场所与市场类型，并与账户模式一致（账户成本契约强制）。当前默认 0.10%（10 bps）。 | `config/params.yaml: execution.commission_rate_maker`、`execution.fee_schedule`；`core/account_cost_contract.py` |
+| 挂单方 / Maker | Maker | 提供流动性的一方（限价单盘中被动成交）。费率表必须标注场所与市场类型，并与账户模式一致（账户成本契约强制）。当前默认 0.10%（10 bps）。 | `config/params.yaml: execution.commission_rate_maker`、`execution.fee_schedule`；`core/trading/account_cost_contract.py` |
 | 吃单方 / Taker | Taker | 主动吃掉盘口流动性的一方（市价单及立即成交的限价单）。当前默认 0.10%（10 bps），与 Maker 相同（Binance 现货/杠杆标准档）。 | `config/params.yaml: execution.commission_rate_taker` |
 | 滑点 | Slippage | 实际成交价与预期价之间的偏差。组成：固定滑点（默认 5 bps）+ 半个买卖价差（`spread_bps` 默认 2）+ 波动滑点（bar 内振幅 × `volatility_slippage_factor` 默认 0.02）；另支持 `[0, MaxSlip]` 均匀分布的随机滑点。 | `core/broker/`；`config/params.yaml: execution.slippage_bps / spread_bps / volatility_slippage_factor`；`--slippage` / `--random_slip` |
 | 冲击成本 | Impact Cost | 订单量相对市场成交量过大时产生的额外成本，按非线性参与率模型 `impact_coefficient × participation^impact_exponent` 计算（默认 `0.10 × participation^1.5`）。是先验设定的近似，**不是**真实订单簿深度模型，参数尚未用成交数据校准。 | `config/params.yaml: execution.use_impact_cost / impact_coefficient / impact_exponent` |
 | 参与率上限 | Max Participation Rate | 单笔订单每根 bar 最多成交该 bar 成交量的固定比例（默认 5%），超出部分拆到后续 bar 继续撮合。 | `config/params.yaml: execution.max_participation_rate` |
 | 开仓单存活期 | Opening Order TTL | 开仓挂单最多可撮合的 bar 数（默认 10），超时撤单；部分成交不刷新 TTL，防止微量成交让挂单与标的状态锁永久续期。平仓单与常驻止损天然豁免。 | `config/params.yaml: execution.opening_order_ttl_bars` |
-| 入场风险回填 | Entry-Risk Recheck (GapRiskResize) | 风险预占按信号收盘价计算，成交可能跳空；成交后实际风险超过预算 + 容差（默认 10%）时触发命名的 `GapRiskResize` 缩减仓位，而不是默默承担超配风险。 | `core/entry_risk.py`；`config/params.yaml: entry_risk` |
+| 入场风险回填 | Entry-Risk Recheck (GapRiskResize) | 风险预占按信号收盘价计算，成交可能跳空；成交后实际风险超过预算 + 容差（默认 10%）时触发命名的 `GapRiskResize` 缩减仓位，而不是默默承担超配风险。 | `core/trading/entry_risk.py`；`config/params.yaml: entry_risk` |
 | 期末平仓模式 | End-of-Backtest Mode | 回测结束时仍有持仓的处理方式：`mark_to_market`（默认，按最后价格零成本平仓，与权益曲线的盯市口径一致）或 `forced_liquidation`（按真实平仓计手续费/滑点）。 | `config/params.yaml: backtest.end_of_backtest_mode` |
 | 多标的时间对齐 | Multi-Symbol Time Alignment | 多标的回测的 bar 对齐模式：`union`（默认，只把当根有真实 bar 的标的送进该时间戳）或 `intersection`（要求全部标的同刻都有 bar）。 | `config/params.yaml: data.alignment_mode`；`backtest/engine.py` |
 | 会计恒等式校验 | Accounting Identity Check | 每根 bar 落账后校验"现金 + 持仓市值 − 借负债 = 权益"等恒等式，任何漂移直接报错，杜绝账本静默腐烂。 | `core/accounting_check.py`（引擎内 `accounting.check_bar`） |
-| 账户成本契约 | Account-Cost Contract | 账户模式（spot / spot_margin / perpetual）与成本模型（费率表、借利率、资金费）必须互相一致，回测与实盘入口都先校验，矛盾即拒绝启动。 | `core/account_cost_contract.py` |
+| 账户成本契约 | Account-Cost Contract | 账户模式（spot / spot_margin / perpetual）与成本模型（费率表、借利率、资金费）必须互相一致，回测与实盘入口都先校验，矛盾即拒绝启动。 | `core/trading/account_cost_contract.py` |
 
 ---
 
@@ -37,17 +37,17 @@
 
 | 术语 | 英文 | 定义 | 代码位置 |
 | --- | --- | --- | --- |
-| 市场状态机 | Regime Detection | 基于 SMA 结构 + ADX 强度 + ATR% 波动扩张，识别 `TREND_UP / TREND_DOWN / SIDEWAYS / VOLATILE` 四种互斥状态。`VOLATILE` 只认领"动得很凶但均线不成方向"的 bar，避免吞掉全部趋势 bar。输出是确定性标签（0/1），**不含概率/置信度**。 | `core/state.py`；`config/params.yaml: state.*` |
-| 稳定性滤波 | Stability Filter | 候选状态需连续出现 `stability_period`（当前 5）次才确认切换，压制 regime 边界抖动；候选集合 {2,3,5,10} 已登记为研究候选。 | `core/state.py: _apply_stability_filter`；`config/params.yaml: state.stability_period` |
+| 市场状态机 | Regime Detection | 基于 SMA 结构 + ADX 强度 + ATR% 波动扩张，识别 `TREND_UP / TREND_DOWN / SIDEWAYS / VOLATILE` 四种互斥状态。`VOLATILE` 只认领"动得很凶但均线不成方向"的 bar，避免吞掉全部趋势 bar。输出是确定性标签（0/1），**不含概率/置信度**。 | `core/trading/state.py`；`config/params.yaml: state.*` |
+| 稳定性滤波 | Stability Filter | 候选状态需连续出现 `stability_period`（当前 5）次才确认切换，压制 regime 边界抖动；候选集合 {2,3,5,10} 已登记为研究候选。 | `core/trading/state.py: _apply_stability_filter`；`config/params.yaml: state.stability_period` |
 | ADX | Average Directional Index | 趋势强度指标（周期 14，阈值 25），用于过滤弱趋势下的假信号。 | `core/indicators.py` |
-| ATR / ATR% | Average True Range | 平均真实波幅（周期 14）；`ATR/close > atr_pct_threshold`（当前 2.5%）是高波动判据之一。 | `core/indicators.py`, `core/state.py` |
+| ATR / ATR% | Average True Range | 平均真实波幅（周期 14）；`ATR/close > atr_pct_threshold`（当前 2.5%）是高波动判据之一。 | `core/indicators.py`, `core/trading/state.py` |
 | 策略路由 | Router | 按当前 regime 把空仓标的的入场候选交给映射策略；持仓仍由开仓策略自己按 lot 归因管理。regime 切换只**撤销挂单 + 进入冷却**（`transition_action: stop_new_entries`），不强平持仓。 | `router/router.py: collect_candidate`；`config/params.yaml: routing / router` |
 | 冷却期 | Cooldown | regime 切换后强制等待的 bar 数（当前 2），避免过度交易。 | `config/params.yaml: router.cooldown_bars` |
 | 时间退出 | Max Holding Period Exit | 持仓超过 `max_holding_days`（默认 365 天）强制退出，防止资金被多年锁死。 | `config/params.yaml: router.max_holding_days` |
 | 候选评分 | Candidate Score | 同一根 bar 多个入场候选的排序分，由无量纲分量加权和构成：突破幅度（ATR 单位，权重 1.0）、趋势强度（ADX 超出量，0.5）、量能确认（OBV，0.3）、流动性（对数成交额，0.2）；各分量截断到 ±5 防止单项极端值主导。只决定**排序**，不决定仓位大小。 | `core/candidate_scoring.py`；`config/params.yaml: candidate_scoring` |
 | 组合信号分配器 | Portfolio Signal Allocator | 同时间戳候选批次按评分排序（`allocation.order: score_strategy_symbol`），在资本/风险预算内依次分配，取代早期按字母序的隐性平局规则。 | `core/allocation.py` |
-| 点位宇宙 | Point-in-Time (PIT) Universe | 按标的真实上市/退市时间裁剪历史数据的宇宙表，消除"用未来才存在的币回测过去"的存活偏差；退市标的在最后可交易 bar 打 `scheduled_exit` 标记触发强制平仓。 | `core/universe.py`；`config/universe_binance_spot_1d.csv`；`main.py --universe-file` |
-| 存活偏差 | Survivorship Bias | 只用"最终仍存在"的标的做回测，忽略已下架/退市标的，导致结果虚高。本项目用 PIT 宇宙 + `scheduled_exit` 退市强平路径对冲该偏差。 | `core/universe.py`；`config/universe60_lifecycle.json` |
+| 点位宇宙 | Point-in-Time (PIT) Universe | 按标的真实上市/退市时间裁剪历史数据的宇宙表，消除"用未来才存在的币回测过去"的存活偏差；退市标的在最后可交易 bar 打 `scheduled_exit` 标记触发强制平仓。 | `core/market/universe.py`；`config/universe_binance_spot_1d.csv`；`main.py --universe-file` |
+| 存活偏差 | Survivorship Bias | 只用"最终仍存在"的标的做回测，忽略已下架/退市标的，导致结果虚高。本项目用 PIT 宇宙 + `scheduled_exit` 退市强平路径对冲该偏差。 | `core/market/universe.py`；`config/universe60_lifecycle.json` |
 
 ---
 
@@ -188,7 +188,7 @@
 | 凯利准则 | Kelly Criterion | 最大化长期对数增长率的下注比例：`f* = p − q/b`（p 胜率、q=1−p、b 盈亏比）。实务用分数 Kelly（如 ½f*）抑制估计误差带来的破产风险。现状：固定 2% 风险定仓，不随胜率/赔率调整。 | `core/risk/position_sizing.py`（未实现） |
 | 波动目标 | Volatility Targeting | 以预期波动为分母缩放仓位（`qty ∝ 目标波动 ÷ 实现波动`），使每笔/每日风险贡献恒定。现状：仓位只经止损距离隐含波动，无显式波动目标层。 | 未实现 |
 | 风险平价 | Risk Parity / ERC | 使各持仓对组合总风险的边际贡献相等（等风险贡献），而非等金额或等分数。现状：组合层为排序 + 静态上限钳制。 | `core/allocation.py`（未实现） |
-| 隐马尔可夫 / 马尔可夫切换 | HMM / Markov-Switching | 把市场 regime 建模为带转移概率矩阵的隐状态，输出各状态后验概率与期望持续期，可量化"当前处于趋势态的把握"。现状：确定性规则 + 计数滤波，无概率语义。 | `core/state.py`（未实现） |
+| 隐马尔可夫 / 马尔可夫切换 | HMM / Markov-Switching | 把市场 regime 建模为带转移概率矩阵的隐状态，输出各状态后验概率与期望持续期，可量化"当前处于趋势态的把握"。现状：确定性规则 + 计数滤波，无概率语义。 | `core/trading/state.py`（未实现） |
 | 波动聚集模型 | GARCH 族 | 描述波动率的自相关（大波动后跟大波动），给出条件波动预测，用于自适应阈值与风险缩放。现状：固定阈值（ADX 25、z ±2.0、布林固定倍数）。 | 未实现 |
 | 肥尾与期望短缺 | Heavy Tails / ES (CVaR) | 加密收益尾部远厚于正态；ES（在险价值 VaR 之外的平均损失）是比"最大回撤单点"更稳健的尾部预算口径。现状：回撤阶梯为经验阈值，无 ES/CVaR。 | `config/params.yaml: drawdown`（未实现） |
 | 协整 | Cointegration | 两个各自非平稳的序列存在平稳线性组合（Engle-Granger / Johansen 检验）；配对交易的合法前提是协整而**不是**相关。现状：`PairsTradingModel` 用相关系数筛选 + 滚动 OLS 对冲比，无协整检验。 | `strategies/statistical_arbitrage.py`（未注册进 factory） |
@@ -210,7 +210,7 @@
 | 风险溢价 | Risk Premium | 承担某种系统性风险（如时序动量、波动率、流动性）而获得的长期补偿；一个策略应说明自己收割的是哪种溢价。 | 未陈述 |
 | 行为偏差 | Behavioral Bias | 对手盘系统性错误（追涨杀跌、处置效应、锚定）构成的超额收益来源；趋势策略的经典解释之一。 | 未陈述 |
 | 拥挤度 | Crowding | 同一公开信号被越多资金跟踪，其预期收益越被提前透支。Donchian 通道类信号是极度拥挤的公开信号，需要拥挤度/衰减建模。 | 未实现 |
-| Alpha 衰减 | Alpha Decay | 信号预期收益随时间/拥挤度上升而衰减的过程；要求定期重估信号的条件收益（P1 元层的半衰期加权是雏形）。 | 雏形（`core/signal_meta_layer.py` 研究专用，不碰真实订单） |
+| Alpha 衰减 | Alpha Decay | 信号预期收益随时间/拥挤度上升而衰减的过程；要求定期重估信号的条件收益（P1 元层的半衰期加权是雏形）。 | 雏形（`signal_meta/signal_meta_layer.py` 研究专用，不碰真实订单） |
 | 时序动量 / 横截面动量 | Time-Series vs Cross-Sectional Momentum | 前者对单标的自身历史做趋势跟随（当前 TrendBreakout 属此类）；后者在多标的间做相对强弱排序配置，两者经济学来源与容量不同。 | 仅有时序动量 |
 | Carry / 资金费套利 | Carry | 以持有成本/收益差（资金费率、借贷利差、期限结构）为收益来源的策略族；当前资金费在撮合端 `not_modeled`，更未作为信号。 | 未实现 |
 | 机会成本 | Opportunity Cost | Cash 状态的资金收益假设（零收益 vs 无风险利率/货币基金/资金费），影响"何时不交易"的决策基准。 | 未建模 |

@@ -13,7 +13,7 @@ from urllib.parse import urlparse
 import numpy as np
 import pandas as pd
 
-from core.data_versions import DataVersionStore
+from core.market.data_versions import DataVersionStore
 
 
 METRICS = {"PriceUSD": "price_usd", "CapMrktCurUSD": "market_cap_usd", "SplyCur": "current_supply"}

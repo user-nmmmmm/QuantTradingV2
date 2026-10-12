@@ -19,9 +19,9 @@ from backtest.reporting import ReportGenerator
 from backtest.reporting.serialization import write_metrics_json
 from backtest.reporting.operating_periods import requested_period_curve, split_execution_records
 from config.config import config
-from core.data import DataHandler
+from core.market.data import DataHandler
 from core.benchmarks import btc_eth_first_open_buy_hold
-from core.lots import CloseEvent
+from core.trading.lots import CloseEvent
 from core.metrics import calculate_equity_metrics
 from core.strategy_health import classify_exit_controller
 from core.reproducibility import canonical_json, deterministic_result_digest, sha256_file, sha256_frame

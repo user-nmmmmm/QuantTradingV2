@@ -10,9 +10,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 from analysis.execution_calibration import read_execution_ledger, execution_readiness_report
 from analysis.paper_study import write_json
-from core.order_latency import read_order_observations, order_observation_sidecar_path
-from core.quote_observations import read_quote_observations, utc_now
-from core.binance_depth_observer import verify_depth_journal
+from core.trading.order_latency import read_order_observations, order_observation_sidecar_path
+from core.market.quote_observations import read_quote_observations, utc_now
+from core.market.binance_depth_observer import verify_depth_journal
 
 
 def main(argv=None):

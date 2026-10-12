@@ -4,7 +4,7 @@ from threading import Event
 import pytest
 import requests
 
-from core.quote_observations import _PublicBookFetcher, anonymous_public_auth, quote_error_details
+from core.market.quote_observations import _PublicBookFetcher, anonymous_public_auth, quote_error_details
 from scripts.diagnose_public_market import bounded_probe, diagnose, proxy_presence, safe_error
 
 
@@ -62,7 +62,7 @@ def test_separate_sessions_append_same_quote_store_without_rewriting_past(tmp_pa
     import json
     import sys
     from scripts import collect_execution_quotes as cli
-    from core.quote_observations import BackgroundQuoteSampler, read_quote_observations
+    from core.market.quote_observations import BackgroundQuoteSampler, read_quote_observations
 
     real_sampler = BackgroundQuoteSampler
     def factory(**kwargs):

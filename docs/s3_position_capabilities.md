@@ -70,7 +70,7 @@ SYS-13 应记录为“部分实现待验收”。须继续取得 SYS-02 / SYS-07
 
 本轮同时关闭一个已确认的共享管理缺口：保护单管理器原先只按 symbol 保存棘轮；若两次观察之间旧仓已全部退出并同向重新建立，且未观察到中间 flat，新仓会继承旧 stop。现有 lot 账本已能区分这两个生命周期，本次将该权威身份接入共享保护决策。
 
-修改文件为 [共享保护管理器](../core/protective_orders.py)、[回测保护适配器](../backtest/protective_stops.py)、[live 保护调用](../live_trading/tick_orchestrator.py)。新专项为 [test_protective_position_epoch.py](../tests/test_protective_position_epoch.py)。未改变健康阈值、融资模式、策略入场或人工锁。
+修改文件为 [共享保护管理器](../core/trading/protective_orders.py)、[回测保护适配器](../backtest/protective_stops.py)、[live 保护调用](../live_trading/tick_orchestrator.py)。新专项为 [test_protective_position_epoch.py](../tests/test_protective_position_epoch.py)。未改变健康阈值、融资模式、策略入场或人工锁。
 
 - 回测与 live 从 `Portfolio.open_lots` 读取 `position_id` 集合，并先验证有符号 lot 数量与权威净仓一致；缺失/不一致事实不按数量或方向猜身份。live 进入 DEGRADED 并报警，回测明确失败。
 - 旧新身份完全不相交或方向变化时清除旧棘轮；仍有交集的部分退出/加仓保持单调保护。全部数量被在途退出预留不等于已确认 flat，保留原身份和棘轮。

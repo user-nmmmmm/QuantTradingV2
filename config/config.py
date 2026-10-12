@@ -98,7 +98,7 @@ class ConfigLoader:
         finite(loaded)
         self._migrate_legacy_phase4(loaded)
         self._validate_required(loaded)
-        from core.position_management import CapitalAllocationPolicy
+        from core.trading.position_management import CapitalAllocationPolicy
         try:
             CapitalAllocationPolicy.from_mapping(loaded["allocation"].get("capital"))
         except (TypeError, ValueError) as exc:

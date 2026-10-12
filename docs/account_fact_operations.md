@@ -1,7 +1,7 @@
 # 完整账户事实接入与对账操作
 
 更新日期：2026-09-20。对应 `SYS-05` 及其账户、持仓、预算和运行依赖。工程入口见
-[account_source.py](../core/account_source.py)、[account_sync.py](../core/live_broker/account_sync.py)、
+[account_source.py](../core/trading/account_source.py)、[account_sync.py](../core/live_broker/account_sync.py)、
 [recovery.py](../live_trading/recovery.py)和[run_live.py](../run_live.py)。
 
 当前实现能够读取外部固定账户导出，验证结构、覆盖、时间与哈希，重建本地订单/成交投影，
