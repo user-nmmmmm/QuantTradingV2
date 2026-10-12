@@ -14,7 +14,7 @@ import os
 from typing import Any, Dict
 
 from core.alerting import send_telegram_message
-from core.status_snapshot import load_dashboard
+from ops.status_snapshot import load_dashboard
 
 
 def build_heartbeat_message(dashboard: Dict[str, Any]) -> str:

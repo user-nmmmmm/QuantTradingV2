@@ -336,12 +336,12 @@ FIX-14/18/19/20的原始中间源码清单无法全部从现有冻结目录恢�
 | M-11 | `core/events/` 定义共享事件、因果 ID、幂等消费和回放。 |
 | M-12 | 原子状态、遥测、滞回告警、启动检查、心跳、对账、备份回滚和 Dashboard schema 均有模块与测试。 |
 | M-13 | R7 故障注入、sandbox 凭据门控测试和连续运行证据审计已实现。 |
-| M-14 | `core/gray_release.py` 与 `run_live.py --live` 强制 R7、单标的、小额上限、最小权限、人工批准和回滚。 |
+| M-14 | `ops/gray_release.py` 与 `run_live.py --live` 强制 R7、单标的、小额上限、最小权限、人工批准和回滚。 |
 | M-15 | TrendBreakout/TrendBreakdown 健康度通过 `bind_state_store` 持久化恢复。 |
 | M-16 | 自动测试验证所有非 Cash 路由都有注册策略。 |
 | M-17 | `Strategy.hard_stop_exit` 在策略特定退出前统一检查硬止损。 |
 | M-18 | `strategies/volatility.py` 提供独立 VOLATILE 策略并接入路由。 |
 | M-19 | `strategies/statistical_arbitrage.py` 提供跨标的配对信号。 |
-| M-20 | `core/supervisor.py` 提供有限重启、指数退避及稳定期复位。 |
+| M-20 | `ops/supervisor.py` 提供有限重启、指数退避及稳定期复位。 |
 
-Supervisor 示例：`python -m core.supervisor --max-restarts 10 -- python run_live.py --sandbox --symbols BTC/USDT`。它只负责进程存活，不放宽任何交易权限或风险门禁。
+Supervisor 示例：`python -m ops.supervisor --max-restarts 10 -- python run_live.py --sandbox --symbols BTC/USDT`。它只负责进程存活，不放宽任何交易权限或风险门禁。

@@ -4,7 +4,7 @@ import pytest
 
 from composition.factory import build_strategy_registry
 from config.config import config
-from core.strategy_governance import GovernanceError, assert_live_admission
+from ops.strategy_governance import GovernanceError, assert_live_admission
 
 
 def test_v2_profile_needs_named_experiment_and_is_research_only():

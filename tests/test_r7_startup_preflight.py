@@ -7,7 +7,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from core.live_safety import StartupSafetyPolicy
-from core.startup_preflight import build_startup_report, write_startup_report
+from ops.startup_preflight import build_startup_report, write_startup_report
 
 
 NOW = datetime(2026, 8, 8, 12, 0, tzinfo=timezone.utc)

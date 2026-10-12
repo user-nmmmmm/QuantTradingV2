@@ -185,7 +185,7 @@
         "反例：56 天只有首尾两条观测、重复时间戳伪装时长或中间缺日报均不能通过。"
       ],
       "files": [
-        "core/admission_gates.py"
+        "ops/admission_gates.py"
       ],
       "compatibility": "为旧纸面报告增加 legacy/incomplete 标记，不能自动承继新准入 passed；保留旧原始证据并用新版本复算。",
       "deliverables": [
@@ -234,31 +234,31 @@
       "evidence": [
         {
           "mail_id": "MAIL-20-1",
-          "location": "core/admission_gates.py:380"
+          "location": "ops/admission_gates.py:380"
         },
         {
           "mail_id": "MAIL-20-1",
-          "location": "core/admission_gates.py:397"
+          "location": "ops/admission_gates.py:397"
         },
         {
           "mail_id": "MAIL-20-1",
-          "location": "core/admission_gates.py:446"
+          "location": "ops/admission_gates.py:446"
         },
         {
           "mail_id": "MAIL-20-2",
-          "location": "core/admission_gates.py:138"
+          "location": "ops/admission_gates.py:138"
         },
         {
           "mail_id": "MAIL-20-2",
-          "location": "core/admission_gates.py:154"
+          "location": "ops/admission_gates.py:154"
         },
         {
           "mail_id": "MAIL-20-3",
-          "location": "core/admission_gates.py:248"
+          "location": "ops/admission_gates.py:248"
         },
         {
           "mail_id": "MAIL-20-3",
-          "location": "core/admission_gates.py:263"
+          "location": "ops/admission_gates.py:263"
         }
       ],
       "owner_role": "准入与工程验收",
@@ -3457,7 +3457,7 @@
       ],
       "files": [
         "core/strategy_health.py",
-        "core/strategy_governance.py",
+        "ops/strategy_governance.py",
         "core/signal_observation.py",
         "backtest/signal_meta_replay.py"
       ],
@@ -3610,7 +3610,7 @@
         "analysis/walk_forward.py",
         "analysis/research_validation.py",
         "scripts/run_strategy_review.py",
-        "core/strategy_governance.py"
+        "ops/strategy_governance.py"
       ],
       "compatibility": "旧Phase5证据明确失效范围；保留历史结果，只有新合规证据可改变准入状态。",
       "owner_role": "研究与数据",
@@ -3704,7 +3704,7 @@
       "files": [
         "live_trading/state_export.py",
         "core/alerting.py",
-        "core/supervisor.py",
+        "ops/supervisor.py",
         "core/sqlite_utils.py",
         "dashboard",
         "run_live.py"
@@ -3781,8 +3781,8 @@
         "最终证据引用原始日志/快照与候选hash，独立评审回执可定位。"
       ],
       "files": [
-        "core/admission_gates.py",
-        "core/r7_acceptance.py",
+        "ops/admission_gates.py",
+        "ops/r7_acceptance.py",
         "tests/test_exchange_sandbox_e2e.py",
         "run_live.py"
       ],
@@ -3846,8 +3846,8 @@
         "每次扩大范围有独立批准和新证据，不因盈利自动扩容。"
       ],
       "files": [
-        "core/gray_release.py",
-        "core/admission_gates.py",
+        "ops/gray_release.py",
+        "ops/admission_gates.py",
         "run_live.py"
       ],
       "compatibility": "写计划不构成资金运行授权；先交付可审阅方案和已完成前置证据，再由用户批准实际范围。",

@@ -4,7 +4,7 @@ from __future__ import annotations
 from core.entry_audit import forced_trade_cost
 from core.entry_risk import resolve_approved_risk
 from core.orders import TERMINAL_STATUSES
-from core.strategy_registration import register_health_policies
+from ops.strategy_registration import register_health_policies
 from dataclasses import asdict, replace
 
 import os

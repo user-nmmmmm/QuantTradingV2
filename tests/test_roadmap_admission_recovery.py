@@ -13,7 +13,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from core.admission_gates import audit_paper_run, evaluate_phase6, reconcile_lifecycle, review_admission
+from ops.admission_gates import audit_paper_run, evaluate_phase6, reconcile_lifecycle, review_admission
 from core.events import EventCodec, OrderEvent, TradingEventPipeline
 from core.events.codec import _decode_value
 from core.events.store import SQLiteEventStore

@@ -44,7 +44,7 @@ POLICIES = [
           "tests/test_strategy_successor.py::test_string_false_is_not_complete_label_evidence",
           "tests/test_strategy_successor.py::test_pending_protocol_with_access_log_cannot_be_registered"]),
     rule(2, "56 continuous calendar days and two regimes are irreducible floors",
-         [("docs/phase6_operations.md", "T-6.2")], ["core/admission_gates.py"],
+         [("docs/phase6_operations.md", "T-6.2")], ["ops/admission_gates.py"],
          ["tests/test_roadmap_policy.py::test_paper_policy_cannot_lower_production_floor",
           "tests/test_roadmap_policy.py::test_longer_frozen_paper_protocol_is_preserved",
           "tests/test_roadmap_policy.py::test_paper_protocol_never_truncates_invalid_duration",

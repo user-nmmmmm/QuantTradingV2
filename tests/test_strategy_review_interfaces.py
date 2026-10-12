@@ -13,7 +13,7 @@ from core.protective_stops import (
     ProtectiveStopPolicy, plan_initial_stop, update_trailing_stop,
 )
 from core.state import MarketState
-from core.strategy_governance import GovernanceError, assert_live_admission
+from ops.strategy_governance import GovernanceError, assert_live_admission
 from strategies.trend_breakout import TrendBreakoutStrategy
 from strategies.volatility import VolatilityReversionStrategy
 

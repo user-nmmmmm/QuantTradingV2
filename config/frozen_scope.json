@@ -2,14 +2,64 @@
   "schema": "frozen-scope/v1",
   "description": "Files whose behavior defines a frozen research/trading candidate. A change to any of them (other than comments or layout in .py files) changes the behavioral identity reported by scripts/identity_report.py. Editing this file is itself such a change.",
   "directories": [
-    {"prefix": "core/", "suffixes": [".py"]},
-    {"prefix": "backtest/", "suffixes": [".py"]},
-    {"prefix": "strategies/", "suffixes": [".py"]},
-    {"prefix": "router/", "suffixes": [".py"]},
-    {"prefix": "composition/", "suffixes": [".py"]},
-    {"prefix": "live_trading/", "suffixes": [".py"]},
-    {"prefix": "research/ml_selection/", "suffixes": [".py"]},
-    {"prefix": "config/", "suffixes": [".py", ".yaml", ".yml", ".json", ".csv"]}
+    {
+      "prefix": "core/",
+      "suffixes": [
+        ".py"
+      ]
+    },
+    {
+      "prefix": "backtest/",
+      "suffixes": [
+        ".py"
+      ]
+    },
+    {
+      "prefix": "strategies/",
+      "suffixes": [
+        ".py"
+      ]
+    },
+    {
+      "prefix": "router/",
+      "suffixes": [
+        ".py"
+      ]
+    },
+    {
+      "prefix": "composition/",
+      "suffixes": [
+        ".py"
+      ]
+    },
+    {
+      "prefix": "live_trading/",
+      "suffixes": [
+        ".py"
+      ]
+    },
+    {
+      "prefix": "research/ml_selection/",
+      "suffixes": [
+        ".py"
+      ]
+    },
+    {
+      "prefix": "ops/",
+      "suffixes": [
+        ".py"
+      ]
+    },
+    {
+      "prefix": "config/",
+      "suffixes": [
+        ".py",
+        ".yaml",
+        ".yml",
+        ".json",
+        ".csv"
+      ]
+    }
   ],
   "files": [
     "main.py",

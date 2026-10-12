@@ -6,7 +6,7 @@ import argparse
 import json
 from typing import Any
 
-from core.status_snapshot import load_dashboard, recent_alerts
+from ops.status_snapshot import load_dashboard, recent_alerts
 
 
 def render_text(data: dict[str, Any]) -> str:

@@ -10,7 +10,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from core.gray_release import (
+from ops.gray_release import (
     AdmissionBoundOrderGuard, GrayReleasePolicy, canonical_bundle_sha256,
     read_pinned_admission_evidence,
 )

@@ -22,7 +22,7 @@
 ### 项目现状
 
 1. **交易研究底座已经存在。** 当前具有多标的事件回测、次bar撮合、部分成交、共享参与率上限、费用/滑点/冲击、风险预算和实盘订单接口；验证包括冻结最终样本、Walk-Forward、purged CV、DSR、消融和实验登记。依据：[README](../../README.md)、[research_validation](../../analysis/research_validation.py)、[walk_forward](../../analysis/walk_forward.py)、[Broker成本模型](../../core/broker/cost_model.py)。
-2. **当前没有已准入的正式策略。** 上涨状态路由TrendBreakout，其余状态默认Cash；趋势为paused_revalidation，做空和区间为paused_redesign，高波动为isolated_research。依据：[params.yaml](../../config/params.yaml)、[策略治理](../../core/strategy_governance.py)。
+2. **当前没有已准入的正式策略。** 上涨状态路由TrendBreakout，其余状态默认Cash；趋势为paused_revalidation，做空和区间为paused_redesign，高波动为isolated_research。依据：[params.yaml](../../config/params.yaml)、[策略治理](../../ops/strategy_governance.py)。
 3. **已有元层的工程结果与有效性必须分开。** P1验证包有1,868条预测，allow 0、veto 43、abstain 1,825；P2的1,868条预测全部abstain，完整三轴模型0/66，归因权重全部等权回退。依据：[EV报告](../../reports/p23_signal_meta_20260918_verified/ev_report.md)、[P2报告](../../reports/p23_signal_meta_20260918_verified/p2_report.md)。这支持先检查样本和覆盖，尚不支持把P1/P2当成有效实盘模型。
 4. **全市场研究的数据量充足不等于历史事实完整。** V3实际manifest中744个市场被发现、741个有K线、832,441根日线；上市与分类证据齐备仅61市场，内部缺失日3,532，融资证据覆盖0，historical_full_universe_verified为false。依据：[V3 manifest](../../reports/trend_portfolio_v3_20260921/market_data/manifest.json)、[数据覆盖审计](../../reports/trend_portfolio_v3_20260921/DATA_COVERAGE_ZH.md)。这些数值是已保存产物的覆盖口径，不是当前同时可交易资产数量。
 5. **衍生品和微观数据存在明确接线缺口。** 已有funding/OI采集、资金流函数和融资账本，但默认CCXT数据入口未传market_type，默认spot OHLCV未自动合并funding，资金流函数未自动加入现有信号特征。WebSocket原型只有闭合K线缓冲，未接实盘引擎，没有交易所L2及排队模型。依据：[main.py](../../main.py)、[DataFetcher](../../core/data_fetcher.py)、[资金流因子](../../core/factors/capital_flow.py)、[融资账本](../../core/broker/financing.py)、[追加执行记录](../architecture_performance.md)。
@@ -256,7 +256,7 @@ P1既有支持条件为record ESS至少20、block ESS至少8、mass至少5；扩
 | 成本压力 | 佣金及滑点同时提高到1.5倍后仍净盈利；衍生品另补funding、借币和失配成本压力。 |
 | 回撤 | 最大回撤幅度不超过20%。 |
 
-来源：[evaluate_holdout_admission](../../analysis/research_validation.py)。上述条件不足以单独批准生产运行。真实资金前还需独立研究、Shadow一致、至少56连续自然日和至少两状态、逐笔生命周期100%对账、执行模型校准、监控/告警/恢复和明确操作人批准；参见[admission_gates](../../core/admission_gates.py)。没有真实样本时，不能把本地模拟验收写为真实交易校准。
+来源：[evaluate_holdout_admission](../../analysis/research_validation.py)。上述条件不足以单独批准生产运行。真实资金前还需独立研究、Shadow一致、至少56连续自然日和至少两状态、逐笔生命周期100%对账、执行模型校准、监控/告警/恢复和明确操作人批准；参见[admission_gates](../../ops/admission_gates.py)。没有真实样本时，不能把本地模拟验收写为真实交易校准。
 
 回测、Shadow和Paper对比使用同一候选、同一配置和相同市场时间窗。分开报告行情、信号、风险、订单、成交、融资和权益差异，以区分模型差距与执行差距；不将不同年份的收益差直接归因于执行。至少56日是生产下限，不是统计样本充分的保证，仍需满足所属候选的更长观察协议。
 

@@ -5,11 +5,11 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from core.gray_release import GrayReleasePolicy
+from ops.gray_release import GrayReleasePolicy
 from core.runtime_identity import RuntimeIdentity
 from core.state_store_v2 import StateStore
 from core.live_safety import SafetyConfigurationError, StartupSafetyPolicy
-from core.admission_gates import (
+from ops.admission_gates import (
     EXPANSION_DIMENSIONS,
     MONITORING_DIMENSIONS,
     RECONCILIATION_LAYERS,

@@ -15,3 +15,4 @@
 | [0004](0004-layered-import-rules.md) | 用 import-linter 固定包的依赖方向，例外只减不增 | 已采纳 |
 | [0005](0005-persisted-event-type-names.md) | 事件类型的持久化名称是线上格式 | 已采纳 |
 | [0006](0006-delivery-archives-outside-git.md) | 历史交付 ZIP 放到 GitHub Release，不重写 Git 历史 | 已采纳 |
+| [0007](0007-ops-package.md) | 运维/治理模块移到顶层包 `ops/`，不留旧路径垫片 | 已采纳 |

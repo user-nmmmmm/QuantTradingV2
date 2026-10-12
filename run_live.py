@@ -19,7 +19,7 @@ from core.live_safety import (
     verify_live_permissions,
 )
 from core.risk.persistent_guard import PersistentOrderSafetyGuard
-from core.gray_release import (
+from ops.gray_release import (
     AdmissionBoundOrderGuard, GrayReleasePolicy, read_pinned_admission_evidence, write_release_record,
 )
 from core.account_cost_contract import (
@@ -27,10 +27,10 @@ from core.account_cost_contract import (
     default_runtime_market_type,
     validate_runtime_account_cost_contract,
 )
-from core.startup_preflight import build_startup_report, write_startup_report
+from ops.startup_preflight import build_startup_report, write_startup_report
 from core.account_source import PinnedAccountExport
 from live_trading.recovery import account_new_risk_gate
-from core.strategy_governance import (
+from ops.strategy_governance import (
     GovernanceError,
     assert_live_admission,
     routed_strategy_names,

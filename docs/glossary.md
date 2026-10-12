@@ -67,7 +67,7 @@
 | 相关性簇预算 | Correlation Cluster Budget | 把同涨同跌的标的编入簇（静态映射，未映射的一律归入 `crypto_beta`），对簇总敞口（≤1.5×权益）、全加密 beta 敞口（≤2.0）、单批次新开风险（≤6%）、簇内在险止损风险（≤10%）设预算；核心动机：15 个加密主流币在系统性回撤里其实是"一个仓位"。簇划分是**人工静态表**，非估计的协方差结构（见 §11）。 | `core/risk/portfolio_governor.py`；`config/params.yaml: portfolio_risk` |
 | 在途风险预占 | Risk Reservation | 信号已发出但订单未成交期间，对其名义/现金占用做投影记账，使并发信号共享同一份预算，防止"每单都合规、合起来超限"。 | `core/risk/reservation.py` |
 | 策略健康生命周期 | Strategy Health Lifecycle | 策略按队列（cohort）盈亏在 `ACTIVE → COOLDOWN → PROBATION → MANUAL_LOCK` 间迁移：连续 3 个负队列进入冷却，试错期以缩减风险（0.25）运行并需满足队列数/标的数/总 R 门槛，恢复按 [0.10, 0.25, 0.50, 1.00] 阶梯放量。账户级风控退出不计入健康证据。 | `core/strategy_health.py`；`config/params.yaml: strategy_health`；契约见 [`docs/strategy_health_contract.md`](strategy_health_contract.md) |
-| 策略治理状态 | Strategy Governance Status | 策略的准入身份（如 `paused_revalidation / paused_redesign / isolated_research`）：无独立 holdout 证据的策略不得视为生产可用。当前仅 TrendBreakout 交易且处于复验暂停态。 | `core/strategy_governance.py`；`config/params.yaml: strategy_governance` |
+| 策略治理状态 | Strategy Governance Status | 策略的准入身份（如 `paused_revalidation / paused_redesign / isolated_research`）：无独立 holdout 证据的策略不得视为生产可用。当前仅 TrendBreakout 交易且处于复验暂停态。 | `ops/strategy_governance.py`；`config/params.yaml: strategy_governance` |
 | 容量曲线 | Capacity Curve | 同一输入按递增资金档（1万/10万/100万/1000万）重跑，用交易路径签名、拒单/部分成交/冲击成本解释策略容量随资金的衰减。（部分实现：只测参与率冲击，非微观结构估计。） | `backtest/capacity.py`；`config/params.yaml: capacity.capital_levels` |
 
 ---
@@ -130,7 +130,7 @@
 | 参数平台 | Parameter Plateau | 要求入选参数位于"邻域参数同样盈利"的平坦区而非孤立尖峰——尖峰多为噪声拟合，平台才可能是真实效应。 | `analysis/research_validation.py: parameter_plateau` |
 | 因子消融 | Factor Ablation | 逐一移除信号的组成要素（如 OBV 确认、regime 限制、健康门），量化各要素对收益的边际贡献，识别"装饰性"组件。 | `analysis/research_validation.py: factor_ablation`；`composition/factory.py: research.strategy_ablation` |
 | 跨市场验证 | Cross-Market Validation | 用参数所在市场之外的数据复核同一协议，检验结论是否依赖单一市场/周期。 | `analysis/research_validation.py: cross_market_validation` |
-| 准入门槛 | Admission Gates | 策略从研究走向生产必须经过的量化裁决：phase5 要求 holdout 上 `PF ≥ 1.15` 且 PF 置信区间下界 `≥ 1.0`、`MDD ≤ 20%`、剔除 top-5/10 后仍成立、成本乘数 {1, 1.5, 2, 3} 下稳健；失败需要新假设/新协议而非继续调参。 | `core/admission_gates.py`；`config/params.yaml: phase5.admission` |
+| 准入门槛 | Admission Gates | 策略从研究走向生产必须经过的量化裁决：phase5 要求 holdout 上 `PF ≥ 1.15` 且 PF 置信区间下界 `≥ 1.0`、`MDD ≤ 20%`、剔除 top-5/10 后仍成立、成本乘数 {1, 1.5, 2, 3} 下稳健；失败需要新假设/新协议而非继续调参。 | `ops/admission_gates.py`；`config/params.yaml: phase5.admission` |
 | 幽灵回放 | Ghost Replay | P0 反事实测量：对未成交的信号克隆独立账户，固定持有期、按下一根真实开盘价双边成交，回答"被风控/路由挡下的信号如果放行会怎样"。只观测，绝不影响真实订单。 | `backtest/signal_ghost.py`；`config/params.yaml: signal_observation` |
 | 成本敏感性分析 | Cost Sensitivity Analysis | 在固定成交量价的前提下，用不同的手续费/滑点乘数重新计算净盈亏网格，检验策略对成本假设的敏感程度。 | `calculate_cost_sensitivity` |
 

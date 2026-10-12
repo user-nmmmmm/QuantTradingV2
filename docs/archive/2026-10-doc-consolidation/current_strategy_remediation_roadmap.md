@@ -620,7 +620,7 @@ B0/B1 必须先完成；B2 的纯指标和 shadow 计算可与 B1 后半段并�
 
 | 条目 | 状态 | 实现 / 证据 |
 | --- | --- | --- |
-| SR0-2 治理状态 | 完成 | `config/params.yaml` 改为 `TrendBreakout: paused_revalidation`；`core/strategy_governance.py` + `run_live.py --live` 拒绝路由未准入策略 |
+| SR0-2 治理状态 | 完成 | `config/params.yaml` 改为 `TrendBreakout: paused_revalidation`；`ops/strategy_governance.py` + `run_live.py --live` 拒绝路由未准入策略 |
 | SR0-3 实验注册边界 | 完成 | `docs/research/current_strategy_protocol.json`、`docs/research/current_strategy_experiment_registry.jsonl`（14 个参数族已登记，holdout 标记为不可用于排序） |
 | STR-P0-01 永久死亡开关 | 完成 | `core/strategy_health.py` 状态机；COOLDOWN 必有到期时间，唯一终态 MANUAL_LOCK 需人工恢复 |
 | STR-P0-02 逐币种健康计数 | 完成 | 退出 cohort 聚合；`risk_action_id` 由 `force_liquidate → Order → CloseEvent` 透传，一个熔断动作只产生一个 observation |

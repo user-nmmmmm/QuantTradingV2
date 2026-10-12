@@ -343,17 +343,17 @@ MAIL-37-1 的原始“部分减仓永远不重试”判断需要区别于 MAIL-3
 **MAIL-20-1 · P1 · 仍存在** — [Fail admission on unhealthy monitoring snapshots](https://github.com/user-nmmmmm/QuantTradingV2/pull/20#pullrequestreview-5032477893)
 
 - 当前核对：监控维度 ok=false 仍只追加 generated_alerts，不追加 issues；只要告警送达已验证，就会 passed=true 并被准入检查采用。
-- 代码/既有测试：[core/admission_gates.py:380](../../../core/admission_gates.py)；[core/admission_gates.py:397](../../../core/admission_gates.py)；[core/admission_gates.py:446](../../../core/admission_gates.py)。
+- 代码/既有测试：[ops/admission_gates.py:380](../../../ops/admission_gates.py)；[ops/admission_gates.py:397](../../../ops/admission_gates.py)；[ops/admission_gates.py:446](../../../ops/admission_gates.py)。
 - 验证方式：2026-09-20 内存复现：data_quality.ok=false，其他维度健康，evaluate_monitoring 返回 passed=true。详见 mid_verification.json MAIL-20-1。
 **MAIL-20-2 · P1 · 仍存在** — [Compare unexpected fields in actual reconciliation records](https://github.com/user-nmmmmm/QuantTradingV2/pull/20#pullrequestreview-5032477893)
 
 - 当前核对：逐字段对账仍只遍历 expected_record.items()，实际记录额外业务字段未纳入比较。
-- 代码/既有测试：[core/admission_gates.py:138](../../../core/admission_gates.py)；[core/admission_gates.py:154](../../../core/admission_gates.py)。
+- 代码/既有测试：[ops/admission_gates.py:138](../../../ops/admission_gates.py)；[ops/admission_gates.py:154](../../../ops/admission_gates.py)。
 - 验证方式：2026-09-20 内存复现：六层 actual 均多出 unexpected_business_status=bad，对账仍 coverage=1、passed=true。详见 mid_verification.json MAIL-20-2。
 **MAIL-20-3 · P1 · 仍存在** — [Require continuous evidence across the paper-run interval](https://github.com/user-nmmmmm/QuantTradingV2/pull/20#pullrequestreview-5032477893)
 
 - 当前核对：paper 时长仍仅由最早/最晚日期差得出，没有逐日覆盖或中间缺口校验。
-- 代码/既有测试：[core/admission_gates.py:248](../../../core/admission_gates.py)；[core/admission_gates.py:263](../../../core/admission_gates.py)。
+- 代码/既有测试：[ops/admission_gates.py:248](../../../ops/admission_gates.py)；[ops/admission_gates.py:263](../../../ops/admission_gates.py)。
 - 验证方式：2026-09-20 内存复现：2026-01-01 与 2026-02-25 两条、两个regime，56天paper gate passed=true。详见 mid_verification.json MAIL-20-3。
 
 ### PR #21

@@ -10,7 +10,7 @@ from core.alerting import (
     format_telegram_alert,
     send_telegram_message,
 )
-from core.telegram_heartbeat import build_heartbeat_message, send_heartbeat
+from ops.telegram_heartbeat import build_heartbeat_message, send_heartbeat
 
 
 class TestTelegramAlertSink(unittest.TestCase):
@@ -90,7 +90,7 @@ class TestTelegramHeartbeat(unittest.TestCase):
         self.assertIn("BTC/USDT", message)
         self.assertIn("HEALTH_RECOVERED".replace("_", "_"), message.upper())
 
-    @patch("core.telegram_heartbeat.send_telegram_message")
+    @patch("ops.telegram_heartbeat.send_telegram_message")
     def test_send_heartbeat_loads_status_and_posts(self, send_mock):
         with tempfile.TemporaryDirectory() as directory:
             status_path = os.path.join(directory, "live_status.json")
