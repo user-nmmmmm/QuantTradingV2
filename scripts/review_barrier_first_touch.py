@@ -15,8 +15,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 import pandas as pd
 
-from analysis.paper_label_execution import refine_barrier_labels
-from analysis.paper_labels import BarrierConfig, LabelCosts
+from signal_meta.paper_label_execution import refine_barrier_labels
+from signal_meta.paper_labels import BarrierConfig, LabelCosts
 from analysis.paper_study import write_json
 from core.foundation.reproducibility import sha256_file
 from scripts.run_paper_roadmap import freeze_inputs, load_fine_input, validate_frozen_observations
@@ -74,7 +74,7 @@ def main(argv=None):
         validation=validation, artifacts={name: sha256_file(output / name) for name in (
             "barrier_labels.json", "first_touch_changes.csv", "input_snapshots.json")},
         implementation={name: sha256_file(ROOT / name) for name in (
-            "scripts/review_barrier_first_touch.py", "analysis/paper_label_execution.py", "analysis/paper_labels.py")})
+            "scripts/review_barrier_first_touch.py", "signal_meta/paper_label_execution.py", "signal_meta/paper_labels.py")})
     write_json(output / "summary.json", summary)
     print(__import__("json").dumps(summary, ensure_ascii=False))
     return 0

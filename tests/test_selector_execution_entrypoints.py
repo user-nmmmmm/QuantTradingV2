@@ -25,7 +25,7 @@ def test_cli_refuses_v3_selector_before_bundle_or_data(monkeypatch):
 def test_direct_backtest_refuses_v3_before_constructing_selector(monkeypatch):
     monkeypatch.setitem(config._config, "portfolio_targets", {"enabled": True})
     load = MagicMock(side_effect=AssertionError("unsupported path must fail at admission"))
-    monkeypatch.setattr("backtest.coin_selector.create_selector", load)
+    monkeypatch.setattr("research.ml_selection.serving.create_selector", load)
     args = entrypoint._build_parser().parse_args(["--coin-selector", "on"])
     with pytest.raises(ValueError, match="portfolio target controller"):
         entrypoint._execute_backtest(args, {})

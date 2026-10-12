@@ -905,7 +905,7 @@ class BacktestEngine:
                 signal_observation_result, broker.trades, broker.opening_orders, broker.execution_audit,
                 mark_to_market=(config.require("backtest", "end_of_backtest_mode") == "mark_to_market"))
             signal_observation_result["actual_financing"] = [item.to_dict() for item in portfolio.financing_ledger]
-            from analysis.label_account_reconciliation import reconcile_observation_account
+            from signal_meta.label_account_reconciliation import reconcile_observation_account
             signal_observation_result["label_account_reconciliation"] = reconcile_observation_account(
                 signal_observation_result, broker.trades, initial_capital=self.initial_capital,
                 final_equity=float(equity_curve[-1]["equity"]) if equity_curve else self.initial_capital,

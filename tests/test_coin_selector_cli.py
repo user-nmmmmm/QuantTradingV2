@@ -10,10 +10,8 @@ import pandas as pd
 import pytest
 
 import main as entrypoint
-from backtest.coin_selector import (
-    create_selector, disabled_identity, read_bundle, restore_selector,
-    snapshot_bundle, write_selector_report,
-)
+from backtest.coin_selector import disabled_identity, read_bundle, snapshot_bundle, write_selector_report
+from research.ml_selection.serving import create_selector, restore_selector
 from core.foundation.reproducibility import deterministic_result_digest, sha256_file
 from tests.engine_baseline_harness import build_synthetic_data_map
 
@@ -32,7 +30,7 @@ def frozen_ml_runtime():
 
 @pytest.mark.parametrize("flags", [[], ["--coin-selector", "off"]])
 def test_disabled_cli_never_loads_models_and_keeps_engine_options(monkeypatch, tmp_path, flags):
-    import backtest.coin_selector as serving
+    import research.ml_selection.serving as serving
     load = MagicMock(side_effect=AssertionError("Disabled backtests must not load ML"))
     monkeypatch.setattr(serving, "create_selector", load)
     factory = MagicMock()
@@ -47,7 +45,7 @@ def test_disabled_cli_never_loads_models_and_keeps_engine_options(monkeypatch, t
 
 
 def test_enabled_cli_only_adds_selector_without_replacing_risk_or_allocation(monkeypatch, tmp_path):
-    import backtest.coin_selector as serving
+    import research.ml_selection.serving as serving
     selector = object()
     identity = {"enabled": True, "model_id": "frozen"}
     load = MagicMock(return_value=(selector, identity))

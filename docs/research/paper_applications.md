@@ -379,7 +379,7 @@ P3为独立有限资金账户：原始参照进252候选，门控账户进0，�
 
 联测结果：**318 passed，4 subtests passed**。覆盖新增统计、数据/标签、衍生品、研究编排，以及既有行情因果性、CLI、保证金/融资、账户成本、复现性和P1/P2/P3。43次运行逐bar账户核对全部通过，265个冻结源码/配置文件、输入字节哈希和9个关键产物哈希复核通过；新增模块Ruff检查及`git diff --check`通过，66个本地文档链接无缺失。测试全部离线，Windows临时目录权限限制通过仅运行本地测试/研究的权限提升解决，没有联网或真实账户动作。
 
-新增实现：[paper_study](../../analysis/paper_study.py)、[统计验证](../../analysis/paper_validation.py)、[标签](../../analysis/paper_labels.py)、[数据审核](../../analysis/paper_data_audit.py)、[衍生品](../../core/market/derivatives_data.py)。研究入口：[run_paper_applications.py](../../scripts/run_paper_applications.py)。结果目录不可重复覆盖；复跑需指定新的`--output`，任何源码/配置/数据变化建立新身份。输入路径可由`--manifest`指定，仍仅接受当前明确的BTC/ETH现货日线协议，其他研究范围应登记新协议。
+新增实现：[paper_study](../../analysis/paper_study.py)、[统计验证](../../analysis/paper_validation.py)、[标签](../../signal_meta/paper_labels.py)、[数据审核](../../analysis/paper_data_audit.py)、[衍生品](../../core/market/derivatives_data.py)。研究入口：[run_paper_applications.py](../../scripts/run_paper_applications.py)。结果目录不可重复覆盖；复跑需指定新的`--output`，任何源码/配置/数据变化建立新身份。输入路径可由`--manifest`指定，仍仅接受当前明确的BTC/ETH现货日线协议，其他研究范围应登记新协议。
 
 下一轮顺序据本批失败原因收敛：
 
@@ -473,7 +473,7 @@ P3为独立有限资金账户：原始参照进252候选，门控账户进0，�
 - [版本与时间语义](../../core/market/data_versions.py)、[因子登记](../../analysis/factor_registry.py)
 - [共享研究证据](../../analysis/research_evidence.py)、[Walk-Forward](../../analysis/walk_forward.py)、[通用优化](../../analysis/optimize.py)
 - [成本／风险／调仓账户实验](../../analysis/paper_portfolio.py)、[尾部与联合压力](../../analysis/paper_risk.py)
-- [首触解析和成交成本桥](../../analysis/paper_label_execution.py)、[因果标签目标](../../analysis/paper_label_signals.py)
+- [首触解析和成交成本桥](../../signal_meta/paper_label_execution.py)、[因果标签目标](../../analysis/paper_label_signals.py)
 - [执行成本校准](../../analysis/execution_calibration.py)、[持久请求观测](../../core/trading/order_latency.py)
 
 ### 最终验收结果

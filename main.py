@@ -280,7 +280,7 @@ def replay_manifest(manifest_path: str) -> int:
     np.random.seed(seed)
     random.seed(seed)
     try:
-        from backtest.coin_selector import restore_selector
+        from research.ml_selection.serving import restore_selector
         candidate_selector = restore_selector(execution, snapshots, path.parent)
     except (OSError, ValueError, KeyError, TypeError, ImportError) as exc:
         print(f"Replay refused: frozen coin selector unavailable or changed: {exc}", file=sys.stderr)
@@ -543,7 +543,7 @@ def _execute_backtest(args, data_map):
     selector_identity = {"schema": "backtest-coin-selector/v1", "enabled": False,
                          "candidate": None, "new_training_updates": 0, "new_threshold_search": 0}
     if getattr(args, "coin_selector", "off") == "on":
-        from backtest.coin_selector import create_selector
+        from research.ml_selection.serving import create_selector
         candidate_selector, selector_identity = create_selector(
             data_map, initial_capital=args.capital,
             bundle_path=getattr(args, "selector_bundle", None), account_mode=account_mode)

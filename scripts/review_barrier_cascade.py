@@ -14,8 +14,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 import pandas as pd
 
-from analysis.paper_label_execution import refine_barrier_labels
-from analysis.paper_labels import BarrierConfig, LabelCosts
+from signal_meta.paper_label_execution import refine_barrier_labels
+from signal_meta.paper_labels import BarrierConfig, LabelCosts
 from analysis.paper_study import write_json
 from core.market.data_versions import DataVersionStore
 from core.foundation.reproducibility import sha256_file
@@ -77,8 +77,8 @@ def main(argv=None):
     evidence = DataVersionStore(output / "evidence")
     snapshot = evidence.freeze_files("first-touch-cascade-evidence", {
         "previous_summary.json": parent / "summary.json", "previous_barrier_labels.json": parent / "barrier_labels.json",
-        "review_barrier_cascade.py": Path(__file__), "paper_label_execution.py": ROOT / "analysis/paper_label_execution.py",
-        "paper_labels.py": ROOT / "analysis/paper_labels.py"}, observed_at=now)
+        "review_barrier_cascade.py": Path(__file__), "paper_label_execution.py": ROOT / "signal_meta/paper_label_execution.py",
+        "paper_labels.py": ROOT / "signal_meta/paper_labels.py"}, observed_at=now)
     historical_end = pd.Timestamp(prior_summary["historical_end"])
     original_ambiguous = {row["candidate_id"] for row in previous["outcomes"] if row.get("coarse_path_ambiguous")}
     summary = {"schema": "paper-first-touch-cascade/v1", "scope": "retrospective_path_audit",

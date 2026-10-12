@@ -58,3 +58,10 @@ def test_model_identities_still_hash_the_same_set_of_files(monkeypatch, module, 
     assert set(result["sources"]) == expected
     for name, source in result["sources"].items():
         assert source == (ROOT / "signal_meta" / name).read_text(encoding="utf-8")
+
+
+def test_label_reconciliation_modules_moved_from_analysis_to_signal_meta():
+    # B3 (ADR 0017): backtest.engine needs them, and backtest must not import analysis
+    for name in ("paper_labels", "paper_label_execution", "label_account_reconciliation"):
+        assert (ROOT / "signal_meta" / f"{name}.py").is_file(), name
+        assert not (ROOT / "analysis" / f"{name}.py").exists(), f"analysis/{name}.py should have moved"

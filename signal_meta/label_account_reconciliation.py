@@ -7,10 +7,11 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 import math
+from typing import Any
 
 import pandas as pd
 
-from analysis.paper_label_execution import reconcile_label_cashflows
+from signal_meta.paper_label_execution import reconcile_label_cashflows
 
 
 def _time(value):
@@ -68,7 +69,7 @@ def reconcile_candidate_account(labels, order_bindings, trades, financing=(), *,
         if cid in label_map:
             raise ValueError("one label per candidate required")
         label_map[cid] = dict(row)
-    bindings = {}
+    bindings: dict[Any, Any] = {}
     for row in order_bindings:
         order_id, cid = row.get("order_id"), row.get("candidate_id")
         if not order_id or not cid:
@@ -85,11 +86,13 @@ def reconcile_candidate_account(labels, order_bindings, trades, financing=(), *,
     priority = 0 if financing_timing == "before_fills" else 2
     events += [(_time(f["timestamp"]), priority, i, "financing", f) for i, f in enumerate(financing)]
     events.sort(key=lambda x: x[:3])
-    books, matched, issues, allocations, valuations = {}, [], [], [], []
+    books: dict[Any, Any] = {}
+    matched, issues, allocations, valuations = [], [], [], []
     financing_total = financing_unallocated = 0.
     commission_total = 0.
-    seen_close_ids, seen_financing = set(), {}
-    entered = defaultdict(float)
+    seen_close_ids = set()
+    seen_financing: dict[Any, Any] = {}
+    entered: defaultdict[Any, float] = defaultdict(float)
     labels_with_orders = set(bindings.values())
     for at, _, sequence, kind, fact in events:
         if kind == "financing":
@@ -129,18 +132,18 @@ def reconcile_candidate_account(labels, order_bindings, trades, financing=(), *,
         commission_total += fee
         if side in {"buy", "short"}:
             direction = "long" if side == "buy" else "short"
-            cid = bindings.get(oid)
-            if cid and (label_map[cid].get("symbol", symbol) != symbol or label_map[cid]["direction"] != direction):
+            opening_cid = bindings.get(oid)
+            if opening_cid and (label_map[opening_cid].get("symbol", symbol) != symbol or label_map[opening_cid]["direction"] != direction):
                 raise ValueError("candidate direction/symbol does not match opening order")
-            lot = books.setdefault(oid, {"candidate_id": cid, "symbol": symbol, "direction": direction,
+            lot = books.setdefault(oid, {"candidate_id": opening_cid, "symbol": symbol, "direction": direction,
                 "quantity": 0., "entry_notional": 0., "entry_fees": 0., "financing": 0.})
             if lot["symbol"] != symbol or lot["direction"] != direction:
                 raise ValueError("opening order identity reused across instruments or direction")
             lot["quantity"] += quantity
             lot["entry_notional"] += quantity * price
             lot["entry_fees"] += fee
-            entered[cid or "unattributed:" + oid] += quantity
-            if cid is None:
+            entered[opening_cid or "unattributed:" + oid] += quantity
+            if opening_cid is None:
                 issues.append({"order_id": oid, "reason": "opening_fill_without_candidate"})
             continue
         if side not in {"sell", "cover"}:

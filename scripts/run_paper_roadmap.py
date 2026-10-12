@@ -21,12 +21,12 @@ import pandas as pd
 
 from analysis.execution_calibration import execution_sample_report
 from analysis.factor_registry import default_proxy_definitions, freeze_factor_registry
-from analysis.paper_label_execution import refine_barrier_labels
+from signal_meta.paper_label_execution import refine_barrier_labels
 from analysis.paper_label_signals import chronological_label_targets, fixed_horizon_cost_labels
-from analysis.paper_labels import BarrierConfig, LabelCosts
+from signal_meta.paper_labels import BarrierConfig, LabelCosts
 from analysis.paper_portfolio import PaperSpec, default_paper_specs, run_paper_replay
 from analysis.paper_risk import StressSpec, stress_inventory_path, risk_diagnostics
-from analysis.label_account_reconciliation import reconcile_candidate_account
+from signal_meta.label_account_reconciliation import reconcile_candidate_account
 from analysis.paper_study import WINDOWS, factor_attribution, factor_proxies, load_verified_inputs, write_json
 from analysis.paper_validation import cscv_pbo, white_reality_check
 from analysis.research_evidence import ResearchEvidenceRun, candidate_panel_evidence, sharpe_dependence_diagnostic
