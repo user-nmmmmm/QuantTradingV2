@@ -15,6 +15,7 @@ FORBIDDEN = {
         "backtest",
         "live_trading",
         "analysis",
+        "research",
         "dashboard",
     },
     "strategies": {"router", "backtest", "live_trading", "config"},
@@ -33,6 +34,24 @@ def _import_roots(path: Path) -> list[tuple[int, str]]:
         elif isinstance(node, ast.ImportFrom) and node.module:
             imports.append((node.lineno, node.module.split(".", 1)[0]))
     return imports
+
+
+# The only imports allowed to point "upwards" (see [tool.importlinter] in pyproject.toml). This set may
+# only shrink: removing an entry is a cleanup, adding one needs an explicit design decision.
+KNOWN_LAYER_EXCEPTIONS = {
+    "backtest.engine -> analysis.label_account_reconciliation",
+    "backtest.coin_selector -> research.ml_selection.dataset",
+    "backtest.coin_selector -> research.ml_selection.models",
+    "backtest.coin_selector -> research.ml_selection.selector",
+}
+
+
+def test_layer_exceptions_do_not_grow() -> None:
+    import tomllib
+    config = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    contracts = config["tool"]["importlinter"]["contracts"]
+    layered = next(item for item in contracts if item["type"] == "layers")
+    assert set(layered.get("ignore_imports", [])) <= KNOWN_LAYER_EXCEPTIONS
 
 
 def test_package_import_boundaries() -> None:

@@ -16,6 +16,12 @@ repos:
         language: system
         types: [python]
         pass_filenames: false
+      - id: import-direction
+        name: import direction (layers)
+        entry: lint-imports
+        language: system
+        types: [python]
+        pass_filenames: false
       - id: markdown-links
         name: markdown links
         entry: python scripts/check_markdown_links.py

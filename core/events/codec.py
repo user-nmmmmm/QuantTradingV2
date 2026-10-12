@@ -12,27 +12,35 @@ from dataclasses import fields, is_dataclass
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Any, Dict, Type, Union
+from typing import Any, Dict, Tuple, Type, Union
 from uuid import UUID
 
 from core.events.types import PAYLOAD_EVENT_TYPES, StructuredPayload, _aware_utc, _normalize_value
 from core.domain import FillRecord, OrderSubmissionResult, SyncResult, OrderStatus, OrderErrorCode
+from core.events.ledger_events import CashEvent, MarkPriceEvent
+
+
+# Persisted type names that differ from where the class is defined today. They are wire format:
+# stored events and idempotency comparison rely on them, so they never change silently.
+_PERSISTED_NAMES: Dict[type, str] = {
+    CashEvent: "research.audit.ledger:CashEvent",
+    MarkPriceEvent: "research.audit.ledger:MarkPriceEvent",
+}
 
 
 def _qualified_name(value: Union[Type[Any], Any]) -> str:
     cls = value if isinstance(value, type) else type(value)
-    return f"{cls.__module__}:{cls.__qualname__}"
+    return _PERSISTED_NAMES.get(cls) or f"{cls.__module__}:{cls.__qualname__}"
 
 
 def _resolve_type(name: str) -> Type[Any]:
-    # Fixed imports are delayed only to avoid the ledger/event facade cycle.
-    from research.audit.ledger import CashEvent, MarkPriceEvent
     # Only statically imported domain types may be constructed from stored data.
     # Preserve historical facade names without importing any supplied module.
-    registry = {}
-    for cls in (*PAYLOAD_EVENT_TYPES, StructuredPayload, FillRecord,
-                OrderSubmissionResult, SyncResult, OrderStatus, OrderErrorCode,
-                CashEvent, MarkPriceEvent):
+    registry: Dict[str, Type[Any]] = {}
+    known: Tuple[Type[Any], ...] = (*PAYLOAD_EVENT_TYPES, StructuredPayload, FillRecord,
+                                    OrderSubmissionResult, SyncResult, OrderStatus, OrderErrorCode,
+                                    CashEvent, MarkPriceEvent)
+    for cls in known:
         registry[_qualified_name(cls)] = cls
         if cls in PAYLOAD_EVENT_TYPES or cls is StructuredPayload:
             registry[f"core.events:{cls.__name__}"] = cls
