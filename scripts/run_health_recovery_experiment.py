@@ -37,7 +37,7 @@ def main():
         "source": str(source), "code": code_identity(ROOT),
         "source_manifest_sha256": sha256_file(source / "download_manifest.json"),
         "code_hashes": {path: sha256_file(ROOT / path) for path in (
-            "core/strategy_health.py", "scripts/run_health_recovery_experiment.py",
+            "core/analytics/strategy_health.py", "scripts/run_health_recovery_experiment.py",
             "scripts/run_expanded_universe_backtest.py", "config/params.yaml")},
         "purpose": "Fixed-candidate engineering comparison; reused history is not independent holdout",
         "criteria": ["default baseline unchanged", "explicit manual locks remain terminal",

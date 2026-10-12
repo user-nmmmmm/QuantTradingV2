@@ -373,7 +373,7 @@ def test_runtime_missing_held_mark_blocks_new_risk_without_using_realised_revisi
 def test_report_csv_replay_restores_identical_strict_versions(tmp_path, persistent):
     from types import SimpleNamespace
     from main import _temporal_report_payload, _restore_temporal_replay_inputs
-    from core.backtest_audit import write_json_report
+    from core.analytics.backtest_audit import write_json_report
     from core.reproducibility import save_data_snapshots, load_data_snapshots, sha256_file
 
     policy = strict(tmp_path) if persistent else {"mode": "strict"}
@@ -402,7 +402,7 @@ def test_strict_replay_rejects_missing_or_changed_temporal_evidence(tmp_path):
     import json
     from types import SimpleNamespace
     from main import _temporal_report_payload, _restore_temporal_replay_inputs
-    from core.backtest_audit import write_json_report
+    from core.analytics.backtest_audit import write_json_report
     from core.reproducibility import sha256_file
 
     frame = documented()

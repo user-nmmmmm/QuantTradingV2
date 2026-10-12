@@ -24,10 +24,10 @@ from composition.factory import (
     build_strategy_registry,
 )
 from config.config import config
-from core.accounting_check import AccountingReconciler
+from core.analytics.accounting_check import AccountingReconciler
 from core.trading.account_cost_contract import validate_account_cost_contract
 from core.trading.accounts import AccountMode
-from core.benchmarks import (
+from core.analytics.benchmarks import (
     dynamic_equal_weight_rebalanced,
     fixed_equal_weight_buy_hold,
 )
@@ -41,7 +41,7 @@ from core.runtime import EventProcessor, MarketDataSlice, validate_selector_exec
 from core.risk.actions import plan_risk_action
 from backtest.drawdown_budget import BacktestDrawdownReducer
 from core.trading.protective_stops import EntryRiskPolicy, evaluate_fill_risk
-from core.strategy_health import cohort_rows, transition_rows
+from core.analytics.strategy_health import cohort_rows, transition_rows
 from signal_meta.signal_observation import SignalObserver
 from signal_meta.signal_observation_types import ObservationPolicy
 from signal_meta.signal_outcomes import ObservationCosts

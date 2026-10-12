@@ -166,9 +166,9 @@ notional / equity = risk_per_trade ÷ (止损距离 / 价格)
 cohort 计入健康触发；账户风控退出保留归因但不单独证明策略失效。
 自动表现失败进入有期限的冷静期和分阶段恢复；显式人工锁定仍需审计恢复。
 
-## 4.3 结果可信度诊断（core/diagnostics.py）
+## 4.3 结果可信度诊断（core/analytics/diagnostics.py）
 
-`core/metrics/` 回答"策略表现如何"，`core/diagnostics.py` 回答两个前置问题：
+`core/metrics/` 回答"策略表现如何"，`core/analytics/diagnostics.py` 回答两个前置问题：
 **这个业绩数字能不能信**，以及**系统的实际行为是否与代码描述一致**。
 每项指标都对应一个真实存在过、且被现有指标完全掩盖的缺陷：
 

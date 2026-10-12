@@ -6,12 +6,12 @@ from datetime import datetime, timezone
 import pandas as pd
 
 from backtest.engine import BacktestEngine
-from core.backtest_audit import (
+from core.analytics.backtest_audit import (
     cross_verify_top_trades,
     validate_audit_coverage,
     write_event_log,
 )
-from core.benchmarks import (
+from core.analytics.benchmarks import (
     dynamic_equal_weight_rebalanced,
     fixed_equal_weight_buy_hold,
 )

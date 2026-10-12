@@ -12,7 +12,7 @@ import unittest
 
 import pandas as pd
 
-from core.indicators import Indicators
+from core.analytics.indicators import Indicators
 from core.trading.protective_stops import (
     EntryRiskPolicy,
     ProtectiveStopPolicy,

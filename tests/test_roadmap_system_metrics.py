@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 
 from backtest.reporting import ReportGenerator
-from core.benchmarks import (btc_eth_first_open_buy_hold, dynamic_equal_weight_rebalanced,
+from core.analytics.benchmarks import (btc_eth_first_open_buy_hold, dynamic_equal_weight_rebalanced,
                              fixed_equal_weight_buy_hold)
 from core.metrics import calculate_benchmark_comparison, calculate_equity_metrics, monthly_returns
 from core.metrics import calculate_trade_quality

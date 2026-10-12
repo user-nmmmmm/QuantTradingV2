@@ -5,7 +5,7 @@ from typing import Any, Dict, List
 
 import pandas as pd
 
-from core.metric_result import MetricResult
+from core.analytics.metric_result import MetricResult
 from core.metrics import (
     calculate_attribution,
     calculate_cost_sensitivity,
@@ -29,7 +29,7 @@ class ReportMetricsMixin:
     def _headline_metric_results(self, metrics: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Wrap the report's headline scalar metrics as MetricResult entries (M-02).
 
-        core.metric_result.MetricResult defines a typed, JSON-schema-validated
+        core.analytics.metric_result.MetricResult defines a typed, JSON-schema-validated
         contract that distinguishes a real zero from "not computable" — but it
         had zero production callers; core/metrics.py's ten functions each
         return their own ad hoc dict shape instead. Rewriting those functions

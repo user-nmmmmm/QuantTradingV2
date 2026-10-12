@@ -9,6 +9,7 @@
 ## [Unreleased]
 
 ### Changed
+- 7 个审计、诊断、健康与指标模块从 `core/` 根移到 `core/analytics/`，导入路径随之改变（`core.indicators` → `core.analytics.indicators`）；不留兼容垫片（ADR 0015）。
 - 7 个选币、打分、分配与目标仓位模块从 `core/` 根移到 `core/planning/`，`portfolio`、`valuation` 并入 `core/trading/`，导入路径随之改变（`core.allocation` → `core.planning.allocation`，`core.portfolio` → `core.trading.portfolio`）；不留兼容垫片（ADR 0014）。
 - 20 个订单、保护单、账户与状态存储模块从 `core/` 根移到 `core/trading/`，导入路径随之改变（`core.order_store` → `core.trading.order_store`；命令 `python -m core.sqlite_backup` → `python -m core.trading.sqlite_backup`）；不留兼容垫片（ADR 0013）。
 - 17 个行情与时间/标的模块从 `core/` 根移到 `core/market/`，导入路径随之改变（`core.data_fetcher` → `core.market.data_fetcher`）；不留兼容垫片（ADR 0012）。已登记的纸面观察实验因源码路径改变不能再 `--resume`，需登记新协议。

@@ -4,7 +4,7 @@ from __future__ import annotations
 from collections import defaultdict, deque
 
 from signal_meta.signal_observation_types import close_time, iso
-from core.strategy_health import classify_exit_controller
+from core.analytics.strategy_health import classify_exit_controller
 
 
 def reconcile_actuals(payload, trades, orders, execution_audit, *, mark_to_market=True):

@@ -21,7 +21,7 @@ import pytest
 
 from backtest.reporting import ReportGenerator
 from core.broker import Broker
-from core.diagnostics import build_diagnostics
+from core.analytics.diagnostics import build_diagnostics
 from core.trading.portfolio import Portfolio
 
 SYMBOL = "BTC/USDT"

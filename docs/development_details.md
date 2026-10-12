@@ -857,7 +857,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **来源：** [docs/codex_mail_findings_20260920.json（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json)。
 
-**修改范围：** [core/strategy_health.py](../core/strategy_health.py)、[live_trading/tick_orchestrator.py](../live_trading/tick_orchestrator.py)、[live_trading/engine.py](../live_trading/engine.py)。
+**修改范围：** [core/analytics/strategy_health.py](../core/analytics/strategy_health.py)、[live_trading/tick_orchestrator.py](../live_trading/tick_orchestrator.py)、[live_trading/engine.py](../live_trading/engine.py)。
 
 **开发步骤：**
 
@@ -1205,7 +1205,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **来源：** [docs/codex_mail_findings_20260920.json（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json)。
 
-**修改范围：** [backtest/reporting/render/charts.py](../backtest/reporting/render/charts.py)、[core/diagnostics.py](../core/diagnostics.py)、[scripts/run_phase4_analysis.py](../scripts/run_phase4_analysis.py)、[composition/factory.py](../composition/factory.py)、[config/params.yaml](../config/params.yaml)、[core/metrics/attribution.py](../core/metrics/attribution.py)。
+**修改范围：** [backtest/reporting/render/charts.py](../backtest/reporting/render/charts.py)、[core/analytics/diagnostics.py](../core/analytics/diagnostics.py)、[scripts/run_phase4_analysis.py](../scripts/run_phase4_analysis.py)、[composition/factory.py](../composition/factory.py)、[config/params.yaml](../config/params.yaml)、[core/metrics/attribution.py](../core/metrics/attribution.py)。
 
 **开发步骤：**
 
@@ -1296,7 +1296,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **来源：** [docs/archive/2026-10-doc-consolidation/backtest_metrics_detailed_development_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/backtest_metrics_detailed_development_plan.md)；[docs/development_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/development_plan.md)。
 
-**修改范围：** [core/metric_result.py](../core/metric_result.py)、[core/metrics](../core/metrics)、[backtest/reporting](../backtest/reporting)、[analysis/validation.py](../analysis/validation.py)、[tests/test_metrics.py](../tests/test_metrics.py)。
+**修改范围：** [core/analytics/metric_result.py](../core/analytics/metric_result.py)、[core/metrics](../core/metrics)、[backtest/reporting](../backtest/reporting)、[analysis/validation.py](../analysis/validation.py)、[tests/test_metrics.py](../tests/test_metrics.py)。
 
 **开发步骤：**
 
@@ -1499,7 +1499,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **来源：** [docs/archive/2026-10-doc-consolidation/position_management_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/position_management_plan.md)；[docs/strategy_health_contract.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/strategy_health_contract.md)；[docs/signal_meta_layer.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/p23_signal_meta_layer.md)。
 
-**修改范围：** [core/strategy_health.py](../core/strategy_health.py)、[ops/strategy_governance.py](../ops/strategy_governance.py)、[signal_meta/signal_observation.py](../signal_meta/signal_observation.py)、[backtest/signal_meta_replay.py](../backtest/signal_meta_replay.py)。
+**修改范围：** [core/analytics/strategy_health.py](../core/analytics/strategy_health.py)、[ops/strategy_governance.py](../ops/strategy_governance.py)、[signal_meta/signal_observation.py](../signal_meta/signal_observation.py)、[backtest/signal_meta_replay.py](../backtest/signal_meta_replay.py)。
 
 **开发步骤：**
 

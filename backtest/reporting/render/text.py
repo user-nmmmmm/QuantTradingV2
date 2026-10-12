@@ -442,7 +442,7 @@ class ReportWritersMixin:
 
     @staticmethod
     def _write_diagnostics_section(f, diagnostics: Optional[Dict[str, Any]]) -> None:
-        """结果可信度诊断（core.diagnostics）。
+        """结果可信度诊断（core.analytics.diagnostics）。
 
         与上面的绩效分节不同，本节回答的是「这个业绩数字能不能信」以及
         「系统的实际行为是否和代码描述一致」，因此即使收益为正也可能给出警告。

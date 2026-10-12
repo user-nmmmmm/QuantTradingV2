@@ -4,10 +4,10 @@ import pandas as pd
 波动率类扩展指标：肯特纳通道（Keltner Channel）。
 
 说明：
-- ATR/布林带已在 core.indicators.Indicators 中实现，这里复用 ATR，避免重复定义。
+- ATR/布林带已在 core.analytics.indicators.Indicators 中实现，这里复用 ATR，避免重复定义。
 """
 
-from core.indicators import Indicators
+from core.analytics.indicators import Indicators
 
 
 class VolatilityFactors:

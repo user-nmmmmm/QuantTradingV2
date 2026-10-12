@@ -31,7 +31,7 @@
 | 下单前现金校验 | 做多必须由自由现金全额覆盖；做空仍为 `not_modeled` |
 | 仓位削减（clamp） | 超限削减到上限而非拒单，含尘埃过滤 |
 | 状态机四状态互斥 | `VOLATILE` 不再吞并趋势 bar |
-| 结果可信度诊断 | `core/diagnostics.py`：集中度/出场归因/生命周期覆盖/逐年/连亏 |
+| 结果可信度诊断 | `core/analytics/diagnostics.py`：集中度/出场归因/生命周期覆盖/逐年/连亏 |
 | 跨机器基线 | 容差比较取代逐字节比较；绘图钉死 Agg 后端 |
 
 **测试基线**：Linux（CI 环境）323 passed / 1 skipped / 0 failed，覆盖率 84.6%。
@@ -174,7 +174,7 @@ clamp 语义、四状态定义、`not_modeled` 口径。目标是让报告里每
 
 ### S1-4 指标库扩展 P3
 
-`core/indicators.py` 目前仅 SMA/EMA/ATR/ADX/BBANDS。按需补充
+`core/analytics/indicators.py` 目前仅 SMA/EMA/ATR/ADX/BBANDS。按需补充
 RSI/MACD/ROC（动量）、OBV/VWAP/MFI（量能）、历史波动率/EWMA vol（波动）。
 每个指标需边界测试（NaN 前缀、与参考实现对拍、输入只读）。
 

@@ -324,7 +324,7 @@ FIX-14/18/19/20的原始中间源码清单无法全部从现有冻结目录恢�
 | ID | 当前实现与验收证据 |
 | --- | --- |
 | M-01 | `tests/test_backtest_regression.py` 固定 fixtures、结构化事实包及连续运行一致性。 |
-| M-02 | `core/metric_result.py` 提供 `MetricResult`、明确状态和 JSON Schema，区分零值与不可计算。 |
+| M-02 | `core/analytics/metric_result.py` 提供 `MetricResult`、明确状态和 JSON Schema，区分零值与不可计算。 |
 | M-03 | `research/audit/ledger.py` 提供离线研究与对账的可重建 fill、费用、现金、仓位和已实现 PnL 投影；它不接管实盘或回测的账户持仓事实。 |
 | M-04 | `core/broker/cost_model.py` 统一成本语义；缺失的资金/借券成本显式标为 `not_modeled`。 |
 | M-05 | `PortfolioProjection.reconcile` 和现金充足性检查覆盖组合级对账。 |

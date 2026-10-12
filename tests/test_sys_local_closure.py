@@ -29,7 +29,7 @@ from core.trading.sqlite_backup import SQLiteSnapshotManager, restore_snapshot
 from core.trading.sqlite_utils import DatabaseIntegrityError
 from core.trading.state import MarketState
 from core.trading.state_store_v2 import StateStore
-from core.strategy_health import HealthStatus
+from core.analytics.strategy_health import HealthStatus
 from live_trading.execution_adapter import RecordedExecutionAdapter
 from router.router import Router
 from tests.engine_baseline_harness import build_synthetic_data_map

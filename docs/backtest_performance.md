@@ -15,7 +15,7 @@
 
 ### 改动
 
-1. `core/benchmarks.py`：动态等权基准使用预分配 NumPy 数组计算，最后一次性构造 pandas 输出，省去逐时间点创建 Series、标签对齐和赋值的开销。保留原来的权重漂移、现金换手、费用、缺失行情和预热规则。
+1. `core/analytics/benchmarks.py`：动态等权基准使用预分配 NumPy 数组计算，最后一次性构造 pandas 输出，省去逐时间点创建 Series、标签对齐和赋值的开销。保留原来的权重漂移、现金换手、费用、缺失行情和预热规则。
 2. `backtest/reporting/__init__.py`：默认 `workbook` 模式直接生成 Excel 原生图表，跳过随后会删除的四张 PNG、文本报告及原始行情/交易/基准 CSV。最终工作簿、指标与核对 JSON、平仓交易 CSV 继续输出；旧产物清理及 `compact` / `full` 模式保持原行为。
 3. `analysis/optimize.py`：候选评分只使用账户绝对指标，因此关闭不会返回给调用方的基准计算。
 4. `analysis/walk_forward.py`：窗口默认跳过不使用的基准计算；显式传入 `engine_kwargs={"calculate_benchmarks": True}` 仍会计算基准。

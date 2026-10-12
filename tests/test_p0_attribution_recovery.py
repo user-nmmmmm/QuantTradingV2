@@ -5,7 +5,7 @@ from tests.synthetic_health_policy import synthetic_health_policy
 import pytest
 
 from core.trading.entry_audit import capture, note, reconcile, forced_trade_cost
-from core.strategy_health import StrategyHealthMachine, StrategyHealthPolicy, HealthStatus
+from core.analytics.strategy_health import StrategyHealthMachine, StrategyHealthPolicy, HealthStatus
 from tests.test_health_extended_recovery import close
 
 

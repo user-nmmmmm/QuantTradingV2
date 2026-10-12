@@ -33,7 +33,8 @@
 | B1 | 14 个信号元层模块（约 3500 行）移到顶层包 `signal_meta/`（ADR 0011）；回放指纹键保持旧名并有测试；身份报告：移动 14 个、仅导入变化 5 个 | 已完成 | #72、#74 |
 | B2-1 | `core/market/`：17 个行情与时间/标的模块（ADR 0012）；`request_budget` 的仓库根路径修正并有测试 | 已完成 | #72、#73、#74 |
 | B2-2 | `core/trading/`：20 个订单、保护单、账户与状态存储模块（ADR 0013） | 已完成 | #74 |
-| B2-3 | `core/planning/`：7 个选币、打分、分配与目标仓位模块；`portfolio`、`valuation` 并入 `core/trading/`（ADR 0014） | 已完成 | 本 PR |
+| B2-3 | `core/planning/`：7 个选币、打分、分配与目标仓位模块；`portfolio`、`valuation` 并入 `core/trading/`（ADR 0014） | 已完成 | #75 |
+| B2-4 | `core/analytics/`：7 个审计、诊断、健康与指标模块（ADR 0015） | 已完成 | 本 PR |
 | A4 | 绑定记录 `release-bound-identity/v1`、`--bind-release/--verify-binding`（ADR 0010）；旧记录不动。真正的新身份登记留到整理完成后 | 已完成 | 本 PR |
 
 当前规模（`main`，2026-10-12）：`core/` 78 个平铺模块 + 7 个子包；246 个测试文件、约 3945 个测试，CI 并行约 3 分钟；覆盖率 89.1%；ruff 621、mypy 869 项存量；`BacktestEngine.run` 所在文件 1296 行，`main.py` 1126 行；5 个 mixin 类；`scripts/` 97 个脚本；0 个发布标签。
@@ -98,7 +99,7 @@
 | G0 | **已决：顺延** | ADR 0008；旧身份与 `main` 已相差 536 个文件且配置已变；整理后重新登记 |
 | A1–A4 | 已完成（本 PR 合并后生效） | 唯一遗留：首个标签 `v3.0.0` 要在合并后由仓库所有者创建并推送（见[发布约定](releasing.md) §3），之后可用 `--base v3.0.0`；新身份的登记本身仍在整理完成之后 |
 | B1 | 已完成（ADR 0011，已合并 #74） | `temporal_data` 留在 `core`（现为 `core/market/`）；`core/` 平铺模块 78 → 64 |
-| B2 | 进行中：第 1–3 簇 `core/market/`、`core/trading/`、`core/planning/` 已完成（ADR 0012–0014；前两簇已合并 #74）；其余簇：指标与审计、基础件 | `core/` 平铺模块 63 → 17 |
+| B2 | 进行中：第 1–4 簇 `core/market/`、`core/trading/`、`core/planning/`、`core/analytics/` 已完成（ADR 0012–0015；前三簇已合并 #74、#75）；其余簇：基础件 | `core/` 平铺模块 63 → 10 |
 | B3–B5 | 未开始（须在新身份登记前完成） | B1 的依赖图分析已做过：14 个模块、约 3500 行、导入点约 61 处，`temporal_data` 必须留在 `core`；`backtest/signal_meta_replay.py` 的指纹键需保持旧名 |
 | C1 | 已约定、未写入 CONTRIBUTING | 每个 PR 顺手减少触碰文件的存量 |
 | C2–C5 | 未开始 | C2 的可疑模式清单已在 `docs/quality.md` |

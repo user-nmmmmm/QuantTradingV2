@@ -11,7 +11,7 @@ from typing import Dict, Iterable, List, Optional
 import numpy as np
 import pandas as pd
 
-from core.indicators import Indicators
+from core.analytics.indicators import Indicators
 from core.market.data_fetcher import DataFetcher
 from core.runtime import MarketDataSlice
 from core.market.timeframes import closed_bars

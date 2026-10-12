@@ -16,7 +16,7 @@ from core.risk.circuit_breaker import BreakerAction
 from core.risk.portfolio_governor import CorrelationClusterPolicy, PortfolioRiskGovernor
 from core.trading.state import MarketState
 from ops.strategy_governance import GovernanceError, assert_live_admission
-from core.strategy_health import HealthStatus, StrategyHealthPolicy
+from core.analytics.strategy_health import HealthStatus, StrategyHealthPolicy
 from strategies.trend_breakout import TrendBreakoutStrategy
 from strategies.trend_portfolio_v2 import TrendPortfolioV2Strategy
 

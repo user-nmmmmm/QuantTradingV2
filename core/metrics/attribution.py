@@ -7,7 +7,7 @@ from typing import Any, Dict, Iterable, Mapping
 import numpy as np
 import pandas as pd
 
-from core.strategy_health import (
+from core.analytics.strategy_health import (
     CONTROLLER_ACCOUNT_RISK,
     CONTROLLER_STRATEGY,
     classify_exit_controller,

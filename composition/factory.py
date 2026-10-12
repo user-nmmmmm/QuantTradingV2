@@ -10,7 +10,7 @@ from core.planning.candidate_scoring import CandidateScorePolicy
 from core.trading.position_management import CapitalAllocationPolicy
 from core.risk.portfolio_governor import CorrelationClusterPolicy, PortfolioRiskGovernor
 from core.trading.protective_stops import ProtectiveStopPolicy
-from core.strategy_health import StrategyHealthPolicy
+from core.analytics.strategy_health import StrategyHealthPolicy
 from core.trading.state import MarketState, MarketStateMachine
 from router.router import Router
 from strategies.base import Strategy
