@@ -11,7 +11,7 @@ from config.config import config
 from live_trading.engine import LiveTradingEngine
 from core.domain import PortfolioSnapshot
 from core.trading.order_latency import OrderLatencyRecorder
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from core.risk import RiskManager
 
 

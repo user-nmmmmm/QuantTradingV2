@@ -2,7 +2,7 @@
 
 > 文档状态：Active v1.0
 > 生效日期：2026-09-01
-> 实现：[`core/candidate_scoring.py`](../core/candidate_scoring.py)、[`core/risk/portfolio_governor.py`](../core/risk/portfolio_governor.py)、[`core/trading/account_cost_contract.py`](../core/trading/account_cost_contract.py)、[`core/allocation.py`](../core/allocation.py)
+> 实现：[`core/planning/candidate_scoring.py`](../core/planning/candidate_scoring.py)、[`core/risk/portfolio_governor.py`](../core/risk/portfolio_governor.py)、[`core/trading/account_cost_contract.py`](../core/trading/account_cost_contract.py)、[`core/planning/allocation.py`](../core/planning/allocation.py)
 > 测试：[`tests/test_sr3_portfolio_risk.py`](../tests/test_sr3_portfolio_risk.py)
 > 上位文档：[`current_strategy_remediation_roadmap.md`](archive/2026-10-doc-consolidation/current_strategy_remediation_roadmap.md) SR3
 

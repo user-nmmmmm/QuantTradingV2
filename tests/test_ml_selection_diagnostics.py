@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from core.allocation import EntryCandidate
+from core.planning.allocation import EntryCandidate
 from core.trading.entry_audit import capture, note
 from core.runtime import EventProcessor, MarketDataSlice
 from core.reproducibility import canonical_json, sha256_file
@@ -86,7 +86,7 @@ def test_exit_origin_prefers_engine_identity_and_keeps_unknown_explicit(detail, 
 
 def test_real_broker_partial_fills_shared_exit_and_terminal_close_keep_lot_quantities():
     from core.broker import Broker
-    from core.portfolio import Portfolio
+    from core.trading.portfolio import Portfolio
 
     symbol = "BTC/USDT"
     portfolio = Portfolio(10_000.)

@@ -9,7 +9,7 @@ import pytest
 from backtest.engine import BacktestEngine
 from core.accounting_check import AccountingReconciler
 from core.trading.lots import CloseEvent
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from tests.engine_baseline_harness import DEFAULT_WARMUP_PERIOD, build_synthetic_data_map
 
 

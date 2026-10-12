@@ -19,7 +19,7 @@ from analysis.research_validation import (
     purged_cv_indices,
     walk_forward_splits,
 )
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from core.trading.state import MarketState
 from strategies.mean_reversion import RangeStrategy
 from strategies.trend_breakout import TrendBreakoutStrategy

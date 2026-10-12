@@ -20,7 +20,7 @@ from core.trading.protective_stops import (
     plan_initial_stop,
     update_trailing_stop,
 )
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from core.trading.state import MarketState
 from strategies.trend_breakout import TrendBreakoutStrategy
 

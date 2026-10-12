@@ -10,7 +10,7 @@ from core.domain import FillRecord
 from core.live_broker.safe import SafeLiveBroker
 from core.live_safety import StartupSafetyPolicy
 from core.trading.order_store import OrderStore
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from core.trading.protective_orders import ProtectiveState
 from core.risk.persistent_guard import PersistentOrderSafetyGuard
 from live_trading.tick_orchestrator import TickOrchestratorMixin

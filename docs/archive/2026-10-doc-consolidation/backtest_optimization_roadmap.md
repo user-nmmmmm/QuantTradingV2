@@ -26,8 +26,8 @@
 | ID | 问题 | 根因位置 | 影响 | 优先级 |
 | --- | --- | --- | --- | --- |
 | B-01 | ~~GTC 限价单永不失效，reservation 泄漏 → 标的锁死~~（已修：`execution.opening_order_ttl_bars`） | `core/broker/matching.py`、`core/risk/reservation.py` | 策略长期不交易，结果失真 | **P0** |
-| B-02 | 无现金充足校验，账户可为负现金 | `core/risk/__init__.py:128-216`、`core/portfolio.py:59-67` | 产生真实中不可能的结果 | **P0** |
-| B-03 | 做空免费（无抵押/借券/资金费） | `core/portfolio.py` 符号化多空 | 空头 alpha 被高估 | P1 |
+| B-02 | 无现金充足校验，账户可为负现金 | `core/risk/__init__.py:128-216`、`core/trading/portfolio.py:59-67` | 产生真实中不可能的结果 | **P0** |
+| B-03 | 做空免费（无抵押/借券/资金费） | `core/trading/portfolio.py` 符号化多空 | 空头 alpha 被高估 | P1 |
 | B-04 | 止损不按触发价成交，延迟一整根 bar | `strategies/*` `should_exit` + `core/broker/__init__.py:348-352`（STOP 未用） | 回撤/盈亏失真 | P1 |
 | B-05 | 熔断强平是 Next-Bar 且被成交量限速 | `backtest/engine.py:115-128` | 极端行情回撤被低估 | P1 |
 | B-06 | 成交量双重 1% 限速，大单被拆 100+ 根 | `backtest/engine.py:72-75`、`core/risk/__init__.py:161-166` | 成交价系统性偏离信号价 | P1 |

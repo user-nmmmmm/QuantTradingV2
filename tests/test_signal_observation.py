@@ -17,7 +17,7 @@ from backtest.signal_ghost import replay_ghosts
 from composition.factory import build_strategy_registry, build_state_machine, build_risk_manager
 from config.config import config
 from core.broker import Broker
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from core.runtime import MarketDataSlice
 from core.market.market_data import HistoricalMarketDataAdapter
 from core.reproducibility import deterministic_result_digest

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import pandas as pd
 
 from config.config import config
-from core.allocation import (
+from core.planning.allocation import (
     EntryCandidate,
     PortfolioSignalAllocator,
     joint_entry_exit_attribution,

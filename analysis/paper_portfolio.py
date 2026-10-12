@@ -16,8 +16,8 @@ import numpy as np
 import pandas as pd
 
 from core.broker import Broker
-from core.cost_aware_allocation import cost_aware_target
-from core.portfolio import Portfolio
+from core.planning.cost_aware_allocation import cost_aware_target
+from core.trading.portfolio import Portfolio
 
 
 @dataclass(frozen=True)

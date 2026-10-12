@@ -25,7 +25,7 @@ from core.market.market_data import HistoricalMarketDataAdapter, LiveMarketDataA
 from composition.factory import build_router, build_state_machine, build_strategy_registry, build_risk_manager
 from config.config import config
 from core.broker import Broker
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from core.runtime import EventProcessor
 
 

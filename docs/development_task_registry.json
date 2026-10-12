@@ -2979,7 +2979,7 @@
       ],
       "files": [
         "core/trading/lots.py",
-        "core/portfolio.py",
+        "core/trading/portfolio.py",
         "backtest/reporting/trades.py",
         "research/audit/ledger.py"
       ],
@@ -3120,7 +3120,7 @@
       "files": [
         "core/live_broker/account_sync.py",
         "live_trading/recovery.py",
-        "core/portfolio.py",
+        "core/trading/portfolio.py",
         "research/audit/reconciliation_job.py",
         "core/trading/account_source.py",
         "live_trading/tick_orchestrator.py",
@@ -3381,7 +3381,7 @@
         "core/risk/drawdown_budget.py",
         "core/risk/portfolio_governor.py",
         "core/risk/reservation.py",
-        "core/allocation.py",
+        "core/planning/allocation.py",
         "live_trading/risk_actions.py"
       ],
       "compatibility": "复用9月14日合同，不调整阈值；旧动作迁移先备份再校验目标身份。",
@@ -3915,7 +3915,7 @@
       "files": [
         "core/market/universe.py",
         "core/factors",
-        "core/allocation.py",
+        "core/planning/allocation.py",
         "router/router.py"
       ],
       "compatibility": "默认关闭，新参数及输出schema有版本；保留原固定symbols行为。",
@@ -4001,7 +4001,7 @@
       "files": [
         "core/risk/position_sizing.py",
         "core/risk/portfolio_governor.py",
-        "core/allocation.py"
+        "core/planning/allocation.py"
       ],
       "compatibility": "新策略显式opt-in，不用回测最优参数替换既有生产风险配置。",
       "owner_role": "领域内核与报告",
@@ -4084,7 +4084,7 @@
       ],
       "files": [
         "core/trading/account_cost_contract.py",
-        "core/portfolio.py",
+        "core/trading/portfolio.py",
         "core/broker/financing.py",
         "core/exchange",
         "strategies"

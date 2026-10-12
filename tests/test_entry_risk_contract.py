@@ -8,12 +8,12 @@ import pytest
 
 from backtest.engine import BacktestEngine
 from backtest.execution_adapter import SimulatedExecutionAdapter
-from core.allocation import EntryCandidate
+from core.planning.allocation import EntryCandidate
 from core.broker import Broker
 from core.domain import OrderIntent, OrderStatus, RiskDecision, RiskReservation
 from core.trading.entry_risk import resolve_approved_risk
 from core.trading.order_store import OrderStore
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from core.trading.protective_stops import EntryRiskPolicy, evaluate_fill_risk
 from core.risk import RiskManager
 from core.risk.circuit_breaker import BreakerAction

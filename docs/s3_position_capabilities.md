@@ -2,7 +2,7 @@
 
 生效日期：2026-09-20。对应 [统一 Roadmap 第 6 节](unified_roadmap.md#6-策略与能力支线)、[SYS-13](development_details.md#sys-13)，并依赖 SYS-02 / SYS-07 / SYS-08 / FIX-08。此记录描述新增的纯决策能力及专项验收，不替代现有风险批准、预算预留、交易账本、健康裁决或实际执行。
 
-实现入口为 [core/target_position.py](../core/target_position.py)，专项验证为 [tests/test_s3_target_position.py](../tests/test_s3_target_position.py)。现有策略和引擎没有自动启用本模块；波动率策略 `VolatilityPolicy.enabled` 默认为 `False`。
+实现入口为 [core/planning/target_position.py](../core/planning/target_position.py)，专项验证为 [tests/test_s3_target_position.py](../tests/test_s3_target_position.py)。现有策略和引擎没有自动启用本模块；波动率策略 `VolatilityPolicy.enabled` 默认为 `False`。
 
 ## 输入、输出和公式
 

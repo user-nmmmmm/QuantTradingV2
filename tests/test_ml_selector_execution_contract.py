@@ -10,7 +10,7 @@ import pytest
 
 from backtest.engine import BacktestEngine
 from config.config import config
-from core.allocation import EntryCandidate, PortfolioSignalAllocator
+from core.planning.allocation import EntryCandidate, PortfolioSignalAllocator
 from core.runtime import EventProcessor, MarketDataSlice, validate_selector_execution_path
 from research.ml_selection.dataset import FEATURE_COLUMNS
 from research.ml_selection.selector import (

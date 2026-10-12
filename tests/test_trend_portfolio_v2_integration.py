@@ -9,7 +9,7 @@ import pytest
 from composition.factory import build_router, build_strategy_registry
 from config.config import config
 from core.broker import Broker
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from core.trading.protective_stops import ProtectiveStopPolicy
 from core.risk import RiskManager
 from core.risk.circuit_breaker import BreakerAction

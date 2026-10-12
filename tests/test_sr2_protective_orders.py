@@ -14,7 +14,7 @@ import pandas as pd
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from core.domain import OrderStatus
 from core.trading.protective_orders import (
     ProtectiveAction,

@@ -8,8 +8,8 @@ from backtest.protective_stops import ResidentStopSimulator
 from core.broker import Broker
 from core.domain import OrderStatus
 from core.trading.margin_rebalance import MarginBudgetSnapshot, MarginQuote, plan_margin_rebalance, plan_margin_targets
-from core.portfolio import Portfolio
-from core.portfolio_target_controller import PortfolioTargetController
+from core.trading.portfolio import Portfolio
+from core.planning.portfolio_target_controller import PortfolioTargetController
 from core.market.quote_borrow import QuoteBorrowFact, QuoteBorrowPolicy
 from core.risk import BreakerAction, RiskManager
 from core.runtime import EventProcessor, MarketDataSlice

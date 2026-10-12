@@ -23,7 +23,7 @@ from core.exchange import (
     PositionParser,
 )
 from core.live_broker import LiveBroker
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 
 
 NOW = datetime(2026, 8, 8, 12, 0, tzinfo=timezone.utc)

@@ -2,7 +2,7 @@ import unittest
 
 import pandas as pd
 
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from core.trading.state import MarketState
 from strategies.trend_breakout import TrendBreakdownStrategy
 

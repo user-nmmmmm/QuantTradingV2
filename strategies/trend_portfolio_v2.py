@@ -11,9 +11,9 @@ from typing import Any, Dict, Optional, Sequence
 import numpy as np
 import pandas as pd
 
-from core.candidate_scoring import ScoreBreakdown
+from core.planning.candidate_scoring import ScoreBreakdown
 from core.trading.entry_audit import note
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from core.trading.protective_stops import ProtectiveStopPolicy
 from core.risk import RiskManager
 from core.trading.state import MarketState

@@ -13,7 +13,7 @@ from core.domain import SyncResult
 from core.live_safety import StartupSafetyPolicy
 from core.trading.order_store import OrderStore
 from core.risk.persistent_guard import PersistentOrderSafetyGuard
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from core.risk import RiskManager
 from core.trading.sqlite_utils import DatabaseIntegrityError
 from core.trading.state_store_v2 import StateStore

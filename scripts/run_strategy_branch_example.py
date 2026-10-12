@@ -16,10 +16,10 @@ ROOT = Path(__file__).resolve().parents[1]
 import pandas as pd
 
 from core.broker import Broker
-from core.portfolio import Portfolio
-from core.selection import (DataProvenance, ExecutionQuote, FactorObservation, MembershipFact,
+from core.trading.portfolio import Portfolio
+from core.planning.selection import (DataProvenance, ExecutionQuote, FactorObservation, MembershipFact,
     RebalancePolicy, SelectionPolicy, plan_rebalance, select_targets, selection_input_digest)
-from core.target_position import VolatilityPolicy, volatility_target_weight
+from core.planning.target_position import VolatilityPolicy, volatility_target_weight
 
 
 def run_example():

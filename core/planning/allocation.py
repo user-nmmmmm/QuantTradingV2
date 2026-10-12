@@ -76,7 +76,7 @@ class PortfolioSignalAllocator:
     SR3-1 (STR-P1-03): every candidate used to carry ``score=0``, so when
     capital ran out the surviving order was the alphabetical tie-break -
     an undisclosed "BTC before ETH" allocation rule masquerading as ranking.
-    Scores are now real (see ``core.candidate_scoring``), and a batch that
+    Scores are now real (see ``core.planning.candidate_scoring``), and a batch that
     still ties is reported as ``ordering=tie_break_alphabetical`` instead of
     passing silently.
 

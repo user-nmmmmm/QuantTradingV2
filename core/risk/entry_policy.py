@@ -14,7 +14,7 @@ from core.trading.entry_audit import note
 from core.trading.entry_risk import resolve_approved_risk
 from core.events import TradingEventPipeline, stable_uuid5
 from core.logger import get_logger
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from core.risk.reservation import RiskReservationProjection
 
 logger = get_logger(__name__)

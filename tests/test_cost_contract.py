@@ -16,7 +16,7 @@ import pytest
 from backtest.reporting import ReportGenerator
 from core.broker import Broker
 from core.metrics import calculate_cost_sensitivity
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 
 
 class TestCostFieldContract:

@@ -159,7 +159,7 @@ def attainable_market_symbols(frames, metadata):
     This is a research preflight diagnostic, never a symbol-selection input.
     It does not promise positive momentum or future profitable recovery cohorts.
     """
-    from core.selection_v2 import SelectionPolicyV2, _metadata_reasons
+    from core.planning.selection_v2 import SelectionPolicyV2, _metadata_reasons
     policy = SelectionPolicyV2()
     possible = []
     for symbol, frame in frames.items():
@@ -185,10 +185,10 @@ def attainable_market_symbols(frames, metadata):
 
 
 def make_controller(strategy, metadata, spec, quote_borrow_facts=()):
-    from core.portfolio_target_controller import PortfolioTargetController
+    from core.planning.portfolio_target_controller import PortfolioTargetController
     from core.market.quote_borrow import QuoteBorrowFact, QuoteBorrowPolicy
     from core.risk.portfolio_governor import CorrelationClusterPolicy
-    from core.selection_v2 import SelectionPolicyV2, select_all_qualified, size_portfolio_targets
+    from core.planning.selection_v2 import SelectionPolicyV2, select_all_qualified, size_portfolio_targets
 
     policy = replace(getattr(strategy, "selection_policy", SelectionPolicyV2()),
         variant=spec["variant"], horizons=tuple(spec["horizons"]),

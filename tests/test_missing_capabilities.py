@@ -15,7 +15,7 @@ from core.live_safety import SafetyConfigurationError, StartupSafetyPolicy
 from core.metric_result import MetricResult
 from ops.supervisor import RestartPolicy, supervise
 from composition.factory import build_strategy_registry
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from strategies.statistical_arbitrage import PairsTradingModel
 from strategies.volatility import VolatilityReversionStrategy
 

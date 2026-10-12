@@ -1,7 +1,7 @@
 """Credential-gated, read-only exchange sandbox smoke test."""
 import os, unittest
 from core.live_broker import LiveBroker
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 @unittest.skipUnless(os.getenv("QUANT_SANDBOX_E2E") == "1" and os.getenv("EXCHANGE_API_KEY") and os.getenv("EXCHANGE_SECRET"), "sandbox credentials not enabled")
 class ExchangeSandboxEndToEndTests(unittest.TestCase):
     def test_authenticated_sync_and_public_market_read(self):

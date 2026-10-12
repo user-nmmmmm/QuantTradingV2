@@ -4,7 +4,7 @@ from dataclasses import replace
 
 import pytest
 
-from core.selection import (
+from core.planning.selection import (
     DataProvenance, ExecutionQuote, FactorObservation, MembershipFact,
     RebalancePolicy, SelectionPolicy, plan_rebalance, select_targets,
     selection_input_digest,

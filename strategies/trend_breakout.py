@@ -20,9 +20,9 @@ from typing import Dict, Any, Optional
 import pandas as pd
 from core.trading.state import MarketState
 from core.trading.entry_audit import note
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from core.factors import VolumeFactors
-from core.candidate_scoring import (
+from core.planning.candidate_scoring import (
     CandidateScorePolicy,
     score_breakout_candidate,
 )

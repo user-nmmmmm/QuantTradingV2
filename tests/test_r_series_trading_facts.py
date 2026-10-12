@@ -11,7 +11,7 @@ from backtest.reporting.trades import TradeReconstructionMixin
 from config.config import config
 from core.trading.accounts import AccountMode
 from core.broker import Broker, BacktestOrderStatus
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from core.risk import RiskManager
 from core.risk.actions import RiskActionPlan
 from core.trading.state import MarketState

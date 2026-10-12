@@ -12,7 +12,7 @@ from core.market.derivatives_data import (
     DerivativesBundle, LinearContractSpec, load_derivatives_bundle,
     merge_derivative_features, replay_funding_settlements, validate_settlements,
 )
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 
 
 def spec(**kwargs):

@@ -7,7 +7,7 @@ hand-calculated quantity/cost assertions.
 import pytest
 
 from core.trading.lots import LotBook
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from core.trading.protective_orders import authoritative_position_ids
 
 

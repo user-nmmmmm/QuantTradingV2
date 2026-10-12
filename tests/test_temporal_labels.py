@@ -277,7 +277,7 @@ def test_observer_initial_marker_strict_routing_and_legacy_payload_shape():
     data = reader()
     first = event(data, "2020-01-02")
     strict.advance(first)
-    from core.portfolio import Portfolio
+    from core.trading.portfolio import Portfolio
     from core.risk import RiskManager
     strict.observe(first, "X", portfolio=Portfolio(10000), risk_manager=RiskManager(),
                    router=SimpleNamespace(regime_map={}), audit={})
@@ -293,7 +293,7 @@ def test_observer_initial_marker_strict_routing_and_legacy_payload_shape():
 def test_producer_payload_passes_training_contract_and_latest_invalid_revision_blocks_old_label():
     from signal_meta.signal_meta_layer import _validate_input
     from signal_meta.signal_label_versions import OutcomeRevisionBook
-    from core.portfolio import Portfolio
+    from core.trading.portfolio import Portfolio
     from core.risk import RiskManager
 
     state = SimpleNamespace(get_states=lambda frame: frame.__setitem__("market_state", MarketState.TREND_UP))

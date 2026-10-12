@@ -6,9 +6,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from core.cost_aware_allocation import CostAwareAllocationPolicy, allocate_cost_aware
-from core.selection_v2 import select_all_qualified, size_portfolio_targets
-from core.portfolio_target_controller import PortfolioTargetController
+from core.planning.cost_aware_allocation import CostAwareAllocationPolicy, allocate_cost_aware
+from core.planning.selection_v2 import select_all_qualified, size_portfolio_targets
+from core.planning.portfolio_target_controller import PortfolioTargetController
 from tests.test_trend_portfolio_v3 import frame, metadata, selection
 from tests.test_v3_portfolio_execution import (
     SYMBOL, Strategy, bars, event, process, setup_controller,
