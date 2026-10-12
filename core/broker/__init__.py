@@ -19,12 +19,10 @@ Split by change reason (A4) — see docs/architecture_review.md:
 - core/broker/financing.py    — perpetual funding / margin-short borrow accrual
 - core/broker/liquidation.py  — forced position reduction
 
-``Broker`` composes the four mixins below via inheritance rather than
-holding separate collaborator objects, so every method still reads/writes
-the exact same ``self`` attributes as before the split — behavior-identical,
-mechanical. A true composition redesign is a bigger change on this
-money-path-adjacent code and is deliberately left for a dedicated pass, not
-bundled into this file-size cleanup. ``Order``, ``OrderType``,
+``Broker`` holds the four collaborators below (``_matching``, ``_fill_service``, ``_financing``,
+``_liquidation``) and forwards their methods with the same signatures. The collaborators reach the shared
+state through their ``host`` reference, so behavior is identical to the former mixins (B4, ADR 0018).
+``Order``, ``OrderType``,
 ``TimeInForce``, and ``BacktestOrderStatus`` are re-exported unchanged since
 they're part of this module's public API.
 """
@@ -33,15 +31,19 @@ from typing import Dict, Any, List, Optional
 import pandas as pd
 
 from core.broker.types import BacktestOrderStatus, Order, OrderType, TimeInForce
-from core.broker.matching import MatchingMixin
-from core.broker.fill_service import FillServiceMixin
-from core.broker.financing import FinancingMixin
-from core.broker.liquidation import LiquidationMixin
+from core.broker.matching import Matching
+from core.broker.fill_service import FillService
+from core.broker.financing import Financing
+from core.broker.liquidation import Liquidation
 from core.events import TradingEventPipeline
 from core.foundation.logger import get_logger
 from core.trading.lots import CloseEvent
 from core.trading.portfolio import Portfolio
 from core.risk.reservation import RiskReservationProjection
+from core.foundation.domain import OrderIntent
+from datetime import datetime
+from typing import Callable
+from typing import Iterable
 
 logger = get_logger(__name__)
 
@@ -50,7 +52,7 @@ __all__ = [
 ]
 
 
-class Broker(MatchingMixin, FillServiceMixin, FinancingMixin, LiquidationMixin):
+class Broker:
     def __init__(
         self,
         portfolio: Portfolio,
@@ -76,6 +78,10 @@ class Broker(MatchingMixin, FillServiceMixin, FinancingMixin, LiquidationMixin):
         account_id: str = "backtest",
         timeframe: str = "unknown",
     ):
+        self._matching = Matching(self)
+        self._fill_service = FillService(self)
+        self._financing = Financing(self)
+        self._liquidation = Liquidation(self)
         self.portfolio = portfolio
         self.event_pipeline = event_pipeline or TradingEventPipeline()
         self.reservation_projection = RiskReservationProjection(self.event_pipeline)
@@ -120,7 +126,7 @@ class Broker(MatchingMixin, FillServiceMixin, FinancingMixin, LiquidationMixin):
         # Participation cap state: the bar each symbol's budget was sized on
         # and how much of it is left. Tracked on the broker rather than inside
         # process_orders because that runs several times per bar (see
-        # MatchingMixin._bar_volume_budget).
+        # Matching._bar_volume_budget).
         self._volume_budget: Dict[str, float] = {}
         self._volume_budget_bar: Dict[str, Any] = {}
         self._last_funding_bucket: Dict[str, int] = {}
@@ -142,3 +148,148 @@ class Broker(MatchingMixin, FillServiceMixin, FinancingMixin, LiquidationMixin):
         self.active_orders: List[
             Order
         ] = []  # Orders that persist across bars (Limit/Stop)
+
+    QUOTE_BORROW_SYMBOL = Financing.QUOTE_BORROW_SYMBOL
+
+    def submit_order(
+        self,
+        symbol: str,
+        side: str,
+        qty: float,
+        price: Optional[float] = None,
+        order_type: str = 'market',
+        timestamp: Any = None,
+        slippage: float = 0.0,
+        strategy_id: str = 'Manual',
+        exit_reason: str = 'signal',
+        time_in_force: str = 'GTC',
+        expire_time: Any = None,
+        sequence: Optional[int] = None,
+        _intent: Optional[OrderIntent] = None,
+        stop_loss: float = 0.0,
+        zero_cost: bool = False,
+        risk_action_id: Optional[str] = None,
+        approved_risk_amount: Optional[float] = None,
+        signal_id: Optional[str] = None,
+        causation_id: Optional[str] = None,
+        match_not_before: Any = None,
+    ) -> Order:
+        return self._matching.submit_order(
+            symbol,
+            side,
+            qty,
+            price,
+            order_type,
+            timestamp,
+            slippage,
+            strategy_id,
+            exit_reason,
+            time_in_force,
+            expire_time,
+            sequence,
+            _intent,
+            stop_loss,
+            zero_cost,
+            risk_action_id,
+            approved_risk_amount,
+            signal_id,
+            causation_id,
+            match_not_before,
+        )
+
+    def submit_intent(self, intent: OrderIntent) -> Order:
+        return self._matching.submit_intent(intent)
+
+    @staticmethod
+    def _event_time(value: Any) -> datetime:
+        return Matching._event_time(value)
+
+    @classmethod
+    def _iso_time(cls, value: Any) -> str:
+        return Matching._iso_time(value)
+
+    def _publish_order_event(self, order: Order, occurred_at: Any) -> None:
+        return self._matching._publish_order_event(order, occurred_at)
+
+    def _set_status(self, order: Order, status: Any, occurred_at: Any = None) -> None:
+        return self._matching._set_status(order, status, occurred_at)
+
+    def process_orders(
+        self,
+        current_bar: Dict[str, pd.Series],
+        *,
+        order_filter: Optional[Callable[[Order], bool]] = None,
+    ) -> List[Dict]:
+        return self._matching.process_orders(current_bar, order_filter=order_filter)
+
+    def _expire_aged_opening_order(self, order: Order, current_time: Any) -> bool:
+        return self._matching._expire_aged_opening_order(order, current_time)
+
+    def _bar_volume_budget(self, current_bar: Dict[str, pd.Series]) -> Dict[str, float]:
+        return self._matching._bar_volume_budget(current_bar)
+
+    def _audit_order(self, order: Order, timestamp: Any, outcome: str, reason: str, **details: Any) -> None:
+        return self._matching._audit_order(order, timestamp, outcome, reason, **details)
+
+    def has_active_open_order(self, symbol: str) -> bool:
+        return self._matching.has_active_open_order(symbol)
+
+    def pending_open_notional(self, current_prices: Optional[Dict[str, float]] = None) -> Dict[str, float]:
+        return self._matching.pending_open_notional(current_prices)
+
+    def cancel_opening_orders(self, symbols: Optional[Iterable[str]] = None, *, timestamp: Any = None) -> int:
+        return self._matching.cancel_opening_orders(symbols, timestamp=timestamp)
+
+    def cancel_protective_stops(self, symbols: Optional[Iterable[str]] = None) -> int:
+        return self._matching.cancel_protective_stops(symbols)
+
+    def cancel_symbol_orders(self, symbol: str) -> int:
+        return self._matching.cancel_symbol_orders(symbol)
+
+    def _execute_trade(
+        self,
+        order: Order,
+        price: float,
+        timestamp: Any,
+        fill_qty: float,
+        volume: float = 0,
+        is_maker: bool = False,
+        bar_context: Optional[pd.Series] = None,
+    ) -> Optional[Dict]:
+        return self._fill_service._execute_trade(
+            order,
+            price,
+            timestamp,
+            fill_qty,
+            volume,
+            is_maker,
+            bar_context,
+        )
+
+    def accrue_carry(self, current_bar: Dict[str, pd.Series]) -> List[Dict[str, Any]]:
+        return self._financing.accrue_carry(current_bar)
+
+    def _accrue_short_borrow(self, symbol, position, bar, timestamp):
+        return self._financing._accrue_short_borrow(symbol, position, bar, timestamp)
+
+    def _accrue_quote_borrow(self, current_bar: Dict[str, pd.Series]):
+        return self._financing._accrue_quote_borrow(current_bar)
+
+    def force_liquidate(
+        self,
+        current_bar: Dict[str, pd.Series],
+        *,
+        timestamp: Any,
+        reason: str = 'MarginLiquidation',
+        remaining_fraction: float = 0.0,
+        risk_action_id: Optional[str] = None,
+        scope_symbols: Optional[set[str]] = None,
+    ) -> List[Dict]:
+        return self._liquidation.force_liquidate(
+            current_bar,
+            timestamp=timestamp,
+            reason=reason,
+            remaining_fraction=remaining_fraction,
+            risk_action_id=risk_action_id,
+            scope_symbols=scope_symbols,
+        )

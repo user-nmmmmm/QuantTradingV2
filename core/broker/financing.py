@@ -1,8 +1,6 @@
 """Perpetual funding and margin-short borrow cost accrual.
 
-Split out of core/broker.py (A4) — see docs/architecture_review.md. See
-core/broker_matching.py's module docstring for why this is a mixin rather
-than a standalone collaborator object.
+Split out of core/broker.py (A4) — see docs/architecture_review.md. It is a collaborator held by ``Broker`` (B4, ADR 0018); see core/broker/matching.py for how it reaches the shared state.
 """
 from __future__ import annotations
 
@@ -12,12 +10,16 @@ import pandas as pd
 
 from core.trading.accounts import AccountMode
 from core.market.timeframes import timeframe_delta
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from core.broker import Broker
 
 
-class FinancingMixin:
+class Financing:
     """Historical funding/borrow accrual against open positions.
 
-    Expects ``self`` to carry ``portfolio``, ``_last_funding_bucket``,
+    Needs from the host: ``portfolio``, ``_last_funding_bucket``,
     ``_last_borrow_time``, ``funding_interval_hours``,
     ``funding_rate_required``, ``default_borrow_rate_annual``.
 
@@ -29,34 +31,38 @@ class FinancingMixin:
     :meth:`_accrue_quote_borrow`.
     """
 
+    def __init__(self, host: "Broker") -> None:
+        self._host = host
+
     def accrue_carry(self, current_bar: Dict[str, pd.Series]) -> List[Dict[str, Any]]:
         """Accrue historical perpetual funding and margin-short borrow costs."""
+        host = self._host
         entries = []
         # Also migrate restored clocks whose former short is already flat.
-        for symbol in list(self._last_borrow_time):
-            if symbol != self.QUOTE_BORROW_SYMBOL and self.portfolio.get_position(symbol)["qty"] >= 0:
-                self._last_borrow_time.pop(symbol, None)
+        for symbol in list(host._last_borrow_time):
+            if symbol != host.QUOTE_BORROW_SYMBOL and host.portfolio.get_position(symbol)["qty"] >= 0:
+                host._last_borrow_time.pop(symbol, None)
         seconds_per_year = 365.0 * 24.0 * 3600.0
-        for symbol, position in list(self.portfolio.positions.items()):
+        for symbol, position in list(host.portfolio.positions.items()):
             bar = current_bar.get(symbol)
             if bar is None or position["qty"] == 0:
                 continue
             timestamp = pd.Timestamp(bar.name)
             mark_price = float(bar.get("mark_price", bar.get("close", position["avg_price"])))
             notional = abs(position["qty"]) * mark_price
-            if self.portfolio.account_mode is AccountMode.PERPETUAL:
+            if host.portfolio.account_mode is AccountMode.PERPETUAL:
                 if bar.get("funding_settlement_mode") == "event_replay_required":
                     raise ValueError("explicit derivative data requires funding settlement/position-event replay; bar-end positions are insufficient")
-                timeframe = getattr(self, "timeframe", "unknown")
-                if timeframe != "unknown" and timeframe_delta(timeframe).total_seconds() > self.funding_interval_hours * 3600:
+                timeframe = getattr(host, "timeframe", "unknown")
+                if timeframe != "unknown" and timeframe_delta(timeframe).total_seconds() > host.funding_interval_hours * 3600:
                     raise ValueError("bar timeframe exceeds funding interval; use explicit funding settlement/position-event replay")
-                bucket_seconds = self.funding_interval_hours * 3600.0
+                bucket_seconds = host.funding_interval_hours * 3600.0
                 bucket = int(timestamp.timestamp() // bucket_seconds)
-                if bucket <= self._last_funding_bucket.get(symbol, bucket - 1):
+                if bucket <= host._last_funding_bucket.get(symbol, bucket - 1):
                     continue
                 rate_raw = bar.get("funding_rate")
                 if rate_raw is None or pd.isna(rate_raw):
-                    if self.funding_rate_required:
+                    if host.funding_rate_required:
                         raise ValueError(
                             f"missing funding_rate for perpetual position {symbol} at {timestamp}"
                         )
@@ -67,7 +73,7 @@ class FinancingMixin:
                     source = "historical_bar"
                 # Positive funding: longs pay, shorts receive.
                 amount = position["qty"] * mark_price * rate
-                entry = self.portfolio.apply_financing(
+                entry = host.portfolio.apply_financing(
                     timestamp=timestamp,
                     symbol=symbol,
                     kind="funding",
@@ -76,36 +82,37 @@ class FinancingMixin:
                     amount=amount,
                     source=source,
                 )
-                self._last_funding_bucket[symbol] = bucket
+                host._last_funding_bucket[symbol] = bucket
                 entries.append(entry.to_dict())
             elif (
-                self.portfolio.account_mode is AccountMode.SPOT_MARGIN
+                host.portfolio.account_mode is AccountMode.SPOT_MARGIN
                 and position["qty"] < 0
             ):
-                entry = self._accrue_short_borrow(symbol, position, bar, timestamp)
+                entry = host._accrue_short_borrow(symbol, position, bar, timestamp)
                 if entry is not None:
                     entries.append(entry)
-        quote_entry = self._accrue_quote_borrow(current_bar)
+        quote_entry = host._accrue_quote_borrow(current_bar)
         if quote_entry is not None:
             entries.append(quote_entry)
         return entries
 
     def _accrue_short_borrow(self, symbol, position, bar, timestamp):
         """Settle the old borrowed quantity before a fill changes that quantity."""
+        host = self._host
         timestamp = pd.Timestamp(timestamp)
-        previous = self._last_borrow_time.get(symbol)
+        previous = host._last_borrow_time.get(symbol)
         if previous is not None and timestamp <= previous:
             return None
-        self._last_borrow_time[symbol] = timestamp
+        host._last_borrow_time[symbol] = timestamp
         if previous is None or position["qty"] >= 0:
             return None
         mark = float(bar.get("mark_price", bar.get("close", position["avg_price"])))
         notional = abs(position["qty"]) * mark
         raw = bar.get("borrow_rate_annual")
-        rate = self.default_borrow_rate_annual if raw is None or pd.isna(raw) else float(raw)
+        rate = host.default_borrow_rate_annual if raw is None or pd.isna(raw) else float(raw)
         source = "configured_default" if raw is None or pd.isna(raw) else "historical_bar"
         amount = notional * rate * (timestamp - previous).total_seconds() / (365.0 * 24 * 3600)
-        entry = self.portfolio.apply_financing(timestamp=timestamp, symbol=symbol,
+        entry = host.portfolio.apply_financing(timestamp=timestamp, symbol=symbol,
                                                kind="borrow", rate=rate, notional=notional,
                                                amount=amount, source=source)
         return entry.to_dict()
@@ -121,7 +128,8 @@ class FinancingMixin:
         debt. Gross/equity <= 1 therefore accrues nothing, and the accrual
         scales with how leveraged the book actually was, bar by bar.
         """
-        if self.portfolio.account_mode is not AccountMode.SPOT_MARGIN:
+        host = self._host
+        if host.portfolio.account_mode is not AccountMode.SPOT_MARGIN:
             return None
         prices: Dict[str, float] = {}
         timestamp = None
@@ -140,40 +148,40 @@ class FinancingMixin:
                 rate_override = float(candidate)
         if timestamp is None:
             return None
-        previous = self._last_borrow_time.get(self.QUOTE_BORROW_SYMBOL)
+        previous = host._last_borrow_time.get(host.QUOTE_BORROW_SYMBOL)
         if previous is not None and timestamp <= previous:
             return None
-        self._last_borrow_time[self.QUOTE_BORROW_SYMBOL] = timestamp
+        host._last_borrow_time[host.QUOTE_BORROW_SYMBOL] = timestamp
         if previous is None:
             return None
         long_notional = sum(
             position["qty"] * prices.get(symbol, position["avg_price"])
-            for symbol, position in self.portfolio.positions.items()
+            for symbol, position in host.portfolio.positions.items()
             if position["qty"] > 0
         )
         if long_notional <= 0:
             return None
-        equity = self.portfolio.get_equity(prices)
+        equity = host.portfolio.get_equity(prices)
         borrowed = max(0.0, long_notional - max(equity, 0.0))
         if borrowed <= 0:
             return None
         rate = (
-            self.default_borrow_rate_annual if rate_override is None else rate_override
+            host.default_borrow_rate_annual if rate_override is None else rate_override
         )
         source = "configured_default" if rate_override is None else "historical_bar"
         elapsed_seconds = (timestamp - previous).total_seconds()
         amount = borrowed * rate * elapsed_seconds / (365.0 * 24.0 * 3600.0)
-        quote_policy = getattr(self, "quote_borrow_policy", None)
+        quote_policy = getattr(host, "quote_borrow_policy", None)
         if quote_policy is not None:
             amount, segments = quote_policy.interest(
-                account=self.account_id, start=previous, end=timestamp, principal=borrowed)
+                account=host.account_id, start=previous, end=timestamp, principal=borrowed)
             rate = amount * (365.0 * 86400.) / (borrowed * elapsed_seconds)
             source = ";".join(sorted({item["status"] + ":" + item["source"] for item in segments}))
         if amount == 0:
             return None
-        entry = self.portfolio.apply_financing(
+        entry = host.portfolio.apply_financing(
             timestamp=timestamp,
-            symbol=self.QUOTE_BORROW_SYMBOL,
+            symbol=host.QUOTE_BORROW_SYMBOL,
             kind="quote_borrow",
             rate=rate,
             notional=borrowed,

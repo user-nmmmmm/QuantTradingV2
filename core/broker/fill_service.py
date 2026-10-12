@@ -1,8 +1,6 @@
 """Trade settlement: cost accounting, position update, close/fill event publishing.
 
-Split out of core/broker.py (A4) — see docs/architecture_review.md. See
-core/broker_matching.py's module docstring for why this is a mixin rather
-than a standalone collaborator object.
+Split out of core/broker.py (A4) — see docs/architecture_review.md. It is a collaborator held by ``Broker`` (B4, ADR 0018); see core/broker/matching.py for how it reaches the shared state.
 """
 from __future__ import annotations
 
@@ -18,22 +16,29 @@ from core.broker.cost_model import CostBreakdown, market_slippage_components
 from core.events import FillEvent
 from core.foundation.logger import get_logger
 from core.trading.lots import CloseEvent
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from core.broker import Broker
 
 logger = get_logger(__name__)
 
 
-class FillServiceMixin:
+class FillService:
     """Turn a matched (price, qty) pair into a settled trade.
 
-    Expects ``self`` to carry ``portfolio``, ``last_prices``,
+    Needs from the host: ``portfolio``, ``last_prices``,
     ``commission_rate``/``commission_rate_maker``, ``random_slip``,
     ``spread_bps``, ``volatility_slippage_factor``, ``use_impact_cost``,
     ``impact_coefficient``/``impact_exponent``, ``liquidation_penalty_bps``,
     ``borrow_availability_required``, ``default_borrow_limit_qty``,
     ``close_events``, ``_close_event_sequence``, ``trades``, ``event_pipeline``,
     plus ``_set_status``/``_audit_order``/``_event_time`` (from
-    ``MatchingMixin``).
+    ``Matching``).
     """
+
+    def __init__(self, host: "Broker") -> None:
+        self._host = host
 
     def _execute_trade(
         self,
@@ -45,13 +50,14 @@ class FillServiceMixin:
         is_maker: bool = False,
         bar_context: Optional[pd.Series] = None,
     ) -> Optional[Dict]:
-        base_slip = order.slippage if order.slippage > 0 else self.slippage
-        slip_rate = random.uniform(0, base_slip) if self.random_slip and base_slip > 0 else base_slip
+        host = self._host
+        base_slip = order.slippage if order.slippage > 0 else host.slippage
+        slip_rate = random.uniform(0, base_slip) if host.random_slip and base_slip > 0 else base_slip
         components = market_slippage_components(
             price=price, quantity=fill_qty, volume=volume, bar=bar_context,
-            spread_bps=self.spread_bps, volatility_factor=self.volatility_slippage_factor,
-            use_impact=self.use_impact_cost, impact_coefficient=self.impact_coefficient,
-            impact_exponent=self.impact_exponent,
+            spread_bps=host.spread_bps, volatility_factor=host.volatility_slippage_factor,
+            use_impact=host.use_impact_cost, impact_coefficient=host.impact_coefficient,
+            impact_exponent=host.impact_exponent,
         )
         quoted_spread_bps = components["quoted_spread_bps"]
         spread_slip = components["spread"]
@@ -59,7 +65,7 @@ class FillServiceMixin:
         impact_slip = components["impact"]
         participation = components["participation"]
         liquidation_penalty = (
-            self.liquidation_penalty_bps / 10000.0
+            host.liquidation_penalty_bps / 10000.0
             if order.exit_reason in {"MarginLiquidation", "AccountLiquidation"}
             else 0.0
         )
@@ -84,7 +90,7 @@ class FillServiceMixin:
                 fill_price = max(fill_price, order.price)
 
 
-        current_pos = self.portfolio.get_position(order.symbol)
+        current_pos = host.portfolio.get_position(order.symbol)
         if order.side == "sell":
             fill_qty = min(fill_qty, max(current_pos["qty"], 0.0))
             qty_delta = -fill_qty
@@ -92,62 +98,62 @@ class FillServiceMixin:
             fill_qty = min(fill_qty, max(-current_pos["qty"], 0.0))
             qty_delta = fill_qty
         if fill_qty <= 0:
-            self._set_status(order, BacktestOrderStatus.NO_POSITION, timestamp)
+            host._set_status(order, BacktestOrderStatus.NO_POSITION, timestamp)
             return None
 
-        target_controller = getattr(self, "portfolio_target_controller", None)
+        target_controller = getattr(host, "portfolio_target_controller", None)
         if target_controller is not None and order.exit_reason == "v3_rebalance":
             capped = target_controller.fill_quantity_cap(
-                broker=self, order=order, price=fill_price, requested=fill_qty, timestamp=timestamp)
+                broker=host, order=order, price=fill_price, requested=fill_qty, timestamp=timestamp)
             if capped < fill_qty-1e-12:
                 if capped <= 1e-12 or order.time_in_force.value == "FOK":
-                    self._audit_order(order, timestamp, "rejected", "weekly_turnover_fill_limit")
-                    self._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
+                    host._audit_order(order, timestamp, "rejected", "weekly_turnover_fill_limit")
+                    host._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
                     return None
-                self._audit_order(order, timestamp, "resized", "weekly_turnover_fill_limit", fill_qty=capped)
+                host._audit_order(order, timestamp, "resized", "weekly_turnover_fill_limit", fill_qty=capped)
                 fill_qty = capped
                 qty_delta = fill_qty if order.side in {"buy", "cover"} else -fill_qty
 
         value = fill_qty * fill_price
         fee_rate = 0.0 if order.zero_cost else (
-            self.commission_rate_maker if is_maker else self.commission_rate
+            host.commission_rate_maker if is_maker else host.commission_rate
         )
         commission = value * fee_rate
         is_opening = order.side in {"buy", "short"}
-        quote_policy = getattr(self, "quote_borrow_policy", None)
-        if quote_policy is not None and self.portfolio.account_mode is AccountMode.SPOT_MARGIN:
+        quote_policy = getattr(host, "quote_borrow_policy", None)
+        if quote_policy is not None and host.portfolio.account_mode is AccountMode.SPOT_MARGIN:
             # Settle OLD principal before admission: accrued interest consumes
             # collateral and quote credit too. The adapter's later same-time
             # accrual is a no-op under the shared clock.
             carry_bar = pd.Series({"close": price}, name=pd.Timestamp(timestamp))
-            self._accrue_quote_borrow({order.symbol: carry_bar})
-        if order.side == "short" and not self.portfolio.account_mode.allows_short:
-            self._audit_order(order, timestamp, "rejected", "spot_short_forbidden")
-            self._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
+            host._accrue_quote_borrow({order.symbol: carry_bar})
+        if order.side == "short" and not host.portfolio.account_mode.allows_short:
+            host._audit_order(order, timestamp, "rejected", "spot_short_forbidden")
+            host._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
             return None
         if (
             order.side == "short"
-            and self.portfolio.account_mode is AccountMode.SPOT_MARGIN
+            and host.portfolio.account_mode is AccountMode.SPOT_MARGIN
         ):
             available_raw = (
                 bar_context.get("borrow_available_qty")
                 if bar_context is not None else None
             )
             if available_raw is None or pd.isna(available_raw):
-                if self.borrow_availability_required:
-                    self._audit_order(order, timestamp, "rejected", "missing_borrow_availability")
-                    self._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
+                if host.borrow_availability_required:
+                    host._audit_order(order, timestamp, "rejected", "missing_borrow_availability")
+                    host._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
                     return None
-                available_borrow = self.default_borrow_limit_qty
+                available_borrow = host.default_borrow_limit_qty
                 borrow_source = "configured_default"
             else:
                 available_borrow = max(float(available_raw), 0.0)
                 borrow_source = "historical_bar"
             projected_short = max(
-                -self.portfolio.get_position(order.symbol)["qty"], 0.0
+                -host.portfolio.get_position(order.symbol)["qty"], 0.0
             ) + fill_qty
             if projected_short > available_borrow + 1e-12:
-                self._audit_order(
+                host._audit_order(
                     order,
                     timestamp,
                     "rejected",
@@ -156,76 +162,76 @@ class FillServiceMixin:
                     borrow_available_qty=available_borrow,
                     source=borrow_source,
                 )
-                self._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
+                host._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
                 return None
-        if is_opening and self.portfolio.account_mode.uses_margin:
-            margin_available = self.portfolio.projected_margin_available(
-                self.last_prices, value
+        if is_opening and host.portfolio.account_mode.uses_margin:
+            margin_available = host.portfolio.projected_margin_available(
+                host.last_prices, value
             )
             if margin_available < commission - 1e-12:
-                self._audit_order(
+                host._audit_order(
                     order,
                     timestamp,
                     "rejected",
                     "initial_margin",
                     projected_available_margin=margin_available,
                 )
-                self._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
+                host._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
                 return None
         if (quote_policy is not None and order.side == "buy"
-                and self.portfolio.account_mode is AccountMode.SPOT_MARGIN):
+                and host.portfolio.account_mode is AccountMode.SPOT_MARGIN):
             # Account-level quote evidence is distinct from coin-short borrow
             # availability. Recheck at the ACTUAL fill price, including fees.
-            evidence = quote_policy.resolve(account=self.account_id, as_of=timestamp)
+            evidence = quote_policy.resolve(account=host.account_id, as_of=timestamp)
             eligibility = quote_policy.market_eligibility(symbol=order.symbol, as_of=timestamp,
-                metadata=getattr(self, "quote_borrow_market_metadata", {}))
-            marks = dict(self.last_prices)
+                metadata=getattr(host, "quote_borrow_market_metadata", {}))
+            marks = dict(host.last_prices)
             marks[order.symbol] = fill_price
             long_notional = sum(max(0., position["qty"])*marks.get(symbol, position["avg_price"])
-                                for symbol, position in self.portfolio.positions.items())
+                                for symbol, position in host.portfolio.positions.items())
             # In this ledger cash is collateral, not spendable quote balance;
             # each earlier long has already consumed equity-funded capacity.
             quote_limit = evidence.limit if eligibility.allowed else 0.
-            capacity = max(0., self.portfolio.get_equity(marks)-long_notional+quote_limit)
+            capacity = max(0., host.portfolio.get_equity(marks)-long_notional+quote_limit)
             affordable = capacity / (fill_price * (1 + fee_rate))
             if fill_qty > affordable + 1e-12:
                 if order.time_in_force.value == "FOK" or affordable <= 1e-12:
-                    self._audit_order(order, timestamp, "rejected", "quote_borrow_limit",
+                    host._audit_order(order, timestamp, "rejected", "quote_borrow_limit",
                                       borrow_status=evidence.status, quote_borrow_limit=quote_limit,
                                       market_financing_reason=eligibility.reason)
-                    self._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
+                    host._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
                     return None
                 fill_qty = min(fill_qty, affordable * (1 - 1e-12))
                 qty_delta = fill_qty
                 value = fill_qty * fill_price
                 commission = value * fee_rate
-                self._audit_order(order, timestamp, "resized", "quote_borrow_limit",
+                host._audit_order(order, timestamp, "resized", "quote_borrow_limit",
                                   borrow_status=evidence.status, fill_qty=fill_qty,
                                   market_financing_reason=eligibility.reason)
         if (
             is_opening
-            and self.portfolio.account_mode is AccountMode.SPOT
-            and value + commission > self.portfolio.cash + 1e-12
+            and host.portfolio.account_mode is AccountMode.SPOT
+            and value + commission > host.portfolio.cash + 1e-12
         ):
             if order.time_in_force.value == "FOK":
-                self._audit_order(order, timestamp, "rejected", "insufficient_cash")
-                self._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
+                host._audit_order(order, timestamp, "rejected", "insufficient_cash")
+                host._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
                 return None
-            affordable = max(self.portfolio.cash, 0.0) / (fill_price * (1.0 + fee_rate))
+            affordable = max(host.portfolio.cash, 0.0) / (fill_price * (1.0 + fee_rate))
             if affordable <= 1e-12:
-                self._audit_order(order, timestamp, "rejected", "insufficient_cash")
-                self._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
+                host._audit_order(order, timestamp, "rejected", "insufficient_cash")
+                host._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
                 return None
             fill_qty = min(fill_qty, affordable * (1.0 - 1e-12))
             qty_delta = fill_qty
             value = fill_qty * fill_price
             commission = value * fee_rate
-            self._audit_order(order, timestamp, "resized", "cash_affordability", fill_qty=fill_qty)
-        if (self.portfolio.account_mode is AccountMode.SPOT_MARGIN
+            host._audit_order(order, timestamp, "resized", "cash_affordability", fill_qty=fill_qty)
+        if (host.portfolio.account_mode is AccountMode.SPOT_MARGIN
                 and current_pos["qty"] < 0):
             carry_bar = bar_context if bar_context is not None else {"close": price}
-            self._accrue_short_borrow(order.symbol, current_pos, carry_bar, timestamp)
-        lot_closes = self.portfolio.update_position(
+            host._accrue_short_borrow(order.symbol, current_pos, carry_bar, timestamp)
+        lot_closes = host.portfolio.update_position(
             order.symbol,
             qty_delta,
             fill_price,
@@ -241,12 +247,12 @@ class FillServiceMixin:
                 and order.intent.requested_qty > 0 and is_opening else None
             ),
         )
-        if self.portfolio.account_mode is AccountMode.SPOT_MARGIN:
-            new_qty = self.portfolio.get_position(order.symbol)["qty"]
+        if host.portfolio.account_mode is AccountMode.SPOT_MARGIN:
+            new_qty = host.portfolio.get_position(order.symbol)["qty"]
             if new_qty >= 0:
-                self._last_borrow_time.pop(order.symbol, None)
+                host._last_borrow_time.pop(order.symbol, None)
             elif current_pos["qty"] >= 0:
-                self._last_borrow_time[order.symbol] = pd.Timestamp(timestamp)
+                host._last_borrow_time[order.symbol] = pd.Timestamp(timestamp)
         costs = CostBreakdown(
             commission=commission,
             slippage=abs(price * (slip_rate + spread_slip + volatility_slip)) * fill_qty,
@@ -255,12 +261,12 @@ class FillServiceMixin:
             borrow=None,
             funding_status=(
                 "accrued_separately"
-                if self.portfolio.account_mode is AccountMode.PERPETUAL
+                if host.portfolio.account_mode is AccountMode.PERPETUAL
                 else "not_applicable"
             ),
             borrow_status=(
                 "accrued_separately"
-                if self.portfolio.account_mode is AccountMode.SPOT_MARGIN
+                if host.portfolio.account_mode is AccountMode.SPOT_MARGIN
                 else "not_applicable"
             ),
         )
@@ -273,12 +279,12 @@ class FillServiceMixin:
             # costs.slippage/impact again) avoids the same double-count this
             # phase fixed in core.metrics.calculate_cost_sensitivity (I-25).
             position_fully_closed = (
-                self.portfolio.get_position(order.symbol).get("qty", 0.0) == 0.0
+                host.portfolio.get_position(order.symbol).get("qty", 0.0) == 0.0
             )
             position_fully_closed = bool(position_fully_closed)
             for lot_close in lot_closes:
-                self._close_event_sequence += 1
-                close_event_id = f"{lot_close.lot_id}:{self._close_event_sequence}"
+                host._close_event_sequence += 1
+                close_event_id = f"{lot_close.lot_id}:{host._close_event_sequence}"
                 exit_cost_share = (
                     commission * (lot_close.qty_closed / fill_qty) if fill_qty else 0.0
                 )
@@ -308,7 +314,7 @@ class FillServiceMixin:
                     initial_risk=lot_close.initial_risk_share,
                     risk_action_id=order.risk_action_id,
                 )
-                self.close_events.append(event)
+                host.close_events.append(event)
                 new_close_events.append(event)
                 close_event_ids.append(close_event_id)
         # T-1.9/T-1.10: per-lot risk/excursion detail for this fill's closes,
@@ -353,7 +359,7 @@ class FillServiceMixin:
             "volatility_slippage_rate": volatility_slip,
             "impact_slippage_rate": impact_slip,
             "participation_rate": participation,
-            "account_mode": self.portfolio.account_mode.value,
+            "account_mode": host.portfolio.account_mode.value,
             "costs": costs.to_dict(),
             "strategy_id": order.strategy_id,
             "exit_reason": order.exit_reason,
@@ -366,8 +372,8 @@ class FillServiceMixin:
                 if str(key).startswith("anomaly_")
             },
         }
-        self.trades.append(trade_record)
-        self._audit_order(
+        host.trades.append(trade_record)
+        host._audit_order(
             order,
             timestamp,
             "filled",
@@ -378,7 +384,7 @@ class FillServiceMixin:
         )
         if order.intent is not None:
             fill_id = f"{order.id}:{order.filled_qty + fill_qty:.12f}"
-            fill = self.event_pipeline.publish(
+            fill = host.event_pipeline.publish(
                 FillEvent(
                     fill_id=fill_id,
                     client_order_id=order.id,
@@ -389,7 +395,7 @@ class FillServiceMixin:
                     fee=commission,
                     liquidity="maker" if is_maker else "taker",
                 ),
-                occurred_at=self._event_time(timestamp),
+                occurred_at=host._event_time(timestamp),
                 correlation_id=order.intent.correlation_id,
                 causation_id=order.last_event_id,
                 idempotency_key=fill_id,
@@ -401,11 +407,11 @@ class FillServiceMixin:
             order.last_event_id = str(fill.event_id)
             for close_event in new_close_events:
                 close_payload = asdict(close_event)
-                close_payload["timestamp"] = self._event_time(close_event.timestamp)
-                close_envelope = self.event_pipeline.publish(
+                close_payload["timestamp"] = host._event_time(close_event.timestamp)
+                close_envelope = host.event_pipeline.publish(
                     close_payload,
                     event_type="close",
-                    occurred_at=self._event_time(timestamp),
+                    occurred_at=host._event_time(timestamp),
                     correlation_id=order.intent.correlation_id,
                     causation_id=order.last_event_id,
                     idempotency_key=close_event.close_event_id,

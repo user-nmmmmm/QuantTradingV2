@@ -2,8 +2,8 @@
 
 Split out of core/broker.py (A4) — see docs/architecture_review.md. Kept
 separate from broker.py itself so the matching/fill-service/financing/
-liquidation mixins can import these types without a circular import back
-into broker.py (which composes those mixins).
+liquidation collaborators can import these types without a circular import back
+into the broker package (whose ``Broker`` holds those collaborators).
 """
 from __future__ import annotations
 
