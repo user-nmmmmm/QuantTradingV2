@@ -295,7 +295,7 @@ def test_mandatory_risk_reduction_remains_executable_with_unknown_current():
 def test_strategy_order_price_volume_and_risk_ignore_later_realised_revision(through_runtime, visible_volume, expected_qty):
     from dataclasses import replace
     from types import SimpleNamespace
-    from core.runtime import EventProcessor
+    from core.foundation.runtime import EventProcessor
     from tests.test_v3_portfolio_execution import SYMBOL, event, setup_controller
 
     controller, broker, risk, _ = setup_controller()
@@ -322,7 +322,7 @@ def test_strategy_order_price_volume_and_risk_ignore_later_realised_revision(thr
 def test_runtime_risk_budget_and_daily_baseline_use_visible_marks_but_report_realised_equity():
     from dataclasses import replace
     from types import SimpleNamespace
-    from core.runtime import EventProcessor
+    from core.foundation.runtime import EventProcessor
     from tests.test_v3_portfolio_execution import SYMBOL, event, setup_controller
 
     _, broker, risk, strategy = setup_controller()
@@ -349,7 +349,7 @@ def test_runtime_risk_budget_and_daily_baseline_use_visible_marks_but_report_rea
 def test_runtime_missing_held_mark_blocks_new_risk_without_using_realised_revision():
     from dataclasses import replace
     from types import SimpleNamespace
-    from core.runtime import EventProcessor
+    from core.foundation.runtime import EventProcessor
     from tests.test_v3_portfolio_execution import SYMBOL, event, setup_controller
 
     _, broker, risk, strategy = setup_controller()
@@ -374,7 +374,7 @@ def test_report_csv_replay_restores_identical_strict_versions(tmp_path, persiste
     from types import SimpleNamespace
     from main import _temporal_report_payload, _restore_temporal_replay_inputs
     from core.analytics.backtest_audit import write_json_report
-    from core.reproducibility import save_data_snapshots, load_data_snapshots, sha256_file
+    from core.foundation.reproducibility import save_data_snapshots, load_data_snapshots, sha256_file
 
     policy = strict(tmp_path) if persistent else {"mode": "strict"}
     frames = {"BTC/USDT": documented()}
@@ -403,7 +403,7 @@ def test_strict_replay_rejects_missing_or_changed_temporal_evidence(tmp_path):
     from types import SimpleNamespace
     from main import _temporal_report_payload, _restore_temporal_replay_inputs
     from core.analytics.backtest_audit import write_json_report
-    from core.reproducibility import sha256_file
+    from core.foundation.reproducibility import sha256_file
 
     frame = documented()
     frames = {"BTC/USDT": frame}

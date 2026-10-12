@@ -10,7 +10,7 @@ from typing import Mapping
 import numpy as np
 import pandas as pd
 
-from core.reproducibility import canonical_json, sha256_bytes, sha256_file
+from core.foundation.reproducibility import canonical_json, sha256_bytes, sha256_file
 
 
 ARMS = (

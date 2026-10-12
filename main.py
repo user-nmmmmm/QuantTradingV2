@@ -28,7 +28,7 @@ from core.analytics.backtest_audit import (
     write_event_log,
     write_json_report,
 )
-from core.reproducibility import (
+from core.foundation.reproducibility import (
     artifact_hashes,
     build_run_manifest,
     capital_allocation_digest,
@@ -45,7 +45,7 @@ from core.market.universe import PointInTimeUniverse, normalize_symbol, static_u
 from backtest.engine import BacktestEngine, DEFAULT_INITIAL_CAPITAL
 from backtest.cli import build_backtest_parser
 from backtest.reporting import ReportGenerator, format_primary_metrics
-from core.logger import get_logger
+from core.foundation.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -584,7 +584,7 @@ def _execute_backtest(args, data_map):
 def _validate_selector_execution_options(args):
     """Reject unsupported execution before loading data or constructing a model."""
     from config.config import config
-    from core.runtime import validate_selector_execution_path
+    from core.foundation.runtime import validate_selector_execution_path
 
     enabled = getattr(args, "coin_selector", "off") == "on"
     validate_selector_execution_path(

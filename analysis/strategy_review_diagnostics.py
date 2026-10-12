@@ -18,7 +18,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from core.reproducibility import canonical_json
+from core.foundation.reproducibility import canonical_json
 from core.trading.state import MarketStateMachine
 
 

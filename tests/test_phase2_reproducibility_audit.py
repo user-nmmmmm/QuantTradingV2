@@ -20,7 +20,7 @@ from core.market.data import DataHandler
 from core.events import Signal
 from core.market.market_data import HistoricalMarketDataAdapter
 from core.trading.portfolio import Portfolio
-from core.reproducibility import (
+from core.foundation.reproducibility import (
     data_identity,
     deterministic_result_digest,
     load_data_snapshots,

@@ -12,7 +12,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from core.reproducibility import canonical_json, sha256_file, sha256_frame
+from core.foundation.reproducibility import canonical_json, sha256_file, sha256_frame
 from research.ml_selection.dataset import FEATURE_COLUMNS
 from research.ml_selection.protocol import save_json
 from research.ml_selection.selector import utc

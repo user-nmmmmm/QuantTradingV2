@@ -167,7 +167,7 @@ def test_strict_training_rejects_unproven_or_mutated_evidence(mutation):
 @pytest.mark.slow
 def test_normal_engine_runs_strict_p0_through_p3_without_changing_official_account(tmp_path, monkeypatch):
     from backtest.engine import BacktestEngine
-    from core.reproducibility import deterministic_result_digest
+    from core.foundation.reproducibility import deterministic_result_digest
     from tests.engine_baseline_harness import build_synthetic_data_map
     from config.config import config
     settings_config = deepcopy(config._config)

@@ -9,11 +9,11 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Dict, Optional, Tuple
 
-from core.domain import OrderIntent, RiskDecision, RiskReservation
+from core.foundation.domain import OrderIntent, RiskDecision, RiskReservation
 from core.trading.entry_audit import note
 from core.trading.entry_risk import resolve_approved_risk
 from core.events import TradingEventPipeline, stable_uuid5
-from core.logger import get_logger
+from core.foundation.logger import get_logger
 from core.trading.portfolio import Portfolio
 from core.risk.reservation import RiskReservationProjection
 

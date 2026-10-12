@@ -10,7 +10,7 @@ import shutil
 
 ROOT = Path(__file__).resolve().parents[1]
 from config.config import config
-from core.reproducibility import code_identity, sha256_file
+from core.foundation.reproducibility import code_identity, sha256_file
 from scripts.run_expanded_universe_backtest import run_arm, save
 from scripts.run_health_recovery_experiment import CANDIDATE
 
@@ -36,7 +36,7 @@ def main():
     reference = json.loads((source / "expanded/summary.json").read_text(encoding="utf-8"))
     output.mkdir(parents=True, exist_ok=False)
     (output / "data_inputs").mkdir()
-    changed_sources = ["core/trading/entry_audit.py", "core/runtime.py", "core/planning/allocation.py",
+    changed_sources = ["core/trading/entry_audit.py", "core/foundation/runtime.py", "core/planning/allocation.py",
         "core/risk/entry_policy.py", "core/risk/position_sizing.py", "core/analytics/strategy_health.py",
         "strategies/base.py", "strategies/trend_breakout.py", "router/router.py", "backtest/engine.py",
         "scripts/run_expanded_universe_backtest.py", "scripts/run_p0_attribution_experiment.py"]

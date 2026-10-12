@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
-from core.domain import OrderErrorCode, OrderIntent, OrderStatus
+from core.foundation.domain import OrderErrorCode, OrderIntent, OrderStatus
 from core.exchange import (
     CCXTRequestMapper,
     CanonicalPosition,

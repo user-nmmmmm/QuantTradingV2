@@ -9,7 +9,7 @@ from uuid import UUID
 
 import pytest
 
-from core.domain import OrderIntent, OrderStatus
+from core.foundation.domain import OrderIntent, OrderStatus
 from core.events import EventCodec, EventEnvelope, FillEvent, OrderEvent, Signal, TradingEventPipeline
 from core.events.ids import _coerce_uuid, _coerce_uuid_string, stable_uuid5
 from core.events.types import StructuredPayload, _normalize_value

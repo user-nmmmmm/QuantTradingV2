@@ -50,7 +50,7 @@ def main():
     from backtest.reporting.signal_meta_layer import write_signal_meta_layer_report
     from backtest.reporting.signal_adaptive import write_signal_adaptive_report, write_signal_meta_replay_report
     from core.market.market_data import HistoricalMarketDataAdapter
-    from core.reproducibility import canonical_json, sha256_file, deterministic_result_digest
+    from core.foundation.reproducibility import canonical_json, sha256_file, deterministic_result_digest
     from signal_meta.signal_adaptive_types import MetaReplayPolicy
     from signal_meta.signal_observation_types import fingerprint
     from scripts.run_revalidation60 import load_inputs

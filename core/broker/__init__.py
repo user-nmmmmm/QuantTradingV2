@@ -38,7 +38,7 @@ from core.broker.fill_service import FillServiceMixin
 from core.broker.financing import FinancingMixin
 from core.broker.liquidation import LiquidationMixin
 from core.events import TradingEventPipeline
-from core.logger import get_logger
+from core.foundation.logger import get_logger
 from core.trading.lots import CloseEvent
 from core.trading.portfolio import Portfolio
 from core.risk.reservation import RiskReservationProjection

@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, Optional, Protocol
 
 
-from core.redaction import sanitize, sanitize_text
+from core.foundation.redaction import sanitize, sanitize_text
 
 
 class AlertSink(Protocol):

@@ -72,7 +72,7 @@ def run_checks(output: Path) -> int:
         ("environment", ["scripts/check_environment.py"]),
         ("lock", ["scripts/verify_lock.py"]),
         ("lint", ["-m", "ruff", "check", "."]),
-        ("types", ["-m", "mypy", "core/domain.py", "core/runtime.py", "live_trading/execution_adapter.py"]),
+        ("types", ["-m", "mypy", "core/foundation/domain.py", "core/foundation/runtime.py", "live_trading/execution_adapter.py"]),
         ("coverage", ["scripts/run_portable_tests.py", "-q", "--cov=core", "--cov=backtest", "--cov=live_trading", "--cov-fail-under=55"]),
         ("sandbox_discovery", ["scripts/run_portable_tests.py", "-q", "tests/test_exchange_sandbox_e2e.py"]),
     ]

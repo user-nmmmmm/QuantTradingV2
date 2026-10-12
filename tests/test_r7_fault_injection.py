@@ -9,8 +9,8 @@ from unittest.mock import MagicMock
 import pandas as pd
 
 from config.config import config
-from core.domain import SyncResult
-from core.live_safety import StartupSafetyPolicy
+from core.foundation.domain import SyncResult
+from core.foundation.live_safety import StartupSafetyPolicy
 from core.trading.order_store import OrderStore
 from core.risk.persistent_guard import PersistentOrderSafetyGuard
 from core.trading.portfolio import Portfolio

@@ -126,7 +126,7 @@ G6 + G7 + G8 + G9 全部达标后，才允许进入 G10 小额真实资金灰度
 
 ### 6.3 订单状态机与成交账本
 
-- [√] 将 `core/domain.py`、`core/trading/orders.py` 和 `core/trading/order_store.py` 接入实盘主链路；
+- [√] 将 `core/foundation/domain.py`、`core/trading/orders.py` 和 `core/trading/order_store.py` 接入实盘主链路；
 - [√] 所有状态转换经过 `validate_transition()`；
 - [√] 交易所 open 状态不得记为成交；
 - [√] 每个 fill 独立持久化，支持部分成交和多次成交；

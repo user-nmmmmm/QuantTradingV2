@@ -18,7 +18,7 @@ from analysis.paper_label_execution import refine_barrier_labels
 from analysis.paper_labels import BarrierConfig, LabelCosts
 from analysis.paper_study import write_json
 from core.market.data_versions import DataVersionStore
-from core.reproducibility import sha256_file
+from core.foundation.reproducibility import sha256_file
 from scripts.run_paper_roadmap import load_fine_input
 
 

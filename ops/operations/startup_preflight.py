@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
-from core.live_safety import StartupSafetyPolicy
+from core.foundation.live_safety import StartupSafetyPolicy
 
 
 def _check(name: str, passed: bool, detail: str) -> dict[str, Any]:

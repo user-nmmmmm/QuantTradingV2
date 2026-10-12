@@ -52,7 +52,7 @@ import pandas as pd
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 from core.market.data_fetcher import DataFetcher, timeframe_delta  # noqa: E402
-from core.logger import get_logger  # noqa: E402
+from core.foundation.logger import get_logger  # noqa: E402
 from core.market.universe import normalize_symbol  # noqa: E402
 
 logger = get_logger("fetch_binance_data")

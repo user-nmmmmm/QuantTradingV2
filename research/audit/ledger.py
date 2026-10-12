@@ -18,7 +18,7 @@ from decimal import Decimal
 from typing import Any, Dict, Iterable, Mapping, Optional, Tuple
 from uuid import UUID
 
-from core.domain import PortfolioSnapshot
+from core.foundation.domain import PortfolioSnapshot
 from core.events.store import SQLiteEventStore
 from core.events import EventEnvelope, FillEvent, TradingEventPipeline
 from core.events.ledger_events import (  # noqa: F401  (re-exported: public names of this module)

@@ -15,7 +15,7 @@ import pandas as pd
 from backtest.engine import BacktestEngine
 from backtest.reporting.operating_periods import requested_period_curve
 from config.config import config
-from core.reproducibility import (capital_allocation_digest, deterministic_result_digest,
+from core.foundation.reproducibility import (capital_allocation_digest, deterministic_result_digest,
                                  sha256_file)
 from research.ml_selection.protocol import load_inputs, load_settings, save_json
 

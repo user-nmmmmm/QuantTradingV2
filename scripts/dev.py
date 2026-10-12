@@ -25,7 +25,7 @@ from typing import Callable, Dict, List, Optional, Sequence
 
 ROOT = Path(__file__).resolve().parents[1]
 PY = sys.executable
-TYPED_FILES = ["core/domain.py", "core/runtime.py", "live_trading/execution_adapter.py"]
+TYPED_FILES = ["core/foundation/domain.py", "core/foundation/runtime.py", "live_trading/execution_adapter.py"]
 
 
 def _tool(name: str) -> List[str]:

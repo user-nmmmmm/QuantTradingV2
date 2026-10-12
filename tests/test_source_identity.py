@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from core.source_identity import (Scope, build_manifest, compare, identify, identity_digest, normalize_python,
+from core.foundation.source_identity import (Scope, build_manifest, compare, identify, identity_digest, normalize_python,
                                   python_body, receipt, verify_receipt)
 from scripts import identity_report
 
@@ -167,7 +167,7 @@ def test_receipt_roundtrip_detects_behavior_changes(repo: Path):
 
 
 def test_report_wording():
-    from core.source_identity import Impact
+    from core.foundation.source_identity import Impact
     changed = identity_report.render(Impact(behavioral=["core/a.py"]), base_label="b", head_label="h", scope_files=3)
     same = identity_report.render(Impact(cosmetic=["core/a.py"]), base_label="b", head_label="h", scope_files=3)
     assert "**CHANGED**" in changed and "core/a.py" in changed
@@ -177,7 +177,7 @@ def test_report_wording():
 def test_repository_scope_file_is_valid_and_covers_the_money_path():
     root = Path(__file__).resolve().parents[1]
     scope = Scope.load(root / "config" / "frozen_scope.json")
-    for path in ("core/runtime.py", "backtest/engine.py", "live_trading/engine.py", "strategies/base.py",
+    for path in ("core/foundation/runtime.py", "backtest/engine.py", "live_trading/engine.py", "strategies/base.py",
                  "config/params.yaml", "requirements.lock.txt", "main.py"):
         assert scope.contains(path), path
     for path in ("tests/test_packaging.py", "docs/README.md", "scripts/identity_report.py", "analysis/optimize.py"):
@@ -192,7 +192,7 @@ MOVABLE = textwrap.dedent('''
 
 
     def area(radius):
-        from core.clock import now
+        from core.foundation.clock import now
         total = yield from helper(radius)
         raise ValueError("x") from None
         return math.pi * radius ** 2 + check(now())
@@ -200,7 +200,7 @@ MOVABLE = textwrap.dedent('''
 
 
 def test_body_ignores_import_statements_but_not_yield_from_or_raise_from():
-    retargeted = MOVABLE.replace("core.health", "ops.health").replace("core.clock", "ops.clock")
+    retargeted = MOVABLE.replace("core.health", "ops.health").replace("core.foundation.clock", "ops.clock")
     assert python_body(retargeted) == python_body(MOVABLE)
     assert norm_hash(retargeted) != norm_hash(MOVABLE)
     assert python_body(MOVABLE.replace("yield from helper", "yield from other")) != python_body(MOVABLE)

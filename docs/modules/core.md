@@ -2,7 +2,7 @@
 
 `core/` 提供行情适配、状态识别、共享决策运行时、经纪商接口及具体实现、订单风控与运维基础设施。回测（`backtest/`）和实盘（`live_trading/`）共用 `EventProcessor`、路由、策略和部分领域类型；各自的调度、执行、持久化和安全流程仍由对应模式实现。部分具体适配器也位于 `core/`，不能把整个 `core/` 视为纯领域层。
 
-> **2026-10-12：** 准入、灰度、健康策略、预检与事故记录等 12 个纯运维/治理模块已移到顶层包 `ops/`（`ops.admission_gates`、`ops.gray_release`、`ops.health`、`ops.operations` …，旧的 `core.*` 路径不再保留）；下文中对应小节里的 `ops/…` 路径即新位置。`core.alerting`、`core.live_safety`、`core.runtime_identity`、`core.redaction`、`core.trading.sqlite_backup` 被交易内核依赖，仍留在 `core/`。迁移决定见 [ADR 0007](../adr/0007-ops-package.md)。
+> **2026-10-12：** 准入、灰度、健康策略、预检与事故记录等 12 个纯运维/治理模块已移到顶层包 `ops/`（`ops.admission_gates`、`ops.gray_release`、`ops.health`、`ops.operations` …，旧的 `core.*` 路径不再保留）；下文中对应小节里的 `ops/…` 路径即新位置。`core.foundation.alerting`、`core.foundation.live_safety`、`core.foundation.runtime_identity`、`core.foundation.redaction`、`core.trading.sqlite_backup` 被交易内核依赖，仍留在 `core/`。迁移决定见 [ADR 0007](../adr/0007-ops-package.md)。
 >
 > **2026-10-12（B1）：** 信号观察与元层研究的 14 个模块（12 个 `signal_*`、`temporal_labels`、`temporal_financing`）已移到顶层包 `signal_meta/`，模块名不变（`signal_meta.signal_observation` …），旧的 `core.*` 路径不再保留；`core.market.temporal_data` 仍在 `core`。决定见 [ADR 0011](../adr/0011-signal-meta-package.md)。
 >
@@ -13,6 +13,8 @@
 > **2026-10-13（B2-3）：** 选币、打分、分配与目标仓位的 7 个模块（`selection`、`selection_v2`、`candidate_scoring`、`allocation`、`cost_aware_allocation`、`target_position`、`portfolio_target_controller`）已移到子包 `core/planning/`；`portfolio`、`valuation` 并入 `core/trading/`。模块名不变，旧的 `core.*` 路径不再保留；决定见 [ADR 0014](../adr/0014-core-planning-package.md)。
 >
 > **2026-10-13（B2-4）：** 回测审计、账务检查、基准、诊断、指标结果、策略健康与技术指标的 7 个模块（`accounting_check`、`backtest_audit`、`benchmarks`、`diagnostics`、`metric_result`、`strategy_health`、`indicators`）已移到子包 `core/analytics/`，模块名不变，旧的 `core.*` 路径不再保留；决定见 [ADR 0015](../adr/0015-core-analytics-package.md)。
+>
+> **2026-10-13（B2-5）：** 领域类型、运行时装配、日志、时钟、告警、实盘安全、脱敏、可复现性、运行时身份与源码身份的 10 个模块（`domain`、`runtime`、`logger`、`clock`、`alerting`、`live_safety`、`redaction`、`reproducibility`、`runtime_identity`、`source_identity`）已移到子包 `core/foundation/`，模块名不变，旧的 `core.*` 路径不再保留；至此 `core/` 根没有平铺模块。决定见 [ADR 0016](../adr/0016-core-foundation-package.md)。
 
 本文档按子系统说明职责、主要接口和边界行为。调度与启动流程分别见 [回测模块](backtest.md) 和 [实盘模块](live_trading.md)；此处重点解释共享组件之间的契约。涉及时间版本的数据接口应连同证据来源一起阅读，开启 `strict` 或保存快照本身不代表已通过研究准入。
 
@@ -42,7 +44,7 @@
 
 ### `core/market/market_data.py` — 行情适配器（回测/实盘共用协议）
 
-把原始数据转换成 `core/runtime.py` 定义的统一时间线 `MarketDataSlice`：
+把原始数据转换成 `core/foundation/runtime.py` 定义的统一时间线 `MarketDataSlice`：
 
 - `normalize_market_frame(df)`：复制输入、剔除无效时间、重复时间保留末行并排序；带时区索引转换成 naive UTC，无时区索引沿用 UTC 约定。
 - `HistoricalMarketDataAdapter(...)`：`alignment_mode="union"` 默认使用真实 bar 并集，也支持 `"intersection"`；不填造缺失 bar。常规模式预计算指标，以分块行号查找控制稀疏多标的时间线的额外内存。`stream(fast_bars=True)` 可使用行快照加速标量访问，不适用的列类型仍回退到 pandas 行对象。
@@ -109,7 +111,7 @@
 - `get_state(df, i)` 会把结果缓存进 `df["market_state"]` 列（原地修改，副作用）。
 - `align_state_to_lower_tf(...)`：把高周期状态前向填充对齐到低周期索引，避免未来函数。
 
-### `core/runtime.py` — 事件处理核心（EventProcessor）
+### `core/foundation/runtime.py` — 事件处理核心（EventProcessor）
 **这是整个系统里回测和实盘真正共用的枢纽**，串联行情、状态机、路由、组合、执行、风控。
 - `MarketDataSlice`（frozen dataclass）：标准行情事件，包含 timestamp/bars/histories/positions/timeframe/source；历史适配器直接构建，实盘调度器也会构建。
 - strict 事件的 `bars` 与 `histories` 用途不同：`EventProcessor` 先通过 `strategy_market_view(...)` 和 `strategy_market_prices(...)` 构造决策输入，防止撮合视图中的事后修订价格影响信号、风险额度或下单参数。缺少策略可见的持仓标记价时禁止新增风险。
@@ -119,7 +121,7 @@
   - `._collect_symbol_candidate(...)`：按预热期、持仓、风险决策分开控制仓位管理和新增风险；调用路由器的 `process_position_management(...)` 与 `collect_entry_candidate(...)`，并保留旧 `collect_candidate(...)` 兼容路径。
   - `.process_symbol(event, symbol)`：单标的入口；收集候选后调用 allocator。实盘调度器会批量收集同一收盘时刻的候选，再统一分配。
 
-### `core/clock.py` — 时间抽象
+### `core/foundation/clock.py` — 时间抽象
 `Clock` 协议 + `SystemClock`（真实 UTC）+ `CallableClock`（包装一个返回时间的可调用对象），让实盘调度/健康检查逻辑可以在测试中做到确定性可控。
 
 ---
@@ -213,7 +215,7 @@
 - `PortfolioProjection(base_currency)`：`apply(event, sequence)` 要求序列号严格递增；`snapshot(...)` 把多币种余额/持仓折算成基准货币，若持仓缺少标记价格默认抛错（除非 `require_marks=False`）；`reconcile(external_cash, external_positions, ...)` 比较本地与外部（交易所）状态，标记 `ReconciliationDiscrepancy`（偏差超过 10 倍容差为 critical）。
 - `AuthoritativeLedger`：把 `SQLiteEventStore` + `TradingEventPipeline` + `PortfolioProjection` 组装成离线研究门面。
 
-### `core/domain.py` — 核心领域类型
+### `core/foundation/domain.py` — 核心领域类型
 - `OrderStatus`：注意 `SUBMITTED` 是 `SUBMITTING` 的别名，`OPEN` 是 `ACCEPTED` 的别名（同值不同名，方便可读性）。
 - `OrderIntent`：规范化的下单指令；`.client_order_id` 是对 `identity` 字段（exchange/account/symbol/timeframe/bar_time/strategy_id/action/sequence）做 SHA-256 后取前 24 位十六进制、加 `qt_` 前缀——**这是全系统幂等重发设计的关键**，相同身份字段永远产生相同 ID。
 - `RiskDecision`/`RiskReservation`/`OrderSubmissionResult`/`FillRecord`/`SyncResult`/`PortfolioSnapshot`：其余不可变数据类，多有 `__post_init__` 校验。
@@ -247,7 +249,7 @@
 `ops/incident_journal.py`、`ops/status_snapshot.py`、`ops/startup_preflight.py`
 保留为旧导入路径的兼容入口；新代码可直接从 `ops.operations` 的对应模块导入。
 
-### `core/alerting.py` — 告警
+### `core/foundation/alerting.py` — 告警
 `AlertSink` 协议 + 多种实现：`LoggingAlertSink`、`JsonlAlertSink`（本地持久追踪，fsync）、`WebhookAlertSink`、`TelegramAlertSink`（纯文本，不用 `parse_mode`，避免 Markdown 注入）。`CompositeAlertSink` 扇出并隔离各 sink 的失败。`HysteresisAlertSink` 用"稳定上下文哈希"（排除 timestamp、retry_attempts 等易变字段）对重复告警去重，按 trigger/suppress/ack 状态机运作，每 `summary_every`（默认 9）次发一次抑制汇总。`build_default_alert_sink(...)` 按环境变量自动组装 Logging+Jsonl+可选 Webhook（`LIVE_ALERT_WEBHOOK_URL`）+可选 Telegram（`TELEGRAM_BOT_TOKEN`/`CHAT_ID`），外层包一层 Hysteresis。
 
 ### `ops/health.py` — 数据/同步健康监控
@@ -259,7 +261,7 @@
 ### `ops/operations/status_snapshot.py` — 只读实盘状态快照
 `load_dashboard(...)` 读取 `live_status.json` 与告警记录，供 Dashboard 等展示层消费；状态文件缺失、损坏或结构无效时返回 `RISK_HALTED`，不返回未经验证的权益和持仓数值。`recent_alerts(...)` 从 JSONL 告警中读取最近的有效记录。
 
-### `core/logger.py` — 日志
+### `core/foundation/logger.py` — 日志
 `configure_logging(level)`（读 `QUANT_LOG_LEVEL`）、`get_logger(name)` 首次使用自动配置。`SensitiveDataFilter` 在日志输出前脱敏 `EXCHANGE_API_KEY/SECRET/PASSWORD` 等环境变量值及 Authorization/api-key/secret/signature 相关模式。
 
 ### `core/metrics/` — 回测指标库
@@ -280,7 +282,7 @@
 ### `composition/factory.py` — 组件装配工厂
 `build_strategy_registry()`（组装 TrendBreakout/TrendBreakdown/RangeMeanReversion 策略）、`build_risk_manager()`、`build_state_machine()`、`build_router(strategies, log_path, allow_short)`、`market_type_supports_shorts(market_type)`（future/futures/swap/margin 返回真）。**注意**：`build_router` 在 `allow_short=False` 时会把 `regime_map["TREND_DOWN"]` 强制改成 `"Cash"`，在路由层面彻底禁用做空策略，与策略对象本身是否存在无关。
 
-### `core/live_safety.py` — 实盘安全闸门
+### `core/foundation/live_safety.py` — 实盘安全闸门
 `StartupSafetyPolicy.from_environment(...)` 从 `QUANT_ALLOWED_EXCHANGES/ACCOUNT_TYPES/SYMBOLS` 和 `QUANT_{SANDBOX,LIVE}_MAX_ORDER_NOTIONAL/MAX_DAILY_NEW_RISK` 读取配置（sandbox 有默认值 1000/5000；**live 模式没有默认值，必须显式配置**，否则大声报错而不是静默套用 sandbox 的宽松限制）。账户类型白名单默认只含 `"spot"`。`OrderSafetyGuard.assert_order_allowed(...)` 强制一键停机、标的白名单、正价格、单笔名义上限、按自身 clock 每日重置的新增风险预算。`verify_live_permissions(exchange, account_type)` 要求交易所暴露权限查询接口，并断言提现权限已关闭、交易权限已开启。
 
 ### `ops/r7_acceptance.py` — R7 沙盒验收

@@ -15,8 +15,8 @@ from core.trading.account_reconciliation import reconcile_account_snapshots
 from core.trading.account_source import (
     AccountSourceError, build_local_account_projection, normalize_account_source,
 )
-from core.domain import SyncResult
-from core.logger import get_logger
+from core.foundation.domain import SyncResult
+from core.foundation.logger import get_logger
 
 # Same logger name as core.live_broker (logging.getLogger caches by name, so
 # this is the identical object) -- tests use assertLogs("core.live_broker")

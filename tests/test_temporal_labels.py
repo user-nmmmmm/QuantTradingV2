@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import pandas as pd
 import pytest
 
-from core.runtime import MarketDataSlice
+from core.foundation.runtime import MarketDataSlice
 from signal_meta.signal_observation import SignalObserver
 from signal_meta.signal_observation_types import ObservationPolicy, fingerprint, iso
 from signal_meta.signal_outcomes import ForwardOutcomeTracker, ObservationCosts

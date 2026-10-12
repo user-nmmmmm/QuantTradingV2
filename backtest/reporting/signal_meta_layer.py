@@ -7,7 +7,7 @@ import math
 from pathlib import Path
 
 from backtest.reporting.signal_observation import _write_csv
-from core.reproducibility import canonical_json, sha256_bytes
+from core.foundation.reproducibility import canonical_json, sha256_bytes
 
 
 INTERPRETATION = "diagnostic_only_correlated_candidates_no_causal_gate_uplift_no_live_admission"

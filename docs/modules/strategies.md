@@ -36,7 +36,7 @@
 
 ## 2. 运行流程与模块边界
 
-普通策略通过[共享运行内核](../../core/runtime.py)和[Router](../../router/router.py)进入下列流程：
+普通策略通过[共享运行内核](../../core/foundation/runtime.py)和[Router](../../router/router.py)进入下列流程：
 
 ```mermaid
 flowchart TD

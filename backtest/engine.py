@@ -33,11 +33,11 @@ from core.analytics.benchmarks import (
 )
 from core.broker import Broker
 from core.events import TradingEventPipeline
-from core.logger import get_logger
+from core.foundation.logger import get_logger
 from core.market.market_data import HistoricalMarketDataAdapter, normalize_market_frame
 from core.trading.portfolio import Portfolio
 from core.trading.position_management import CapitalAllocationPolicy
-from core.runtime import EventProcessor, MarketDataSlice, validate_selector_execution_path
+from core.foundation.runtime import EventProcessor, MarketDataSlice, validate_selector_execution_path
 from core.risk.actions import plan_risk_action
 from backtest.drawdown_budget import BacktestDrawdownReducer
 from core.trading.protective_stops import EntryRiskPolicy, evaluate_fill_risk

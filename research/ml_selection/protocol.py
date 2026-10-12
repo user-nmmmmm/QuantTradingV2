@@ -12,7 +12,7 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
-from core.reproducibility import canonical_json, sha256_file, sha256_frame
+from core.foundation.reproducibility import canonical_json, sha256_file, sha256_frame
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -446,7 +446,7 @@ def load_inputs(settings):
 
 
 def source_identity():
-    paths = [ROOT / "backtest/engine.py", ROOT / "core/runtime.py",
+    paths = [ROOT / "backtest/engine.py", ROOT / "core/foundation/runtime.py",
              ROOT / "scripts/train_selector.py", ROOT / "scripts/run_ml_selection_next.py", ROOT / "scripts/verify_ml_selector_baseline.py",
              ROOT / "config/ml_selection.yaml",
              ROOT / "requirements-ml.txt", ROOT / "requirements.txt", ROOT / "requirements.lock.txt",

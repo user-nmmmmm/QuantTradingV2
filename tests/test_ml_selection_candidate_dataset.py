@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from core.reproducibility import canonical_json, sha256_file
+from core.foundation.reproducibility import canonical_json, sha256_file
 from research.ml_selection.candidate_dataset import (
     PAIR_IDENTITY_FIELDS, build_candidate_dataset, build_from_episode, compare_paired_accounts,
     load_candidate_training_rows,

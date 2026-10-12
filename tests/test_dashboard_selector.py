@@ -7,7 +7,7 @@ import pytest
 
 from dashboard.backtest_jobs import BacktestJobs
 from dashboard.visual_data import list_backtests, load_backtest
-from core.reproducibility import sha256_file
+from core.foundation.reproducibility import sha256_file
 
 
 def parameters(**overrides):

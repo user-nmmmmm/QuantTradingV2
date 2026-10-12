@@ -13,7 +13,7 @@ import math
 import numpy as np
 import pandas as pd
 
-from core.reproducibility import canonical_json
+from core.foundation.reproducibility import canonical_json
 
 
 CONTROL_FIELDS = ("input_hashes", "symbols", "evaluation_start", "evaluation_end_exclusive",

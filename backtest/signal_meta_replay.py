@@ -13,8 +13,8 @@ import pandas as pd
 
 from backtest.signal_ghost import clone_research_broker
 from core.trading.orders import TERMINAL_STATUSES
-from core.reproducibility import canonical_json, sha256_bytes
-from core.runtime import MarketDataSlice
+from core.foundation.reproducibility import canonical_json, sha256_bytes
+from core.foundation.runtime import MarketDataSlice
 from signal_meta.signal_adaptive_types import MetaReplayPolicy
 from signal_meta.signal_meta_layer import EXCLUDED_GATES
 from signal_meta.signal_observation_types import finite, fingerprint, iso

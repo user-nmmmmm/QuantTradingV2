@@ -8,7 +8,7 @@ from typing import Any, Dict, Iterable, Mapping, Optional, Sequence
 
 import pandas as pd
 
-from core.clock import as_utc
+from core.foundation.clock import as_utc
 from core.market.timeframes import timeframe_delta
 
 

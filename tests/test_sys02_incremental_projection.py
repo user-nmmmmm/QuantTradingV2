@@ -6,7 +6,7 @@ from unittest.mock import patch
 import pandas as pd
 import pytest
 
-from core.domain import FillRecord, OrderIntent
+from core.foundation.domain import FillRecord, OrderIntent
 from core.broker import Broker
 from core.live_broker.fill_projection import replay_fill_projection, _legacy_replay_fill_projection
 from core.live_broker.reconciler import OrderReconcilerMixin

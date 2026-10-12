@@ -17,7 +17,7 @@ import math
 from statistics import stdev
 from typing import Any, Mapping, Sequence
 
-from core.domain import OrderStatus
+from core.foundation.domain import OrderStatus
 from core.trading.entry_risk import resolve_approved_risk
 from core.exchange.metadata import MarketSpecification
 from core.risk.portfolio_governor import CorrelationClusterPolicy

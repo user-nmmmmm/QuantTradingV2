@@ -9,7 +9,7 @@ from backtest.drawdown_budget import BacktestDrawdownReducer
 from backtest.reporting.operating_periods import requested_period_curve, split_execution_records
 from config.config import config
 from core.broker import Broker
-from core.domain import OrderStatus
+from core.foundation.domain import OrderStatus
 from core.risk.reservation import ensure_opening_reservation
 from tests.test_p1_unified_risk_reservation import opening_intent
 from core.trading.portfolio import Portfolio

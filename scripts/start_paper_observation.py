@@ -22,14 +22,14 @@ ROOT = Path(__file__).resolve().parents[1]
 from analysis.research_evidence import ResearchEvidenceRun
 from core.market.data_versions import DataVersionStore
 from core.market.quote_observations import QuoteObservationStore, aware_utc, read_quote_observations
-from core.reproducibility import canonical_json, sha256_bytes, sha256_file
+from core.foundation.reproducibility import canonical_json, sha256_bytes, sha256_file
 
 
 # Hash the observer and its evidence path, not unrelated strategy development.
 OBSERVATION_SOURCES = (
     "scripts/start_paper_observation.py", "scripts/collect_execution_quotes.py",
     "core/market/quote_observations.py", "core/market/request_budget.py", "core/market/data_versions.py",
-    "core/reproducibility.py", "core/metrics/execution.py",
+    "core/foundation/reproducibility.py", "core/metrics/execution.py",
     "analysis/research_evidence.py", "analysis/execution_calibration.py",
     "analysis/paper_study.py", "analysis/paper_validation.py", "requirements.lock.txt",
 )

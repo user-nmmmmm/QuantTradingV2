@@ -22,7 +22,7 @@ from backtest.engine import BacktestEngine
 from backtest.reporting import ReportGenerator
 from backtest.reporting.serialization import write_metrics_json
 from config.config import config
-from core.reproducibility import (
+from core.foundation.reproducibility import (
     canonical_json, code_identity, deterministic_result_digest,
     load_data_snapshots, load_manifest, runtime_identity, sha256_file,
 )

@@ -9,8 +9,8 @@ import pytest
 
 from core.planning.allocation import EntryCandidate
 from core.trading.entry_audit import capture, note
-from core.runtime import EventProcessor, MarketDataSlice
-from core.reproducibility import canonical_json, sha256_file
+from core.foundation.runtime import EventProcessor, MarketDataSlice
+from core.foundation.reproducibility import canonical_json, sha256_file
 from research.ml_selection.dataset import FEATURE_COLUMNS
 from research.ml_selection.diagnostics import (audit_existing_run, build_episode_diagnostics,
                                                 probability_diagnostics, ranking_observations)

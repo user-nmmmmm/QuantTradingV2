@@ -6,7 +6,7 @@ import csv
 import json
 from pathlib import Path
 
-from core.reproducibility import canonical_json, sha256_bytes
+from core.foundation.reproducibility import canonical_json, sha256_bytes
 from signal_meta.signal_observation_types import fingerprint
 
 

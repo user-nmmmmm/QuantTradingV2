@@ -14,7 +14,7 @@ from backtest.coin_selector import (
     create_selector, disabled_identity, read_bundle, restore_selector,
     snapshot_bundle, write_selector_report,
 )
-from core.reproducibility import deterministic_result_digest, sha256_file
+from core.foundation.reproducibility import deterministic_result_digest, sha256_file
 from tests.engine_baseline_harness import build_synthetic_data_map
 
 

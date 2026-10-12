@@ -20,7 +20,7 @@ import pandas as pd
 
 from analysis.strategy_review import validate_prospective
 from core.market.data_versions import DataVersionStore
-from core.reproducibility import sha256_file
+from core.foundation.reproducibility import sha256_file
 from scripts.roadmap_baseline import verify_source
 
 

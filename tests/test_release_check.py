@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from core.source_identity import BINDING_SCHEMA, Scope, bind_release, build_manifest, scope_sha256, verify_binding
+from core.foundation.source_identity import BINDING_SCHEMA, Scope, bind_release, build_manifest, scope_sha256, verify_binding
 from scripts import identity_report, release_check
 from scripts.release_check import (check_changelog, check_release, pyproject_version, tag_to_version,
                                    verify_tag)

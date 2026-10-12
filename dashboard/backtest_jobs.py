@@ -379,7 +379,7 @@ class BacktestJobs:
             else:
                 configured = configuration_for_strategy(base, parameters.get("strategy"), experiment_id=run_id)
             if kind == "backtest":
-                from core.runtime import validate_selector_execution_path
+                from core.foundation.runtime import validate_selector_execution_path
                 validate_selector_execution_path(
                     selector_enabled=parameters.get("use_selector") is True,
                     portfolio_targets_enabled=(configured.get("portfolio_targets") or {}).get("enabled", False),
@@ -416,7 +416,7 @@ class BacktestJobs:
     def _freeze_selector(self, run_id: str) -> dict[str, Any]:
         """Validate the submitted package and its copied contents before admission."""
         from backtest.coin_selector import read_bundle, snapshot_bundle
-        from core.reproducibility import sha256_file
+        from core.foundation.reproducibility import sha256_file
 
         try:
             path, package = read_bundle()

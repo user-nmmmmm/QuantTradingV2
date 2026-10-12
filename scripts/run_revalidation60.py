@@ -24,7 +24,7 @@ from core.analytics.benchmarks import btc_eth_first_open_buy_hold
 from core.trading.lots import CloseEvent
 from core.metrics import calculate_equity_metrics
 from core.analytics.strategy_health import classify_exit_controller
-from core.reproducibility import canonical_json, deterministic_result_digest, sha256_file, sha256_frame
+from core.foundation.reproducibility import canonical_json, deterministic_result_digest, sha256_file, sha256_frame
 from scripts.prepare_revalidation_data import SYMBOLS, START, END
 
 

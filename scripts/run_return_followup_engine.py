@@ -21,7 +21,7 @@ import numpy as np
 import pandas as pd
 
 from analysis.paper_study import WINDOWS, arm_parameters, freeze_registration, load_verified_inputs, write_json
-from core.reproducibility import sha256_file, sha256_frame
+from core.foundation.reproducibility import sha256_file, sha256_frame
 from scripts.run_paper_applications import run_job
 from strategies.trend_portfolio_v2 import TrendPortfolioV2Strategy
 

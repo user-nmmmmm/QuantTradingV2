@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
-from core.live_safety import SafetyConfigurationError, StartupSafetyPolicy, verify_live_permissions
+from core.foundation.live_safety import SafetyConfigurationError, StartupSafetyPolicy, verify_live_permissions
 from core.trading.sqlite_backup import validate_database
 from ops.admission_gates import evaluate_phase6
 

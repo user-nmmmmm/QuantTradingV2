@@ -318,7 +318,7 @@ def test_pit_member_exits_at_own_final_bar_and_uses_local_index(tmp_path, exit_v
         config._config = original
 
 def test_durable_live_projection_keeps_approved_risk_across_gap_and_replay(tmp_path):
-    from core.domain import FillRecord, OrderIntent
+    from core.foundation.domain import FillRecord, OrderIntent
     from core.trading.order_store import OrderStore
     from core.live_broker.fill_projection import replay_fill_projection
     store = OrderStore(str(tmp_path / "fills.sqlite"))

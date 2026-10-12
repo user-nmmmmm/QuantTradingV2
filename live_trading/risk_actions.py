@@ -12,7 +12,7 @@ from datetime import datetime
 from math import isfinite
 from typing import Any, Callable, TYPE_CHECKING
 
-from core.domain import OrderStatus
+from core.foundation.domain import OrderStatus
 from core.risk.actions import RiskActionPlan
 from live_trading.recovery import balance_sync_succeeded
 

@@ -33,7 +33,7 @@ from composition.factory import (
 from config.config import ConfigLoader, config
 from core.market.data_fetcher import DataFetcher
 from core.metrics import benjamini_hochberg, one_sided_bootstrap_p_value
-from core.reproducibility import canonical_json, save_data_snapshots, sha256_file
+from core.foundation.reproducibility import canonical_json, save_data_snapshots, sha256_file
 from core.market.timeframes import timeframe_delta
 from scripts.roadmap_baseline import source_manifest
 

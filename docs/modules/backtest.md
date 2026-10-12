@@ -1,6 +1,6 @@
 # backtest/ 模块说明
 
-`backtest/` 负责历史行情调度、模拟撮合、保护止损、适用的资金费用/借贷成本、逐 bar 估值与报告。它与 `live_trading/` 共用 `core/runtime.py` 的 `EventProcessor`、路由和策略决策，但执行顺序和模式特有的风控、持久化流程分别实现。
+`backtest/` 负责历史行情调度、模拟撮合、保护止损、适用的资金费用/借贷成本、逐 bar 估值与报告。它与 `live_trading/` 共用 `core/foundation/runtime.py` 的 `EventProcessor`、路由和策略决策，但执行顺序和模式特有的风控、持久化流程分别实现。
 
 本页描述当前实现。成本、时序与数据可得性的研究假设另见 [`backtest_assumptions.md`](../backtest_assumptions.md)；报告产物不能单独证明数据在历史决策时点已经可用。
 

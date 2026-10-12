@@ -4,7 +4,7 @@ import unittest
 from datetime import date
 from unittest.mock import patch
 
-from core.live_safety import SafetyConfigurationError, StartupSafetyPolicy
+from core.foundation.live_safety import SafetyConfigurationError, StartupSafetyPolicy
 from core.risk.persistent_guard import PersistentOrderSafetyGuard
 
 

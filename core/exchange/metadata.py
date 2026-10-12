@@ -3,7 +3,7 @@
 Split out of core/exchange_boundary.py (A4) — see docs/architecture_review.md.
 Also houses the shared decimal/mapping helpers and the boundary error
 hierarchy, since every other split module needs them and this is the most
-foundational one (no dependency on core.domain).
+foundational one (no dependency on core.foundation.domain).
 """
 from __future__ import annotations
 

@@ -10,7 +10,7 @@ import pandas as pd
 import pytest
 
 from config.config import config
-from core.domain import OrderIntent, SyncResult
+from core.foundation.domain import OrderIntent, SyncResult
 from core.trading.portfolio import Portfolio
 from core.risk import RiskManager
 from core.trading.state_store_v2 import StateStore

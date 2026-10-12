@@ -18,9 +18,9 @@ from composition.factory import build_strategy_registry, build_state_machine, bu
 from config.config import config
 from core.broker import Broker
 from core.trading.portfolio import Portfolio
-from core.runtime import MarketDataSlice
+from core.foundation.runtime import MarketDataSlice
 from core.market.market_data import HistoricalMarketDataAdapter
-from core.reproducibility import deterministic_result_digest
+from core.foundation.reproducibility import deterministic_result_digest
 from signal_meta.signal_actuals import reconcile_actuals
 from signal_meta.signal_observation import SignalObserver
 from signal_meta.signal_observation_types import (
@@ -400,7 +400,7 @@ def test_ghost_margin_breach_is_unknown_not_an_insolvent_profit_label():
 
 def test_manifest_replay_preserves_input_symbol_order_and_research_facts(tmp_path, capsys):
     from main import replay_manifest
-    from core.reproducibility import save_data_snapshots, sha256_file, write_manifest
+    from core.foundation.reproducibility import save_data_snapshots, sha256_file, write_manifest
     from pathlib import Path
     data = build_synthetic_data_map(symbols=("Z", "A"), bars=100)
     engine = BacktestEngine(initial_capital=10000,

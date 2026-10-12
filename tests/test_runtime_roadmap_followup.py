@@ -27,7 +27,7 @@ from scripts.measure_sandbox_orders import probe
 from core.market.data_fetcher import DataFetcher
 from core.trading.portfolio import Portfolio
 from core.risk import RiskManager
-from core.domain import SyncResult
+from core.foundation.domain import SyncResult
 from config.config import config
 from live_trading.engine import LiveTradingEngine
 from unittest.mock import MagicMock

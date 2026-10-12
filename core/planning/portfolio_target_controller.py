@@ -14,7 +14,7 @@ import pandas as pd
 
 from core.trading.accounts import AccountMode
 from core.planning.cost_aware_allocation import CostAwareAllocationPolicy
-from core.domain import OrderIntent
+from core.foundation.domain import OrderIntent
 from core.trading.entry_audit import capture
 from core.events import OrderEvent
 from core.trading.margin_rebalance import MarginBudgetSnapshot, MarginQuote, plan_margin_targets

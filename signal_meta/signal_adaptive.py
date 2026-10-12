@@ -12,7 +12,7 @@ import math
 
 import pandas as pd
 
-from core.reproducibility import canonical_json, sha256_bytes
+from core.foundation.reproducibility import canonical_json, sha256_bytes
 from signal_meta.signal_adaptive_types import AdaptiveEVPolicy, adaptive_implementation_identity
 from signal_meta.signal_axis_attribution import combine_axis_score, fit_axis_weights
 from signal_meta.signal_ev_ledger import EVLedger

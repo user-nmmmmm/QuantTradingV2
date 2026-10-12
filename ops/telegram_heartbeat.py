@@ -1,6 +1,6 @@
 """Periodic (not event-triggered) status summary posted to Telegram.
 
-core/alerting.py's TelegramAlertSink fires on operational events (halts,
+core/foundation/alerting.py's TelegramAlertSink fires on operational events (halts,
 breaker trips). This is the complementary "still alive and here's the
 state" report meant to be invoked on a schedule (cron/systemd timer),
 independent of whether anything noteworthy happened.
@@ -13,7 +13,7 @@ import json
 import os
 from typing import Any, Dict
 
-from core.alerting import send_telegram_message
+from core.foundation.alerting import send_telegram_message
 from ops.status_snapshot import load_dashboard
 
 

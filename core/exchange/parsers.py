@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, Mapping, Optional, Tuple
 
-from core.domain import OrderStatus
+from core.foundation.domain import OrderStatus
 from core.exchange.metadata import _decimal, _mapping
 
 

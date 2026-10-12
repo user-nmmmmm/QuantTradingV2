@@ -9,7 +9,7 @@ import pandas as pd
 
 from config.config import config
 from live_trading.engine import LiveTradingEngine
-from core.domain import PortfolioSnapshot
+from core.foundation.domain import PortfolioSnapshot
 from core.trading.order_latency import OrderLatencyRecorder
 from core.trading.portfolio import Portfolio
 from core.risk import RiskManager

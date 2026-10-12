@@ -1,7 +1,7 @@
 """Read authoritative order facts without treating a missing order as canceled."""
 from __future__ import annotations
 
-from core.domain import OrderStatus
+from core.foundation.domain import OrderStatus
 from core.trading.orders import TERMINAL_STATUSES
 
 

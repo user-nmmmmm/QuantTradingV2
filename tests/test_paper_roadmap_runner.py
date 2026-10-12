@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 
 from analysis.paper_portfolio import PaperSpec, default_paper_specs
-from core.reproducibility import sha256_file
+from core.foundation.reproducibility import sha256_file
 from scripts.run_paper_roadmap import build_jobs, freeze_inputs, load_fine_input, validate_frozen_observations
 
 

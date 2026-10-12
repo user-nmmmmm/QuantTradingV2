@@ -1,7 +1,7 @@
 """Preserve original rejected decisions while a bridge blocks new risk."""
 import numpy as np
 
-from core.reproducibility import canonical_json
+from core.foundation.reproducibility import canonical_json
 from research.ml_selection.dataset import build_dataset
 from research.ml_selection.forward_bridge import RecordingSelector, bridge_decision
 from research.ml_selection.selector import ResearchSelector

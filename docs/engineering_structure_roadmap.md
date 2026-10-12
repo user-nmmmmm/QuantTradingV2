@@ -11,7 +11,7 @@
 | 现状证据 | 工程含义 |
 | --- | --- |
 | 当前检出位于 `codex/p2-p3-signal-meta-layer`，HEAD 为 `ab15bc2`；本地存在大量已修改及未跟踪文件，包括代码、文档和工作流。 | 先整理变更身份与范围；不能把本地检查结果直接当成干净检出的 CI 或远端结果。 |
-| `core/runtime.py` 提供共享 `EventProcessor`；`backtest/engine.py` 和 `live_trading/engine.py` 仍各自承担运行流程。实时行情、交易所执行与部分运维设施位于 `core/`。 | 已有共享决策逻辑，但“全部模式差异都在外层”尚不是准确的包边界描述。 |
+| `core/foundation/runtime.py` 提供共享 `EventProcessor`；`backtest/engine.py` 和 `live_trading/engine.py` 仍各自承担运行流程。实时行情、交易所执行与部分运维设施位于 `core/`。 | 已有共享决策逻辑，但“全部模式差异都在外层”尚不是准确的包边界描述。 |
 | `core/events/codec.py::_resolve_type()` 延迟导入 `research.audit.ledger` 中的 `CashEvent`、`MarkPriceEvent`；该研究模块声明不接入交易路径。 | `core → research` 形成反向依赖，事件兼容类型与离线账本的归属需要拆开。 |
 | `data/binance/1d/` 有 30 个被 Git 跟踪的 CSV；同目录 `_manifest.json` 目前仅记录 BTC、ETH 两个文件。 | 下载缓存清单不足以证明全部入库历史数据的来源、范围与哈希。 |
 | `.github/workflows/tests.yml` 安装 `requirements-dev.txt`，并运行锁文件校验；`requirements.lock.txt` 是另一个运行时依赖清单。 | 校验锁文件存在，不等于 CI 的完整依赖安装来自该锁文件。 |

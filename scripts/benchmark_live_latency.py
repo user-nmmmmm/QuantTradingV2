@@ -26,7 +26,7 @@ from composition.factory import build_router, build_state_machine, build_strateg
 from config.config import config
 from core.broker import Broker
 from core.trading.portfolio import Portfolio
-from core.runtime import EventProcessor
+from core.foundation.runtime import EventProcessor
 
 
 class SyntheticFetcher:

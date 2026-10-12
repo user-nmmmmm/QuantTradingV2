@@ -8,7 +8,7 @@ from typing import Any, Dict, Optional, Tuple
 
 import yaml
 
-from core.logger import get_logger
+from core.foundation.logger import get_logger
 
 
 logger = get_logger(__name__)

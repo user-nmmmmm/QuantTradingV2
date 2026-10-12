@@ -29,7 +29,7 @@ from backtest.engine import BacktestEngine
 from composition.factory import build_strategy_registry
 from config.config import config
 from core.market.market_data import normalize_market_frame
-from core.reproducibility import canonical_json, sha256_file
+from core.foundation.reproducibility import canonical_json, sha256_file
 from core.market.universe import normalize_symbol
 from scripts.run_trend_portfolio_v2 import _benchmark_diagnostic, _execute_suite_run, suite_profiles
 

@@ -10,7 +10,7 @@ from analysis.paper_study import (
     factor_proxies, freeze_registration, load_verified_inputs,
 )
 from config.config import config
-from core.reproducibility import sha256_file
+from core.foundation.reproducibility import sha256_file
 
 
 def test_frozen_registration_rejects_drift_without_overwrite(tmp_path):

@@ -15,7 +15,7 @@ import pandas as pd
 from analysis.overlay_study import run_diagnostics, health_reference_attribution
 from composition.factory import build_strategy_registry
 from config.config import config
-from core.reproducibility import sha256_file, sha256_frame
+from core.foundation.reproducibility import sha256_file, sha256_frame
 from ops.strategy_registration import register_health_policies
 from scripts.run_revalidation60 import load_inputs, run_one, save, source_hashes
 

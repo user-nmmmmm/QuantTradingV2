@@ -12,7 +12,7 @@ from threading import RLock
 from time import sleep
 from uuid import uuid4
 
-from core.logger import get_logger
+from core.foundation.logger import get_logger
 from live_trading.recovery import account_new_risk_gate
 
 # Same logger name as live_trading.engine (logging.getLogger caches by name,

@@ -26,7 +26,7 @@
 core/trading/state.py  MarketStateMachine  ── 把 OHLCV 序列映射为离散 MarketState
         │
         ▼
-core/runtime.py  EventProcessor    ── 每根 bar 的确定性编排（唯一业务路径，回测/实盘共用）
+core/foundation/runtime.py  EventProcessor    ── 每根 bar 的确定性编排（唯一业务路径，回测/实盘共用）
         │
         ├─(1) 熔断器检查        core/risk/circuit_breaker.py
         ├─(2) 逐标的：持仓管理   router.Router.process_position_management

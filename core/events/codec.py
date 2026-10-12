@@ -16,7 +16,7 @@ from typing import Any, Dict, Tuple, Type, Union
 from uuid import UUID
 
 from core.events.types import PAYLOAD_EVENT_TYPES, StructuredPayload, _aware_utc, _normalize_value
-from core.domain import FillRecord, OrderSubmissionResult, SyncResult, OrderStatus, OrderErrorCode
+from core.foundation.domain import FillRecord, OrderSubmissionResult, SyncResult, OrderStatus, OrderErrorCode
 from core.events.ledger_events import CashEvent, MarkPriceEvent
 
 
@@ -27,10 +27,14 @@ _PERSISTED_NAMES: Dict[type, str] = {
     MarkPriceEvent: "research.audit.ledger:MarkPriceEvent",
 }
 
+# Modules that were renamed after events had been stored: the persisted name keeps the module the class
+# was defined in when it was first written. core.domain became core.foundation.domain in B2-5 (ADR 0016).
+_WIRE_MODULES: Dict[str, str] = {"core.foundation.domain": "core.domain"}
+
 
 def _qualified_name(value: Union[Type[Any], Any]) -> str:
     cls = value if isinstance(value, type) else type(value)
-    return _PERSISTED_NAMES.get(cls) or f"{cls.__module__}:{cls.__qualname__}"
+    return _PERSISTED_NAMES.get(cls) or f"{_WIRE_MODULES.get(cls.__module__, cls.__module__)}:{cls.__qualname__}"
 
 
 def _resolve_type(name: str) -> Type[Any]:

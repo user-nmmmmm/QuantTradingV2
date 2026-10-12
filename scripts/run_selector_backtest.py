@@ -23,7 +23,7 @@ from backtest.reporting import ReportGenerator
 from backtest.reporting.operating_periods import requested_period_curve
 from backtest.reporting.serialization import write_metrics_json
 from config.config import config
-from core.reproducibility import (canonical_json, capital_allocation_digest,
+from core.foundation.reproducibility import (canonical_json, capital_allocation_digest,
                                  deterministic_result_digest, sha256_file, sha256_frame)
 
 DATA_REGISTRATION = Path("reports/multicoin_100k_20261004/registration.json")

@@ -5,7 +5,7 @@ import pandas as pd
 from backtest.reporting import ReportGenerator
 from core.broker import Broker
 from core.trading.portfolio import Portfolio
-from core.runtime import EventProcessor, MarketDataSlice
+from core.foundation.runtime import EventProcessor, MarketDataSlice
 from live_trading.engine import LiveTradingEngine
 class P3CompletionTests(unittest.TestCase):
     def test_runtime_values_once_and_reuses_prices(self):

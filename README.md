@@ -97,7 +97,7 @@ flowchart TB
     end
 
     subgraph KERNEL["共享决策内核 Shared Decision Core"]
-        EP["EventProcessor（core/runtime.py）"]
+        EP["EventProcessor（core/foundation/runtime.py）"]
         SM["MarketStateMachine（core/trading/state.py）"]
         RT["Router + PortfolioSignalAllocator（router/, core/planning/allocation.py）"]
         ST["Strategies（strategies/）"]
@@ -140,7 +140,7 @@ flowchart TB
 
 ### 2.2 共享决策流程与模式适配
 
-`core/runtime.py::EventProcessor` 统一处理已收盘 bar 的持仓管理、候选收集和组合分配。
+`core/foundation/runtime.py::EventProcessor` 统一处理已收盘 bar 的持仓管理、候选收集和组合分配。
 两种模式使用下列适配器，但回测引擎与实盘引擎仍有各自的运行生命周期及风险事实处理，
 不能把下表理解成两条路径已经取得逐事件一致性验收（见
 [R5 阶段](docs/unified_roadmap.md#4-项目阶段与退出条件)与
@@ -705,7 +705,7 @@ Phase 6 准入证据的 fail-closed 评估由 `python -m ops.admission_gates` �
 
 | 变量 | 用途 |
 | --- | --- |
-| `EXCHANGE_API_KEY` / `EXCHANGE_SECRET` / `EXCHANGE_PASSWORD` | 交易所 API 凭据（`core/live_safety.py` 只从环境变量读取） |
+| `EXCHANGE_API_KEY` / `EXCHANGE_SECRET` / `EXCHANGE_PASSWORD` | 交易所 API 凭据（`core/foundation/live_safety.py` 只从环境变量读取） |
 | `QUANT_ALLOWED_EXCHANGES` | 允许连接的交易所白名单 |
 | `QUANT_ALLOWED_SYMBOLS` | 允许交易的标的白名单 |
 | `QUANT_ALLOWED_ACCOUNT_TYPES` | 允许的账户/市场类型白名单 |
@@ -860,7 +860,7 @@ python main.py --source synthetic --days 365 --seed 42 --report-profile full
 ## 10. 能力边界
 
 - **现货 vs 衍生品**：回测路径已用 `account.mode` 打通 `spot / spot_margin / perpetual`
-  三种独立语义及其保证金、融资成本与强平契约。实盘入口仍受 `core/live_safety.py` 的
+  三种独立语义及其保证金、融资成本与强平契约。实盘入口仍受 `core/foundation/live_safety.py` 的
   账户类型白名单、交易所元数据和启动预检约束；**回测支持不等于自动批准真实资金使用**。
 - **多标的并发交易**：实盘与回测引擎均原生**同时**处理多个标的，并非依次轮询触发。
   仓位按标的独立记录（`core/trading/portfolio.py`），仓位计算基于组合整体权益，风控

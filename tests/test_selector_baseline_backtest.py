@@ -9,7 +9,7 @@ import yaml
 
 from backtest.reporting.operating_periods import requested_period_curve
 from config.config import config
-from core.reproducibility import (capital_allocation_digest, deterministic_result_digest,
+from core.foundation.reproducibility import (capital_allocation_digest, deterministic_result_digest,
                                  sha256_file, sha256_frame)
 from scripts import run_selector_backtest as runner
 

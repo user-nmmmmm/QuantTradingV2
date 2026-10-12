@@ -10,7 +10,7 @@ B2 第 1 簇（行情）之后，`core/` 根还有 46 个平铺模块。订单�
 ## 决定
 - 新建子包 `core/trading/`（仍属 `core` 层；`__init__.py` 为空），搬入 20 个模块，**模块名不变**：`orders`、`order_lifecycle`、`order_store`、`order_latency`、`execution_port`、`protective_orders`、`protective_stops`、`lots`、`accounts`、`account_source`、`account_reconciliation`、`account_cost_contract`、`margin_rebalance`、`position_management`、`entry_audit`、`entry_risk`、`state`、`state_store_v2`、`sqlite_utils`、`sqlite_backup`。`core.orders` → `core.trading.orders`。
 - 不留垫片；所有导入点（含 `patch("…")` 字符串、子进程命令里的 `-m core.sqlite_backup` 与 `-c "from core.state_store_v2 import …"`）一次性改写，运行手册同步。
-- **持久化格式不变**：搬迁前检查了 `__module__`、pickle、动态导入；事件类型名按 ADR 0005 是显式常量，不依赖模块路径；状态/订单存储的表结构与键未改动，现有测试覆盖读写与恢复。
+- **持久化格式不变**：搬迁前检查了 `__module__`、pickle、动态导入；本簇的模块里没有会被事件编解码器序列化的类型（编解码器只认 `core/events` 与 `core.domain` 里登记的类型，名称按 `__module__` 生成，见 ADR 0005、0016），状态/订单存储的表结构与键未改动，现有测试覆盖读写与恢复。
 - 冻结的历史证据不改写。
 
 ## 备选方案

@@ -26,7 +26,7 @@ The individual commands:
 python -m ruff check .
 python scripts/quality_ratchet.py check
 lint-imports
-python -m mypy core/domain.py core/runtime.py live_trading/execution_adapter.py
+python -m mypy core/foundation/domain.py core/foundation/runtime.py live_trading/execution_adapter.py
 python -m pytest -q -n 4          # add -m "not slow" for a quick loop
 python scripts/check_repository_hygiene.py
 python scripts/verify_roadmap_completion.py --structure-only
