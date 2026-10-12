@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional
 
 from core.trading.lots import Lot
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 
 REL_TOLERANCE = 1e-6
 ABS_TOLERANCE = 1e-6

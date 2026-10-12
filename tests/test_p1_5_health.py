@@ -16,7 +16,7 @@ from ops.health import (
     HealthReason,
 )
 from core.live_broker import LiveBroker
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from core.risk import RiskManager
 from live_trading.engine import LiveTradingEngine
 

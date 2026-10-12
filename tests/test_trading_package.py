@@ -4,7 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-MODULES = ('orders', 'order_lifecycle', 'order_store', 'order_latency', 'execution_port', 'protective_orders', 'protective_stops', 'lots', 'accounts', 'account_source', 'account_reconciliation', 'account_cost_contract', 'margin_rebalance', 'position_management', 'entry_audit', 'entry_risk', 'state', 'state_store_v2', 'sqlite_utils', 'sqlite_backup')
+MODULES = ('orders', 'order_lifecycle', 'order_store', 'order_latency', 'execution_port', 'protective_orders', 'protective_stops', 'lots', 'accounts', 'account_source', 'account_reconciliation', 'account_cost_contract', 'margin_rebalance', 'position_management', 'entry_audit', 'entry_risk', 'state', 'state_store_v2', 'sqlite_utils', 'sqlite_backup', 'portfolio', 'valuation')
 
 
 def test_modules_live_in_core_trading_and_not_at_the_core_root():

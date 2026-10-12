@@ -24,7 +24,7 @@ from core.broker import Broker
 from core.broker.matching import PROTECTIVE_EXIT_REASON
 from core.broker.types import BacktestOrderStatus
 from core.metrics import calculate_signal_funnel
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 
 SYMBOL = "BTC/USDT"
 

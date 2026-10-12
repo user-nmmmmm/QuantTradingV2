@@ -8,7 +8,7 @@ from typing import Any, Callable, Iterable, Optional
 
 from core.domain import OrderErrorCode
 from core.events import EventEnvelope, FillEvent, TradingEventPipeline
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from core.runtime import MarketDataSlice
 
 

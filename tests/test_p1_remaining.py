@@ -15,7 +15,7 @@ from core.live_broker import LiveBroker
 from core.trading.lots import CloseEvent
 from core.trading.order_store import OrderStore
 from core.risk.persistent_guard import PersistentOrderSafetyGuard
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from core.risk import RiskManager
 from core.trading.state import MarketState
 from core.trading.state_store_v2 import StateStore

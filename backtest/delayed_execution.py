@@ -13,7 +13,7 @@ import pandas as pd
 
 from core.broker import Broker
 from core.domain import OrderIntent
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from signal_meta.signal_observation_types import fingerprint, iso
 from core.market.timeframes import as_utc_timestamp, timeframe_delta
 

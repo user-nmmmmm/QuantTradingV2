@@ -16,7 +16,7 @@ from core.market.data_fetcher import DataFetcher
 from core.domain import SyncResult
 from core.market.market_data import LiveMarketDataAdapter
 from core.market.market_data_errors import MarketDataRefreshError
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from core.market.public_data_clients import PublicDataClientPool, VenueRequestPacer
 from core.risk import RiskManager
 from core.trading.state import MarketState, MarketStateMachine

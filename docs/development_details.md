@@ -1254,7 +1254,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **来源：** [docs/development_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/development_plan.md)；[docs/archive/2026-10-doc-consolidation/backtest_optimization_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/backtest_optimization_roadmap.md)；[docs/authoritative_ledger.md](authoritative_ledger.md)。
 
-**修改范围：** [core/trading/lots.py](../core/trading/lots.py)、[core/portfolio.py](../core/portfolio.py)、[backtest/reporting/trades.py](../backtest/reporting/trades.py)、[research/audit/ledger.py](../research/audit/ledger.py)。
+**修改范围：** [core/trading/lots.py](../core/trading/lots.py)、[core/trading/portfolio.py](../core/trading/portfolio.py)、[backtest/reporting/trades.py](../backtest/reporting/trades.py)、[research/audit/ledger.py](../research/audit/ledger.py)。
 
 **开发步骤：**
 
@@ -1339,7 +1339,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **来源：** [docs/archive/2026-10-doc-consolidation/live_trading_remediation_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/live_trading_remediation_plan.md)；[docs/phase6_operations.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/phase6_operations.md)。
 
-**修改范围：** [core/live_broker/account_sync.py](../core/live_broker/account_sync.py)、[live_trading/recovery.py](../live_trading/recovery.py)、[core/portfolio.py](../core/portfolio.py)、[research/audit/reconciliation_job.py](../research/audit/reconciliation_job.py)。
+**修改范围：** [core/live_broker/account_sync.py](../core/live_broker/account_sync.py)、[live_trading/recovery.py](../live_trading/recovery.py)、[core/trading/portfolio.py](../core/trading/portfolio.py)、[research/audit/reconciliation_job.py](../research/audit/reconciliation_job.py)。
 
 **开发步骤：**
 
@@ -1460,7 +1460,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **来源：** [docs/portfolio_risk_contract.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/portfolio_risk_contract.md)；[docs/research/strategy_remediation_contract_20260914.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/research/strategy_remediation_contract_20260914.md)。
 
-**修改范围：** [core/risk/drawdown_budget.py](../core/risk/drawdown_budget.py)、[core/risk/portfolio_governor.py](../core/risk/portfolio_governor.py)、[core/risk/reservation.py](../core/risk/reservation.py)、[core/allocation.py](../core/allocation.py)、[live_trading/risk_actions.py](../live_trading/risk_actions.py)。
+**修改范围：** [core/risk/drawdown_budget.py](../core/risk/drawdown_budget.py)、[core/risk/portfolio_governor.py](../core/risk/portfolio_governor.py)、[core/risk/reservation.py](../core/risk/reservation.py)、[core/planning/allocation.py](../core/planning/allocation.py)、[live_trading/risk_actions.py](../live_trading/risk_actions.py)。
 
 **开发步骤：**
 
@@ -1732,7 +1732,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **来源：** [docs/archive/2026-10-doc-consolidation/strategy_development_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md)；[docs/archive/2026-10-doc-consolidation/backtest_optimization_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/backtest_optimization_roadmap.md)；[docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md)。
 
-**修改范围：** [core/market/universe.py](../core/market/universe.py)、[core/factors](../core/factors)、[core/allocation.py](../core/allocation.py)、[router/router.py](../router/router.py)。
+**修改范围：** [core/market/universe.py](../core/market/universe.py)、[core/factors](../core/factors)、[core/planning/allocation.py](../core/planning/allocation.py)、[router/router.py](../router/router.py)。
 
 **开发步骤：**
 
@@ -1770,7 +1770,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **来源：** [docs/archive/2026-10-doc-consolidation/strategy_development_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md)；[docs/archive/2026-10-doc-consolidation/position_management_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/position_management_plan.md)；[docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md)。
 
-**修改范围：** [core/risk/position_sizing.py](../core/risk/position_sizing.py)、[core/risk/portfolio_governor.py](../core/risk/portfolio_governor.py)、[core/allocation.py](../core/allocation.py)。
+**修改范围：** [core/risk/position_sizing.py](../core/risk/position_sizing.py)、[core/risk/portfolio_governor.py](../core/risk/portfolio_governor.py)、[core/planning/allocation.py](../core/planning/allocation.py)。
 
 **开发步骤：**
 
@@ -1808,7 +1808,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **来源：** [docs/archive/2026-10-doc-consolidation/strategy_development_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md)；[docs/phase3_implementation.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/phase3_implementation.md)；[docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md)。
 
-**修改范围：** [core/trading/account_cost_contract.py](../core/trading/account_cost_contract.py)、[core/portfolio.py](../core/portfolio.py)、[core/broker/financing.py](../core/broker/financing.py)、[core/exchange](../core/exchange)、[strategies](../strategies)。
+**修改范围：** [core/trading/account_cost_contract.py](../core/trading/account_cost_contract.py)、[core/trading/portfolio.py](../core/trading/portfolio.py)、[core/broker/financing.py](../core/broker/financing.py)、[core/exchange](../core/exchange)、[strategies](../strategies)。
 
 **开发步骤：**
 

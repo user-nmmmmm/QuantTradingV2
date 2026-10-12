@@ -10,7 +10,7 @@ import pandas as pd
 import pytest
 import yaml
 
-from core.allocation import EntryCandidate
+from core.planning.allocation import EntryCandidate
 from core.reproducibility import canonical_frame_csv, sha256_file, sha256_frame
 from core.runtime import EventProcessor, MarketDataSlice
 from research.ml_selection import pipeline, protocol

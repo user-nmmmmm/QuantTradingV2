@@ -29,7 +29,7 @@ from core.trading.entry_risk import resolve_approved_risk
 from core.runtime import MarketDataSlice
 from core.risk.actions import plan_risk_action
 from core.market.timeframes import as_utc_timestamp, closed_bars, timeframe_delta
-from core.valuation import build_portfolio_snapshot
+from core.trading.valuation import build_portfolio_snapshot
 from time import perf_counter
 from live_trading.risk_actions import PortfolioRiskActionsMixin
 from live_trading.recovery import (

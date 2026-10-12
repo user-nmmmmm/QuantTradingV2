@@ -9,7 +9,7 @@ not approve the strategy for production capital.
 | T-3.1 | Portfolio drawdown is measured from the historical equity high-water mark. | `core/risk/`; `TestHighWaterDrawdownProtection` |
 | T-3.2 | `daily_loss_limit` is independent from all portfolio drawdown thresholds. | `config/params.yaml`; daily reset test |
 | T-3.3 | Sticky reduce, block-new, liquidate and lock levels; named manual recovery is required. | `BreakerAction`, `RiskManager.manual_resume`, breaker audit |
-| T-3.4 | Explicit `spot`, `spot_margin` and `perpetual` account modes with different cash/PnL semantics. | `core/trading/accounts.py`; `core/portfolio.py` |
+| T-3.4 | Explicit `spot`, `spot_margin` and `perpetual` account modes with different cash/PnL semantics. | `core/trading/accounts.py`; `core/trading/portfolio.py` |
 | T-3.5 | Per-bar initial, maintenance and available margin reconciliation. | `MarginSnapshot`; `margin_ledger` |
 | T-3.6 | Historical perpetual `funding_rate` accrued by settlement bucket; missing required data fails closed. | `Broker.accrue_carry`; funding tests |
 | T-3.7 | Margin shorts enforce auditable borrow availability and accrue time-weighted borrow cost. | borrow-limit/cost tests; `financing_ledger` |

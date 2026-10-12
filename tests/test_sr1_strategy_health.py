@@ -16,7 +16,7 @@ from unittest.mock import MagicMock
 import pandas as pd
 
 from core.trading.lots import CloseEvent
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from core.trading.state_store_v2 import StateStore
 from core.strategy_health import (
     HealthStatus,

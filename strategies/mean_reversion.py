@@ -2,7 +2,7 @@ from typing import Dict, Any, Optional
 import pandas as pd
 import numpy as np
 from core.trading.state import MarketState
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from core.indicators import Indicators
 from core.factors import MomentumFactors
 from strategies.base import Strategy

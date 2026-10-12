@@ -22,3 +22,4 @@
 | [0011](0011-signal-meta-package.md) | 信号元层移到顶层包 `signal_meta/`，不留旧路径垫片 | 已采纳 |
 | [0012](0012-core-market-package.md) | 行情与时间/标的约定移到 `core/market/`（B2 第 1 簇） | 已采纳 |
 | [0013](0013-core-trading-package.md) | 订单、保护单、账户与状态持久化移到 `core/trading/`（B2 第 2 簇） | 已采纳 |
+| [0014](0014-core-planning-package.md) | 选币、打分与分配移到 `core/planning/`；`portfolio`、`valuation` 归入 `core/trading/`（B2 第 3 簇） | 已采纳 |

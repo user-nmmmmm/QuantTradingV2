@@ -16,7 +16,7 @@ from typing import Any, Iterable, Mapping
 import numpy as np
 import pandas as pd
 
-from core.cost_aware_allocation import CostAwareAllocationPolicy, allocate_cost_aware
+from core.planning.cost_aware_allocation import CostAwareAllocationPolicy, allocate_cost_aware
 
 from core.indicators import Indicators
 from core.trading.protective_stops import ProtectiveStopPolicy, plan_initial_stop

@@ -11,7 +11,7 @@ from core.trading.account_source import AccountSourceError, PinnedAccountExport
 from core.domain import FillRecord, OrderIntent, OrderStatus
 from core.live_broker import LiveBroker
 from core.trading.order_store import OrderStore
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 
 
 NOW = datetime(2026, 9, 20, 12, tzinfo=timezone.utc)

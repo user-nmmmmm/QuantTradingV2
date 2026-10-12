@@ -24,7 +24,7 @@ V4 的搬迁与重构依赖下列工程底座;它们与本文的 V4.0 重叠的�
 | 观察 | 数据 | 影响 |
 |---|---|---|
 | `core/` 职责混杂 | 140 个文件 / 3.2 万行,根目录平铺 88 个模块;含交易所适配、`signal_*`(约 2800 行)、准入治理 | 无法按变更原因定位代码,新增策略要碰多处 |
-| 三套选币实现 | `core/selection.py`(v1)、`core/selection_v2.py`、`research/ml_selection/selector.py`,另有 `backtest/coin_selector.py` 加载冻结模型 | 规则、ML、回测接入各走一套,行为难对齐 |
+| 三套选币实现 | `core/planning/selection.py`(v1)、`core/planning/selection_v2.py`、`research/ml_selection/selector.py`,另有 `backtest/coin_selector.py` 加载冻结模型 | 规则、ML、回测接入各走一套,行为难对齐 |
 | 特征多处重复 | `core/factors`、`core/indicators`、策略内计算、`ml_selection/dataset.py` 的 21 个特征 | 训练/回测/实盘特征易漂移 |
 | 回测引擎单体 | `BacktestEngine.run` 约 840 行(`backtest/engine.py:218-1058`);10 币×720 日约 4.1 s、1068 笔成交(2026-09-22 测量) | 难扩展新功能;逐 bar 的 Python 循环是主要吞吐上限 |
 | 入口臃肿 | `main.py` 1128 行;`scripts/` 93 个文件 / 1.8 万行;`run_trend_portfolio_v2/v3` 平行存在 | 逻辑在脚本里,难复用和测试 |

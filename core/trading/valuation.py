@@ -3,7 +3,7 @@ from math import isfinite
 from typing import Dict
 
 from core.domain import PortfolioSnapshot
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 
 
 def build_portfolio_snapshot(

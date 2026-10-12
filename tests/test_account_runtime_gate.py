@@ -11,7 +11,7 @@ import pytest
 
 from config.config import config
 from core.domain import OrderIntent, SyncResult
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from core.risk import RiskManager
 from core.trading.state_store_v2 import StateStore
 from live_trading.engine import LiveTradingEngine

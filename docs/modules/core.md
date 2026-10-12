@@ -9,6 +9,8 @@
 > **2026-10-12（B2-1）：** 行情与时间/标的约定的 17 个模块（`data`、`data_fetcher`、`market_data`、`timeframes`、`universe`、`request_budget` …）已移到子包 `core/market/`，模块名不变（`core.market.data_fetcher` …），旧的 `core.*` 路径不再保留；决定见 [ADR 0012](../adr/0012-core-market-package.md)。
 >
 > **2026-10-12（B2-2）：** 订单、保护单、持仓批次、账户事实与状态存储的 20 个模块（`orders`、`order_store`、`protective_orders`、`lots`、`accounts`、`state`、`state_store_v2`、`sqlite_backup` …）已移到子包 `core/trading/`，模块名不变（`core.trading.order_store` …），旧的 `core.*` 路径不再保留；决定见 [ADR 0013](../adr/0013-core-trading-package.md)。
+>
+> **2026-10-13（B2-3）：** 选币、打分、分配与目标仓位的 7 个模块（`selection`、`selection_v2`、`candidate_scoring`、`allocation`、`cost_aware_allocation`、`target_position`、`portfolio_target_controller`）已移到子包 `core/planning/`；`portfolio`、`valuation` 并入 `core/trading/`。模块名不变，旧的 `core.*` 路径不再保留；决定见 [ADR 0014](../adr/0014-core-planning-package.md)。
 
 本文档按子系统说明职责、主要接口和边界行为。调度与启动流程分别见 [回测模块](backtest.md) 和 [实盘模块](live_trading.md)；此处重点解释共享组件之间的契约。涉及时间版本的数据接口应连同证据来源一起阅读，开启 `strict` 或保存快照本身不代表已通过研究准入。
 
@@ -196,14 +198,14 @@
 
 ## 五、账本、组合与快照
 
-### `core/portfolio.py` — 轻量组合账本
+### `core/trading/portfolio.py` — 轻量组合账本
 `Portfolio(initial_capital)`：`cash` + `positions: Dict[symbol, {"qty","avg_price"}]`（有符号数量，正=多头，负=空头）。`update_position(...)` 在开仓/加仓时按加权平均重算成本，减仓时均价不变，**如果一笔成交让仓位穿越零点（多翻空或空翻多），均价会重置为成交价**。`get_equity`/`get_total_exposure` 在价格缺失时回退用 `avg_price`（这一点和 `core/risk/`、`Broker` 的失败关闭策略不同，调用方需注意可能因此误算权益）。
 
-### `core/valuation.py` — 组合快照
+### `core/trading/valuation.py` — 组合快照
 `build_portfolio_snapshot(portfolio, prices, price_times, synced_at)`：任何持仓缺少新鲜的正价格就抛 `ValueError`，否则计算权益/总敞口/净敞口，生成不可变的 `PortfolioSnapshot`。
 
 ### `research/audit/ledger.py` — 离线事件账本与对账研究
-这是用于离线重放和对账研究的**平行**实现，全程用 `Decimal`，采用均价成本法处理跨零点成交。它未接入实盘或回测的下单路径；交易时的持仓与账户事实仍由 `core/portfolio.py` 的 `Portfolio` 和 `core/trading/lots.py` 的 `LotBook` 维护。类名 `AuthoritativeLedger` 表示该离线事件流内部以持久化事件为依据，不表示它是实盘账户的事实源。详见 [`../authoritative_ledger.md`](../authoritative_ledger.md)。
+这是用于离线重放和对账研究的**平行**实现，全程用 `Decimal`，采用均价成本法处理跨零点成交。它未接入实盘或回测的下单路径；交易时的持仓与账户事实仍由 `core/trading/portfolio.py` 的 `Portfolio` 和 `core/trading/lots.py` 的 `LotBook` 维护。类名 `AuthoritativeLedger` 表示该离线事件流内部以持久化事件为依据，不表示它是实盘账户的事实源。详见 [`../authoritative_ledger.md`](../authoritative_ledger.md)。
 - `AverageCostPositionReducer.reduce(...)`：处理同向加仓（加权均价）、部分平仓（均价不变）、穿越零点的平仓（剩余部分按成交价重新开仓），返回已实现盈亏增量。
 - `FillLedger`/`FeeLedger`/`CashLedger`：按 `event_id` 去重的幂等记账。
 - `PortfolioProjection(base_currency)`：`apply(event, sequence)` 要求序列号严格递增；`snapshot(...)` 把多币种余额/持仓折算成基准货币，若持仓缺少标记价格默认抛错（除非 `require_marks=False`）；`reconcile(external_cash, external_positions, ...)` 比较本地与外部（交易所）状态，标记 `ReconciliationDiscrepancy`（偏差超过 10 倍容差为 critical）。

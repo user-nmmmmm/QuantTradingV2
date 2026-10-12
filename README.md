@@ -99,10 +99,10 @@ flowchart TB
     subgraph KERNEL["共享决策内核 Shared Decision Core"]
         EP["EventProcessor（core/runtime.py）"]
         SM["MarketStateMachine（core/trading/state.py）"]
-        RT["Router + PortfolioSignalAllocator（router/, core/allocation.py）"]
+        RT["Router + PortfolioSignalAllocator（router/, core/planning/allocation.py）"]
         ST["Strategies（strategies/）"]
         RK["RiskManager + 分级熔断（core/risk/）"]
-        PF["Portfolio / LotBook（core/portfolio.py, lots.py）"]
+        PF["Portfolio / LotBook（core/trading/portfolio.py, lots.py）"]
     end
 
     subgraph EXEC["执行层 Execution"]
@@ -782,7 +782,7 @@ python main.py --source synthetic --days 365 --seed 42 --report-profile full
 | 复现 | `run_manifest.json` | 代码 / 配置 / 数据 / 执行身份指纹，配合 `--replay-manifest` 校验 |
 
 `research/audit/ledger.py` 的事件账本仅用于离线审计研究；当前回测与实盘交易路径的
-本地组合/批次账本使用 `core/portfolio.py` 和 `core/trading/lots.py`，实盘仍须与交易所账户事实对账。
+本地组合/批次账本使用 `core/trading/portfolio.py` 和 `core/trading/lots.py`，实盘仍须与交易所账户事实对账。
 
 实盘侧产物：`reports/live_status.json`（状态快照）、`reports/live_alerts.jsonl`（告警）、
 `reports/live_orders.db`（订单状态机与审计账本）、`reports/startup_preflight.json`（启动自检）。
@@ -863,7 +863,7 @@ python main.py --source synthetic --days 365 --seed 42 --report-profile full
   三种独立语义及其保证金、融资成本与强平契约。实盘入口仍受 `core/live_safety.py` 的
   账户类型白名单、交易所元数据和启动预检约束；**回测支持不等于自动批准真实资金使用**。
 - **多标的并发交易**：实盘与回测引擎均原生**同时**处理多个标的，并非依次轮询触发。
-  仓位按标的独立记录（`core/portfolio.py`），仓位计算基于组合整体权益，风控
+  仓位按标的独立记录（`core/trading/portfolio.py`），仓位计算基于组合整体权益，风控
   （`core/risk/`）在组合层面统一管控总杠杆与单标的集中度（默认 `max_pos_size_pct=30%`）。
   同一时间戳的多个候选信号由 `PortfolioSignalAllocator` 按确定性顺序分配资金。
   详见 [`docs/modules/core.md`](docs/modules/core.md)。

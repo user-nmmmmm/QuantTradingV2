@@ -12,7 +12,7 @@ from config.config import config
 from core.broker import Broker
 from core.domain import OrderStatus, OrderIntent, OrderSubmissionResult
 from core.trading.order_store import OrderStore
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from core.trading.protective_orders import ProtectiveOrder, authoritative_position_ids
 from core.trading.state import MarketState
 from core.trading.state_store_v2 import StateStore

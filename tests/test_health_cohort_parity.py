@@ -10,7 +10,7 @@ from backtest.protective_stops import ResidentStopSimulator
 from core.broker import Broker
 from core.domain import OrderStatus
 from core.live_broker.fill_projection import replay_fill_projection
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from core.runtime import MarketDataSlice
 from core.strategy_health import (
     HealthStatus, StrategyHealthMachine, StrategyHealthPolicy, health_cohort_id,

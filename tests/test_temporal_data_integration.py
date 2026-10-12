@@ -211,7 +211,7 @@ def test_reimport_changed_legacy_csv_appends_version_without_rewriting_original(
 def test_p0_skips_unavailable_current_without_error_and_uses_true_cutoff(tmp_path):
     from types import SimpleNamespace
     from tests.test_signal_observation import observer_for
-    from core.portfolio import Portfolio
+    from core.trading.portfolio import Portfolio
     from core.risk import RiskManager
 
     observer = observer_for()

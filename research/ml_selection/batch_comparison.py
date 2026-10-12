@@ -15,7 +15,7 @@ import math
 import numpy as np
 
 from backtest.execution_adapter import SimulatedExecutionAdapter
-from core.allocation import PortfolioSignalAllocator
+from core.planning.allocation import PortfolioSignalAllocator
 from core.broker import Broker
 
 

@@ -44,8 +44,8 @@
 | 策略路由 | Router | 按当前 regime 把空仓标的的入场候选交给映射策略；持仓仍由开仓策略自己按 lot 归因管理。regime 切换只**撤销挂单 + 进入冷却**（`transition_action: stop_new_entries`），不强平持仓。 | `router/router.py: collect_candidate`；`config/params.yaml: routing / router` |
 | 冷却期 | Cooldown | regime 切换后强制等待的 bar 数（当前 2），避免过度交易。 | `config/params.yaml: router.cooldown_bars` |
 | 时间退出 | Max Holding Period Exit | 持仓超过 `max_holding_days`（默认 365 天）强制退出，防止资金被多年锁死。 | `config/params.yaml: router.max_holding_days` |
-| 候选评分 | Candidate Score | 同一根 bar 多个入场候选的排序分，由无量纲分量加权和构成：突破幅度（ATR 单位，权重 1.0）、趋势强度（ADX 超出量，0.5）、量能确认（OBV，0.3）、流动性（对数成交额，0.2）；各分量截断到 ±5 防止单项极端值主导。只决定**排序**，不决定仓位大小。 | `core/candidate_scoring.py`；`config/params.yaml: candidate_scoring` |
-| 组合信号分配器 | Portfolio Signal Allocator | 同时间戳候选批次按评分排序（`allocation.order: score_strategy_symbol`），在资本/风险预算内依次分配，取代早期按字母序的隐性平局规则。 | `core/allocation.py` |
+| 候选评分 | Candidate Score | 同一根 bar 多个入场候选的排序分，由无量纲分量加权和构成：突破幅度（ATR 单位，权重 1.0）、趋势强度（ADX 超出量，0.5）、量能确认（OBV，0.3）、流动性（对数成交额，0.2）；各分量截断到 ±5 防止单项极端值主导。只决定**排序**，不决定仓位大小。 | `core/planning/candidate_scoring.py`；`config/params.yaml: candidate_scoring` |
+| 组合信号分配器 | Portfolio Signal Allocator | 同时间戳候选批次按评分排序（`allocation.order: score_strategy_symbol`），在资本/风险预算内依次分配，取代早期按字母序的隐性平局规则。 | `core/planning/allocation.py` |
 | 点位宇宙 | Point-in-Time (PIT) Universe | 按标的真实上市/退市时间裁剪历史数据的宇宙表，消除"用未来才存在的币回测过去"的存活偏差；退市标的在最后可交易 bar 打 `scheduled_exit` 标记触发强制平仓。 | `core/market/universe.py`；`config/universe_binance_spot_1d.csv`；`main.py --universe-file` |
 | 存活偏差 | Survivorship Bias | 只用"最终仍存在"的标的做回测，忽略已下架/退市标的，导致结果虚高。本项目用 PIT 宇宙 + `scheduled_exit` 退市强平路径对冲该偏差。 | `core/market/universe.py`；`config/universe60_lifecycle.json` |
 
@@ -55,7 +55,7 @@
 
 | 术语 | 英文 | 定义 | 代码位置 |
 | --- | --- | --- | --- |
-| 权益 | Equity | 账户总价值 = 现金 + 所有持仓的市值（现货口径；保证金账户另计借负债）。 | `core/portfolio.py`；`equity.csv` |
+| 权益 | Equity | 账户总价值 = 现金 + 所有持仓的市值（现货口径；保证金账户另计借负债）。 | `core/trading/portfolio.py`；`equity.csv` |
 | 敞口 / 名义敞口 | Exposure / Notional Exposure | 持仓的市值风险暴露。区分总敞口（Gross，各标的绝对值求和）与净敞口（Net，多空相抵后求和）。 | `core/metrics/performance.py`；`equity.csv` 敞口列 |
 | 杠杆 | Leverage | 总敞口相对权益的倍数（Gross Exposure / Equity），上限默认 3.0。 | `config/params.yaml: risk.max_leverage` |
 | 集中度限制 | Concentration Limit | 单一标的仓位市值占组合权益的最大比例，当前 `max_pos_size_pct=30%`。 | `core/risk/position_sizing.py: _entry_notional_caps` |
@@ -187,7 +187,7 @@
 | --- | --- | --- | --- |
 | 凯利准则 | Kelly Criterion | 最大化长期对数增长率的下注比例：`f* = p − q/b`（p 胜率、q=1−p、b 盈亏比）。实务用分数 Kelly（如 ½f*）抑制估计误差带来的破产风险。现状：固定 2% 风险定仓，不随胜率/赔率调整。 | `core/risk/position_sizing.py`（未实现） |
 | 波动目标 | Volatility Targeting | 以预期波动为分母缩放仓位（`qty ∝ 目标波动 ÷ 实现波动`），使每笔/每日风险贡献恒定。现状：仓位只经止损距离隐含波动，无显式波动目标层。 | 未实现 |
-| 风险平价 | Risk Parity / ERC | 使各持仓对组合总风险的边际贡献相等（等风险贡献），而非等金额或等分数。现状：组合层为排序 + 静态上限钳制。 | `core/allocation.py`（未实现） |
+| 风险平价 | Risk Parity / ERC | 使各持仓对组合总风险的边际贡献相等（等风险贡献），而非等金额或等分数。现状：组合层为排序 + 静态上限钳制。 | `core/planning/allocation.py`（未实现） |
 | 隐马尔可夫 / 马尔可夫切换 | HMM / Markov-Switching | 把市场 regime 建模为带转移概率矩阵的隐状态，输出各状态后验概率与期望持续期，可量化"当前处于趋势态的把握"。现状：确定性规则 + 计数滤波，无概率语义。 | `core/trading/state.py`（未实现） |
 | 波动聚集模型 | GARCH 族 | 描述波动率的自相关（大波动后跟大波动），给出条件波动预测，用于自适应阈值与风险缩放。现状：固定阈值（ADX 25、z ±2.0、布林固定倍数）。 | 未实现 |
 | 肥尾与期望短缺 | Heavy Tails / ES (CVaR) | 加密收益尾部远厚于正态；ES（在险价值 VaR 之外的平均损失）是比"最大回撤单点"更稳健的尾部预算口径。现状：回撤阶梯为经验阈值，无 ES/CVaR。 | `config/params.yaml: drawdown`（未实现） |
@@ -206,7 +206,7 @@
 
 | 术语 | 英文 | 定义 | 现状 |
 | --- | --- | --- | --- |
-| 预期收益模型 | Expected Return Model (Alpha Model) | 信号 → 条件预期收益分布（大小 × 置信度）的显式映射，是仓位与组合分配的输入。现状：信号是布尔事件，评分为手工权重排序分，仓位与信号质量脱钩。 | 未实现（评分见 `core/candidate_scoring.py`） |
+| 预期收益模型 | Expected Return Model (Alpha Model) | 信号 → 条件预期收益分布（大小 × 置信度）的显式映射，是仓位与组合分配的输入。现状：信号是布尔事件，评分为手工权重排序分，仓位与信号质量脱钩。 | 未实现（评分见 `core/planning/candidate_scoring.py`） |
 | 风险溢价 | Risk Premium | 承担某种系统性风险（如时序动量、波动率、流动性）而获得的长期补偿；一个策略应说明自己收割的是哪种溢价。 | 未陈述 |
 | 行为偏差 | Behavioral Bias | 对手盘系统性错误（追涨杀跌、处置效应、锚定）构成的超额收益来源；趋势策略的经典解释之一。 | 未陈述 |
 | 拥挤度 | Crowding | 同一公开信号被越多资金跟踪，其预期收益越被提前透支。Donchian 通道类信号是极度拥挤的公开信号，需要拥挤度/衰减建模。 | 未实现 |

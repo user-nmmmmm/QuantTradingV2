@@ -21,7 +21,7 @@ from core.events import (
 )
 from core.live_broker import LiveBroker
 from core.trading.order_store import OrderStore
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from core.live_broker.safe import SafeLiveBroker
 
 

@@ -4,7 +4,7 @@ from typing import Any, Dict
 
 import pandas as pd
 
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 
 
 def sample_exposure(

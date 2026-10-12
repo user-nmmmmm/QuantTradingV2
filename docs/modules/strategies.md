@@ -56,7 +56,7 @@ flowchart TD
 
 1. **持仓管理优先。** Router 从 `Portfolio.lot_books` 查找原开仓策略，由它继续管理退出；不会因当前映射变成 `Cash` 就隐式执行 `StateSwitch` 平仓。最大持仓期限是独立退出控制，当前配置为 365 天。
 2. **空仓才收集候选。** 路由策略名称发生变化时，撤销旧入场意图并设置冷却。当前 `cooldown_bars=2`，条件是 `i <= cooldown_until`；仅状态变化但仍映射到同一个策略名称时，不触发这种切换冷却。
-3. **候选先汇总，再分配。** [PortfolioSignalAllocator](../../core/allocation.py) 按 `(-score, strategy_name, symbol)` 排序后逐项提交。完全同分批次记录 `tie_break_alphabetical`，不能把确定性的名称排序解读为策略优势。
+3. **候选先汇总，再分配。** [PortfolioSignalAllocator](../../core/planning/allocation.py) 按 `(-score, strategy_name, symbol)` 排序后逐项提交。完全同分批次记录 `tie_break_alphabetical`，不能把确定性的名称排序解读为策略优势。
 4. **接受订单后等待实际成交。** 策略不直接修改组合数量、现金或已实现盈亏；这些事实由执行层写入。
 
 `Strategy.on_bar(...)` 保留单标的“先退出、再入场”的兼容流程。当前 Router 主路径使用拆开的持仓管理与候选方法，没有 `Router.route()` 接口。组合级排序和相关风险批次预算应通过主路径完成。
@@ -180,7 +180,7 @@ def should_exit(self, symbol, i, df, state, portfolio):
 
 ### 4.2 Donchian 候选评分
 
-多头突破和空头破位复用[候选评分模块](../../core/candidate_scoring.py)，默认权重为：
+多头突破和空头破位复用[候选评分模块](../../core/planning/candidate_scoring.py)，默认权重为：
 
 | 分项 | 计算依据 | 权重 |
 | --- | --- | --- |
@@ -337,7 +337,7 @@ V2 只在新入场时提议波动率目标数量，不定期再平衡持仓，�
 
 ## 9. TrendPortfolioV3
 
-源码：[trend_portfolio_v3.py](../../strategies/trend_portfolio_v3.py)，继承 V2，并通过[selection_v2](../../core/selection_v2.py)和[PortfolioTargetController](../../core/portfolio_target_controller.py)形成全市场周目标研究。
+源码：[trend_portfolio_v3.py](../../strategies/trend_portfolio_v3.py)，继承 V2，并通过[selection_v2](../../core/planning/selection_v2.py)和[PortfolioTargetController](../../core/planning/portfolio_target_controller.py)形成全市场周目标研究。
 
 ### 9.1 连续动量与两种入场版本
 

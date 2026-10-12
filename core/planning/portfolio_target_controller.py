@@ -13,7 +13,7 @@ import math
 import pandas as pd
 
 from core.trading.accounts import AccountMode
-from core.cost_aware_allocation import CostAwareAllocationPolicy
+from core.planning.cost_aware_allocation import CostAwareAllocationPolicy
 from core.domain import OrderIntent
 from core.trading.entry_audit import capture
 from core.events import OrderEvent

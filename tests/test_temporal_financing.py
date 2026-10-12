@@ -314,7 +314,7 @@ def test_financing_provider_future_versions_do_not_change_candidate_or_label_pre
 
 
 def test_observer_financing_export_enters_consumer_without_future_provider_identity_in_candidate():
-    from core.portfolio import Portfolio
+    from core.trading.portfolio import Portfolio
     from core.risk import RiskManager
     from signal_meta.signal_observation import SignalObserver
     from core.trading.state import MarketState

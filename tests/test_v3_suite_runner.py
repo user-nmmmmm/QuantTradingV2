@@ -31,7 +31,7 @@ def test_source_identity_includes_actual_routing_and_factor_dependencies():
     files = source_hashes()
     assert "router/router.py" in files
     assert "core/factors/volume.py" in files
-    assert "core/selection_v2.py" in files
+    assert "core/planning/selection_v2.py" in files
 
 
 def test_window_stream_skips_events_but_preserves_exact_history_and_positions():

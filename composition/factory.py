@@ -6,7 +6,7 @@ from typing import Any, Dict, Mapping, Optional, Protocol
 from dataclasses import asdict
 
 from core.risk import RiskManager
-from core.candidate_scoring import CandidateScorePolicy
+from core.planning.candidate_scoring import CandidateScorePolicy
 from core.trading.position_management import CapitalAllocationPolicy
 from core.risk.portfolio_governor import CorrelationClusterPolicy, PortfolioRiskGovernor
 from core.trading.protective_stops import ProtectiveStopPolicy
@@ -52,9 +52,9 @@ def build_portfolio_target_controller(configuration: Configuration, strategies, 
     metadata = settings.get("metadata")
     if not isinstance(metadata, Mapping) or not metadata:
         raise ValueError("portfolio_targets requires explicit point-in-time membership metadata")
-    from core.cost_aware_allocation import CostAwareAllocationPolicy
-    from core.portfolio_target_controller import PortfolioTargetController
-    from core.selection_v2 import select_all_qualified, size_portfolio_targets
+    from core.planning.cost_aware_allocation import CostAwareAllocationPolicy
+    from core.planning.portfolio_target_controller import PortfolioTargetController
+    from core.planning.selection_v2 import select_all_qualified, size_portfolio_targets
     import pandas as pd
 
     cost_policy = CostAwareAllocationPolicy.from_mapping(settings.get("cost_aware"))

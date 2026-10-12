@@ -38,8 +38,8 @@ class _Account:
 
 def _identity(policy):
     root = Path(__file__).resolve().parents[1]
-    # key -> file. The keys keep the names they had before ``signal_meta`` was split out of ``core``
-    # (B1), so the fingerprint structure is unchanged; only where the file lives moved.
+    # key -> file. The keys keep the names they had before the B1/B2 package moves, so the fingerprint
+    # structure is unchanged; only where the file lives moved.
     files = {"backtest/signal_meta_replay.py": "backtest/signal_meta_replay.py",
              "backtest/signal_ghost.py": "backtest/signal_ghost.py",
              "core/signal_adaptive_types.py": "signal_meta/signal_adaptive_types.py",
@@ -47,7 +47,7 @@ def _identity(policy):
              "core/broker/matching.py": "core/broker/matching.py",
              "core/broker/fill_service.py": "core/broker/fill_service.py",
              "core/broker/financing.py": "core/broker/financing.py",
-             "core/portfolio.py": "core/portfolio.py"}
+             "core/portfolio.py": "core/trading/portfolio.py"}
     return fingerprint({"policy": policy.to_dict(), "sources": {
         key: (root/path).read_text(encoding="utf-8") for key, path in files.items()}})
 

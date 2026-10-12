@@ -625,7 +625,7 @@ RL 的 810 行实际权益/奖励记录对账通过，净权益奖励为 0.02766
 
 **source3/source4 中断与 source5 恢复的科学口径。** source3 协议为 `ee4fb26d17e74a277047cdadd8bf6afb1f05dd3906e1b2e5bc1131c9366554f1`，其 run 保留 `complete=false`、`all_minimum_budgets_met=false`。它在 WF1 的 `low_participation` 情形因 `protective_position_identity_missing:UNI/USDT` 中断：权威 lot 账本已经没有 open lot，但汇总数量还剩 `4.263256414560601e-14`。不能把这次中断改写为 source3 已完成四窗口。source4 修复协议为 `9f9b3f8f18397b7a6219483b293895e5a484b5f1dcf857f4680d3e90f5ef51b9`。
 
-source4 唯一变更的运行源码为 `core/portfolio.py`：只在权威 lot 账本为空、汇总残余不大于已有 lot quantity epsilon 时，把投影持仓归为精确零；真实成交现金不变。修复的定向重放真实经过 2022-08-26 UNI/USDT 的残余归零，WF1 低参与率账户账务通过，84 项针对性检查通过。该修复验证产生 0 次训练更新，未写回父 run 产物。
+source4 唯一变更的运行源码为 `core/trading/portfolio.py`：只在权威 lot 账本为空、汇总残余不大于已有 lot quantity epsilon 时，把投影持仓归为精确零；真实成交现金不变。修复的定向重放真实经过 2022-08-26 UNI/USDT 的残余归零，WF1 低参与率账户账务通过，84 项针对性检查通过。该修复验证产生 0 次训练更新，未写回父 run 产物。
 
 source4 的第二次中断保留为执行失败事实：WF2 `low_participation` 在窗口尾部关闭持仓时抛出 `End-window exit cannot fill within actual liquidity`。低参与率下，真实流动性不足以完成终端退出是合法的压力边界。该情形没有已完成终端账户，最终净收益、最终 reward 和最终 accounting 均未知；不能用零收益、最后已落盘的中途 equity 或假定成交补齐。WF2 已落盘的普通 test 与费用压力不代表其全部压力已完成；source4 的完整 `walk_forward.json` 只有一个已完成 item（WF1），最终四窗口收据不存在。
 

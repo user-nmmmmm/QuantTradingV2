@@ -7,11 +7,11 @@ from typing import Set, Dict, Any, Optional
 import pandas as pd
 import numpy as np
 from core.trading.state import MarketState
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from core.trading.execution_port import ExecutionPort
 from core.events import Signal
 from core.risk import RiskManager
-from core.allocation import EntryCandidate
+from core.planning.allocation import EntryCandidate
 from core.trading.entry_audit import note
 from core.domain import OrderStatus
 from core.trading.order_lifecycle import order_fact, terminal_fact

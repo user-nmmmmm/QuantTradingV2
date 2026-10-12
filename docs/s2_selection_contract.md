@@ -1,7 +1,7 @@
 # S2 动态选币与受约束换仓契约 v1
 
 适用：统一路线图第 6 节 S2、SYS-12 的本地工程能力；实现为
-[`core/selection.py`](../core/selection.py)，专项验收为
+[`core/planning/selection.py`](../core/planning/selection.py)，专项验收为
 [`tests/test_s2_selection.py`](../tests/test_s2_selection.py)。本模块默认不连接正式路由，
 输出 `formal_routing_enabled=false`。本契约不改变 SYS-11、健康恢复、人工锁定或实盘准入条件。
 

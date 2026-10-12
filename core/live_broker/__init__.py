@@ -29,7 +29,7 @@ from core.live_broker.submission import SubmissionServiceMixin
 from core.logger import get_logger
 from core.trading.order_store import OrderStore
 from core.live_broker.retry import with_retry
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from core.risk.reservation import (
     RiskReservationProjection,
     ensure_opening_reservation,

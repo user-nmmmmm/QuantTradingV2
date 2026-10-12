@@ -12,7 +12,7 @@ from core.broker import Broker
 from core.domain import OrderStatus
 from core.risk.reservation import ensure_opening_reservation
 from tests.test_p1_unified_risk_reservation import opening_intent
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from core.risk import RiskManager
 from core.risk.circuit_breaker import BreakerAction
 from core.strategy_health import HealthStatus, StrategyHealthMachine, StrategyHealthPolicy, classify_exit_controller

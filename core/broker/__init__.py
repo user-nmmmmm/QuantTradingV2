@@ -40,7 +40,7 @@ from core.broker.liquidation import LiquidationMixin
 from core.events import TradingEventPipeline
 from core.logger import get_logger
 from core.trading.lots import CloseEvent
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from core.risk.reservation import RiskReservationProjection
 
 logger = get_logger(__name__)

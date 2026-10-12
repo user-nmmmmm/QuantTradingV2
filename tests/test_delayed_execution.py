@@ -6,7 +6,7 @@ import pytest
 
 from backtest.delayed_execution import replay_delayed_decisions
 from core.broker import Broker
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 
 
 def bars():

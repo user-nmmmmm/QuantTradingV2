@@ -16,4 +16,4 @@
 
 ## 与其他模块的关系
 
-`Router` 连接状态识别、原策略持仓管理和新入场候选收集；`core/allocation.py` 统一分配组合预算，`core/risk/` 与执行适配器处理账户风险和成交事实。原开仓策略的身份来自 lot 账本，不能因当前 regime 改变而改写持仓归属。相关接口见[策略模块说明](strategies.md)和[回测假设](../backtest_assumptions.md)。
+`Router` 连接状态识别、原策略持仓管理和新入场候选收集；`core/planning/allocation.py` 统一分配组合预算，`core/risk/` 与执行适配器处理账户风险和成交事实。原开仓策略的身份来自 lot 账本，不能因当前 regime 改变而改写持仓归属。相关接口见[策略模块说明](strategies.md)和[回测假设](../backtest_assumptions.md)。

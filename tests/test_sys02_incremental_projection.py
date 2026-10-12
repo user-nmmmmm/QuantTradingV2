@@ -12,7 +12,7 @@ from core.live_broker.fill_projection import replay_fill_projection, _legacy_rep
 from core.live_broker.reconciler import OrderReconcilerMixin
 from core.trading.lots import CloseEvent
 from core.trading.order_store import OrderStore
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from core.trading.state_store_v2 import StateStore
 from core.trading.state import MarketState
 from core.risk import RiskManager

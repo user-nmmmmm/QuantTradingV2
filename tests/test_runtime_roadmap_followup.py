@@ -25,7 +25,7 @@ from live_trading.runtime_controls import RuntimeControls
 from core.market.websocket_market import ClosedBarBuffer
 from scripts.measure_sandbox_orders import probe
 from core.market.data_fetcher import DataFetcher
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from core.risk import RiskManager
 from core.domain import SyncResult
 from config.config import config

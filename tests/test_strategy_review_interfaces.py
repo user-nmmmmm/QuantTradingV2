@@ -7,8 +7,8 @@ import pytest
 
 from composition.factory import build_strategy_registry
 from core.broker import Broker
-from core.candidate_scoring import CandidateScorePolicy
-from core.portfolio import Portfolio
+from core.planning.candidate_scoring import CandidateScorePolicy
+from core.trading.portfolio import Portfolio
 from core.trading.protective_stops import (
     ProtectiveStopPolicy, plan_initial_stop, update_trailing_stop,
 )

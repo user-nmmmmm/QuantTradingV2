@@ -14,7 +14,7 @@ from core.domain import OrderErrorCode, OrderStatus, SyncResult
 from core.live_broker import LiveBroker
 from core.risk.persistent_guard import PersistentOrderSafetyGuard
 from core.trading.order_store import OrderStore
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from core.risk import RiskManager
 from core.trading.sqlite_utils import DatabaseIntegrityError
 from core.trading.state_store_v2 import StateStore

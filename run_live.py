@@ -7,7 +7,7 @@ from pathlib import Path
 
 from composition.factory import build_risk_manager, build_strategy_registry
 from config.config import config
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from core.trading.order_store import OrderStore
 from core.trading.state_store_v2 import StateStore
 from core.runtime_identity import RuntimeIdentity
