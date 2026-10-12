@@ -221,7 +221,7 @@ def run_exit_label_probe(frames, candidates, *, strategies, contract=None,
         settings = deepcopy(parameters if parameters is not None else config._config)
         # This intervention freezes the nominated strategy for all subsequent
         # position management. Protection settings are never disabled.
-        from core.state import MarketState
+        from core.trading.state import MarketState
         settings["routing"] = {state.name: strategy_name for state in MarketState}
         environment = FullEngineEnvironment(market_frames, strategies={strategy_name: original},
                                               parameters=settings, engine_options=options,

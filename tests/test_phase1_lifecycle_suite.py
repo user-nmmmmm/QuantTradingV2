@@ -27,7 +27,7 @@ from backtest.reporting import ReportGenerator
 from core.accounting_check import AccountingReconciler
 from core.broker import Broker
 from core.portfolio import Portfolio
-from core.state import MarketState
+from core.trading.state import MarketState
 from strategies.base import Strategy
 
 

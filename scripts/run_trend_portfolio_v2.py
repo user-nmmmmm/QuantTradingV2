@@ -26,7 +26,7 @@ from config.config import config
 from core.market.data import DataHandler
 from core.market.market_data import normalize_market_frame
 from core.reproducibility import canonical_json, sha256_file, sha256_frame
-from core.state import MarketState
+from core.trading.state import MarketState
 from core.market.universe import PointInTimeUniverse, UniverseMembership, normalize_symbol
 
 WARMUP_BARS = 120

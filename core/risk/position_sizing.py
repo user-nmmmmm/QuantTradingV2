@@ -8,8 +8,8 @@ from __future__ import annotations
 
 from typing import Dict, Optional
 
-from core.accounts import AccountMode
-from core.entry_audit import note
+from core.trading.accounts import AccountMode
+from core.trading.entry_audit import note
 from core.logger import get_logger
 from core.portfolio import Portfolio
 from core.risk.portfolio_governor import exposure_by_cluster

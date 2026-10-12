@@ -1,12 +1,12 @@
 from typing import Dict, Any, Optional
 import pandas as pd
 import numpy as np
-from core.state import MarketState
+from core.trading.state import MarketState
 from core.portfolio import Portfolio
 from core.indicators import Indicators
 from core.factors import MomentumFactors
 from strategies.base import Strategy
-from core.entry_audit import note
+from core.trading.entry_audit import note
 from core.market.timeframes import observed_bars_after, as_utc_timestamp
 
 """

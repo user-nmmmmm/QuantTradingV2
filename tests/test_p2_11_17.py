@@ -16,7 +16,7 @@ from core.market.market_data import HistoricalMarketDataAdapter
 from core.portfolio import Portfolio
 from core.risk import RiskManager
 from core.runtime import EventProcessor, MarketDataSlice
-from core.state import MarketState
+from core.trading.state import MarketState
 from live_trading.engine import LiveTradingEngine
 from router.router import Router
 

@@ -10,7 +10,7 @@ from typing import Any
 
 import pandas as pd
 
-from core.entry_audit import capture
+from core.trading.entry_audit import capture
 from signal_meta.signal_observation_types import (
     ContextSnapshot, ObservationPolicy, SignalCandidateEvent, canonical,
     close_time, context_features, finite, fingerprint, iso,

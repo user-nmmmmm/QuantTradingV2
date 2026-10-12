@@ -2,11 +2,13 @@
 
 `core/` 提供行情适配、状态识别、共享决策运行时、经纪商接口及具体实现、订单风控与运维基础设施。回测（`backtest/`）和实盘（`live_trading/`）共用 `EventProcessor`、路由、策略和部分领域类型；各自的调度、执行、持久化和安全流程仍由对应模式实现。部分具体适配器也位于 `core/`，不能把整个 `core/` 视为纯领域层。
 
-> **2026-10-12：** 准入、灰度、健康策略、预检与事故记录等 12 个纯运维/治理模块已移到顶层包 `ops/`（`ops.admission_gates`、`ops.gray_release`、`ops.health`、`ops.operations` …，旧的 `core.*` 路径不再保留）；下文中对应小节里的 `ops/…` 路径即新位置。`core.alerting`、`core.live_safety`、`core.runtime_identity`、`core.redaction`、`core.sqlite_backup` 被交易内核依赖，仍留在 `core/`。迁移决定见 [ADR 0007](../adr/0007-ops-package.md)。
+> **2026-10-12：** 准入、灰度、健康策略、预检与事故记录等 12 个纯运维/治理模块已移到顶层包 `ops/`（`ops.admission_gates`、`ops.gray_release`、`ops.health`、`ops.operations` …，旧的 `core.*` 路径不再保留）；下文中对应小节里的 `ops/…` 路径即新位置。`core.alerting`、`core.live_safety`、`core.runtime_identity`、`core.redaction`、`core.trading.sqlite_backup` 被交易内核依赖，仍留在 `core/`。迁移决定见 [ADR 0007](../adr/0007-ops-package.md)。
 >
 > **2026-10-12（B1）：** 信号观察与元层研究的 14 个模块（12 个 `signal_*`、`temporal_labels`、`temporal_financing`）已移到顶层包 `signal_meta/`，模块名不变（`signal_meta.signal_observation` …），旧的 `core.*` 路径不再保留；`core.market.temporal_data` 仍在 `core`。决定见 [ADR 0011](../adr/0011-signal-meta-package.md)。
 >
 > **2026-10-12（B2-1）：** 行情与时间/标的约定的 17 个模块（`data`、`data_fetcher`、`market_data`、`timeframes`、`universe`、`request_budget` …）已移到子包 `core/market/`，模块名不变（`core.market.data_fetcher` …），旧的 `core.*` 路径不再保留；决定见 [ADR 0012](../adr/0012-core-market-package.md)。
+>
+> **2026-10-12（B2-2）：** 订单、保护单、持仓批次、账户事实与状态存储的 20 个模块（`orders`、`order_store`、`protective_orders`、`lots`、`accounts`、`state`、`state_store_v2`、`sqlite_backup` …）已移到子包 `core/trading/`，模块名不变（`core.trading.order_store` …），旧的 `core.*` 路径不再保留；决定见 [ADR 0013](../adr/0013-core-trading-package.md)。
 
 本文档按子系统说明职责、主要接口和边界行为。调度与启动流程分别见 [回测模块](backtest.md) 和 [实盘模块](live_trading.md)；此处重点解释共享组件之间的契约。涉及时间版本的数据接口应连同证据来源一起阅读，开启 `strict` 或保存快照本身不代表已通过研究准入。
 
@@ -96,7 +98,7 @@
 
 ## 二、状态机与运行时（回测/实盘共享的核心决策链路）
 
-### `core/state.py` — 市场状态机
+### `core/trading/state.py` — 市场状态机
 `MarketStateMachine` 把每根 bar 分类为 `MarketState` 枚举：`TREND_UP`（=`BULL_TREND`，值 1）、`TREND_DOWN`（=`BEAR_TREND`，值 2）、`SIDEWAYS`（=`RANGE`，值 3）、`NO_TRADE`（4）、`VOLATILE`（5）。**注意 TREND_UP/BULL_TREND 等是同一个值的别名，不是两个不同状态**。
 - `calculate_states(df)`：基于快/慢 SMA 交叉结构 + ADX 强度阈值判断趋势方向；当 `ADX > 阈值` 且 `ATR/close > 阈值` 时覆盖为 `VOLATILE`。
 - `_apply_stability_filter(...)`：去抖动——候选状态需连续 `stability_period` 根 bar 确认才真正切换。
@@ -142,7 +144,7 @@
 ### `core/live_broker/safe.py` — 带安全闸门的实盘经纪商
 `SafeLiveBroker` 是 `LiveBroker` 的薄子类，强制所有实盘下单先过 `safety_guard`（如 `PersistentOrderSafetyGuard`）。构造函数不接受明文 API 凭据（必须通过父类的环境变量路径传入）。安全检查只在**全新** intent 时执行（`order_store.get(...) is None`）；幂等重放会跳过检查，避免重复占用当日风险预算。
 
-### `core/execution_port.py` — 执行端协议
+### `core/trading/execution_port.py` — 执行端协议
 `ExecutionPort` Protocol（`submit_intent`/`submit_order`/`cancel_symbol_orders`/`has_active_open_order`/`pending_open_notional`），`Broker`/`LiveBroker`/`SafeLiveBroker` 都满足这个接口——这是策略/路由代码能在回测和实盘间无缝切换的结构化类型基础。
 
 ### `core/exchange/` — CCXT 边界隔离层
@@ -161,13 +163,13 @@
 
 ## 四、订单、状态机与风控
 
-### `core/orders.py` — 订单状态机与错误分类
+### `core/trading/orders.py` — 订单状态机与错误分类
 - `normalize_exchange_status(payload)`：把原始 CCXT 报文映射到规范化 `OrderStatus`。
 - `classify_order_exception(exc)`：按异常类型/信息启发式分类（超时/限流/鉴权/资金不足/网络等）。
 - `is_ambiguous_error(code)`：`NETWORK/TIMEOUT/RATE_LIMIT/EXCHANGE_UNAVAILABLE/UNKNOWN` 返回真——这些**绝不能**触发盲目重发。
 - `validate_transition(current, target)`：状态迁移合法性表。`TERMINAL_STATUSES = {FILLED, CANCELED, REJECTED, EXPIRED}`。**注意**：迁移表允许 `CANCELED`/`EXPIRED` → `PARTIALLY_FILLED`/`FILLED`——延迟成交可能与撤单/过期确认竞速，所以"终态"在迁移层面并非绝对不可变（虽然在对账等场景仍按终态处理）。
 
-### `core/order_store.py` — 订单持久化（SQLite）
+### `core/trading/order_store.py` — 订单持久化（SQLite）
 `OrderStore(path)` 是 `LiveBroker`/`SafeLiveBroker` 的持久化底座：
 - `create_intent`/`create`：`INSERT OR IGNORE`，重复的 `client_order_id` 创建是空操作（幂等）。
 - `transition(...)`：先经 `orders.validate_transition` 校验再更新。
@@ -201,7 +203,7 @@
 `build_portfolio_snapshot(portfolio, prices, price_times, synced_at)`：任何持仓缺少新鲜的正价格就抛 `ValueError`，否则计算权益/总敞口/净敞口，生成不可变的 `PortfolioSnapshot`。
 
 ### `research/audit/ledger.py` — 离线事件账本与对账研究
-这是用于离线重放和对账研究的**平行**实现，全程用 `Decimal`，采用均价成本法处理跨零点成交。它未接入实盘或回测的下单路径；交易时的持仓与账户事实仍由 `core/portfolio.py` 的 `Portfolio` 和 `core/lots.py` 的 `LotBook` 维护。类名 `AuthoritativeLedger` 表示该离线事件流内部以持久化事件为依据，不表示它是实盘账户的事实源。详见 [`../authoritative_ledger.md`](../authoritative_ledger.md)。
+这是用于离线重放和对账研究的**平行**实现，全程用 `Decimal`，采用均价成本法处理跨零点成交。它未接入实盘或回测的下单路径；交易时的持仓与账户事实仍由 `core/portfolio.py` 的 `Portfolio` 和 `core/trading/lots.py` 的 `LotBook` 维护。类名 `AuthoritativeLedger` 表示该离线事件流内部以持久化事件为依据，不表示它是实盘账户的事实源。详见 [`../authoritative_ledger.md`](../authoritative_ledger.md)。
 - `AverageCostPositionReducer.reduce(...)`：处理同向加仓（加权均价）、部分平仓（均价不变）、穿越零点的平仓（剩余部分按成交价重新开仓），返回已实现盈亏增量。
 - `FillLedger`/`FeeLedger`/`CashLedger`：按 `event_id` 去重的幂等记账。
 - `PortfolioProjection(base_currency)`：`apply(event, sequence)` 要求序列号严格递增；`snapshot(...)` 把多币种余额/持仓折算成基准货币，若持仓缺少标记价格默认抛错（除非 `require_marks=False`）；`reconcile(external_cash, external_positions, ...)` 比较本地与外部（交易所）状态，标记 `ReconciliationDiscrepancy`（偏差超过 10 倍容差为 critical）。
@@ -224,13 +226,13 @@
 
 ## 六、存储与持久化
 
-### `core/state_store_v2.py` — 实盘 bar 处理租约
+### `core/trading/state_store_v2.py` — 实盘 bar 处理租约
 `StateStore`：事务性 SQLite 键值存储 + 带租约的 bar 处理认领机制，用于实盘"近似恰好一次"处理。`claim_bar(bar_key, now, lease_seconds=300)`：若无既有认领则插入"processing"状态；若已是"processed"则拒绝；若既有"processing"认领已超过租约时长则可重新认领（处理崩溃恢复）。`complete_bar`/`release_bar` 配套。线程安全（`RLock`）。
 
 ### `core/events/store.py` — 事件持久化
 `SQLiteEventStore`：只追加、按 `event_id` 幂等去重的事件日志；若已存在事件的内容（除 `observed_at` 外）与新事件不同则抛 `ValueError`。用 SQLite 触发器（`events_no_update`/`events_no_delete`）在数据库层面强制"只追加"，防止直接 SQL 篡改。`InMemoryEventStore` 是 `:memory:` 变体，供测试用。
 
-### `core/sqlite_backup.py` / `core/sqlite_utils.py` — 数据库运维
+### `core/trading/sqlite_backup.py` / `core/trading/sqlite_utils.py` — 数据库运维
 `open_durable_connection(path, busy_timeout_ms)`：共享的失败关闭式连接打开器——设置忙等超时、执行 `PRAGMA integrity_check`（不是 "ok" 就抛 `DatabaseIntegrityError`）、开启 WAL 模式。`SQLiteSnapshotManager`：基于 `sqlite3` 原生 `.backup()` 的滚动备份，`run_if_due` 控制备份间隔（默认 3600 秒），`restore_snapshot` 原子恢复（校验快照 → 备份当前文件到临时路径 → `os.replace` → 清理陈旧的 `-wal`/`-shm` → 再校验）。
 
 ---
@@ -304,7 +306,7 @@ data_fetcher/data → market_data(适配器) → runtime.EventProcessor
     research/audit/ledger.PortfolioProjection（独立的离线重放与对账研究）
 ```
 
-`live_safety.py`、`risk/persistent_guard.py`、`health.py`、`alerting.py`、`operations/`、`core/account_reconciliation.py`、`r7_acceptance.py` 共同构成实盘运行的"安全护栏"，回测路径基本不涉及这些模块。`research/audit/reconciliation_job.py` 是离线日终证据工具，未接入实盘订单路径。
+`live_safety.py`、`risk/persistent_guard.py`、`health.py`、`alerting.py`、`operations/`、`core/trading/account_reconciliation.py`、`r7_acceptance.py` 共同构成实盘运行的"安全护栏"，回测路径基本不涉及这些模块。`research/audit/reconciliation_job.py` 是离线日终证据工具，未接入实盘订单路径。
 
 时间版本链路附着在行情与研究观察路径上：`DataVersionStore → TemporalOHLCV → strict histories → VersionedOutcomeTracker`；带融资成本的标签同时依赖 `TemporalFinancing`。撮合使用的已实现行情与策略当时可见历史分开保留，不能用最终回测结果替代训练截止时刻的证据选择。
 

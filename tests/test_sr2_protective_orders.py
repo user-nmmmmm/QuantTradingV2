@@ -16,13 +16,13 @@ from types import SimpleNamespace
 
 from core.portfolio import Portfolio
 from core.domain import OrderStatus
-from core.protective_orders import (
+from core.trading.protective_orders import (
     ProtectiveAction,
     ProtectiveOrder,
     ProtectiveOrderManager,
     ProtectiveState,
 )
-from core.protective_stops import EntryRiskPolicy
+from core.trading.protective_stops import EntryRiskPolicy
 from live_trading.tick_orchestrator import TickOrchestratorMixin
 
 

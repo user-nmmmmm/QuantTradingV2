@@ -19,7 +19,7 @@ import numpy as np
 import pandas as pd
 
 from core.reproducibility import canonical_json
-from core.state import MarketStateMachine
+from core.trading.state import MarketStateMachine
 
 
 def _time(value):

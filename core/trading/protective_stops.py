@@ -341,7 +341,7 @@ def evaluate_fill_risk(
     if risk_per_unit <= 0:
         return None
     actual_total_risk = risk_per_unit * float(filled_qty)
-    from core.entry_risk import resolve_approved_risk
+    from core.trading.entry_risk import resolve_approved_risk
     risk_budget, _ = resolve_approved_risk({"approved_risk_amount": approved_risk_amount})
     ratio = actual_total_risk / risk_budget
     affordable_qty = risk_budget / risk_per_unit

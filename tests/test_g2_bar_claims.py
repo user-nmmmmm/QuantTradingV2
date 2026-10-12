@@ -2,7 +2,7 @@ import os
 import tempfile
 import unittest
 
-from core.state_store_v2 import StateStore
+from core.trading.state_store_v2 import StateStore
 
 
 class TestBarClaimRecovery(unittest.TestCase):

@@ -714,7 +714,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **来源：** [docs/codex_mail_findings_20260920.json（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json)。
 
-**修改范围：** [backtest/reporting/trades.py](../backtest/reporting/trades.py)、[core/lots.py](../core/lots.py)、[core/broker/fill_service.py](../core/broker/fill_service.py)、[backtest/reporting/__init__.py](../backtest/reporting/__init__.py)、[core/metrics/attribution.py](../core/metrics/attribution.py)、[scripts/run_phase5_analysis.py](../scripts/run_phase5_analysis.py)。
+**修改范围：** [backtest/reporting/trades.py](../backtest/reporting/trades.py)、[core/trading/lots.py](../core/trading/lots.py)、[core/broker/fill_service.py](../core/broker/fill_service.py)、[backtest/reporting/__init__.py](../backtest/reporting/__init__.py)、[core/metrics/attribution.py](../core/metrics/attribution.py)、[scripts/run_phase5_analysis.py](../scripts/run_phase5_analysis.py)。
 
 **开发步骤：**
 
@@ -1002,7 +1002,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **来源：** [docs/codex_mail_findings_20260920.json（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json)。
 
-**修改范围：** [live_trading/tick_orchestrator.py](../live_trading/tick_orchestrator.py)、[live_trading/engine.py](../live_trading/engine.py)、[core/state_store_v2.py](../core/state_store_v2.py)、[live_trading/state_export.py](../live_trading/state_export.py)。
+**修改范围：** [live_trading/tick_orchestrator.py](../live_trading/tick_orchestrator.py)、[live_trading/engine.py](../live_trading/engine.py)、[core/trading/state_store_v2.py](../core/trading/state_store_v2.py)、[live_trading/state_export.py](../live_trading/state_export.py)。
 
 **开发步骤：**
 
@@ -1254,7 +1254,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **来源：** [docs/development_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/development_plan.md)；[docs/archive/2026-10-doc-consolidation/backtest_optimization_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/backtest_optimization_roadmap.md)；[docs/authoritative_ledger.md](authoritative_ledger.md)。
 
-**修改范围：** [core/lots.py](../core/lots.py)、[core/portfolio.py](../core/portfolio.py)、[backtest/reporting/trades.py](../backtest/reporting/trades.py)、[research/audit/ledger.py](../research/audit/ledger.py)。
+**修改范围：** [core/trading/lots.py](../core/trading/lots.py)、[core/portfolio.py](../core/portfolio.py)、[backtest/reporting/trades.py](../backtest/reporting/trades.py)、[research/audit/ledger.py](../research/audit/ledger.py)。
 
 **开发步骤：**
 
@@ -1422,7 +1422,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **来源：** [docs/archive/2026-10-doc-consolidation/position_management_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/position_management_plan.md)；[docs/archive/2026-10-doc-consolidation/current_strategy_remediation_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/current_strategy_remediation_roadmap.md)。
 
-**修改范围：** [strategies/base.py](../strategies/base.py)、[router/router.py](../router/router.py)、[core/protective_stops.py](../core/protective_stops.py)、[live_trading/risk_actions.py](../live_trading/risk_actions.py)、[core/execution_port.py](../core/execution_port.py)。
+**修改范围：** [strategies/base.py](../strategies/base.py)、[router/router.py](../router/router.py)、[core/trading/protective_stops.py](../core/trading/protective_stops.py)、[live_trading/risk_actions.py](../live_trading/risk_actions.py)、[core/trading/execution_port.py](../core/trading/execution_port.py)。
 
 **开发步骤：**
 
@@ -1614,7 +1614,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **来源：** [docs/archive/2026-10-doc-consolidation/live_trading_remediation_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/live_trading_remediation_plan.md)；[docs/r6_operations.md](r6_operations.md)；[docs/r7_sandbox_runbook.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/r7_sandbox_runbook.md)。
 
-**修改范围：** [live_trading/state_export.py](../live_trading/state_export.py)、[core/alerting.py](../core/alerting.py)、[ops/supervisor.py](../ops/supervisor.py)、[core/sqlite_utils.py](../core/sqlite_utils.py)、[dashboard](../dashboard)、[run_live.py](../run_live.py)。
+**修改范围：** [live_trading/state_export.py](../live_trading/state_export.py)、[core/alerting.py](../core/alerting.py)、[ops/supervisor.py](../ops/supervisor.py)、[core/trading/sqlite_utils.py](../core/trading/sqlite_utils.py)、[dashboard](../dashboard)、[run_live.py](../run_live.py)。
 
 **开发步骤：**
 
@@ -1808,7 +1808,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **来源：** [docs/archive/2026-10-doc-consolidation/strategy_development_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md)；[docs/phase3_implementation.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/phase3_implementation.md)；[docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md)。
 
-**修改范围：** [core/account_cost_contract.py](../core/account_cost_contract.py)、[core/portfolio.py](../core/portfolio.py)、[core/broker/financing.py](../core/broker/financing.py)、[core/exchange](../core/exchange)、[strategies](../strategies)。
+**修改范围：** [core/trading/account_cost_contract.py](../core/trading/account_cost_contract.py)、[core/portfolio.py](../core/portfolio.py)、[core/broker/financing.py](../core/broker/financing.py)、[core/exchange](../core/exchange)、[strategies](../strategies)。
 
 **开发步骤：**
 

@@ -42,12 +42,12 @@ from core.live_broker import LiveBroker
 from core.logger import get_logger
 from core.market.market_data import LiveMarketDataAdapter
 from core.market.market_data_errors import MarketDataRefreshError
-from core.protective_stops import EntryRiskPolicy
+from core.trading.protective_stops import EntryRiskPolicy
 from core.risk import RiskManager
 from core.runtime import EventProcessor
 from ops.strategy_registration import register_health_policies
-from core.state_store_v2 import StateStore, default_state_db_path
-from core.sqlite_backup import SQLiteSnapshotManager
+from core.trading.state_store_v2 import StateStore, default_state_db_path
+from core.trading.sqlite_backup import SQLiteSnapshotManager
 from live_trading.execution_adapter import RecordedExecutionAdapter
 from live_trading.recovery import RecoveryMixin, account_new_risk_gate, balance_sync_succeeded
 from live_trading.state_export import StateExportMixin

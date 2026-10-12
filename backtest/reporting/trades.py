@@ -482,7 +482,7 @@ class TradeReconstructionMixin:
     ) -> List[Dict[str, Any]]:
         """Fold FIFO legs into one record per position (flat -> flat).
 
-        Legs are grouped by ``(symbol, position_id)`` - ``core.lots`` mints a
+        Legs are grouped by ``(symbol, position_id)`` - ``core.trading.lots`` mints a
         ``position_id`` when a symbol goes from flat to held and retires it
         when the symbol is flat again, so that grouping *is* the round trip.
         Legs without one (fills recorded before ``lot_closes`` existed) stay

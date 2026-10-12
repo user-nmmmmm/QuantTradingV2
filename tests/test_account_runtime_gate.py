@@ -13,14 +13,14 @@ from config.config import config
 from core.domain import OrderIntent, SyncResult
 from core.portfolio import Portfolio
 from core.risk import RiskManager
-from core.state_store_v2 import StateStore
+from core.trading.state_store_v2 import StateStore
 from live_trading.engine import LiveTradingEngine
 from live_trading.execution_adapter import AccountEntryBlocked, RecordedExecutionAdapter
 from live_trading.recovery import account_new_risk_gate, balance_sync_succeeded
 from run_live import account_source_from_args, build_parser, protection_only_startup_allowed
 from tests.test_account_source_integration import NOW, account, configure  # noqa: F401
 from tests.test_revalidation_execution import Harness, SYMBOL, broker as execution_broker, enter  # noqa: F401
-from core.account_source import AccountSourceError
+from core.trading.account_source import AccountSourceError
 from core.risk.actions import RiskActionPlan
 
 

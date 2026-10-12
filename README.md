@@ -91,14 +91,14 @@ flowchart TB
 
     subgraph BOUND["边界层 Adapters & Ports"]
         MDA["MarketDataAdapter（core/market/market_data.py）"]
-        EXP["ExecutionPort（core/execution_port.py）"]
+        EXP["ExecutionPort（core/trading/execution_port.py）"]
         EB["ExchangeBoundary（core/exchange/）"]
         DF["DataFetcher（core/market/data_fetcher.py）"]
     end
 
     subgraph KERNEL["共享决策内核 Shared Decision Core"]
         EP["EventProcessor（core/runtime.py）"]
-        SM["MarketStateMachine（core/state.py）"]
+        SM["MarketStateMachine（core/trading/state.py）"]
         RT["Router + PortfolioSignalAllocator（router/, core/allocation.py）"]
         ST["Strategies（strategies/）"]
         RK["RiskManager + 分级熔断（core/risk/）"]
@@ -782,7 +782,7 @@ python main.py --source synthetic --days 365 --seed 42 --report-profile full
 | 复现 | `run_manifest.json` | 代码 / 配置 / 数据 / 执行身份指纹，配合 `--replay-manifest` 校验 |
 
 `research/audit/ledger.py` 的事件账本仅用于离线审计研究；当前回测与实盘交易路径的
-本地组合/批次账本使用 `core/portfolio.py` 和 `core/lots.py`，实盘仍须与交易所账户事实对账。
+本地组合/批次账本使用 `core/portfolio.py` 和 `core/trading/lots.py`，实盘仍须与交易所账户事实对账。
 
 实盘侧产物：`reports/live_status.json`（状态快照）、`reports/live_alerts.jsonl`（告警）、
 `reports/live_orders.db`（订单状态机与审计账本）、`reports/startup_preflight.json`（启动自检）。

@@ -39,7 +39,7 @@ from core.broker.financing import FinancingMixin
 from core.broker.liquidation import LiquidationMixin
 from core.events import TradingEventPipeline
 from core.logger import get_logger
-from core.lots import CloseEvent
+from core.trading.lots import CloseEvent
 from core.portfolio import Portfolio
 from core.risk.reservation import RiskReservationProjection
 

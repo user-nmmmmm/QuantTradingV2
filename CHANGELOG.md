@@ -9,6 +9,7 @@
 ## [Unreleased]
 
 ### Changed
+- 20 个订单、保护单、账户与状态存储模块从 `core/` 根移到 `core/trading/`，导入路径随之改变（`core.order_store` → `core.trading.order_store`；命令 `python -m core.sqlite_backup` → `python -m core.trading.sqlite_backup`）；不留兼容垫片（ADR 0013）。
 - 17 个行情与时间/标的模块从 `core/` 根移到 `core/market/`，导入路径随之改变（`core.data_fetcher` → `core.market.data_fetcher`）；不留兼容垫片（ADR 0012）。已登记的纸面观察实验因源码路径改变不能再 `--resume`，需登记新协议。
 - 14 个信号观察/元层模块从 `core/` 移到顶层包 `signal_meta/`，导入路径随之改变（`core.signal_observation` → `signal_meta.signal_observation`）；不留兼容垫片（ADR 0011）。
 

@@ -2,7 +2,7 @@
 
 ## `router/router.py` — Router
 
-`Router` 把 `core/state.py` 产出的 `MarketState`（市场状态）按 `regime_map` 映射到具体策略名。映射必须显式传入且不能为空；[`config/params.yaml`](../../config/params.yaml) 当前映射为 `TREND_UP → TrendBreakout`，其余三个状态均为 `Cash`。`TrendBreakout` 仍是 `paused_revalidation`，真实资金准入由 `ops/strategy_governance.py` 的入口检查控制。
+`Router` 把 `core/trading/state.py` 产出的 `MarketState`（市场状态）按 `regime_map` 映射到具体策略名。映射必须显式传入且不能为空；[`config/params.yaml`](../../config/params.yaml) 当前映射为 `TREND_UP → TrendBreakout`，其余三个状态均为 `Cash`。`TrendBreakout` 仍是 `paused_revalidation`，真实资金准入由 `ops/strategy_governance.py` 的入口检查控制。
 
 `core/runtime.py` 的 `EventProcessor` 在每个有效标的 bar 上先调用 `process_position_management(...)`，再按账户状态决定是否调用 `collect_entry_candidate(...)`；`collect_candidate(...)` 是组合这两个步骤的兼容入口。当前没有 `Router.route()` 方法。核心逻辑：
 

@@ -523,7 +523,7 @@ def _load_requested_data(args, start_date: datetime, end_date: datetime):
 def _capital_allocation_options(args):
     """Validate per-run CLI overrides without changing the shared configuration."""
     from config.config import config
-    from core.position_management import CapitalAllocationPolicy
+    from core.trading.position_management import CapitalAllocationPolicy
     enabled = getattr(args, "smart_allocation", False)
     values = {key: getattr(args, key, None) for key in ("max_positions", "cash_reserve_pct")}
     if not enabled and any(value is not None for value in values.values()):

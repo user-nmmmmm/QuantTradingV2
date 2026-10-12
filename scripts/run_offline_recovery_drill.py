@@ -22,11 +22,11 @@ ROOT = Path(__file__).resolve().parents[1]
 from core.domain import FillRecord, OrderIntent, OrderStatus
 from core.live_broker.fill_projection import replay_fill_projection
 from core.live_safety import StartupSafetyPolicy
-from core.order_store import OrderStore
+from core.trading.order_store import OrderStore
 from core.risk.persistent_guard import PersistentOrderSafetyGuard
 from core.runtime_identity import RuntimeIdentity
-from core.sqlite_utils import DatabaseIntegrityError
-from core.state_store_v2 import StateStore
+from core.trading.sqlite_utils import DatabaseIntegrityError
+from core.trading.state_store_v2 import StateStore
 
 
 def write_json(path, value):
@@ -118,7 +118,7 @@ def run_drill(output: Path, *, rto_seconds: float = 30.0) -> dict:
         return result
     snapshots = {}
     for name in ("state.db", "orders.db", "risk.db"):
-        command = [sys.executable, "-m", "core.sqlite_backup", "backup", str(output / name),
+        command = [sys.executable, "-m", "core.trading.sqlite_backup", "backup", str(output / name),
                    "--snapshot-dir", str(output / "snapshots"), "--retention", "3"]
         result = execute(command)
         snapshots[name] = Path(result.stdout.strip())
@@ -134,7 +134,7 @@ def run_drill(output: Path, *, rto_seconds: float = 30.0) -> dict:
             refused[name] = False
     started = perf_counter()
     for name, snapshot in snapshots.items():
-        command = [sys.executable, "-m", "core.sqlite_backup", "restore", str(snapshot),
+        command = [sys.executable, "-m", "core.trading.sqlite_backup", "restore", str(snapshot),
                    str(output / name), "--identity-file", str(identity_file)]
         execute(command)
     after = facts(output, identity)

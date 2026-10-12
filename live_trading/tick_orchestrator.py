@@ -16,7 +16,7 @@ from core.domain import OrderStatus
 from ops.health import HealthReason
 from core.logger import get_logger
 from core.market.market_data_errors import MarketDataRefreshError
-from core.protective_orders import (
+from core.trading.protective_orders import (
     ProtectiveAction,
     ProtectiveOrder,
     ProtectiveOrderManager,
@@ -24,8 +24,8 @@ from core.protective_orders import (
     parse_protective_position_reference,
     protective_position_reference,
 )
-from core.protective_stops import evaluate_fill_risk
-from core.entry_risk import resolve_approved_risk
+from core.trading.protective_stops import evaluate_fill_risk
+from core.trading.entry_risk import resolve_approved_risk
 from core.runtime import MarketDataSlice
 from core.risk.actions import plan_risk_action
 from core.market.timeframes import as_utc_timestamp, closed_bars, timeframe_delta

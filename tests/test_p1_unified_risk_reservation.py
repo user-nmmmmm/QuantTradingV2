@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 from core.domain import OrderIntent, OrderStatus, RiskDecision, RiskReservation
 from core.events import FillEvent, OrderEvent, TradingEventPipeline
 from core.live_broker import LiveBroker
-from core.order_store import OrderStore
+from core.trading.order_store import OrderStore
 from core.portfolio import Portfolio
 from core.risk import RiskManager
 from core.risk.reservation import (

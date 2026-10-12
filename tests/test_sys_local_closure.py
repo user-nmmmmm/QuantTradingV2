@@ -19,16 +19,16 @@ from core.domain import OrderIntent, OrderStatus
 from core.events import EventCodec, Signal, TradingEventPipeline
 from core.live_broker import LiveBroker
 from core.market.market_data import HistoricalMarketDataAdapter, LiveMarketDataAdapter
-from core.order_store import OrderStore
+from core.trading.order_store import OrderStore
 from core.portfolio import Portfolio
 from core.reproducibility import canonical_json, deterministic_result_digest
 from core.risk import RiskManager
 from core.runtime import EventProcessor
 from core.runtime_identity import RuntimeIdentity
-from core.sqlite_backup import SQLiteSnapshotManager, restore_snapshot
-from core.sqlite_utils import DatabaseIntegrityError
-from core.state import MarketState
-from core.state_store_v2 import StateStore
+from core.trading.sqlite_backup import SQLiteSnapshotManager, restore_snapshot
+from core.trading.sqlite_utils import DatabaseIntegrityError
+from core.trading.state import MarketState
+from core.trading.state_store_v2 import StateStore
 from core.strategy_health import HealthStatus
 from live_trading.execution_adapter import RecordedExecutionAdapter
 from router.router import Router
@@ -81,7 +81,7 @@ def test_failed_restore_replace_leaves_live_target_and_other_temp_unchanged(tmp_
     state.close()
     other = tmp_path / ".state.db.other.restore"
     other.write_text("another recovery owns this")
-    with patch("core.sqlite_backup.os.replace", side_effect=OSError("disk full")):
+    with patch("core.trading.sqlite_backup.os.replace", side_effect=OSError("disk full")):
         with pytest.raises(OSError, match="disk full"):
             restore_snapshot(str(snapshot), str(path))
     state = StateStore(str(path))
@@ -499,7 +499,7 @@ def test_resident_management_targets_match_live_through_flat_and_new_epoch(live_
 @pytest.mark.parametrize("mode", ["spot", "spot_margin"])
 @pytest.mark.parametrize("fault", ["none", "missing_order", "duplicate_fill", "fee_delta", "deposit", "missing_price", "stale_price", "extra_position", "extra_business_field"])
 def test_full_account_snapshot_injection_matrix(tmp_path, record_property, mode, fault):
-    from core.account_reconciliation import reconcile_account_snapshots
+    from core.trading.account_reconciliation import reconcile_account_snapshots
     now = datetime(2026, 9, 20, tzinfo=timezone.utc)
     margin = mode == "spot_margin"
     expected = {
@@ -602,7 +602,7 @@ def test_canonical_default_tif_only_reaches_venue_for_resting_limit(kind):
 
 
 def test_nonfinite_account_failure_report_is_strict_json_serializable():
-    from core.account_reconciliation import reconcile_account_snapshots
+    from core.trading.account_reconciliation import reconcile_account_snapshots
     now = datetime(2026, 9, 20, tzinfo=timezone.utc)
     report = reconcile_account_snapshots({"equity": 100, "extra": [1]},
         {"equity": float("nan"), "extra": [float("inf")]}, checked_at=now)

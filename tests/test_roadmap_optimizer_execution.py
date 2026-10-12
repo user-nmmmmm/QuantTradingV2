@@ -4,7 +4,7 @@ from __future__ import annotations
 from analysis import optimize
 from backtest.engine import BacktestEngine
 from config.config import config
-from core.state import MarketState
+from core.trading.state import MarketState
 from router.router import Router
 from strategies.trend_breakout import TrendBreakoutStrategy
 from tests.engine_baseline_harness import build_synthetic_data_map

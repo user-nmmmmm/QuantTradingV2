@@ -10,7 +10,7 @@ import pytest
 
 from backtest.engine import BacktestEngine
 from config.config import config
-from core.state import MarketState
+from core.trading.state import MarketState
 from research.ml_selection.environment import (
     FullEngineEnvironment, discounted_returns, episode_summary, equity_rewards,
 )

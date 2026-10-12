@@ -317,7 +317,7 @@ def test_observer_financing_export_enters_consumer_without_future_provider_ident
     from core.portfolio import Portfolio
     from core.risk import RiskManager
     from signal_meta.signal_observation import SignalObserver
-    from core.state import MarketState
+    from core.trading.state import MarketState
     from tests.test_signal_observation import DailyRaw
 
     state = SimpleNamespace(get_states=lambda frame: frame.__setitem__("market_state", MarketState.TREND_UP))

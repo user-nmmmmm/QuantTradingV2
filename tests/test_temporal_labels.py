@@ -10,7 +10,7 @@ from core.runtime import MarketDataSlice
 from signal_meta.signal_observation import SignalObserver
 from signal_meta.signal_observation_types import ObservationPolicy, fingerprint, iso
 from signal_meta.signal_outcomes import ForwardOutcomeTracker, ObservationCosts
-from core.state import MarketState
+from core.trading.state import MarketState
 from core.market.temporal_data import TemporalOHLCV
 from signal_meta.temporal_labels import LABEL_PROTOCOL, TemporalLabelError, VersionedOutcomeTracker
 from tests.test_signal_observation import candidate, prices, DailyRaw

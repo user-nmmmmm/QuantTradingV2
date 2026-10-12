@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Optional
 from uuid import uuid4
 
-from core.sqlite_utils import DatabaseIntegrityError
+from core.trading.sqlite_utils import DatabaseIntegrityError
 
 
 def validate_database(path: str | Path, *, expected_identity=None) -> None:

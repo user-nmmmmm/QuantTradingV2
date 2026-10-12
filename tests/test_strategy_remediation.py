@@ -16,7 +16,7 @@ from core.portfolio import Portfolio
 from core.risk import RiskManager
 from core.risk.circuit_breaker import BreakerAction
 from core.strategy_health import HealthStatus, StrategyHealthMachine, StrategyHealthPolicy, classify_exit_controller
-from core.state_store_v2 import StateStore
+from core.trading.state_store_v2 import StateStore
 from tests.test_revalidation_execution import Harness, NOW, SYMBOL, broker
 
 

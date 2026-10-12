@@ -6,9 +6,9 @@ hand-calculated quantity/cost assertions.
 """
 import pytest
 
-from core.lots import LotBook
+from core.trading.lots import LotBook
 from core.portfolio import Portfolio
-from core.protective_orders import authoritative_position_ids
+from core.trading.protective_orders import authoritative_position_ids
 
 
 class TestLotBookPyramidAndReduce:

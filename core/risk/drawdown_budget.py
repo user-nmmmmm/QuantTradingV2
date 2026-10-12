@@ -6,9 +6,9 @@ import math
 import pandas as pd
 from typing import Any
 
-from core.entry_audit import note
-from core.entry_risk import resolve_approved_risk
-from core.protective_orders import authoritative_position_ids
+from core.trading.entry_audit import note
+from core.trading.entry_risk import resolve_approved_risk
+from core.trading.protective_orders import authoritative_position_ids
 
 
 @dataclass(frozen=True)

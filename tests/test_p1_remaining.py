@@ -12,13 +12,13 @@ from config.config import config
 from core.domain import OrderStatus, SyncResult
 from core.exchange import OrderParser
 from core.live_broker import LiveBroker
-from core.lots import CloseEvent
-from core.order_store import OrderStore
+from core.trading.lots import CloseEvent
+from core.trading.order_store import OrderStore
 from core.risk.persistent_guard import PersistentOrderSafetyGuard
 from core.portfolio import Portfolio
 from core.risk import RiskManager
-from core.state import MarketState
-from core.state_store_v2 import StateStore
+from core.trading.state import MarketState
+from core.trading.state_store_v2 import StateStore
 from composition.factory import build_strategy_registry
 from live_trading.engine import LiveTradingEngine
 from strategies.mean_reversion import RangeStrategy

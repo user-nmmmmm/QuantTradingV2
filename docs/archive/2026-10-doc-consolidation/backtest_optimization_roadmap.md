@@ -2,7 +2,7 @@
 
 > 文档定位（2026-09-20）：领域参考。排期、优先级和当前完成状态统一见[Roadmap](../../unified_roadmap.md)、[开发计划](../../development_plan.md)与[开发详情](../../development_details.md)。本文件的公式、设计依据和未冲突的专项验收要求继续保留；下文旧状态与排期为历史记录。整合前原文见[冻结快照](../2026-09-roadmap-rebaseline/sources/docs/backtest_optimization_roadmap.md)。
 
-> 当前代码路径提示：历史任务中的 `core/metrics.py` 已拆为 `core/metrics/` 包；`core/trade_ledger.py` 并不存在，当前回测的 FIFO 闭合交易重建位于 `backtest/reporting/trades.py`，逐批次持仓记账位于 `core/lots.py`。旧任务文本保留原表述供追溯，实施时按现有职责和代码核对。
+> 当前代码路径提示：历史任务中的 `core/metrics.py` 已拆为 `core/metrics/` 包；`core/trade_ledger.py` 并不存在，当前回测的 FIFO 闭合交易重建位于 `backtest/reporting/trades.py`，逐批次持仓记账位于 `core/trading/lots.py`。旧任务文本保留原表述供追溯，实施时按现有职责和代码核对。
 
 > 文档状态：Draft v0.1
 > 生效日期：2026-08-13
@@ -153,7 +153,7 @@ E 质量保证（贯穿）
 
 ### C3 多周期与时间过滤
 - 任务：
-  1. 接入 `MarketStateMachine.align_state_to_lower_tf`（`core/state.py:187-205`）做 HTF 确认；
+  1. 接入 `MarketStateMachine.align_state_to_lower_tf`（`core/trading/state.py:187-205`）做 HTF 确认；
   2. 增加可选 session / 最小连续确认 bar 过滤。
 - 验收：策略按 HTF 状态过滤前后结果差异记录；测试覆盖对齐无 lookahead。
 

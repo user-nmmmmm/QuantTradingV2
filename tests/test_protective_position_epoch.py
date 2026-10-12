@@ -9,9 +9,9 @@ from backtest.protective_stops import ResidentStopSimulator
 from core.broker import Broker
 from core.domain import OrderStatus
 from core.events import FillEvent
-from core.order_store import OrderStore
+from core.trading.order_store import OrderStore
 from core.portfolio import Portfolio
-from core.protective_orders import (
+from core.trading.protective_orders import (
     ProtectiveAction, ProtectiveOrder, ProtectiveOrderManager,
     authoritative_position_ids, parse_protective_position_reference,
     protective_position_reference,

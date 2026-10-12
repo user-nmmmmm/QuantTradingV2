@@ -6,7 +6,7 @@ from backtest.engine import BacktestEngine
 from core.portfolio import Portfolio
 from core.risk import BreakerAction, RiskControlDecision, RiskManager
 from core.runtime import EventProcessor, MarketDataSlice
-from core.state import MarketState
+from core.trading.state import MarketState
 
 
 def _frame(values=(100.0,)):

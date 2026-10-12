@@ -1,7 +1,7 @@
 import unittest
 
 from core.domain import OrderStatus
-from core.orders import validate_transition
+from core.trading.orders import validate_transition
 
 
 class TestOrderStatusTransitions(unittest.TestCase):

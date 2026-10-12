@@ -2,20 +2,20 @@ from abc import ABC, abstractmethod
 from dataclasses import replace, asdict
 from collections import deque
 from copy import deepcopy
-from core.lots import CloseEvent
+from core.trading.lots import CloseEvent
 from typing import Set, Dict, Any, Optional
 import pandas as pd
 import numpy as np
-from core.state import MarketState
+from core.trading.state import MarketState
 from core.portfolio import Portfolio
-from core.execution_port import ExecutionPort
+from core.trading.execution_port import ExecutionPort
 from core.events import Signal
 from core.risk import RiskManager
 from core.allocation import EntryCandidate
-from core.entry_audit import note
+from core.trading.entry_audit import note
 from core.domain import OrderStatus
-from core.order_lifecycle import order_fact, terminal_fact
-from core.protective_orders import authoritative_position_ids
+from core.trading.order_lifecycle import order_fact, terminal_fact
+from core.trading.protective_orders import authoritative_position_ids
 
 """
 Strategy（策略基类）模块
@@ -264,7 +264,7 @@ class Strategy(ABC):
         """Deliver every CloseEvent this strategy opened, exactly once (T-1.3/T-1.4/T-1.5).
 
         Close events are authoritative: they are built once, at fill time, by
-        Broker._execute_trade from the lot ledger (core.lots), regardless of
+        Broker._execute_trade from the lot ledger (core.trading.lots), regardless of
         which of the exit paths (self-exit, hard stop, Router state-switch,
         circuit breaker, EndOfBacktest) triggered the closing fill. Filtering
         by ``opening_strategy_id`` (captured on the lot when it was opened,

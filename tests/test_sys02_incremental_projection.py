@@ -10,11 +10,11 @@ from core.domain import FillRecord, OrderIntent
 from core.broker import Broker
 from core.live_broker.fill_projection import replay_fill_projection, _legacy_replay_fill_projection
 from core.live_broker.reconciler import OrderReconcilerMixin
-from core.lots import CloseEvent
-from core.order_store import OrderStore
+from core.trading.lots import CloseEvent
+from core.trading.order_store import OrderStore
 from core.portfolio import Portfolio
-from core.state_store_v2 import StateStore
-from core.state import MarketState
+from core.trading.state_store_v2 import StateStore
+from core.trading.state import MarketState
 from core.risk import RiskManager
 from strategies.base import Strategy
 from strategies.mean_reversion import RangeStrategy

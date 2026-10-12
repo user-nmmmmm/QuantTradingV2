@@ -7,7 +7,7 @@ from typing import Any, Dict, Optional
 from core.domain import OrderErrorCode, OrderIntent, OrderSubmissionResult
 from core.live_broker import LiveBroker
 from core.logger import get_logger
-from core.order_store import OrderStore
+from core.trading.order_store import OrderStore
 from core.portfolio import Portfolio
 
 

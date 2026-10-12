@@ -4,9 +4,9 @@ from unittest.mock import patch
 import pytest
 
 from core.live_broker.safe import SafeLiveBroker
-from core.order_store import OrderStore
+from core.trading.order_store import OrderStore
 from core.portfolio import Portfolio
-from core.state_store_v2 import StateStore
+from core.trading.state_store_v2 import StateStore
 from tests.test_revalidation_execution import Harness, NOW, SYMBOL, broker, enter
 from tests.test_live_risk_action_lifecycle import finish_pending
 

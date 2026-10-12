@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field, replace
-from core.entry_audit import capture, note
+from core.trading.entry_audit import capture, note
 from enum import Enum
 from typing import Any, Iterable, Mapping, Optional, Sequence
 
@@ -16,7 +16,7 @@ import pandas as pd
 
 from core.logger import get_logger
 from core.risk.portfolio_governor import PortfolioRiskGovernor
-from core.position_management import CapitalAllocationPolicy, SmartCapitalPlanner
+from core.trading.position_management import CapitalAllocationPolicy, SmartCapitalPlanner
 
 logger = get_logger(__name__)
 

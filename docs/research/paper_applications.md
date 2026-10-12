@@ -474,7 +474,7 @@ P3为独立有限资金账户：原始参照进252候选，门控账户进0，�
 - [共享研究证据](../../analysis/research_evidence.py)、[Walk-Forward](../../analysis/walk_forward.py)、[通用优化](../../analysis/optimize.py)
 - [成本／风险／调仓账户实验](../../analysis/paper_portfolio.py)、[尾部与联合压力](../../analysis/paper_risk.py)
 - [首触解析和成交成本桥](../../analysis/paper_label_execution.py)、[因果标签目标](../../analysis/paper_label_signals.py)
-- [执行成本校准](../../analysis/execution_calibration.py)、[持久请求观测](../../core/order_latency.py)
+- [执行成本校准](../../analysis/execution_calibration.py)、[持久请求观测](../../core/trading/order_latency.py)
 
 ### 最终验收结果
 

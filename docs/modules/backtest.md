@@ -61,7 +61,7 @@
 
 `TotalTrades`、`WinRate`、`ProfitFactor`、`Expectancy` 以及 `ExtendedAnalytics` / `Diagnostics` 全部按**往返**统计；腿数另以 `ClosedTradeLegs` 报出，两个口径在 report.txt、xlsx 与 PDF 摘要里都可见。唯一仍按腿统计的是 `lifecycle_coverage`——它的对照量 `Strategy.observed_close_events` 是按 lot close 计数的，所以 `build_diagnostics` 为它单独接收 `closed_legs`。
 
-折叠时有两个反直觉的取舍：`initial_risk` 在 `core/lots.py` 里是**整个 lot** 的值、每次部分平仓都会重复带出，所以按不同 `lot_id` 各取一次求和而不是按腿累加（否则 1R 的交易会被算成 0.33R）；`mae`/`mfe` 是单位价格幅度，取各 lot 的最大值而不是求和。用 `core.metrics.calculate_equity_metrics` 算 CAGR/夏普/最大回撤；仅在权益时间轴严格等间隔时自动推断年化因子，缺 bar 或混频时需显式提供尺度，否则有关指标会报告不可计算。
+折叠时有两个反直觉的取舍：`initial_risk` 在 `core/trading/lots.py` 里是**整个 lot** 的值、每次部分平仓都会重复带出，所以按不同 `lot_id` 各取一次求和而不是按腿累加（否则 1R 的交易会被算成 0.33R）；`mae`/`mfe` 是单位价格幅度，取各 lot 的最大值而不是求和。用 `core.metrics.calculate_equity_metrics` 算 CAGR/夏普/最大回撤；仅在权益时间轴严格等间隔时自动推断年化因子，缺 bar 或混频时需显式提供尺度，否则有关指标会报告不可计算。
 
 **信号漏斗（BM3）**：`ReportGenerator.generate(..., event_log=...)` 传入引擎返回的 `event_log` 后，`ExtendedAnalytics["signal_funnel"]` 按 `correlation_id` 统计“风控评估 → 风控放行 → 订单生成 → 订单受理 → 成交”每一级的留存数，用于定位入场信号在哪个环节未继续执行。成交明细与权益曲线本身不包含这些未成交路径。回测只为**开仓**意图发布 `risk_decision`（`ensure_opening_reservation` 只为 buy/short 预留额度），平仓单从 `order_created` 才出现，因此全量事件中的 `order_created` 大于 `risk_evaluated` 并不必然表示统计错误。
 

@@ -12,11 +12,11 @@ import numpy as np
 import pandas as pd
 
 from core.candidate_scoring import ScoreBreakdown
-from core.entry_audit import note
+from core.trading.entry_audit import note
 from core.portfolio import Portfolio
-from core.protective_stops import ProtectiveStopPolicy
+from core.trading.protective_stops import ProtectiveStopPolicy
 from core.risk import RiskManager
-from core.state import MarketState
+from core.trading.state import MarketState
 from strategies.trend_breakout import TrendBreakoutStrategy
 
 

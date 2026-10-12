@@ -2,7 +2,7 @@
 
 > 文档状态：技术分析 v1.0
 > 生成日期：2026-08-31
-> 分析范围：`strategies/`、`router/`、`composition/factory.py`、`core/state.py`、`core/allocation.py`（路由/分配部分）、`core/risk/`（策略集成面）、`core/indicators.py`、`core/factors/`（策略实际使用的子集）
+> 分析范围：`strategies/`、`router/`、`composition/factory.py`、`core/trading/state.py`、`core/allocation.py`（路由/分配部分）、`core/risk/`（策略集成面）、`core/indicators.py`、`core/factors/`（策略实际使用的子集）
 > 关联文档：[`docs/modules/strategies.md`](../../modules/strategies.md)、[`docs/modules/router.md`](../../modules/router.md)、[`docs/strategy_development_roadmap.md`](strategy_development_roadmap.md)、[`docs/backtest_assumptions.md`](../../backtest_assumptions.md)
 
 ---
@@ -23,7 +23,7 @@
 历史/实盘行情 (MarketDataSlice)
         │
         ▼
-core/state.py  MarketStateMachine  ── 把 OHLCV 序列映射为离散 MarketState
+core/trading/state.py  MarketStateMachine  ── 把 OHLCV 序列映射为离散 MarketState
         │
         ▼
 core/runtime.py  EventProcessor    ── 每根 bar 的确定性编排（唯一业务路径，回测/实盘共用）
@@ -37,10 +37,10 @@ core/runtime.py  EventProcessor    ── 每根 bar 的确定性编排（唯一
 core/risk/  RiskManager        ── 定仓、名义上限削减(clamp)、准入闸门(gate)
         │
         ▼
-core/execution_port.py (ExecutionPort)  ── 回测 SimulatedExecutionAdapter / 实盘 broker
+core/trading/execution_port.py (ExecutionPort)  ── 回测 SimulatedExecutionAdapter / 实盘 broker
         │
         ▼
-Broker._execute_trade → core/lots.py 逐笔记账 → 生成 CloseEvent
+Broker._execute_trade → core/trading/lots.py 逐笔记账 → 生成 CloseEvent
         │
         ▼（下一根 bar 或本 bar 末，通过 _consume_execution_trades 回流）
 Strategy.on_trade_closed  ── 更新健康度/连亏冷却等跨 bar 状态
@@ -148,7 +148,7 @@ for event in close_events:
 
 设计要点：
 
-- **CloseEvent 是权威的**：由 `Broker._execute_trade` 在成交时基于 `core/lots.py` 的逐笔账本生成一次，**不管**平仓是哪条路径触发的（策略自身出场 / 硬止损 / Router 时间强平 / 熔断强平 / 回测结束 EndOfBacktest）。
+- **CloseEvent 是权威的**：由 `Broker._execute_trade` 在成交时基于 `core/trading/lots.py` 的逐笔账本生成一次，**不管**平仓是哪条路径触发的（策略自身出场 / 硬止损 / Router 时间强平 / 熔断强平 / 回测结束 EndOfBacktest）。
 - **按 `opening_strategy_id` 归属**：该字段记录在 lot 开仓时，因此即使仓位被 Router / CircuitBreaker / EndOfBacktest 平掉，PnL 与 `on_trade_closed` 回调仍然记到**当初开仓的那个策略**头上。
 - **幂等**：`close_event_id` 去重，`_consume` 被多次调用（例如强平后 `engine.py` 额外主动调一次）也不会重复计数。
 - **`entry_pending` 自愈**：如果 `entry_pending` 为真但仓位仍为 0 且 broker 报告该 symbol 没有活跃挂单（`has_active_open_order(symbol) is False`），清空 context——修复订单被拒/取消后闩锁不释放的问题（roadmap D-06）。
@@ -171,7 +171,7 @@ if qty < 0 and high >= stop: return {"action": "cover", "reason": "hard_stop", "
 
 ---
 
-## 4. `core/state.py` — 市场状态机
+## 4. `core/trading/state.py` — 市场状态机
 
 ### 4.1 状态枚举
 

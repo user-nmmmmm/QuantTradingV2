@@ -7,9 +7,9 @@ from threading import RLock
 from typing import Any, Dict, List, Optional
 
 from core.domain import FillRecord, OrderIntent, OrderStatus
-from core.orders import TERMINAL_STATUSES, validate_transition
-from core.sqlite_backup import SQLiteSnapshotManager
-from core.sqlite_utils import ensure_schema_version, open_durable_connection
+from core.trading.orders import TERMINAL_STATUSES, validate_transition
+from core.trading.sqlite_backup import SQLiteSnapshotManager
+from core.trading.sqlite_utils import ensure_schema_version, open_durable_connection
 
 
 class OrderStoreClosedError(RuntimeError):

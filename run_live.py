@@ -8,8 +8,8 @@ from pathlib import Path
 from composition.factory import build_risk_manager, build_strategy_registry
 from config.config import config
 from core.portfolio import Portfolio
-from core.order_store import OrderStore
-from core.state_store_v2 import StateStore
+from core.trading.order_store import OrderStore
+from core.trading.state_store_v2 import StateStore
 from core.runtime_identity import RuntimeIdentity
 from core.logger import configure_logging, get_logger
 from core.live_safety import (
@@ -22,13 +22,13 @@ from core.risk.persistent_guard import PersistentOrderSafetyGuard
 from ops.gray_release import (
     AdmissionBoundOrderGuard, GrayReleasePolicy, read_pinned_admission_evidence, write_release_record,
 )
-from core.account_cost_contract import (
+from core.trading.account_cost_contract import (
     AccountCostContractError,
     default_runtime_market_type,
     validate_runtime_account_cost_contract,
 )
 from ops.startup_preflight import build_startup_report, write_startup_report
-from core.account_source import PinnedAccountExport
+from core.trading.account_source import PinnedAccountExport
 from live_trading.recovery import account_new_risk_gate
 from ops.strategy_governance import (
     GovernanceError,

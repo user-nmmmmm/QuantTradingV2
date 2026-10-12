@@ -27,7 +27,7 @@ from core.live_broker.account_sync import AccountSyncMixin
 from core.live_broker.reconciler import OrderReconcilerMixin
 from core.live_broker.submission import SubmissionServiceMixin
 from core.logger import get_logger
-from core.order_store import OrderStore
+from core.trading.order_store import OrderStore
 from core.live_broker.retry import with_retry
 from core.portfolio import Portfolio
 from core.risk.reservation import (
@@ -104,7 +104,7 @@ class LiveBroker(SubmissionServiceMixin, OrderReconcilerMixin, AccountSyncMixin)
         self._bar_timeframe = "unknown"
         self._bar_time = "unknown"
         self.trades = []  # Compatibility projection only; OrderStore is authoritative.
-        from core.order_latency import OrderLatencyRecorder, order_observation_sidecar_path
+        from core.trading.order_latency import OrderLatencyRecorder, order_observation_sidecar_path
         self.order_latency = OrderLatencyRecorder(
             persistence_path=order_observation_sidecar_path(getattr(self.order_store, "path", None)))
         self.close_events = []

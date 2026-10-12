@@ -82,8 +82,8 @@ The live engine snapshots its state database hourly and keeps 24 snapshots by
 default. Both values are constructor options. Manual operations are:
 
 ~~~powershell
-python -m core.sqlite_backup backup reports/live_status_state.db --retention 24
-python -m core.sqlite_backup restore reports/live_status_state.db.snapshots/live_status_state.db.TIMESTAMP.sqlite3 reports/live_status_state.db
+python -m core.trading.sqlite_backup backup reports/live_status_state.db --retention 24
+python -m core.trading.sqlite_backup restore reports/live_status_state.db.snapshots/live_status_state.db.TIMESTAMP.sqlite3 reports/live_status_state.db
 ~~~
 
 Stop the live engine before manual rollback. Backup and restore use SQLite's
@@ -98,7 +98,7 @@ snapshot is rejected. Never copy an identity from an unrelated account merely
 to make restore proceed.
 
 ~~~powershell
-python -m core.sqlite_backup restore SNAPSHOT.sqlite3 TARGET.db --identity-file approved_runtime_identity.json
+python -m core.trading.sqlite_backup restore SNAPSHOT.sqlite3 TARGET.db --identity-file approved_runtime_identity.json
 ~~~
 
 For corrupt targets, restore first preserves the original bytes as
@@ -145,7 +145,7 @@ The live periodic recovery status declares `scope=order_recovery`. Its `ok`
 field describes unresolved orders only; `account_reconciliation=unverified`
 explicitly records the missing independent opening-capital, cash-flow and
 valuation inputs. It must not be presented as a full account reconciliation.
-`core.account_reconciliation.reconcile_account_snapshots` compares independently
+`core.trading.account_reconciliation.reconcile_account_snapshots` compares independently
 normalized spot/spot-margin snapshots, validates duplicate fills, quantity and
 fee conservation, timestamped marks, cash free/locked/total and both equity
 bridges. It creates no second ledger and infers no deposit from a cash mismatch.

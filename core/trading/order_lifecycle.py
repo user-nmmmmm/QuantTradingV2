@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from core.domain import OrderStatus
-from core.orders import TERMINAL_STATUSES
+from core.trading.orders import TERMINAL_STATUSES
 
 
 def order_fact(execution, order_id):

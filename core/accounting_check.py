@@ -15,7 +15,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional
 
-from core.lots import Lot
+from core.trading.lots import Lot
 from core.portfolio import Portfolio
 
 REL_TOLERANCE = 1e-6

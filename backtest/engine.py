@@ -1,9 +1,9 @@
 """Backtest engine composed from the shared runtime and historical adapters."""
 
 from __future__ import annotations
-from core.entry_audit import forced_trade_cost
-from core.entry_risk import resolve_approved_risk
-from core.orders import TERMINAL_STATUSES
+from core.trading.entry_audit import forced_trade_cost
+from core.trading.entry_risk import resolve_approved_risk
+from core.trading.orders import TERMINAL_STATUSES
 from ops.strategy_registration import register_health_policies
 from dataclasses import asdict, replace
 
@@ -25,8 +25,8 @@ from composition.factory import (
 )
 from config.config import config
 from core.accounting_check import AccountingReconciler
-from core.account_cost_contract import validate_account_cost_contract
-from core.accounts import AccountMode
+from core.trading.account_cost_contract import validate_account_cost_contract
+from core.trading.accounts import AccountMode
 from core.benchmarks import (
     dynamic_equal_weight_rebalanced,
     fixed_equal_weight_buy_hold,
@@ -36,11 +36,11 @@ from core.events import TradingEventPipeline
 from core.logger import get_logger
 from core.market.market_data import HistoricalMarketDataAdapter, normalize_market_frame
 from core.portfolio import Portfolio
-from core.position_management import CapitalAllocationPolicy
+from core.trading.position_management import CapitalAllocationPolicy
 from core.runtime import EventProcessor, MarketDataSlice, validate_selector_execution_path
 from core.risk.actions import plan_risk_action
 from backtest.drawdown_budget import BacktestDrawdownReducer
-from core.protective_stops import EntryRiskPolicy, evaluate_fill_risk
+from core.trading.protective_stops import EntryRiskPolicy, evaluate_fill_risk
 from core.strategy_health import cohort_rows, transition_rows
 from signal_meta.signal_observation import SignalObserver
 from signal_meta.signal_observation_types import ObservationPolicy

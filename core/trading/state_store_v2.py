@@ -8,7 +8,7 @@ import sqlite3
 from datetime import datetime, timezone
 from threading import RLock
 from typing import Any
-from core.sqlite_utils import ensure_schema_version, open_durable_connection
+from core.trading.sqlite_utils import ensure_schema_version, open_durable_connection
 
 
 class StateStore:

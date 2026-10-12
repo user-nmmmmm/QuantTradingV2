@@ -10,8 +10,8 @@ from dataclasses import replace
 from typing import Dict, Optional, Tuple
 
 from core.domain import OrderIntent, RiskDecision, RiskReservation
-from core.entry_audit import note
-from core.entry_risk import resolve_approved_risk
+from core.trading.entry_audit import note
+from core.trading.entry_risk import resolve_approved_risk
 from core.events import TradingEventPipeline, stable_uuid5
 from core.logger import get_logger
 from core.portfolio import Portfolio

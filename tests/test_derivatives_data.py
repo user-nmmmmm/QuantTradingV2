@@ -6,7 +6,7 @@ from unittest.mock import patch
 import pandas as pd
 import pytest
 
-from core.accounts import AccountMode
+from core.trading.accounts import AccountMode
 from core.broker import Broker
 from core.market.derivatives_data import (
     DerivativesBundle, LinearContractSpec, load_derivatives_bundle,

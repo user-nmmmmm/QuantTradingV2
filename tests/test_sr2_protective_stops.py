@@ -13,7 +13,7 @@ import unittest
 import pandas as pd
 
 from core.indicators import Indicators
-from core.protective_stops import (
+from core.trading.protective_stops import (
     EntryRiskPolicy,
     ProtectiveStopPolicy,
     evaluate_fill_risk,
@@ -21,7 +21,7 @@ from core.protective_stops import (
     update_trailing_stop,
 )
 from core.portfolio import Portfolio
-from core.state import MarketState
+from core.trading.state import MarketState
 from strategies.trend_breakout import TrendBreakoutStrategy
 
 

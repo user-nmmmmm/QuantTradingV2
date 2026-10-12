@@ -27,7 +27,7 @@ from signal_meta.signal_observation_types import (
     ContextSnapshot, ObservationPolicy, SignalCandidateEvent, canonical, close_time, iso,
 )
 from signal_meta.signal_outcomes import ForwardOutcomeTracker, ObservationCosts
-from core.state import MarketState
+from core.trading.state import MarketState
 from router.router import Router
 from strategies.base import Strategy
 from tests.engine_baseline_harness import build_synthetic_data_map

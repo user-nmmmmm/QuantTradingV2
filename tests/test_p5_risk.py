@@ -5,7 +5,7 @@ import logging
 
 from core.risk import RiskManager
 from core.portfolio import Portfolio
-from core.accounts import AccountMode
+from core.trading.accounts import AccountMode
 
 # Configure logging to capture output
 logging.basicConfig(level=logging.INFO)

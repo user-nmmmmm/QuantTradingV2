@@ -6,10 +6,10 @@ import math
 from dataclasses import asdict
 from collections import deque
 
-from core.lots import Lot
+from core.trading.lots import Lot
 
-from core.lots import CloseEvent, LotBook, LotIdAllocator
-from core.entry_risk import resolve_approved_risk
+from core.trading.lots import CloseEvent, LotBook, LotIdAllocator
+from core.trading.entry_risk import resolve_approved_risk
 
 
 class _StableIds(LotIdAllocator):

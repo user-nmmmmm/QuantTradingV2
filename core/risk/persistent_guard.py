@@ -10,8 +10,8 @@ from threading import RLock
 from typing import Callable, Optional
 
 from core.live_safety import SafetyConfigurationError, StartupSafetyPolicy, utc_date
-from core.sqlite_backup import SQLiteSnapshotManager
-from core.sqlite_utils import ensure_schema_version, open_durable_connection
+from core.trading.sqlite_backup import SQLiteSnapshotManager
+from core.trading.sqlite_utils import ensure_schema_version, open_durable_connection
 
 
 class PersistentOrderSafetyGuard:

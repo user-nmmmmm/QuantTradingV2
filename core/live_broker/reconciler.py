@@ -5,7 +5,7 @@ core/live_broker_submission.py's module docstring for why this is a mixin
 rather than a standalone collaborator object.
 """
 from __future__ import annotations
-from core.order_latency import record_order_call
+from core.trading.order_latency import record_order_call
 
 from datetime import datetime, timezone
 from dataclasses import dataclass
@@ -15,7 +15,7 @@ from typing import Any, Dict, Mapping, Optional
 
 from core.domain import FillRecord, OrderErrorCode, OrderStatus, OrderSubmissionResult
 from core.logger import get_logger
-from core.orders import TERMINAL_STATUSES, classify_order_exception
+from core.trading.orders import TERMINAL_STATUSES, classify_order_exception
 
 # Same logger name as core.live_broker (logging.getLogger caches by name, so
 # this is the identical object) -- tests use assertLogs("core.live_broker")

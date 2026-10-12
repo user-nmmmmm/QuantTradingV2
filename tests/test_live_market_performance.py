@@ -19,8 +19,8 @@ from core.market.market_data_errors import MarketDataRefreshError
 from core.portfolio import Portfolio
 from core.market.public_data_clients import PublicDataClientPool, VenueRequestPacer
 from core.risk import RiskManager
-from core.state import MarketState, MarketStateMachine
-from core.state_store_v2 import StateStore
+from core.trading.state import MarketState, MarketStateMachine
+from core.trading.state_store_v2 import StateStore
 from live_trading.engine import LiveTradingEngine
 from router.router import Router
 from strategies.base import Strategy

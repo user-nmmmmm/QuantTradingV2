@@ -12,7 +12,7 @@ import main as backtest_entrypoint
 from core.domain import SyncResult
 from core.live_broker import LiveBroker
 from core.market.market_data import LiveMarketDataAdapter, normalize_market_frame
-from core.order_store import OrderStore, OrderStoreClosedError
+from core.trading.order_store import OrderStore, OrderStoreClosedError
 from core.market.timeframes import closed_bars
 from dashboard.__main__ import load_dashboard, render_text
 

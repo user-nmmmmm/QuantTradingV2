@@ -16,7 +16,7 @@ from ops.gray_release import (
 )
 from core.live_safety import SafetyConfigurationError, StartupSafetyPolicy
 from core.runtime_identity import RuntimeIdentity
-from core.state_store_v2 import StateStore
+from core.trading.state_store_v2 import StateStore
 from tests.test_phase6_operational_readiness import passing_bundle
 
 
