@@ -13,8 +13,8 @@ from types import SimpleNamespace
 import pandas as pd
 
 from core.data_versions import _record
-from core.signal_observation_types import fingerprint
-from core.temporal_financing import FINANCING_CALCULATOR, financing_cost
+from signal_meta.signal_observation_types import fingerprint
+from signal_meta.temporal_financing import FINANCING_CALCULATOR, financing_cost
 from core.timeframes import as_utc_timestamp, timeframe_delta
 
 
@@ -23,10 +23,10 @@ PROTOCOL = "strict-fixed-horizon/v1"
 
 def _validate_financed_outcome(row, candidate, payload, protocol):
     """Recompute execution and carry from evidence, not self-reported amounts."""
-    from core.signal_observation_types import (
+    from signal_meta.signal_observation_types import (
         ContextSnapshot, ObservationPolicy, SignalCandidateEvent, canonical,
     )
-    from core.signal_outcomes import ForwardOutcomeTracker, ObservationCosts
+    from signal_meta.signal_outcomes import ForwardOutcomeTracker, ObservationCosts
 
     sources = row["source_versions"]
     candidate_data = deepcopy(candidate)
@@ -191,7 +191,7 @@ class OutcomeRevisionBook:
             if row["account_mode"] != "spot" and row["status"] in {"matured", "censored_financing_evidence_invalidated"}:
                 _validate_financed_outcome(row, candidate, payload, protocol)
             if row["training_eligible"]:
-                from core.signal_observation_types import finite
+                from signal_meta.signal_observation_types import finite
                 delta = timeframe_delta(candidate["context"]["timeframe"])
                 expected = [entry + i * delta for i in range(horizon)]
                 if (row["status"] != "matured" or row["execution_flags"]

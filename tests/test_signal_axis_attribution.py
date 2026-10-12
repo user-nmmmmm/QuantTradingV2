@@ -6,10 +6,10 @@ import math
 import pandas as pd
 import pytest
 
-from core.signal_adaptive_types import AdaptiveEVPolicy
-from core.signal_axis_attribution import combine_axis_score, fit_axis_weights
-from core.signal_ev_ledger import EVLedger
-from core.signal_ev_types import EVPolicy
+from signal_meta.signal_adaptive_types import AdaptiveEVPolicy
+from signal_meta.signal_axis_attribution import combine_axis_score, fit_axis_weights
+from signal_meta.signal_ev_ledger import EVLedger
+from signal_meta.signal_ev_types import EVPolicy
 
 
 AXES = ("trend", "volatility", "efficiency")

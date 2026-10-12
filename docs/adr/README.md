@@ -19,3 +19,4 @@
 | [0008](0008-defer-forward-observation-window.md) | 前向观察窗顺延，重构完成后再登记新身份 | 已采纳 |
 | [0009](0009-release-convention.md) | 发布约定：语义化版本、CHANGELOG、带注解的标签 | 已采纳 |
 | [0010](0010-release-bound-identity.md) | 新冻结登记绑定"发布标签 + 行为身份回执"，旧记录不动 | 已采纳 |
+| [0011](0011-signal-meta-package.md) | 信号元层移到顶层包 `signal_meta/`，不留旧路径垫片 | 已采纳 |

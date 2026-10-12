@@ -1499,7 +1499,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **来源：** [docs/archive/2026-10-doc-consolidation/position_management_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/position_management_plan.md)；[docs/strategy_health_contract.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/strategy_health_contract.md)；[docs/signal_meta_layer.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/p23_signal_meta_layer.md)。
 
-**修改范围：** [core/strategy_health.py](../core/strategy_health.py)、[ops/strategy_governance.py](../ops/strategy_governance.py)、[core/signal_observation.py](../core/signal_observation.py)、[backtest/signal_meta_replay.py](../backtest/signal_meta_replay.py)。
+**修改范围：** [core/strategy_health.py](../core/strategy_health.py)、[ops/strategy_governance.py](../ops/strategy_governance.py)、[signal_meta/signal_observation.py](../signal_meta/signal_observation.py)、[backtest/signal_meta_replay.py](../backtest/signal_meta_replay.py)。
 
 **开发步骤：**
 

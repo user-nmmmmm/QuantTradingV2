@@ -3458,7 +3458,7 @@
       "files": [
         "core/strategy_health.py",
         "ops/strategy_governance.py",
-        "core/signal_observation.py",
+        "signal_meta/signal_observation.py",
         "backtest/signal_meta_replay.py"
       ],
       "compatibility": "沿用版本化健康checkpoint迁移，保留旧样本边界与映射审计。",

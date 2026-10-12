@@ -84,8 +84,8 @@ def main():
     source = batch / "revised_source"
     sys.path.insert(0, str(source))
     from config.config import config
-    from core.signal_observation_types import fingerprint
-    from core.signal_adaptive_types import MetaReplayPolicy
+    from signal_meta.signal_observation_types import fingerprint
+    from signal_meta.signal_adaptive_types import MetaReplayPolicy
     from core.market_data import HistoricalMarketDataAdapter
     from backtest.engine import BacktestEngine
     from backtest.signal_meta_replay import replay_signal_meta

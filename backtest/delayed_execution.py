@@ -14,7 +14,7 @@ import pandas as pd
 from core.broker import Broker
 from core.domain import OrderIntent
 from core.portfolio import Portfolio
-from core.signal_observation_types import fingerprint, iso
+from signal_meta.signal_observation_types import fingerprint, iso
 from core.timeframes import as_utc_timestamp, timeframe_delta
 
 

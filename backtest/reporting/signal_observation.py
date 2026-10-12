@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 
 from core.reproducibility import canonical_json, sha256_bytes
-from core.signal_observation_types import fingerprint
+from signal_meta.signal_observation_types import fingerprint
 
 
 def _default(value):

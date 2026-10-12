@@ -12,7 +12,7 @@ from typing import Any
 import pandas as pd
 
 from core.broker.cost_model import market_slippage_components
-from core.signal_observation_types import (
+from signal_meta.signal_observation_types import (
     ObservationPolicy, SignalCandidateEvent, close_time, finite, iso,
 )
 from core.timeframes import as_utc_timestamp, timeframe_delta

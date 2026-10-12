@@ -5,8 +5,8 @@ from types import SimpleNamespace
 import pytest
 
 from backtest.engine import BacktestEngine
-from core.signal_observation_types import fingerprint
-from core.temporal_financing import TemporalFinancing
+from signal_meta.signal_observation_types import fingerprint
+from signal_meta.temporal_financing import TemporalFinancing
 from main import _restore_temporal_financing, _temporal_report_payload, sha256_file
 from tests.test_temporal_financing import funding_records
 

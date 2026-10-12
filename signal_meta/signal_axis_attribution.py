@@ -16,7 +16,7 @@ from typing import Mapping
 
 import pandas as pd
 
-from core.signal_observation_types import fingerprint
+from signal_meta.signal_observation_types import fingerprint
 from core.timeframes import as_utc_timestamp, timeframe_delta
 
 

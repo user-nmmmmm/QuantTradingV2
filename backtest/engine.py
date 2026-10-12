@@ -42,14 +42,14 @@ from core.risk.actions import plan_risk_action
 from backtest.drawdown_budget import BacktestDrawdownReducer
 from core.protective_stops import EntryRiskPolicy, evaluate_fill_risk
 from core.strategy_health import cohort_rows, transition_rows
-from core.signal_observation import SignalObserver
-from core.signal_observation_types import ObservationPolicy
-from core.signal_outcomes import ObservationCosts
-from core.signal_actuals import reconcile_actuals
-from core.signal_ev_types import EVPolicy
-from core.signal_meta_layer import build_signal_meta_layer
-from core.signal_adaptive_types import AdaptiveEVPolicy, MetaReplayPolicy
-from core.signal_adaptive import build_adaptive_signal_meta
+from signal_meta.signal_observation import SignalObserver
+from signal_meta.signal_observation_types import ObservationPolicy
+from signal_meta.signal_outcomes import ObservationCosts
+from signal_meta.signal_actuals import reconcile_actuals
+from signal_meta.signal_ev_types import EVPolicy
+from signal_meta.signal_meta_layer import build_signal_meta_layer
+from signal_meta.signal_adaptive_types import AdaptiveEVPolicy, MetaReplayPolicy
+from signal_meta.signal_adaptive import build_adaptive_signal_meta
 from backtest.signal_ghost import replay_ghosts
 from backtest.signal_meta_replay import replay_signal_meta
 
@@ -108,7 +108,7 @@ class BacktestEngine:
         self.temporal_policy = parse_temporal_policy(temporal_policy if temporal_policy is not None else config_data.get("temporal_policy"))
         self.temporal_financing = temporal_financing
         if temporal_financing is not None:
-            from core.temporal_financing import TemporalFinancing
+            from signal_meta.temporal_financing import TemporalFinancing
             from pathlib import Path
             if isinstance(temporal_financing, (str, Path)):
                 self.temporal_financing = TemporalFinancing.from_json(temporal_financing)
