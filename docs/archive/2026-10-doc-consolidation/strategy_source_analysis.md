@@ -2,7 +2,7 @@
 
 > 文档状态：技术分析 v1.0
 > 生成日期：2026-08-31
-> 分析范围：`strategies/`、`router/`、`composition/factory.py`、`core/trading/state.py`、`core/planning/allocation.py`（路由/分配部分）、`core/risk/`（策略集成面）、`core/indicators.py`、`core/factors/`（策略实际使用的子集）
+> 分析范围：`strategies/`、`router/`、`composition/factory.py`、`core/trading/state.py`、`core/planning/allocation.py`（路由/分配部分）、`core/risk/`（策略集成面）、`core/analytics/indicators.py`、`core/factors/`（策略实际使用的子集）
 > 关联文档：[`docs/modules/strategies.md`](../../modules/strategies.md)、[`docs/modules/router.md`](../../modules/router.md)、[`docs/strategy_development_roadmap.md`](strategy_development_roadmap.md)、[`docs/backtest_assumptions.md`](../../backtest_assumptions.md)
 
 ---
@@ -81,7 +81,7 @@ just_entered = i <= ctx_pre.get("entry_bar", -2) + 1
 
 - 状态机 / 唐奇安通道等所有滚动指标显式 `.shift(1)`，只用“上一根及更早”的数据。
 - 多周期对齐 `align_state_to_lower_tf` 用 `ffill`（前向填充），低周期在某时刻只能拿到该时刻已确认的高周期状态。
-- `core/indicators.py` 把 ATR/ADX/RSI 的前 `n-1` 根显式置为 `NaN`，避免早期不稳定值触发信号。
+- `core/analytics/indicators.py` 把 ATR/ADX/RSI 的前 `n-1` 根显式置为 `NaN`，避免早期不稳定值触发信号。
 
 ---
 
@@ -94,7 +94,7 @@ just_entered = i <= ctx_pre.get("entry_bar", -2) + 1
 | 字段 | 位置 | 用途 |
 | --- | --- | --- |
 | `context[symbol]` | `Strategy.get_context` | 跨 bar 交易状态：`entry_price` / `stop_loss` / `trailing_stop` / `entry_bar` / `entry_pending` / `exit_pending` |
-| `observed_close_events` | 基类计数器 | 该策略实际观察到收盘的 round-trip 数，供 `core.diagnostics.calculate_lifecycle_coverage` 对账 |
+| `observed_close_events` | 基类计数器 | 该策略实际观察到收盘的 round-trip 数，供 `core.analytics.diagnostics.calculate_lifecycle_coverage` 对账 |
 | `_consumed_close_event_ids` | 基类 set | CloseEvent 幂等去重，防止同一事件被 `on_trade_closed` 消费两次 |
 
 `reset_runtime_state()` 在每次回测 run 开始时由 `BacktestEngine.run` 调用，清空上述状态。
@@ -472,7 +472,7 @@ signal(left: pd.Series, right: pd.Series) -> PairSignal(action, z_score, hedge_r
 
 ## 9. 指标实现细节（策略实际依赖的子集）
 
-### 9.1 `core/indicators.py`（策略/状态机的最小集）
+### 9.1 `core/analytics/indicators.py`（策略/状态机的最小集）
 
 | 指标 | 实现要点 |
 | --- | --- |
@@ -490,7 +490,7 @@ signal(left: pd.Series, right: pd.Series) -> PairSignal(action, z_score, hedge_r
 - `MomentumFactors.STOCH`（`%K_raw` → SMA(smooth_k) → `%D` = SMA(d_period)）—— VolatilityReversion 用。
 - `VolumeFactors.OBV`（`sign(close.diff()) * volume` 的 `cumsum`）—— TrendBreakout/Breakdown 用。
 
-`core.factors` 包与 `core.indicators` **完全独立**（设计上刻意隔离，避免影响已验证的信号路径）。
+`core.factors` 包与 `core.analytics.indicators` **完全独立**（设计上刻意隔离，避免影响已验证的信号路径）。
 
 ---
 

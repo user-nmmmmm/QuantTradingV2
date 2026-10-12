@@ -11,7 +11,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from core.strategy_health import classify_exit_controller
+from core.analytics.strategy_health import classify_exit_controller
 
 
 def _json(value):

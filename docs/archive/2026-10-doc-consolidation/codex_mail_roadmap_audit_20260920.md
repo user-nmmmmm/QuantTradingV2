@@ -302,7 +302,7 @@ MAIL-37-1 的原始“部分减仓永远不重试”判断需要区别于 MAIL-3
 **MAIL-18-3 · P2 · 仍存在** — [Use the configured holding limit in diagnostics](https://github.com/user-nmmmmm/QuantTradingV2/pull/18#pullrequestreview-5031311051)
 
 - 当前核对：运行路由读取router.max_holding_days（已从phase4迁移），但build_diagnostics和Phase4分析脚本仍固定365天；非365配置的超时诊断仍与执行政策不一致。
-- 代码/既有测试：[core/diagnostics.py:506](../../../core/diagnostics.py)；[scripts/run_phase4_analysis.py:137](../../../scripts/run_phase4_analysis.py)；[composition/factory.py:179](../../../composition/factory.py)；[config/params.yaml:102](../../../config/params.yaml)。
+- 代码/既有测试：[core/analytics/diagnostics.py:506](../../../core/analytics/diagnostics.py)；[scripts/run_phase4_analysis.py:137](../../../scripts/run_phase4_analysis.py)；[composition/factory.py:179](../../../composition/factory.py)；[config/params.yaml:102](../../../config/params.yaml)。
 - 验证方式：静态对照配置传播及两个报告调用点。
 
 ### PR #19
@@ -431,7 +431,7 @@ MAIL-37-1 的原始“部分减仓永远不重试”判断需要区别于 MAIL-3
 **MAIL-27-1 · P1 · 已修复** — [Ignore pre-probation losses when evaluating probation](https://github.com/user-nmmmmm/QuantTradingV2/pull/27#pullrequestreview-5074006738)
 
 - 当前核对：试运行判定只取新cohort，样本数足够后才评估；与通过后清空亏损基线缺口MAIL-32-1分别跟踪。
-- 代码/既有测试：[core/strategy_health.py:460](../../../core/strategy_health.py)；[core/strategy_health.py:618](../../../core/strategy_health.py)；[tests/test_sr1_strategy_health.py:172](../../../tests/test_sr1_strategy_health.py)。
+- 代码/既有测试：[core/analytics/strategy_health.py:460](../../../core/analytics/strategy_health.py)；[core/analytics/strategy_health.py:618](../../../core/analytics/strategy_health.py)；[tests/test_sr1_strategy_health.py:172](../../../tests/test_sr1_strategy_health.py)。
 - 验证方式：本次相关逻辑测试通过；同文件1项SQLite临时目录权限受阻
 **MAIL-27-2 · P1 · 已修复** — [Fail closed when protective-order submission is rejected](https://github.com/user-nmmmmm/QuantTradingV2/pull/27#pullrequestreview-5074006738)
 
@@ -503,7 +503,7 @@ MAIL-37-1 的原始“部分减仓永远不重试”判断需要区别于 MAIL-3
 **MAIL-32-1 · P1 · 仍存在** — [Reset the loss streak after probation passes](https://github.com/user-nmmmmm/QuantTradingV2/pull/32#pullrequestreview-5090380872)
 
 - 当前核对：probation 通过转 ACTIVE 后未将通过样本加入 streak baseline；ACTIVE 分支只清空时间字段。已有通过测试采用连续盈利样本，遗漏正总R但尾部连续亏损场景。
-- 代码/既有测试：[core/strategy_health.py:487](../../../core/strategy_health.py)；[core/strategy_health.py:491](../../../core/strategy_health.py)；[core/strategy_health.py:560](../../../core/strategy_health.py)；[core/strategy_health.py:602](../../../core/strategy_health.py)；[tests/test_sr1_strategy_health.py:152](../../../tests/test_sr1_strategy_health.py)；[tests/test_sr1_strategy_health.py:172](../../../tests/test_sr1_strategy_health.py)。
+- 代码/既有测试：[core/analytics/strategy_health.py:487](../../../core/analytics/strategy_health.py)；[core/analytics/strategy_health.py:491](../../../core/analytics/strategy_health.py)；[core/analytics/strategy_health.py:560](../../../core/analytics/strategy_health.py)；[core/analytics/strategy_health.py:602](../../../core/analytics/strategy_health.py)；[tests/test_sr1_strategy_health.py:152](../../../tests/test_sr1_strategy_health.py)；[tests/test_sr1_strategy_health.py:172](../../../tests/test_sr1_strategy_health.py)。
 - 验证方式：已用实际 StrategyHealthMachine 离线复现：阈值2、probation样本3个(+10R,-1R,-1R)，通过评估为ACTIVE，随后无新样本再次evaluate即COOLDOWN。 Git边界：缺口已在HEAD；当前未提交 cohort迁移改动未修复该通过分支。
 **MAIL-32-2 · P1 · 仍存在** — [Normalize symbols before applying the generated universe](https://github.com/user-nmmmmm/QuantTradingV2/pull/32#pullrequestreview-5090380872)
 

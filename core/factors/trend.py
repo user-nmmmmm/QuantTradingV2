@@ -4,10 +4,10 @@ import pandas as pd
 趋势类扩展指标（MACD）。
 
 说明：
-- SMA/EMA 已在 core.indicators.Indicators 中实现，这里直接复用，避免重复定义。
+- SMA/EMA 已在 core.analytics.indicators.Indicators 中实现，这里直接复用，避免重复定义。
 """
 
-from core.indicators import Indicators
+from core.analytics.indicators import Indicators
 
 
 class TrendFactors:

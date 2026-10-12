@@ -28,7 +28,7 @@
 | 入场风险回填 | Entry-Risk Recheck (GapRiskResize) | 风险预占按信号收盘价计算，成交可能跳空；成交后实际风险超过预算 + 容差（默认 10%）时触发命名的 `GapRiskResize` 缩减仓位，而不是默默承担超配风险。 | `core/trading/entry_risk.py`；`config/params.yaml: entry_risk` |
 | 期末平仓模式 | End-of-Backtest Mode | 回测结束时仍有持仓的处理方式：`mark_to_market`（默认，按最后价格零成本平仓，与权益曲线的盯市口径一致）或 `forced_liquidation`（按真实平仓计手续费/滑点）。 | `config/params.yaml: backtest.end_of_backtest_mode` |
 | 多标的时间对齐 | Multi-Symbol Time Alignment | 多标的回测的 bar 对齐模式：`union`（默认，只把当根有真实 bar 的标的送进该时间戳）或 `intersection`（要求全部标的同刻都有 bar）。 | `config/params.yaml: data.alignment_mode`；`backtest/engine.py` |
-| 会计恒等式校验 | Accounting Identity Check | 每根 bar 落账后校验"现金 + 持仓市值 − 借负债 = 权益"等恒等式，任何漂移直接报错，杜绝账本静默腐烂。 | `core/accounting_check.py`（引擎内 `accounting.check_bar`） |
+| 会计恒等式校验 | Accounting Identity Check | 每根 bar 落账后校验"现金 + 持仓市值 − 借负债 = 权益"等恒等式，任何漂移直接报错，杜绝账本静默腐烂。 | `core/analytics/accounting_check.py`（引擎内 `accounting.check_bar`） |
 | 账户成本契约 | Account-Cost Contract | 账户模式（spot / spot_margin / perpetual）与成本模型（费率表、借利率、资金费）必须互相一致，回测与实盘入口都先校验，矛盾即拒绝启动。 | `core/trading/account_cost_contract.py` |
 
 ---
@@ -39,8 +39,8 @@
 | --- | --- | --- | --- |
 | 市场状态机 | Regime Detection | 基于 SMA 结构 + ADX 强度 + ATR% 波动扩张，识别 `TREND_UP / TREND_DOWN / SIDEWAYS / VOLATILE` 四种互斥状态。`VOLATILE` 只认领"动得很凶但均线不成方向"的 bar，避免吞掉全部趋势 bar。输出是确定性标签（0/1），**不含概率/置信度**。 | `core/trading/state.py`；`config/params.yaml: state.*` |
 | 稳定性滤波 | Stability Filter | 候选状态需连续出现 `stability_period`（当前 5）次才确认切换，压制 regime 边界抖动；候选集合 {2,3,5,10} 已登记为研究候选。 | `core/trading/state.py: _apply_stability_filter`；`config/params.yaml: state.stability_period` |
-| ADX | Average Directional Index | 趋势强度指标（周期 14，阈值 25），用于过滤弱趋势下的假信号。 | `core/indicators.py` |
-| ATR / ATR% | Average True Range | 平均真实波幅（周期 14）；`ATR/close > atr_pct_threshold`（当前 2.5%）是高波动判据之一。 | `core/indicators.py`, `core/trading/state.py` |
+| ADX | Average Directional Index | 趋势强度指标（周期 14，阈值 25），用于过滤弱趋势下的假信号。 | `core/analytics/indicators.py` |
+| ATR / ATR% | Average True Range | 平均真实波幅（周期 14）；`ATR/close > atr_pct_threshold`（当前 2.5%）是高波动判据之一。 | `core/analytics/indicators.py`, `core/trading/state.py` |
 | 策略路由 | Router | 按当前 regime 把空仓标的的入场候选交给映射策略；持仓仍由开仓策略自己按 lot 归因管理。regime 切换只**撤销挂单 + 进入冷却**（`transition_action: stop_new_entries`），不强平持仓。 | `router/router.py: collect_candidate`；`config/params.yaml: routing / router` |
 | 冷却期 | Cooldown | regime 切换后强制等待的 bar 数（当前 2），避免过度交易。 | `config/params.yaml: router.cooldown_bars` |
 | 时间退出 | Max Holding Period Exit | 持仓超过 `max_holding_days`（默认 365 天）强制退出，防止资金被多年锁死。 | `config/params.yaml: router.max_holding_days` |
@@ -66,7 +66,7 @@
 | 回撤预算 | Drawdown Budget | 回撤逼近阈值时对开仓单的预算钳制：超支时撤销开仓并按比例强制减仓（`force_liquidate(reason='DrawdownBudgetReduce')`），`headroom_fraction` 控制缓冲。 | `core/risk/drawdown_budget.py`、`backtest/drawdown_budget.py`；`config/params.yaml: drawdown_budget` |
 | 相关性簇预算 | Correlation Cluster Budget | 把同涨同跌的标的编入簇（静态映射，未映射的一律归入 `crypto_beta`），对簇总敞口（≤1.5×权益）、全加密 beta 敞口（≤2.0）、单批次新开风险（≤6%）、簇内在险止损风险（≤10%）设预算；核心动机：15 个加密主流币在系统性回撤里其实是"一个仓位"。簇划分是**人工静态表**，非估计的协方差结构（见 §11）。 | `core/risk/portfolio_governor.py`；`config/params.yaml: portfolio_risk` |
 | 在途风险预占 | Risk Reservation | 信号已发出但订单未成交期间，对其名义/现金占用做投影记账，使并发信号共享同一份预算，防止"每单都合规、合起来超限"。 | `core/risk/reservation.py` |
-| 策略健康生命周期 | Strategy Health Lifecycle | 策略按队列（cohort）盈亏在 `ACTIVE → COOLDOWN → PROBATION → MANUAL_LOCK` 间迁移：连续 3 个负队列进入冷却，试错期以缩减风险（0.25）运行并需满足队列数/标的数/总 R 门槛，恢复按 [0.10, 0.25, 0.50, 1.00] 阶梯放量。账户级风控退出不计入健康证据。 | `core/strategy_health.py`；`config/params.yaml: strategy_health`；契约见 [`docs/strategy_health_contract.md`](strategy_health_contract.md) |
+| 策略健康生命周期 | Strategy Health Lifecycle | 策略按队列（cohort）盈亏在 `ACTIVE → COOLDOWN → PROBATION → MANUAL_LOCK` 间迁移：连续 3 个负队列进入冷却，试错期以缩减风险（0.25）运行并需满足队列数/标的数/总 R 门槛，恢复按 [0.10, 0.25, 0.50, 1.00] 阶梯放量。账户级风控退出不计入健康证据。 | `core/analytics/strategy_health.py`；`config/params.yaml: strategy_health`；契约见 [`docs/strategy_health_contract.md`](strategy_health_contract.md) |
 | 策略治理状态 | Strategy Governance Status | 策略的准入身份（如 `paused_revalidation / paused_redesign / isolated_research`）：无独立 holdout 证据的策略不得视为生产可用。当前仅 TrendBreakout 交易且处于复验暂停态。 | `ops/strategy_governance.py`；`config/params.yaml: strategy_governance` |
 | 容量曲线 | Capacity Curve | 同一输入按递增资金档（1万/10万/100万/1000万）重跑，用交易路径签名、拒单/部分成交/冲击成本解释策略容量随资金的衰减。（部分实现：只测参与率冲击，非微观结构估计。） | `backtest/capacity.py`；`config/params.yaml: capacity.capital_levels` |
 
@@ -108,7 +108,7 @@
 | 术语 | 英文 | 定义 | 代码位置 |
 | --- | --- | --- | --- |
 | 归因分析 | Attribution | 按策略 / 标的 / 月份拆分总净盈亏的贡献，缺失分组记为 `"UNKNOWN"` 而非丢弃，保证各拆分之和精确等于总额。 | `calculate_attribution`（`core/metrics/attribution.py`） |
-| 基准 | Benchmark | 多标的等权基准，两种模式：`fixed`（买入并持有，默认）与 `dynamic`（等权再平衡，再平衡成本 `dynamic_rebalance_cost_bps` 默认 5 bps 入账），用于衡量策略的超额收益。 | `core/benchmarks.py`；`config/params.yaml: benchmark.mode`；`benchmark.csv` |
+| 基准 | Benchmark | 多标的等权基准，两种模式：`fixed`（买入并持有，默认）与 `dynamic`（等权再平衡，再平衡成本 `dynamic_rebalance_cost_bps` 默认 5 bps 入账），用于衡量策略的超额收益。 | `core/analytics/benchmarks.py`；`config/params.yaml: benchmark.mode`；`benchmark.csv` |
 | 超额收益 | Excess Return | 策略总收益 − 基准总收益（在两者时间索引的交集上计算）。 | `calculate_benchmark_comparison` |
 | 滚动收益 | Rolling Return | 固定窗口的滚动累计收益，只回看不前视（`shift(window)`）。 | `calculate_rolling_returns` |
 | 分段收益 | Segment Returns | 把权益曲线按位置（非按日历）切成 N 段等长区间，粗略检验各阶段表现是否一致。 | `calculate_segment_returns` |

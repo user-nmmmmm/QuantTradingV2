@@ -22,7 +22,7 @@ from pathlib import Path
 from core.market.data_fetcher import DataFetcher
 from core.market.temporal_data import compatibility_audit, freeze_ohlcv, temporal_policy as parse_temporal_policy
 from core.market.data import DataHandler
-from core.backtest_audit import (
+from core.analytics.backtest_audit import (
     cross_verify_top_trades,
     validate_audit_coverage,
     write_event_log,

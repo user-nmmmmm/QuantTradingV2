@@ -15,7 +15,7 @@ from tests.test_p1_unified_risk_reservation import opening_intent
 from core.trading.portfolio import Portfolio
 from core.risk import RiskManager
 from core.risk.circuit_breaker import BreakerAction
-from core.strategy_health import HealthStatus, StrategyHealthMachine, StrategyHealthPolicy, classify_exit_controller
+from core.analytics.strategy_health import HealthStatus, StrategyHealthMachine, StrategyHealthPolicy, classify_exit_controller
 from core.trading.state_store_v2 import StateStore
 from tests.test_revalidation_execution import Harness, NOW, SYMBOL, broker
 

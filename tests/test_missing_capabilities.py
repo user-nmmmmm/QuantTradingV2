@@ -12,7 +12,7 @@ from ops.gray_release import GrayReleasePolicy
 from core.runtime_identity import RuntimeIdentity
 from core.trading.state_store_v2 import StateStore
 from core.live_safety import SafetyConfigurationError, StartupSafetyPolicy
-from core.metric_result import MetricResult
+from core.analytics.metric_result import MetricResult
 from ops.supervisor import RestartPolicy, supervise
 from composition.factory import build_strategy_registry
 from core.trading.portfolio import Portfolio

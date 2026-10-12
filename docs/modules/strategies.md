@@ -229,7 +229,7 @@ OBV 确认仅在存在 OBV 数据时生效：策略可从 `volume` 自动计算 
 
 ### 5.1 健康生命周期
 
-两个 Donchian 策略及继承它们的 V2/V3 共用 `_PersistentHealthMixin` 与[StrategyHealthMachine](../../core/strategy_health.py)，健康状态按策略名称分别管理。
+两个 Donchian 策略及继承它们的 V2/V3 共用 `_PersistentHealthMixin` 与[StrategyHealthMachine](../../core/analytics/strategy_health.py)，健康状态按策略名称分别管理。
 
 观察单位是退出 **cohort**，由原开仓策略、UTC 平仓日、退出控制方及适用的风险动作身份组合。策略自身保护止损的不同订单 ID 不拆成多个独立健康样本；同一观察组内合并权威净盈亏与初始风险，计算 R。当前计入健康触发的控制方为 `strategy` 和 `router`；账户风险与系统收尾退出仍保留归因报告。
 

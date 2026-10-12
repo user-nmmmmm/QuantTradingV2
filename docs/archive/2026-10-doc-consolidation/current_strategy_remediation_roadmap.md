@@ -286,7 +286,7 @@ manual_lock_reason
 
 ### SR1-2 建立 CloseEvent cohort 聚合器（P0）
 
-责任文件建议：新增 `core/strategy_health.py`，由权威 CloseEvent 和 risk action id 构建 cohort。聚合器必须幂等；重复投递同一 CloseEvent 不能重复计数。
+责任文件建议：新增 `core/analytics/strategy_health.py`，由权威 CloseEvent 和 risk action id 构建 cohort。聚合器必须幂等；重复投递同一 CloseEvent 不能重复计数。
 
 ### SR1-3 冷静期、观察期和人工锁定（P0）
 
@@ -622,7 +622,7 @@ B0/B1 必须先完成；B2 的纯指标和 shadow 计算可与 B1 后半段并�
 | --- | --- | --- |
 | SR0-2 治理状态 | 完成 | `config/params.yaml` 改为 `TrendBreakout: paused_revalidation`；`ops/strategy_governance.py` + `run_live.py --live` 拒绝路由未准入策略 |
 | SR0-3 实验注册边界 | 完成 | `docs/research/current_strategy_protocol.json`、`docs/research/current_strategy_experiment_registry.jsonl`（14 个参数族已登记，holdout 标记为不可用于排序） |
-| STR-P0-01 永久死亡开关 | 完成 | `core/strategy_health.py` 状态机；COOLDOWN 必有到期时间，唯一终态 MANUAL_LOCK 需人工恢复 |
+| STR-P0-01 永久死亡开关 | 完成 | `core/analytics/strategy_health.py` 状态机；COOLDOWN 必有到期时间，唯一终态 MANUAL_LOCK 需人工恢复 |
 | STR-P0-02 逐币种健康计数 | 完成 | 退出 cohort 聚合；`risk_action_id` 由 `force_liquidate → Order → CloseEvent` 透传，一个熔断动作只产生一个 observation |
 | STR-P0-03 停机未进报告 | 完成 | `report.txt` 新增 Strategy Health Lifecycle / Strategy Activity Consistency 分节；`strategy_health.json`、`strategy_health_timeline.csv`、`cohort_trades.csv`、`suppressed_setups.csv`；lifecycle 新增 `strategy_health_status`/`disabled_or_cooldown_at`/`health_gated_days`/`suppressed_raw_setups`/`shadow_setup_count` |
 | STR-P0-04 健康与外部风险耦合 | 完成 | `counted_controllers` 默认 `[strategy, router]`：account_risk cohort 记录但不触发迁移 |

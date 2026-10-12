@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from core.benchmarks import BenchmarkResult, dynamic_equal_weight_rebalanced
+from core.analytics.benchmarks import BenchmarkResult, dynamic_equal_weight_rebalanced
 
 
 def _close_matrix(data_map: Mapping[str, pd.DataFrame]) -> pd.DataFrame:

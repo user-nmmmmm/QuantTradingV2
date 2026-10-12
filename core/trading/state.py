@@ -1,7 +1,7 @@
 from enum import Enum
 import pandas as pd
 import numpy as np
-from core.indicators import Indicators
+from core.analytics.indicators import Indicators
 
 """
 Market State（市场状态/市场制度）模块

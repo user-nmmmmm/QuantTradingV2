@@ -1873,7 +1873,7 @@
         "反例：另有数据/账户故障时不能因 breaker 恢复而错误显示 HEALTHY。"
       ],
       "files": [
-        "core/strategy_health.py",
+        "core/analytics/strategy_health.py",
         "live_trading/tick_orchestrator.py",
         "live_trading/engine.py"
       ],
@@ -1913,19 +1913,19 @@
       "evidence": [
         {
           "mail_id": "MAIL-32-1",
-          "location": "core/strategy_health.py:487"
+          "location": "core/analytics/strategy_health.py:487"
         },
         {
           "mail_id": "MAIL-32-1",
-          "location": "core/strategy_health.py:491"
+          "location": "core/analytics/strategy_health.py:491"
         },
         {
           "mail_id": "MAIL-32-1",
-          "location": "core/strategy_health.py:560"
+          "location": "core/analytics/strategy_health.py:560"
         },
         {
           "mail_id": "MAIL-32-1",
-          "location": "core/strategy_health.py:602"
+          "location": "core/analytics/strategy_health.py:602"
         },
         {
           "mail_id": "MAIL-32-1",
@@ -2811,7 +2811,7 @@
       ],
       "files": [
         "backtest/reporting/render/charts.py",
-        "core/diagnostics.py",
+        "core/analytics/diagnostics.py",
         "scripts/run_phase4_analysis.py",
         "composition/factory.py",
         "config/params.yaml",
@@ -2891,7 +2891,7 @@
         },
         {
           "mail_id": "MAIL-18-3",
-          "location": "core/diagnostics.py:506"
+          "location": "core/analytics/diagnostics.py:506"
         },
         {
           "mail_id": "MAIL-18-3",
@@ -3046,7 +3046,7 @@
         "两种基准可分别手算且身份不混淆；旧报告基准不被静默覆盖，当前冻结研究沿用9月14日已批准定义。"
       ],
       "files": [
-        "core/metric_result.py",
+        "core/analytics/metric_result.py",
         "core/metrics",
         "backtest/reporting",
         "analysis/validation.py",
@@ -3456,7 +3456,7 @@
         "样本不足维持原风险，人工锁定不会被模型或影子盈利自行解除。"
       ],
       "files": [
-        "core/strategy_health.py",
+        "core/analytics/strategy_health.py",
         "ops/strategy_governance.py",
         "signal_meta/signal_observation.py",
         "backtest/signal_meta_replay.py"

@@ -18,7 +18,7 @@ import pandas as pd
 
 from core.planning.cost_aware_allocation import CostAwareAllocationPolicy, allocate_cost_aware
 
-from core.indicators import Indicators
+from core.analytics.indicators import Indicators
 from core.trading.protective_stops import ProtectiveStopPolicy, plan_initial_stop
 from core.market.universe import normalize_symbol
 

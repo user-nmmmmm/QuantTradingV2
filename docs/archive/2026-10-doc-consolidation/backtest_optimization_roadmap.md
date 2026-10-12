@@ -179,7 +179,7 @@ E 质量保证（贯穿）
   2. 可选接入资金费率/借券费率数据源（ccxt `fetch_funding_rate`），回填 A2 做空成本。
 - 验收：压力模板触发熔断/强平路径；funding 数据缺失时成本字段标 `not_modeled` 且不静默为 0。
 
-### D3 指标库扩展（`core/indicators.py`）
+### D3 指标库扩展（`core/analytics/indicators.py`）
 - 任务（按优先级）：RSI、MACD、ROC/Stochastic（动量）；OBV、VWAP、MFI、量比（量能）；历史波动率、BB 带宽、EWMA vol（波动）；Supertrend/Parabolic SAR（结构）。
 - 验收：每个新指标有边界测试（NaN 前缀、与 pandas/TA-Lib 参考对拍、输入只读）。
 

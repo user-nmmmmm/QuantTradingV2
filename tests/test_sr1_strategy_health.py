@@ -18,7 +18,7 @@ import pandas as pd
 from core.trading.lots import CloseEvent
 from core.trading.portfolio import Portfolio
 from core.trading.state_store_v2 import StateStore
-from core.strategy_health import (
+from core.analytics.strategy_health import (
     HealthStatus,
     StrategyHealthMachine,
     StrategyHealthPolicy,
@@ -417,7 +417,7 @@ class TestSilentInactivityDiagnostic(unittest.TestCase):
         return pd.Series(10000.0, index=index)
 
     def test_suppressed_setups_during_a_long_gap_are_a_p0_finding(self):
-        from core.diagnostics import strategy_activity_consistency
+        from core.analytics.diagnostics import strategy_activity_consistency
 
         result = strategy_activity_consistency(
             [{"exit_time": "2021-09-22"}],
@@ -436,7 +436,7 @@ class TestSilentInactivityDiagnostic(unittest.TestCase):
         self.assertTrue(result["findings"])
 
     def test_a_quiet_market_with_no_setups_is_not_flagged(self):
-        from core.diagnostics import strategy_activity_consistency
+        from core.analytics.diagnostics import strategy_activity_consistency
 
         result = strategy_activity_consistency(
             [{"exit_time": "2021-09-22"}],
@@ -453,7 +453,7 @@ class TestSilentInactivityDiagnostic(unittest.TestCase):
         self.assertEqual(result["findings"], [])
 
     def test_active_status_with_setups_inside_the_gap_is_flagged(self):
-        from core.diagnostics import strategy_activity_consistency
+        from core.analytics.diagnostics import strategy_activity_consistency
 
         result = strategy_activity_consistency(
             [{"exit_time": "2021-09-22"}],

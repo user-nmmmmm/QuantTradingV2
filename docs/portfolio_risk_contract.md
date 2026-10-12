@@ -80,7 +80,7 @@ combined          合计
 
 这是一个划分（partition），因此三者恒等于 `total_net_pnl`；`reconciles=false`
 会在报告里打出 P0。控制器判定复用
-[`core.strategy_health.classify_exit_controller`](../core/strategy_health.py)，
+[`core.analytics.strategy_health.classify_exit_controller`](../core/analytics/strategy_health.py)，
 与健康 cohort 的口径是同一个，不存在两套定义。
 
 ## 4. 账户模式与成本语义（SR3-4 / STR-P1-05、STR-P1-06）

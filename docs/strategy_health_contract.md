@@ -25,7 +25,7 @@
 
 > 文档状态：Active v1.0
 > 生效日期：2026-09-01
-> 实现：[`core/strategy_health.py`](../core/strategy_health.py)、[`strategies/trend_breakout.py`](../strategies/trend_breakout.py)
+> 实现：[`core/analytics/strategy_health.py`](../core/analytics/strategy_health.py)、[`strategies/trend_breakout.py`](../strategies/trend_breakout.py)
 > 测试：[`tests/test_sr1_strategy_health.py`](../tests/test_sr1_strategy_health.py)
 > 上位文档：[`current_strategy_remediation_roadmap.md`](archive/2026-10-doc-consolidation/current_strategy_remediation_roadmap.md) SR1
 
@@ -146,7 +146,7 @@ strategy_health:
 
 ### 6.1 一致性检查（SR1-4）
 
-`core.diagnostics.strategy_activity_consistency` 在以下条件同时成立时产生 **P0** 诊断：
+`core.analytics.diagnostics.strategy_activity_consistency` 在以下条件同时成立时产生 **P0** 诊断：
 
 - 最长零交易间隔 ≥ 365 天，且
 - 该间隔内确实存在 raw setup（`last_raw_setup_at` 落在窗口内），或存在被健康闸门抑制的 setup。

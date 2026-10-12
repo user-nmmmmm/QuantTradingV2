@@ -26,13 +26,13 @@ from core.planning.candidate_scoring import (
     CandidateScorePolicy,
     score_breakout_candidate,
 )
-from core.indicators import Indicators
+from core.analytics.indicators import Indicators
 from core.trading.protective_stops import (
     ProtectiveStopPolicy,
     plan_initial_stop,
     update_trailing_stop,
 )
-from core.strategy_health import (
+from core.analytics.strategy_health import (
     HealthStatus,
     StrategyHealthMachine,
     StrategyHealthPolicy,
@@ -57,7 +57,7 @@ class _PersistentHealthMixin:
     run of cross-symbol losses flipped it, no later profit ever turned it back
     on, and the strategy silently stopped trading for years while the report
     still said ``completed``. It is replaced by
-    :class:`core.strategy_health.StrategyHealthMachine`, whose only terminal
+    :class:`core.analytics.strategy_health.StrategyHealthMachine`, whose only terminal
     state is an explicit, audited ``MANUAL_LOCK``.
 
     SR1-2: observations are exit **cohorts**, not per-symbol closes, so one

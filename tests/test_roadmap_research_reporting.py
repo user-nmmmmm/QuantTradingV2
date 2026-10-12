@@ -12,12 +12,12 @@ from analysis.research_validation import deflated_sharpe_ratio, evaluate_holdout
 from backtest.reporting import ReportGenerator
 from backtest.reporting.render.charts import rolling_max_drawdown
 from backtest.reporting.serialization import write_metrics_json
-from core.diagnostics import build_diagnostics, calculate_lifecycle_coverage
+from core.analytics.diagnostics import build_diagnostics, calculate_lifecycle_coverage
 from core.metrics import Metrics, calculate_cost_sensitivity, calculate_signal_funnel
 from scripts.main_acceptance import validate_clean_source
 from scripts.run_phase5_analysis import main as phase5_main, phase5_config
 from scripts.roadmap_baseline import source_manifest, verify_source
-from core.metric_result import MetricResult
+from core.analytics.metric_result import MetricResult
 
 
 @pytest.mark.parametrize("pnls", [[20.] * 28 + [-1.], [20.] * 29, []])

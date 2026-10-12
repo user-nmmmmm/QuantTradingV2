@@ -11,6 +11,8 @@
 > **2026-10-12（B2-2）：** 订单、保护单、持仓批次、账户事实与状态存储的 20 个模块（`orders`、`order_store`、`protective_orders`、`lots`、`accounts`、`state`、`state_store_v2`、`sqlite_backup` …）已移到子包 `core/trading/`，模块名不变（`core.trading.order_store` …），旧的 `core.*` 路径不再保留；决定见 [ADR 0013](../adr/0013-core-trading-package.md)。
 >
 > **2026-10-13（B2-3）：** 选币、打分、分配与目标仓位的 7 个模块（`selection`、`selection_v2`、`candidate_scoring`、`allocation`、`cost_aware_allocation`、`target_position`、`portfolio_target_controller`）已移到子包 `core/planning/`；`portfolio`、`valuation` 并入 `core/trading/`。模块名不变，旧的 `core.*` 路径不再保留；决定见 [ADR 0014](../adr/0014-core-planning-package.md)。
+>
+> **2026-10-13（B2-4）：** 回测审计、账务检查、基准、诊断、指标结果、策略健康与技术指标的 7 个模块（`accounting_check`、`backtest_audit`、`benchmarks`、`diagnostics`、`metric_result`、`strategy_health`、`indicators`）已移到子包 `core/analytics/`，模块名不变，旧的 `core.*` 路径不再保留；决定见 [ADR 0015](../adr/0015-core-analytics-package.md)。
 
 本文档按子系统说明职责、主要接口和边界行为。调度与启动流程分别见 [回测模块](backtest.md) 和 [实盘模块](live_trading.md)；此处重点解释共享组件之间的契约。涉及时间版本的数据接口应连同证据来源一起阅读，开启 `strict` 或保存快照本身不代表已通过研究准入。
 
@@ -88,7 +90,7 @@
 - `TemporalFinancing` 保存资金费、借款、条款/许可及完整性声明的修订；`financing_cost(...)` 核对持有窗口所需证据。永续合约需要版本化线性合约条款和完整结算事件；`spot_margin` 需要决策时已知的借款许可、连续计息区间及显式费用。
 - 缺失或撤回的融资证据返回不完整状态，不能假定零成本；格式、哈希或身份冲突直接报错。资金费按结算事件计算，借款按固定本金、ACT/365F、非复利口径计算。这些输出属于独立模拟诊断，不是实际成交记录或账户债务账本。
 
-### `core/indicators.py` — 指标库
+### `core/analytics/indicators.py` — 指标库
 
 `Indicators` 静态类，原地给 DataFrame 添加指标列：`SMA_10/30/120`、`ATR_14`、`BB_UPPER/MIDDLE/LOWER`、`ADX_14`。ATR/ADX 用 Wilder 平滑（`ewm(alpha=1/n)`），并**故意**把前 `n-1` 个值强制设为 NaN（尽管 `ewm` 本身会更早给出数值），避免用不可靠的早期值。
 

@@ -56,7 +56,7 @@ class Strategy(ABC):
         self.context: Dict[str, Dict[str, Any]] = {}
         # How many round trips this strategy actually observed closing. Compared
         # against the reconstructed closed-trade count by
-        # core.diagnostics.calculate_lifecycle_coverage: a shortfall means the
+        # core.analytics.diagnostics.calculate_lifecycle_coverage: a shortfall means the
         # safeguards that update from on_trade_closed (health/alpha-death gates,
         # consecutive-loss cooldowns) are running blind.
         self.observed_close_events = 0

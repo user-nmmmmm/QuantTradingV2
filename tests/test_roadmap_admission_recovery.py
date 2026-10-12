@@ -19,7 +19,7 @@ from core.events.codec import _decode_value
 from core.events.store import SQLiteEventStore
 from core.risk import RiskManager
 from core.trading.state_store_v2 import StateStore
-from core.strategy_health import HealthStatus, StrategyHealthMachine, StrategyHealthPolicy
+from core.analytics.strategy_health import HealthStatus, StrategyHealthMachine, StrategyHealthPolicy
 from research.audit.ledger import CashEvent, MarkPriceEvent
 from tests.test_phase6_operational_readiness import lifecycle, passing_bundle
 from tests.test_r7_fault_injection import CircuitBreakerRecoveryFaultInjectionTests, NOW

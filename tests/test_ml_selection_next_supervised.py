@@ -279,7 +279,7 @@ def test_probe_runs_original_exit_and_does_not_force_missing_signal():
 
 def test_real_trend_breakout_probe_preserves_three_symbol_health_registration():
     from config.config import config
-    from core.strategy_health import StrategyHealthPolicy
+    from core.analytics.strategy_health import StrategyHealthPolicy
     from strategies.trend_breakout import TrendBreakoutStrategy
 
     settings = deepcopy(config._config)

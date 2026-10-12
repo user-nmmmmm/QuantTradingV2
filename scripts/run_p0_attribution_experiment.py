@@ -37,7 +37,7 @@ def main():
     output.mkdir(parents=True, exist_ok=False)
     (output / "data_inputs").mkdir()
     changed_sources = ["core/trading/entry_audit.py", "core/runtime.py", "core/planning/allocation.py",
-        "core/risk/entry_policy.py", "core/risk/position_sizing.py", "core/strategy_health.py",
+        "core/risk/entry_policy.py", "core/risk/position_sizing.py", "core/analytics/strategy_health.py",
         "strategies/base.py", "strategies/trend_breakout.py", "router/router.py", "backtest/engine.py",
         "scripts/run_expanded_universe_backtest.py", "scripts/run_p0_attribution_experiment.py"]
     save(output / "protocol.json", {

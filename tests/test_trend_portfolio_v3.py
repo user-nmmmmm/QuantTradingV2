@@ -15,7 +15,7 @@ from core.planning.selection_v2 import (
     size_portfolio_targets,
 )
 from core.trading.state import MarketState
-from core.strategy_health import HealthStatus
+from core.analytics.strategy_health import HealthStatus
 from strategies.trend_portfolio_v3 import TrendPortfolioV3Strategy
 
 

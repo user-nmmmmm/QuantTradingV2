@@ -25,7 +25,7 @@
 | [5. 命令行参考](#5-命令行参考) | `main.py` / `run_live.py` / `scripts/` / 环境变量 |
 | [6. 配置](#6-配置) | `config/params.yaml` 当前生效值 |
 | [7. 输出与报告](#7-输出与报告) | `reports/` 产物清单 |
-| [8. 指标与诊断](#8-指标与诊断) | `core/metrics/` / `core/diagnostics.py` |
+| [8. 指标与诊断](#8-指标与诊断) | `core/metrics/` / `core/analytics/diagnostics.py` |
 | [9. 策略与路由现状](#9-策略与路由现状) | 已注册策略、治理状态、未接入模型 |
 | [10. 能力边界](#10-能力边界) | 现货/衍生品、多标的并发、实盘准入 |
 | [11. 测试](#11-测试) | 测试、文档索引、常见问题、免责声明 |
@@ -807,7 +807,7 @@ python main.py --source synthetic --days 365 --seed 42 --report-profile full
 年化因子由权益序列的时间间隔自动推断（`infer_periods_per_year`），因此 Sharpe / CAGR 随周期自适应；
 这也是 `scripts/run_backtest_matrix.py` 能横扫多个周期的前提。
 
-### 8.2 可信度诊断（`core/diagnostics.py`）
+### 8.2 可信度诊断（`core/analytics/diagnostics.py`）
 
 `core/metrics/` 回答「表现如何」，`diagnostics.py` 回答一个**更前置**的问题：**这个数字该不该信、
 系统是不是真在做代码声称的事**。例如盈亏集中度（少数几笔幸运交易 vs 真实边缘）、

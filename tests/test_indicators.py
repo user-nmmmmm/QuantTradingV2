@@ -1,7 +1,7 @@
 import unittest
 import pandas as pd
 import numpy as np
-from core.indicators import Indicators
+from core.analytics.indicators import Indicators
 
 class TestIndicators(unittest.TestCase):
     def setUp(self):
