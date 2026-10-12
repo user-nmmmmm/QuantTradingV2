@@ -10,6 +10,12 @@ This module adds a second, stricter-by-meaning scheme, ``code-token/v1``:
   whitespace-only edits do not.
 * Other files in scope are hashed as bytes (text types with LF normalization).
 
+Each file also carries a ``body`` hash: the same token stream with import statements
+removed (non-Python files: the normalized bytes). It never takes part in the identity
+digest; it only lets a report recognize a file that was moved or whose only change is
+the import path of something that moved, so a relocation PR reads "moved N files,
+behavior unchanged" instead of a wall of deletions and additions.
+
 Nothing here replaces or relaxes an existing verifier: old frozen records keep
 being checked with the scheme they were created with. This module only makes
 the impact of a change on the frozen scope visible and comparable.
@@ -23,7 +29,7 @@ import subprocess
 import tokenize
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Dict, Iterable, List, Mapping, Optional
+from typing import Callable, Dict, Iterable, List, Mapping, Optional, Tuple
 
 SCHEME = "code-token/v1"
 CRLF, LF = bytes([13, 10]), bytes([10])
@@ -37,8 +43,8 @@ def _sha(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def normalize_python(source: str) -> str:
-    """Canonical token text of ``source``; raises ``tokenize.TokenError``/``SyntaxError`` if unreadable."""
+def _python_tokens(source: str) -> List[str]:
+    """Canonical token items of ``source``; raises ``tokenize.TokenError``/``SyntaxError`` if unreadable."""
     source = source.replace("\r\n", "\n").replace("\r", "\n")
     lines = source.split("\n")
     # offset of each line start, to cut f-string spans out of the original text
@@ -78,6 +84,35 @@ def normalize_python(source: str) -> str:
             out.append("DEDENT")
         else:
             out.append(f"{tokenize.tok_name[kind]} {token.string}")
+    return out
+
+
+def normalize_python(source: str) -> str:
+    """Canonical token text of ``source``; raises ``tokenize.TokenError``/``SyntaxError`` if unreadable."""
+    return "\x1f".join(_python_tokens(source))
+
+
+_STATEMENT_START = {"\n", "INDENT", "DEDENT", "OP ;"}
+
+
+def python_body(source: str) -> str:
+    """Canonical token text with every ``import`` / ``from ... import`` statement removed.
+
+    Statements are recognized at a statement boundary only, so ``yield from`` and
+    ``raise ... from`` are untouched. Everything that can run is still in the text:
+    only the *targets* of imports are ignored."""
+    out: List[str] = []
+    at_start, skipping = True, False
+    for item in _python_tokens(source):
+        if skipping:
+            if item in ("\n", "OP ;"):
+                skipping, at_start = False, True
+            continue
+        if at_start and item in ("NAME import", "NAME from"):
+            skipping = True
+            continue
+        out.append(item)
+        at_start = item in _STATEMENT_START
     return "\x1f".join(out)
 
 
@@ -87,6 +122,7 @@ class FileIdentity:
     raw: str      # sha256 of the stored bytes
     norm: str     # sha256 of the normalized form (equals ``raw``-derived hash for non-Python files)
     scheme: str
+    body: str = ""   # sha256 of the form without import statements; "" when unknown or empty
 
 
 def identify(path: str, data: bytes) -> FileIdentity:
@@ -94,13 +130,16 @@ def identify(path: str, data: bytes) -> FileIdentity:
     suffix = Path(path).suffix.lower()
     if suffix == ".py":
         try:
-            text = normalize_python(data.decode("utf-8-sig"))
-            return FileIdentity(path, raw, _sha(text.encode("utf-8")), SCHEME)
+            source = data.decode("utf-8-sig")
+            text, body = normalize_python(source), python_body(source)
+            return FileIdentity(path, raw, _sha(text.encode("utf-8")), SCHEME,
+                                _sha(body.encode("utf-8")) if body else "")
         except (tokenize.TokenError, SyntaxError, UnicodeDecodeError, IndentationError):
             return FileIdentity(path, raw, raw, "bytes/v1")  # unreadable: be strict
     if suffix in TEXT_SUFFIXES:
-        return FileIdentity(path, raw, _sha(data.replace(b"\r\n", b"\n")), "bytes-lf/v1")
-    return FileIdentity(path, raw, raw, "bytes/v1")
+        norm = _sha(data.replace(CRLF, LF))
+        return FileIdentity(path, raw, norm, "bytes-lf/v1", norm)
+    return FileIdentity(path, raw, raw, "bytes/v1", raw)
 
 
 @dataclass
@@ -111,7 +150,11 @@ class Scope:
 
     @classmethod
     def load(cls, path: Path | str) -> "Scope":
-        raw = json.loads(Path(path).read_text(encoding="utf-8"))
+        return cls.from_json(Path(path).read_text(encoding="utf-8"))
+
+    @classmethod
+    def from_json(cls, text: str) -> "Scope":
+        raw = json.loads(text)
         return cls({item["prefix"]: [s.lower() for s in item["suffixes"]] for item in raw["directories"]},
                    list(raw["files"]))
 
@@ -198,37 +241,136 @@ class Impact:
     cosmetic: List[str] = field(default_factory=list)     # bytes changed, behavior form identical
     added: List[str] = field(default_factory=list)
     removed: List[str] = field(default_factory=list)
+    moved: List[Tuple[str, str]] = field(default_factory=list)   # (old path, new path), same body
+    import_only: List[str] = field(default_factory=list)  # same path, only import statements differ
 
     @property
     def changes_identity(self) -> bool:
+        """Strict: any difference in the identity digest, including moves and import edits."""
+        return bool(self.behavioral or self.added or self.removed or self.moved or self.import_only)
+
+    @property
+    def changes_behavior(self) -> bool:
+        """True unless every difference is a move or an import-path edit (imports are not verified here)."""
         return bool(self.behavioral or self.added or self.removed)
+
+
+def _pair_moves(base: Mapping[str, FileIdentity], head: Mapping[str, FileIdentity],
+                removed: List[str], added: List[str]) -> Tuple[List[Tuple[str, str]], List[str], List[str]]:
+    """Match removed and added paths that hold the same body: same file name first, then path order.
+    Files with an empty or unknown body (e.g. an empty ``__init__.py``) are never paired."""
+    old_by_body: Dict[str, List[str]] = {}
+    new_by_body: Dict[str, List[str]] = {}
+    for path in removed:
+        if base[path].body:
+            old_by_body.setdefault(base[path].body, []).append(path)
+    for path in added:
+        if head[path].body:
+            new_by_body.setdefault(head[path].body, []).append(path)
+    moved: List[Tuple[str, str]] = []
+    for body, olds in old_by_body.items():
+        news = list(new_by_body.get(body, []))
+        olds = list(olds)
+        for old in list(olds):
+            twin = next((n for n in news if Path(n).name == Path(old).name), None)
+            if twin:
+                moved.append((old, twin))
+                olds.remove(old)
+                news.remove(twin)
+        moved.extend(zip(olds, news))
+    gone_old = {old for old, _ in moved}
+    gone_new = {new for _, new in moved}
+    return (sorted(moved), [p for p in removed if p not in gone_old], [p for p in added if p not in gone_new])
 
 
 def compare(base: Mapping[str, FileIdentity], head: Mapping[str, FileIdentity]) -> Impact:
     impact = Impact()
+    removed: List[str] = []
+    added: List[str] = []
     for path in sorted(set(base) | set(head)):
         before, after = base.get(path), head.get(path)
         if before is None:
-            impact.added.append(path)
+            added.append(path)
         elif after is None:
-            impact.removed.append(path)
+            removed.append(path)
         elif before.norm != after.norm:
-            impact.behavioral.append(path)
+            if before.body and before.body == after.body:
+                impact.import_only.append(path)
+            else:
+                impact.behavioral.append(path)
         elif before.raw != after.raw:
             impact.cosmetic.append(path)
+    impact.moved, impact.removed, impact.added = _pair_moves(base, head, removed, added)
     return impact
 
 
 def receipt(manifest: Mapping[str, FileIdentity], *, ref_sha: Optional[str]) -> dict:
     return {"schema": "frozen-scope-identity/v1", "scheme": SCHEME, "git_sha": ref_sha,
             "identity_sha256": identity_digest(manifest),
-            "files": {p: {"norm": i.norm, "scheme": i.scheme} for p, i in sorted(manifest.items())}}
+            "files": {p: {"norm": i.norm, "scheme": i.scheme, **({"body": i.body} if i.body else {})}
+                      for p, i in sorted(manifest.items())}}
 
 
 def verify_receipt(saved: Mapping, manifest: Mapping[str, FileIdentity]) -> Impact:
     """Compare the current scope with a saved receipt (see ``receipt``)."""
     if saved.get("schema") != "frozen-scope-identity/v1" or saved.get("scheme") != SCHEME:
         raise ValueError("unsupported identity receipt")
-    previous = {p: FileIdentity(p, v["norm"], v["norm"], v["scheme"]) for p, v in saved["files"].items()}
-    # raw hashes are not stored in receipts, so cosmetic edits cannot be told apart here by design
-    return compare(previous, {p: FileIdentity(p, i.norm, i.norm, i.scheme) for p, i in manifest.items()})
+    previous = {p: FileIdentity(p, v["norm"], v["norm"], v["scheme"], v.get("body", ""))
+                for p, v in saved["files"].items()}
+    # raw hashes are not stored in receipts, so cosmetic edits cannot be told apart here by design;
+    # receipts written before ``body`` existed simply cannot recognize moves or import-only edits
+    return compare(previous, {p: FileIdentity(p, i.norm, i.norm, i.scheme, i.body) for p, i in manifest.items()})
+
+
+# ---- release-bound identity (infra A4, ADR 0010) -----------------------------------------
+
+BINDING_SCHEMA = "release-bound-identity/v1"
+SCOPE_FILE = "config/frozen_scope.json"
+
+
+def scope_sha256(data: bytes) -> str:
+    """Hash of the scope declaration with line endings normalized, so checkouts agree."""
+    return _sha(data.replace(CRLF, LF))
+
+
+def _tag_commit(root: Path, tag: str) -> str:
+    """Commit an *annotated* tag points to; raises ``ValueError`` for missing or lightweight tags."""
+    try:
+        kind = _git(root, "cat-file", "-t", f"refs/tags/{tag}").decode().strip()
+    except subprocess.CalledProcessError:
+        raise ValueError(f"tag {tag} does not exist") from None
+    if kind != "tag":
+        raise ValueError(f"tag {tag} is lightweight; release tags must be annotated (git tag -a)")
+    return _git(root, "rev-parse", f"refs/tags/{tag}^{{commit}}").decode().strip()
+
+
+def bind_release(root: Path | str, tag: str) -> dict:
+    """Binding record: an annotated release tag, its commit, and the frozen-scope identity at that commit.
+
+    The scope declaration is read from the tagged commit as well, so the record is a function of the tag alone."""
+    root = Path(root)
+    commit = _tag_commit(root, tag)
+    scope_bytes = _git(root, "cat-file", "blob", f"{commit}:{SCOPE_FILE}")
+    scope = Scope.from_json(scope_bytes.decode("utf-8"))
+    manifest = build_manifest(root, scope, commit)
+    return {"schema": BINDING_SCHEMA, "tag": tag, "tag_commit": commit,
+            "scope_sha256": scope_sha256(scope_bytes), "receipt": receipt(manifest, ref_sha=commit)}
+
+
+def verify_binding(saved: Mapping, root: Path | str, head: Mapping[str, FileIdentity],
+                   current_scope_sha256: str) -> Tuple[List[str], Impact]:
+    """Problems with the binding itself (tag moved or gone, scope declaration changed) plus the identity
+    impact of ``head`` against the recorded receipt. ``head`` must be built with the *current* scope."""
+    if saved.get("schema") != BINDING_SCHEMA:
+        raise ValueError("unsupported identity binding")
+    problems: List[str] = []
+    try:
+        commit = _tag_commit(Path(root), saved["tag"])
+        if commit != saved["tag_commit"]:
+            problems.append(f"tag {saved['tag']} now points to {commit[:12]}, "
+                            f"the binding recorded {saved['tag_commit'][:12]}")
+    except ValueError as error:
+        problems.append(str(error))
+    if current_scope_sha256 != saved["scope_sha256"]:
+        problems.append("the frozen-scope declaration differs from the one recorded in the binding")
+    return problems, verify_receipt(saved["receipt"], head)

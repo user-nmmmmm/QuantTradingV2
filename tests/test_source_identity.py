@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from core.source_identity import (Scope, build_manifest, compare, identify, identity_digest, normalize_python,
-                                  receipt, verify_receipt)
+                                  python_body, receipt, verify_receipt)
 from scripts import identity_report
 
 
@@ -182,3 +182,101 @@ def test_repository_scope_file_is_valid_and_covers_the_money_path():
         assert scope.contains(path), path
     for path in ("tests/test_packaging.py", "docs/README.md", "scripts/identity_report.py", "analysis/optimize.py"):
         assert not scope.contains(path), path
+
+
+# ---- moves and import-only edits (infra A2) -----------------------------------------------
+
+MOVABLE = textwrap.dedent('''
+    import math
+    from core.health import check
+
+
+    def area(radius):
+        from core.clock import now
+        total = yield from helper(radius)
+        raise ValueError("x") from None
+        return math.pi * radius ** 2 + check(now())
+''')
+
+
+def test_body_ignores_import_statements_but_not_yield_from_or_raise_from():
+    retargeted = MOVABLE.replace("core.health", "ops.health").replace("core.clock", "ops.clock")
+    assert python_body(retargeted) == python_body(MOVABLE)
+    assert norm_hash(retargeted) != norm_hash(MOVABLE)
+    assert python_body(MOVABLE.replace("yield from helper", "yield from other")) != python_body(MOVABLE)
+    assert python_body(MOVABLE.replace("from None", "from KeyError")) != python_body(MOVABLE)
+    assert python_body(MOVABLE.replace("radius ** 2", "radius ** 3")) != python_body(MOVABLE)
+    assert python_body("import a; x = 1\nimport b\n") == python_body("x = 1\n")
+
+
+def test_a_pure_move_is_reported_as_moved_not_as_added_and_removed(repo: Path):
+    (repo / "core" / "m.py").write_text(MOVABLE, encoding="utf-8")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "movable")
+    scope = Scope({"core/": [".py"], "ops/": [".py"]}, [])
+    base = build_manifest(repo, scope, "HEAD")
+    (repo / "ops").mkdir()
+    git(repo, "mv", "core/m.py", "ops/m.py")
+    (repo / "ops" / "m.py").write_text(MOVABLE.replace("core.health", "ops.health"), encoding="utf-8")
+    (repo / "core" / "a.py").write_text(BASE.replace("import math", "import math\nfrom ops.m import area"),
+                                       encoding="utf-8")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "move")
+    impact = compare(base, build_manifest(repo, scope, "HEAD"))
+    assert impact.moved == [("core/m.py", "ops/m.py")]
+    assert impact.import_only == ["core/a.py"]
+    assert not impact.added and not impact.removed and not impact.behavioral
+    assert impact.changes_identity and not impact.changes_behavior
+    text = identity_report.render(impact, base_label="b", head_label="h", scope_files=3)
+    assert "Moved 1 files" in text and "`core/m.py` -> `ops/m.py`" in text
+    assert "behavior unchanged" in text
+
+
+def test_a_move_with_a_code_edit_is_not_a_move(repo: Path):
+    (repo / "core" / "m.py").write_text(MOVABLE, encoding="utf-8")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "movable")
+    scope = Scope({"core/": [".py"], "ops/": [".py"]}, [])
+    base = build_manifest(repo, scope, "HEAD")
+    (repo / "ops").mkdir()
+    git(repo, "mv", "core/m.py", "ops/m.py")
+    (repo / "ops" / "m.py").write_text(MOVABLE.replace("radius ** 2", "radius ** 3"), encoding="utf-8")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "move and edit")
+    impact = compare(base, build_manifest(repo, scope, "HEAD"))
+    assert not impact.moved and impact.removed == ["core/m.py"] and impact.added == ["ops/m.py"]
+    assert impact.changes_behavior
+
+
+def test_empty_files_are_never_paired_and_same_name_twins_win(repo: Path):
+    scope = Scope({"core/": [".py"], "ops/": [".py"], "x/": [".py"]}, [])
+    (repo / "core" / "__init__.py").write_text("", encoding="utf-8")
+    (repo / "core" / "one.py").write_text("A = 1\n", encoding="utf-8")
+    (repo / "core" / "two.py").write_text("A = 1\n", encoding="utf-8")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "twins")
+    base = build_manifest(repo, scope, "HEAD")
+    (repo / "ops").mkdir()
+    (repo / "x").mkdir()
+    git(repo, "mv", "core/__init__.py", "ops/__init__.py")
+    git(repo, "mv", "core/one.py", "x/two.py")
+    git(repo, "mv", "core/two.py", "ops/one.py")
+    git(repo, "commit", "-qm", "shuffle")
+    impact = compare(base, build_manifest(repo, scope, "HEAD"))
+    assert impact.removed == ["core/__init__.py"] and impact.added == ["ops/__init__.py"]
+    assert impact.moved == [("core/one.py", "ops/one.py"), ("core/two.py", "x/two.py")]
+
+
+def test_receipts_carry_the_body_and_old_receipts_still_verify(repo: Path):
+    saved = json.loads(json.dumps(receipt(build_manifest(repo, SCOPE, "HEAD"), ref_sha="abc")))
+    assert all("body" in entry for entry in saved["files"].values())
+    old_style = json.loads(json.dumps(saved))
+    for entry in old_style["files"].values():
+        entry.pop("body")
+    git(repo, "mv", "core/b.py", "core/c.py")
+    git(repo, "commit", "-qm", "rename")
+    head = build_manifest(repo, SCOPE, "HEAD")
+    assert verify_receipt(saved, head).moved == [("core/b.py", "core/c.py")]
+    legacy = verify_receipt(old_style, head)
+    assert not legacy.moved and legacy.added == ["core/c.py"] and legacy.removed == ["core/b.py"]
+    assert identity_digest(head) == receipt(head, ref_sha=None)["identity_sha256"]

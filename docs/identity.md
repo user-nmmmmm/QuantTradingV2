@@ -35,6 +35,8 @@ python scripts/identity_report.py --head WORKTREE --verify-receipt receipt.json 
 
 报告把变化分成：**行为变化**（需要按原协议处理冻结候选）、**新增/删除**、**仅注释或排版**（身份不变）。回执不保存原始字节哈希，因此核对回执时无法区分"仅排版"，只给出行为是否变化。
 
+回执核对只给出行为是否变化，不区分"仅排版"；回执里的 `body` 字段使它仍能识别移动（见 §6）。
+
 局限：它只回答"范围内的行为是否变了"，不判断变了是否合理；不改写任何旧的冻结记录；未被 git 跟踪的新文件在工作区模式下不计入。
 
 ## 4. 文档移动索引
@@ -50,3 +52,17 @@ python scripts/identity_report.py --head WORKTREE --verify-receipt receipt.json 
 - 外部 URL、纯锚点、行内代码和代码块里的内容。
 
 锚点（`#...`）不检查。`docs/link_check_baseline.json` 记录检查器引入时已存在的断链（目前为空）；新增断链会失败。批量修复后可用 `--update-baseline` 重写基线。
+
+## 6. 移动与仅导入路径变化（A2）
+
+搬迁一个模块会让逐字节/行为身份变化，但搬迁本身没有改变任何行为。为了让搬迁 PR 的报告可读，每个文件除 `norm`（行为身份）外还记一个 `body`：Python 文件是**去掉所有 `import` / `from … import` 语句后**的 token 流哈希（`yield from`、`raise … from` 不受影响），其他文件等于 `norm`。`body` 不参与整体身份哈希，所以不改变任何已有身份或回执。
+
+比较时：
+
+- 一个被删除的文件与一个被新增的文件 `body` 相同 → 报告为**移动**（先按同名文件配对，再按路径顺序；空文件不配对）；
+- 同一路径上 `norm` 变了但 `body` 没变 → 报告为**仅导入语句变化**；
+- 其余照旧：行为变化、新增、删除、仅注释/排版。
+
+`changes_identity` 仍然严格：只要整体身份哈希变了就为真。新增的 `changes_behavior` 在"只有移动和导入路径变化"时为假，报告标题随之写成"CHANGED (moves / import paths only; behavior unchanged)"。**导入目标不由这份报告验证**：一个文件把 `from a import x` 改成 `from b import x` 会被当作"仅导入变化"，所以这类 PR 仍要靠 import-linter 分层规则和全量测试把关。用 #68（`ops/` 搬迁）实测：15 个文件显示为移动，4 个导入方显示为仅导入变化。
+
+标签与回执的绑定见 [发布约定](releasing.md) §4。

@@ -16,3 +16,6 @@
 | [0005](0005-persisted-event-type-names.md) | 事件类型的持久化名称是线上格式 | 已采纳 |
 | [0006](0006-delivery-archives-outside-git.md) | 历史交付 ZIP 放到 GitHub Release，不重写 Git 历史 | 已采纳 |
 | [0007](0007-ops-package.md) | 运维/治理模块移到顶层包 `ops/`，不留旧路径垫片 | 已采纳 |
+| [0008](0008-defer-forward-observation-window.md) | 前向观察窗顺延，重构完成后再登记新身份 | 已采纳 |
+| [0009](0009-release-convention.md) | 发布约定：语义化版本、CHANGELOG、带注解的标签 | 已采纳 |
+| [0010](0010-release-bound-identity.md) | 新冻结登记绑定"发布标签 + 行为身份回执"，旧记录不动 | 已采纳 |

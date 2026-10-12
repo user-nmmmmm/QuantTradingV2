@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "quant-trading"
 # Placeholder until a release process exists (see CONTRIBUTING.md).
-version = "3.0.0.dev0"
+version = "3.0.0"
 description = "Quant trading research, backtesting and exchange-connected runtime"
 readme = "README.md"
 requires-python = ">=3.11"

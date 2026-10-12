@@ -53,5 +53,7 @@ Decisions that shaped these rules are recorded in `docs/adr/`. A dev container
   (old path -> new path); the link check and the roadmap verifiers resolve moves through it.
 - Changes under `config/frozen_scope.json` paths: CI prints the frozen-scope identity impact in the job
   summary; comment/layout-only edits do not change it (`docs/identity.md`).
+- Releases: user-visible or frozen-scope changes get a line under `## [Unreleased]` in `CHANGELOG.md`; versions,
+  tags and the tag-bound identity record are described in `docs/releasing.md` (tags are created by the maintainer).
 - Docs: one topic, one file; append dated sections instead of creating
   `*_YYYYMMDD.md` copies. See `docs/README.md`.
