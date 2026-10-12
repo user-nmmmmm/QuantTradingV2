@@ -243,7 +243,7 @@ class PortfolioRiskGovernor:
                 self._session_risk = float(self._state_store.get(f"session_risk:{session}", 0.0))
             if self._order_store is not None and session is not None:
                 import pandas as pd
-                from core.timeframes import timeframe_delta
+                from core.market.timeframes import timeframe_delta
                 reserved = 0.0
                 for row in self._order_store.list_all():
                     intent = row.get("intent") or {}

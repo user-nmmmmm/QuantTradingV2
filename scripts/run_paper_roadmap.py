@@ -31,7 +31,7 @@ from analysis.paper_study import WINDOWS, factor_attribution, factor_proxies, lo
 from analysis.paper_validation import cscv_pbo, white_reality_check
 from analysis.research_evidence import ResearchEvidenceRun, candidate_panel_evidence, sharpe_dependence_diagnostic
 from backtest.plot_style import PALETTE, chart_style, money_axis, save_figure, style_axes
-from core.data_versions import DataVersionStore
+from core.market.data_versions import DataVersionStore
 from core.events import EventCodec
 from core.reproducibility import sha256_file
 from scripts.run_revalidation60 import source_hashes

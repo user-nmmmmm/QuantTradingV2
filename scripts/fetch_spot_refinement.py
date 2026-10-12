@@ -17,7 +17,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 
 from scripts.fetch_spot_intraday import BinanceSpotKlineClient, SOURCE, retry_after_seconds, save_json, sha256
-from core.quote_observations import quote_error_details, utc_now
+from core.market.quote_observations import quote_error_details, utc_now
 
 MINUTE_MS = 60_000
 SYMBOL_IDS = {"BTC/USDT": "BTCUSDT", "ETH/USDT": "ETHUSDT"}
@@ -91,7 +91,7 @@ def download_refinement(labels_path, output, *, timeout_seconds=5., resume=False
         "missing_or_short_minutes": "retain gaps and mark is_complete_bar=false; never synthesize",
         "public_read_only": True, "orders_submitted": 0, "credentials_used": False}
     sources = {str(path.relative_to(ROOT)): sha256(path.read_bytes()) for path in (
-        Path(__file__).resolve(), ROOT/"scripts/fetch_spot_intraday.py", ROOT/"core/quote_observations.py")}
+        Path(__file__).resolve(), ROOT/"scripts/fetch_spot_intraday.py", ROOT/"core/market/quote_observations.py")}
     registration_path = output/"registration.json"
     if resume:
         registered = json.loads(registration_path.read_text(encoding="utf-8"))

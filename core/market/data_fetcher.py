@@ -9,9 +9,9 @@ import numpy as np
 import pandas as pd
 
 from core.logger import get_logger
-from core.public_data_clients import PublicDataClientPool
-from core.timeframes import timeframe_delta as _fixed_timeframe_delta
-from core.temporal_data import TemporalOHLCV, compatibility_audit, temporal_policy as _temporal_policy
+from core.market.public_data_clients import PublicDataClientPool
+from core.market.timeframes import timeframe_delta as _fixed_timeframe_delta
+from core.market.temporal_data import TemporalOHLCV, compatibility_audit, temporal_policy as _temporal_policy
 
 # 本模块与回测/实盘的数据源解耦：上层只关心返回统一格式的 OHLCV DataFrame
 # （index 为时间戳，列名为 open/high/low/close/volume，均为小写）
@@ -471,7 +471,7 @@ class DataFetcher:
                     "timeout": self.request_timeout_ms,
                 }
             )
-            from core.request_budget import install_exchange_budget
+            from core.market.request_budget import install_exchange_budget
             install_exchange_budget(exchange, exchange_id, priority="research")
             if not exchange.has.get("fetchFundingRateHistory"):
                 logger.error("%s does not support fetchFundingRateHistory", exchange_id)
@@ -549,7 +549,7 @@ class DataFetcher:
                     "timeout": self.request_timeout_ms,
                 }
             )
-            from core.request_budget import install_exchange_budget
+            from core.market.request_budget import install_exchange_budget
             install_exchange_budget(exchange, exchange_id, priority="research")
             if not exchange.has.get("fetchOpenInterestHistory"):
                 logger.error("%s does not support fetchOpenInterestHistory", exchange_id)

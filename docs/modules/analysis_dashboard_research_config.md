@@ -63,7 +63,7 @@ CLI 支持 `--symbols`、`--days`、`--start`、`--end`、`--source {synthetic,y
 
 [`execution_calibration.py`](../../analysis/execution_calibration.py) 离线关联规范事件、请求回执、独立报价及成交来源，并审计日期覆盖与成交分层。它区分决策、提交、确认、成交和报价时钟；公开报价不能代替订单或成交证据，ACK 延迟也不能当成撮合延迟。使用入口见[脚本索引中的执行证据](../../scripts/README.md#公开资料执行证据与后续观察)。
 
-[`market_speed.py`](../../analysis/market_speed.py) 统计已收盘 bar 的价格变化速度，与网络请求耗时分别报告。深度采集由 `core/binance_depth_observer.py` 提供日志与同步校验；可见盘口容量仅为诊断，不代表下单到达时仍可成交。
+[`market_speed.py`](../../analysis/market_speed.py) 统计已收盘 bar 的价格变化速度，与网络请求耗时分别报告。深度采集由 `core/market/binance_depth_observer.py` 提供日志与同步校验；可见盘口容量仅为诊断，不代表下单到达时仍可成交。
 
 既有策略审查、趋势组合和 S2 诊断分别位于 `strategy_review*.py`、`trend_portfolio*_validation.py`、`selection_research.py`。复现这些专项应先阅读其原始协议和冻结输入，不用新批次结论改写历史验收。
 

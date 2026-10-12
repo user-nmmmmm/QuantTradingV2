@@ -46,8 +46,8 @@
 | 时间退出 | Max Holding Period Exit | 持仓超过 `max_holding_days`（默认 365 天）强制退出，防止资金被多年锁死。 | `config/params.yaml: router.max_holding_days` |
 | 候选评分 | Candidate Score | 同一根 bar 多个入场候选的排序分，由无量纲分量加权和构成：突破幅度（ATR 单位，权重 1.0）、趋势强度（ADX 超出量，0.5）、量能确认（OBV，0.3）、流动性（对数成交额，0.2）；各分量截断到 ±5 防止单项极端值主导。只决定**排序**，不决定仓位大小。 | `core/candidate_scoring.py`；`config/params.yaml: candidate_scoring` |
 | 组合信号分配器 | Portfolio Signal Allocator | 同时间戳候选批次按评分排序（`allocation.order: score_strategy_symbol`），在资本/风险预算内依次分配，取代早期按字母序的隐性平局规则。 | `core/allocation.py` |
-| 点位宇宙 | Point-in-Time (PIT) Universe | 按标的真实上市/退市时间裁剪历史数据的宇宙表，消除"用未来才存在的币回测过去"的存活偏差；退市标的在最后可交易 bar 打 `scheduled_exit` 标记触发强制平仓。 | `core/universe.py`；`config/universe_binance_spot_1d.csv`；`main.py --universe-file` |
-| 存活偏差 | Survivorship Bias | 只用"最终仍存在"的标的做回测，忽略已下架/退市标的，导致结果虚高。本项目用 PIT 宇宙 + `scheduled_exit` 退市强平路径对冲该偏差。 | `core/universe.py`；`config/universe60_lifecycle.json` |
+| 点位宇宙 | Point-in-Time (PIT) Universe | 按标的真实上市/退市时间裁剪历史数据的宇宙表，消除"用未来才存在的币回测过去"的存活偏差；退市标的在最后可交易 bar 打 `scheduled_exit` 标记触发强制平仓。 | `core/market/universe.py`；`config/universe_binance_spot_1d.csv`；`main.py --universe-file` |
+| 存活偏差 | Survivorship Bias | 只用"最终仍存在"的标的做回测，忽略已下架/退市标的，导致结果虚高。本项目用 PIT 宇宙 + `scheduled_exit` 退市强平路径对冲该偏差。 | `core/market/universe.py`；`config/universe60_lifecycle.json` |
 
 ---
 

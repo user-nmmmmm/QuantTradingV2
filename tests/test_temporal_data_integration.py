@@ -4,10 +4,10 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
-from core.data_fetcher import DataFetcher
-from core.data_versions import DataVersionStore
-from core.market_data import HistoricalMarketDataAdapter, LiveMarketDataAdapter
-from core.temporal_data import TemporalDataError, TemporalOHLCV, freeze_ohlcv
+from core.market.data_fetcher import DataFetcher
+from core.market.data_versions import DataVersionStore
+from core.market.market_data import HistoricalMarketDataAdapter, LiveMarketDataAdapter
+from core.market.temporal_data import TemporalDataError, TemporalOHLCV, freeze_ohlcv
 
 
 def raw(periods=4):
@@ -68,7 +68,7 @@ def test_late_revision_only_changes_future_visible_history_and_recomputed_indica
     versions = pd.concat([frame, amended])
     versions.attrs = frame.attrs.copy()
     versions["future_indicator"] = 12345.
-    monkeypatch.setattr("core.market_data.Indicators.calculate_all",
+    monkeypatch.setattr("core.market.market_data.Indicators.calculate_all",
         lambda visible: visible.__setitem__("causal_mean", visible.close.rolling(2, min_periods=1).mean()))
     adapter = HistoricalMarketDataAdapter({"BTC/USDT": versions}, timeframe="1d", temporal_policy=strict(tmp_path))
     events = list(adapter.stream())

@@ -30,7 +30,7 @@ from analysis.research_validation import walk_forward_splits
 from analysis.research_evidence import ResearchEvidenceRun, candidate_panel_evidence, invalidate_panel_evidence, sharpe_dependence_diagnostic
 from backtest.engine import BacktestEngine
 from core.logger import get_logger
-from core.market_data import normalize_market_frame
+from core.market.market_data import normalize_market_frame
 from core.metrics import (
     benjamini_hochberg,
     bootstrap_return_distribution,

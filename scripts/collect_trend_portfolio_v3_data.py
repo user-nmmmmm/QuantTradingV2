@@ -20,14 +20,14 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 
-from core.trend_portfolio_data import (
+from core.market.trend_portfolio_data import (
     ARCHIVE, CMS, DAY, SCHEMA, EvidenceStore, archive_jobs, build_market_metadata,
     discover_markets, extract_article_facts, list_articles, parse_daily_archive,
     sha256, utc, verify_checksum, write_json,
 )
 
 COLLECTOR_SOURCE = Path(__file__).read_bytes()
-DATA_MODULE_SOURCE = (ROOT / "core/trend_portfolio_data.py").read_bytes()
+DATA_MODULE_SOURCE = (ROOT / "core/market/trend_portfolio_data.py").read_bytes()
 COLLECTOR_SHA256 = sha256(COLLECTOR_SOURCE)
 PARSER_SHA256 = sha256(DATA_MODULE_SOURCE)
 

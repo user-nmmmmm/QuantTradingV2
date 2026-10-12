@@ -9,7 +9,7 @@ from typing import Any, Mapping
 
 import pandas as pd
 
-from core.timeframes import as_utc_timestamp, timeframe_delta
+from core.market.timeframes import as_utc_timestamp, timeframe_delta
 
 
 def canonical(value: Any) -> str:

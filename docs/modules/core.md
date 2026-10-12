@@ -4,7 +4,9 @@
 
 > **2026-10-12：** 准入、灰度、健康策略、预检与事故记录等 12 个纯运维/治理模块已移到顶层包 `ops/`（`ops.admission_gates`、`ops.gray_release`、`ops.health`、`ops.operations` …，旧的 `core.*` 路径不再保留）；下文中对应小节里的 `ops/…` 路径即新位置。`core.alerting`、`core.live_safety`、`core.runtime_identity`、`core.redaction`、`core.sqlite_backup` 被交易内核依赖，仍留在 `core/`。迁移决定见 [ADR 0007](../adr/0007-ops-package.md)。
 >
-> **2026-10-12（B1）：** 信号观察与元层研究的 14 个模块（12 个 `signal_*`、`temporal_labels`、`temporal_financing`）已移到顶层包 `signal_meta/`，模块名不变（`signal_meta.signal_observation` …），旧的 `core.*` 路径不再保留；`core.temporal_data` 仍在 `core`。决定见 [ADR 0011](../adr/0011-signal-meta-package.md)。
+> **2026-10-12（B1）：** 信号观察与元层研究的 14 个模块（12 个 `signal_*`、`temporal_labels`、`temporal_financing`）已移到顶层包 `signal_meta/`，模块名不变（`signal_meta.signal_observation` …），旧的 `core.*` 路径不再保留；`core.market.temporal_data` 仍在 `core`。决定见 [ADR 0011](../adr/0011-signal-meta-package.md)。
+>
+> **2026-10-12（B2-1）：** 行情与时间/标的约定的 17 个模块（`data`、`data_fetcher`、`market_data`、`timeframes`、`universe`、`request_budget` …）已移到子包 `core/market/`，模块名不变（`core.market.data_fetcher` …），旧的 `core.*` 路径不再保留；决定见 [ADR 0012](../adr/0012-core-market-package.md)。
 
 本文档按子系统说明职责、主要接口和边界行为。调度与启动流程分别见 [回测模块](backtest.md) 和 [实盘模块](live_trading.md)；此处重点解释共享组件之间的契约。涉及时间版本的数据接口应连同证据来源一起阅读，开启 `strict` 或保存快照本身不代表已通过研究准入。
 
@@ -12,13 +14,13 @@
 
 ## 一、数据与行情
 
-### `core/data.py` — 数据校验与质量报告
+### `core/market/data.py` — 数据校验与质量报告
 - `DataHandler.validate(df)`：把索引转成 `DatetimeIndex`，列名转小写，要求 `open/high/low/close/volume` 齐全，数值化失败的转 NaN。**注意：该方法是原地修改（mutate）并返回同一个 DataFrame**。
 - `load_csv(path)`：从 CSV 加载。
 - `resample_ohlcv(df, rule)`：重采样，`closed='right', label='right'`，即时间戳代表 K 线**收盘**时刻；重采样产生的空缺行会被直接丢弃（缺口变成"缺失的 bar"，不会被填补）。
 - `analyze_quality(df, symbol)` / `generate_quality_report(...)`：检测重复时间戳、缺口（间隔 > 1.5 倍中位数间隔）、异常波动（单根 bar 涨跌幅 > 20%）。
 
-### `core/data_fetcher.py` — 统一历史数据获取
+### `core/market/data_fetcher.py` — 统一历史数据获取
 
 `DataFetcher` 是数据获取的统一入口，支持三种来源，返回统一格式的小写列名 OHLCV DataFrame：
 
@@ -32,7 +34,7 @@
 
 `fetch_ccxt` 的 `strict` 检查下载是否被安全阈值截断；`temporal_policy.mode="strict"` 则控制历史可用性，二者是不同的约束。启用时间版本采集后，完整响应的接收时间只能形成 `local_receipt` 证据，不能据此推断交易所过去的发布时间。
 
-### `core/market_data.py` — 行情适配器（回测/实盘共用协议）
+### `core/market/market_data.py` — 行情适配器（回测/实盘共用协议）
 
 把原始数据转换成 `core/runtime.py` 定义的统一时间线 `MarketDataSlice`：
 
@@ -43,20 +45,20 @@
 - 实盘刷新失败保留旧缓存，并在 `failed_symbols`/`refresh_metrics` 记录原因；提供商最新时间倒退记入 `regressed_symbols`。缓存仍在不代表新一轮抓取成功，健康检查必须消费这些状态。
 - `poll(now)` 按进程内标的水位线返回新收盘 bar；水位线不持久化。当前 `LiveTradingEngine` 通过 `tick_orchestrator.py` 调度刷新，再用 `closed_bars(...)` 和 `StateStore` 租约组织处理；启用可选运行控制后，限时抓取由 `RuntimeControls` 接管。`.stream()` 不适用于实盘轮询，会抛 `RuntimeError`。
 
-### `core/public_data_clients.py` / `core/request_budget.py` — 公共客户端与共享请求预算
+### `core/market/public_data_clients.py` / `core/market/request_budget.py` — 公共客户端与共享请求预算
 
 - `PublicDataClientPool` 按工作线程、交易所和市场类型复用公共 CCXT 客户端，避免在线程间共享可变 Session/timeout；`close()` 负责释放 Session。
 - `SharedRequestBudget` 使用同一路径的 SQLite 数据库，按交易所协调已接入进程的请求间隔和窗口权重。`cost` 来自 CCXT 端点权重，行情、研究和账户请求共同计入预算；`critical` 保留部分容量，但仍受总预算与间隔约束。
 - `request_scope(deadline=..., priority=...)` 传播基于单调时钟的截止时间；嵌套作用域只能收紧截止时间。`install_exchange_budget(...)` 把限流等待和 SDK 请求超时纳入剩余预算，请求结束后恢复原 timeout。
 - 默认共享文件为 `reports/request_budget.sqlite3`，可通过 `QUANT_REQUEST_BUDGET_DB` 指定。跨进程协调要求使用同一数据库路径；未接入的外部程序不会自动纳入统计。
 
-### `core/market_read_batch.py` — 有截止时间的只读批次
+### `core/market/market_read_batch.py` — 有截止时间的只读批次
 
 `BoundedMarketReads.read(symbols, fetch, timeout_seconds=...)` 去重标的，在统一截止时间内返回成功值与失败原因。线程池限制同时抓取数；同一标的的旧任务仍在执行时返回 `fetch_in_progress`，不会再提交重复任务。
 
 超时只结束本轮等待：排队任务可以取消，已运行的网络调用可能继续。晚到结果不会被下一轮采用，`fetch` 也不应修改运行时状态；调用方根据批次结果统一提交。该组件用于显式启用的 `live_trading/runtime_controls.py`，不能把它的截止时间保证套到普通 `LiveMarketDataAdapter.refresh()` 上。
 
-### `core/data_versions.py` / `core/temporal_data.py` — 不可变数据版本与历史可用性
+### `core/market/data_versions.py` / `core/market/temporal_data.py` — 不可变数据版本与历史可用性
 
 `DataVersionStore` 保存原始对象、快照清单和不可变修订身份。相同 `record_id/revision_id` 对应不同内容会报错；内容哈希证明使用了哪些字节，不证明这些字节当时已公开。`TemporalOHLCV` 在此基础上追加 OHLCV 修订批次，并通过 `as_of(...)` 返回可见的原始历史。
 
@@ -86,7 +88,7 @@
 
 `Indicators` 静态类，原地给 DataFrame 添加指标列：`SMA_10/30/120`、`ATR_14`、`BB_UPPER/MIDDLE/LOWER`、`ADX_14`。ATR/ADX 用 Wilder 平滑（`ewm(alpha=1/n)`），并**故意**把前 `n-1` 个值强制设为 NaN（尽管 `ewm` 本身会更早给出数值），避免用不可靠的早期值。
 
-### `core/timeframes.py` — 时间周期工具
+### `core/market/timeframes.py` — 时间周期工具
 
 `timeframe_delta(tf)` 解析 `"1m/5m/1h/1d/1w"` 等固定周期；`as_utc_timestamp`/`as_utc_datetime` 统一转 UTC。`closed_bars(...)` 使用开盘时间语义，返回满足 **开盘时间 + 周期 + 非负宽限期 ≤ now** 的 bar，包含恰好到达截止边界的记录；已排序索引用二分查找截取。`observed_bars_after(...)` 按实际观察到的 bar 计数，避免滚动窗口行号移动导致策略冷却期无法结束。
 
@@ -144,7 +146,7 @@
 `ExecutionPort` Protocol（`submit_intent`/`submit_order`/`cancel_symbol_orders`/`has_active_open_order`/`pending_open_notional`），`Broker`/`LiveBroker`/`SafeLiveBroker` 都满足这个接口——这是策略/路由代码能在回测和实盘间无缝切换的结构化类型基础。
 
 ### `core/exchange/` — CCXT 边界隔离层
-负责下单前的市场元数据、能力约束、订单校验与归一化、CCXT 请求映射，以及订单/持仓响应解析。`core/live_broker/` 仍负责交易所调用和账户同步，`core/data_fetcher.py` 仍负责行情抓取；这些职责没有全部迁入此包。
+负责下单前的市场元数据、能力约束、订单校验与归一化、CCXT 请求映射，以及订单/持仓响应解析。`core/live_broker/` 仍负责交易所调用和账户同步，`core/market/data_fetcher.py` 仍负责行情抓取；这些职责没有全部迁入此包。
 
 公共门面在 `core/exchange/__init__.py`，下列实现分别落在 `metadata.py`、`validation.py`、`normalization.py`、`ccxt_mapper.py`、`parsers.py`：
 - `ExchangeCapabilities`：交易所能力标志（订单类型、TIF、reduce-only、对冲模式）。

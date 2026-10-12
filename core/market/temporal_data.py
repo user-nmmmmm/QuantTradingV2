@@ -15,8 +15,8 @@ import math
 
 import pandas as pd
 
-from core.data_versions import DataVersionStore, _record
-from core.timeframes import timeframe_delta
+from core.market.data_versions import DataVersionStore, _record
+from core.market.timeframes import timeframe_delta
 
 
 OHLCV = ["open", "high", "low", "close", "volume"]

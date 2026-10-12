@@ -335,7 +335,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **来源：** [docs/codex_mail_findings_20260920.json（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json)。
 
-**修改范围：** [scripts/fetch_binance_data.py](../scripts/fetch_binance_data.py)、[core/data_fetcher.py](../core/data_fetcher.py)、[scripts/run_backtest_matrix.py](../scripts/run_backtest_matrix.py)。
+**修改范围：** [scripts/fetch_binance_data.py](../scripts/fetch_binance_data.py)、[core/market/data_fetcher.py](../core/market/data_fetcher.py)、[scripts/run_backtest_matrix.py](../scripts/run_backtest_matrix.py)。
 
 **开发步骤：**
 
@@ -384,7 +384,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **来源：** [docs/codex_mail_findings_20260920.json（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json)。
 
-**修改范围：** [core/data_fetcher.py](../core/data_fetcher.py)、[scripts/run_expanded_universe_backtest.py](../scripts/run_expanded_universe_backtest.py)。
+**修改范围：** [core/market/data_fetcher.py](../core/market/data_fetcher.py)、[scripts/run_expanded_universe_backtest.py](../scripts/run_expanded_universe_backtest.py)。
 
 **开发步骤：**
 
@@ -480,7 +480,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **来源：** [docs/codex_mail_findings_20260920.json（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json)。
 
-**修改范围：** [core/universe.py](../core/universe.py)、[main.py](../main.py)、[backtest/engine.py](../backtest/engine.py)、[scripts/repair_binance_point_in_time_data.py](../scripts/repair_binance_point_in_time_data.py)。
+**修改范围：** [core/market/universe.py](../core/market/universe.py)、[main.py](../main.py)、[backtest/engine.py](../backtest/engine.py)、[scripts/repair_binance_point_in_time_data.py](../scripts/repair_binance_point_in_time_data.py)。
 
 **开发步骤：**
 
@@ -574,7 +574,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **来源：** [docs/archive/2026-10-doc-consolidation/current_strategy_remediation_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/current_strategy_remediation_roadmap.md)；[docs/archive/2026-10-doc-consolidation/strategy_development_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md)；[docs/archive/2026-10-doc-consolidation/backtest_optimization_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/backtest_optimization_roadmap.md)。
 
-**修改范围：** [core/data_fetcher.py](../core/data_fetcher.py)、[core/data.py](../core/data.py)、[core/universe.py](../core/universe.py)、[scripts/fetch_binance_data.py](../scripts/fetch_binance_data.py)、[config/universe_binance_spot_1d.csv](../config/universe_binance_spot_1d.csv)。
+**修改范围：** [core/market/data_fetcher.py](../core/market/data_fetcher.py)、[core/market/data.py](../core/market/data.py)、[core/market/universe.py](../core/market/universe.py)、[scripts/fetch_binance_data.py](../scripts/fetch_binance_data.py)、[config/universe_binance_spot_1d.csv](../config/universe_binance_spot_1d.csv)。
 
 **开发步骤：**
 
@@ -1732,7 +1732,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **来源：** [docs/archive/2026-10-doc-consolidation/strategy_development_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md)；[docs/archive/2026-10-doc-consolidation/backtest_optimization_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/backtest_optimization_roadmap.md)；[docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/archive/2026-08-roadmap-consolidation/formula_monitoring_roadmap.md)。
 
-**修改范围：** [core/universe.py](../core/universe.py)、[core/factors](../core/factors)、[core/allocation.py](../core/allocation.py)、[router/router.py](../router/router.py)。
+**修改范围：** [core/market/universe.py](../core/market/universe.py)、[core/factors](../core/factors)、[core/allocation.py](../core/allocation.py)、[router/router.py](../router/router.py)。
 
 **开发步骤：**
 

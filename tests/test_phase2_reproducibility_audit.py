@@ -16,9 +16,9 @@ from core.benchmarks import (
     fixed_equal_weight_buy_hold,
 )
 from core.broker import Broker
-from core.data import DataHandler
+from core.market.data import DataHandler
 from core.events import Signal
-from core.market_data import HistoricalMarketDataAdapter
+from core.market.market_data import HistoricalMarketDataAdapter
 from core.portfolio import Portfolio
 from core.reproducibility import (
     data_identity,
@@ -27,7 +27,7 @@ from core.reproducibility import (
     save_data_snapshots,
     sha256_frame,
 )
-from core.universe import PointInTimeUniverse, UniverseMembership
+from core.market.universe import PointInTimeUniverse, UniverseMembership
 
 
 def _frame(index, closes):

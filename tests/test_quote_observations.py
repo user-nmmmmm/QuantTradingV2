@@ -15,7 +15,7 @@ from analysis.execution_calibration import (
     read_fill_provenance,
 )
 from core.order_latency import OrderLatencyRecorder
-from core.quote_observations import (
+from core.market.quote_observations import (
     BackgroundQuoteSampler, QuoteObservationStore, read_quote_observations, utc_now,
 )
 from tests.test_execution_calibration import facts

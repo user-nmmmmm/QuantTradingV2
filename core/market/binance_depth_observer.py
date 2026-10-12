@@ -20,7 +20,7 @@ import time
 from urllib.request import getproxies
 from uuid import uuid4
 
-from core.quote_observations import QuoteObservationStore, aware_utc, utc_now, anonymous_public_auth
+from core.market.quote_observations import QuoteObservationStore, aware_utc, utc_now, anonymous_public_auth
 
 
 class DepthGap(ValueError):
@@ -208,7 +208,7 @@ def displayed_depth_sweep(book, *, quote_notional, side):
 class PublicDepthSnapshot:
     def __init__(self, *, timeout_seconds=5., limit=1000):
         import ccxt
-        from core.request_budget import install_exchange_budget
+        from core.market.request_budget import install_exchange_budget
         self.limit, self.timeout = limit, timeout_seconds
         self.client = ccxt.binance({"enableRateLimit": True, "requests_trust_env": True,
             "timeout": int(timeout_seconds * 1000), "maxRetriesOnFailure": 0})
@@ -216,7 +216,7 @@ class PublicDepthSnapshot:
         install_exchange_budget(self.client, "binance", priority="research")
 
     def __call__(self, symbol):
-        from core.request_budget import request_scope
+        from core.market.request_budget import request_scope
         with request_scope(deadline=time.monotonic() + self.timeout, priority="research"):
             return self.client.public_get_depth({"symbol": symbol.replace("/", ""), "limit": self.limit})
 
@@ -225,7 +225,7 @@ class PublicDepthSnapshot:
 
     def clock_probe(self):
         """Bound the exchange-minus-local wall-clock offset, preserving originals."""
-        from core.request_budget import request_scope
+        from core.market.request_budget import request_scope
         sent, started = utc_now(), time.monotonic()
         with request_scope(deadline=started + self.timeout, priority="research"):
             response = self.client.public_get_time()

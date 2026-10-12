@@ -19,7 +19,7 @@ from config.config import config
 from core.broker import Broker
 from core.portfolio import Portfolio
 from core.runtime import MarketDataSlice
-from core.market_data import HistoricalMarketDataAdapter
+from core.market.market_data import HistoricalMarketDataAdapter
 from core.reproducibility import deterministic_result_digest
 from signal_meta.signal_actuals import reconcile_actuals
 from signal_meta.signal_observation import SignalObserver

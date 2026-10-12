@@ -166,7 +166,7 @@ class _PublicBookFetcher:
     """Lazy anonymous ccxt client; only the public order-book method is exposed."""
     def __init__(self, exchange_id, market_type, environment, timeout_seconds):
         import ccxt
-        from core.request_budget import install_exchange_budget
+        from core.market.request_budget import install_exchange_budget
         if exchange_id not in ccxt.exchanges:
             raise ValueError("unsupported public exchange")
         market = {"spot_margin": "spot", "margin": "spot", "perpetual": "swap"}.get(market_type, market_type)
@@ -257,7 +257,7 @@ class BackgroundQuoteSampler:
             self._symbols[symbol]["last_error_at"] = utc_now().isoformat()
 
     def _run(self):
-        from core.request_budget import request_scope
+        from core.market.request_budget import request_scope
         try:
             if self._fetcher is None:
                 self._fetcher = _PublicBookFetcher(self.exchange_id, self.market_type, self.environment, self.timeout_seconds)

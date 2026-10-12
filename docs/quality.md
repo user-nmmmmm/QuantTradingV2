@@ -46,8 +46,8 @@ python -m pip install pre-commit && pre-commit install
 
 棘轮只是冻结它们，没有修改任何行为。以下是扫描时发现、值得逐个看一眼的模式（未逐个判定是否为缺陷）：
 
-- **B023（闭包里使用循环变量）**：`core/binance_depth_observer.py`（8）、`research/ml_selection/next_round.py`（4）、`analysis/execution_calibration.py`（4）、`scripts/run_trend_portfolio_v3.py`（4）、`backtest/reporting/trades.py`（2）等。若闭包在循环结束后才被调用，会拿到最后一次迭代的值。
+- **B023（闭包里使用循环变量）**：`core/market/binance_depth_observer.py`（8）、`research/ml_selection/next_round.py`（4）、`analysis/execution_calibration.py`（4）、`scripts/run_trend_portfolio_v3.py`（4）、`backtest/reporting/trades.py`（2）等。若闭包在循环结束后才被调用，会拿到最后一次迭代的值。
 - **F841（赋值未使用）**：`core/broker/financing.py` 的 `seconds_per_year`，在资金费率/借贷利息计提函数内，看一下是不是漏掉了年化换算。
-- **B904**：`core/data_versions.py`、`scripts/fetch_spot_intraday.py` 里 `except` 中 `raise` 缺少 `from`，会丢失原始异常链。
+- **B904**：`core/market/data_versions.py`、`scripts/fetch_spot_intraday.py` 里 `except` 中 `raise` 缺少 `from`，会丢失原始异常链。
 - **mypy `attr-defined`（475 项）**：绝大多数来自 mixin 访问宿主类属性，随"mixin 改组合"的重构自然消失，不需要单独处理。
 - **F811 出现在测试里**多为 pytest fixture 参数遮蔽同名导入，属正常写法。

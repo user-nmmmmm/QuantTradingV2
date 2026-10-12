@@ -9,7 +9,7 @@ from core.state import MarketState
 from strategies.base import Strategy
 from core.allocation import EntryCandidate, PortfolioSignalAllocator
 from core.entry_audit import note
-from core.timeframes import observed_bars_after, as_utc_timestamp
+from core.market.timeframes import observed_bars_after, as_utc_timestamp
 
 
 class Router:

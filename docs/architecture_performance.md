@@ -118,7 +118,7 @@ AP10/AP11 接入使用 `run_live.py --runtime-controls`；参数默认为 `--mar
 | 冷却结束后仍留有冷却标记 | 是 | 否 |
 | 六轮滚动窗口中的普通退出评估次数 | 0 | 4 |
 
-修改主要落在 `core/market_data.py`、`core/data_fetcher.py`、`core/public_data_clients.py`、`router/router.py`、`strategies/base.py`、`strategies/mean_reversion.py` 及 `live_trading` 编排和状态导出路径。账户同步、组合分配、风险预占、订单提交与成交记账仍按既有顺序执行。
+修改主要落在 `core/market/market_data.py`、`core/market/data_fetcher.py`、`core/market/public_data_clients.py`、`router/router.py`、`strategies/base.py`、`strategies/mean_reversion.py` 及 `live_trading` 编排和状态导出路径。账户同步、组合分配、风险预占、订单提交与成交记账仍按既有顺序执行。
 
 ### 3. 并发与限速的具体边界
 
@@ -266,9 +266,9 @@ AP10、AP11、AP13 的工程实现和离线故障验收已完成；AP12 的计�
 | Roadmap | 实现与验收 | 当前边界 |
 | --- | --- | --- |
 | AP10，有界追赶 | 新增 `live_trading/catchup.py`、`runtime_controls.py`；顺序恢复历史市场状态、路由与冷却进度；原生 DataFetcher 单页回补；游标与恢复状态持久化；最新 bar 的游标、状态和处理事实原子保存。 | 必须显式开启 `--runtime-controls`。历史重放没有 Broker 或候选分配入口；未补齐的缺口禁止该标的最新信号进入下单链路。 |
-| AP11，总预算与保护 | 新增 `core/market_read_batch.py`、`live_trading/protection_schedule.py`；读取整批截止时间、原生 REST 剩余超时、晚到结果丢弃、残留任务去重；行情读取前先维护保护单，轮询等待期间按保护周期维护。 | 必须显式开启 `--runtime-controls`。所有账户、风险、撤单和成交状态仍由主线程执行；没有后台线程修改 Broker。 |
+| AP11，总预算与保护 | 新增 `core/market/market_read_batch.py`、`live_trading/protection_schedule.py`；读取整批截止时间、原生 REST 剩余超时、晚到结果丢弃、残留任务去重；行情读取前先维护保护单，轮询等待期间按保护周期维护。 | 必须显式开启 `--runtime-controls`。所有账户、风险、撤单和成交状态仍由主线程执行；没有后台线程修改 Broker。 |
 | AP12，订单计时 | `core/order_latency.py` 接入真实 Broker 提交、撤单和订单核对；新增 `scripts/measure_sandbox_orders.py`，记录客户端发送/接收、错误类别、ACK 与终态观察。 | 缺少沙盒凭证时退出码为 2，状态为 `blocked_missing_sandbox_credentials`，不构造交易所、不发网络请求或订单。真实延迟和服务指标仍待验收。 |
-| AP13，共同请求预算 | `core/request_budget.py` 使用 SQLite 跨进程序列化加权请求准入，覆盖受管公开客户端、Broker 和资金费率/持仓历史客户端；公共/研究请求不能消费最后 10% 关键容量。 | 采用 SDK 请求权重和已观察到的最严格基础节拍；不能替代交易所账户/IP/方法级实际限额核对。仅统一采用同一预算数据库的受管进程。 |
+| AP13，共同请求预算 | `core/market/request_budget.py` 使用 SQLite 跨进程序列化加权请求准入，覆盖受管公开客户端、Broker 和资金费率/持仓历史客户端；公共/研究请求不能消费最后 10% 关键容量。 | 采用 SDK 请求权重和已观察到的最严格基础节拍；不能替代交易所账户/IP/方法级实际限额核对。仅统一采用同一预算数据库的受管进程。 |
 
 AP10/AP11 参数：`--runtime-controls --market-timeout 5 --protection-interval 5 --catchup-max-bars 100`。开关默认关闭。AP13 的客户端预算钩子和 AP12 的计时记录独立接入，不依赖此开关。默认日线策略和 60 秒轮询保持原配置。
 
@@ -326,7 +326,7 @@ AP10/AP11 参数：`--runtime-controls --market-timeout 5 --protection-interval 
 
 此窗口 SOL 的 p95 变化速度高于 BTC，ETH 出现单分钟较大变化。它们是已观测闭合 K 线的统计，不能还原逐笔路径、预测未来，或代替收盘到订单成交的端到端测量。
 
-`core/websocket_market.py` 提供仅公开读取的 Binance 闭合事件缓冲：忽略未闭合事件，按时间去重，缺口、重连、溢出要求 REST 修复后才释放数据。相关协议测试通过。实际连接评估运行约 65.18 秒，当前网络返回 `ClientConnectorDNSError`，收到 0 个事件，因而没有可用的推送延迟样本。该模块作为输入评估保留，未接入实际交易引擎；不能把协议测试通过描述为生产 WebSocket 已就绪。
+`core/market/websocket_market.py` 提供仅公开读取的 Binance 闭合事件缓冲：忽略未闭合事件，按时间去重，缺口、重连、溢出要求 REST 修复后才释放数据。相关协议测试通过。实际连接评估运行约 65.18 秒，当前网络返回 `ClientConnectorDNSError`，收到 0 个事件，因而没有可用的推送延迟样本。该模块作为输入评估保留，未接入实际交易引擎；不能把协议测试通过描述为生产 WebSocket 已就绪。
 
 ### 5. 本地历史回测
 

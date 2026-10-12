@@ -20,3 +20,4 @@
 | [0009](0009-release-convention.md) | 发布约定：语义化版本、CHANGELOG、带注解的标签 | 已采纳 |
 | [0010](0010-release-bound-identity.md) | 新冻结登记绑定"发布标签 + 行为身份回执"，旧记录不动 | 已采纳 |
 | [0011](0011-signal-meta-package.md) | 信号元层移到顶层包 `signal_meta/`，不留旧路径垫片 | 已采纳 |
+| [0012](0012-core-market-package.md) | 行情与时间/标的约定移到 `core/market/`（B2 第 1 簇） | 已采纳 |

@@ -9,7 +9,7 @@ from typing import Any, Dict, Iterable, Mapping, Optional, Sequence
 import pandas as pd
 
 from core.clock import as_utc
-from core.timeframes import timeframe_delta
+from core.market.timeframes import timeframe_delta
 
 
 @dataclass(frozen=True)

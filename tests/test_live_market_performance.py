@@ -12,12 +12,12 @@ import pytest
 
 from config.config import config
 from core.broker import Broker
-from core.data_fetcher import DataFetcher
+from core.market.data_fetcher import DataFetcher
 from core.domain import SyncResult
-from core.market_data import LiveMarketDataAdapter
-from core.market_data_errors import MarketDataRefreshError
+from core.market.market_data import LiveMarketDataAdapter
+from core.market.market_data_errors import MarketDataRefreshError
 from core.portfolio import Portfolio
-from core.public_data_clients import PublicDataClientPool, VenueRequestPacer
+from core.market.public_data_clients import PublicDataClientPool, VenueRequestPacer
 from core.risk import RiskManager
 from core.state import MarketState, MarketStateMachine
 from core.state_store_v2 import StateStore
@@ -308,7 +308,7 @@ def test_pacer_preserves_weighted_spacing_with_virtual_clock():
 
 
 def test_public_clients_share_endpoint_weighted_pacing_across_pools(monkeypatch):
-    from core import public_data_clients as module
+    from core.market import public_data_clients as module
     now, sleeps = [0.], []
     def advance(delay):
         sleeps.append(delay)
@@ -329,7 +329,7 @@ def test_public_clients_share_endpoint_weighted_pacing_across_pools(monkeypatch)
 
 
 def test_native_live_snapshot_attempts_once_without_retry_sleep(monkeypatch):
-    from core import data_fetcher as module
+    from core.market import data_fetcher as module
     fetcher = DataFetcher(proxy_url=None)
     attempt = MagicMock(side_effect=TimeoutError())
     backoff = MagicMock()

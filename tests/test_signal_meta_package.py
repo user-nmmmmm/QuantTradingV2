@@ -20,8 +20,8 @@ def test_modules_live_in_signal_meta_and_not_in_core():
     for name in MODULES:
         assert (ROOT / "signal_meta" / f"{name}.py").is_file(), name
         assert not (ROOT / "core" / f"{name}.py").exists(), f"core/{name}.py should have moved"
-    # temporal_data stays in core: the market-data layer needs it
-    assert (ROOT / "core" / "temporal_data.py").is_file()
+    # temporal_data stays in core (now core/market): the market-data layer needs it
+    assert (ROOT / "core" / "market" / "temporal_data.py").is_file()
 
 
 class _Policy:

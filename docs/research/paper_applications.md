@@ -25,7 +25,7 @@
 2. **当前没有已准入的正式策略。** 上涨状态路由TrendBreakout，其余状态默认Cash；趋势为paused_revalidation，做空和区间为paused_redesign，高波动为isolated_research。依据：[params.yaml](../../config/params.yaml)、[策略治理](../../ops/strategy_governance.py)。
 3. **已有元层的工程结果与有效性必须分开。** P1验证包有1,868条预测，allow 0、veto 43、abstain 1,825；P2的1,868条预测全部abstain，完整三轴模型0/66，归因权重全部等权回退。依据：[EV报告](../../reports/p23_signal_meta_20260918_verified/ev_report.md)、[P2报告](../../reports/p23_signal_meta_20260918_verified/p2_report.md)。这支持先检查样本和覆盖，尚不支持把P1/P2当成有效实盘模型。
 4. **全市场研究的数据量充足不等于历史事实完整。** V3实际manifest中744个市场被发现、741个有K线、832,441根日线；上市与分类证据齐备仅61市场，内部缺失日3,532，融资证据覆盖0，historical_full_universe_verified为false。依据：[V3 manifest](../../reports/trend_portfolio_v3_20260921/market_data/manifest.json)、[数据覆盖审计](../../reports/trend_portfolio_v3_20260921/DATA_COVERAGE_ZH.md)。这些数值是已保存产物的覆盖口径，不是当前同时可交易资产数量。
-5. **衍生品和微观数据存在明确接线缺口。** 已有funding/OI采集、资金流函数和融资账本，但默认CCXT数据入口未传market_type，默认spot OHLCV未自动合并funding，资金流函数未自动加入现有信号特征。WebSocket原型只有闭合K线缓冲，未接实盘引擎，没有交易所L2及排队模型。依据：[main.py](../../main.py)、[DataFetcher](../../core/data_fetcher.py)、[资金流因子](../../core/factors/capital_flow.py)、[融资账本](../../core/broker/financing.py)、[追加执行记录](../architecture_performance.md)。
+5. **衍生品和微观数据存在明确接线缺口。** 已有funding/OI采集、资金流函数和融资账本，但默认CCXT数据入口未传market_type，默认spot OHLCV未自动合并funding，资金流函数未自动加入现有信号特征。WebSocket原型只有闭合K线缓冲，未接实盘引擎，没有交易所L2及排队模型。依据：[main.py](../../main.py)、[DataFetcher](../../core/market/data_fetcher.py)、[资金流因子](../../core/factors/capital_flow.py)、[融资账本](../../core/broker/financing.py)、[追加执行记录](../architecture_performance.md)。
 
 以上是当前工作树及已保存产物的读取结果，不代表本轮重新运行了策略测试或真实交易。最新追加文档记录的一次本地历史回测收益为-5.2891%、固定基准为+34.3140%，仅10笔闭合交易；该单次结果支持继续验证，不能用来预测未来收益。来源：[10月2日追加执行记录](../architecture_performance.md)。
 
@@ -371,7 +371,7 @@ P3为独立有限资金账户：原始参照进252候选，门控账户进0，�
 
 [main.get_data](../../main.py)已显式传递market_type，入口新增合约、资金费、观察值及最大时效参数。只支持显式线性、报价币结算永续；不同币结算、反向、quanto、期货和主bar引擎非1乘数均明确拒绝。funding实际结果与预测分开，OI/mark/index按available_at合并，过期值标NaN/stale，合约身份必须匹配。
 
-[replay_funding_settlements](../../core/derivatives_data.py)按结算事件和成交后仓位快照重放，可完整核算每日三个8小时资金费事件；同时间成交按结算后生效处理，查缺失/重复/错网格/错合约。正负费率、多空、开平仓边界及重放已有手算fixture验证。当前[旧融资分支](../../core/broker/financing.py)明确拒绝日线按期末持仓近似计费，事件回放输入不会误当旧bar资金费重复扣款。
+[replay_funding_settlements](../../core/market/derivatives_data.py)按结算事件和成交后仓位快照重放，可完整核算每日三个8小时资金费事件；同时间成交按结算后生效处理，查缺失/重复/错网格/错合约。正负费率、多空、开平仓边界及重放已有手算fixture验证。当前[旧融资分支](../../core/broker/financing.py)明确拒绝日线按期末持仓近似计费，事件回放输入不会误当旧bar资金费重复扣款。
 
 这不是完整可交易永续引擎：还缺真实合约历史数据、真实逐成交持仓序列、融资与权益实账桥接，以及把事件时钟整合进策略交易。现货研究不能据此声称永续净收益。执行质量报告的`real_venue_calibration=False`；本地模拟短缺指标不等于真实滑点校准，更不等于自身因果冲击。
 
@@ -379,7 +379,7 @@ P3为独立有限资金账户：原始参照进252候选，门控账户进0，�
 
 联测结果：**318 passed，4 subtests passed**。覆盖新增统计、数据/标签、衍生品、研究编排，以及既有行情因果性、CLI、保证金/融资、账户成本、复现性和P1/P2/P3。43次运行逐bar账户核对全部通过，265个冻结源码/配置文件、输入字节哈希和9个关键产物哈希复核通过；新增模块Ruff检查及`git diff --check`通过，66个本地文档链接无缺失。测试全部离线，Windows临时目录权限限制通过仅运行本地测试/研究的权限提升解决，没有联网或真实账户动作。
 
-新增实现：[paper_study](../../analysis/paper_study.py)、[统计验证](../../analysis/paper_validation.py)、[标签](../../analysis/paper_labels.py)、[数据审核](../../analysis/paper_data_audit.py)、[衍生品](../../core/derivatives_data.py)。研究入口：[run_paper_applications.py](../../scripts/run_paper_applications.py)。结果目录不可重复覆盖；复跑需指定新的`--output`，任何源码/配置/数据变化建立新身份。输入路径可由`--manifest`指定，仍仅接受当前明确的BTC/ETH现货日线协议，其他研究范围应登记新协议。
+新增实现：[paper_study](../../analysis/paper_study.py)、[统计验证](../../analysis/paper_validation.py)、[标签](../../analysis/paper_labels.py)、[数据审核](../../analysis/paper_data_audit.py)、[衍生品](../../core/market/derivatives_data.py)。研究入口：[run_paper_applications.py](../../scripts/run_paper_applications.py)。结果目录不可重复覆盖；复跑需指定新的`--output`，任何源码/配置/数据变化建立新身份。输入路径可由`--manifest`指定，仍仅接受当前明确的BTC/ETH现货日线协议，其他研究范围应登记新协议。
 
 下一轮顺序据本批失败原因收敛：
 
@@ -417,7 +417,7 @@ P3为独立有限资金账户：原始参照进252候选，门控账户进0，�
 
 | 工作 | 已实现并验证 | 验收边界 |
 | --- | --- | --- |
-| 1. #67 Dataflow、#68 Delta Lake | `core/data_versions.py` 支持事件时间、观察时间、可用时间、发布与修订证据；不可变原始副本、修订冲突检查、快照哈希及 as-of 读取；本轮完整冻结行情与候选输入。 | 未知历史可得性仍未知。修改当前原始文件不会改写旧快照；没有引入分布式平台。 |
+| 1. #67 Dataflow、#68 Delta Lake | `core/market/data_versions.py` 支持事件时间、观察时间、可用时间、发布与修订证据；不可变原始副本、修订冲突检查、快照哈希及 as-of 读取；本轮完整冻结行情与候选输入。 | 未知历史可得性仍未知。修改当前原始文件不会改写旧快照；没有引入分布式平台。 |
 | 2. #18 PBO、#19 DSR、#20 Reality Check、#21/#98/#99 | 完整候选收益面板接入通用优化与 Walk-Forward；DSR 使用跨候选 Sharpe 离散度；共享 PBO、联合时间块 Reality Check、HAC Sharpe、按退出日块抽样 PF；预登记、失败／中断和选择时点日志。 | 5/20/60 块长是敏感性假设；历史搜索不全，正式概率／准入不生成。保留失败和零方差候选，不能为获得数字删列。 |
 | 3. #92 分散化 | 同一账户中的现金、等权、逆波动基准；相同资产、决策时间、费用及目标总敞口上限。 | 90% 是共同决策目标预算；实际波动和市场暴露不同，不称严格风险匹配或证明等权普遍最优。 |
 | 4. #61/#70/#97 成本与配置 | 单期成本优化、交易／持有／冲击惩罚、每次决策 L1 换手上限；立即、半步、无交易区调仓；同预测、同风险厌恶、同实际成交成本的零成本惩罚优化器对照；资金规模曲线。 | 换手约束在优化目标之后施加，是受限目标调整，未声称求得联合约束的全局最优。止损和超敞口减仓优先并记录例外；实际成交仍受现金与流动性限制。 |
@@ -470,7 +470,7 @@ P3为独立有限资金账户：原始参照进252候选，门控账户进0，�
 
 ### 关键实现
 
-- [版本与时间语义](../../core/data_versions.py)、[因子登记](../../analysis/factor_registry.py)
+- [版本与时间语义](../../core/market/data_versions.py)、[因子登记](../../analysis/factor_registry.py)
 - [共享研究证据](../../analysis/research_evidence.py)、[Walk-Forward](../../analysis/walk_forward.py)、[通用优化](../../analysis/optimize.py)
 - [成本／风险／调仓账户实验](../../analysis/paper_portfolio.py)、[尾部与联合压力](../../analysis/paper_risk.py)
 - [首触解析和成交成本桥](../../analysis/paper_label_execution.py)、[因果标签目标](../../analysis/paper_label_signals.py)

@@ -31,10 +31,10 @@ from composition.factory import (
     build_candidate_score_policy, build_protective_stop_policy, build_strategy_health_policy,
 )
 from config.config import ConfigLoader, config
-from core.data_fetcher import DataFetcher
+from core.market.data_fetcher import DataFetcher
 from core.metrics import benjamini_hochberg, one_sided_bootstrap_p_value
 from core.reproducibility import canonical_json, save_data_snapshots, sha256_file
-from core.timeframes import timeframe_delta
+from core.market.timeframes import timeframe_delta
 from scripts.roadmap_baseline import source_manifest
 
 TASKS = ("monthly-optimize", "quarterly-robust")
@@ -358,7 +358,7 @@ def run_research_automation(*, task, protocol, data_dir, start, end, symbols, ou
             frames = {symbol: _validate_frame(frame, symbol=symbol, start=left, end=right,
                         boundary=boundary, timeframe=timeframe) for symbol, frame in frames.items()}
             input_identity = {"kind": "synthetic", "seed": 42,
-                              "generator": "core.data_fetcher.DataFetcher.generate_scenario"}
+                              "generator": "core.market.data_fetcher.DataFetcher.generate_scenario"}
         else:
             frames, input_identity = load_local_inputs(data_dir, symbols, start=left, end=right,
                                                        boundary=boundary, timeframe=timeframe)

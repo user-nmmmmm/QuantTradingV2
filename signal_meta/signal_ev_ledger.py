@@ -12,7 +12,7 @@ import math
 from typing import TYPE_CHECKING, Any, Mapping
 
 from signal_meta.signal_observation_types import canonical, fingerprint
-from core.timeframes import as_utc_timestamp, timeframe_delta
+from core.market.timeframes import as_utc_timestamp, timeframe_delta
 
 if TYPE_CHECKING:
     from signal_meta.signal_ev_types import EVPolicy

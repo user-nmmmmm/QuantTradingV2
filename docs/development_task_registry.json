@@ -567,7 +567,7 @@
       ],
       "files": [
         "scripts/fetch_binance_data.py",
-        "core/data_fetcher.py",
+        "core/market/data_fetcher.py",
         "scripts/run_backtest_matrix.py"
       ],
       "compatibility": "既有无来源缓存不自动删除；标记待重取并隔离，兼容通用多源 fetcher 但专用 Binance 写入边界必须严格。",
@@ -621,11 +621,11 @@
         },
         {
           "mail_id": "MAIL-21-1",
-          "location": "core/data_fetcher.py:239"
+          "location": "core/market/data_fetcher.py:239"
         },
         {
           "mail_id": "MAIL-21-1",
-          "location": "core/data_fetcher.py:251"
+          "location": "core/market/data_fetcher.py:251"
         },
         {
           "mail_id": "MAIL-21-2",
@@ -637,7 +637,7 @@
         },
         {
           "mail_id": "MAIL-21-2",
-          "location": "core/data_fetcher.py:324"
+          "location": "core/market/data_fetcher.py:324"
         },
         {
           "mail_id": "MAIL-21-3",
@@ -693,7 +693,7 @@
         "反例：当前未收盘/未来日线即便 OHLCV 完整也必须拒绝或显式剔除。"
       ],
       "files": [
-        "core/data_fetcher.py",
+        "core/market/data_fetcher.py",
         "scripts/run_expanded_universe_backtest.py"
       ],
       "compatibility": "不改变数据源可保留历史的事实；超出可取范围应返回不可满足原因。旧 CSV 缺 close_time 时必须用明确周期边界重验。",
@@ -732,15 +732,15 @@
       "evidence": [
         {
           "mail_id": "MAIL-13-2",
-          "location": "core/data_fetcher.py:455"
+          "location": "core/market/data_fetcher.py:455"
         },
         {
           "mail_id": "MAIL-13-2",
-          "location": "core/data_fetcher.py:456"
+          "location": "core/market/data_fetcher.py:456"
         },
         {
           "mail_id": "MAIL-13-2",
-          "location": "core/data_fetcher.py:475"
+          "location": "core/market/data_fetcher.py:475"
         },
         {
           "mail_id": "MAIL-35-2",
@@ -902,7 +902,7 @@
         "反例：不得等组合全局期末才把已退市币种强平。"
       ],
       "files": [
-        "core/universe.py",
+        "core/market/universe.py",
         "main.py",
         "backtest/engine.py",
         "scripts/repair_binance_point_in_time_data.py"
@@ -943,11 +943,11 @@
       "evidence": [
         {
           "mail_id": "MAIL-17-2",
-          "location": "core/universe.py:66"
+          "location": "core/market/universe.py:66"
         },
         {
           "mail_id": "MAIL-17-2",
-          "location": "core/universe.py:79"
+          "location": "core/market/universe.py:79"
         },
         {
           "mail_id": "MAIL-17-2",
@@ -967,7 +967,7 @@
         },
         {
           "mail_id": "MAIL-32-2",
-          "location": "core/universe.py:82"
+          "location": "core/market/universe.py:82"
         },
         {
           "mail_id": "MAIL-32-2",
@@ -1156,9 +1156,9 @@
         "普通入口timeframe=4h可运行；相同数据请求二次命中缓存且零网络，来源/周期/范围不同不能错命中。"
       ],
       "files": [
-        "core/data_fetcher.py",
-        "core/data.py",
-        "core/universe.py",
+        "core/market/data_fetcher.py",
+        "core/market/data.py",
+        "core/market/universe.py",
         "scripts/fetch_binance_data.py",
         "config/universe_binance_spot_1d.csv"
       ],
@@ -3913,7 +3913,7 @@
         "只完成选择器不改变正式路由；进入正式账户须另过SYS-11。"
       ],
       "files": [
-        "core/universe.py",
+        "core/market/universe.py",
         "core/factors",
         "core/allocation.py",
         "router/router.py"

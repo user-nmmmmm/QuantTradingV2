@@ -28,9 +28,9 @@ from analysis.trend_portfolio_v3_validation import (evaluate_primary, execution_
 from backtest.engine import BacktestEngine
 from composition.factory import build_strategy_registry
 from config.config import config
-from core.market_data import normalize_market_frame
+from core.market.market_data import normalize_market_frame
 from core.reproducibility import canonical_json, sha256_file
-from core.universe import normalize_symbol
+from core.market.universe import normalize_symbol
 from scripts.run_trend_portfolio_v2 import _benchmark_diagnostic, _execute_suite_run, suite_profiles
 
 SCHEMA = "trend_portfolio_v3_registered_daily/v1"
@@ -64,7 +64,7 @@ def source_hashes():
 
 
 def load_bundle(folder):
-    from core.trend_portfolio_data import load_data_bundle
+    from core.market.trend_portfolio_data import load_data_bundle
     folder = Path(folder)
     manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
     if manifest.get("completed") is False:
@@ -186,7 +186,7 @@ def attainable_market_symbols(frames, metadata):
 
 def make_controller(strategy, metadata, spec, quote_borrow_facts=()):
     from core.portfolio_target_controller import PortfolioTargetController
-    from core.quote_borrow import QuoteBorrowFact, QuoteBorrowPolicy
+    from core.market.quote_borrow import QuoteBorrowFact, QuoteBorrowPolicy
     from core.risk.portfolio_governor import CorrelationClusterPolicy
     from core.selection_v2 import SelectionPolicyV2, select_all_qualified, size_portfolio_targets
 
@@ -425,7 +425,7 @@ def resume(bundle, output, only=None, workers=1):
 
 def run_controls(protocol, output):
     """Old V2 original and explicitly named health-policy controls, same data."""
-    from core.universe import PointInTimeUniverse, UniverseMembership
+    from core.market.universe import PointInTimeUniverse, UniverseMembership
     frames = {f"{s}-USDT": normalize_market_frame(pd.read_csv(
         CONTROL_DATA / f"binance_{s}USDT_1d.csv", parse_dates=["timestamp"]).set_index("timestamp"))
         for s in CONTROL_SYMBOLS}

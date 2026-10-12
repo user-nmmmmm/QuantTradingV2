@@ -20,7 +20,7 @@ from signal_meta.signal_label_versions import OutcomeRevisionBook
 from signal_meta.signal_meta_layer import _exclusions, _validate_input
 from signal_meta.signal_observation_types import fingerprint, iso
 from signal_meta.signal_regime_model import AXIS_FEATURES, RegimeModel
-from core.timeframes import as_utc_timestamp
+from core.market.timeframes import as_utc_timestamp
 
 
 def _book(candidate, horizon):

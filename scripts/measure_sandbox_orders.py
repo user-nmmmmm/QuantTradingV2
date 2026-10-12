@@ -12,7 +12,7 @@ from uuid import uuid4
 ROOT = Path(__file__).resolve().parents[1]
 
 from core.order_latency import OrderLatencyRecorder
-from core.request_budget import install_exchange_budget, request_scope
+from core.market.request_budget import install_exchange_budget, request_scope
 
 
 def sandbox_exchange(venue):

@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from core.market_data import HistoricalMarketDataAdapter, normalize_market_frame
+from core.market.market_data import HistoricalMarketDataAdapter, normalize_market_frame
 
 
 def _reference_normalize(frame):

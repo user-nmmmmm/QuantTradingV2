@@ -139,7 +139,7 @@ class LiveBroker(SubmissionServiceMixin, OrderReconcilerMixin, AccountSyncMixin)
             self.exchange.session.trust_env = True
         if sandbox:
             self.exchange.set_sandbox_mode(True)
-        from core.request_budget import install_exchange_budget
+        from core.market.request_budget import install_exchange_budget
         install_exchange_budget(self.exchange, exchange_id, priority="critical")
         self.exchange_boundary = exchange_boundary or ExchangeBoundary(
             ExchangeCapabilities.from_ccxt(self.exchange, exchange_id),

@@ -27,7 +27,7 @@ import pandas as pd
 
 from backtest.engine import BacktestEngine
 from backtest.reporting import ReportGenerator
-from core.data_fetcher import DataFetcher
+from core.market.data_fetcher import DataFetcher
 
 SCHEMA_VERSION = "engine-baseline-v1"
 DEFAULT_SYMBOLS = ("BTC/USDT", "ETH/USDT", "SOL/USDT")
