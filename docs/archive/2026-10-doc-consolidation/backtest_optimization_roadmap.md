@@ -36,8 +36,8 @@
 | B-09 | 基准时间轴不齐用 fillna(0) 近似 | `backtest/engine.py:146-164` | 超额收益不可比 | P2 |
 | B-10 | 部分成交卖单在持仓耗尽后标 REJECTED | `core/broker/__init__.py:434-442,378-380` | 成交统计含假拒单 | P2 |
 | B-11 | ~~`metrics.py` 指标函数未接入报告~~（已修：exposure / signal_funnel / drawdown_events / trade_quality / attribution / r_multiple / cost_sensitivity 全部接线） | `backtest/reporting/` | 研究能力闲置 | P2 |
-| B-12 | 只跑日线，`resample_ohlcv` 未接线 | `main.py:51`、`core/data.py:81-108` | 无法多周期验证 | P2 |
-| B-13 | 合成数据不可控/无极端场景模板 | `core/data_fetcher.py:332-401` | 压力测试缺失 | P2 |
+| B-12 | 只跑日线，`resample_ohlcv` 未接线 | `main.py:51`、`core/market/data.py:81-108` | 无法多周期验证 | P2 |
+| B-13 | 合成数据不可控/无极端场景模板 | `core/market/data_fetcher.py:332-401` | 压力测试缺失 | P2 |
 | B-14 | ~~`optimize.py` 无样本外/稳健性校验~~（已修：`analysis/walk_forward.py` + `--walk-forward`） | `analysis/optimize.py` | 参数过拟合 | P1 |
 | B-15 | 无本地数据缓存 | `main.py:240-253` | 重复拉取、不可复现 | P3 |
 
@@ -169,13 +169,13 @@ E 质量保证（贯穿）
 
 ### D1 多周期与缓存（B-12、B-15）
 - 任务：
-  1. `main.py` 增加 `--timeframe`，接线 `DataHandler.resample_ohlcv`（`core/data.py:81-108`），回测引擎支持任意周期；
+  1. `main.py` 增加 `--timeframe`，接线 `DataHandler.resample_ohlcv`（`core/market/data.py:81-108`），回测引擎支持任意周期；
   2. 本地 parquet/csv 缓存（按 symbol+timeframe+日期范围键控），二次运行命中缓存。
 - 验收：`--timeframe 4h` 可跑通；连续两次运行命中缓存不重拉网络。
 
 ### D2 数据扩展（B-13 + 资金费率）
 - 任务：
-  1. Synthetic 增加可复现 seed 与极端场景模板（跳空、闪崩、单边停牌、高波动 regime），`generate_scenario` 支持 `seed` 参数（`core/data_fetcher.py:332-401`）；
+  1. Synthetic 增加可复现 seed 与极端场景模板（跳空、闪崩、单边停牌、高波动 regime），`generate_scenario` 支持 `seed` 参数（`core/market/data_fetcher.py:332-401`）；
   2. 可选接入资金费率/借券费率数据源（ccxt `fetch_funding_rate`），回填 A2 做空成本。
 - 验收：压力模板触发熔断/强平路径；funding 数据缺失时成本字段标 `not_modeled` 且不静默为 0。
 

@@ -12,8 +12,8 @@ import numpy as np
 import pandas as pd
 
 from analysis.paper_labels import BarrierConfig, LabelCosts, _frame, _time, label_candidates
-from core.timeframes import timeframe_delta
-from core.universe import normalize_symbol
+from core.market.timeframes import timeframe_delta
+from core.market.universe import normalize_symbol
 
 
 def refine_barrier_labels(frames, candidates, *, config: BarrierConfig, costs: LabelCosts,

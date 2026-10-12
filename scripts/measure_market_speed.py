@@ -19,8 +19,8 @@ import numpy as np
 import pandas as pd
 
 from analysis.market_speed import summarize_market_speed
-from core.data_fetcher import DataFetcher
-from core.market_data import LiveMarketDataAdapter
+from core.market.data_fetcher import DataFetcher
+from core.market.market_data import LiveMarketDataAdapter
 
 
 def distribution(values):

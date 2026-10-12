@@ -3,7 +3,7 @@
 
 设计要点
 --------
-- 复用 ``core.data_fetcher.DataFetcher``（统一归一化 / 去重 / 时区口径）。
+- 复用 ``core.market.data_fetcher.DataFetcher``（统一归一化 / 去重 / 时区口径）。
 - 按周期将每块限制为最多约 9000 根，避免 ``fetch_ccxt`` 单次 10000 根安全上限，
   因此 ``1h`` / ``5m`` 这类高频周期跨多年也能完整下载。
 - 增量更新：本地已有缓存时，只补下最后一根 K 线之后的数据。
@@ -51,9 +51,9 @@ import pandas as pd
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
-from core.data_fetcher import DataFetcher, timeframe_delta  # noqa: E402
+from core.market.data_fetcher import DataFetcher, timeframe_delta  # noqa: E402
 from core.logger import get_logger  # noqa: E402
-from core.universe import normalize_symbol  # noqa: E402
+from core.market.universe import normalize_symbol  # noqa: E402
 
 logger = get_logger("fetch_binance_data")
 

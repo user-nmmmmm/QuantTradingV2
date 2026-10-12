@@ -18,7 +18,7 @@ from core.broker import Broker
 from core.domain import OrderIntent, OrderStatus
 from core.events import EventCodec, Signal, TradingEventPipeline
 from core.live_broker import LiveBroker
-from core.market_data import HistoricalMarketDataAdapter, LiveMarketDataAdapter
+from core.market.market_data import HistoricalMarketDataAdapter, LiveMarketDataAdapter
 from core.order_store import OrderStore
 from core.portfolio import Portfolio
 from core.reproducibility import canonical_json, deterministic_result_digest

@@ -5,10 +5,10 @@ from dataclasses import asdict
 import pandas as pd
 import pytest
 
-from core.data_versions import DataVersionStore
+from core.market.data_versions import DataVersionStore
 from signal_meta.signal_label_versions import OutcomeRevisionBook
 from signal_meta.signal_meta_layer import _validate_input
-from core.temporal_data import TemporalOHLCV
+from core.market.temporal_data import TemporalOHLCV
 from signal_meta.temporal_labels import TemporalLabelError
 from tests.test_temporal_labels import reader, tracker, event, documented, candidate, iso
 

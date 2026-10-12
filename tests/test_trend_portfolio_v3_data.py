@@ -9,7 +9,7 @@ import zipfile
 import pandas as pd
 import pytest
 
-from core.trend_portfolio_data import (
+from core.market.trend_portfolio_data import (
     CMS, CausalUniverse, EvidenceStore, archive_jobs, build_market_metadata, discover_markets,
     extract_article_facts, list_articles, list_bucket, load_data_bundle,
     parse_daily_archive, sha256, utc, verify_checksum,
@@ -237,7 +237,7 @@ def test_bundle_loader_checks_frozen_digest(tmp_path):
 
 
 def test_evidence_retry_after_is_shared_and_successful_bytes_resume(tmp_path, monkeypatch):
-    import core.trend_portfolio_data as module
+    import core.market.trend_portfolio_data as module
     clock = [0.0]
     monkeypatch.setattr(module.time, "monotonic", lambda: clock[0])
     monkeypatch.setattr(module.time, "sleep", lambda seconds: clock.__setitem__(0, clock[0] + seconds))

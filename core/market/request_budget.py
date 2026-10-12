@@ -138,7 +138,7 @@ class SharedRequestBudget:
 
 
 def deployment_budget():
-    root = Path(__file__).resolve().parents[1]
+    root = Path(__file__).resolve().parents[2]   # core/market/request_budget.py -> repository root
     return SharedRequestBudget(os.getenv("QUANT_REQUEST_BUDGET_DB") or
                                root / "reports" / "request_budget.sqlite3")
 

@@ -34,7 +34,7 @@ from core.benchmarks import (
 from core.broker import Broker
 from core.events import TradingEventPipeline
 from core.logger import get_logger
-from core.market_data import HistoricalMarketDataAdapter, normalize_market_frame
+from core.market.market_data import HistoricalMarketDataAdapter, normalize_market_frame
 from core.portfolio import Portfolio
 from core.position_management import CapitalAllocationPolicy
 from core.runtime import EventProcessor, MarketDataSlice, validate_selector_execution_path
@@ -104,7 +104,7 @@ class BacktestEngine:
                 (config.get("portfolio_targets") or {}).get("enabled", False)):
             raise ValueError("smart capital allocation cannot run with a portfolio target controller")
         config_data = config.require("data")
-        from core.temporal_data import temporal_policy as parse_temporal_policy
+        from core.market.temporal_data import temporal_policy as parse_temporal_policy
         self.temporal_policy = parse_temporal_policy(temporal_policy if temporal_policy is not None else config_data.get("temporal_policy"))
         self.temporal_financing = temporal_financing
         if temporal_financing is not None:
@@ -612,7 +612,7 @@ class BacktestEngine:
                 if self.temporal_policy.mode != "strict":
                     processor._previous_session_close_equity = result.equity
                 else:
-                    from core.temporal_data import strategy_market_prices
+                    from core.market.temporal_data import strategy_market_prices
                     known_marks = strategy_market_prices(event, processor.last_prices)
                     if all(not position.get("qty") or symbol in known_marks
                            for symbol, position in portfolio.positions.items()):

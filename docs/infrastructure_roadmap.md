@@ -31,6 +31,7 @@
 | A2 | `identity_report.py` 识别移动与仅导入路径变化；用 #68 实测为"移动 15 个文件、4 个仅导入变化" | 已完成 | 本 PR |
 | A3 | 发布约定：语义化版本、`CHANGELOG.md`、`release_check.py`、`pyproject` 版本 3.0.0（ADR 0009）。**标签 `v3.0.0` 尚未创建**，合并后由仓库所有者打 | 已完成（标签待打） | 本 PR |
 | B1 | 14 个信号元层模块（约 3500 行）移到顶层包 `signal_meta/`（ADR 0011）；回放指纹键保持旧名并有测试；身份报告：移动 14 个、仅导入变化 5 个 | 已完成 | 本 PR 之后的 B1 PR |
+| B2-1 | `core/market/`：17 个行情与时间/标的模块（ADR 0012）；`request_budget` 的仓库根路径修正并有测试 | 已完成 | 本 PR 之后的 B2-1 PR |
 | A4 | 绑定记录 `release-bound-identity/v1`、`--bind-release/--verify-binding`（ADR 0010）；旧记录不动。真正的新身份登记留到整理完成后 | 已完成 | 本 PR |
 
 当前规模（`main`，2026-10-12）：`core/` 78 个平铺模块 + 7 个子包；246 个测试文件、约 3945 个测试，CI 并行约 3 分钟；覆盖率 89.1%；ruff 621、mypy 869 项存量；`BacktestEngine.run` 所在文件 1296 行，`main.py` 1126 行；5 个 mixin 类；`scripts/` 97 个脚本；0 个发布标签。
@@ -73,7 +74,7 @@
 | 编号 | 工作 | 规模 | 依赖 | 退出条件 |
 |---|---|---|---|---|
 | C1 | 还债策略：每个 PR 在触碰的文件里顺手减少存量（`quality_ratchet.py update`）；按规则逐个清零后升为硬门槛（先 `F401/F811/F841/E4/E7`，再 `B`） | 持续 | — | 约定写入 CONTRIBUTING；每个季度回看基线总数 |
-| C2 | 复核棘轮扫描出的可疑模式并逐个给出结论（修复或注明无害）：B023（`core/binance_depth_observer.py` 8 处等）、`core/broker/financing.py` 的 `seconds_per_year`、B904 | M | — | 每项有 issue 或 ADR 结论；涉及资金计提的先写失败样本再改 |
+| C2 | 复核棘轮扫描出的可疑模式并逐个给出结论（修复或注明无害）：B023（`core/market/binance_depth_observer.py` 8 处等）、`core/broker/financing.py` 的 `seconds_per_year`、B904 | M | — | 每项有 issue 或 ADR 结论；涉及资金计提的先写失败样本再改 |
 | C3 | mypy 扩围：随 B4 清掉 mixin 错误后，把已达标模块纳入硬门槛清单 | 持续 | B4 | 硬门槛文件数增长；基线下降 |
 | C4 | 测试治理：在 Windows 上为符号链接测试加跳过条件；不稳定测试的处理约定（定位、隔离标记、期限）；耗时预算（完整套件 ≤ 5 分钟） | S | — | 本地 Windows 全绿；约定写入 `docs/quality.md` |
 | C5 | 覆盖率：85% → 90%，并评估分支覆盖 | S | C4 | 门槛上调且 CI 通过 |
@@ -94,8 +95,9 @@
 |---|---|---|
 | G0 | **已决：顺延** | ADR 0008；旧身份与 `main` 已相差 536 个文件且配置已变；整理后重新登记 |
 | A1–A4 | 已完成（本 PR 合并后生效） | 唯一遗留：首个标签 `v3.0.0` 要在合并后由仓库所有者创建并推送（见[发布约定](releasing.md) §3），之后可用 `--base v3.0.0`；新身份的登记本身仍在整理完成之后 |
-| B1 | 已完成（ADR 0011，待合并） | `core.temporal_data` 留在 `core`；`core/` 平铺模块 78 → 64 |
-| B2–B5 | 未开始（须在新身份登记前完成） | B1 的依赖图分析已做过：14 个模块、约 3500 行、导入点约 61 处，`temporal_data` 必须留在 `core`；`backtest/signal_meta_replay.py` 的指纹键需保持旧名 |
+| B1 | 已完成（ADR 0011，待合并） | `core.market.temporal_data` 留在 `core`；`core/` 平铺模块 78 → 64 |
+| B2 | 进行中：第 1 簇 `core/market/` 已完成（ADR 0012，待合并）；其余簇：订单与账户状态、选币与组合、指标与审计、基础件 | `core/` 平铺模块 63 → 46 |
+| B3–B5 | 未开始（须在新身份登记前完成） | B1 的依赖图分析已做过：14 个模块、约 3500 行、导入点约 61 处，`temporal_data` 必须留在 `core`；`backtest/signal_meta_replay.py` 的指纹键需保持旧名 |
 | C1 | 已约定、未写入 CONTRIBUTING | 每个 PR 顺手减少触碰文件的存量 |
 | C2–C5 | 未开始 | C2 的可疑模式清单已在 `docs/quality.md` |
 | D1 | 待你确认清单 | 清单见上表 D1 行 |

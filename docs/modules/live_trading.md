@@ -6,7 +6,7 @@
 
 `LiveTradingEngine` 组装依赖并运行轮询主循环。具体实现分布在 `engine.py` 及三个 mixin：
 
-- `LiveMarketDataAdapter`（行情，来自 `core/market_data.py`）
+- `LiveMarketDataAdapter`（行情，来自 `core/market/market_data.py`）
 - `RecordedExecutionAdapter`（执行，包装一个 `LiveBroker`）
 - `RiskManager`、路由器、候选分配器及共享的 `EventProcessor`
 - `TickOrchestratorMixin`（`tick_orchestrator.py`）、`RecoveryMixin`（`recovery.py`）、`StateExportMixin`（`state_export.py`）

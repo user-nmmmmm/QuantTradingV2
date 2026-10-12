@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 
 from signal_meta.signal_observation_types import canonical, fingerprint
-from core.timeframes import as_utc_timestamp, timeframe_delta
+from core.market.timeframes import as_utc_timestamp, timeframe_delta
 
 
 AXIS_FEATURES = {"trend": "return_12", "efficiency": "efficiency_ratio_10",

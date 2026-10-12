@@ -5,7 +5,7 @@
 - 相关：[基础设施路线图](../infrastructure_roadmap.md) B1，[ADR 0004](0004-layered-import-rules.md)，[ADR 0007](0007-ops-package.md)，[ADR 0008](0008-defer-forward-observation-window.md)
 
 ## 背景
-`core/` 里有 14 个只服务于"信号观察与元层研究"的模块：12 个 `signal_*`（观察、结果标签、期望值账本、状态模型、轴归因、自适应等）加上 `temporal_labels`、`temporal_financing`，约 3500 行。实测依赖图（含函数内延迟导入）显示：`core/` 里**没有任何**其他模块导入它们；导入方只有 `backtest/`、`main.py`、`scripts/` 和测试。它们自身只向下依赖 `core.timeframes`、`core.reproducibility`、`core.data_versions`、`core.universe`、`core.strategy_health` 和 `core.temporal_data`。`core.temporal_data` 还被行情层使用，必须留在 `core`。
+`core/` 里有 14 个只服务于"信号观察与元层研究"的模块：12 个 `signal_*`（观察、结果标签、期望值账本、状态模型、轴归因、自适应等）加上 `temporal_labels`、`temporal_financing`，约 3500 行。实测依赖图（含函数内延迟导入）显示：`core/` 里**没有任何**其他模块导入它们；导入方只有 `backtest/`、`main.py`、`scripts/` 和测试。它们自身只向下依赖 `core.market.timeframes`、`core.reproducibility`、`core.market.data_versions`、`core.market.universe`、`core.strategy_health` 和 `core.market.temporal_data`。`core.market.temporal_data` 还被行情层使用，必须留在 `core`。
 
 ## 决定
 - 新建顶层包 `signal_meta/`，与 `ops` 同层（`ops | signal_meta`，互相独立），位于 `config` 之下、`core` 之上：可以导入 `core`，`core` 不得导入它；`ops` 与 `signal_meta` 也不得互相导入。import-linter 的分层契约、"core 不依赖其他包"契约和 `tests/test_architecture_boundaries.py` 均已加入。

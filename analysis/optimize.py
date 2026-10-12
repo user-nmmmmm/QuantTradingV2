@@ -16,7 +16,7 @@ except ImportError:  # Optional CLI presentation dependency.
     tabulate = None
 
 
-from core.data_fetcher import DataFetcher
+from core.market.data_fetcher import DataFetcher
 from backtest.engine import BacktestEngine
 from backtest.reporting import ReportGenerator
 from strategies.trend_breakout import TrendBreakoutStrategy, TrendBreakdownStrategy

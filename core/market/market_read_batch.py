@@ -5,7 +5,7 @@ import math
 from threading import Lock
 import time
 
-from core.request_budget import request_scope
+from core.market.request_budget import request_scope
 
 
 @dataclass(frozen=True)

@@ -10,7 +10,7 @@ from collections.abc import Mapping
 
 import pandas as pd
 
-from core.timeframes import as_utc_timestamp
+from core.market.timeframes import as_utc_timestamp
 
 
 def _stamp(value):

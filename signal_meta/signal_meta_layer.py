@@ -15,7 +15,7 @@ from signal_meta.signal_ev_ledger import EVLedger
 from signal_meta.signal_label_versions import OutcomeRevisionBook
 from signal_meta.signal_observation_types import finite, fingerprint, iso
 from core.reproducibility import canonical_json, sha256_bytes
-from core.timeframes import as_utc_timestamp, timeframe_delta
+from core.market.timeframes import as_utc_timestamp, timeframe_delta
 
 
 SCOPE = "independent_fixed_notional_signal_diagnostic"

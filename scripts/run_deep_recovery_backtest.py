@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 import numpy as np
 import pandas as pd
 from core.reproducibility import canonical_json, sha256_frame
-from core.data import DataHandler
+from core.market.data import DataHandler
 from scripts.run_revalidation60 import (
     load_inputs, protocol, run_one, save, concentration, source_hashes, write_research_outputs,
 )

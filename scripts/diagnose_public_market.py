@@ -90,8 +90,8 @@ def diagnose(*, host="api.binance.com", timeout_seconds=3., network=True):
         raise ValueError("an allowlisted official Binance spot host and timeout <= 10 seconds are required")
     import ccxt
     import requests
-    from core.quote_observations import _PublicBookFetcher, anonymous_public_auth
-    from core.request_budget import request_scope
+    from core.market.quote_observations import _PublicBookFetcher, anonymous_public_auth
+    from core.market.request_budget import request_scope
     url = f"https://{host}/api/v3/ping"
     client = _PublicBookFetcher("binance", "spot", "live", timeout_seconds)
     # Explicit selection of Binance's documented market-data service, never

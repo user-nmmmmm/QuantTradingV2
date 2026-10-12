@@ -220,7 +220,7 @@ MAIL-37-1 的原始“部分减仓永远不重试”判断需要区别于 MAIL-3
 **MAIL-13-2 · P1 · 仍存在** — [Paginate open-interest history through the requested end](https://github.com/user-nmmmmm/QuantTradingV2/pull/13#pullrequestreview-5005367713)
 
 - 当前核对：OI 历史仍只有一次 fetchOpenInterestHistory；end_date 仅过滤返回结果，未继续分页。
-- 代码/既有测试：[core/data_fetcher.py:455](../../../core/data_fetcher.py)；[core/data_fetcher.py:456](../../../core/data_fetcher.py)；[core/data_fetcher.py:475](../../../core/data_fetcher.py)。
+- 代码/既有测试：[core/market/data_fetcher.py:455](../../../core/market/data_fetcher.py)；[core/market/data_fetcher.py:456](../../../core/market/data_fetcher.py)；[core/market/data_fetcher.py:475](../../../core/market/data_fetcher.py)。
 - 验证方式：静态检查完整函数，无交易所调用。
 **MAIL-13-3 · P2 · 仍存在** — [Leave POC empty for zero-volume windows](https://github.com/user-nmmmmm/QuantTradingV2/pull/13#pullrequestreview-5005367713)
 
@@ -279,7 +279,7 @@ MAIL-37-1 的原始“部分减仓永远不重试”判断需要区别于 MAIL-3
 **MAIL-17-2 · P1 · 仍存在** — [Close positions when point-in-time membership ends](https://github.com/user-nmmmmm/QuantTradingV2/pull/17#pullrequestreview-5028474123)
 
 - 当前核对：--universe-file路径仍只是截断delisted_at之后bars，没有在最后可交易bar生成退出标记；引擎新增scheduled_exit/AnnouncedMarginDelisting能力，但普通PointInTimeUniverse.apply未接入，旧路径仍可能持仓带到总体期末。
-- 代码/既有测试：[core/universe.py:66](../../../core/universe.py)；[core/universe.py:79](../../../core/universe.py)；[main.py:433](../../../main.py)；[backtest/engine.py:443](../../../backtest/engine.py)；[backtest/engine.py:1061](../../../backtest/engine.py)。
+- 代码/既有测试：[core/market/universe.py:66](../../../core/market/universe.py)；[core/market/universe.py:79](../../../core/market/universe.py)；[main.py:433](../../../main.py)；[backtest/engine.py:443](../../../backtest/engine.py)；[backtest/engine.py:1061](../../../backtest/engine.py)。
 - 验证方式：静态追踪CSV universe输入→apply→引擎；已有scheduled_exit分支不能证明通用PIT路径已关闭缺口。
 **MAIL-17-3 · P2 · 仍存在** — [Reset borrow accrual when a short is flat](https://github.com/user-nmmmmm/QuantTradingV2/pull/17#pullrequestreview-5028474123)
 
@@ -361,12 +361,12 @@ MAIL-37-1 的原始“部分减仓永远不重试”判断需要区别于 MAIL-3
 **MAIL-21-1 · P1 · 仍存在** — [Reject Yahoo fallback data from the Binance cache](https://github.com/user-nmmmmm/QuantTradingV2/pull/21#pullrequestreview-5052647523)
 
 - 当前核对：通用下载路径仍可回退Yahoo且缓存脚本未验证实际来源/周期；新研究专用采集器不关闭此旧路径。
-- 代码/既有测试：[scripts/fetch_binance_data.py:115](../../../scripts/fetch_binance_data.py)；[core/data_fetcher.py:239](../../../core/data_fetcher.py)；[core/data_fetcher.py:251](../../../core/data_fetcher.py)。
+- 代码/既有测试：[scripts/fetch_binance_data.py:115](../../../scripts/fetch_binance_data.py)；[core/market/data_fetcher.py:239](../../../core/market/data_fetcher.py)；[core/market/data_fetcher.py:251](../../../core/market/data_fetcher.py)。
 - 验证方式：静态核对
 **MAIL-21-2 · P1 · 仍存在** — [Split intraday chunks below the fetcher's safety cap](https://github.com/user-nmmmmm/QuantTradingV2/pull/21#pullrequestreview-5052647523)
 
 - 当前核对：依旧按自然年分块；15m/5m全年超过单次10000根上限。
-- 代码/既有测试：[scripts/fetch_binance_data.py:92](../../../scripts/fetch_binance_data.py)；[scripts/fetch_binance_data.py:113](../../../scripts/fetch_binance_data.py)；[core/data_fetcher.py:324](../../../core/data_fetcher.py)。
+- 代码/既有测试：[scripts/fetch_binance_data.py:92](../../../scripts/fetch_binance_data.py)；[scripts/fetch_binance_data.py:113](../../../scripts/fetch_binance_data.py)；[core/market/data_fetcher.py:324](../../../core/market/data_fetcher.py)。
 - 验证方式：静态核对
 **MAIL-21-3 · P1 · 仍存在** — [Stop the matrix when a cache refresh fails](https://github.com/user-nmmmmm/QuantTradingV2/pull/21#pullrequestreview-5052647523)
 
@@ -508,7 +508,7 @@ MAIL-37-1 的原始“部分减仓永远不重试”判断需要区别于 MAIL-3
 **MAIL-32-2 · P1 · 仍存在** — [Normalize symbols before applying the generated universe](https://github.com/user-nmmmmm/QuantTradingV2/pull/32#pullrequestreview-5090380872)
 
 - 当前核对：生成 universe 仍改为连字符符号；apply 仍按原字符串 exact lookup，CLI没有统一 key。现有 PIT 测试未覆盖 slash/hyphen 同一币对混用。
-- 代码/既有测试：[scripts/repair_binance_point_in_time_data.py:67](../../../scripts/repair_binance_point_in_time_data.py)；[core/universe.py:82](../../../core/universe.py)；[main.py:435](../../../main.py)；[tests/test_phase2_reproducibility_audit.py:172](../../../tests/test_phase2_reproducibility_audit.py)。
+- 代码/既有测试：[scripts/repair_binance_point_in_time_data.py:67](../../../scripts/repair_binance_point_in_time_data.py)；[core/market/universe.py:82](../../../core/market/universe.py)；[main.py:435](../../../main.py)；[tests/test_phase2_reproducibility_audit.py:172](../../../tests/test_phase2_reproducibility_audit.py)。
 - 验证方式：已离线复现：membership BTC-USDT，data_map BTC/USDT，apply 返回空映射。 Git边界：缺口已提交；main.py 本地其它修改未解决。
 
 ### PR #33

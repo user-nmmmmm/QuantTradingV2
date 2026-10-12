@@ -89,7 +89,7 @@ class Strategy(ABC):
     @staticmethod
     def _just_entered(i, df, context):
         """A rolling history's local row number cannot measure position age."""
-        from core.timeframes import observed_bars_after
+        from core.market.timeframes import observed_bars_after
 
         timestamp = context.get("entry_timestamp")
         if timestamp is None:
@@ -114,7 +114,7 @@ class Strategy(ABC):
             return False
         last = context.get("entry_age_last_timestamp", timestamp)
         elapsed = context.get("entry_age_bars", 0)
-        from core.timeframes import as_utc_timestamp
+        from core.market.timeframes import as_utc_timestamp
         if as_utc_timestamp(df.index[i]) > as_utc_timestamp(last):
             elapsed += observed_bars_after(df, i, last)
             context["entry_age_bars"] = elapsed

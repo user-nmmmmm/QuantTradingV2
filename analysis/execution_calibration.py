@@ -17,7 +17,7 @@ import pandas as pd
 
 from core.metrics.execution import calculate_execution_quality, _field
 from analysis.paper_validation import block_bootstrap_indices
-from core.quote_observations import validate_quote
+from core.market.quote_observations import validate_quote
 
 
 def _utc(value):

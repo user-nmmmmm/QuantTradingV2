@@ -17,8 +17,8 @@ from typing import Any, Mapping
 
 import pandas as pd
 
-from core.timeframes import as_utc_timestamp
-from core.universe import normalize_symbol
+from core.market.timeframes import as_utc_timestamp
+from core.market.universe import normalize_symbol
 
 
 @dataclass(frozen=True)

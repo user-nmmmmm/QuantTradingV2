@@ -18,7 +18,7 @@ from core.runtime import MarketDataSlice
 from signal_meta.signal_adaptive_types import MetaReplayPolicy
 from signal_meta.signal_meta_layer import EXCLUDED_GATES
 from signal_meta.signal_observation_types import finite, fingerprint, iso
-from core.timeframes import as_utc_timestamp, timeframe_delta
+from core.market.timeframes import as_utc_timestamp, timeframe_delta
 
 
 ARMS = ("baseline", "gate", "sizing")

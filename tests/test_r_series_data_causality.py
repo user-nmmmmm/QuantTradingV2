@@ -9,10 +9,10 @@ import pandas as pd
 import pytest
 
 from analysis.walk_forward import WalkForwardConfig, _concat_unique, _run_window, candidate_warmup, run_walk_forward
-from core.data_fetcher import DataFetcher, IncompleteDataError, timeframe_delta
+from core.market.data_fetcher import DataFetcher, IncompleteDataError, timeframe_delta
 from core.factors.support_resistance import SupportResistanceFactors
 from core.factors.volume import VolumeFactors
-from core.universe import PointInTimeUniverse, UniverseMembership, normalize_symbol
+from core.market.universe import PointInTimeUniverse, UniverseMembership, normalize_symbol
 from scripts import fetch_binance_data as download
 from scripts import run_backtest_matrix as matrix
 from scripts.run_expanded_universe_backtest import fetch_symbol

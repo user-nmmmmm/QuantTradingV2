@@ -16,7 +16,7 @@ from signal_meta.signal_observation_types import (
     close_time, context_features, finite, fingerprint, iso,
 )
 from signal_meta.signal_outcomes import ForwardOutcomeTracker, ObservationCosts
-from core.temporal_data import strict_market_event, temporal_policy as parse_temporal_policy
+from core.market.temporal_data import strict_market_event, temporal_policy as parse_temporal_policy
 from signal_meta.temporal_labels import VersionedOutcomeTracker
 
 

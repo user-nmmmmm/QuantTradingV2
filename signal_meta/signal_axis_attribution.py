@@ -17,7 +17,7 @@ from typing import Mapping
 import pandas as pd
 
 from signal_meta.signal_observation_types import fingerprint
-from core.timeframes import as_utc_timestamp, timeframe_delta
+from core.market.timeframes import as_utc_timestamp, timeframe_delta
 
 
 def _number(value):

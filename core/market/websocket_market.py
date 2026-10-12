@@ -8,7 +8,7 @@ import time
 
 import pandas as pd
 
-from core.timeframes import timeframe_delta
+from core.market.timeframes import timeframe_delta
 
 
 class ClosedBarBuffer:

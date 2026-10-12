@@ -19,7 +19,7 @@ from backtest.reporting import ReportGenerator
 from backtest.reporting.serialization import write_metrics_json
 from backtest.reporting.operating_periods import requested_period_curve, split_execution_records
 from config.config import config
-from core.data import DataHandler
+from core.market.data import DataHandler
 from core.benchmarks import btc_eth_first_open_buy_hold
 from core.lots import CloseEvent
 from core.metrics import calculate_equity_metrics

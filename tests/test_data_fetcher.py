@@ -2,7 +2,7 @@ import os
 import unittest
 from unittest.mock import MagicMock, patch
 
-from core.data_fetcher import DataFetcher
+from core.market.data_fetcher import DataFetcher
 import pytest
 
 

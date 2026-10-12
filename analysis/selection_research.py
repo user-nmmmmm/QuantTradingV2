@@ -12,7 +12,7 @@ from typing import Iterable
 
 import pandas as pd
 
-from core.universe import normalize_symbol
+from core.market.universe import normalize_symbol
 
 
 def _time(value):

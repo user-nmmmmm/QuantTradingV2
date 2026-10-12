@@ -15,7 +15,7 @@ from core.broker.cost_model import market_slippage_components
 from signal_meta.signal_observation_types import (
     ObservationPolicy, SignalCandidateEvent, close_time, finite, iso,
 )
-from core.timeframes import as_utc_timestamp, timeframe_delta
+from core.market.timeframes import as_utc_timestamp, timeframe_delta
 
 
 @dataclass(frozen=True)

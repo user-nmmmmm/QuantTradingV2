@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 import pandas as pd
 
 from analysis.strategy_review import validate_prospective
-from core.data_versions import DataVersionStore
+from core.market.data_versions import DataVersionStore
 from core.reproducibility import sha256_file
 from scripts.roadmap_baseline import verify_source
 

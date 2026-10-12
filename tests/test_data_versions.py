@@ -4,7 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
-from core.data_versions import DataVersionStore
+from core.market.data_versions import DataVersionStore
 from analysis.factor_registry import (
     default_proxy_definitions, freeze_factor_registry, validate_factor_definition,
 )

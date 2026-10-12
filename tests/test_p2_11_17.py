@@ -12,7 +12,7 @@ import pandas as pd
 from config.config import config
 from core.events import TradingEventPipeline
 from ops.health import DataHealthMonitor
-from core.market_data import HistoricalMarketDataAdapter
+from core.market.market_data import HistoricalMarketDataAdapter
 from core.portfolio import Portfolio
 from core.risk import RiskManager
 from core.runtime import EventProcessor, MarketDataSlice

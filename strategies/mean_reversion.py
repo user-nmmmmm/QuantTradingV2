@@ -7,7 +7,7 @@ from core.indicators import Indicators
 from core.factors import MomentumFactors
 from strategies.base import Strategy
 from core.entry_audit import note
-from core.timeframes import observed_bars_after, as_utc_timestamp
+from core.market.timeframes import observed_bars_after, as_utc_timestamp
 
 """
 震荡均值回归策略（Range Mean Reversion）模块

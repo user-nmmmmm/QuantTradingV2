@@ -23,7 +23,7 @@ from core.domain import OrderIntent
 from core.events import OrderEvent
 from core.logger import get_logger
 from core.risk.reservation import OpeningRiskRejected, ensure_opening_reservation
-from core.timeframes import as_utc_timestamp
+from core.market.timeframes import as_utc_timestamp
 
 logger = get_logger(__name__)
 

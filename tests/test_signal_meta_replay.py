@@ -7,7 +7,7 @@ import pytest
 
 from backtest.signal_meta_replay import replay_signal_meta
 from core.broker import Broker
-from core.market_data import HistoricalMarketDataAdapter
+from core.market.market_data import HistoricalMarketDataAdapter
 from core.portfolio import Portfolio
 from signal_meta.signal_adaptive_types import MetaReplayPolicy
 from signal_meta.signal_observation_types import fingerprint, iso

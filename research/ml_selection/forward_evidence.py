@@ -290,7 +290,7 @@ def collect_public_forward(output_dir, symbols=("BTC/USDT", "ETH/USDT"), *, hist
     Today's TRADING status supports current membership only. It supplies no
     past listing, delisting or point-in-time historical universe assertion.
     """
-    from core.data_fetcher import DataFetcher
+    from core.market.data_fetcher import DataFetcher
     if type(history_days) is not int or history_days < 61 or not symbols:
         raise ValueError("forward collection needs symbols and at least 61 warmup days")
     symbols = list(dict.fromkeys(symbols))

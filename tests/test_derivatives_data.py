@@ -8,7 +8,7 @@ import pytest
 
 from core.accounts import AccountMode
 from core.broker import Broker
-from core.derivatives_data import (
+from core.market.derivatives_data import (
     DerivativesBundle, LinearContractSpec, load_derivatives_bundle,
     merge_derivative_features, replay_funding_settlements, validate_settlements,
 )

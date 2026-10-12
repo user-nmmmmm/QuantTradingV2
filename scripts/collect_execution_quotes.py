@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 from analysis.execution_calibration import execution_sample_report
 from analysis.paper_study import write_json
-from core.quote_observations import BackgroundQuoteSampler, QuoteObservationStore, utc_now, read_quote_observations
+from core.market.quote_observations import BackgroundQuoteSampler, QuoteObservationStore, utc_now, read_quote_observations
 
 
 def main(argv=None):
