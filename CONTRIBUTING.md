@@ -12,10 +12,16 @@ The editable install is the supported mode: many modules resolve `config/`,
 `data/` and `reports/` relative to the checkout, so wheels are not supported
 yet. Do not add `sys.path` tweaks to scripts or tests; import the packages
 directly. Console entry points: `quant-backtest`, `quant-live`,
-`quant-resolve-order`, `quant-dashboard`.
+`quant-resolve-order`, `quant-dashboard`, `quant-dev`.
 CI uses Python 3.11; the repository pin in `.python-version` is for local use.
 
 ## Before opening a PR
+One command runs what CI's `quality` job runs, in the same order, and prints a summary:
+```bash
+python scripts/dev.py check              # or `quant-dev check`; add --no-tests to skip the long run
+python scripts/dev.py list               # all tasks (lint, types, imports, ratchet, links, fast, ...)
+```
+The individual commands:
 ```bash
 python -m ruff check .
 python scripts/quality_ratchet.py check
@@ -29,6 +35,9 @@ python scripts/check_markdown_links.py
 
 Optional: `python -m pip install pre-commit && pre-commit install` runs the same checks
 before each commit. How the quality gates and the ratchet work: `docs/quality.md`.
+
+Decisions that shaped these rules are recorded in `docs/adr/`. A dev container
+(`.devcontainer/`) is provided for a ready-made Linux/Python 3.11 environment (not exercised in CI).
 
 ## Rules of thumb
 - One PR, one kind of change: moving files, behavior changes and doc edits are

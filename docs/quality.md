@@ -15,6 +15,8 @@
 
 ## 日常使用
 
+一条命令跑完与 CI `quality` 作业相同的检查并给出汇总：`python scripts/dev.py check`（`--no-tests` 跳过测试，`list` 查看所有任务；也可用 `quant-dev`）。注意：断链检查只看已被 git 跟踪的文件，新增的文档要先 `git add`。
+
 ```bash
 python scripts/quality_ratchet.py check            # 与 CI 相同
 python scripts/quality_ratchet.py check --tool ruff

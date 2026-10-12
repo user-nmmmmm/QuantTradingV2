@@ -19,6 +19,7 @@ quant-backtest = "main:main"
 quant-live = "run_live:main"
 quant-resolve-order = "resolve_live_order:main"
 quant-dashboard = "dashboard.__main__:main"
+quant-dev = "scripts.dev:main"
 
 # Runtime pins stay in requirements.txt (verified against requirements.lock.txt
 # by scripts/verify_lock.py); pyproject reads them so there is one source.
