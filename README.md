@@ -440,8 +440,8 @@ QuantTradingV1/
 └── tests/                      # pytest 测试：基线回归、无前视、订单生命周期、各 Gate
 ```
 
-`core/incident_journal.py`、`core/status_snapshot.py` 和 `core/startup_preflight.py`
-仍提供旧导入路径；实现位于 `core/operations/`。
+`ops/incident_journal.py`、`ops/status_snapshot.py` 和 `ops/startup_preflight.py`
+仍提供旧导入路径；实现位于 `ops/operations/`。
 
 ---
 
@@ -699,7 +699,7 @@ python -m dashboard --status reports/live_status.json --alerts reports/live_aler
 | `check_environment.py` | 环境自检 |
 | `verify_lock.py` | 依赖锁（`requirements.lock.txt`）校验 |
 
-Phase 6 准入证据的 fail-closed 评估由 `python -m core.admission_gates` 提供。
+Phase 6 准入证据的 fail-closed 评估由 `python -m ops.admission_gates` 提供。
 
 ### 5.4 环境变量
 
@@ -839,7 +839,7 @@ python main.py --source synthetic --days 365 --seed 42 --report-profile full
 | `SIDEWAYS` | `Cash` | 区间均值回归重新设计中（T-4.6） |
 | `VOLATILE` | `Cash` | 波动反转仅隔离研究（T-4.7） |
 
-`core/strategy_governance.py` 在真实资金入口要求路由策略的治理状态为 `admitted`。
+`ops/strategy_governance.py` 在真实资金入口要求路由策略的治理状态为 `admitted`。
 当前 `TrendBreakout=paused_revalidation`，因此上述映射不表示真实资金可运行。
 状态切换不由 Router 隐式强平：空仓标的切换到不同策略映射时撤销旧入场订单并冷却；
 已有仓位由开仓策略的退出规则、保护性止损、显式 `MaxHoldingPeriod` 或账户风控管理。
@@ -867,8 +867,8 @@ python main.py --source synthetic --days 365 --seed 42 --report-profile full
   （`core/risk/`）在组合层面统一管控总杠杆与单标的集中度（默认 `max_pos_size_pct=30%`）。
   同一时间戳的多个候选信号由 `PortfolioSignalAllocator` 按确定性顺序分配资金。
   详见 [`docs/modules/core.md`](docs/modules/core.md)。
-- **实盘准入**：真实资金准入需要 R7 验收证据（`core/r7_acceptance.py`）与
-  Phase 6 影子/纸面运行证据（`core/admission_gates.py`，fail-closed：证据不存在即视为未通过），
+- **实盘准入**：真实资金准入需要 R7 验收证据（`ops/r7_acceptance.py`）与
+  Phase 6 影子/纸面运行证据（`ops/admission_gates.py`，fail-closed：证据不存在即视为未通过），
   并在 `run_live.py --live` 时通过 `--r8-evidence` / `--rollback-snapshot` 强制校验。
 
 ---

@@ -7,9 +7,9 @@
 | 层 | 检查 | 范围 | 当前状态 |
 |---|---|---|---|
 | 硬门槛 | `ruff check .`（只含 `E9,F63,F7,F82` 语法/未定义名级错误）、`mypy` 三个契约文件 | 全仓库 / `core/domain.py`、`core/runtime.py`、`live_trading/execution_adapter.py` | 0 违规，必须保持 |
-| **棘轮** | `scripts/quality_ratchet.py check`：ruff 的 `F,E4,E7,E9,B`（不含 `B905`）与 mypy（`core backtest live_trading strategies router composition`） | 全仓库 / 上述六个包 | 存量记入基线：ruff 621 项、mypy 869 项；**只许减少，不许增加** |
+| **棘轮** | `scripts/quality_ratchet.py check`：ruff 的 `F,E4,E7,E9,B`（不含 `B905`）与 mypy（`core ops backtest live_trading strategies router composition`） | 全仓库 / 上述七个包 | 存量记入基线：ruff 621 项、mypy 869 项；**只许减少，不许增加** |
 | 导入方向 | `lint-imports`（分层契约 + `core` 不依赖其他包），详见 [架构边界说明](architecture_review.md) | 全部项目包 | 4 条已知例外，只减不增 |
-| 覆盖率 | `pytest --cov=core --cov=backtest --cov=live_trading --cov-fail-under=85` | 三个包 | 实测约 89%；门槛从 55% 提到 85% |
+| 覆盖率 | `pytest --cov=core --cov=ops --cov=backtest --cov=live_trading --cov-fail-under=85` | 四个包 | 实测约 89%；门槛从 55% 提到 85% |
 
 棘轮按"文件 + 规则"计数（忽略行号），所以无关修改不会打扰它。基线在 `scripts/quality_baseline.json`，规则配置在 `pyproject.toml` 的 `[tool.quality_ratchet]`。mypy 固定按 `linux` / `3.11` 分析，开发机和 CI 的计数一致。
 

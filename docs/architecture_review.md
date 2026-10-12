@@ -18,7 +18,7 @@
 
 ## 导入方向（import-linter）
 
-包之间的依赖方向由 `pyproject.toml` 的 `[tool.importlinter]` 声明并在 CI 里用 `lint-imports` 检查（包括函数内的延迟导入）。分层从高到低：`dashboard` → `research | analysis` → `backtest | live_trading` → `composition` → `router` → `strategies` → `config` → `core`；高层可以导入低层，反之不行，同层的 `|` 两侧互相独立。另有一条规则禁止 `core` 依赖任何其他项目包。`scripts/` 与 `tests/` 在规则之外。
+包之间的依赖方向由 `pyproject.toml` 的 `[tool.importlinter]` 声明并在 CI 里用 `lint-imports` 检查（包括函数内的延迟导入）。分层从高到低：`dashboard` → `research | analysis` → `backtest | live_trading` → `composition` → `router` → `strategies` → `config` → `ops` → `core`；高层可以导入低层，反之不行，同层的 `|` 两侧互相独立。另有一条规则禁止 `core` 依赖任何其他项目包。`scripts/` 与 `tests/` 在规则之外。
 
 目前有 4 条"向上"的导入作为已知例外登记（`ignore_imports`），都是函数内的延迟导入，且只许减少、不许增加（`tests/test_architecture_boundaries.py::test_layer_exceptions_do_not_grow`）：
 

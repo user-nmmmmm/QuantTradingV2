@@ -17,6 +17,11 @@ FORBIDDEN = {
         "analysis",
         "research",
         "dashboard",
+        "ops",
+    },
+    "ops": {
+        "config", "router", "strategies", "composition", "backtest", "live_trading", "analysis", "research",
+        "dashboard",
     },
     "strategies": {"router", "backtest", "live_trading", "config"},
     "router": {"backtest", "live_trading", "config"},

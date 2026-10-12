@@ -8,7 +8,7 @@
 将证据保存为一个 JSON 对象，然后运行：
 
 ~~~powershell
-python -m core.admission_gates --input reports/phase6/evidence_bundle.json --output reports/phase6/phase6_report.json
+python -m ops.admission_gates --input reports/phase6/evidence_bundle.json --output reports/phase6/phase6_report.json
 ~~~
 
 退出码 `0` 表示输入证据在八项任务的计算门槛中全部通过；该工具不能独立认证调用方输入的真实性。退出码 `2` 表示至少一个门槛未通过，
@@ -50,7 +50,7 @@ python -m core.admission_gates --input reports/phase6/evidence_bundle.json --out
 | `approval` | `approved=true`、非空 `operator`、带时区的 `approved_at/expires_at`、完整且相同的 `identity/scope`、`phase6_bundle_sha256` |
 | `phase6_bundle` | 本文前述原始 signals、paper、生命周期、执行校准、监控、holdout 决定与人工裁决输入；不使用已经计算的总体通过标志替代原始观测 |
 
-`phase6_bundle_sha256` 使用 [canonical_bundle_sha256](../core/gray_release.py) 的规范序列化：键排序、紧凑分隔符、UTF-8、`ensure_ascii=False`、`allow_nan=False` 后计算 SHA-256。封装文件的外部 SHA-256 则直接绑定实际文件字节。解析拒绝重复 JSON 键和非有限数字，包括指数溢出的数字。
+`phase6_bundle_sha256` 使用 [canonical_bundle_sha256](../ops/gray_release.py) 的规范序列化：键排序、紧凑分隔符、UTF-8、`ensure_ascii=False`、`allow_nan=False` 后计算 SHA-256。封装文件的外部 SHA-256 则直接绑定实际文件字节。解析拒绝重复 JSON 键和非有限数字，包括指数溢出的数字。
 
 `phase6_bundle.admission_approval` 中的 `approved/operator/approved_at` 必须与封装批准一致；`holdout_report` 还须带匹配的 `source_sha256/config_sha256/strategy` 及带时区的 `evaluated_at`。所有观测和裁决时间必须不晚于人工批准时间，批准必须已经生效且尚未过期，不能预填未来 56 日记录。信号中的策略和币对必须匹配本次唯一运行范围。
 

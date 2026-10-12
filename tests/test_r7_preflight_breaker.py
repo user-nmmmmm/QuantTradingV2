@@ -4,7 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from core.live_safety import StartupSafetyPolicy
-from core.startup_preflight import build_startup_report
+from ops.startup_preflight import build_startup_report
 
 
 class RestoredBreakerPreflightTests(unittest.TestCase):

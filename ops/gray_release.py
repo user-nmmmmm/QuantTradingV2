@@ -14,7 +14,7 @@ from typing import Any, Mapping
 
 from core.live_safety import SafetyConfigurationError, StartupSafetyPolicy, verify_live_permissions
 from core.sqlite_backup import validate_database
-from core.admission_gates import evaluate_phase6
+from ops.admission_gates import evaluate_phase6
 
 
 def canonical_bundle_sha256(value: Mapping[str, Any]) -> str:

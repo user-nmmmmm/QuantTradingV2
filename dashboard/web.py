@@ -23,7 +23,7 @@ from threading import Lock
 from typing import Any
 from urllib.parse import parse_qs, urlsplit
 
-from core.status_snapshot import load_dashboard
+from ops.status_snapshot import load_dashboard
 
 from dashboard.web_demo import demo_snapshot
 from dashboard.visual_data import list_backtests, list_markets, load_backtest, load_candles, load_trades

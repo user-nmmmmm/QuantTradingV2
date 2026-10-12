@@ -4,7 +4,7 @@ import unittest
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from core.r7_acceptance import audit_r7
+from ops.r7_acceptance import audit_r7
 
 
 class R7AcceptanceTests(unittest.TestCase):

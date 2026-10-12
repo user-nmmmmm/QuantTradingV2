@@ -186,7 +186,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **来源：** [docs/codex_mail_findings_20260920.json（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/codex_mail_findings_20260920.json)。
 
-**修改范围：** [core/admission_gates.py](../core/admission_gates.py)。
+**修改范围：** [ops/admission_gates.py](../ops/admission_gates.py)。
 
 **开发步骤：**
 
@@ -1499,7 +1499,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **来源：** [docs/archive/2026-10-doc-consolidation/position_management_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/position_management_plan.md)；[docs/strategy_health_contract.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/strategy_health_contract.md)；[docs/signal_meta_layer.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/p23_signal_meta_layer.md)。
 
-**修改范围：** [core/strategy_health.py](../core/strategy_health.py)、[core/strategy_governance.py](../core/strategy_governance.py)、[core/signal_observation.py](../core/signal_observation.py)、[backtest/signal_meta_replay.py](../backtest/signal_meta_replay.py)。
+**修改范围：** [core/strategy_health.py](../core/strategy_health.py)、[ops/strategy_governance.py](../ops/strategy_governance.py)、[core/signal_observation.py](../core/signal_observation.py)、[backtest/signal_meta_replay.py](../backtest/signal_meta_replay.py)。
 
 **开发步骤：**
 
@@ -1575,7 +1575,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **来源：** [docs/archive/2026-10-doc-consolidation/current_strategy_remediation_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/current_strategy_remediation_roadmap.md)；[docs/archive/2026-10-doc-consolidation/strategy_development_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/strategy_development_roadmap.md)；[reports/strategy_review_20260919/prospective_protocol.json](../reports/strategy_review_20260919/prospective_protocol.json)。
 
-**修改范围：** [analysis/walk_forward.py](../analysis/walk_forward.py)、[analysis/research_validation.py](../analysis/research_validation.py)、[scripts/run_strategy_review.py](../scripts/run_strategy_review.py)、[core/strategy_governance.py](../core/strategy_governance.py)。
+**修改范围：** [analysis/walk_forward.py](../analysis/walk_forward.py)、[analysis/research_validation.py](../analysis/research_validation.py)、[scripts/run_strategy_review.py](../scripts/run_strategy_review.py)、[ops/strategy_governance.py](../ops/strategy_governance.py)。
 
 **开发步骤：**
 
@@ -1614,7 +1614,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **来源：** [docs/archive/2026-10-doc-consolidation/live_trading_remediation_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/live_trading_remediation_plan.md)；[docs/r6_operations.md](r6_operations.md)；[docs/r7_sandbox_runbook.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/r7_sandbox_runbook.md)。
 
-**修改范围：** [live_trading/state_export.py](../live_trading/state_export.py)、[core/alerting.py](../core/alerting.py)、[core/supervisor.py](../core/supervisor.py)、[core/sqlite_utils.py](../core/sqlite_utils.py)、[dashboard](../dashboard)、[run_live.py](../run_live.py)。
+**修改范围：** [live_trading/state_export.py](../live_trading/state_export.py)、[core/alerting.py](../core/alerting.py)、[ops/supervisor.py](../ops/supervisor.py)、[core/sqlite_utils.py](../core/sqlite_utils.py)、[dashboard](../dashboard)、[run_live.py](../run_live.py)。
 
 **开发步骤：**
 
@@ -1654,7 +1654,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **来源：** [docs/unified_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/unified_roadmap.md)；[docs/phase6_operations.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/phase6_operations.md)；[docs/r7_sandbox_runbook.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/r7_sandbox_runbook.md)。
 
-**修改范围：** [core/admission_gates.py](../core/admission_gates.py)、[core/r7_acceptance.py](../core/r7_acceptance.py)、[tests/test_exchange_sandbox_e2e.py](../tests/test_exchange_sandbox_e2e.py)、[run_live.py](../run_live.py)。
+**修改范围：** [ops/admission_gates.py](../ops/admission_gates.py)、[ops/r7_acceptance.py](../ops/r7_acceptance.py)、[tests/test_exchange_sandbox_e2e.py](../tests/test_exchange_sandbox_e2e.py)、[run_live.py](../run_live.py)。
 
 **开发步骤：**
 
@@ -1694,7 +1694,7 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 
 **来源：** [docs/unified_roadmap.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/unified_roadmap.md)；[docs/archive/2026-10-doc-consolidation/live_trading_remediation_plan.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/live_trading_remediation_plan.md)；[docs/phase6_operations.md（快照）](archive/2026-09-roadmap-rebaseline/sources/docs/phase6_operations.md)。
 
-**修改范围：** [core/gray_release.py](../core/gray_release.py)、[core/admission_gates.py](../core/admission_gates.py)、[run_live.py](../run_live.py)。
+**修改范围：** [ops/gray_release.py](../ops/gray_release.py)、[ops/admission_gates.py](../ops/admission_gates.py)、[run_live.py](../run_live.py)。
 
 **开发步骤：**
 

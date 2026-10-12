@@ -180,7 +180,7 @@ Two independent channels, both driven by the same bot credentials:
    $env:TELEGRAM_BOT_TOKEN = "<bot token from @BotFather>"
    $env:TELEGRAM_CHAT_ID = "<chat id — message the bot once, then check
      https://api.telegram.org/bot<token>/getUpdates for the numeric id>"
-   python -m core.telegram_heartbeat --status reports/live_status.json --alerts reports/live_alerts.jsonl
+   python -m ops.telegram_heartbeat --status reports/live_status.json --alerts reports/live_alerts.jsonl
    ~~~
 
    Schedule this on a timer (every 1-4 hours is typical for a sandbox soak

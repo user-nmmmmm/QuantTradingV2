@@ -2,6 +2,8 @@
 
 `core/` 提供行情适配、状态识别、共享决策运行时、经纪商接口及具体实现、订单风控与运维基础设施。回测（`backtest/`）和实盘（`live_trading/`）共用 `EventProcessor`、路由、策略和部分领域类型；各自的调度、执行、持久化和安全流程仍由对应模式实现。部分具体适配器也位于 `core/`，不能把整个 `core/` 视为纯领域层。
 
+> **2026-10-12：** 准入、灰度、健康策略、预检与事故记录等 12 个纯运维/治理模块已移到顶层包 `ops/`（`ops.admission_gates`、`ops.gray_release`、`ops.health`、`ops.operations` …，旧的 `core.*` 路径不再保留）；下文中对应小节里的 `ops/…` 路径即新位置。`core.alerting`、`core.live_safety`、`core.runtime_identity`、`core.redaction`、`core.sqlite_backup` 被交易内核依赖，仍留在 `core/`。迁移决定见 [ADR 0007](../adr/0007-ops-package.md)。
+
 本文档按子系统说明职责、主要接口和边界行为。调度与启动流程分别见 [回测模块](backtest.md) 和 [实盘模块](live_trading.md)；此处重点解释共享组件之间的契约。涉及时间版本的数据接口应连同证据来源一起阅读，开启 `strict` 或保存快照本身不代表已通过研究准入。
 
 ---
@@ -231,20 +233,20 @@
 
 ## 七、可观测性、运维安全与验收
 
-`core/operations/` 保存事故记录、只读状态快照和启动前检查的实现。
-`core/incident_journal.py`、`core/status_snapshot.py`、`core/startup_preflight.py`
-保留为旧导入路径的兼容入口；新代码可直接从 `core.operations` 的对应模块导入。
+`ops/operations/` 保存事故记录、只读状态快照和启动前检查的实现。
+`ops/incident_journal.py`、`ops/status_snapshot.py`、`ops/startup_preflight.py`
+保留为旧导入路径的兼容入口；新代码可直接从 `ops.operations` 的对应模块导入。
 
 ### `core/alerting.py` — 告警
 `AlertSink` 协议 + 多种实现：`LoggingAlertSink`、`JsonlAlertSink`（本地持久追踪，fsync）、`WebhookAlertSink`、`TelegramAlertSink`（纯文本，不用 `parse_mode`，避免 Markdown 注入）。`CompositeAlertSink` 扇出并隔离各 sink 的失败。`HysteresisAlertSink` 用"稳定上下文哈希"（排除 timestamp、retry_attempts 等易变字段）对重复告警去重，按 trigger/suppress/ack 状态机运作，每 `summary_every`（默认 9）次发一次抑制汇总。`build_default_alert_sink(...)` 按环境变量自动组装 Logging+Jsonl+可选 Webhook（`LIVE_ALERT_WEBHOOK_URL`）+可选 Telegram（`TELEGRAM_BOT_TOKEN`/`CHAT_ID`），外层包一层 Hysteresis。
 
-### `core/health.py` — 数据/同步健康监控
+### `ops/health.py` — 数据/同步健康监控
 `DataHealthMonitor`：失败关闭式评估行情新鲜度、完整性，以及账户/订单同步的陈旧程度，决定是否允许实盘承担新风险。`DataHealthPolicy` 定义各类阈值（默认：行情最大滞后 1.5 倍周期、同步最大陈旧 2 分钟、缺口容差 1.5 倍周期等）。`.assess(...)` 逐标的检查缺失数据、未来时间戳、无已收盘 bar、时间戳倒退（有状态追踪）、近期窗口缺口、陈旧；再检查账户/订单同步的陈旧/缺失/未来时间戳。**任何非空的 reasons 列表都判定为不健康**。
 
-### `core/operations/incident_journal.py` — 事故处置记录
+### `ops/operations/incident_journal.py` — 事故处置记录
 `record_incident(...)` 追加操作员对 R7 熔断/告警事件的处置记录（已解决/已说明）到只追加的 JSONL 日志（fsync）。`event_key` 必须是 `"<timestamp>|<event>"` 格式，被 `r7_acceptance.py` 用来检查未解决的熔断。
 
-### `core/operations/status_snapshot.py` — 只读实盘状态快照
+### `ops/operations/status_snapshot.py` — 只读实盘状态快照
 `load_dashboard(...)` 读取 `live_status.json` 与告警记录，供 Dashboard 等展示层消费；状态文件缺失、损坏或结构无效时返回 `RISK_HALTED`，不返回未经验证的权益和持仓数值。`recent_alerts(...)` 从 JSONL 告警中读取最近的有效记录。
 
 ### `core/logger.py` — 日志
@@ -253,8 +255,8 @@
 ### `core/metrics/` — 回测指标库
 大型纯函数库：夏普比率、回撤、盈亏比、交易质量、敞口、信号漏斗、成本敏感性、归因、基准对比、滚动/分段收益、R 倍数/SQN、训练测试切分、滚动窗口、bootstrap 置信区间、蒙特卡洛交易序列重排、Benjamini-Hochberg FDR 校正等。多数函数返回带 `status` 字段（`ok`/`insufficient`/`undefined`）的字典而非直接抛错，便于小样本下优雅降级。`walk_forward_windows`/`train_test_split_returns` 严格按时间顺序切分，避免未来函数泄漏；`bootstrap_return_distribution`/`monte_carlo_trade_sequence` 用固定种子 42 保证可复现。
 
-### `core/telegram_heartbeat.py` — 定期心跳报告
-和 `alerting.py` 的事件触发型告警不同，这是**周期性**（由 cron 驱动）的"系统仍在运行"状态汇报。`build_heartbeat_message(dashboard)` 汇总状态/健康/权益/现金/持仓/告警；若状态文件本身无效会明确报告 `RISK_HALTED`。`send_heartbeat(...)` 通过 `core.status_snapshot.load_dashboard` 兼容入口加载数据，经 `alerting.send_telegram_message` 发送。
+### `ops/telegram_heartbeat.py` — 定期心跳报告
+和 `alerting.py` 的事件触发型告警不同，这是**周期性**（由 cron 驱动）的"系统仍在运行"状态汇报。`build_heartbeat_message(dashboard)` 汇总状态/健康/权益/现金/持仓/告警；若状态文件本身无效会明确报告 `RISK_HALTED`。`send_heartbeat(...)` 通过 `ops.status_snapshot.load_dashboard` 兼容入口加载数据，经 `alerting.send_telegram_message` 发送。
 
 ### `core/live_broker/retry.py` — 重试包装器
 `with_retry(fn, max_attempts=3, base_delay=0.5, max_delay=8.0, retryable=is_ambiguous_error)`：带指数退避的有界重试，默认只重试"不确定"类错误（网络超时等），延迟为 `min(base_delay * 2**attempt, max_delay)`。
@@ -262,7 +264,7 @@
 ### `research/audit/reconciliation_job.py` — 日终对账
 `EODReconciliationJob` 调用 `research/audit/ledger.py` 的 `PortfolioProjection.reconcile`，对比外部交易所现金/持仓，原子性地把 JSON 报告落盘到 `<output_dir>/<日期>_<账户>.json`（临时文件 + `os.replace`）。要求 `checked_at` 带时区。产出被 `r7_acceptance.py` 消费，要求整个 soak 期内每天零偏差。
 
-### `core/operations/startup_preflight.py` — 启动前检查
+### `ops/operations/startup_preflight.py` — 启动前检查
 `build_startup_report(policy, credentials, engine)` 生成不含密钥明文的 JSON"证据"报告（凭据是否存在、sandbox/live 模式、一键停机是否未激活、账户/订单同步基线、健康基线、熔断状态）。`write_startup_report(...)` 原子写入（临时文件 + `os.replace` + fsync）。
 
 ### `composition/factory.py` — 组件装配工厂
@@ -271,7 +273,7 @@
 ### `core/live_safety.py` — 实盘安全闸门
 `StartupSafetyPolicy.from_environment(...)` 从 `QUANT_ALLOWED_EXCHANGES/ACCOUNT_TYPES/SYMBOLS` 和 `QUANT_{SANDBOX,LIVE}_MAX_ORDER_NOTIONAL/MAX_DAILY_NEW_RISK` 读取配置（sandbox 有默认值 1000/5000；**live 模式没有默认值，必须显式配置**，否则大声报错而不是静默套用 sandbox 的宽松限制）。账户类型白名单默认只含 `"spot"`。`OrderSafetyGuard.assert_order_allowed(...)` 强制一键停机、标的白名单、正价格、单笔名义上限、按自身 clock 每日重置的新增风险预算。`verify_live_permissions(exchange, account_type)` 要求交易所暴露权限查询接口，并断言提现权限已关闭、交易权限已开启。
 
-### `core/r7_acceptance.py` — R7 沙盒验收
+### `ops/r7_acceptance.py` — R7 沙盒验收
 `audit_r7(...)` 失败关闭式审计工具，验证退出 R7 沙盒 soak 测试所需的全部证据：区间内每天的对账报告零偏差、所有熔断/告警都已解决或说明（交叉核对 `incident_journal.py`）、必需的 P0/P1 任务（`G11`–`G16`）均已关闭。CLI 输出 JSON 报告，按 `ok` 决定退出码 0/2。
 
 ---

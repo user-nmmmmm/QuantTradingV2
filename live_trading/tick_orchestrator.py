@@ -13,7 +13,7 @@ from typing import Any, Dict, Optional
 import pandas as pd
 
 from core.domain import OrderStatus
-from core.health import HealthReason
+from ops.health import HealthReason
 from core.logger import get_logger
 from core.market_data_errors import MarketDataRefreshError
 from core.protective_orders import (
