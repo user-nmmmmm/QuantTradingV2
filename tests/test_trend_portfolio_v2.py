@@ -14,7 +14,7 @@ from core.candidate_scoring import CandidateScorePolicy
 from core.portfolio import Portfolio
 from core.protective_stops import ProtectiveStopPolicy
 from core.risk import RiskManager
-from core.signal_observation import strategy_identity
+from signal_meta.signal_observation import strategy_identity
 from core.state import MarketState
 from core.strategy_health import HealthStatus, StrategyHealthPolicy
 from strategies.trend_breakout import TrendBreakoutStrategy

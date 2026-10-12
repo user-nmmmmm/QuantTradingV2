@@ -15,7 +15,7 @@ from numbers import Real
 import numpy as np
 import pandas as pd
 
-from core.signal_observation_types import canonical, fingerprint
+from signal_meta.signal_observation_types import canonical, fingerprint
 from core.timeframes import as_utc_timestamp, timeframe_delta
 
 

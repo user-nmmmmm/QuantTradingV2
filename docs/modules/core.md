@@ -3,6 +3,8 @@
 `core/` 提供行情适配、状态识别、共享决策运行时、经纪商接口及具体实现、订单风控与运维基础设施。回测（`backtest/`）和实盘（`live_trading/`）共用 `EventProcessor`、路由、策略和部分领域类型；各自的调度、执行、持久化和安全流程仍由对应模式实现。部分具体适配器也位于 `core/`，不能把整个 `core/` 视为纯领域层。
 
 > **2026-10-12：** 准入、灰度、健康策略、预检与事故记录等 12 个纯运维/治理模块已移到顶层包 `ops/`（`ops.admission_gates`、`ops.gray_release`、`ops.health`、`ops.operations` …，旧的 `core.*` 路径不再保留）；下文中对应小节里的 `ops/…` 路径即新位置。`core.alerting`、`core.live_safety`、`core.runtime_identity`、`core.redaction`、`core.sqlite_backup` 被交易内核依赖，仍留在 `core/`。迁移决定见 [ADR 0007](../adr/0007-ops-package.md)。
+>
+> **2026-10-12（B1）：** 信号观察与元层研究的 14 个模块（12 个 `signal_*`、`temporal_labels`、`temporal_financing`）已移到顶层包 `signal_meta/`，模块名不变（`signal_meta.signal_observation` …），旧的 `core.*` 路径不再保留；`core.temporal_data` 仍在 `core`。决定见 [ADR 0011](../adr/0011-signal-meta-package.md)。
 
 本文档按子系统说明职责、主要接口和边界行为。调度与启动流程分别见 [回测模块](backtest.md) 和 [实盘模块](live_trading.md)；此处重点解释共享组件之间的契约。涉及时间版本的数据接口应连同证据来源一起阅读，开启 `strict` 或保存快照本身不代表已通过研究准入。
 
@@ -72,7 +74,7 @@
 
 `as_of(...)` 的 `temporal_source_versions` 属性保留带哈希的版本证据，包括撤回事实。指标计算期间暂时移走这份大映射，策略计算视图也不携带它，避免 pandas 切列时反复复制；原始事件保留证据，供标签观察器核对可用性。
 
-### `core/temporal_labels.py` / `core/temporal_financing.py` — 版本化标签与融资证据
+### `signal_meta/temporal_labels.py` / `signal_meta/temporal_financing.py` — 版本化标签与融资证据
 
 - `VersionedOutcomeTracker` 接收 strict 历史，核对源记录哈希、身份、可用时间和完整持有窗口，复用既有收益计算器生成固定名义金额诊断。`results` 提供各候选/持有期的最新结果，`revisions` 保留全部历史。
 - 标签 `available_at` 不能早于候选可用时间、源版本可用时间（local 还包括观察时间）、窗口收盘和首次实际计算的观察时刻。缺失证据需等待补齐，`finish(...)` 不能用文件结束或墙钟时间创造可用性。

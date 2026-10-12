@@ -7,12 +7,12 @@ import pandas as pd
 import pytest
 
 from core.runtime import MarketDataSlice
-from core.signal_observation import SignalObserver
-from core.signal_observation_types import ObservationPolicy, fingerprint, iso
-from core.signal_outcomes import ForwardOutcomeTracker, ObservationCosts
+from signal_meta.signal_observation import SignalObserver
+from signal_meta.signal_observation_types import ObservationPolicy, fingerprint, iso
+from signal_meta.signal_outcomes import ForwardOutcomeTracker, ObservationCosts
 from core.state import MarketState
 from core.temporal_data import TemporalOHLCV
-from core.temporal_labels import LABEL_PROTOCOL, TemporalLabelError, VersionedOutcomeTracker
+from signal_meta.temporal_labels import LABEL_PROTOCOL, TemporalLabelError, VersionedOutcomeTracker
 from tests.test_signal_observation import candidate, prices, DailyRaw
 
 
@@ -291,8 +291,8 @@ def test_observer_initial_marker_strict_routing_and_legacy_payload_shape():
 
 
 def test_producer_payload_passes_training_contract_and_latest_invalid_revision_blocks_old_label():
-    from core.signal_meta_layer import _validate_input
-    from core.signal_label_versions import OutcomeRevisionBook
+    from signal_meta.signal_meta_layer import _validate_input
+    from signal_meta.signal_label_versions import OutcomeRevisionBook
     from core.portfolio import Portfolio
     from core.risk import RiskManager
 

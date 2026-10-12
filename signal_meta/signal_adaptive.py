@@ -13,13 +13,13 @@ import math
 import pandas as pd
 
 from core.reproducibility import canonical_json, sha256_bytes
-from core.signal_adaptive_types import AdaptiveEVPolicy, adaptive_implementation_identity
-from core.signal_axis_attribution import combine_axis_score, fit_axis_weights
-from core.signal_ev_ledger import EVLedger
-from core.signal_label_versions import OutcomeRevisionBook
-from core.signal_meta_layer import _exclusions, _validate_input
-from core.signal_observation_types import fingerprint, iso
-from core.signal_regime_model import AXIS_FEATURES, RegimeModel
+from signal_meta.signal_adaptive_types import AdaptiveEVPolicy, adaptive_implementation_identity
+from signal_meta.signal_axis_attribution import combine_axis_score, fit_axis_weights
+from signal_meta.signal_ev_ledger import EVLedger
+from signal_meta.signal_label_versions import OutcomeRevisionBook
+from signal_meta.signal_meta_layer import _exclusions, _validate_input
+from signal_meta.signal_observation_types import fingerprint, iso
+from signal_meta.signal_regime_model import AXIS_FEATURES, RegimeModel
 from core.timeframes import as_utc_timestamp
 
 

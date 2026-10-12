@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from core.signal_regime_model import (
+from signal_meta.signal_regime_model import (
     AXIS_FEATURES, RegimeModel, quantile_barycenter, soft_memberships,
     wasserstein_squared,
 )

@@ -18,11 +18,11 @@
 | 能力 | 当前行为 | 主要实现 |
 | --- | --- | --- |
 | 原始候选 | 四个已注册策略都有无副作用的 `raw_entry_signal`；观察不调用会推进健康状态的 `should_enter` | `strategies/` |
-| 不可变事件 | 确定性候选 ID、策略源码/参数版本、配置与成本指纹；嵌套信号与上下文冻结，重复 symbol-bar 不重复计数 | `core/signal_observation_types.py` |
-| 信号时点上下文 | 趋势效率、波动比、ATR%、ADX、动量、成交额、价差、市场状态、当时策略健康/账户风险、持仓/挂单；不拟合分桶 | `core/signal_observation.py` |
+| 不可变事件 | 确定性候选 ID、策略源码/参数版本、配置与成本指纹；嵌套信号与上下文冻结，重复 symbol-bar 不重复计数 | `signal_meta/signal_observation_types.py` |
+| 信号时点上下文 | 趋势效率、波动比、ATR%、ADX、动量、成交额、价差、市场状态、当时策略健康/账户风险、持仓/挂单；不拟合分桶 | `signal_meta/signal_observation.py` |
 | 首次门控归因 | 原始候选在正式路由前收集；事后关联实际审计路径；未经过的后续门控一律未知，提交订单不等于成交 | `core/runtime.py` |
-| 固定周期标签 | 默认 1/3/5/20 根；下一根连续 bar 开盘参考价至第 H 根收盘，记录双边执行成本、适用融资、MAE/MFE；到期前不输出已知收益 | `core/signal_outcomes.py` |
-| 实际结果关联 | candidate → opening order → 部分成交 → FIFO 分段平仓；退出控制器、成本、已实现 R；期末零成本估值单列 | `core/signal_actuals.py` |
+| 固定周期标签 | 默认 1/3/5/20 根；下一根连续 bar 开盘参考价至第 H 根收盘，记录双边执行成本、适用融资、MAE/MFE；到期前不输出已知收益 | `signal_meta/signal_outcomes.py` |
+| 实际结果关联 | candidate → opening order → 部分成交 → FIFO 分段平仓；退出控制器、成本、已实现 R；期末零成本估值单列 | `signal_meta/signal_actuals.py` |
 | Ghost 回放 | 独立 Broker；next-bar、部分成交、参与率、订单过期、借贷/资金费、占位阻断；独立轨道和决策组内共享有限本金两种模式 | `backtest/signal_ghost.py` |
 | 可审计报告 | 原始事件 JSONL、17 张 CSV、中文诊断报告、版本与异常摘要；完整报告 profile 的 manifest 另行校验观察数据摘要 | `backtest/reporting/signal_observation.py` |
 
@@ -260,7 +260,7 @@ P1 的衰减、收缩先验、有效样本、时间块和保守下界机制被�
 
 ### 2. 默认政策与接口
 
-`core/signal_adaptive_types.py` 声明独立、冻结且可序列化的政策；不修改 `config/params.yaml`，以保留旧 P0/P1 配置摘要和精确复现。
+`signal_meta/signal_adaptive_types.py` 声明独立、冻结且可序列化的政策；不修改 `config/params.yaml`，以保留旧 P0/P1 配置摘要和精确复现。
 
 | P2 参数 | 默认值 |
 | --- | --- |

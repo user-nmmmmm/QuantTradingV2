@@ -5,7 +5,7 @@ from dataclasses import asdict, dataclass
 import math
 from pathlib import Path
 
-from core.signal_observation_types import finite, fingerprint
+from signal_meta.signal_observation_types import finite, fingerprint
 
 
 @dataclass(frozen=True)

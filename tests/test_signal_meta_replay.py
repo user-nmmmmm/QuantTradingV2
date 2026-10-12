@@ -9,8 +9,8 @@ from backtest.signal_meta_replay import replay_signal_meta
 from core.broker import Broker
 from core.market_data import HistoricalMarketDataAdapter
 from core.portfolio import Portfolio
-from core.signal_adaptive_types import MetaReplayPolicy
-from core.signal_observation_types import fingerprint, iso
+from signal_meta.signal_adaptive_types import MetaReplayPolicy
+from signal_meta.signal_observation_types import fingerprint, iso
 
 
 def _frame(n=8, *, price=100, volume=10000):

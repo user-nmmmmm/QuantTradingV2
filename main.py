@@ -244,7 +244,7 @@ def replay_manifest(manifest_path: str) -> int:
     if meta_policy.get("enabled", False) and not execution.get("signal_meta_layer_digest"):
         print("Replay refused: enabled P1 policy has no recorded research digest.", file=sys.stderr)
         return 7
-    from core.signal_adaptive_types import AdaptiveEVPolicy, MetaReplayPolicy
+    from signal_meta.signal_adaptive_types import AdaptiveEVPolicy, MetaReplayPolicy
     try:
         adaptive_policy = AdaptiveEVPolicy.from_mapping(execution.get("signal_adaptive") or {"enabled": False})
         meta_replay_policy = MetaReplayPolicy.from_mapping(execution.get("signal_meta_replay") or {"enabled": False})
@@ -369,7 +369,7 @@ def _temporal_report_payload(engine, results, data_map):
         payload["inputs"][symbol] = entry
     financing = getattr(engine, "temporal_financing", None)
     if financing is not None:
-        from core.temporal_financing import TemporalFinancing
+        from signal_meta.temporal_financing import TemporalFinancing
         if isinstance(financing, TemporalFinancing):
             payload["financing_evidence"] = financing.export()
     return payload
@@ -380,7 +380,7 @@ def _restore_temporal_financing(execution, report_dir):
     expected = execution.get("temporal_financing_sha256")
     if expected is None:
         return None
-    from core.signal_observation_types import fingerprint
+    from signal_meta.signal_observation_types import fingerprint
     path = Path(report_dir) / "temporal_data.json"
     if sha256_file(path) != execution.get("temporal_data_sha256"):
         raise ValueError("temporal financing report hash mismatch")
@@ -1076,8 +1076,8 @@ def main(argv=None) -> int:
             "temporal_data_sha256": sha256_file(output_path / "temporal_data.json"),
         }
         if getattr(engine, "temporal_financing", None) is not None:
-            from core.temporal_financing import TemporalFinancing
-            from core.signal_observation_types import fingerprint
+            from signal_meta.temporal_financing import TemporalFinancing
+            from signal_meta.signal_observation_types import fingerprint
             if isinstance(engine.temporal_financing, TemporalFinancing):
                 execution_identity["temporal_financing_sha256"] = fingerprint(engine.temporal_financing.export())
         manifest = build_run_manifest(

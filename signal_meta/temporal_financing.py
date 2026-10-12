@@ -16,7 +16,7 @@ import pandas as pd
 
 from core.data_versions import DataVersionStore, _record
 from core.derivatives_data import LinearContractSpec, replay_funding_settlements
-from core.signal_observation_types import fingerprint, iso
+from signal_meta.signal_observation_types import fingerprint, iso
 from core.timeframes import as_utc_timestamp as utc
 from core.universe import normalize_symbol
 

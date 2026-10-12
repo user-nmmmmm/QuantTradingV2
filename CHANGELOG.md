@@ -8,6 +8,9 @@
 
 ## [Unreleased]
 
+### Changed
+- 14 个信号观察/元层模块从 `core/` 移到顶层包 `signal_meta/`，导入路径随之改变（`core.signal_observation` → `signal_meta.signal_observation`）；不留兼容垫片（ADR 0011）。
+
 ## [3.0.0] - 2026-10-12
 
 首个带标签的版本：把 2026-10 基础设施整理（路线图第 2 节）之后的 `main` 固定为后续整理与新身份登记的基线。

@@ -18,7 +18,7 @@ from config.config import config
 from core.reproducibility import (
     deterministic_result_digest, save_data_snapshots, sha256_file, write_manifest,
 )
-from core.signal_ev_types import EVPolicy
+from signal_meta.signal_ev_types import EVPolicy
 from tests.engine_baseline_harness import build_synthetic_data_map
 
 

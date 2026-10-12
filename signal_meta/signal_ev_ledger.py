@@ -11,11 +11,11 @@ from dataclasses import dataclass
 import math
 from typing import TYPE_CHECKING, Any, Mapping
 
-from core.signal_observation_types import canonical, fingerprint
+from signal_meta.signal_observation_types import canonical, fingerprint
 from core.timeframes import as_utc_timestamp, timeframe_delta
 
 if TYPE_CHECKING:
-    from core.signal_ev_types import EVPolicy
+    from signal_meta.signal_ev_types import EVPolicy
 
 
 _SCOPE = "independent_fixed_notional_signal_diagnostic"
