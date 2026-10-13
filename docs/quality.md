@@ -8,8 +8,9 @@
 |---|---|---|---|
 | 硬门槛 | `ruff check .`（只含 `E9,F63,F7,F82` 语法/未定义名级错误）、`mypy` 三个契约文件 | 全仓库 / `core/foundation/domain.py`、`core/foundation/runtime.py`、`live_trading/execution_adapter.py` | 0 违规，必须保持 |
 | **棘轮** | `scripts/quality_ratchet.py check`：ruff 的 `F,E4,E7,E9,B`（不含 `B905`）与 mypy（`core ops signal_meta backtest live_trading strategies router composition`） | 全仓库 / 上述八个包 | 存量记入基线：ruff 588 项、mypy 326 项（C2 之后；最初 621 / 869）；**只许减少，不许增加** |
+| **mypy 硬门槛清单** | `scripts/mypy_hard_gate.txt`：已零错误的模块，`quality_ratchet.py check` 对其中任何发现直接失败，不看基线（[ADR 0022](adr/0022-mypy-hard-gate-list.md)） | 200 个受检文件中的 128 个 | 清单只增不减；基线只剩其余 72 个文件的存量 |
 | 导入方向 | `lint-imports`（分层契约 + `core` 不依赖其他包），详见 [架构边界说明](architecture_review.md) | 全部项目包 | 无已知例外；新增例外需要设计决定 |
-| 覆盖率 | `pytest --cov=core --cov=ops --cov=signal_meta --cov=backtest --cov=live_trading --cov-fail-under=85` | 五个包 | 实测约 89%；门槛从 55% 提到 85% |
+| 覆盖率 | `pytest --cov=core --cov=ops --cov=signal_meta --cov=backtest --cov=live_trading --cov-fail-under=90` | 五个包 | 行覆盖实测约 90.5%（Windows 本地，2026-10-14）；门槛 55% → 85% → 90%（C5，[ADR 0024](adr/0024-coverage-90-and-branch-coverage-evaluation.md)）。分支覆盖实测 79.8%，暂不设门槛 |
 
 棘轮按"文件 + 规则"计数（忽略行号），所以无关修改不会打扰它。基线在 `scripts/quality_baseline.json`，规则配置在 `pyproject.toml` 的 `[tool.quality_ratchet]`。mypy 固定按 `linux` / `3.11` 分析，开发机和 CI 的计数一致。
 
@@ -26,6 +27,17 @@ python scripts/quality_ratchet.py update           # 修掉存量问题后，把
 - 新增代码触发新的 ruff 或 mypy 问题：`check` 失败并列出 `文件::规则: 旧 -> 新`。优先修掉；确属必要时用精确的 `# noqa: CODE` / `# type: ignore[code]` 并在评审里说明，不要直接改基线。
 - 修掉存量问题后 `check` 会提示"可锁定"，运行 `update` 并提交基线，改进就不会再丢。
 - 想把某类规则提升为硬门槛：先把它的存量清零，再把规则加入 `[tool.ruff.lint] select`，并从棘轮配置里去掉。
+- 一个模块的 mypy 发现清零后：`python scripts/quality_ratchet.py promote --write` 把它收进硬门槛清单，之后任何回退都会失败，`update` 也无法放宽；一个 `slow` 测试保证清单没有遗漏新达标的模块。
+- 日常原则（C1）：每个 PR 顺手减少触碰文件的存量，约定见 [CONTRIBUTING](../CONTRIBUTING.md)；每个季度记录一次基线总数（见下表）。
+
+### 基线总数的季度记录
+
+| 日期 | ruff | mypy | mypy 硬门槛模块 | 备注 |
+|---|---|---|---|---|
+| 2026-10-11 | 621 | 869 | 3 | 棘轮引入 |
+| 2026-10-14 | 588 | 326 | 128 | C2、B4、C3 之后 |
+
+下一次回看：2027-01。基线一个季度没有下降要写明原因或计划。
 
 ## 测试
 
@@ -38,6 +50,16 @@ python scripts/quality_ratchet.py update           # 修掉存量问题后，把
 
 - 完整套件在 CI（`-n 4`）上**目标 ≤ 5 分钟**，目前约 3 分钟；"Tests and coverage gate"步骤有 8 分钟的硬超时，整个 `quality` 作业 20 分钟。
 - 单个测试约 5 秒以上必须加 `@pytest.mark.slow`；本地循环用 `-m "not slow"`。超预算时先看 CI 打印的最慢 20 个测试，把慢的拆小或标记，而不是放宽超时。
+
+### 覆盖率
+
+- 门槛是**行覆盖**（`--cov-fail-under` 在不带 `--cov-branch` 时只看语句）。提升门槛的 PR 补的是有行为含义的测试（失败即关闭的入口、订单状态归一、SQLite 恢复守卫、补帧冷却等），不是为了凑行数。
+- 看哪里最缺：`python -m pytest -q --cov=core --cov=ops --cov=signal_meta --cov=backtest --cov=live_trading --cov-report=term-missing`；本地与 CI 可能相差零点几个百分点（符号链接测试、Windows 专有分支）。
+- 分支覆盖：`--cov-branch` 会把分支并入同一个百分比，`--cov-fail-under` 无法对两者分别设门槛。2026-10-14 实测行 90.30%（补测试前）、分支 79.84%、合并口径 87.44%。结论：不启用分支门槛，每季度本地跑一次 `--cov-branch` 记录数字（见下），分支覆盖低的模块作为补测试的线索。
+
+| 日期 | 行覆盖 | 分支覆盖 | 合并口径 | 备注 |
+|---|---|---|---|---|
+| 2026-10-14 | 89.54%（补测试前）→ 约 90.5%（补测试后） | 78.94% → 79.84% | 86.64% → 87.44% | Windows 本地，4132 个测试 |
 
 ### 偶发失败（不稳定测试）
 

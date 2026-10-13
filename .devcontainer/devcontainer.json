@@ -4,7 +4,7 @@
   "features": {
     "ghcr.io/devcontainers/features/node:1": { "version": "22" }
   },
-  "postCreateCommand": "python -m pip install -r requirements-dev.txt && python -m pip install -e . --no-deps",
+  "postCreateCommand": "python scripts/dev.py setup",
   "customizations": {
     "vscode": {
       "extensions": ["ms-python.python", "charliermarsh.ruff"],

@@ -61,8 +61,13 @@ def _simple(*command: str) -> Callable[[Sequence[str]], List[List[str]]]:
 
 
 TASKS: Dict[str, Task] = {t.name: t for t in [
-    Task("env", "dependency/environment self-check and runtime lock integrity",
-         lambda extra: [[PY, "scripts/check_environment.py"], [PY, "scripts/verify_lock.py"]]),
+    Task("env", "dependency/environment self-check, strict lock match and runtime lock integrity",
+         lambda extra: [[PY, "scripts/check_environment.py"], [PY, "scripts/check_environment.py", "--strict-lock"],
+                        [PY, "scripts/verify_lock.py"], [PY, "scripts/regenerate_lock.py", "--check"]]),
+    Task("data", "frozen research inputs (tracked market data) match their manifest",
+         _simple(PY, "scripts/data_inputs.py", "verify")),
+    Task("arch", "architecture inventory is current; delivered diagram paths resolve",
+         _simple(PY, "scripts/architecture_inventory.py", "--check")),
     Task("lint", "ruff hard gate (syntax / undefined-name level)", _simple(PY, "-m", "ruff", "check", ".")),
     Task("ratchet", "no new ruff/mypy findings above the baseline", _simple(PY, "scripts/quality_ratchet.py", "check")),
     Task("imports", "import direction (layered architecture)", lambda extra: [_tool("lint-imports")]),
@@ -76,12 +81,12 @@ TASKS: Dict[str, Task] = {t.name: t for t in [
     Task("fast", "tests without the `slow` marker", lambda extra: [_pytest(extra, fast=True)], in_check=False),
     Task("identity", "frozen-scope identity impact versus origin/main", lambda extra:
          [[PY, "scripts/identity_report.py", "--base", "origin/main", "--head", "WORKTREE"]], in_check=False),
-    Task("setup", "install dev dependencies and the project (editable)", lambda extra: [
-        [PY, "-m", "pip", "install", "-r", "requirements-dev.txt"],
+    Task("setup", "install the locked runtime, dev tools and the project (editable)", lambda extra: [
+        [PY, "-m", "pip", "install", "-r", "requirements.lock.txt", "-r", "requirements-dev.txt"],
         [PY, "-m", "pip", "install", "-e", ".", "--no-deps"]], in_check=False),
 ]}
 
-CHECK_ORDER = ["env", "lint", "ratchet", "imports", "types", "hygiene", "archive", "links", "roadmap", "test"]
+CHECK_ORDER = ["env", "data", "arch", "lint", "ratchet", "imports", "types", "hygiene", "archive", "links", "roadmap", "test"]
 
 
 def plan(names: Sequence[str], extra: Sequence[str] = (), *, no_tests: bool = False) -> List[tuple]:

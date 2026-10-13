@@ -1,0 +1,371 @@
+{
+  "dataset": "binance-spot-1d",
+  "files": {
+    "AAVE_USDT.csv": {
+      "first": "2020-10-15",
+      "last": "2026-08-27",
+      "point_in_time": "unknown",
+      "provenance": {
+        "note": "bytes are pinned; no record shows where they came from",
+        "status": "unverified"
+      },
+      "rows": 2143,
+      "sha256": "743efaa565f6dd755f79ed6f522604e743b20181cc014132dea706b73b3b3ea4",
+      "symbol": "AAVE/USDT"
+    },
+    "ADA_USDT.csv": {
+      "first": "2018-04-17",
+      "last": "2026-08-27",
+      "point_in_time": "unknown",
+      "provenance": {
+        "note": "bytes are pinned; no record shows where they came from",
+        "status": "unverified"
+      },
+      "rows": 3055,
+      "sha256": "95b70e975a3ad88f688c50b5daf2799976081124c7ea778160874c37c91898cb",
+      "symbol": "ADA/USDT"
+    },
+    "APT_USDT.csv": {
+      "first": "2022-10-19",
+      "last": "2026-08-27",
+      "point_in_time": "unknown",
+      "provenance": {
+        "note": "bytes are pinned; no record shows where they came from",
+        "status": "unverified"
+      },
+      "rows": 1409,
+      "sha256": "35104a240e5ef5e8fad212612cf4e1ea352aaa3b23236f1e8eebd4cbbd5126ec",
+      "symbol": "APT/USDT"
+    },
+    "ARB_USDT.csv": {
+      "first": "2023-03-23",
+      "last": "2026-08-27",
+      "point_in_time": "unknown",
+      "provenance": {
+        "note": "bytes are pinned; no record shows where they came from",
+        "status": "unverified"
+      },
+      "rows": 1254,
+      "sha256": "14b4cb7178dcb5719afbd24c6cd3d280edd868cdc5fdb260e9a8bc4be6344c8c",
+      "symbol": "ARB/USDT"
+    },
+    "ATOM_USDT.csv": {
+      "first": "2019-04-29",
+      "last": "2026-08-27",
+      "point_in_time": "unknown",
+      "provenance": {
+        "note": "bytes are pinned; no record shows where they came from",
+        "status": "unverified"
+      },
+      "rows": 2678,
+      "sha256": "9ee7d74a8d923dc00cba793f59abc42c9f226fd47754875a09b2284847c8cd58",
+      "symbol": "ATOM/USDT"
+    },
+    "AVAX_USDT.csv": {
+      "first": "2020-09-22",
+      "last": "2026-08-27",
+      "point_in_time": "unknown",
+      "provenance": {
+        "note": "bytes are pinned; no record shows where they came from",
+        "status": "unverified"
+      },
+      "rows": 2166,
+      "sha256": "6f9447182f4a7b8c1c0144f5fa5573210650cf3e6ea758e5ed335e29bcd8dd5c",
+      "symbol": "AVAX/USDT"
+    },
+    "BCH_USDT.csv": {
+      "first": "2019-11-28",
+      "last": "2026-08-27",
+      "point_in_time": "unknown",
+      "provenance": {
+        "note": "bytes are pinned; no record shows where they came from",
+        "status": "unverified"
+      },
+      "rows": 2465,
+      "sha256": "763a3f90519863fe22cb48d2f079aa0fcbad3cfe60267e87bb69cdb24e2c5e57",
+      "symbol": "BCH/USDT"
+    },
+    "BNB_USDT.csv": {
+      "first": "2017-11-06",
+      "last": "2026-08-27",
+      "point_in_time": "unknown",
+      "provenance": {
+        "note": "bytes are pinned; no record shows where they came from",
+        "status": "unverified"
+      },
+      "rows": 3217,
+      "sha256": "b4f89ae24122c1361c49b9758bf16746eccb39c303b50a0261036ad6213e4435",
+      "symbol": "BNB/USDT"
+    },
+    "BTC_USDT.csv": {
+      "first": "2020-01-01",
+      "last": "2026-09-19",
+      "point_in_time": "unknown",
+      "provenance": {
+        "recorded_at": "2026-09-20T17:37:11.010531+00:00",
+        "recorded_sha256": "27de1a74f0097ea5eb9dc4276da8245a7c877670f220c240fb82a7c44294c6db",
+        "source": "binance spot 1d via _manifest.json",
+        "status": "download_manifest"
+      },
+      "rows": 2454,
+      "sha256": "c7041dfa4f4c791e18597b645392a8a0a0bab41e035c13ab125174b4898310db",
+      "symbol": "BTC/USDT"
+    },
+    "DOGE_USDT.csv": {
+      "first": "2019-07-05",
+      "last": "2026-08-27",
+      "point_in_time": "unknown",
+      "provenance": {
+        "note": "bytes are pinned; no record shows where they came from",
+        "status": "unverified"
+      },
+      "rows": 2611,
+      "sha256": "98456fa7e12e63e3a15ac1ec89a8394582f33d6880f745c3d13ebeedea531c20",
+      "symbol": "DOGE/USDT"
+    },
+    "DOT_USDT.csv": {
+      "first": "2020-08-18",
+      "last": "2026-08-27",
+      "point_in_time": "unknown",
+      "provenance": {
+        "note": "bytes are pinned; no record shows where they came from",
+        "status": "unverified"
+      },
+      "rows": 2201,
+      "sha256": "68f02ad62439773be0938305da59c2629cd561c3c3f7eda6fa1396aa1ddf9072",
+      "symbol": "DOT/USDT"
+    },
+    "ETC_USDT.csv": {
+      "first": "2018-06-12",
+      "last": "2026-08-27",
+      "point_in_time": "unknown",
+      "provenance": {
+        "note": "bytes are pinned; no record shows where they came from",
+        "status": "unverified"
+      },
+      "rows": 2999,
+      "sha256": "c7f17828df6b8e6e914a6a6c1db5165a234c9dc9b2e24abcad1cee5b9f0de8ae",
+      "symbol": "ETC/USDT"
+    },
+    "ETH_USDT.csv": {
+      "first": "2020-01-01",
+      "last": "2026-09-19",
+      "point_in_time": "unknown",
+      "provenance": {
+        "recorded_at": "2026-09-20T17:37:11.010531+00:00",
+        "recorded_sha256": "004304b2f747e11277404302de2060b8dabf2c133124349dd9a048c7ff48fff1",
+        "source": "binance spot 1d via _manifest.json",
+        "status": "download_manifest"
+      },
+      "rows": 2454,
+      "sha256": "ebafb9256d94dc82d7a53e7d1e3e59bdac159d75d61b41ad7af344ebada00c77",
+      "symbol": "ETH/USDT"
+    },
+    "FIL_USDT.csv": {
+      "first": "2020-10-15",
+      "last": "2026-08-27",
+      "point_in_time": "unknown",
+      "provenance": {
+        "note": "bytes are pinned; no record shows where they came from",
+        "status": "unverified"
+      },
+      "rows": 2143,
+      "sha256": "a870b247a1aa7b13c29e53392b1228ed5332ed72ca900fa487908ac34a14d80f",
+      "symbol": "FIL/USDT"
+    },
+    "ICP_USDT.csv": {
+      "first": "2021-05-11",
+      "last": "2026-08-27",
+      "point_in_time": "unknown",
+      "provenance": {
+        "note": "bytes are pinned; no record shows where they came from",
+        "status": "unverified"
+      },
+      "rows": 1935,
+      "sha256": "4b6730419a3b8e8aec8fd40aba9c45ac9bd518f94d78c7fd2865e709907b6d0f",
+      "symbol": "ICP/USDT"
+    },
+    "INJ_USDT.csv": {
+      "first": "2020-10-21",
+      "last": "2026-08-27",
+      "point_in_time": "unknown",
+      "provenance": {
+        "note": "bytes are pinned; no record shows where they came from",
+        "status": "unverified"
+      },
+      "rows": 2137,
+      "sha256": "19be8a446cb22fc238363a5680f5e20f3bc87514a3d2cf595f5d28c7d7ec5b65",
+      "symbol": "INJ/USDT"
+    },
+    "LDO_USDT.csv": {
+      "first": "2022-05-09",
+      "last": "2026-08-27",
+      "point_in_time": "unknown",
+      "provenance": {
+        "note": "bytes are pinned; no record shows where they came from",
+        "status": "unverified"
+      },
+      "rows": 1572,
+      "sha256": "1eceb88e1f41b0732eee61643c8871ca4dd80dd88efa62ba00930f834532e0b9",
+      "symbol": "LDO/USDT"
+    },
+    "LINK_USDT.csv": {
+      "first": "2019-01-16",
+      "last": "2026-08-27",
+      "point_in_time": "unknown",
+      "provenance": {
+        "note": "bytes are pinned; no record shows where they came from",
+        "status": "unverified"
+      },
+      "rows": 2781,
+      "sha256": "26ab18b0ab7a84c0c9d456d2f255cdea8f6b45c89e2e3f84c185a1e0d07aa9c0",
+      "symbol": "LINK/USDT"
+    },
+    "LTC_USDT.csv": {
+      "first": "2017-12-13",
+      "last": "2026-08-27",
+      "point_in_time": "unknown",
+      "provenance": {
+        "note": "bytes are pinned; no record shows where they came from",
+        "status": "unverified"
+      },
+      "rows": 3180,
+      "sha256": "9c9d5b6f12c6252a557ca340254da5ab51c390ae53437c4043d2d05e4d7fa1e5",
+      "symbol": "LTC/USDT"
+    },
+    "MATIC_USDT.csv": {
+      "first": "2019-04-26",
+      "last": "2025-03-24",
+      "point_in_time": "unknown",
+      "provenance": {
+        "note": "bytes are pinned; no record shows where they came from",
+        "status": "unverified"
+      },
+      "rows": 2048,
+      "sha256": "73136663796a3f9bfe9189f9df3de589b42e6a461ddc793bd15e791b61413f4d",
+      "symbol": "MATIC/USDT"
+    },
+    "NEAR_USDT.csv": {
+      "first": "2020-10-14",
+      "last": "2026-08-27",
+      "point_in_time": "unknown",
+      "provenance": {
+        "note": "bytes are pinned; no record shows where they came from",
+        "status": "unverified"
+      },
+      "rows": 2144,
+      "sha256": "b0d81f0fb6e9c22a44f17c817ce71bd7a39a56914d2829c836863dc1c2e62339",
+      "symbol": "NEAR/USDT"
+    },
+    "OP_USDT.csv": {
+      "first": "2022-06-01",
+      "last": "2026-08-27",
+      "point_in_time": "unknown",
+      "provenance": {
+        "note": "bytes are pinned; no record shows where they came from",
+        "status": "unverified"
+      },
+      "rows": 1549,
+      "sha256": "ef37fdfc7f0c14755439bfdcea5b4df4984f46257f3cbabdb3eb82b0db9883c0",
+      "symbol": "OP/USDT"
+    },
+    "SEI_USDT.csv": {
+      "first": "2023-08-15",
+      "last": "2026-08-27",
+      "point_in_time": "unknown",
+      "provenance": {
+        "note": "bytes are pinned; no record shows where they came from",
+        "status": "unverified"
+      },
+      "rows": 1109,
+      "sha256": "97d3093e7cbcc1852aef6f63797e20030ee1761dbb584959a4ab212be98bad73",
+      "symbol": "SEI/USDT"
+    },
+    "SOL_USDT.csv": {
+      "first": "2020-08-11",
+      "last": "2026-08-27",
+      "point_in_time": "unknown",
+      "provenance": {
+        "note": "bytes are pinned; no record shows where they came from",
+        "status": "unverified"
+      },
+      "rows": 2208,
+      "sha256": "55e5b7f5009600428787ace4cd943a049ecc2485b83159810d2c426d6b82b7ae",
+      "symbol": "SOL/USDT"
+    },
+    "SUI_USDT.csv": {
+      "first": "2023-05-03",
+      "last": "2026-08-27",
+      "point_in_time": "unknown",
+      "provenance": {
+        "note": "bytes are pinned; no record shows where they came from",
+        "status": "unverified"
+      },
+      "rows": 1213,
+      "sha256": "bd8f2b17e46d01e43f5314f63294a6baac331d3faabf7001df08279ad017fb68",
+      "symbol": "SUI/USDT"
+    },
+    "TIA_USDT.csv": {
+      "first": "2023-10-31",
+      "last": "2026-08-27",
+      "point_in_time": "unknown",
+      "provenance": {
+        "note": "bytes are pinned; no record shows where they came from",
+        "status": "unverified"
+      },
+      "rows": 1032,
+      "sha256": "f9dc441d3638c0a96565837eefe6bcbbf8638b69f051a6d2e011c8c05ea7496a",
+      "symbol": "TIA/USDT"
+    },
+    "TRX_USDT.csv": {
+      "first": "2018-06-11",
+      "last": "2026-08-27",
+      "point_in_time": "unknown",
+      "provenance": {
+        "note": "bytes are pinned; no record shows where they came from",
+        "status": "unverified"
+      },
+      "rows": 3000,
+      "sha256": "3a469cf5daca4fa3846dcde99266a9053b54cbd2723b567fbb00f200d2c36c41",
+      "symbol": "TRX/USDT"
+    },
+    "UNI_USDT.csv": {
+      "first": "2020-09-17",
+      "last": "2026-08-27",
+      "point_in_time": "unknown",
+      "provenance": {
+        "note": "bytes are pinned; no record shows where they came from",
+        "status": "unverified"
+      },
+      "rows": 2171,
+      "sha256": "b7e2a8e7de12e8ac9f1cc326b1b6466b75856b2339783f629f87e40ee65c0b10",
+      "symbol": "UNI/USDT"
+    },
+    "XLM_USDT.csv": {
+      "first": "2018-05-31",
+      "last": "2026-08-27",
+      "point_in_time": "unknown",
+      "provenance": {
+        "note": "bytes are pinned; no record shows where they came from",
+        "status": "unverified"
+      },
+      "rows": 3011,
+      "sha256": "a8aee8c30bd462c33cbe11fc65d257f25a1f6076be391695b733152989bde6aa",
+      "symbol": "XLM/USDT"
+    },
+    "XRP_USDT.csv": {
+      "first": "2018-05-04",
+      "last": "2026-08-27",
+      "point_in_time": "unknown",
+      "provenance": {
+        "note": "bytes are pinned; no record shows where they came from",
+        "status": "unverified"
+      },
+      "rows": 3038,
+      "sha256": "501c0a65e784237affba24d5e9ae5e8120b67a19dbe992b4daacbb2ea7b8ccce",
+      "symbol": "XRP/USDT"
+    }
+  },
+  "hash_policy": "sha256 over bytes with CRLF normalized to LF (the content git stores)",
+  "schema_version": "frozen-research-inputs/v1"
+}

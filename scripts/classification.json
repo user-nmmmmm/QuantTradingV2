@@ -28,6 +28,7 @@
     ]
   ],
   "scripts": {
+    "architecture_inventory.py": "supported",
     "audit_execution_readiness.py": "research",
     "audit_ml_readiness.py": "research",
     "benchmark_backtest.py": "research",
@@ -48,6 +49,7 @@
     "collect_strategy_review_public.py": "historical",
     "collect_trend_portfolio_v3_data.py": "research",
     "complete_strategy_review.py": "historical",
+    "data_inputs.py": "supported",
     "dev.py": "supported",
     "diagnose_public_market.py": "research",
     "diagnose_strategy_health.py": "research",
@@ -71,6 +73,7 @@
     "publish_strategy_review.py": "historical",
     "quality_ratchet.py": "supported",
     "recover_strategy_review_delivery.py": "historical",
+    "regenerate_lock.py": "supported",
     "register_automation_tasks.ps1": "supported",
     "register_strategy_successor.py": "supported",
     "release_check.py": "supported",

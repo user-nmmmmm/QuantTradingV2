@@ -40,6 +40,8 @@
 - [发布约定](releasing.md)：语义化版本、`CHANGELOG.md`、带注解的发布标签，以及标签与行为身份回执的绑定记录（ADR 0009、0010）。
 - [架构决策记录（ADR）](adr/README.md)：已采纳的结构、工具链与研究完整性决定及其取舍。
 - [质量门槛与棘轮](quality.md)：硬门槛、ruff/mypy 棘轮基线、覆盖率门槛、测试并行/超时/标记与本地钩子。
+- [数据身份](data_identity.md)：下载缓存清单与冻结研究输入清单的分工、来源核验状态、哈希口径，以及新增或替换数据文件的流程（ADR 0020）。
+- [架构清单（自动生成）](architecture_inventory.md)：分层顺序与各包模块数，由 `scripts/architecture_inventory.py` 从代码生成并在 CI 核对；`架构图/` 的交付图是早期快照，路径变化见 `架构图/path_moves.json`。
 - [源码身份、文档移动与断链检查](identity.md)：行为身份（忽略注释与排版）、冻结范围、PR 影响报告、`doc_index.json` 与 Markdown 断链检查。
 - [V4 架构设计(草案)](v4_architecture_design.md)：分层包结构、统一特征管线、选币协议、策略插件接口、两层回测与实施路线；[文档整理审计](doc_consolidation_audit_20261010.md)记录了本轮文档合并。尚未登记进统一 Roadmap。
 - [网页工作台](../dashboard/README.md)：账户监控、离线回测、实验档案、数据质量与 Walk-forward；模块、API 和验证命令见[前端工程说明](../dashboard/README.md)。
@@ -55,6 +57,14 @@
 - [`strategy_health_lock_investigation.md`](strategy_health_lock_investigation.md)：人工锁定根因、旧止损残留修复与更新回测；后续仓位模块草案见 [`position_management_plan.md`](archive/2026-10-doc-consolidation/position_management_plan.md)。
 
 - [`p0_drawdown_recovery.md`](p0_drawdown_recovery.md)：2026-09-05 组合 BLOCK_NEW 冷静期恢复契约、重启兼容性与两组历史 A/B 回测；不代表策略重新准入或实盘放行。
+
+## 文档维护约定
+
+- 一个主题一个文件；同主题的新内容追加带日期的小节，不另建 `*_YYYYMMDD.md` 副本（历史记录除外）。
+- 移动、合并或归档已跟踪的文档：在 `doc_index.json` 追加一条（旧路径 → 新路径），不要改写历史条目；断链检查和 Roadmap 验证器按它解析移动。
+- 自动生成的文档（`architecture_inventory.md`）只改生成脚本，不手工编辑；`python scripts/dev.py check` 会核对它是最新的。
+- 冻结的历史证据（`archive/2026-08*`、`archive/2026-09*` 等，见[文件保留与生成物规则](file_retention.md)）不改写。
+- 新增文档要先 `git add`，断链检查只看已被跟踪的文件。文档数量不设硬上限，但新增前先看有没有可以追加的现有文件；每个季度回看一次 `doc_index.json` 与本页入口是否仍然指向存在的文件。
 
 ## 历史资料
 

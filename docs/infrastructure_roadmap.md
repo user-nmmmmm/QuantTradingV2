@@ -1,6 +1,6 @@
 # 基础设施路线图（2026-10 起）
 
-> 核对日期：2026-10-12，依据 `main` 的 `176e90c`（#69）及实测数据（G0 的结论已写入 ADR 0008）；第 4 节末尾的"当前状态"和第 9 节"交接说明"记录了这一天的进度和未决问题。本文是**工程路线图**：排列基础设施与结构整理的顺序、依赖和退出条件。它不维护项目阶段（R0–R8）、任务状态或实盘准入，这些仍以[统一 Roadmap](unified_roadmap.md)为准；它也不改变任何策略研究结论。与之配套：[V4 架构设计（草案）](v4_architecture_design.md)、[架构决策记录](adr/README.md)、[质量门槛](quality.md)、[身份说明](identity.md)。本文取代[工程结构优化路线图](engineering_structure_roadmap.md)中仍然适用的部分。
+> 核对日期：2026-10-12，依据 `main` 的 `176e90c`（#69）及实测数据（G0 的结论已写入 ADR 0008）；2026-10-14 更新了 C1、C3、C5、D2–D6 的完成情况和 D1 的待确认清单。第 4 节末尾的"当前状态"和第 9 节"交接说明"记录了进度和未决问题。本文是**工程路线图**：排列基础设施与结构整理的顺序、依赖和退出条件。它不维护项目阶段（R0–R8）、任务状态或实盘准入，这些仍以[统一 Roadmap](unified_roadmap.md)为准；它也不改变任何策略研究结论。与之配套：[V4 架构设计（草案）](v4_architecture_design.md)、[架构决策记录](adr/README.md)、[质量门槛](quality.md)、[身份说明](identity.md)。本文取代[工程结构优化路线图](engineering_structure_roadmap.md)中仍然适用的部分。
 
 ## 1. 目标与原则
 
@@ -42,6 +42,14 @@
 | C4 | 测试治理：符号链接测试按能力探测跳过（本地 Windows 全绿），`quarantine` 标记 + 到期检查，耗时预算与 CI 超时，约定写入 `docs/quality.md` | 已完成 | 本 PR |
 | C2 | 棘轮扫描出的可疑模式逐个复核：借贷年化（`seconds_per_year`）是死代码，先写特征测试再清理；B023 共 29 处全部无害并统一显式绑定；B904、mypy `attr-defined` 逐项给出结论，无需改变交易行为。ruff 621 → 588，mypy 365 → 326 | 已完成 | 本 PR |
 | A4 | 绑定记录 `release-bound-identity/v1`、`--bind-release/--verify-binding`（ADR 0010）；旧记录不动。真正的新身份登记留到整理完成后 | 已完成 | 本 PR |
+| C1 | 还债约定写入 CONTRIBUTING（顺手减少触碰文件的存量、规则清零后升硬门槛、季度回看）；`docs/quality.md` 增加季度记录表 | 已完成 | 本 PR |
+| C3 | mypy 硬门槛清单 `scripts/mypy_hard_gate.txt`（128 个零错误模块），`quality_ratchet.py check` 对其中任何发现直接失败，`promote` 收进新达标的模块（ADR 0022）。持续项：随重构继续清零并扩围 | 已完成（持续项） | 本 PR |
+| C5 | 覆盖率门槛 85% → 90%（行覆盖实测约 90.5%），为一批没有直接测试的运维与恢复工具补了行为测试；分支覆盖实测 79.8%，评估结论是暂不设门槛、按季度记录（ADR 0024） | 已完成 | 本 PR |
+| D2 | 冻结研究输入清单 `data/binance/1d/_frozen_inputs.json` 与 `scripts/data_inputs.py`：30 个已跟踪 CSV 登记行数、范围与 SHA-256（LF 规范化），来源状态如实标注（2 个有下载记录，28 个未核验）；CI 与 `dev.py check` 核验（ADR 0020，`docs/data_identity.md`） | 已完成（28 个来源仍未核验） | 本 PR |
+| D3 | `scripts/regenerate_lock.py`（再生成与离线 `--check`）；CI 从 `requirements.lock.txt` 安装并运行 `check_environment.py --strict-lock`、`verify_lock.py`、`regenerate_lock.py --check`；锁文件规范化（无版本变化）（ADR 0021） | 已完成（首次 CI 运行待观察） | 本 PR |
+| D4 | Dependabot：Actions 每月、小版本分组、主版本单独成 PR；pip 版本更新继续不启用并写明原因（ADR 0021） | 已完成 | 本 PR |
+| D5 | CodeQL 启用（不设必需检查）；dev container 保留并改用 `dev.py setup`，仍标"未实际运行"（本机无 Docker）；不增加 `install-smoke` 平台（ADR 0023） | 已完成（dev container 待有 Docker 的人验证） | 本 PR |
+| D6 | `docs/architecture_inventory.md` 由 `scripts/architecture_inventory.py` 生成并在 CI 核对；交付图 `架构图/` 不改写，`path_moves.json` 记录其引用的 16 个已搬迁路径并被检查；文档维护约定写入 `docs/README.md`（ADR 0023） | 已完成 | 本 PR |
 
 当前规模（`main`，2026-10-12）：`core/` 78 个平铺模块 + 7 个子包；246 个测试文件、约 3945 个测试，CI 并行约 3 分钟；覆盖率 89.1%；ruff 621、mypy 869 项存量；`BacktestEngine.run` 所在文件 1296 行，`main.py` 1126 行；4 个宿主类共 13 个 mixin（`Broker` 4、`LiveBroker` 3、`RiskManager` 3、`LiveTradingEngine` 3，约 6300 行，每个 mixin 共享 10–60 个 `self` 属性；另有报告 4 个、策略 3 个 mixin 不在 B4 范围）；`scripts/` 97 个脚本；0 个发布标签。
 
@@ -109,13 +117,15 @@
 | B3 | 已完成（ADR 0017，待合并） | 分层契约无例外 |
 | B4 | 已完成第一步（ADR 0018，待合并）：mixin 继承清零；状态仍由宿主持有 | mypy 869 → 404 |
 | B5 | 已完成（ADR 0019，待合并） | `run` 32 行、`main.py` 5 行 | B1 的依赖图分析已做过：14 个模块、约 3500 行、导入点约 61 处，`temporal_data` 必须留在 `core`；`backtest/signal_meta_replay.py` 的指纹键需保持旧名 |
-| C1 | 已约定、未写入 CONTRIBUTING | 每个 PR 顺手减少触碰文件的存量 |
-| C2 | 已完成（本 PR 合并后生效） | 结论见 `docs/quality.md` |
-| C3、C5 | 未开始 |
-| C4 | 已完成（本 PR 合并后生效） | — | C2 的可疑模式清单已在 `docs/quality.md` |
-| D1 | 待你确认清单 | 清单见上表 D1 行 |
-| D2、D3 | 未开始 | 数据清单只登记 2 个标的而已跟踪 CSV 有 30 个；CI 从 `requirements-dev.txt` 安装而不是锁文件 |
-| D4–D6 | 未开始 | — |
+| C1 | 已完成（2026-10-14） | 约定在 CONTRIBUTING，季度记录在 `docs/quality.md`；下次回看 2027-01 |
+| C2 | 已完成 | 结论见 `docs/quality.md` |
+| C3 | 已完成，持续项 | 硬门槛清单 128/200 个受检文件；其余 72 个随重构清零后用 `promote --write` 收进 |
+| C4 | 已完成 | C2 的可疑模式清单已在 `docs/quality.md` |
+| C5 | 已完成（2026-10-14） | 门槛 90%；首次在 CI（Linux）上的实测值待观察，低于 90% 时补测试而不是降门槛（ADR 0024） |
+| D1 | **待你确认清单** | 完整清单在仓库的 `outputs/branch_cleanup_proposal.md`（被 `.gitignore` 忽略，不入库）：55 个已合并的远端分支、50 个已合并的本地分支、8 个失效的 worktree 记录、5 个未合并的远端分支与 6 个未合并的本地分支需要逐个决定。经确认前不执行任何删除 |
+| D2 | 已完成（2026-10-14） | 28 个文件的来源仍是"未核验"，补齐需要重新下载并留下缓存清单记录 |
+| D3 | 已完成（2026-10-14） | 锁文件在 Linux/Windows × 3.11/3.13 都有现成轮子（仅 `multitasking` 为纯 Python 源码包）；CI 首次运行待观察 |
+| D4、D5、D6 | 已完成（2026-10-14） | CodeQL 首次运行后需要有人看一遍结果；dev container 待验证 |
 
 ## 5. 依赖与顺序
 
@@ -136,15 +146,15 @@ flowchart LR
   C4["C4 测试治理"] --> C5["C5 覆盖率 90%"]
 ```
 
-A1–A4 已完成后，可以立刻并行的：**C2、C4、D1、D2、D3、D4、D5**，以及 B1（建议先打 `v3.0.0` 标签作为影响报告的基准）。B 轨道须在新身份登记前完成。
+A1–A4、B1–B5、C1–C5（C3 为持续项）、D2–D6 已完成；尚未完成的是：**打 `v3.0.0` 标签（所有者）**、**D1（待你确认清单）**、B4 的后续（状态所有权迁移、报告与策略 mixin）、以及新身份登记。B 轨道须在新身份登记前完成。
 
 建议的"现在 / 接着 / 之后"：
 
 | 阶段 | 内容 |
 |---|---|
-| **现在** | 打 `v3.0.0` 标签（所有者）、D1（清单确认后执行）、C4、C2 |
-| **接着** | D2、D3、D4、B1 |
-| **之后** | B2–B5、C3、C5、D5、D6，然后新身份登记（用 A4 的绑定记录，并先说明 `capital:` 配置变更） |
+| **现在** | 打 `v3.0.0` 标签（所有者）、D1（清单确认后执行）、观察本 PR 的 CI 首次运行（锁文件安装、覆盖率 90%、CodeQL） |
+| **接着** | B4 后续（状态所有权迁移、报告与策略 mixin），C3 随之继续扩围；补齐 28 个数据文件的来源记录（D2 的缺口） |
+| **之后** | 新身份登记（用 A4 的绑定记录，引用 D2 的数据清单摘要，并先说明 `capital:` 配置变更），然后进入 M1 之后的 V4 功能轨道 |
 
 ## 6. 进入 V4 功能开发的条件（M1）
 
@@ -152,9 +162,9 @@ A1–A4 已完成后，可以立刻并行的：**C2、C4、D1、D2、D3、D4、D
 
 1. G0 已有结论并写成 ADR（A1，已完成：ADR 0008）；新身份已按 A4 的流程登记。
 2. 身份报告能识别移动（A2，已完成），并有发布标签约定且首个标签已创建（A3，约定已完成，标签待打）。
-3. 数据身份完整（D2）、CI 在锁定环境运行（D3）。
+3. 数据身份完整（D2，已完成，另有 28 个文件来源未核验）、CI 在锁定环境运行（D3，已完成，首次 CI 运行待观察）。
 4. `core/` 已完成至少 `signal_meta/` 的拆分（B1），且无新增的反向依赖。
-5. 分支/worktree 已清理（D1），测试治理约定生效（C4）。
+5. 分支/worktree 已清理（D1，**待确认清单后执行**），测试治理约定生效（C4，已完成）。
 
 M1 之后的功能轨道（特征管线 → 回测两层化 → 选币统一 → 新策略 → ML v2）见[V4 设计](v4_architecture_design.md)第 9 节；它们与轨道 B 的 B2–B5 可以交错，但每一项都要沿用"先护栏、再搬迁、再功能"的顺序。
 
@@ -197,4 +207,4 @@ M1 之后的功能轨道（特征管线 → 回测两层化 → 选币统一 →
 - 链接检查只看已被 git 跟踪的文件：新增文档要先 `git add`。
 - 冻结的历史证据（`docs/archive/2026-08*`、`2026-09*`、`docs/research/ml_selection_next_acceptance_20261005.json`、`docs/codex_mail_findings_20260920.json`、`docs/research/current_strategy_protocol.json`、`reports/` 回执）不得改写；移动文档要在 `docs/doc_index.json` 追加一条。
 
-**第一件事：** G0 已决（顺延，ADR 0008），A1–A4 已完成；合并后先创建 `v3.0.0` 标签，再按第 5 节"现在"一栏开始（D1、C4、C2）。
+**第一件事：** G0 已决（顺延，ADR 0008），A1–A4、B1–B5、C1–C5、D2–D6 已完成；合并后先创建 `v3.0.0` 标签，确认或修改 D1 清单，再观察本 PR 的首次 CI 运行（锁定环境安装、90% 覆盖率、CodeQL），然后按第 5 节"接着"一栏继续。
