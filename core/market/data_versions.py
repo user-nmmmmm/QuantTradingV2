@@ -15,11 +15,16 @@ import os
 from pathlib import Path
 import re
 import tempfile
+import time
 from typing import Mapping
 
 
 _DIGEST = re.compile(r"[0-9a-f]{64}\Z")
 _SCHEMA = "research_data_snapshot/v1"
+# Windows can refuse to open a file another thread renamed into place a moment ago (sharing violation,
+# reported as PermissionError). Reads of such a freshly published object are retried a few times there.
+_WINDOWS = os.name == "nt"
+_READ_ATTEMPTS = 5
 
 
 def _json_bytes(value) -> bytes:
@@ -53,6 +58,24 @@ def _name(value, label: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{label} must be a nonempty string")
     return value
+
+
+def _read_published(path: Path) -> bytes:
+    """Read an object that a concurrent writer may have published only just now.
+
+    Only PermissionError is retried, only on Windows, and only a bounded number of times; anything else, or a
+    refusal that persists, propagates unchanged. The caller still compares the bytes, so this never accepts
+    different content.
+    """
+    attempt = 0
+    while True:
+        try:
+            return path.read_bytes()
+        except PermissionError:
+            attempt += 1
+            if not _WINDOWS or attempt >= _READ_ATTEMPTS:
+                raise
+            time.sleep(0.01 * attempt)
 
 
 def _resolved(path: Path) -> Path:
@@ -153,7 +176,7 @@ class DataVersionStore:
                 else:
                     os.link(temporary, path)
             except FileExistsError:
-                if path.read_bytes() != payload:
+                if _read_published(path) != payload:
                     raise ValueError("immutable content conflict or tampering detected") from None   # FileExistsError is the expected idempotent-write path
         finally:
             if temporary is not None:

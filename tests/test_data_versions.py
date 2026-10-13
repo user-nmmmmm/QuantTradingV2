@@ -1,9 +1,11 @@
 """Immutable history must not turn today's downloads into historical knowledge."""
 import json
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
 import pytest
 
+from core.market import data_versions
 from core.market.data_versions import DataVersionStore
 from analysis.factor_registry import (
     default_proxy_definitions, freeze_factor_registry, validate_factor_definition,
@@ -120,6 +122,61 @@ def test_concurrent_identical_writes_publish_complete_objects_once(tmp_path):
     assert len({value["snapshot_id"] for value in snapshots}) == 1
     assert store.verify_snapshot(snapshots[0]["snapshot_id"]) == snapshots[0]
     assert not list(tmp_path.rglob(".pending-*"))
+
+
+class _FlakyReads:
+    """Make the first ``failures`` reads of a stored object raise PermissionError, then behave normally."""
+
+    def __init__(self, monkeypatch, failures):
+        self.calls, self.failures, self.sleeps = 0, failures, []
+        original = Path.read_bytes
+
+        def read_bytes(path):
+            self.calls += 1
+            if self.calls <= self.failures:
+                raise PermissionError(13, "Permission denied", str(path))
+            return original(path)
+        monkeypatch.setattr(Path, "read_bytes", read_bytes)
+        monkeypatch.setattr(data_versions.time, "sleep", self.sleeps.append)
+
+
+def test_windows_retries_a_freshly_published_object_that_is_briefly_unreadable(tmp_path, monkeypatch):
+    store = DataVersionStore(tmp_path)
+    first = store.create_snapshot("bars", [record()])
+    monkeypatch.setattr(data_versions, "_WINDOWS", True)
+    flaky = _FlakyReads(monkeypatch, failures=2)
+    again = store.create_snapshot("bars", [record()])                 # every object already exists: the idempotent path
+    assert again == first and flaky.sleeps[:2] == [0.01, 0.02]
+
+
+def test_a_refusal_that_persists_is_raised_after_a_bounded_number_of_attempts(tmp_path, monkeypatch):
+    store = DataVersionStore(tmp_path)
+    store.create_snapshot("bars", [record()])
+    monkeypatch.setattr(data_versions, "_WINDOWS", True)
+    flaky = _FlakyReads(monkeypatch, failures=10**6)
+    with pytest.raises(PermissionError):
+        store.create_snapshot("bars", [record()])
+    assert flaky.calls == data_versions._READ_ATTEMPTS and len(flaky.sleeps) == data_versions._READ_ATTEMPTS - 1
+
+
+def test_other_platforms_do_not_retry_a_permission_error(tmp_path, monkeypatch):
+    store = DataVersionStore(tmp_path)
+    store.create_snapshot("bars", [record()])
+    monkeypatch.setattr(data_versions, "_WINDOWS", False)
+    flaky = _FlakyReads(monkeypatch, failures=10**6)
+    with pytest.raises(PermissionError):
+        store.create_snapshot("bars", [record()])
+    assert flaky.calls == 1 and flaky.sleeps == []
+
+
+def test_a_retry_never_accepts_different_bytes(tmp_path, monkeypatch):
+    store = DataVersionStore(tmp_path)
+    snapshot = store.create_snapshot("bars", [record()])
+    (tmp_path / "objects" / snapshot["records"]["sha256"]).write_bytes(b"corrupt")
+    monkeypatch.setattr(data_versions, "_WINDOWS", True)
+    _FlakyReads(monkeypatch, failures=1)
+    with pytest.raises(ValueError, match="immutable content conflict"):
+        store.create_snapshot("bars", [record()])
 
 
 def test_tampered_object_is_never_silently_replaced_by_identical_import(tmp_path):

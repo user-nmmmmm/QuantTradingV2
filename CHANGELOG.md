@@ -11,6 +11,9 @@
 ### Notes
 - 棘轮复核（C2）：借贷利息的年化只在 `_accrue_short_borrow` / `_accrue_quote_borrow` 里计算，`financing.py` 里原有的 `seconds_per_year` 局部变量是未使用的死代码，已合并为 `SECONDS_PER_YEAR` 并用测试固定；29 处"闭包里使用循环变量"逐一确认无害并显式绑定。这些改动在冻结范围内，但交易与回测行为不变（身份报告会显示为行为变化，因为字节变了）。
 
+### Fixed
+- `DataVersionStore` 并发写入同一个不可变对象时，Windows 上读取刚被另一线程换到位的文件可能短暂抛出 `PermissionError`（负载下约 3/40 次使 `test_concurrent_identical_writes_publish_complete_objects_once` 失败）。现在这一处读取在 Windows 上有界重试（5 次，10–40 毫秒），内容不同仍报"immutable content conflict"，持续拒绝和其他平台照常抛出。存储的字节与语义不变；文件在冻结范围内，身份报告会显示为行为变化（仅 Windows 重试）。
+
 ### Added
 - 测试治理（路线图 C4）：`quarantine` 标记（带原因和到期日，过期后 CI 失败）、`tests/capabilities.py` 的能力探测跳过（Windows 上没有符号链接权限时跳过，Linux CI 保证不跳过）、完整套件的耗时预算（目标 ≤ 5 分钟，CI 步骤 8 分钟超时），约定写在 `docs/quality.md`。
 
