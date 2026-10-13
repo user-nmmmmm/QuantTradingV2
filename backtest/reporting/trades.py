@@ -24,7 +24,7 @@ import ast
 import json
 import math
 from collections import deque
-from typing import Any, Deque, Dict, List, Optional, Tuple
+from typing import Any, Callable, Deque, Dict, List, Optional, Tuple
 
 import pandas as pd
 
@@ -58,11 +58,26 @@ def _lot_close_records(value):
     return value
 
 
-class TradeReconstructionMixin:
+class TradeReconstruction:
+    """Reconstruction and aggregation of closed trades (a collaborator of :class:`ReportGenerator`, ADR 0025).
+
+    It needs no host state. ``extended_trade_analytics`` is the one thing it takes from outside: the callable
+    that computes the trade-level extras for :meth:`_trade_metrics_from_closed`. Used on its own (for example by
+    the ML pipeline, which only reconstructs trades) it stays ``None`` and those extras are unavailable.
+    """
+
+    def __init__(
+        self,
+        extended_trade_analytics: Optional[Callable[[List[Dict[str, Any]]], Dict[str, Any]]] = None,
+    ) -> None:
+        self._extended = extended_trade_analytics
+
     def _extended_trade_analytics(
         self, closed_trades: List[Dict[str, Any]]
     ) -> Dict[str, Any]:
-        raise NotImplementedError
+        if self._extended is None:
+            raise NotImplementedError
+        return self._extended(closed_trades)
 
     def _analyze_trades(self, trades_df: pd.DataFrame) -> Dict[str, Any]:
         """基于 trades.csv 重建往返交易并统计交易级指标（薄封装，见下三个方法）。"""

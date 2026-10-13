@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 
 from backtest.engine import BacktestEngine
-from backtest.reporting.trades import TradeReconstructionMixin
+from backtest.reporting.trades import TradeReconstruction
 from config.config import config
 from core.trading.accounts import AccountMode
 from core.broker import Broker, BacktestOrderStatus
@@ -115,7 +115,7 @@ def test_merged_partial_entries_and_exits_conserve_authoritative_lot_facts():
     assert broker.portfolio.open_lots("A")[0].initial_risk == 20
     fill(broker, "sell", 1, 3, 130)
     fill(broker, "sell", 1, 4, 140)
-    reporter = TradeReconstructionMixin()
+    reporter = TradeReconstruction()
     legs = reporter._reconstruct_closed_trades(pd.DataFrame(broker.trades))
     assert len(legs) == 2
     assert len({leg["lot_id"] for leg in legs}) == 1
@@ -133,7 +133,7 @@ def test_one_exit_maps_all_partial_entry_fragments_to_same_lot():
     broker.process_orders({"A": bar(1, 100, 1)})
     broker.process_orders({"A": bar(2, 110, 1)})
     fill(broker, "sell", 2, 3, 120)
-    legs = TradeReconstructionMixin()._reconstruct_closed_trades(pd.DataFrame(broker.trades))
+    legs = TradeReconstruction()._reconstruct_closed_trades(pd.DataFrame(broker.trades))
     assert len(legs) == 2 and all(leg["position_id"] for leg in legs)
     assert sum(leg["initial_risk"] for leg in legs) == 20
     assert sum(leg["net_pnl"] for leg in legs) == 30
@@ -144,7 +144,7 @@ def test_legacy_theoretical_price_is_explicitly_unavailable():
         dict(symbol="A", side="buy", qty=1, fill_price=101, commission=1, slip=1, strategy="Legacy"),
         dict(symbol="A", side="sell", qty=1, fill_price=109, commission=1, slip=1),
     ])
-    leg = TradeReconstructionMixin()._reconstruct_closed_trades(records)[0]
+    leg = TradeReconstruction()._reconstruct_closed_trades(records)[0]
     assert leg["gross_pnl_theoretical"] is None
     assert leg["cost_semantics"] == "legacy_fill_price_includes_slippage"
 
@@ -361,7 +361,7 @@ def test_report_csv_nested_lot_facts_roundtrip_without_identity_loss(tmp_path):
     fill(broker, "sell", 2, 2, price=110)
     path = tmp_path / "trades.csv"
     pd.DataFrame(broker.trades).to_csv(path, index=False)
-    legs = TradeReconstructionMixin()._reconstruct_closed_trades(pd.read_csv(path))
+    legs = TradeReconstruction()._reconstruct_closed_trades(pd.read_csv(path))
     assert len(legs) == 1 and legs[0]["position_id"]
     assert legs[0]["initial_risk"] == 20
     assert legs[0]["net_pnl"] == 20
