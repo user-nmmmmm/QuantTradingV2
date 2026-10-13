@@ -9,7 +9,7 @@ import pytest
 from core.foundation.domain import FillRecord, OrderIntent
 from core.broker import Broker
 from core.live_broker.fill_projection import replay_fill_projection, _legacy_replay_fill_projection
-from core.live_broker.reconciler import OrderReconcilerMixin
+from core.live_broker.reconciler import OrderReconciler
 from core.trading.lots import CloseEvent
 from core.trading.order_store import OrderStore
 from core.trading.portfolio import Portfolio
@@ -204,7 +204,7 @@ def test_venue_missing_fee_is_distinct_from_explicit_zero_fee(tmp_path, fee_cost
         trade["fee"] = {"cost": fee_cost, "currency": "USDT"}
     reconciler = SimpleNamespace(order_store=store, trades=[], _as_float=lambda value: float(value or 0),
                                  _iso=str, _publish_fill_event=lambda *args: None)
-    OrderReconcilerMixin._persist_fills(reconciler, command.client_order_id, "venue", {"trades": [trade]}, 2, 100)
+    OrderReconciler(reconciler)._persist_fills(command.client_order_id, "venue", {"trades": [trade]}, 2, 100)
     store.update(command.client_order_id, filled_qty=2)
     books, events, issues = replay_fill_projection(store, "USDT")
     if fee_cost == 0:

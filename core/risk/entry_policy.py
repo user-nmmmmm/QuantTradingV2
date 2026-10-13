@@ -1,8 +1,7 @@
 """Boolean entry gate and the risk-decision/reservation/intent publishing flow.
 
-Split out of core/risk.py (A4) — see docs/architecture_review.md. See
-core/risk_circuit_breaker.py's module docstring for why this is a mixin
-rather than a standalone collaborator object.
+Split out of core/risk.py (A4) — see docs/architecture_review.md. ``EntryPolicy`` is a collaborator held by
+``RiskManager`` (``_entry_policy``); see core/risk/circuit_breaker.py for how it reaches the shared state.
 """
 from __future__ import annotations
 
@@ -16,18 +15,24 @@ from core.events import TradingEventPipeline, stable_uuid5
 from core.foundation.logger import get_logger
 from core.trading.portfolio import Portfolio
 from core.risk.reservation import RiskReservationProjection
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from core.risk import RiskManager
 
 logger = get_logger(__name__)
 
 
-class EntryPolicyMixin:
+class EntryPolicy:
     """The final admission gate (``check_entry_risk``) and the atomic
     decision/reservation/intent publishing flow (``approve_and_create_intent``).
 
-    Expects ``self`` to carry ``liquidity_limit_pct``, ``_entry_notional_caps``
-    (from ``PositionSizingMixin``), and the ``_blocks_new_risk``/
-    ``_health_allows_new_risk`` gates from ``CircuitBreakerMixin``.
+    Needs from the host: ``liquidity_limit_pct``, ``_entry_notional_caps`` (``PositionSizing``) and the
+    ``_blocks_new_risk`` / ``_health_allows_new_risk`` gates (``CircuitBreaker``).
     """
+
+    def __init__(self, host: "RiskManager") -> None:
+        self._host = host
 
     def check_entry_risk(
         self,
@@ -59,11 +64,12 @@ class EntryPolicyMixin:
         注意：这是**闸门**，不做削减。上层应先用 `clamp_entry_qty` 把仓位削到
         上限内，本方法作为最后一道防线（含实盘路径）。
         """
-        if self._blocks_new_risk():
+        host = self._host
+        if host._blocks_new_risk():
             note("portfolio_block")
             logger.warning("Trade Rejected: Circuit Breaker Active")
             return False
-        if not self._health_allows_new_risk():
+        if not host._health_allows_new_risk():
             note("account_health_block")
             return False
 
@@ -73,7 +79,7 @@ class EntryPolicyMixin:
 
         # 1. Liquidity Check
         if current_volume > 0:
-            max_qty = current_volume * self.liquidity_limit_pct
+            max_qty = current_volume * host.liquidity_limit_pct
             if qty > max_qty:
                 note("liquidity_limit")
                 logger.warning(f"Trade Rejected: Liquidity Limit. Qty {qty:.4f} > Max {max_qty:.4f} (1% of {current_volume})")
@@ -85,14 +91,14 @@ class EntryPolicyMixin:
             reservation_projection.pending_notional(current_prices)
             if reservation_projection is not None else pending_open_notional or {}
         )
-        caps = self._entry_notional_caps(
+        caps = host._entry_notional_caps(
             portfolio, symbol, price, current_prices, reserved_by_symbol, action, reservation_projection
         )
         if caps is None:
             note("unverifiable_exposure")
             return False
 
-        context = self._last_entry_context
+        context = host._last_entry_context
         equity = context["equity"]
 
         # 2. Cash Sufficiency Check
@@ -116,14 +122,14 @@ class EntryPolicyMixin:
             projected_leverage = (
                 context["exposure"] + context["reserved"] + trade_value
             ) / equity
-            logger.warning(f"Trade Rejected: Leverage Limit. Projected {projected_leverage:.2f} > Max {self.max_leverage}")
+            logger.warning(f"Trade Rejected: Leverage Limit. Projected {projected_leverage:.2f} > Max {host.max_leverage}")
             return False
 
         # 4. Concentration Check (Max Position Size)
         if trade_value > caps["concentration"]:
             note("concentration_limit")
             new_pos_value = context["position_value"] + trade_value
-            logger.warning(f"Trade Rejected: Concentration Limit. Symbol {symbol} would be {new_pos_value/equity:.1%} > Max {self.max_pos_size_pct:.1%}")
+            logger.warning(f"Trade Rejected: Concentration Limit. Symbol {symbol} would be {new_pos_value/equity:.1%} > Max {host.max_pos_size_pct:.1%}")
             return False
 
         # 5. Correlation cluster / crypto beta budgets (SR3-2). Fifteen
@@ -154,6 +160,7 @@ class EntryPolicyMixin:
         current_prices: Optional[Dict[str, float]] = None,
     ) -> Tuple[RiskDecision, Optional[OrderIntent]]:
         """Evaluate and atomically create an approved intent and reservation."""
+        host = self._host
         if not isinstance(intent, OrderIntent):
             raise TypeError("intent must be OrderIntent")
         if intent.action not in {"buy", "short"} or intent.reduce_only:
@@ -169,7 +176,7 @@ class EntryPolicyMixin:
                 amount, _ = resolve_approved_risk({**intent.__dict__, 'reference_price': reference_price})
                 intent = replace(intent, approved_risk_amount=amount)
             reserved = reservation_projection.pending_notional(current_prices)
-            approved = self.check_entry_risk(
+            approved = host.check_entry_risk(
                 portfolio,
                 intent.symbol,
                 intent.requested_qty,
@@ -179,8 +186,8 @@ class EntryPolicyMixin:
                 pending_open_notional=reserved,
                 action=intent.action,
             )
-            budget = self.drawdown_budget
-            if approved and (budget.policy.enabled or self.scale_minimum_with_risk):
+            budget = host.drawdown_budget
+            if approved and (budget.policy.enabled or host.scale_minimum_with_risk):
                 approved = budget.broker is not None and budget.check_intent(intent) is None
             decision = RiskDecision(
                 decision_id=decision_id,

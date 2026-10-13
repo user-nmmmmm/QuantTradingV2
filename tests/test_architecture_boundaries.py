@@ -106,9 +106,19 @@ FACADE_IMPORT_ALLOWED = {
 
 
 def _imported_modules(path: Path) -> list[tuple[int, str]]:
+    """Runtime imports of ``path``. Imports under ``if TYPE_CHECKING:`` never execute, so they cannot start an
+    import cycle; the B4 collaborators use one to annotate ``host`` with the facade's class (ADR 0018)."""
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    type_checking_only = {
+        id(child)
+        for node in ast.walk(tree)
+        if isinstance(node, ast.If) and ast.unparse(node.test) == "TYPE_CHECKING"
+        for child in ast.walk(node)
+    }
     modules: list[tuple[int, str]] = []
     for node in ast.walk(tree):
+        if id(node) in type_checking_only:
+            continue
         if isinstance(node, ast.Import):
             modules.extend((node.lineno, alias.name) for alias in node.names)
         elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:

@@ -16,30 +16,48 @@ Split by change reason (A4) — see docs/architecture_review.md:
 - core/risk/position_sizing.py — notional caps, qty clamping
 - core/risk/entry_policy.py    — final admission gate, decision/reservation publishing
 
-``RiskManager`` composes the three mixins below via inheritance rather than
-holding separate collaborator objects, so every method still reads/writes
-the exact same ``self`` attributes as before the split — behavior-identical,
-mechanical. ``BreakerAction`` is re-exported here unchanged since it's part
-of this module's public API.
+``RiskManager`` holds the three collaborators below (``_circuit_breaker``, ``_position_sizing``,
+``_entry_policy``) and forwards the public methods to them with the same signatures. The collaborators reach
+the shared state through their ``host`` reference, so behavior is identical to the former mixins (B4, ADR
+0018). ``BreakerAction`` is re-exported here unchanged since it's part of this module's public API.
 """
 import math
 from typing import Dict, Optional
 
 from core.risk.circuit_breaker import (
     BreakerAction,
-    CircuitBreakerMixin,
+    CircuitBreaker,
     RiskControlDecision,
 )
-from core.risk.position_sizing import PositionSizingMixin
-from core.risk.entry_policy import EntryPolicyMixin
+from core.risk.position_sizing import PositionSizing
+from core.risk.entry_policy import EntryPolicy
+from core.trading.portfolio import Portfolio
+from core.risk.reservation import RiskReservationProjection
+from typing import Tuple
+from core.foundation.domain import OrderIntent
+from core.events import TradingEventPipeline
+from core.foundation.domain import RiskDecision
+from functools import cached_property
 
 __all__ = ["BreakerAction", "RiskControlDecision", "RiskManager"]
 
 
-class RiskManager(CircuitBreakerMixin, PositionSizingMixin, EntryPolicyMixin):
+class RiskManager:
     # Shrink a clamped order this far below the cap so float rounding in
     # qty*price cannot push it back over the limit it was clamped to.
     CAP_SAFETY_MARGIN = 1e-9
+
+    @cached_property
+    def _circuit_breaker(self) -> CircuitBreaker:
+        return CircuitBreaker(self)
+
+    @cached_property
+    def _position_sizing(self) -> PositionSizing:
+        return PositionSizing(self)
+
+    @cached_property
+    def _entry_policy(self) -> EntryPolicy:
+        return EntryPolicy(self)
 
     def __init__(
         self,
@@ -145,3 +163,219 @@ class RiskManager(CircuitBreakerMixin, PositionSizingMixin, EntryPolicyMixin):
         # Populated by _entry_notional_caps so the gate/clamp can report the
         # equity/exposure figures behind a decision without recomputing them.
         self._last_entry_context: Dict[str, float] = {}
+
+    def set_health_assessment(self, assessment) -> None:
+        return self._circuit_breaker.set_health_assessment(assessment)
+
+    def _health_allows_new_risk(self) -> bool:
+        return self._circuit_breaker._health_allows_new_risk()
+
+    def reset_daily_breaker(self) -> None:
+        return self._circuit_breaker.reset_daily_breaker()
+
+    @property
+    def breaker_action(self) -> BreakerAction:
+        return self._circuit_breaker.breaker_action
+
+    @property
+    def risk_multiplier(self) -> float:
+        return self._circuit_breaker.risk_multiplier
+
+    def _blocks_new_risk(self) -> bool:
+        return self._circuit_breaker._blocks_new_risk()
+
+    def manual_resume(
+        self,
+        *,
+        approved_by: str,
+        current_equity: float,
+        rebase_high_water: bool = False,
+        occurred_at=None,
+        bar_index: Optional[int] = None,
+    ) -> None:
+        return self._circuit_breaker.manual_resume(
+            approved_by=approved_by,
+            current_equity=current_equity,
+            rebase_high_water=rebase_high_water,
+            occurred_at=occurred_at,
+            bar_index=bar_index,
+        )
+
+    def check_circuit_breaker(
+        self,
+        current_equity: float,
+        daily_start_equity: float,
+        *,
+        occurred_at=None,
+        bar_index: Optional[int] = None,
+    ) -> RiskControlDecision:
+        return self._circuit_breaker.check_circuit_breaker(
+            current_equity,
+            daily_start_equity,
+            occurred_at=occurred_at,
+            bar_index=bar_index,
+        )
+
+    def _recovery_transition(self, action, reason, now, equity, bar_index):
+        return self._circuit_breaker._recovery_transition(action, reason, now, equity, bar_index)
+
+    def breaker_checkpoint(self):
+        return self._circuit_breaker.breaker_checkpoint()
+
+    def restore_breaker_checkpoint(self, state):
+        return self._circuit_breaker.restore_breaker_checkpoint(state)
+
+    def record_breaker_action_result(
+        self,
+        action_id: Optional[str],
+        *,
+        post_action_equity: float,
+        cost: float,
+        positions_before: int,
+        positions_after: int,
+        executed: bool = True,
+        overridden_by: Optional[str] = None,
+    ) -> None:
+        return self._circuit_breaker.record_breaker_action_result(
+            action_id,
+            post_action_equity=post_action_equity,
+            cost=cost,
+            positions_before=positions_before,
+            positions_after=positions_after,
+            executed=executed,
+            overridden_by=overridden_by,
+        )
+
+    def calculate_position_size(self, equity: float, entry_price: float, stop_loss_price: float) -> float:
+        return self._position_sizing.calculate_position_size(equity, entry_price, stop_loss_price)
+
+    def calculate_position_size_fixed_pct(self, equity: float, entry_price: float, pct: float = 0.1) -> float:
+        return self._position_sizing.calculate_position_size_fixed_pct(equity, entry_price, pct)
+
+    def _entry_notional_caps(
+        self,
+        portfolio: Portfolio,
+        symbol: str,
+        price: float,
+        current_prices: Optional[Dict[str, float]],
+        reserved_by_symbol: Dict[str, float],
+        action: str,
+        reservation_projection=None,
+    ) -> Optional[Dict[str, float]]:
+        return self._position_sizing._entry_notional_caps(
+            portfolio,
+            symbol,
+            price,
+            current_prices,
+            reserved_by_symbol,
+            action,
+            reservation_projection,
+        )
+
+    def max_entry_notional(
+        self,
+        portfolio: Portfolio,
+        symbol: str,
+        price: float,
+        *,
+        current_volume: float = 0,
+        current_prices: Optional[Dict[str, float]] = None,
+        pending_open_notional: Optional[Dict[str, float]] = None,
+        reservation_projection: Optional[RiskReservationProjection] = None,
+        action: str = 'buy',
+    ) -> float:
+        return self._position_sizing.max_entry_notional(
+            portfolio,
+            symbol,
+            price,
+            current_volume=current_volume,
+            current_prices=current_prices,
+            pending_open_notional=pending_open_notional,
+            reservation_projection=reservation_projection,
+            action=action,
+        )
+
+    def minimum_entry_notional(
+        self,
+        equity: float,
+        health_multiplier: float = 1.0,
+        *,
+        live: bool = False,
+    ) -> float:
+        return self._position_sizing.minimum_entry_notional(equity, health_multiplier, live=live)
+
+    def clamp_entry_qty(
+        self,
+        portfolio: Portfolio,
+        symbol: str,
+        qty: float,
+        price: float,
+        *,
+        current_volume: float = 0,
+        current_prices: Optional[Dict[str, float]] = None,
+        pending_open_notional: Optional[Dict[str, float]] = None,
+        reservation_projection: Optional[RiskReservationProjection] = None,
+        action: str = 'buy',
+        health_multiplier: float = 1.0,
+    ) -> float:
+        return self._position_sizing.clamp_entry_qty(
+            portfolio,
+            symbol,
+            qty,
+            price,
+            current_volume=current_volume,
+            current_prices=current_prices,
+            pending_open_notional=pending_open_notional,
+            reservation_projection=reservation_projection,
+            action=action,
+            health_multiplier=health_multiplier,
+        )
+
+    def check_entry_risk(
+        self,
+        portfolio: Portfolio,
+        symbol: str,
+        qty: float,
+        price: float,
+        current_volume: float = 0,
+        current_prices: Optional[Dict[str, float]] = None,
+        pending_open_notional: Optional[Dict[str, float]] = None,
+        reservation_projection: Optional[RiskReservationProjection] = None,
+        action: str = 'buy',
+    ) -> bool:
+        return self._entry_policy.check_entry_risk(
+            portfolio,
+            symbol,
+            qty,
+            price,
+            current_volume,
+            current_prices,
+            pending_open_notional,
+            reservation_projection,
+            action,
+        )
+
+    def approve_and_create_intent(
+        self,
+        portfolio: Portfolio,
+        intent: OrderIntent,
+        *,
+        reference_price: float,
+        event_pipeline: TradingEventPipeline,
+        reservation_projection: RiskReservationProjection,
+        occurred_at,
+        source: str = 'risk',
+        current_volume: float = 0,
+        current_prices: Optional[Dict[str, float]] = None,
+    ) -> Tuple[RiskDecision, Optional[OrderIntent]]:
+        return self._entry_policy.approve_and_create_intent(
+            portfolio,
+            intent,
+            reference_price=reference_price,
+            event_pipeline=event_pipeline,
+            reservation_projection=reservation_projection,
+            occurred_at=occurred_at,
+            source=source,
+            current_volume=current_volume,
+            current_prices=current_prices,
+        )

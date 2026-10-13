@@ -213,7 +213,7 @@ open -> 不利极值 -> 有利极值 -> close
 这个漏记是按策略类型有偏的。回归见
 `tests/test_backtest_stop_pass_and_liquidity.py`。
 
-两遍撮合共用同一份 bar 成交量预算（`MatchingMixin._bar_volume_budget`），止损
+两遍撮合共用同一份 bar 成交量预算（`Matching._bar_volume_budget`），止损
 那一遍不会拿到新的参与率额度。
 
 ### 唯一权威 close

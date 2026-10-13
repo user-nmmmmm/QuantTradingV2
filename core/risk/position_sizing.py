@@ -1,8 +1,7 @@
 """Position sizing and notional cap calculation for candidate entries.
 
-Split out of core/risk.py (A4) — see docs/architecture_review.md. See
-core/risk_circuit_breaker.py's module docstring for why this is a mixin
-rather than a standalone collaborator object.
+Split out of core/risk.py (A4) — see docs/architecture_review.md. ``PositionSizing`` is a collaborator held by
+``RiskManager`` (``_position_sizing``); see core/risk/circuit_breaker.py for how it reaches the shared state.
 """
 from __future__ import annotations
 
@@ -14,19 +13,26 @@ from core.foundation.logger import get_logger
 from core.trading.portfolio import Portfolio
 from core.risk.portfolio_governor import exposure_by_cluster
 from core.risk.reservation import RiskReservationProjection
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from core.risk import RiskManager
 
 logger = get_logger(__name__)
 
 
-class PositionSizingMixin:
+class PositionSizing:
     """Notional-cap and qty-clamping logic.
 
-    Expects ``self`` to carry ``risk_per_trade``, ``max_leverage``,
+    Needs from the host: ``risk_per_trade``, ``max_leverage``,
     ``max_pos_size_pct``, ``min_entry_notional_pct``, ``liquidity_limit_pct``,
     ``CAP_SAFETY_MARGIN``, plus the ``risk_multiplier``/``_blocks_new_risk``/
-    ``_health_allows_new_risk`` gates from ``CircuitBreakerMixin``, and sets
+    ``_health_allows_new_risk`` gates from ``CircuitBreaker``, and sets
     ``self._last_entry_context``.
     """
+
+    def __init__(self, host: "RiskManager") -> None:
+        self._host = host
 
     def calculate_position_size(self, equity: float, entry_price: float, stop_loss_price: float) -> float:
         """
@@ -40,21 +46,22 @@ class PositionSizingMixin:
         返回：
         - qty：建议下单数量；若参数不合法或熔断器触发，则返回 0。
         """
-        if self._blocks_new_risk():
+        host = self._host
+        if host._blocks_new_risk():
             return 0.0
-        if not self._health_allows_new_risk():
+        if not host._health_allows_new_risk():
             return 0.0
 
         if entry_price <= 0 or stop_loss_price <= 0:
             return 0.0
 
-        risk_amount = equity * self.risk_per_trade
+        risk_amount = equity * host.risk_per_trade
         price_diff = abs(entry_price - stop_loss_price)
 
         if price_diff == 0:
             return 0.0
 
-        qty = risk_amount / price_diff * self.risk_multiplier
+        qty = risk_amount / price_diff * host.risk_multiplier
         return qty
 
     def calculate_position_size_fixed_pct(self, equity: float, entry_price: float, pct: float = 0.10) -> float:
@@ -69,16 +76,17 @@ class PositionSizingMixin:
         - 没有明确止损价（无法按风险比例定仓）
         - 快速原型/简化回测
         """
-        if self._blocks_new_risk():
+        host = self._host
+        if host._blocks_new_risk():
             return 0.0
-        if not self._health_allows_new_risk():
+        if not host._health_allows_new_risk():
             return 0.0
 
         if entry_price <= 0:
             return 0.0
 
         allocation = equity * pct
-        return allocation / entry_price * self.risk_multiplier
+        return allocation / entry_price * host.risk_multiplier
 
     def _entry_notional_caps(
         self,
@@ -99,6 +107,7 @@ class PositionSizingMixin:
         - dict：{约束名: 该约束允许的最大 trade_value}（可能为负，表示已超限）
         - None：无法核实敞口（fail closed，调用方应拒绝交易）
         """
+        host = self._host
         if current_prices is None:
             if portfolio.positions:
                 # No price map means existing positions can only be valued
@@ -126,13 +135,13 @@ class PositionSizingMixin:
         caps: Dict[str, float] = {
             # Leverage: gross exposure (incl. other pending opens) vs equity.
             "leverage": (
-                current_equity * self.max_leverage
+                current_equity * host.max_leverage
                 - current_exposure
                 - reserved_exposure
             ),
             # Concentration: this symbol's own position vs equity.
             "concentration": (
-                current_equity * self.max_pos_size_pct
+                current_equity * host.max_pos_size_pct
                 - current_pos_value
                 - reserved_symbol_value
             ),
@@ -140,7 +149,7 @@ class PositionSizingMixin:
         # SR3-2 (STR-P1-04): correlated coins are not independent positions.
         # These caps live here, in the one place both clamp_entry_qty and
         # check_entry_risk read, so the reduction and the gate cannot drift.
-        cluster_policy = getattr(self, "cluster_policy", None)
+        cluster_policy = getattr(host, "cluster_policy", None)
         if cluster_policy is not None and cluster_policy.has_notional_caps:
             by_cluster = exposure_by_cluster(
                 cluster_policy, portfolio, current_prices, reserved_by_symbol
@@ -162,7 +171,7 @@ class PositionSizingMixin:
         # Spot buys exchange cash for inventory. Leveraged account notional is
         # instead limited by reconciled initial margin.
         if portfolio.account_mode is AccountMode.SPOT and action != "short":
-            budget_model = getattr(self, "drawdown_budget", None)
+            budget_model = getattr(host, "drawdown_budget", None)
             cost = budget_model.cost if budget_model is not None else None
             reserved_cash = (reservation_projection.pending_cash(current_prices, cost=cost)
                              if reservation_projection is not None else reserved_exposure)
@@ -183,7 +192,7 @@ class PositionSizingMixin:
                 - reserved_exposure
             )
 
-        self._last_entry_context = {
+        host._last_entry_context = {
             "equity": current_equity,
             "exposure": current_exposure,
             "reserved": reserved_exposure,
@@ -210,16 +219,17 @@ class PositionSizingMixin:
         仓位越大——直接拒单会让风险最小的信号反而永远无法成交（见
         docs/backtest_assumptions.md 第 4 节）。削减后实际承担的风险只会更小。
         """
+        host = self._host
         if price <= 0:
             return 0.0
-        if self._blocks_new_risk() or not self._health_allows_new_risk():
+        if host._blocks_new_risk() or not host._health_allows_new_risk():
             return 0.0
 
         reserved_by_symbol = (
             reservation_projection.pending_notional(current_prices)
             if reservation_projection is not None else pending_open_notional or {}
         )
-        caps = self._entry_notional_caps(
+        caps = host._entry_notional_caps(
             portfolio, symbol, price, current_prices, reserved_by_symbol, action, reservation_projection
         )
         if caps is None:
@@ -228,19 +238,20 @@ class PositionSizingMixin:
         budget = min(caps.values())
         note(notional_caps=dict(caps), binding_cap=min(caps, key=lambda key: caps[key]))
         if current_volume > 0:
-            budget = min(budget, current_volume * self.liquidity_limit_pct * price)
+            budget = min(budget, current_volume * host.liquidity_limit_pct * price)
         if budget <= 0:
             note("notional_budget_exhausted")
             return 0.0
 
         # Stay strictly inside the caps: qty*price can round just above budget,
         # which check_entry_risk would then reject as a limit breach.
-        return budget * self.risk_multiplier * (1.0 - self.CAP_SAFETY_MARGIN)
+        return budget * host.risk_multiplier * (1.0 - host.CAP_SAFETY_MARGIN)
 
     def minimum_entry_notional(self, equity: float, health_multiplier: float = 1.0, *, live: bool = False) -> float:
-        scale = self.risk_multiplier * health_multiplier if self.scale_minimum_with_risk else 1.0
-        floor = 0.0 if live else self.research_notional_floor
-        return max(equity * self.min_entry_notional_pct * scale, floor)
+        host = self._host
+        scale = host.risk_multiplier * health_multiplier if host.scale_minimum_with_risk else 1.0
+        floor = 0.0 if live else host.research_notional_floor
+        return max(equity * host.min_entry_notional_pct * scale, floor)
 
     def clamp_entry_qty(
         self,
@@ -261,10 +272,11 @@ class PositionSizingMixin:
         最小门槛（``min_entry_notional_pct``）用于避免“上限只剩一点点额度”时
         成交出无意义的尘埃仓位——那种仓位只会白付手续费。
         """
+        host = self._host
         if qty <= 0 or price <= 0:
             return 0.0
 
-        allowed_notional = self.max_entry_notional(
+        allowed_notional = host.max_entry_notional(
             portfolio, symbol, price,
             current_volume=current_volume,
             current_prices=current_prices,
@@ -276,17 +288,17 @@ class PositionSizingMixin:
             return 0.0
 
         clamped = min(qty, allowed_notional / price)
-        equity = float(self._last_entry_context.get("equity", 0.0))
+        equity = float(host._last_entry_context.get("equity", 0.0))
         if equity > 0:
-            min_notional = self.minimum_entry_notional(
-                equity, health_multiplier, live=self.drawdown_budget.live)
+            min_notional = host.minimum_entry_notional(
+                equity, health_multiplier, live=host.drawdown_budget.live)
             if clamped * price < min_notional:
                 note("below_minimum_notional", minimum_notional=min_notional)
                 logger.info(
                     "Entry skipped: clamped notional %.2f below minimum %.2f "
                     "(%.2f%% of equity) for %s",
                     clamped * price, min_notional,
-                    self.min_entry_notional_pct * 100, symbol,
+                    host.min_entry_notional_pct * 100, symbol,
                 )
                 return 0.0
 

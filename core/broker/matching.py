@@ -2,13 +2,7 @@
 
 Split out of core/broker.py (A4) — see docs/architecture_review.md.
 
-This is a mixin, not a standalone collaborator object: ``Broker`` combines
-``MatchingMixin``, ``FillServiceMixin``, ``FinancingMixin``, and
-``LiquidationMixin`` via inheritance so every method still reads/writes the
-same ``self`` attributes it always has. That keeps the split mechanical and
-behavior-identical — a full composition redesign is a bigger change on
-money-path-adjacent code and is deliberately left for a dedicated pass, not
-bundled into a file-size cleanup.
+It is a collaborator held by ``Broker`` (B4, ADR 0018): it reads and writes the shared state through its ``host`` reference and calls back into the host's own methods, so overrides and ``patch.object`` on the host still intercept it. See core/broker/matching.py for the full explanation.
 """
 from __future__ import annotations
 
@@ -24,6 +18,10 @@ from core.events import OrderEvent
 from core.foundation.logger import get_logger
 from core.risk.reservation import OpeningRiskRejected, ensure_opening_reservation
 from core.market.timeframes import as_utc_timestamp
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from core.broker import Broker
 
 logger = get_logger(__name__)
 
@@ -42,16 +40,19 @@ def is_protective_stop(order: Order) -> bool:
     )
 
 
-class MatchingMixin:
+class Matching:
     """Order submission, per-bar matching, and order-book bookkeeping.
 
-    Expects ``self`` to carry ``event_pipeline``, ``exchange_id``,
+    Needs from the host: ``event_pipeline``, ``exchange_id``,
     ``account_id``, ``timeframe``, ``_intent_sequence``, ``pending_orders``,
     ``active_orders``, ``last_prices``, ``max_participation_rate``,
     ``_volume_budget``/``_volume_budget_bar``, ``opening_order_ttl_bars``,
     ``execution_audit``, ``reservation_projection``, and ``_execute_trade``
-    (from ``FillServiceMixin``).
+    (from ``FillService``).
     """
+
+    def __init__(self, host: "Broker") -> None:
+        self._host = host
 
     def submit_order(
         self,
@@ -88,6 +89,7 @@ class MatchingMixin:
         - 仅做基本参数校验与结构化封装，加入 pending_orders
         - 实际撮合发生在 process_orders（由引擎在每根 bar 调用）
         """
+        host = self._host
         if match_not_before is not None:
             not_before = as_utc_timestamp(match_not_before)
             submitted = as_utc_timestamp(timestamp)
@@ -102,12 +104,12 @@ class MatchingMixin:
             "stop": OrderType.STOP,
         }
         otype = otype_map.get(order_type.lower(), OrderType.MARKET)
-        resolved_sequence = self._intent_sequence if sequence is None else sequence
+        resolved_sequence = host._intent_sequence if sequence is None else sequence
         if sequence is None and _intent is None:
-            self._intent_sequence += 1
+            host._intent_sequence += 1
         intent = _intent or OrderIntent(
-            exchange=self.exchange_id, account=self.account_id, symbol=symbol,
-            timeframe=self.timeframe, bar_time=self._iso_time(timestamp),
+            exchange=host.exchange_id, account=host.account_id, symbol=symbol,
+            timeframe=host.timeframe, bar_time=host._iso_time(timestamp),
             strategy_id=strategy_id, action=side, sequence=resolved_sequence,
             requested_qty=qty, order_type=order_type.lower(), price=price,
             time_in_force=time_in_force,
@@ -116,30 +118,30 @@ class MatchingMixin:
             approved_risk_amount=approved_risk_amount,
             signal_id=signal_id, causation_id=causation_id,
         )
-        if intent.client_order_id in self.opening_orders:
-            return self.opening_orders[intent.client_order_id]
+        if intent.client_order_id in host.opening_orders:
+            return host.opening_orders[intent.client_order_id]
         reference = intent.reference_price or price
         if not reference and otype is OrderType.MARKET:
-            guard = getattr(self, "opening_risk_guard", None)
+            guard = getattr(host, "opening_risk_guard", None)
             bar = guard.bars.get(symbol) if guard is not None else None
             if (bar is not None and getattr(bar, "name", None) == guard.timestamp
                     and pd.Timestamp(timestamp) == guard.timestamp):
                 reference = guard.prices.get(symbol)
-            elif self._volume_budget_bar.get(symbol) == timestamp:
-                reference = self.last_prices.get(symbol)
+            elif host._volume_budget_bar.get(symbol) == timestamp:
+                reference = host.last_prices.get(symbol)
             if reference:
                 intent = replace(intent, reference_price=float(reference))
         rejection = None
         try:
             intent, intent_envelope = ensure_opening_reservation(
-                self.event_pipeline, intent, reference_price=reference or 0,
-                occurred_at=self._event_time(timestamp), source="backtest",
-                guard=getattr(self, "opening_risk_guard", None),
+                host.event_pipeline, intent, reference_price=reference or 0,
+                occurred_at=host._event_time(timestamp), source="backtest",
+                guard=getattr(host, "opening_risk_guard", None),
             )
         except OpeningRiskRejected as exc:
             rejection = str(exc)
-            intent_envelope = self.event_pipeline.publish_intent(
-                intent, occurred_at=self._event_time(timestamp), source="backtest")
+            intent_envelope = host.event_pipeline.publish_intent(
+                intent, occurred_at=host._event_time(timestamp), source="backtest")
 
         order = Order(
             symbol=symbol,
@@ -167,8 +169,8 @@ class MatchingMixin:
             risk_action_id=risk_action_id,
         )
         if rejection is not None:
-            self._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
-            self.execution_audit.append({"timestamp": timestamp, "order_id": order.id,
+            host._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
+            host.execution_audit.append({"timestamp": timestamp, "order_id": order.id,
                 "symbol": symbol, "outcome": "rejected", "reason": rejection})
             return order
         if qty <= 0:
@@ -178,7 +180,7 @@ class MatchingMixin:
                 side,
                 qty,
             )
-            self._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
+            host._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
             return order
 
         if otype in [OrderType.LIMIT, OrderType.STOP] and price is None:
@@ -187,20 +189,21 @@ class MatchingMixin:
                 order_type,
                 symbol,
             )
-            self._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
+            host._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
             return order
 
-        self.pending_orders.append(order)
+        host.pending_orders.append(order)
         if side in {"buy", "short"}:
-            self.opening_orders[order.id] = order
-        self._publish_order_event(order, timestamp)
+            host.opening_orders[order.id] = order
+        host._publish_order_event(order, timestamp)
         return order
 
     def submit_intent(self, intent: OrderIntent) -> Order:
         """Submit the exact canonical command without rebuilding its identity."""
+        host = self._host
         if not isinstance(intent, OrderIntent):
             raise TypeError("intent must be OrderIntent")
-        return self.submit_order(
+        return host.submit_order(
             symbol=intent.symbol,
             side=intent.action,
             qty=intent.requested_qty,
@@ -232,7 +235,8 @@ class MatchingMixin:
         return cls._event_time(value).isoformat().replace("+00:00", "Z")
 
     def _publish_order_event(self, order: Order, occurred_at: Any) -> None:
-        self.orders_by_id[order.id] = order
+        host = self._host
+        host.orders_by_id[order.id] = order
         if order.intent is None:
             return
         payload = OrderEvent(
@@ -243,9 +247,9 @@ class MatchingMixin:
             remaining_qty=order.remaining_qty,
             average_fill_price=order.avg_fill_price or None,
         )
-        envelope = self.event_pipeline.publish(
+        envelope = host.event_pipeline.publish(
             payload,
-            occurred_at=self._event_time(occurred_at),
+            occurred_at=host._event_time(occurred_at),
             correlation_id=order.intent.correlation_id,
             causation_id=order.last_event_id,
             idempotency_key=(
@@ -262,8 +266,9 @@ class MatchingMixin:
     def _set_status(
         self, order: Order, status: Any, occurred_at: Any = None
     ) -> None:
+        host = self._host
         order.status = status
-        self._publish_order_event(order, occurred_at)
+        host._publish_order_event(order, occurred_at)
 
     def process_orders(
         self,
@@ -280,6 +285,7 @@ class MatchingMixin:
         the bar without giving the rest of the book a second bite at the same
         bar's liquidity (STR-P1-01).
         """
+        host = self._host
         executed_trades: List[Dict] = []
         next_active_orders: List[Order] = []
         # Several orders can compete for the same candle. Extract its scalar
@@ -288,15 +294,15 @@ class MatchingMixin:
         for symbol, bar in current_bar.items():
             mark = bar.get("mark_price", bar.get("close", bar.get("open")))
             if mark is not None and pd.notna(mark):
-                self.last_prices[symbol] = float(mark)
-        for order in self.pending_orders:
-            self._set_status(order, BacktestOrderStatus.SUBMITTED, order.timestamp)
-            self.active_orders.append(order)
-        self.pending_orders = []
+                host.last_prices[symbol] = float(mark)
+        for order in host.pending_orders:
+            host._set_status(order, BacktestOrderStatus.SUBMITTED, order.timestamp)
+            host.active_orders.append(order)
+        host.pending_orders = []
 
-        volume_budget = self._bar_volume_budget(current_bar)
+        volume_budget = host._bar_volume_budget(current_bar)
 
-        for order in self.active_orders:
+        for order in host.active_orders:
             if order_filter is not None and not order_filter(order):
                 next_active_orders.append(order)
                 continue
@@ -311,16 +317,16 @@ class MatchingMixin:
                 next_active_orders.append(order)
                 continue
             if order.expire_time is not None and current_time > order.expire_time:
-                self._set_status(order, BacktestOrderStatus.EXPIRED, current_time)
+                host._set_status(order, BacktestOrderStatus.EXPIRED, current_time)
                 continue
             if (
                 order.time_in_force == TimeInForce.DAY
                 and order.submitted_date is not None
                 and current_time.date() > order.submitted_date
             ):
-                self._set_status(order, BacktestOrderStatus.EXPIRED, current_time)
+                host._set_status(order, BacktestOrderStatus.EXPIRED, current_time)
                 continue
-            if self._expire_aged_opening_order(order, current_time):
+            if host._expire_aged_opening_order(order, current_time):
                 continue
 
             prices = candle_prices.get(order.symbol)
@@ -335,7 +341,7 @@ class MatchingMixin:
                 exec_price = open_price
             elif order.order_type == OrderType.LIMIT:
                 if limit_price is None:
-                    self._set_status(order, BacktestOrderStatus.REJECTED, current_time)
+                    host._set_status(order, BacktestOrderStatus.REJECTED, current_time)
                     continue
                 if order.side in {"buy", "cover"} and low_price <= limit_price:
                     exec_price = open_price if open_price <= limit_price else limit_price
@@ -345,7 +351,7 @@ class MatchingMixin:
                     is_maker = open_price < limit_price
             elif order.order_type == OrderType.STOP:
                 if limit_price is None:
-                    self._set_status(order, BacktestOrderStatus.REJECTED, current_time)
+                    host._set_status(order, BacktestOrderStatus.REJECTED, current_time)
                     continue
                 if order.side in {"buy", "cover"} and high_price >= limit_price:
                     exec_price = max(open_price, limit_price)
@@ -354,7 +360,7 @@ class MatchingMixin:
 
             if exec_price is None:
                 if order.time_in_force in {TimeInForce.IOC, TimeInForce.FOK}:
-                    self._set_status(order, BacktestOrderStatus.CANCELED, current_time)
+                    host._set_status(order, BacktestOrderStatus.CANCELED, current_time)
                 else:
                     next_active_orders.append(order)
                 continue
@@ -362,19 +368,19 @@ class MatchingMixin:
             available = volume_budget.get(order.symbol, 0.0)
             requested = order.remaining_qty
             if order.time_in_force == TimeInForce.FOK and available < requested:
-                self._audit_order(order, current_time, "rejected", "fok_volume")
-                self._set_status(order, BacktestOrderStatus.CANCELED, current_time)
+                host._audit_order(order, current_time, "rejected", "fok_volume")
+                host._set_status(order, BacktestOrderStatus.CANCELED, current_time)
                 continue
             fill_qty = min(requested, available)
             if fill_qty <= 0:
                 if order.time_in_force in {TimeInForce.IOC, TimeInForce.FOK}:
-                    self._set_status(order, BacktestOrderStatus.CANCELED, current_time)
+                    host._set_status(order, BacktestOrderStatus.CANCELED, current_time)
                 else:
                     next_active_orders.append(order)
                 continue
 
             if fill_qty < requested:
-                self._audit_order(
+                host._audit_order(
                     order,
                     current_time,
                     "partial_fill",
@@ -383,14 +389,14 @@ class MatchingMixin:
                     fill_qty=fill_qty,
                 )
 
-            trade = self._execute_trade(
+            trade = host._execute_trade(
                 order, exec_price, current_time, fill_qty,
                 float(bar_data.get("volume", 0.0)), is_maker=is_maker,
                 bar_context=bar_data,
             )
             if trade is None:
                 if order.status is BacktestOrderStatus.SUBMITTING:
-                    self._set_status(order, BacktestOrderStatus.REJECTED, current_time)
+                    host._set_status(order, BacktestOrderStatus.REJECTED, current_time)
                 continue
             executed_trades.append(trade)
             volume_budget[order.symbol] = max(available - trade["qty"], 0.0)
@@ -402,14 +408,14 @@ class MatchingMixin:
                 / order.filled_qty
             )
             if order.remaining_qty <= 1e-12:
-                self._set_status(order, BacktestOrderStatus.FILLED, current_time)
+                host._set_status(order, BacktestOrderStatus.FILLED, current_time)
             elif order.time_in_force == TimeInForce.IOC:
-                self._set_status(order, BacktestOrderStatus.CANCELED, current_time)
+                host._set_status(order, BacktestOrderStatus.CANCELED, current_time)
             else:
-                self._set_status(order, BacktestOrderStatus.PARTIALLY_FILLED, current_time)
+                host._set_status(order, BacktestOrderStatus.PARTIALLY_FILLED, current_time)
                 next_active_orders.append(order)
 
-        self.active_orders = next_active_orders
+        host.active_orders = next_active_orders
         return executed_trades
 
     def _expire_aged_opening_order(self, order: Order, current_time: Any) -> bool:
@@ -433,7 +439,8 @@ class MatchingMixin:
         lock.  The configured TTL is therefore a hard upper bound on the
         opening order's total working lifetime.
         """
-        ttl = self.opening_order_ttl_bars
+        host = self._host
+        ttl = host.opening_order_ttl_bars
         if ttl <= 0 or order.side not in {"buy", "short"}:
             return False
         if order.last_age_bar != current_time:
@@ -444,11 +451,11 @@ class MatchingMixin:
                 order.last_counted_bar = current_time
         if order.age_bars <= ttl:
             return False
-        self._audit_order(
+        host._audit_order(
             order, current_time, "expired", "opening_order_ttl",
             age_bars=order.age_bars, idle_bars=order.idle_bars, ttl_bars=ttl,
         )
-        self._set_status(order, BacktestOrderStatus.EXPIRED, current_time)
+        host._set_status(order, BacktestOrderStatus.EXPIRED, current_time)
         return True
 
     def _bar_volume_budget(self, current_bar: Dict[str, pd.Series]) -> Dict[str, float]:
@@ -464,16 +471,17 @@ class MatchingMixin:
         The returned mapping *is* the tracking state, so the caller decrements
         it in place as it fills.
         """
-        tracked = self._volume_budget_bar
+        host = self._host
+        tracked = host._volume_budget_bar
         for symbol, bar in current_bar.items():
             bar_time = bar.get("liquidity_source_time", getattr(bar, "name", None))
             if symbol in tracked and tracked[symbol] == bar_time:
                 continue
             tracked[symbol] = bar_time
-            self._volume_budget[symbol] = (
-                max(float(bar.get("volume", 0.0)), 0.0) * self.max_participation_rate
+            host._volume_budget[symbol] = (
+                max(float(bar.get("volume", 0.0)), 0.0) * host.max_participation_rate
             )
-        return self._volume_budget
+        return host._volume_budget
 
     def _audit_order(
         self,
@@ -483,7 +491,8 @@ class MatchingMixin:
         reason: str,
         **details: Any,
     ) -> None:
-        self.execution_audit.append({
+        host = self._host
+        host.execution_audit.append({
             "timestamp": timestamp,
             "order_id": order.id,
             "symbol": order.symbol,
@@ -494,32 +503,35 @@ class MatchingMixin:
         })
 
     def has_active_open_order(self, symbol: str) -> bool:
+        host = self._host
         return any(
             order.symbol == symbol
             and order.side in {"buy", "short"}
             and order.remaining_qty > 0
-            for order in self.pending_orders + self.active_orders
+            for order in host.pending_orders + host.active_orders
         )
 
     def pending_open_notional(
         self, current_prices: Optional[Dict[str, float]] = None
     ) -> Dict[str, float]:
-        return self.reservation_projection.pending_notional(current_prices)
+        host = self._host
+        return host.reservation_projection.pending_notional(current_prices)
 
     def cancel_opening_orders(
         self, symbols: Optional[Iterable[str]] = None, *, timestamp: Any = None,
     ) -> int:
         """Retire entry remainders without canceling protective/reducing exits."""
+        host = self._host
         wanted = None if symbols is None else set(symbols)
         def targeted(order: Order) -> bool:
             return order.side in {"buy", "short"} and (wanted is None or order.symbol in wanted)
-        cancelled = [order for order in self.pending_orders + self.active_orders if targeted(order)]
-        self.pending_orders = [order for order in self.pending_orders if not targeted(order)]
-        self.active_orders = [order for order in self.active_orders if not targeted(order)]
+        cancelled = [order for order in host.pending_orders + host.active_orders if targeted(order)]
+        host.pending_orders = [order for order in host.pending_orders if not targeted(order)]
+        host.active_orders = [order for order in host.active_orders if not targeted(order)]
         for order in cancelled:
             if order.status not in {BacktestOrderStatus.CANCELED, BacktestOrderStatus.REJECTED,
                                     BacktestOrderStatus.EXPIRED, BacktestOrderStatus.FILLED}:
-                self._set_status(order, BacktestOrderStatus.CANCELED, timestamp)
+                host._set_status(order, BacktestOrderStatus.CANCELED, timestamp)
         return len(cancelled)
 
     def cancel_protective_stops(self, symbols: Optional[Iterable[str]] = None) -> int:
@@ -529,6 +541,7 @@ class MatchingMixin:
         liquidation, end-of-backtest), so a resident stop can never fill on top
         of a close that has already happened.
         """
+        host = self._host
         wanted = None if symbols is None else set(symbols)
 
         def _targeted(order: Order) -> bool:
@@ -537,13 +550,13 @@ class MatchingMixin:
             )
 
         cancelled = [
-            order for order in self.pending_orders + self.active_orders
+            order for order in host.pending_orders + host.active_orders
             if _targeted(order)
         ]
-        self.pending_orders = [o for o in self.pending_orders if not _targeted(o)]
-        self.active_orders = [o for o in self.active_orders if not _targeted(o)]
+        host.pending_orders = [o for o in host.pending_orders if not _targeted(o)]
+        host.active_orders = [o for o in host.active_orders if not _targeted(o)]
         for order in cancelled:
-            self._set_status(order, BacktestOrderStatus.CANCELED)
+            host._set_status(order, BacktestOrderStatus.CANCELED)
         return len(cancelled)
 
     def cancel_symbol_orders(self, symbol: str) -> int:
@@ -553,17 +566,18 @@ class MatchingMixin:
         Called on state switch to prevent stale limit orders from filling
         in the wrong market regime.
         """
-        before = len(self.pending_orders) + len(self.active_orders)
+        host = self._host
+        before = len(host.pending_orders) + len(host.active_orders)
 
-        cancelled = [o for o in self.pending_orders if o.symbol == symbol]
-        self.pending_orders = [o for o in self.pending_orders if o.symbol != symbol]
-        cancelled.extend(o for o in self.active_orders if o.symbol == symbol)
-        self.active_orders = [o for o in self.active_orders if o.symbol != symbol]
+        cancelled = [o for o in host.pending_orders if o.symbol == symbol]
+        host.pending_orders = [o for o in host.pending_orders if o.symbol != symbol]
+        cancelled.extend(o for o in host.active_orders if o.symbol == symbol)
+        host.active_orders = [o for o in host.active_orders if o.symbol != symbol]
 
         for o in cancelled:
-            self._set_status(o, BacktestOrderStatus.CANCELED)
+            host._set_status(o, BacktestOrderStatus.CANCELED)
 
-        n = before - len(self.pending_orders) - len(self.active_orders)
+        n = before - len(host.pending_orders) - len(host.active_orders)
         if n > 0:
             logger.info(
                 "Cancelled %s stale order(s) for %s during state switch",

@@ -62,7 +62,7 @@
 | 风险定仓 | Risk-Based Sizing | `qty = 权益 × risk_per_trade ÷ |入场价 − 止损价|`（当前 `risk_per_trade=2%`），止损越紧名义仓位越大；是固定分数风险模型，**不随信号质量/胜率调整**（无 Kelly、无波动目标，见 §11）。 | `core/risk/position_sizing.py: calculate_position_size` |
 | 削减（而非拒单） | Clamp (vs Reject) | 算出的仓位超过风控上限时削减到上限内成交而非整单作废——否则止损最紧（风险最小）的信号反而永远无法成交；低于最小开仓名义（`minimum_entry`）的尘埃仓位仍返回 0。 | `core/risk/position_sizing.py: clamp_entry_qty`；口径见 [`backtest_assumptions.md §4`](backtest_assumptions.md) |
 | 流动性约束 | Liquidity Constraint | 单笔订单量不得超过该 bar 成交量的 1%（`liquidity_limit_pct`），防止不现实的巨额瞬时成交。 | `core/risk/`；`config/params.yaml: risk.liquidity_limit_pct` |
-| 回撤阶梯 | Drawdown Ladder | 组合回撤的分级动作：日亏 5%（UTC 日界重置）→ 回撤 10% 减半风险（REDUCE）→ 15% 禁止新开仓（BLOCK_NEW，可经 30 天冷卻 + 0.25 试错期恢复）→ 20% 强平（LIQUIDATE，终止运行）→ 25% 锁定（LOCKED，终止且需 `manual_resume` 人工恢复）。峰值水位永不重置。 | `core/risk/`（CircuitBreakerMixin）；`config/params.yaml: drawdown` |
+| 回撤阶梯 | Drawdown Ladder | 组合回撤的分级动作：日亏 5%（UTC 日界重置）→ 回撤 10% 减半风险（REDUCE）→ 15% 禁止新开仓（BLOCK_NEW，可经 30 天冷卻 + 0.25 试错期恢复）→ 20% 强平（LIQUIDATE，终止运行）→ 25% 锁定（LOCKED，终止且需 `manual_resume` 人工恢复）。峰值水位永不重置。 | `core/risk/`（CircuitBreaker）；`config/params.yaml: drawdown` |
 | 回撤预算 | Drawdown Budget | 回撤逼近阈值时对开仓单的预算钳制：超支时撤销开仓并按比例强制减仓（`force_liquidate(reason='DrawdownBudgetReduce')`），`headroom_fraction` 控制缓冲。 | `core/risk/drawdown_budget.py`、`backtest/drawdown_budget.py`；`config/params.yaml: drawdown_budget` |
 | 相关性簇预算 | Correlation Cluster Budget | 把同涨同跌的标的编入簇（静态映射，未映射的一律归入 `crypto_beta`），对簇总敞口（≤1.5×权益）、全加密 beta 敞口（≤2.0）、单批次新开风险（≤6%）、簇内在险止损风险（≤10%）设预算；核心动机：15 个加密主流币在系统性回撤里其实是"一个仓位"。簇划分是**人工静态表**，非估计的协方差结构（见 §11）。 | `core/risk/portfolio_governor.py`；`config/params.yaml: portfolio_risk` |
 | 在途风险预占 | Risk Reservation | 信号已发出但订单未成交期间，对其名义/现金占用做投影记账，使并发信号共享同一份预算，防止"每单都合规、合起来超限"。 | `core/risk/reservation.py` |

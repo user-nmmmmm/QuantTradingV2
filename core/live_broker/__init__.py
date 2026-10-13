@@ -23,9 +23,9 @@ from core.exchange import (
     MarketMetadataLoader,
     MetadataChangeHaltPolicy,
 )
-from core.live_broker.account_sync import AccountSyncMixin
-from core.live_broker.reconciler import OrderReconcilerMixin
-from core.live_broker.submission import SubmissionServiceMixin
+from core.live_broker.account_sync import AccountSync
+from core.live_broker.reconciler import OrderReconciler
+from core.live_broker.submission import SubmissionService
 from core.foundation.logger import get_logger
 from core.trading.order_store import OrderStore
 from core.live_broker.retry import with_retry
@@ -34,6 +34,8 @@ from core.risk.reservation import (
     RiskReservationProjection,
     ensure_opening_reservation,
 )
+from core.foundation.domain import SyncResult
+from functools import cached_property
 
 """CCXT adapter backed by an authoritative idempotent order ledger.
 
@@ -42,22 +44,30 @@ Split by change reason (A4) — see docs/architecture_review.md:
 - core/live_broker_reconciler.py    — order-fact reconciliation, startup recovery
 - core/live_broker_account_sync.py  — cash/position sync against the exchange
 
-``LiveBroker`` composes the three mixins below via inheritance rather than
-holding separate collaborator objects, so every method still reads/writes
-the exact same ``self`` attributes as before the split — behavior-identical,
-mechanical. A true composition redesign is a bigger change on this
-money-path code (the only module here that talks to a real exchange) and is
-deliberately left for a dedicated pass, not bundled into this file-size
-cleanup. ``LiveBroker`` itself keeps ``__init__`` and the shared plumbing
-every mixin calls back into (retry, alert, clock/time formatting, result
-construction, event publishing).
+``LiveBroker`` holds the three collaborators below (``_submission``, ``_reconciler``, ``_account_sync``) and
+forwards their methods with the same signatures; they reach the shared state through their ``host`` reference
+and call back into ``LiveBroker``'s own methods, so behavior is identical to the former mixins (B4, ADR 0018).
+``LiveBroker`` itself keeps ``__init__`` and the shared plumbing every collaborator calls back into (retry,
+alert, clock/time formatting, result construction, event publishing).
 """
 
 logger = get_logger(__name__)
 
 
-class LiveBroker(SubmissionServiceMixin, OrderReconcilerMixin, AccountSyncMixin):
+class LiveBroker:
     """CCXT adapter backed by an authoritative idempotent order ledger."""
+
+    @cached_property
+    def _submission(self) -> SubmissionService:
+        return SubmissionService(self)
+
+    @cached_property
+    def _reconciler(self) -> OrderReconciler:
+        return OrderReconciler(self)
+
+    @cached_property
+    def _account_sync(self) -> AccountSync:
+        return AccountSync(self)
 
     def __init__(
         self,
@@ -103,13 +113,13 @@ class LiveBroker(SubmissionServiceMixin, OrderReconcilerMixin, AccountSyncMixin)
         self._last_event_by_order: Dict[str, str] = {}
         self._bar_timeframe = "unknown"
         self._bar_time = "unknown"
-        self.trades = []  # Compatibility projection only; OrderStore is authoritative.
+        self.trades: list[Any] = []  # Compatibility projection only; OrderStore is authoritative.
         from core.trading.order_latency import OrderLatencyRecorder, order_observation_sidecar_path
         self.order_latency = OrderLatencyRecorder(
             persistence_path=order_observation_sidecar_path(getattr(self.order_store, "path", None)))
-        self.close_events = []
-        self.projection_issues = []
-        self.unowned_positions = {}
+        self.close_events: list[Any] = []
+        self.projection_issues: list[Any] = []
+        self.unowned_positions: dict[str, Any] = {}
         self._rebuild_fill_projection()
         self.health_assessment = None
         self.last_account_sync_at: Optional[datetime] = None
@@ -392,3 +402,234 @@ class LiveBroker(SubmissionServiceMixin, OrderReconcilerMixin, AccountSyncMixin)
     def _as_optional_float(value: Any) -> Optional[float]:
         parsed = LiveBroker._as_float(value, 0.0)
         return parsed if parsed > 0 else None
+
+    def submit_order(
+        self,
+        symbol: str,
+        side: str,
+        qty: float,
+        price: Optional[float] = None,
+        order_type: str = 'market',
+        timestamp: Any = None,
+        slippage: float = 0.0,
+        strategy_id: str = 'Manual',
+        exit_reason: str = 'signal',
+        time_in_force: Optional[str] = None,
+        position_side: Optional[str] = None,
+        reduce_only: Optional[bool] = None,
+        sequence: int = 0,
+        stop_loss: float = 0.0,
+        zero_cost: bool = False,
+        reference_price: Optional[float] = None,
+        trigger_price: Optional[float] = None,
+        risk_action_id: Optional[str] = None,
+        approved_risk_amount: Optional[float] = None,
+        signal_id: Optional[str] = None,
+        causation_id: Optional[str] = None,
+    ) -> OrderSubmissionResult:
+        return self._submission.submit_order(
+            symbol,
+            side,
+            qty,
+            price,
+            order_type,
+            timestamp,
+            slippage,
+            strategy_id,
+            exit_reason,
+            time_in_force,
+            position_side,
+            reduce_only,
+            sequence,
+            stop_loss,
+            zero_cost,
+            reference_price,
+            trigger_price,
+            risk_action_id,
+            approved_risk_amount,
+            signal_id,
+            causation_id,
+        )
+
+    def submit_intent(self, intent: OrderIntent) -> OrderSubmissionResult:
+        return self._submission.submit_intent(intent)
+
+    def record_local_rejection(
+        self,
+        intent: OrderIntent,
+        message: str,
+        code: OrderErrorCode = OrderErrorCode.SAFETY_POLICY,
+    ) -> OrderSubmissionResult:
+        return self._submission.record_local_rejection(intent, message, code)
+
+    def cancel_order(self, client_order_id: str) -> OrderSubmissionResult:
+        return self._submission.cancel_order(client_order_id)
+
+    def cancel_symbol_orders(self, symbol: str) -> None:
+        return self._submission.cancel_symbol_orders(symbol)
+
+    def _build_intent(
+        self,
+        symbol: str,
+        side: str,
+        qty: float,
+        price: Optional[float],
+        order_type: str,
+        timestamp: Any,
+        strategy_id: str,
+        time_in_force: Optional[str],
+        position_side: Optional[str],
+        reduce_only: Optional[bool],
+        sequence: int,
+        reference_price: Optional[float] = None,
+        trigger_price: Optional[float] = None,
+        stop_loss: float = 0.0,
+        exit_reason: Optional[str] = None,
+        risk_action_id: Optional[str] = None,
+        approved_risk_amount: Optional[float] = None,
+        signal_id: Optional[str] = None,
+        causation_id: Optional[str] = None,
+    ) -> OrderIntent:
+        return self._submission._build_intent(
+            symbol,
+            side,
+            qty,
+            price,
+            order_type,
+            timestamp,
+            strategy_id,
+            time_in_force,
+            position_side,
+            reduce_only,
+            sequence,
+            reference_price,
+            trigger_price,
+            stop_loss,
+            exit_reason,
+            risk_action_id,
+            approved_risk_amount,
+            signal_id,
+            causation_id,
+        )
+
+    def _validate_intent(self, intent: OrderIntent) -> Optional[str]:
+        return self._submission._validate_intent(intent)
+
+    @staticmethod
+    def _is_opening_record(record: Dict[str, Any]) -> bool:
+        return SubmissionService._is_opening_record(record)
+
+    def _has_other_active_open_order(self, symbol: str, client_order_id: Optional[str] = None) -> bool:
+        return self._submission._has_other_active_open_order(symbol, client_order_id)
+
+    def has_active_open_order(self, symbol: str) -> bool:
+        return self._submission.has_active_open_order(symbol)
+
+    def pending_open_notional(self, current_prices: Optional[Dict[str, float]] = None) -> Dict[str, float]:
+        return self._submission.pending_open_notional(current_prices)
+
+    def reconcile_order(self, client_order_id: str) -> OrderSubmissionResult:
+        return self._reconciler.reconcile_order(client_order_id)
+
+    def recover_open_orders(self) -> Dict[str, OrderSubmissionResult]:
+        return self._reconciler.recover_open_orders()
+
+    def confirm_order_not_submitted(
+        self,
+        client_order_id: str,
+        *,
+        confirmed_by: str,
+        reason: str,
+    ) -> OrderSubmissionResult:
+        return self._reconciler.confirm_order_not_submitted(
+            client_order_id,
+            confirmed_by=confirmed_by,
+            reason=reason,
+        )
+
+    def _unattempted_submission_expired(self, record: Dict[str, Any]) -> bool:
+        return self._reconciler._unattempted_submission_expired(record)
+
+    def has_unresolved_unknown(self) -> bool:
+        return self._reconciler.has_unresolved_unknown()
+
+    def _persist_exchange_payload(
+        self,
+        client_order_id: str,
+        payload: Dict[str, Any],
+    ) -> OrderSubmissionResult:
+        return self._reconciler._persist_exchange_payload(client_order_id, payload)
+
+    def _persist_fills(
+        self,
+        client_order_id: str,
+        exchange_order_id: Optional[str],
+        payload: Dict[str, Any],
+        cumulative_filled: float,
+        average: Optional[float],
+    ) -> None:
+        return self._reconciler._persist_fills(
+            client_order_id,
+            exchange_order_id,
+            payload,
+            cumulative_filled,
+            average,
+        )
+
+    def _fetch_exchange_order(self, record: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        return self._reconciler._fetch_exchange_order(record)
+
+    @property
+    def account_source_configured(self) -> bool:
+        return self._account_sync.account_source_configured
+
+    def configure_account_source(
+        self,
+        source,
+        *,
+        environment: str,
+        maximum_snapshot_age_seconds: float = 90,
+    ) -> None:
+        return self._account_sync.configure_account_source(
+            source,
+            environment=environment,
+            maximum_snapshot_age_seconds=maximum_snapshot_age_seconds,
+        )
+
+    def _account_source_failure(self, reason, *, checked_at=None):
+        return self._account_sync._account_source_failure(reason, checked_at=checked_at)
+
+    def reconcile_full_account(self, *, checked_at=None):
+        return self._account_sync.reconcile_full_account(checked_at=checked_at)
+
+    def _compare_observed_account(self, actual, report, now):
+        return self._account_sync._compare_observed_account(actual, report, now)
+
+    def sync(self) -> SyncResult:
+        return self._account_sync.sync()
+
+    def _load_portfolio_fact(self):
+        return self._account_sync._load_portfolio_fact()
+
+    @staticmethod
+    def _balance_number(value):
+        return AccountSync._balance_number(value)
+
+    def _sync_margin_account(self, balance):
+        return self._account_sync._sync_margin_account(balance)
+
+    def _sync_spot_positions(self, balance: Dict[str, Any]) -> Dict[str, Dict[str, float]]:
+        return self._account_sync._sync_spot_positions(balance)
+
+    def _sync_derivatives_positions(self, balance: Dict[str, Any]) -> Dict[str, Dict[str, float]]:
+        return self._account_sync._sync_derivatives_positions(balance)
+
+    def _extract_qty(self, payload: Dict[str, Any]) -> float:
+        return self._account_sync._extract_qty(payload)
+
+    @staticmethod
+    def _position_direction(payload: Dict[str, Any], info: Dict[str, Any]) -> Optional[float]:
+        return AccountSync._position_direction(payload, info)
+
+    def _extract_avg_price(self, payload: Dict[str, Any]) -> float:
+        return self._account_sync._extract_avg_price(payload)

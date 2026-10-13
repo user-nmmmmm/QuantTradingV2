@@ -26,3 +26,4 @@
 | [0015](0015-core-analytics-package.md) | 审计、诊断、健康与指标移到 `core/analytics/`（B2 第 4 簇） | 已采纳 |
 | [0016](0016-core-foundation-package.md) | 基础件移到 `core/foundation/`（B2 第 5 簇，`core/` 平铺模块清零） | 已采纳 |
 | [0017](0017-clear-layer-exceptions.md) | 清零分层规则的 4 条已知例外（B3） | 已采纳 |
+| [0018](0018-mixins-to-collaborators.md) | 四个宿主类的 mixin 改为持有 host 引用的协作类（B4） | 已采纳 |
