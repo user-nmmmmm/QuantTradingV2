@@ -180,7 +180,7 @@ def test_invalid_matrix_dimensions_fail_before_creating_output(tmp_path, args):
 
 
 def test_main_output_collision_rejects_before_data_loading(tmp_path, monkeypatch):
-    import main
+    import cli.run as main
     def forbidden(*a, **k):
         raise AssertionError("existing evidence must not trigger a new backtest")
     monkeypatch.setattr(main, "_load_requested_data", forbidden)

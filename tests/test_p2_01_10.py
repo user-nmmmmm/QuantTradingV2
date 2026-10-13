@@ -8,7 +8,8 @@ from unittest.mock import MagicMock, patch
 
 import pandas as pd
 
-import main as backtest_entrypoint
+import cli.data as data_entrypoint
+import cli.run as backtest_entrypoint
 from core.foundation.domain import SyncResult
 from core.live_broker import LiveBroker
 from core.market.market_data import LiveMarketDataAdapter, normalize_market_frame
@@ -55,7 +56,7 @@ class TestP201ToP210(unittest.TestCase):
 
     def test_cli_no_data_and_empty_backtest_return_nonzero(self):
         with patch.object(
-            backtest_entrypoint, "get_data", return_value=pd.DataFrame()
+            data_entrypoint, "get_data", return_value=pd.DataFrame()
         ):
             self.assertEqual(
                 backtest_entrypoint.main(["--source", "synthetic", "--days", "20"]),
@@ -75,7 +76,7 @@ class TestP201ToP210(unittest.TestCase):
         engine = MagicMock()
         engine.run.return_value = {"equity_curve": pd.DataFrame()}
         with tempfile.TemporaryDirectory() as directory, patch.object(
-            backtest_entrypoint, "get_data", return_value=frame
+            data_entrypoint, "get_data", return_value=frame
         ), patch.object(
             backtest_entrypoint.DataHandler,
             "generate_quality_report",

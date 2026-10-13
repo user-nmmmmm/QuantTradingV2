@@ -9,6 +9,7 @@
 ## [Unreleased]
 
 ### Changed
+- `BacktestEngine.run`（838 行）拆成 4 个准备阶段、每根 K 线 5 步、4 个收尾阶段和 2 个结果片段，`run` 只剩驱动；`main()` 拆成 10 个阶段，入口实现从 `main.py` 移到新包 `cli/`（`main.py` 剩 5 行，`quant-backtest` 入口不变；导入 `main` 里的私有函数改为 `cli.data` / `cli.replay` / `cli.run`）；`scripts/classification.json` 给 100 个脚本登记生命周期并由测试检查（ADR 0019）。
 - `Broker`、`LiveBroker`、`RiskManager`、`LiveTradingEngine` 的 13 个 mixin 改为持有 `host` 引用的协作类（`Matching`、`FillService`、`CircuitBreaker`、`OrderReconciler`、`TickOrchestrator` …），宿主惰性持有它们并保留同签名的转发方法，外部调用不变；mypy 存量 869 → 404（ADR 0018）。状态仍由宿主持有。
 - 分层规则不再有已知例外（ADR 0017）：`paper_labels`、`paper_label_execution`、`label_account_reconciliation` 从 `analysis/` 搬到 `signal_meta/`；`create_selector`、`restore_selector` 从 `backtest.coin_selector` 搬到 `research.ml_selection.serving`，导入路径随之改变。
 - 10 个基础件模块从 `core/` 根移到 `core/foundation/`，导入路径随之改变（`core.domain` → `core.foundation.domain`）；CI 的 mypy 目标、`scripts/dev.py` 同步更新；不留兼容垫片（ADR 0016）。至此 `core/` 根没有平铺模块。

@@ -10,7 +10,8 @@ from unittest.mock import MagicMock
 import numpy as np
 import pytest
 
-import main as entrypoint
+import cli.replay as replay_module
+import cli.run as entrypoint
 from backtest.engine import BacktestEngine
 from backtest.reporting.signal_meta_layer import signal_meta_layer_digest
 from backtest.reporting.signal_observation import signal_observation_digest
@@ -149,7 +150,7 @@ def test_legacy_manifest_explicitly_disables_new_model(runs, tmp_path, monkeypat
         constructed.append(kwargs)
         return actual_engine(**kwargs)
 
-    monkeypatch.setattr(entrypoint, "BacktestEngine", record_engine)
+    monkeypatch.setattr(replay_module, "BacktestEngine", record_engine)   # replay_manifest builds the engine in cli.replay
     assert entrypoint.replay_manifest(str(path)) == 0
     assert constructed[0]["signal_meta_layer"] == {"enabled": False}
     assert constructed[0]["initial_capital"] == 10000

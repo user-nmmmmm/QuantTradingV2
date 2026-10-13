@@ -49,7 +49,7 @@ def run_research(identifier: str, parameters: dict[str, Any], output: Path,
     from core.market.data_fetcher import DataFetcher
     from dashboard.market_analysis import validate_data_selection
     from dashboard.robust_research import window_geometry
-    from main import _load_local_ohlcv
+    from cli.data import _load_local_ohlcv
 
     np.random.seed(parameters["seed"])
     random.seed(parameters["seed"])

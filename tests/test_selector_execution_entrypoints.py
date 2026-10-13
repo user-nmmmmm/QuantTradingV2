@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 import pandas as pd
 import pytest
 
-import main as entrypoint
+import cli.run as entrypoint
 from config.config import config
 from core.planning.allocation import EntryCandidate, PortfolioSignalAllocator
 from core.trading.position_management import CapitalAllocationPolicy, SmartCapitalPlanner

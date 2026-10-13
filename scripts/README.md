@@ -1,5 +1,7 @@
 # 脚本索引
 
+每个脚本的生命周期（`supported` / `research` / `historical`）登记在 [`classification.json`](classification.json)，规则见 [ADR 0019](../docs/adr/0019-run-pipeline-cli-package-scripts-lifecycle.md)：主线脚本不得依赖研究或历史脚本；历史脚本把自身哈希写进证据回执，**不得修改或搬迁**。新增脚本时同时更新本索引和该文件。
+
 先在仓库根目录执行 `python -m pip install -e . --no-deps`（可编辑安装），之后用 `python scripts/<脚本名>.py` 运行，脚本不再依赖当前目录或 `sys.path` 补丁。需要参数的脚本先查看 `--help`，再确认输入数据、输出目录和对应的研究或验收文档。脚本生成的 `outputs/`、`reports/` 内容与源码分开管理。表中“离线”表示不请求外部服务，仍可能创建本地报告；“公开采集”会访问外部行情接口。
 
 本索引按**用途**定位脚本，不表示研究结果已获策略准入。当前工作区还有尚未加入 Git 的脚本；发布或在其他机器运行前，需核对脚本及其依赖是否已进入版本控制。

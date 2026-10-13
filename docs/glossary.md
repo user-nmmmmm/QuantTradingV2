@@ -144,7 +144,7 @@
 | 关联 ID | Correlation ID | 同一笔信号在整条处理链路（信号→风控→订单→成交）中共享的确定性 ID，用于串联事件。 | `core/events/` |
 | 事件溯源 | Event Sourcing | 交易事实（信号/订单/成交/平仓）以只追加事件流为权威记录，状态由事件重放推导；`SQLiteEventStore` 用触发器强制 INSERT-only。 | `core/events/`；契约见 [`docs/authoritative_ledger.md`](authoritative_ledger.md) |
 | 幂等键 | Idempotency Key | 事件去重键（确定性 UUID5）：同键重复投递被忽略，同键不同内容直接报错，保证重放/恢复不会产生重复副作用。 | `core/events/`（`TradingEventPipeline`） |
-| 运行清单回放 | Run Manifest Replay | full profile 回测落盘 `run_manifest.json`（配置/数据哈希/种子），可用 `--replay-manifest` 重跑并逐字节比对 digest；退出码 7=拒绝、8=不一致。 | `main.py: replay_manifest` |
+| 运行清单回放 | Run Manifest Replay | full profile 回测落盘 `run_manifest.json`（配置/数据哈希/种子），可用 `--replay-manifest` 重跑并逐字节比对 digest；退出码 7=拒绝、8=不一致。 | `cli/replay.py: replay_manifest` |
 | 引擎等价基线 | Engine Equivalence Baseline | 固定种子合成数据跑完整生产链路录制的快照基线，重跑比对浮点容差 `1e-9/1e-12`、其余字段严格相等；行为变更只新增基线版本，**永不覆盖旧版本**。 | `tests/fixtures/backtest/engine/`；`tests/engine_baseline_harness.py` |
 | 固定基线（手写） | Fixed Fixture Baseline | 手工编写、可手算复核的冻结输入输出 bundle（orders/fills/closed_trades/equity/metrics），做内部一致性往返校验，不跑引擎。 | `tests/fixtures/backtest/`；`tests/baseline_harness.py` |
 
