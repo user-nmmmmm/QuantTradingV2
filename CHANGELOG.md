@@ -15,9 +15,18 @@
 - `DataVersionStore` 并发写入同一个不可变对象时，Windows 上读取刚被另一线程换到位的文件可能短暂抛出 `PermissionError`（负载下约 3/40 次使 `test_concurrent_identical_writes_publish_complete_objects_once` 失败）。现在这一处读取在 Windows 上有界重试（5 次，10–40 毫秒），内容不同仍报"immutable content conflict"，持续拒绝和其他平台照常抛出。存储的字节与语义不变；文件在冻结范围内，身份报告会显示为行为变化（仅 Windows 重试）。
 
 ### Added
+- 冻结研究输入清单（路线图 D2，ADR 0020）：`data/binance/1d/_frozen_inputs.json` 为 30 个已跟踪的 CSV 登记行数、范围与 SHA-256（CRLF 规范化为 LF），并如实标注来源核验状态（2 个有下载记录，28 个未核验）；`scripts/data_inputs.py verify` 在文件缺失、被替换或未登记时失败，已加入 CI 与 `dev.py check`。说明见 `docs/data_identity.md`。
+- 锁文件再生成脚本（D3，ADR 0021）：`scripts/regenerate_lock.py`（`--check` 离线核对规范形式、摘要与直接依赖）；CI 改为 `pip install -r requirements.lock.txt -r requirements-dev.txt` 后运行 `check_environment.py --strict-lock`。
+- mypy 硬门槛清单（C3，ADR 0022）：`scripts/mypy_hard_gate.txt`（128 个零错误模块），`quality_ratchet.py check` 对其中任何发现直接失败，`promote` 把新达标的模块收进清单。
+- 自动生成的架构清单（D6，ADR 0023）：`docs/architecture_inventory.md` 与 `scripts/architecture_inventory.py --check`；`架构图/path_moves.json` 记录交付图所引用的 16 个已搬迁路径。
+- 覆盖率门槛 85% → 90%（C5，ADR 0024），同时为一批没有直接测试的运维与恢复工具补了行为测试：事故日志、进程监督、Telegram 心跳、R7/Phase 6 失败即关闭入口、订单状态归一与下单异常分类、SQLite 快照/恢复守卫、补帧与冷却回放、入场闸门的各项拒绝原因、公共行情缓冲的校验。
+- CodeQL 工作流（D5，ADR 0023）：Python 与 JavaScript，每周与 PR 运行，不是必需检查。
 - 测试治理（路线图 C4）：`quarantine` 标记（带原因和到期日，过期后 CI 失败）、`tests/capabilities.py` 的能力探测跳过（Windows 上没有符号链接权限时跳过，Linux CI 保证不跳过）、完整套件的耗时预算（目标 ≤ 5 分钟，CI 步骤 8 分钟超时），约定写在 `docs/quality.md`。
 
 ### Changed
+- `requirements.lock.txt` 改为规范形式（两行表头、`GitPython`/`gitdb` 调换顺序）并更新摘要，**没有任何版本变化**；锁文件在冻结范围内，身份报告会显示这一处变化（ADR 0021）。
+- Dependabot 的 GitHub Actions 更新改为每月一次、小版本与补丁合并成一个分组 PR、主版本单独成 PR；pip 更新仍不启用（ADR 0021）。
+- `.devcontainer` 的 `postCreateCommand` 与 `dev.py setup` 改为同 CI 一致的安装路径；`.gitignore` 放行 `data/binance/1d/_frozen_inputs.json`。
 - `BacktestEngine.run`（838 行）拆成 4 个准备阶段、每根 K 线 5 步、4 个收尾阶段和 2 个结果片段，`run` 只剩驱动；`main()` 拆成 10 个阶段，入口实现从 `main.py` 移到新包 `cli/`（`main.py` 剩 5 行，`quant-backtest` 入口不变；导入 `main` 里的私有函数改为 `cli.data` / `cli.replay` / `cli.run`）；`scripts/classification.json` 给 100 个脚本登记生命周期并由测试检查（ADR 0019）。
 - `Broker`、`LiveBroker`、`RiskManager`、`LiveTradingEngine` 的 13 个 mixin 改为持有 `host` 引用的协作类（`Matching`、`FillService`、`CircuitBreaker`、`OrderReconciler`、`TickOrchestrator` …），宿主惰性持有它们并保留同签名的转发方法，外部调用不变；mypy 存量 869 → 404（ADR 0018）。状态仍由宿主持有。
 - 分层规则不再有已知例外（ADR 0017）：`paper_labels`、`paper_label_execution`、`label_account_reconciliation` 从 `analysis/` 搬到 `signal_meta/`；`create_selector`、`restore_selector` 从 `backtest.coin_selector` 搬到 `research.ml_selection.serving`，导入路径随之改变。

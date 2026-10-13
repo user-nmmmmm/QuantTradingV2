@@ -28,3 +28,8 @@
 | [0017](0017-clear-layer-exceptions.md) | 清零分层规则的 4 条已知例外（B3） | 已采纳 |
 | [0018](0018-mixins-to-collaborators.md) | 四个宿主类的 mixin 改为持有 host 引用的协作类（B4） | 已采纳 |
 | [0019](0019-run-pipeline-cli-package-scripts-lifecycle.md) | 回测运行与命令行拆成流水线；入口移到 `cli/`；脚本按生命周期分类（B5） | 已采纳 |
+| [0020](0020-frozen-research-inputs.md) | 冻结研究输入清单与下载缓存清单分离（D2） | 已采纳 |
+| [0021](0021-locked-ci-and-dependabot-policy.md) | CI 从锁文件安装；Dependabot 只管 Actions（D3、D4） | 已采纳 |
+| [0022](0022-mypy-hard-gate-list.md) | mypy 硬门槛清单：已零错误的模块不能回退（C3） | 已采纳 |
+| [0023](0023-static-analysis-devcontainer-and-architecture-inventory.md) | CodeQL 启用、dev container 与平台矩阵的结论、自动生成的架构清单（D5、D6） | 已采纳 |
+| [0024](0024-coverage-90-and-branch-coverage-evaluation.md) | 覆盖率门槛提到 90%；分支覆盖暂不设门槛（C5） | 已采纳 |

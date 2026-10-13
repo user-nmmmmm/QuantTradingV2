@@ -71,3 +71,54 @@ def test_repository_configuration_and_baseline_are_consistent():
     assert baseline["schema"] == "quality-baseline/v1" and set(baseline["tools"]) == {"ruff", "mypy"}
     for tool in baseline["tools"].values():
         assert all(key.count("::") == 1 and count > 0 for key, count in tool.items())
+
+
+# ---- C3: the mypy hard-gate list ------------------------------------------------------------------------------
+
+@pytest.fixture()
+def gate_list(tmp_path: Path, monkeypatch):
+    path = tmp_path / "gate.txt"
+    monkeypatch.setattr(ratchet, "GATE_LIST", path)
+    monkeypatch.setattr(ratchet, "ROOT", tmp_path)            # listed files are looked up relative to the root
+    for name in ("a.py", "b.py", "z.py", "other.py"):
+        (tmp_path / name).write_text("", encoding="utf-8")
+    return path
+
+
+def test_a_finding_in_a_gated_module_fails_check_even_with_a_baseline_that_allows_it(fake_tools, gate_list, capsys):
+    gate_list.write_text("# header\nb.py\n", encoding="utf-8")
+    assert ratchet.main(["update"]) == 0                      # the baseline now tolerates b.py::attr-defined
+    assert ratchet.main(["check"]) == 1                       # ... but b.py is gated, so it cannot be tolerated
+    assert "ERROR [mypy gate] b.py::attr-defined: 4 finding(s)" in capsys.readouterr().out
+    gate_list.write_text("other.py\n", encoding="utf-8")
+    assert ratchet.main(["check"]) == 0
+
+
+def test_gate_flags_a_listed_file_that_no_longer_exists(gate_list):
+    problems = ratchet.gate_problems(["b.py", "core/no_such_module.py"], Counter())
+    assert problems == [f"core/no_such_module.py: listed in {gate_list.name} but the file does not exist"]
+
+
+def test_promote_adds_only_clean_modules_and_keeps_the_list_sorted(fake_tools, gate_list, monkeypatch, capsys):
+    monkeypatch.setattr(ratchet, "clean_modules", lambda config: ["z.py", "a.py", "b.py"])
+    gate_list.write_text("b.py\n", encoding="utf-8")
+    assert ratchet.main(["promote"]) == 0 and ratchet.read_gate_list() == ["b.py"]      # dry run changes nothing
+    assert ratchet.main(["promote", "--write"]) == 0
+    assert ratchet.read_gate_list() == ["a.py", "b.py", "z.py"]
+    assert "2 clean module(s)" in capsys.readouterr().out
+
+
+def test_committed_gate_list_is_sorted_existing_and_disjoint_from_the_baseline():
+    files = ratchet.read_gate_list()
+    assert files and files == sorted(set(files))
+    assert not [name for name in files if not (ROOT / name).is_file()]
+    baseline = json.loads((ROOT / "scripts" / "quality_baseline.json").read_text(encoding="utf-8"))["tools"]["mypy"]
+    assert not [key for key in baseline if key.split("::")[0] in set(files)]
+    assert {"core/foundation/domain.py", "core/foundation/runtime.py", "live_trading/execution_adapter.py"} <= set(files)
+
+
+@pytest.mark.slow
+def test_no_clean_module_is_missing_from_the_gate_list():
+    """A module that became clean must be gated so it cannot regress: `quality_ratchet.py promote --write`."""
+    fresh = [name for name in ratchet.clean_modules(ratchet.settings()["mypy"]) if name not in set(ratchet.read_gate_list())]
+    assert not fresh, "run `python scripts/quality_ratchet.py promote --write` and commit: " + ", ".join(fresh)

@@ -39,7 +39,11 @@ docs/baselines/generated/
 
 # New market data downloaded by scripts/fetch_binance_data.py.
 # The existing tracked 1d snapshot is retained for local backtest reproducibility.
-data/binance/
+data/binance/*
+!data/binance/1d/
+data/binance/1d/*
+# The frozen research-input manifest is the one new file here that is versioned (scripts/data_inputs.py).
+!data/binance/1d/_frozen_inputs.json
 
 # Python caches and generated artifacts
 *.py[cod]

@@ -19,17 +19,23 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: "22"
-      - name: Install dependencies
-        run: python -m pip install -r requirements-dev.txt
+      - name: Install dependencies (runtime versions come from the lock)
+        run: python -m pip install -r requirements.lock.txt -r requirements-dev.txt
       - name: Install the project (editable)
         run: python -m pip install -e . --no-deps
       - name: Verify environment and lock integrity
         run: |
           python scripts/check_environment.py
+          python scripts/check_environment.py --strict-lock
           python scripts/verify_lock.py
+          python scripts/regenerate_lock.py --check
+      - name: Verify frozen research inputs
+        run: python scripts/data_inputs.py verify
+      - name: Architecture inventory matches the code
+        run: python scripts/architecture_inventory.py --check
       - name: Lint
         run: python -m ruff check .
-      - name: Quality ratchet (no new ruff/mypy findings)
+      - name: Quality ratchet (no new ruff/mypy findings; hard-gated mypy modules stay clean)
         run: python scripts/quality_ratchet.py check
       - name: Check import direction (layers)
         run: lint-imports
@@ -57,7 +63,7 @@ jobs:
         timeout-minutes: 8
         run: >-
           python -m pytest -q -n 4 --durations=20
-          --cov=core --cov=ops --cov=signal_meta --cov=backtest --cov=live_trading --cov-fail-under=85
+          --cov=core --cov=ops --cov=signal_meta --cov=backtest --cov=live_trading --cov-fail-under=90
       - name: Sandbox suite is discoverable
         run: python -m pytest -q tests/test_exchange_sandbox_e2e.py
 

@@ -2,7 +2,7 @@
 
 > 核对日期：2026-10-14，依据 `main` 的 `3203836`（#82）及实测数据。第 4 节末尾的"当前状态"、第 5 节"接下来的顺序"和第 9 节"交接说明"记录了这一天的进度、未决问题和本轮得到的教训。本文是**工程路线图**：排列基础设施与结构整理的顺序、依赖和退出条件。它不维护项目阶段（R0–R8）、任务状态或实盘准入，这些仍以[统一 Roadmap](unified_roadmap.md)为准；它也不改变任何策略研究结论。与之配套：[V4 架构设计（草案）](v4_architecture_design.md)、[架构决策记录](adr/README.md)、[质量门槛](quality.md)、[身份说明](identity.md)、[发布约定](releasing.md)。本文取代[工程结构优化路线图](engineering_structure_roadmap.md)中仍然适用的部分。
 
-**一句话状态：结构整理（轨道 B）、身份与发布约定（轨道 A）、测试治理（C4）和棘轮复核（C2）都已合并进 `main`。还没做的是：首个发布标签 `v3.0.0`（需要仓库所有者）、分支清理（D1，需要所有者确认清单）、数据身份与环境收敛（D2、D3）、mypy 硬门槛与覆盖率（C3、C5），以及整理之后的新身份登记。**
+**一句话状态：结构整理（B1–B5）、身份与发布约定（A1–A4）、质量债务（C1–C5，C3 为持续项）和仓库/数据/环境（D2–D6）都已做完，其中 C1、C3、C5、D2–D6 在本 PR 里。还没做的是：首个发布标签 `v3.0.0`（需要仓库所有者）、分支清理（D1，需要所有者确认清单）、B6–B8（状态所有权、剩余 mixin、收紧与拆分），以及整理之后的新身份登记（A5）。**
 
 ## 1. 目标与原则
 
@@ -44,8 +44,16 @@
 | B5 | `BacktestEngine.run` 与 `main()` 流水线化；入口移到 `cli/`，`main.py` 剩 5 行；`scripts/` 100 个脚本按生命周期分类并有测试，历史脚本因证据哈希绑定**不搬迁**（ADR 0019） | 已完成 | #80 |
 | C4 | 测试治理：符号链接测试按能力探测跳过，`quarantine` 标记 + 到期检查，耗时预算与 CI 超时，约定写入 `docs/quality.md` | 已完成 | #81 |
 | C2 | 棘轮扫描出的可疑模式逐个复核：借贷年化（`seconds_per_year`）是死代码，先写特征测试再清理；B023 共 29 处无害并显式绑定；B904、mypy `attr-defined` 逐项给出结论，无需改变交易行为。ruff 621 → 588，mypy 365 → 326 | 已完成 | #82 |
+| C1 | 还债约定写入 CONTRIBUTING（顺手减少触碰文件的存量、规则清零后升硬门槛、季度回看）；`docs/quality.md` 增加季度记录表 | 已完成 | 本 PR |
+| C3 | mypy 硬门槛清单 `scripts/mypy_hard_gate.txt`（128 个零错误模块），`quality_ratchet.py check` 对其中任何发现直接失败，`promote` 收进新达标的模块（ADR 0022）。持续项：随重构继续清零并扩围 | 已完成（持续项） | 本 PR |
+| C5 | 覆盖率门槛 85% → 90%（行覆盖实测约 90.5%），为一批没有直接测试的运维与恢复工具补了行为测试；分支覆盖实测 79.8%，评估结论是暂不设门槛、按季度记录（ADR 0024） | 已完成 | 本 PR |
+| D2 | 冻结研究输入清单 `data/binance/1d/_frozen_inputs.json` 与 `scripts/data_inputs.py`：30 个已跟踪 CSV 登记行数、范围与 SHA-256（LF 规范化），来源状态如实标注（2 个有下载记录，28 个未核验）；CI 与 `dev.py check` 核验（ADR 0020，`docs/data_identity.md`） | 已完成（28 个来源仍未核验） | 本 PR |
+| D3 | `scripts/regenerate_lock.py`（再生成与离线 `--check`）；CI 从 `requirements.lock.txt` 安装并运行 `check_environment.py --strict-lock`、`verify_lock.py`、`regenerate_lock.py --check`；锁文件规范化（无版本变化）（ADR 0021） | 已完成（首次 CI 运行待观察） | 本 PR |
+| D4 | Dependabot：Actions 每月、小版本分组、主版本单独成 PR；pip 版本更新继续不启用并写明原因（ADR 0021） | 已完成 | 本 PR |
+| D5 | CodeQL 启用（不设必需检查）；dev container 保留并改用 `dev.py setup`，仍标"未实际运行"（本机无 Docker）；不增加 `install-smoke` 平台（ADR 0023） | 已完成（dev container 待有 Docker 的人验证） | 本 PR |
+| D6 | `docs/architecture_inventory.md` 由 `scripts/architecture_inventory.py` 生成并在 CI 核对；交付图 `架构图/` 不改写，`path_moves.json` 记录其引用的 16 个已搬迁路径并被检查；文档维护约定写入 `docs/README.md`（ADR 0023） | 已完成 | 本 PR |
 
-当前规模（`main`，2026-10-14）：`core/` 根没有平铺模块，有 12 个子包（`analytics`、`broker`、`events`、`exchange`、`factors`、`foundation`、`live_broker`、`market`、`metrics`、`planning`、`risk`、`trading`）；顶层包新增 `ops/`、`signal_meta/`、`cli/`；4013 个测试、266 个测试文件，本地串行（Windows，未装 xdist）约 5 分钟，CI 并行约 3 分钟；ruff 588、mypy 326；`BacktestEngine.run` 32 行，`main.py` 5 行；`scripts/` 100 个脚本（`supported` 34、`research` 47、`historical` 19）；19 条 ADR；分层契约无例外；0 个发布标签（远端只有证据标签 `evidence-archive-2026-09`）。覆盖率 2026-10-12 实测 89.1%，之后没有重新量过（CI 的 `--cov` 范围是 `core`、`ops`、`signal_meta`、`backtest`、`live_trading`，**不含 `cli`**）。
+当前规模（`main`，2026-10-14）：`core/` 根没有平铺模块，有 12 个子包（`analytics`、`broker`、`events`、`exchange`、`factors`、`foundation`、`live_broker`、`market`、`metrics`、`planning`、`risk`、`trading`）；顶层包新增 `ops/`、`signal_meta/`、`cli/`；4013 个测试、266 个测试文件，本地串行（Windows，未装 xdist）约 5 分钟，CI 并行约 3 分钟；ruff 588、mypy 326；`BacktestEngine.run` 32 行，`main.py` 5 行；`scripts/` 100 个脚本（`supported` 34、`research` 47、`historical` 19）；24 条 ADR（0020–0024 在本 PR）；分层契约无例外；0 个发布标签（远端只有证据标签 `evidence-archive-2026-09`）。覆盖率 2026-10-14 在 Windows 本地实测：行 89.54%（补测试前）→ 90.58%（补测试后），分支 79.8%；CI 的 `--cov` 范围是 `core`、`ops`、`signal_meta`、`backtest`、`live_trading`，**不含 `cli`**。
 
 ## 3. 先决问题（阻塞项）
 
@@ -82,21 +90,21 @@
 
 | 编号 | 工作 | 规模 | 依赖 | 退出条件 |
 |---|---|---|---|---|
-| C1 | 还债策略：每个 PR 在触碰的文件里顺手减少存量（`quality_ratchet.py update`）；按规则逐个清零后升为硬门槛（先 `F401/F811/F841/E4/E7`，再 `B`）。**约定尚未写入 CONTRIBUTING** | 持续 | — | 约定写入 CONTRIBUTING；每个季度回看基线总数 |
+| C1 | **已完成**（本 PR）：约定写入 CONTRIBUTING（顺手减少触碰文件的存量、规则清零后升硬门槛、季度回看），`docs/quality.md` 有季度记录表 | 持续 | — | 下次回看 2027-01 |
 | C2 | **已完成**（#82） | — | — | 结论见 `docs/quality.md` |
-| C3 | **mypy 扩围**：B4 之后存量降到 326、`attr-defined` 只剩 11 项；挑基线里零发现的模块，加进 CI 的 mypy 硬门槛清单（目前只有 `core/foundation/domain.py`、`core/foundation/runtime.py`、`live_trading/execution_adapter.py` 三个文件），每次一小批 | 持续 | B4（已完成） | 硬门槛文件数增长；基线下降 |
+| C3 | **已完成，持续**（本 PR，ADR 0022）：`scripts/mypy_hard_gate.txt` 收进 128 个零错误模块，`quality_ratchet.py check` 对其中任何发现直接失败，`promote --write` 收进新达标的模块；其余 72 个文件的存量随重构清零 | 持续 | B4（已完成） | 硬门槛文件数增长；基线下降 |
 | C4 | **已完成**（#81） | — | — | 约定见 `docs/quality.md` |
-| C5 | 覆盖率：85% → 90%，并评估分支覆盖；先把 `cli` 加进 CI 的 `--cov` 范围并重新量一次（上次实测 89.1% 是 2026-10-12） | S | C4（已完成） | 门槛上调且 CI 通过 |
+| C5 | **已完成**（本 PR，ADR 0024）：门槛 90%（本地行覆盖 90.58%），补了一批运维与恢复工具的行为测试；分支覆盖 79.8% 暂不设门槛、按季度记录。`cli` 仍不在 `--cov` 范围内，纳入它会改变口径，留待单独评估 | S | C4（已完成） | 门槛上调且 CI 通过（首次 CI 运行待观察） |
 
 ### 轨道 D：仓库、数据与环境
 | 编号 | 工作 | 规模 | 依赖 | 退出条件 |
 |---|---|---|---|---|
 | D1 | 分支与 worktree 清理：现在远端约 64 个分支、本地 12 个 worktree（**数字已变，必须重新生成清单**）；已合并分支、Dependabot 旧分支、`old-origin` 的分支、失效的 worktree；未合并分支逐个决定（其中两个有不在 `main` 上的 8 月提交：本地 `docs/readme-architecture-and-local-data` 的 `80b6833`、远端 `docs/readme-glossary-update` 的 `29f3a71`，先与 `main` 对比再定，另一个是 `claude/canonical-trading-events-*`）。**先列清单，经确认后执行**（不可逆） | S | 所有者的确认 | 远端只保留 `main` 与进行中的分支 |
-| D2 | **数据身份**（旧路线图阶段 2，仍未完成）：`data/binance/1d/_manifest.json` 只记录 2 个标的，已跟踪 CSV 共 30 个；分离"下载缓存清单"与"冻结研究输入清单"，为每个采用的文件登记来源、范围、行数、SHA-256；无法证实的标"未核验" | M | — | 冻结清单覆盖全部被采用的输入；缺失/替换使校验失败 |
-| D3 | **环境收敛**（旧路线图阶段 3，仍未完成）：CI 目前从 `requirements-dev.txt` 安装（只固定直接依赖），锁文件仅被校验；做"锁文件再生成脚本"，让 CI 从锁安装并严格比对；之后才启用 Dependabot 的 pip 与安全更新 | M | — | CI 在锁定环境运行；`verify_lock` 与 `check_environment --strict-lock` 都在 CI 中 |
-| D4 | Dependabot 策略：频率改为每月或分组；主版本升级的评审约定 | S | — | `dependabot.yml` 更新；噪音可控 |
-| D5 | 静态分析：评估启用 CodeQL；dev container 实际验证；`install-smoke` 稳定后评估是否纳入更多平台 | S | — | 各项有"启用 / 不启用 + 理由" |
-| D6 | 生成物与文档：架构图（`架构图/`，路径仍是旧的，没有 `core/market` 等子包）由脚本从现状重新生成并加入检查；文档数量与 `doc_index.json` 的维护约定 | S | B1（已完成） | 架构图与代码一致且有检查 |
+| D2 | **已完成**（本 PR，ADR 0020，`docs/data_identity.md`）：`data/binance/1d/_frozen_inputs.json` 为 30 个已跟踪 CSV 登记行数、范围与 SHA-256（LF 规范化），2 个有下载记录、28 个未核验；`scripts/data_inputs.py verify` 在 CI 与 `dev.py check` 中 | M | — | 缺口：28 个文件的来源仍未核验 |
+| D3 | **已完成**（本 PR，ADR 0021）：`scripts/regenerate_lock.py`；CI 从锁文件安装并运行 `check_environment.py --strict-lock`、`verify_lock.py`、`regenerate_lock.py --check` | M | — | 首次 CI 运行待观察 |
+| D4 | **已完成**（本 PR，ADR 0021）：Actions 每月、小版本与补丁分组、主版本单独成 PR；pip 版本更新继续不启用（Dependabot 不能运行再生成脚本） | S | D3（已完成） | — |
+| D5 | **已完成**（本 PR，ADR 0023）：CodeQL 启用（不设必需检查）；dev container 保留并改用 `dev.py setup`，仍待有 Docker 的人验证；不增加 `install-smoke` 平台 | S | — | — |
+| D6 | **已完成**（本 PR，ADR 0023）：`docs/architecture_inventory.md` 由 `scripts/architecture_inventory.py` 生成并在 CI 核对；交付图 `架构图/` 不改写，`path_moves.json` 记录它引用的 16 个已搬迁路径并被检查；文档维护约定在 `docs/README.md` | S | B1（已完成） | — |
 
 ### 当前状态（2026-10-14）
 
@@ -107,12 +115,14 @@
 | A5 | 未开始 | 依赖标签；先说明 `capital:` 配置变更 |
 | B1–B5 | 已完成 | 见第 2 节；ADR 0011–0019 |
 | B6–B8 | 未开始 | 遗留项；最好在 A5 之前做完会碰冻结范围的部分 |
-| C1 | 已约定、未写入 CONTRIBUTING | 每个 PR 顺手减少触碰文件的存量 |
+| C1 | 已完成 | 约定在 CONTRIBUTING，季度记录在 `docs/quality.md`；下次回看 2027-01 |
 | C2、C4 | 已完成 | #82、#81 |
-| C3、C5 | 未开始 | C3：mypy 硬门槛只有 3 个文件；C5：先量覆盖率 |
-| D1 | **待所有者确认清单** | 清单要重新生成，不要用旧数字 |
-| D2、D3 | 未开始 | 数据清单只登记 2 个标的而已跟踪 CSV 有 30 个；CI 从 `requirements-dev.txt` 安装而不是锁文件 |
-| D4–D6 | 未开始 | — |
+| C3 | 已完成，持续项 | 硬门槛清单 128/200 个受检文件；其余 72 个随重构清零后用 `promote --write` 收进（ADR 0022） |
+| C5 | 已完成 | 门槛 90%（本地 Windows 实测行覆盖 90.58%）；首次 CI（Linux）的实测值待观察，低于 90% 时补测试而不是降门槛（ADR 0024） |
+| D1 | **待所有者确认清单** | 清单已重新生成：`outputs/branch_cleanup_proposal.md`（被 `.gitignore` 忽略，不入库）：55 个已合并的远端分支、50 个已合并的本地分支、8 条失效的 worktree 记录可以直接清理；5 个未合并的远端分支与 6 个未合并的本地分支要逐个决定。确认前不执行任何删除 |
+| D2 | 已完成 | `_frozen_inputs.json`（ADR 0020）；28 个文件的来源仍是"未核验"，补齐需要重新下载并留下缓存清单记录 |
+| D3 | 已完成 | 锁文件在 Linux/Windows × 3.11/3.13 都有现成轮子（仅 `multitasking` 为纯 Python 源码包）；CI 首次运行待观察（ADR 0021） |
+| D4–D6 | 已完成 | CodeQL 首次运行后需要有人看一遍结果；dev container 仍待有 Docker 的人验证（ADR 0021、0023） |
 
 ## 5. 依赖与顺序
 
@@ -134,11 +144,10 @@ flowchart LR
 
 | 阶段 | 内容 |
 |---|---|
-| **立刻** | 所有者创建并推送 `v3.0.0`（见发布约定 §3）；重新生成 D1 清单并经确认后执行 |
-| **接着（互相独立，可并行）** | D3（CI 从锁安装）→ D4；D2（数据身份）；C3（mypy 扩围，每次一小批）；C5（先量覆盖率、把 `cli` 纳入）；C1（把还债约定写进 CONTRIBUTING） |
+| **立刻** | 所有者创建并推送 `v3.0.0`（见发布约定 §3）；确认或修改 D1 清单（`outputs/branch_cleanup_proposal.md`）后执行 |
+| **接着（互相独立，可并行）** | 观察本 PR 的 CI 首次运行（锁定环境安装、覆盖率 90%、CodeQL）；C3 每次一小批继续扩围；补齐 28 个数据文件的来源记录（D2 的缺口） |
 | **登记之前尽量做完** | B6–B8：它们会碰冻结范围，登记之后就要走重新登记流程。B6 最重，可以拆开、只做其中价值最高的宿主；做不完的明确记为"观察期内不动" |
-| **然后** | A5 新身份登记（先写 `capital:` 配置变更说明与协议）→ M1 |
-| **随时** | D5、D6 |
+| **然后** | A5 新身份登记（先写 `capital:` 配置变更说明与协议，引用 D2 的数据清单摘要）→ M1 |
 
 ## 6. 进入 V4 功能开发的条件（M1）
 
@@ -146,7 +155,7 @@ flowchart LR
 
 1. G0 已有结论并写成 ADR（A1，已完成：ADR 0008）；新身份已按 A4 的流程登记（A5，**未做**）。
 2. 身份报告能识别移动（A2，已完成），并有发布标签约定且首个标签已创建（A3，约定已完成，**标签待打**）。
-3. 数据身份完整（D2，未做）、CI 在锁定环境运行（D3，未做）。
+3. 数据身份完整（D2，**已完成**，另有 28 个文件来源未核验）、CI 在锁定环境运行（D3，**已完成**，首次 CI 运行待观察）。
 4. `core/` 已完成拆分且无新增的反向依赖（B1–B3，**已完成**）。
 5. 分支/worktree 已清理（D1，待确认），测试治理约定生效（C4，**已完成**）。
 
@@ -179,12 +188,12 @@ M1 之后的功能轨道（特征管线 → 回测两层化 → 选币统一 →
 **工作方式（已在 #52–#82 中沿用）：**
 
 - 流程：从最新 `origin/main` 拉分支 → 实现并本地跑 `python scripts/dev.py check`（`--no-tests` 跳过长测试）和完整测试 → 提交 → 推送 → 开 PR → 等 CI。**合并由仓库所有者操作**，AI 助手的合并操作会被权限系统拦下；严格分支保护要求分支是最新的。**每个 PR 直接对 `main`，不要叠加**（见第 7 节）。
-- 必需检查共 5 项：`quality` 与 `install-smoke`（ubuntu/windows × 3.11/3.13）。Dependabot 只管 GitHub Actions，每周一次，同时最多 3 个 PR。
+- 必需检查共 5 项：`quality` 与 `install-smoke`（ubuntu/windows × 3.11/3.13）。Dependabot 只管 GitHub Actions，每月一次、小版本与补丁分组、同时最多 2 个 PR（ADR 0021）。
 - 不可逆或对外可见的操作先列清单、经确认再做：删除分支、迁出文件、改仓库设置、创建标签或 Release。
 - 提交信息末尾带 `Co-Authored-By` 行，PR 描述末尾带 `Generated with Claude Code` 行（由会话的归属规则给出）。
 - 搬迁与重构的节奏（B1–B5 验证过）：先量（依赖图、`__file__`/`__module__`/pickle/动态导入的搜索）→ 用脚本机械改写、不手改方法体 → 先跑相关测试子集，再跑**完整**测试 → 写 ADR → 更新路线图与 CHANGELOG。**只跑子集会漏**：B4 第一次就是因为没跑完整套件，23 个失败在最后才出现。
 
-**机器检查与它们的文档：** `scripts/dev.py list`；[质量门槛](quality.md)（棘轮、覆盖率、标记、不稳定测试与耗时预算约定）；[身份说明](identity.md)（行为身份、移动识别、`doc_index.json`、断链检查）；[发布约定](releasing.md)（版本、标签、绑定记录）；[架构边界](architecture_review.md)（分层）；`scripts/classification.json`（脚本生命周期）；[ADR](adr/README.md)（0001–0019）。
+**机器检查与它们的文档：** `scripts/dev.py list`；[质量门槛](quality.md)（棘轮、覆盖率、标记、不稳定测试与耗时预算约定）；[身份说明](identity.md)（行为身份、移动识别、`doc_index.json`、断链检查）；[发布约定](releasing.md)（版本、标签、绑定记录）；[架构边界](architecture_review.md)（分层）；`scripts/classification.json`（脚本生命周期）；[ADR](adr/README.md)（0001–0024）。
 
 **本轮得到的教训（必读）：**
 
@@ -203,7 +212,8 @@ M1 之后的功能轨道（特征管线 → 回测两层化 → 选币统一 →
 - 工作区是 CRLF、仓库内容是 LF：读取工作区文件做哈希前要按 git 规则规范化（`core/foundation/source_identity.py` 已处理）；批量改写文本文件时保留原有换行符。
 - 在某些 shell 工具里，heredoc 中的反斜杠转义会被改写（出现过 `\0` 变成真正的空字节、`\\` 被吞掉）。需要写含转义的 Python 时，先把脚本写成文件再运行，或用 `chr(…)` 构造。
 - 链接检查只看已被 git 跟踪的文件：新增文档要先 `git add`。
+- 全量测试在 Windows 上曾偶发失败：`tests/test_data_versions.py::test_concurrent_identical_writes_publish_complete_objects_once`（`DataVersionStore._put` 读刚被另一线程换到位的文件时 `PermissionError`，负载下约 3/40）。已定位并在 #84 修复（Windows 上有界重试）；若再看到类似的偶发失败，先按 `docs/quality.md` 的流程复现和定位，不要靠重跑。
 - `scripts/` 新增脚本要同时更新 `scripts/README.md` 和 `scripts/classification.json`，否则测试失败。
 - 冻结的历史证据（`docs/archive/2026-08*`、`2026-09*`、`docs/research/ml_selection_next_acceptance_20261005.json`、`docs/codex_mail_findings_20260920.json`、`docs/research/current_strategy_protocol.json`、`reports/` 回执，以及 `docs/research/paper_continuation_acceptance_20261003.json` 这类记录当时文件哈希的 JSON）不得改写；移动文档要在 `docs/doc_index.json` 追加一条。
 
-**第一件事：** 请所有者创建并推送 `v3.0.0`（见[发布约定](releasing.md) §3，先 `python scripts/release_check.py v3.0.0`）；然后重新生成 D1 清单（不要用旧数字）交给所有者确认。之后按第 5 节"接着"一栏选做；建议先做 D3（CI 从锁安装），它独立、风险低，并且是 M1 的前置条件。
+**第一件事：** 请所有者创建并推送 `v3.0.0`（见[发布约定](releasing.md) §3，先 `python scripts/release_check.py v3.0.0`）；然后确认 D1 清单（`outputs/branch_cleanup_proposal.md`，不入库；它只来自 `git branch` / `git worktree` 的输出，过时了就重新生成，不要用旧数字）。再观察本 PR 的首次 CI 运行（锁定环境安装、90% 覆盖率、CodeQL），之后按第 5 节"接着"一栏选做。
