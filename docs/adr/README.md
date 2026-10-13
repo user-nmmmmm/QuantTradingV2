@@ -33,3 +33,4 @@
 | [0022](0022-mypy-hard-gate-list.md) | mypy 硬门槛清单：已零错误的模块不能回退（C3） | 已采纳 |
 | [0023](0023-static-analysis-devcontainer-and-architecture-inventory.md) | CodeQL 启用、dev container 与平台矩阵的结论、自动生成的架构清单（D5、D6） | 已采纳 |
 | [0024](0024-coverage-90-and-branch-coverage-evaluation.md) | 覆盖率门槛提到 90%；分支覆盖暂不设门槛（C5） | 已采纳 |
+| [0025](0025-report-and-strategy-mixins.md) | 报告生成改协作类、Donchian 策略的三个私有 mixin 合成显式基类（B7） | 已采纳 |

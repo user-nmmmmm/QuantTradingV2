@@ -2,7 +2,7 @@
 
 > 核对日期：2026-10-14，依据 `main` 的 `3203836`（#82）及实测数据。第 4 节末尾的"当前状态"、第 5 节"接下来的顺序"和第 9 节"交接说明"记录了这一天的进度、未决问题和本轮得到的教训。本文是**工程路线图**：排列基础设施与结构整理的顺序、依赖和退出条件。它不维护项目阶段（R0–R8）、任务状态或实盘准入，这些仍以[统一 Roadmap](unified_roadmap.md)为准；它也不改变任何策略研究结论。与之配套：[V4 架构设计（草案）](v4_architecture_design.md)、[架构决策记录](adr/README.md)、[质量门槛](quality.md)、[身份说明](identity.md)、[发布约定](releasing.md)。本文取代[工程结构优化路线图](engineering_structure_roadmap.md)中仍然适用的部分。
 
-**一句话状态：结构整理（B1–B5）、身份与发布约定（A1–A4）、质量债务（C1–C5，C3 为持续项）和仓库/数据/环境（D2–D6）都已做完，其中 C1、C3、C5、D2–D6 在本 PR 里。还没做的是：首个发布标签 `v3.0.0`（需要仓库所有者）、分支清理（D1，需要所有者确认清单）、B6–B8（状态所有权、剩余 mixin、收紧与拆分），以及整理之后的新身份登记（A5）。**
+**一句话状态：结构整理（B1–B5、B7）、身份与发布约定（A1–A4）、质量债务（C1–C5，C3 为持续项）和仓库/数据/环境（D2–D6）都已做完，其中 C1、C3、C5、D2–D6 在本 PR 里。还没做的是：首个发布标签 `v3.0.0`（需要仓库所有者）、分支清理（D1，需要所有者确认清单）、B6 与 B8（状态所有权、收紧与拆分），以及整理之后的新身份登记（A5）。**
 
 ## 1. 目标与原则
 
@@ -53,7 +53,7 @@
 | D5 | CodeQL 启用（不设必需检查）；dev container 保留并改用 `dev.py setup`，仍标"未实际运行"（本机无 Docker）；不增加 `install-smoke` 平台（ADR 0023） | 已完成（dev container 待有 Docker 的人验证） | 本 PR |
 | D6 | `docs/architecture_inventory.md` 由 `scripts/architecture_inventory.py` 生成并在 CI 核对；交付图 `架构图/` 不改写，`path_moves.json` 记录其引用的 16 个已搬迁路径并被检查；文档维护约定写入 `docs/README.md`（ADR 0023） | 已完成 | 本 PR |
 
-当前规模（`main`，2026-10-14）：`core/` 根没有平铺模块，有 12 个子包（`analytics`、`broker`、`events`、`exchange`、`factors`、`foundation`、`live_broker`、`market`、`metrics`、`planning`、`risk`、`trading`）；顶层包新增 `ops/`、`signal_meta/`、`cli/`；4013 个测试、266 个测试文件，本地串行（Windows，未装 xdist）约 5 分钟，CI 并行约 3 分钟；ruff 588、mypy 326；`BacktestEngine.run` 32 行，`main.py` 5 行；`scripts/` 100 个脚本（`supported` 34、`research` 47、`historical` 19）；24 条 ADR（0020–0024 在本 PR）；分层契约无例外；0 个发布标签（远端只有证据标签 `evidence-archive-2026-09`）。覆盖率 2026-10-14 在 Windows 本地实测：行 89.54%（补测试前）→ 90.58%（补测试后），分支 79.8%；CI 的 `--cov` 范围是 `core`、`ops`、`signal_meta`、`backtest`、`live_trading`，**不含 `cli`**。
+当前规模（`main`，2026-10-14）：`core/` 根没有平铺模块，有 12 个子包（`analytics`、`broker`、`events`、`exchange`、`factors`、`foundation`、`live_broker`、`market`、`metrics`、`planning`、`risk`、`trading`）；顶层包新增 `ops/`、`signal_meta/`、`cli/`；4013 个测试、266 个测试文件，本地串行（Windows，未装 xdist）约 5 分钟，CI 并行约 3 分钟；ruff 588、mypy 313；`BacktestEngine.run` 32 行，`main.py` 5 行；`scripts/` 100 个脚本（`supported` 34、`research` 47、`historical` 19）；25 条 ADR（0020–0024 在 #85，0025 在 B7 的 PR）；分层契约无例外；0 个发布标签（远端只有证据标签 `evidence-archive-2026-09`）。覆盖率 2026-10-14 在 Windows 本地实测：行 89.54%（补测试前）→ 90.58%（补测试后），分支 79.8%；CI 的 `--cov` 范围是 `core`、`ops`、`signal_meta`、`backtest`、`live_trading`，**不含 `cli`**。
 
 ## 3. 先决问题（阻塞项）
 
@@ -82,7 +82,7 @@
 | 编号 | 工作 | 规模 | 依赖 | 退出条件 |
 |---|---|---|---|---|
 | B6 | **状态所有权迁移**：协作类现在通过 `host` 读写宿主上的 10–60 个属性；按属性设计归属，把状态搬进协作类，宿主属性改为只读代理或删除。涉及外部读写点（`state_export`、`recovery`、回测引擎、测试）和持久化路径，**每个宿主、每个协作类一个 PR**，先固定订单/成交/恢复/状态写入的行为 | L | B4 | 协作类拥有自己的状态；`host.<属性>` 引用显著减少；mypy 基线下降 |
-| B7 | **剩余 mixin**：`backtest/reporting/` 的 4 个报告 mixin（部分被当作无状态方法包单独实例化）、`strategies/trend_breakout.py` 的 3 个私有 mixin（`mypy attr-defined` 剩下的 11 项都在这里） | M | — | mixin 继承清零 |
+| B7 | **已完成**（ADR 0025）：报告的 4 个 mixin 改为协作类（`ReportMetrics`、`TradeReconstruction`、`ReportWriters`、`ReportCharts`），`ReportGenerator` 惰性持有并保留全部同签名转发方法；策略的 3 个私有 mixin 合成显式基类 `DonchianTrendStrategy`。mixin 继承清零；mypy 326 → 313，`strategies/trend_breakout.py` 进硬门槛清单 | M | — | 代码里不再有 `*Mixin` 类 |
 | B8 | **收紧与拆分**：`BacktestEngine.__init__`（149 行）、`_close_tail_positions`（118 行）；`_RunState`/`_MainState` 的字段目前标注为 `Any`，逐个收紧类型 | M | B5 | 无超过 100 行的函数；状态对象有具体类型 |
 
 ### 轨道 C：质量债务
@@ -113,12 +113,12 @@
 | G0 | **已决：顺延** | ADR 0008；整理已完成，下一步是登记新身份（A5） |
 | A1–A4 | 已完成 | 遗留：`v3.0.0` 标签待所有者创建并推送 |
 | A5 | 未开始 | 依赖标签；先说明 `capital:` 配置变更 |
-| B1–B5 | 已完成 | 见第 2 节；ADR 0011–0019 |
-| B6–B8 | 未开始 | 遗留项；最好在 A5 之前做完会碰冻结范围的部分 |
+| B1–B5、B7 | 已完成 | 见第 2 节；ADR 0011–0019、0025 |
+| B6、B8 | 未开始 | 遗留项；最好在 A5 之前做完会碰冻结范围的部分 |
 | C1 | 已完成 | 约定在 CONTRIBUTING，季度记录在 `docs/quality.md`；下次回看 2027-01 |
 | C2、C4 | 已完成 | #82、#81 |
 | C3 | 已完成，持续项 | 硬门槛清单 128/200 个受检文件；其余 72 个随重构清零后用 `promote --write` 收进（ADR 0022） |
-| C5 | 已完成 | 门槛 90%（本地 Windows 实测行覆盖 90.58%）；首次 CI（Linux）的实测值待观察，低于 90% 时补测试而不是降门槛（ADR 0024） |
+| C5 | 已完成 | 门槛 90%（本地 Windows 实测行覆盖 90.58%，CI Linux 实测 90.51%）；首次 CI（Linux）的实测值待观察，低于 90% 时补测试而不是降门槛（ADR 0024） |
 | D1 | **待所有者确认清单** | 清单已重新生成：`outputs/branch_cleanup_proposal.md`（被 `.gitignore` 忽略，不入库）：55 个已合并的远端分支、50 个已合并的本地分支、8 条失效的 worktree 记录可以直接清理；5 个未合并的远端分支与 6 个未合并的本地分支要逐个决定。确认前不执行任何删除 |
 | D2 | 已完成 | `_frozen_inputs.json`（ADR 0020）；28 个文件的来源仍是"未核验"，补齐需要重新下载并留下缓存清单记录 |
 | D3 | 已完成 | 锁文件在 Linux/Windows × 3.11/3.13 都有现成轮子（仅 `multitasking` 为纯 Python 源码包）；CI 首次运行待观察（ADR 0021） |
@@ -146,7 +146,7 @@ flowchart LR
 |---|---|
 | **立刻** | 所有者创建并推送 `v3.0.0`（见发布约定 §3）；确认或修改 D1 清单（`outputs/branch_cleanup_proposal.md`）后执行 |
 | **接着（互相独立，可并行）** | 观察本 PR 的 CI 首次运行（锁定环境安装、覆盖率 90%、CodeQL）；C3 每次一小批继续扩围；补齐 28 个数据文件的来源记录（D2 的缺口） |
-| **登记之前尽量做完** | B6–B8：它们会碰冻结范围，登记之后就要走重新登记流程。B6 最重，可以拆开、只做其中价值最高的宿主；做不完的明确记为"观察期内不动" |
+| **登记之前尽量做完** | B6、B8：它们会碰冻结范围，登记之后就要走重新登记流程。B6 最重，可以拆开、只做其中价值最高的宿主；做不完的明确记为"观察期内不动" |
 | **然后** | A5 新身份登记（先写 `capital:` 配置变更说明与协议，引用 D2 的数据清单摘要）→ M1 |
 
 ## 6. 进入 V4 功能开发的条件（M1）

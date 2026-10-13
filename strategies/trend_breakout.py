@@ -16,6 +16,7 @@
   过滤缩量假突破（价格突破但背后无资金推动）
 """
 
+from abc import abstractmethod
 from typing import Dict, Any, Optional
 import pandas as pd
 from core.trading.state import MarketState
@@ -50,8 +51,14 @@ def _bar_time(df: pd.DataFrame, i: int) -> Any:
 
 
 
-class _PersistentHealthMixin:
-    """Durable alpha-health lifecycle shared by the Donchian strategies.
+class DonchianTrendStrategy(Strategy):
+    """Base of the Donchian strategies (``TrendBreakoutStrategy``, ``TrendBreakdownStrategy`` and what builds on them).
+
+    It holds what they share, in three groups: the durable alpha-health lifecycle (this docstring), the hybrid
+    protective stop and the candidate scoring (the commented sections below). These were three private mixins
+    before ADR 0025; the behavior and the method order are unchanged.
+
+    Durable alpha-health lifecycle.
 
     SR1-1: the old ``is_alive`` boolean was a permanent kill switch - once a
     run of cross-symbol losses flipped it, no later profit ever turned it back
@@ -66,6 +73,18 @@ class _PersistentHealthMixin:
     ``health_stats`` is kept as a read-only compatibility view for existing
     callers/reports; the machine is the authority.
     """
+
+    # The Donchian strategies set these in __init__; the logic below reads them.
+    entry_window: int
+    exit_window: int
+    use_obv: bool
+
+    @abstractmethod
+    def _raw_entry_signal(
+        self, symbol: str, i: int, df: pd.DataFrame, portfolio: Any,
+    ) -> Optional[Dict[str, Any]]:
+        """The setup itself, with no health gate. ``raw_entry_signal`` passes ``None`` for the portfolio:
+        neither Donchian implementation reads it."""
 
     def _initialize_health_state(
         self, policy: Optional[StrategyHealthPolicy] = None,
@@ -221,15 +240,15 @@ class _PersistentHealthMixin:
         return allowed
 
 
-class _ProtectiveStopMixin:
-    """Hybrid initial stop + Chandelier trailing stop (SR2-1/2/3).
-
-    Only facts from the completed signal bar are used: the ATR and Donchian
-    level at bar ``i``. The stop that is *in force* during bar ``i`` is always
-    the one computed at bar ``i-1`` - ``Strategy.on_bar`` checks
-    ``hard_stop_exit`` before ``should_exit``, so a trail update can never
-    reach back and change the level that was already tested this bar.
-    """
+    # ---- Protective stop
+    # Hybrid initial stop + Chandelier trailing stop (SR2-1/2/3).
+    #
+    # Only facts from the completed signal bar are used: the ATR and Donchian
+    # level at bar ``i``. The stop that is *in force* during bar ``i`` is always
+    # the one computed at bar ``i-1`` - ``Strategy.on_bar`` checks
+    # ``hard_stop_exit`` before ``should_exit``, so a trail update can never
+    # reach back and change the level that was already tested this bar.
+    #
 
     stop_policy: ProtectiveStopPolicy = ProtectiveStopPolicy()
 
@@ -321,12 +340,12 @@ class _ProtectiveStopMixin:
         return new_stop
 
 
-class _CandidateScoringMixin:
-    """Attach an economically meaningful score to every signal (SR3-1).
-
-    Without this the allocator ranks a batch of equal zeros and the surviving
-    order is alphabetical (STR-P1-03). All inputs come from the signal bar.
-    """
+    # ---- Candidate scoring
+    # Attach an economically meaningful score to every signal (SR3-1).
+    #
+    # Without this the allocator ranks a batch of equal zeros and the surviving
+    # order is alphabetical (STR-P1-03). All inputs come from the signal bar.
+    #
 
     score_policy: CandidateScorePolicy = CandidateScorePolicy()
 
@@ -376,9 +395,7 @@ class _CandidateScoringMixin:
         )
 
 
-class TrendBreakoutStrategy(
-    _PersistentHealthMixin, _ProtectiveStopMixin, _CandidateScoringMixin, Strategy,
-):
+class TrendBreakoutStrategy(DonchianTrendStrategy):
     """
     P3: Production Implementation of Trend Breakout Alpha.
 
@@ -578,9 +595,7 @@ class TrendBreakoutStrategy(
         return None
 
 
-class TrendBreakdownStrategy(
-    _PersistentHealthMixin, _ProtectiveStopMixin, _CandidateScoringMixin, Strategy,
-):
+class TrendBreakdownStrategy(DonchianTrendStrategy):
     """
     Mirrored Donchian breakdown strategy for short-side trend participation.
     """

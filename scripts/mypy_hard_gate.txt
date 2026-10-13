@@ -128,3 +128,4 @@ signal_meta/signal_observation_types.py
 signal_meta/temporal_labels.py
 strategies/__init__.py
 strategies/statistical_arbitrage.py
+strategies/trend_breakout.py

@@ -29,7 +29,7 @@ def test_report_generator_no_longer_inherits_from_any_mixin():
 
 def test_every_method_the_mixins_provided_is_still_on_the_generator_with_the_same_signature():
     seen = set()
-    for holder, collaborator in COLLABORATORS.items():
+    for collaborator in COLLABORATORS.values():
         for name, member in _public_methods(collaborator).items():
             if name == "__init__" or name in seen:
                 continue

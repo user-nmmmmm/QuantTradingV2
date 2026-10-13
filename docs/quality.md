@@ -7,8 +7,8 @@
 | 层 | 检查 | 范围 | 当前状态 |
 |---|---|---|---|
 | 硬门槛 | `ruff check .`（只含 `E9,F63,F7,F82` 语法/未定义名级错误）、`mypy` 三个契约文件 | 全仓库 / `core/foundation/domain.py`、`core/foundation/runtime.py`、`live_trading/execution_adapter.py` | 0 违规，必须保持 |
-| **棘轮** | `scripts/quality_ratchet.py check`：ruff 的 `F,E4,E7,E9,B`（不含 `B905`）与 mypy（`core ops signal_meta backtest live_trading strategies router composition`） | 全仓库 / 上述八个包 | 存量记入基线：ruff 588 项、mypy 326 项（C2 之后；最初 621 / 869）；**只许减少，不许增加** |
-| **mypy 硬门槛清单** | `scripts/mypy_hard_gate.txt`：已零错误的模块，`quality_ratchet.py check` 对其中任何发现直接失败，不看基线（[ADR 0022](adr/0022-mypy-hard-gate-list.md)） | 200 个受检文件中的 128 个 | 清单只增不减；基线只剩其余 72 个文件的存量 |
+| **棘轮** | `scripts/quality_ratchet.py check`：ruff 的 `F,E4,E7,E9,B`（不含 `B905`）与 mypy（`core ops signal_meta backtest live_trading strategies router composition`） | 全仓库 / 上述八个包 | 存量记入基线：ruff 588 项、mypy 313 项（B7 之后；最初 621 / 869）；**只许减少，不许增加** |
+| **mypy 硬门槛清单** | `scripts/mypy_hard_gate.txt`：已零错误的模块，`quality_ratchet.py check` 对其中任何发现直接失败，不看基线（[ADR 0022](adr/0022-mypy-hard-gate-list.md)） | 200 个受检文件中的 129 个 | 清单只增不减；基线只剩其余 71 个文件的存量 |
 | 导入方向 | `lint-imports`（分层契约 + `core` 不依赖其他包），详见 [架构边界说明](architecture_review.md) | 全部项目包 | 无已知例外；新增例外需要设计决定 |
 | 覆盖率 | `pytest --cov=core --cov=ops --cov=signal_meta --cov=backtest --cov=live_trading --cov-fail-under=90` | 五个包 | 行覆盖实测约 90.5%（Windows 本地，2026-10-14）；门槛 55% → 85% → 90%（C5，[ADR 0024](adr/0024-coverage-90-and-branch-coverage-evaluation.md)）。分支覆盖实测 79.8%，暂不设门槛 |
 
@@ -35,7 +35,7 @@ python scripts/quality_ratchet.py update           # 修掉存量问题后，把
 | 日期 | ruff | mypy | mypy 硬门槛模块 | 备注 |
 |---|---|---|---|---|
 | 2026-10-11 | 621 | 869 | 3 | 棘轮引入 |
-| 2026-10-14 | 588 | 326 | 128 | C2、B4、C3 之后 |
+| 2026-10-14 | 588 | 313 | 129 | C2、B4、C3、B7 之后 |
 
 下一次回看：2027-01。基线一个季度没有下降要写明原因或计划。
 
@@ -91,7 +91,7 @@ python -m pip install pre-commit && pre-commit install
 | **B904** `core/market/data_versions.py`、`scripts/fetch_spot_intraday.py` | 原异常只是预期的控制流（"文件已存在，去比对内容"；"`float()` 解析失败，改按日期解析"），新抛出的 `ValueError` 与之无关 | 改为 `raise … from None` |
 | **F841** `backtest/reporting/trades.py` 的 `s_losses` | 无副作用的死赋值 | 删除 |
 | **mypy `attr-defined`**（原 49 项） | 无运行时缺陷。`LiveBroker` 的 6 个属性在 `configure_account_source()` 里迟绑定，读取前都有 `getattr(…, None)` 保护；`Broker.risk_action_targets` 同理；`protective_orders` 里变量名 `current` 先当列表后当单个订单（前一分支必然 `return`）；`signal_meta_replay` 的 `broker: object` 标注过窄；其余是动态附加的属性 | 用不创建属性的类级注解声明迟绑定属性（`getattr` 语义不变）、重命名变量、放宽标注，剩 2 处带理由的 `type: ignore`；`attr-defined` 49 → 11 |
-| 仍留在棘轮里的 `attr-defined`（`strategies/trend_breakout.py` 的 3 个私有 mixin，11 项） | `_raw_entry_signal`、`name`、`entry_window` 等由混入它们的具体策略类提供，不是缺陷 | 随策略 mixin 的重构处理（ADR 0018 把它们排除在 B4 之外） |
+| 曾留在棘轮里的 `attr-defined`（`strategies/trend_breakout.py` 的 3 个私有 mixin，11 项，另有 2 项 `misc`） | 这些 mixin 读取的 `_raw_entry_signal`、`name`、`entry_window` 等由具体策略类提供，不是缺陷 | B7（[ADR 0025](adr/0025-report-and-strategy-mixins.md)）把三个 mixin 合成显式基类 `DonchianTrendStrategy` 并声明这些成员；13 项发现清零，该文件进入硬门槛清单 |
 | **F811 出现在测试里** | 多为 pytest fixture 参数遮蔽同名导入，属正常写法 | 不处理 |
 
 基线随之降低：ruff 621 → 588，mypy 365 → 326。以后新增这类模式，先判断闭包/异常/迟绑定属性是否真的越出了当前迭代或保护范围，再决定修还是用带理由的 `noqa`/`type: ignore`。
