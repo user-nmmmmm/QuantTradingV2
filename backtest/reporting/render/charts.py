@@ -1,7 +1,7 @@
-"""Chart rendering mixin for backtest reports."""
+"""Chart rendering, a collaborator of :class:`ReportGenerator` (ADR 0025)."""
 
 import os
-from typing import Any, Dict, List
+from typing import TYPE_CHECKING, Any, Dict, List
 
 import matplotlib
 import numpy as np
@@ -23,6 +23,9 @@ from backtest.plot_style import (
 from core.foundation.logger import get_logger
 from core.metrics import infer_periods_per_year, monthly_returns
 
+if TYPE_CHECKING:
+    from backtest.reporting import ReportGenerator
+
 logger = get_logger(__name__)
 
 
@@ -35,8 +38,9 @@ def rolling_max_drawdown(equity: pd.Series, window: int) -> pd.Series:
     )
 
 
-class ReportChartsMixin:
-    output_dir: str
+class ReportCharts:
+    def __init__(self, host: "ReportGenerator") -> None:
+        self._host = host
 
     @chart_style()
     def _plot_equity(
@@ -170,7 +174,7 @@ class ReportChartsMixin:
             # figure": a figure leaked by an earlier call would otherwise
             # receive the write, producing a wrong or empty image.
             fig.tight_layout(h_pad=2.3)
-            output_path = os.path.join(self.output_dir, "equity.png")
+            output_path = os.path.join(self._host.output_dir, "equity.png")
             save_figure(fig, output_path)
             logger.info("Plot saved to: %s", output_path)
         except Exception as e:
@@ -240,7 +244,7 @@ class ReportChartsMixin:
             colorbar.outline.set_visible(False)
             colorbar.ax.tick_params(length=0)
             fig.tight_layout()
-            output_path = os.path.join(self.output_dir, "monthly_returns_heatmap.png")
+            output_path = os.path.join(self._host.output_dir, "monthly_returns_heatmap.png")
             save_figure(fig, output_path)
             logger.info("Plot saved to: %s", output_path)
         except Exception as e:
@@ -309,7 +313,7 @@ class ReportChartsMixin:
             ax2.set_xlabel("日期")
 
             fig.tight_layout(h_pad=2.3)
-            output_path = os.path.join(self.output_dir, "rolling_metrics.png")
+            output_path = os.path.join(self._host.output_dir, "rolling_metrics.png")
             save_figure(fig, output_path)
             logger.info("Plot saved to: %s", output_path)
         except Exception as e:
@@ -359,7 +363,7 @@ class ReportChartsMixin:
             ax.margins(y=0.12)
 
             fig.tight_layout()
-            output_path = os.path.join(self.output_dir, "pnl_distribution.png")
+            output_path = os.path.join(self._host.output_dir, "pnl_distribution.png")
             save_figure(fig, output_path)
             logger.info("Plot saved to: %s", output_path)
         except Exception as e:

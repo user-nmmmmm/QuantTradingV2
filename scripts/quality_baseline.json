@@ -131,8 +131,6 @@
       "strategies/base.py::call-arg": 2,
       "strategies/base.py::var-annotated": 6,
       "strategies/mean_reversion.py::arg-type": 1,
-      "strategies/trend_breakout.py::attr-defined": 11,
-      "strategies/trend_breakout.py::misc": 2,
       "strategies/trend_portfolio_v2.py::assignment": 2,
       "strategies/trend_portfolio_v2.py::operator": 1,
       "strategies/trend_portfolio_v3.py::arg-type": 1,

@@ -849,7 +849,7 @@ python main.py --source synthetic --days 365 --seed 42 --report-profile full
 
 所有策略继承 `strategies/base.py` 的 `Strategy` 基类，并在具体退出逻辑之前统一接受
 `Strategy.hard_stop_exit` 硬止损检查。`TrendBreakoutStrategy` / `TrendBreakdownStrategy`
-的健康度状态通过 `_PersistentHealthMixin` 持久化，进程重启后可恢复。
+的健康度状态通过 `DonchianTrendStrategy`（二者共用的基类）持久化，进程重启后可恢复。
 
 **未接入路由的模型**：`strategies/statistical_arbitrage.py` 的 `PairsTradingModel`
 （跨标的配对交易信号）未在 `composition/factory.py` 中注册，不会被 `main.py` 或

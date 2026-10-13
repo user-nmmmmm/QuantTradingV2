@@ -206,8 +206,8 @@ def persist_episode(folder, name, episode, selector=None):
     if trades.empty:
         trades = pd.DataFrame(columns=["symbol", "side", "qty", "fill_price", "fill_time", "commission"])
     trades.to_csv(target / "trades.csv", index=False)
-    from backtest.reporting.trades import TradeReconstructionMixin
-    reconstruction = TradeReconstructionMixin()
+    from backtest.reporting.trades import TradeReconstruction
+    reconstruction = TradeReconstruction()
     positions = reconstruction._aggregate_round_trips(reconstruction._reconstruct_closed_trades(trades))
     pd.DataFrame(positions, columns=None if positions else ["position_id", "entry_time", "net_pnl"]).to_csv(
         target / "closed_positions.csv", index=False)

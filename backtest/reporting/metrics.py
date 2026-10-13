@@ -1,4 +1,4 @@
-"""Metric calculation mixin for :class:`ReportGenerator`."""
+"""Metric calculation collaborator for :class:`ReportGenerator` (stateless; ADR 0025)."""
 
 import math
 from typing import Any, Dict, List
@@ -15,7 +15,7 @@ from core.metrics import (
 )
 
 
-class ReportMetricsMixin:
+class ReportMetrics:
     def _calculate_equity_metrics(self, equity_curve: pd.DataFrame, *, periods_per_year=None) -> Dict[str, Any]:
         """
         根据权益曲线计算绩效指标。

@@ -12,6 +12,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import os
 from collections import deque
+from functools import cached_property
 from typing import Deque, List, Dict, Any, Optional, Tuple
 
 from backtest.reporting.risk_metrics import summarize_exposure
@@ -140,22 +141,96 @@ METRIC_NAMES = {
 }
 
 
-from backtest.reporting.render.charts import ReportChartsMixin
-from backtest.reporting.metrics import ReportMetricsMixin
-from backtest.reporting.trades import TradeReconstructionMixin
-from backtest.reporting.render.text import ReportWritersMixin
+from backtest.reporting.render.charts import ReportCharts
+from backtest.reporting.metrics import ReportMetrics
+from backtest.reporting.trades import TradeReconstruction
+from backtest.reporting.render.text import ReportWriters
 
 
-class ReportGenerator(
-    ReportMetricsMixin,
-    TradeReconstructionMixin,
-    ReportWritersMixin,
-    ReportChartsMixin,
-):
+class ReportGenerator:
+    """Writes a backtest's reports. Metrics, trade reconstruction, the text report and the charts are collaborators
+    (ADR 0025); the methods below that only forward to them keep the names callers and historical scripts use."""
+
     METRIC_NAMES = METRIC_NAMES
     _format_metric_value = staticmethod(_format_metric_value)
     _format_primary_metrics = staticmethod(format_primary_metrics)
 
+    @cached_property
+    def _metrics(self) -> ReportMetrics:
+        return ReportMetrics()
+
+    @cached_property
+    def _trade_reconstruction(self) -> TradeReconstruction:
+        return TradeReconstruction(self._extended_trade_analytics)
+
+    @cached_property
+    def _writers(self) -> ReportWriters:
+        return ReportWriters(self)
+
+    @cached_property
+    def _charts(self) -> ReportCharts:
+        return ReportCharts(self)
+
+    # --- ReportMetrics
+    def _calculate_equity_metrics(self, equity_curve: pd.DataFrame, *, periods_per_year=None) -> Dict[str, Any]:
+        return self._metrics._calculate_equity_metrics(equity_curve, periods_per_year=periods_per_year)
+
+    def _headline_metric_results(self, metrics: Dict[str, Any]) -> List[Dict[str, Any]]:
+        return self._metrics._headline_metric_results(metrics)
+
+    def _extended_trade_analytics(self, closed_trades: List[Dict[str, Any]]) -> Dict[str, Any]:
+        return self._metrics._extended_trade_analytics(closed_trades)
+
+    # --- TradeReconstruction
+    def _analyze_trades(self, trades_df: pd.DataFrame) -> Dict[str, Any]:
+        return self._trade_reconstruction._analyze_trades(trades_df)
+
+    def _reconstruct_closed_trades(self, trades_df: pd.DataFrame) -> List[Dict[str, Any]]:
+        return self._trade_reconstruction._reconstruct_closed_trades(trades_df)
+
+    def _reconstruct_valid_closed_trades(self, trades_df: pd.DataFrame) -> List[Dict[str, Any]]:
+        return self._trade_reconstruction._reconstruct_valid_closed_trades(trades_df)
+
+    def _aggregate_round_trips(self, closed_legs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        return self._trade_reconstruction._aggregate_round_trips(closed_legs)
+
+    _fold_round_trip = staticmethod(TradeReconstruction._fold_round_trip)
+
+    def _trade_metrics_from_closed(self, closed_trades: List[Dict[str, Any]]) -> Dict[str, Any]:
+        return self._trade_reconstruction._trade_metrics_from_closed(closed_trades)
+
+    # --- ReportWriters
+    def _save_report_text(self, metrics: Dict[str, Any], metadata: Optional[Dict[str, Any]]=None, analysis: Optional[Dict[str, Any]]=None):
+        return self._writers._save_report_text(metrics, metadata, analysis)
+
+    def _write_lifecycle_section(self, f, lifecycle: Optional[Dict[str, Any]], full_metrics: Optional[Dict[str, Any]], active_metrics: Optional[Dict[str, Any]]) -> None:
+        return self._writers._write_lifecycle_section(f, lifecycle, full_metrics, active_metrics)
+
+    _write_strategy_health_section = staticmethod(ReportWriters._write_strategy_health_section)
+    _write_protective_stop_section = staticmethod(ReportWriters._write_protective_stop_section)
+    _write_signal_funnel_section = staticmethod(ReportWriters._write_signal_funnel_section)
+    _write_exposure_section = staticmethod(ReportWriters._write_exposure_section)
+    _write_drawdown_events_section = staticmethod(ReportWriters._write_drawdown_events_section)
+
+    def _write_trade_quality_section(self, f, quality: Optional[Dict[str, Any]]) -> None:
+        return self._writers._write_trade_quality_section(f, quality)
+
+    _write_control_attribution = staticmethod(ReportWriters._write_control_attribution)
+    _write_attribution_section = staticmethod(ReportWriters._write_attribution_section)
+    _write_benchmark_section = staticmethod(ReportWriters._write_benchmark_section)
+    _write_diagnostics_section = staticmethod(ReportWriters._write_diagnostics_section)
+    # --- ReportCharts
+    def _plot_equity(self, equity_curve: pd.DataFrame, benchmark_curve: pd.Series=None):
+        return self._charts._plot_equity(equity_curve, benchmark_curve)
+
+    def _plot_monthly_heatmap(self, equity_curve: pd.DataFrame) -> None:
+        return self._charts._plot_monthly_heatmap(equity_curve)
+
+    def _plot_rolling_metrics(self, equity_curve: pd.DataFrame, window: int=30) -> None:
+        return self._charts._plot_rolling_metrics(equity_curve, window)
+
+    def _plot_pnl_distribution(self, closed_trades: List[Dict[str, Any]]) -> None:
+        return self._charts._plot_pnl_distribution(closed_trades)
     def __init__(self, output_dir: str):
         """
         参数：

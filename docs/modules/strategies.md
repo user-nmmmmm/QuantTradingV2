@@ -9,7 +9,7 @@
 | 文件 | 主要对象 | 职责 |
 | --- | --- | --- |
 | [`base.py`](../../strategies/base.py) | `Strategy` | 统一接口、上下文、入场候选、订单提交、硬止损及平仓事件消费 |
-| [`trend_breakout.py`](../../strategies/trend_breakout.py) | `TrendBreakoutStrategy`、`TrendBreakdownStrategy` | Donchian 多头突破与空头破位；复用健康、保护止损和候选评分 mixin |
+| [`trend_breakout.py`](../../strategies/trend_breakout.py) | `DonchianTrendStrategy`（共用基类）、`TrendBreakoutStrategy`、`TrendBreakdownStrategy` | Donchian 多头突破与空头破位；基类提供健康生命周期、保护止损和候选评分 |
 | [`mean_reversion.py`](../../strategies/mean_reversion.py) | `RangeStrategy` | 布林带、RSI、ATR 过滤及逐标的连亏冷却 |
 | [`volatility.py`](../../strategies/volatility.py) | `VolatilityReversionStrategy` | 价格扩张后的均值回归与随机指标确认 |
 | [`trend_portfolio_v2.py`](../../strategies/trend_portfolio_v2.py) | `TrendPortfolioV2Strategy` | 多周期趋势符号分数、状态风险倍率、波动率定仓及 ATR 退出 |
@@ -229,7 +229,7 @@ OBV 确认仅在存在 OBV 数据时生效：策略可从 `volume` 自动计算 
 
 ### 5.1 健康生命周期
 
-两个 Donchian 策略及继承它们的 V2/V3 共用 `_PersistentHealthMixin` 与[StrategyHealthMachine](../../core/analytics/strategy_health.py)，健康状态按策略名称分别管理。
+两个 Donchian 策略及继承它们的 V2/V3 共用基类 `DonchianTrendStrategy`（含健康生命周期）与[StrategyHealthMachine](../../core/analytics/strategy_health.py)，健康状态按策略名称分别管理。
 
 观察单位是退出 **cohort**，由原开仓策略、UTC 平仓日、退出控制方及适用的风险动作身份组合。策略自身保护止损的不同订单 ID 不拆成多个独立健康样本；同一观察组内合并权威净盈亏与初始风险，计算 R。当前计入健康触发的控制方为 `strategy` 和 `router`；账户风险与系统收尾退出仍保留归因报告。
 
@@ -292,7 +292,7 @@ OBV 确认仅在存在 OBV 数据时生效：策略可从 `volume` 自动计算 
 
 该文件中用于保护距离的 `risk=rolling_mean(high-low, 20)`，止损为 `close ± 1.5 × risk`。虽然参数名为 `stop_atr`，**这里没有使用包含隔夜跳空的标准 ATR 指标**。`use_stochastic=false` 取消随机指标确认；入场仍要求均值、标准差及风险尺度有效且为正。
 
-此策略共用基类硬止损，没有 Donchian 健康 mixin。默认 VOLATILE 路由为 Cash，治理状态为 `isolated_research`。
+此策略共用基类硬止损，不继承 `DonchianTrendStrategy`，没有 Donchian 的健康生命周期。默认 VOLATILE 路由为 Cash，治理状态为 `isolated_research`。
 
 ## 8. TrendPortfolioV2
 
