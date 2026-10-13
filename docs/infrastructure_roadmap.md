@@ -20,7 +20,7 @@
 |---|---|---|---|
 | 0.1 | `.gitignore`/`.gitattributes` 修正，PR 模板、CODEOWNERS、SECURITY、CONTRIBUTING、Dependabot（仅 Actions） | 已完成 | #54 |
 | 0.2 | 可编辑安装、控制台入口、删除 71 个文件的 `sys.path` 补丁、`install-smoke`（Linux/Windows × 3.11/3.13，已设为必需检查） | 已完成 | #60 |
-| 0.3 | ruff/mypy 棘轮（621/869 冻结；B4 之后 mypy 降到 404）、覆盖率门槛 55%→85%、`-n 4` 并行、`slow` 标记、600 秒超时 | 已完成 | #65 |
+| 0.3 | ruff/mypy 棘轮（621/869 冻结；C2 之后降到 588/326）、覆盖率门槛 55%→85%、`-n 4` 并行、`slow` 标记、600 秒超时 | 已完成 | #65 |
 | 0.4 | import-linter 分层规则，消除 `core → research`，4 条已知例外只减不增 | 已完成 | #66 |
 | 0.5 | 行为身份 `code-token/v1`、PR 影响报告、文档移动索引、断链检查 | 已完成 | #64 |
 | 0.6 | `dev.py check`、ADR 0001–0006、dev container（未实际运行）、脚本索引补全 | 已完成 | #67 |
@@ -40,6 +40,7 @@
 | B4 | 4 个宿主类的 13 个 mixin 改为持有 `host` 引用的协作类（ADR 0018）；mypy 869 → 404（`attr-defined` 475 → 49）；状态所有权迁移、报告与策略 mixin 未做 | 已完成（第一步） | 本 PR |
 | B5 | `BacktestEngine.run` 与 `main()` 流水线化（`run` 32 行，最长阶段 97 行）；入口移到 `cli/`，`main.py` 剩 5 行；`scripts/` 100 个脚本按生命周期分类并有测试，历史脚本因证据哈希绑定不搬迁（ADR 0019） | 已完成 | 本 PR |
 | C4 | 测试治理：符号链接测试按能力探测跳过（本地 Windows 全绿），`quarantine` 标记 + 到期检查，耗时预算与 CI 超时，约定写入 `docs/quality.md` | 已完成 | 本 PR |
+| C2 | 棘轮扫描出的可疑模式逐个复核：借贷年化（`seconds_per_year`）是死代码，先写特征测试再清理；B023 共 29 处全部无害并统一显式绑定；B904、mypy `attr-defined` 逐项给出结论，无需改变交易行为。ruff 621 → 588，mypy 365 → 326 | 已完成 | 本 PR |
 | A4 | 绑定记录 `release-bound-identity/v1`、`--bind-release/--verify-binding`（ADR 0010）；旧记录不动。真正的新身份登记留到整理完成后 | 已完成 | 本 PR |
 
 当前规模（`main`，2026-10-12）：`core/` 78 个平铺模块 + 7 个子包；246 个测试文件、约 3945 个测试，CI 并行约 3 分钟；覆盖率 89.1%；ruff 621、mypy 869 项存量；`BacktestEngine.run` 所在文件 1296 行，`main.py` 1126 行；4 个宿主类共 13 个 mixin（`Broker` 4、`LiveBroker` 3、`RiskManager` 3、`LiveTradingEngine` 3，约 6300 行，每个 mixin 共享 10–60 个 `self` 属性；另有报告 4 个、策略 3 个 mixin 不在 B4 范围）；`scripts/` 97 个脚本；0 个发布标签。
@@ -109,7 +110,8 @@
 | B4 | 已完成第一步（ADR 0018，待合并）：mixin 继承清零；状态仍由宿主持有 | mypy 869 → 404 |
 | B5 | 已完成（ADR 0019，待合并） | `run` 32 行、`main.py` 5 行 | B1 的依赖图分析已做过：14 个模块、约 3500 行、导入点约 61 处，`temporal_data` 必须留在 `core`；`backtest/signal_meta_replay.py` 的指纹键需保持旧名 |
 | C1 | 已约定、未写入 CONTRIBUTING | 每个 PR 顺手减少触碰文件的存量 |
-| C2、C3、C5 | 未开始 |
+| C2 | 已完成（本 PR 合并后生效） | 结论见 `docs/quality.md` |
+| C3、C5 | 未开始 |
 | C4 | 已完成（本 PR 合并后生效） | — | C2 的可疑模式清单已在 `docs/quality.md` |
 | D1 | 待你确认清单 | 清单见上表 D1 行 |
 | D2、D3 | 未开始 | 数据清单只登记 2 个标的而已跟踪 CSV 有 30 个；CI 从 `requirements-dev.txt` 安装而不是锁文件 |

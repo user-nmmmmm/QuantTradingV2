@@ -52,7 +52,7 @@ def retry_after_seconds(value, now=None):
     except (ValueError, TypeError):
         stamp = parsedate_to_datetime(str(value))
         if stamp.tzinfo is None:
-            raise ValueError("Retry-After date must be aware")
+            raise ValueError("Retry-After date must be aware") from None   # float() failing only means "not a number of seconds"
         seconds = (stamp-(now or utc_now())).total_seconds()
     if not math.isfinite(seconds):
         raise ValueError("invalid Retry-After")

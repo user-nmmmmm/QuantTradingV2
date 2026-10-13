@@ -287,7 +287,7 @@ async def observe_depth(*, symbols, duration_seconds, journal, quote_store, run_
                     async with session.ws_connect(url, autoping=True, heartbeat=20, proxy=proxy,
                             timeout=aiohttp.ClientWSTimeout(ws_close=1.),
                             max_msg_size=2 * 1024 * 1024) as websocket:
-                        async def receive():
+                        async def receive(queue=queue, epoch=epoch):
                             while True:
                                 message = await websocket.receive()
                                 if message.type != aiohttp.WSMsgType.TEXT:
@@ -302,7 +302,7 @@ async def observe_depth(*, symbols, duration_seconds, journal, quote_store, run_
                                 queue.put_nowait((event, observed))
                         producer = asyncio.create_task(receive())
 
-                        async def next_event():
+                        async def next_event(queue=queue, producer=producer):
                             if producer.done():
                                 producer.result()
                             get = asyncio.create_task(queue.get())

@@ -8,6 +8,9 @@
 
 ## [Unreleased]
 
+### Notes
+- 棘轮复核（C2）：借贷利息的年化只在 `_accrue_short_borrow` / `_accrue_quote_borrow` 里计算，`financing.py` 里原有的 `seconds_per_year` 局部变量是未使用的死代码，已合并为 `SECONDS_PER_YEAR` 并用测试固定；29 处"闭包里使用循环变量"逐一确认无害并显式绑定。这些改动在冻结范围内，但交易与回测行为不变（身份报告会显示为行为变化，因为字节变了）。
+
 ### Added
 - 测试治理（路线图 C4）：`quarantine` 标记（带原因和到期日，过期后 CI 失败）、`tests/capabilities.py` 的能力探测跳过（Windows 上没有符号链接权限时跳过，Linux CI 保证不跳过）、完整套件的耗时预算（目标 ≤ 5 分钟，CI 步骤 8 分钟超时），约定写在 `docs/quality.md`。
 

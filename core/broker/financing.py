@@ -15,6 +15,10 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from core.broker import Broker
 
+#: Borrow rates are annual and accrue over the actual elapsed seconds of a 365-day year
+#: (pinned by tests/test_financing_annualization.py). Perpetual funding is not annualized: its rate is per settlement interval.
+SECONDS_PER_YEAR = 365.0 * 24.0 * 3600.0
+
 
 class Financing:
     """Historical funding/borrow accrual against open positions.
@@ -42,7 +46,6 @@ class Financing:
         for symbol in list(host._last_borrow_time):
             if symbol != host.QUOTE_BORROW_SYMBOL and host.portfolio.get_position(symbol)["qty"] >= 0:
                 host._last_borrow_time.pop(symbol, None)
-        seconds_per_year = 365.0 * 24.0 * 3600.0
         for symbol, position in list(host.portfolio.positions.items()):
             bar = current_bar.get(symbol)
             if bar is None or position["qty"] == 0:
@@ -111,7 +114,7 @@ class Financing:
         raw = bar.get("borrow_rate_annual")
         rate = host.default_borrow_rate_annual if raw is None or pd.isna(raw) else float(raw)
         source = "configured_default" if raw is None or pd.isna(raw) else "historical_bar"
-        amount = notional * rate * (timestamp - previous).total_seconds() / (365.0 * 24 * 3600)
+        amount = notional * rate * (timestamp - previous).total_seconds() / SECONDS_PER_YEAR
         entry = host.portfolio.apply_financing(timestamp=timestamp, symbol=symbol,
                                                kind="borrow", rate=rate, notional=notional,
                                                amount=amount, source=source)
@@ -170,7 +173,7 @@ class Financing:
         )
         source = "configured_default" if rate_override is None else "historical_bar"
         elapsed_seconds = (timestamp - previous).total_seconds()
-        amount = borrowed * rate * elapsed_seconds / (365.0 * 24.0 * 3600.0)
+        amount = borrowed * rate * elapsed_seconds / SECONDS_PER_YEAR
         quote_policy = getattr(host, "quote_borrow_policy", None)
         if quote_policy is not None:
             amount, segments = quote_policy.interest(

@@ -154,7 +154,7 @@ class DataVersionStore:
                     os.link(temporary, path)
             except FileExistsError:
                 if path.read_bytes() != payload:
-                    raise ValueError("immutable content conflict or tampering detected")
+                    raise ValueError("immutable content conflict or tampering detected") from None   # FileExistsError is the expected idempotent-write path
         finally:
             if temporary is not None:
                 temporary.unlink(missing_ok=True)

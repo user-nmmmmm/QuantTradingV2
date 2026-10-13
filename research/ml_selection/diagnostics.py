@@ -141,7 +141,7 @@ def ranking_observations(rows):
     for stamp, batch in sorted(groups.items()):
         if len(batch) < 2:
             continue
-        def ordered(field):
+        def ordered(field, batch=batch):
             if any(_number(r.get(field)) is None for r in batch):
                 return None
             return [r.get("decision_id") or f"{r.get('strategy')}|{r.get('symbol')}"
