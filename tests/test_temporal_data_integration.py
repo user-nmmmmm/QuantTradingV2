@@ -134,7 +134,7 @@ def test_frozen_identity_detects_changed_ohlcv(tmp_path):
 
 
 def test_main_csv_path_preserves_raw_bytes_and_unknown_history(tmp_path):
-    from main import get_data
+    from cli.data import get_data
     source = tmp_path / "BTC_USDT.csv"
     raw(4).to_csv(source, index_label="timestamp")
     original = source.read_bytes()
@@ -192,7 +192,7 @@ def test_frozen_source_identity_does_not_silently_follow_new_store_head(tmp_path
 
 
 def test_reimport_changed_legacy_csv_appends_version_without_rewriting_original(tmp_path):
-    from main import get_data
+    from cli.data import get_data
     path = tmp_path / "BTC_USDT.csv"
     frame = raw(2)
     frame.to_csv(path)
@@ -372,7 +372,7 @@ def test_runtime_missing_held_mark_blocks_new_risk_without_using_realised_revisi
 @pytest.mark.parametrize("persistent", [False, True])
 def test_report_csv_replay_restores_identical_strict_versions(tmp_path, persistent):
     from types import SimpleNamespace
-    from main import _temporal_report_payload, _restore_temporal_replay_inputs
+    from cli.replay import _temporal_report_payload, _restore_temporal_replay_inputs
     from core.analytics.backtest_audit import write_json_report
     from core.foundation.reproducibility import save_data_snapshots, load_data_snapshots, sha256_file
 
@@ -401,7 +401,7 @@ def test_report_csv_replay_restores_identical_strict_versions(tmp_path, persiste
 def test_strict_replay_rejects_missing_or_changed_temporal_evidence(tmp_path):
     import json
     from types import SimpleNamespace
-    from main import _temporal_report_payload, _restore_temporal_replay_inputs
+    from cli.replay import _temporal_report_payload, _restore_temporal_replay_inputs
     from core.analytics.backtest_audit import write_json_report
     from core.foundation.reproducibility import sha256_file
 
@@ -427,7 +427,7 @@ def test_strict_replay_rejects_missing_or_changed_temporal_evidence(tmp_path):
 
 def test_main_full_strict_csv_report_and_replay_preserve_raw_input_identity(tmp_path, monkeypatch):
     import json
-    import main as entrypoint
+    import cli.run as entrypoint
 
     frame = documented(15)
     frame["availability_source"] = "source_publication"

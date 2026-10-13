@@ -38,6 +38,7 @@
 | B2-5 | `core/foundation/`：10 个基础件模块（ADR 0016）；B2 完成，`core/` 平铺模块 78 → 0 | 已完成 | #77 |
 | B3 | 分层规则清零 4 条已知例外：标签对账三个模块搬到 `signal_meta/`，`create_selector`/`restore_selector` 搬到 `research/ml_selection/serving.py`；`ignore_imports` 删除，测试收紧（ADR 0017） | 已完成 | #78 |
 | B4 | 4 个宿主类的 13 个 mixin 改为持有 `host` 引用的协作类（ADR 0018）；mypy 869 → 404（`attr-defined` 475 → 49）；状态所有权迁移、报告与策略 mixin 未做 | 已完成（第一步） | 本 PR |
+| B5 | `BacktestEngine.run` 与 `main()` 流水线化（`run` 32 行，最长阶段 97 行）；入口移到 `cli/`，`main.py` 剩 5 行；`scripts/` 100 个脚本按生命周期分类并有测试，历史脚本因证据哈希绑定不搬迁（ADR 0019） | 已完成 | 本 PR |
 | A4 | 绑定记录 `release-bound-identity/v1`、`--bind-release/--verify-binding`（ADR 0010）；旧记录不动。真正的新身份登记留到整理完成后 | 已完成 | 本 PR |
 
 当前规模（`main`，2026-10-12）：`core/` 78 个平铺模块 + 7 个子包；246 个测试文件、约 3945 个测试，CI 并行约 3 分钟；覆盖率 89.1%；ruff 621、mypy 869 项存量；`BacktestEngine.run` 所在文件 1296 行，`main.py` 1126 行；4 个宿主类共 13 个 mixin（`Broker` 4、`LiveBroker` 3、`RiskManager` 3、`LiveTradingEngine` 3，约 6300 行，每个 mixin 共享 10–60 个 `self` 属性；另有报告 4 个、策略 3 个 mixin 不在 B4 范围）；`scripts/` 97 个脚本；0 个发布标签。
@@ -105,7 +106,7 @@
 | B2 | 已完成并合并：`core/market/`、`core/trading/`、`core/planning/`、`core/analytics/`、`core/foundation/`（ADR 0012–0016，#74–#77） | `core/` 平铺模块 63 → 0 |
 | B3 | 已完成（ADR 0017，待合并） | 分层契约无例外 |
 | B4 | 已完成第一步（ADR 0018，待合并）：mixin 继承清零；状态仍由宿主持有 | mypy 869 → 404 |
-| B5 | 未开始（须在新身份登记前完成） | B1 的依赖图分析已做过：14 个模块、约 3500 行、导入点约 61 处，`temporal_data` 必须留在 `core`；`backtest/signal_meta_replay.py` 的指纹键需保持旧名 |
+| B5 | 已完成（ADR 0019，待合并） | `run` 32 行、`main.py` 5 行 | B1 的依赖图分析已做过：14 个模块、约 3500 行、导入点约 61 处，`temporal_data` 必须留在 `core`；`backtest/signal_meta_replay.py` 的指纹键需保持旧名 |
 | C1 | 已约定、未写入 CONTRIBUTING | 每个 PR 顺手减少触碰文件的存量 |
 | C2–C5 | 未开始 | C2 的可疑模式清单已在 `docs/quality.md` |
 | D1 | 待你确认清单 | 清单见上表 D1 行 |

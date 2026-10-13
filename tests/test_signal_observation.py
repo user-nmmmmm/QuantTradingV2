@@ -399,7 +399,7 @@ def test_ghost_margin_breach_is_unknown_not_an_insolvent_profit_label():
 
 
 def test_manifest_replay_preserves_input_symbol_order_and_research_facts(tmp_path, capsys):
-    from main import replay_manifest
+    from cli.replay import replay_manifest
     from core.foundation.reproducibility import save_data_snapshots, sha256_file, write_manifest
     from pathlib import Path
     data = build_synthetic_data_map(symbols=("Z", "A"), bars=100)

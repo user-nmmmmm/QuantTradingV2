@@ -58,6 +58,119 @@ logger = get_logger(__name__)
 DEFAULT_INITIAL_CAPITAL = 10000.0
 
 
+class _RunState:
+    """Locals of one ``BacktestEngine.run`` that more than one stage needs (B5, ADR 0019).
+
+    Every field is assigned by the stage that creates it; ``__slots__`` makes a typo an error.
+    """
+
+    __slots__ = (
+        "portfolio",
+        "event_pipeline",
+        "broker",
+        "risk_manager",
+        "budget",
+        "drawdown_reducer",
+        "state_machine",
+        "strategies",
+        "routing_log_enabled",
+        "routing_log_path",
+        "router",
+        "data_map",
+        "market_data",
+        "processed_data",
+        "timestamps",
+        "execution",
+        "stop_simulator",
+        "observer",
+        "processor",
+        "equity_curve",
+        "accounting",
+        "bar_index",
+        "last_event_timestamp",
+        "applied_breaker_actions",
+        "block_remaining",
+        "entry_risk_policy",
+        "risk_budget_audit",
+        "checked_entries",
+        "lifecycle",
+        "recovery",
+        "recovery_mode",
+        "flat_bars",
+        "health_bars",
+        "waiting_for_recovery",
+        "health_activity",
+        "routed_names",
+        "stream",
+        "stream_offset",
+        "event",
+        "result",
+        "action_cost",
+        "positions_before",
+        "transition_id",
+        "portfolio_action_id",
+        "fixed_benchmark",
+        "dynamic_benchmark",
+        "selected_benchmark",
+        "signal_observation_result",
+        "signal_meta_layer_result",
+        "signal_adaptive_result",
+        "signal_meta_replay_result",
+    )
+
+    portfolio: Any
+    event_pipeline: Any
+    broker: Any
+    risk_manager: Any
+    budget: Any
+    drawdown_reducer: Any
+    state_machine: Any
+    strategies: Any
+    routing_log_enabled: Any
+    routing_log_path: Any
+    router: Any
+    data_map: Any
+    market_data: Any
+    processed_data: Any
+    timestamps: Any
+    execution: Any
+    stop_simulator: Any
+    observer: Any
+    processor: Any
+    equity_curve: Any
+    accounting: Any
+    bar_index: Any
+    last_event_timestamp: Any
+    applied_breaker_actions: set[str]
+    block_remaining: Any
+    entry_risk_policy: Any
+    risk_budget_audit: list[Dict[str, Any]]
+    checked_entries: dict[str, dict]
+    lifecycle: Any
+    recovery: Any
+    recovery_mode: Any
+    flat_bars: Any
+    health_bars: Any
+    waiting_for_recovery: Any
+    health_activity: Any
+    routed_names: Any
+    stream: Any
+    stream_offset: Any
+    event: Any
+    result: Any
+    action_cost: Any
+    positions_before: Any
+    transition_id: Any
+    portfolio_action_id: Any
+    fixed_benchmark: Any
+    dynamic_benchmark: Any
+    selected_benchmark: Any
+    signal_observation_result: Any
+    signal_meta_layer_result: Any
+    signal_adaptive_result: Any
+    signal_meta_replay_result: Any
+
+
 class BacktestEngine:
     """Historical scheduler; trading decisions live in :class:`EventProcessor`."""
 
@@ -222,6 +335,35 @@ class BacktestEngine:
         routing_log_path: Optional[str] = None,
         routing_log_enabled: bool = True,
     ) -> Dict[str, Any]:
+        rs = _RunState()
+        rs.data_map = data_map
+        rs.strategies = strategies
+        rs.routing_log_path = routing_log_path
+        rs.routing_log_enabled = routing_log_enabled
+        self._prepare_account(rs)
+        self._prepare_strategies(rs)
+        early = self._prepare_market(rs)
+        if early is not None:
+            return early
+        self._prepare_processor(rs)
+        for bar_index, event in enumerate(rs.stream, start=rs.stream_offset):
+            rs.bar_index, rs.event = bar_index, event
+            if self.trading_start is not None and rs.event.timestamp < self.trading_start:
+                continue  # History only: no cashflows, orders or health state before the window.
+            self._bar_timing(rs)
+            self._bar_market(rs)
+            self._bar_risk(rs)
+            self._bar_bookkeeping(rs)
+            if self._bar_terminal(rs):
+                break
+        self._finish_tail(rs)
+        self._finish_health(rs)
+        self._finish_benchmarks(rs)
+        self._finish_observation(rs)
+        return {**self._result_core(rs), **self._result_reports(rs)}
+
+    def _prepare_account(self, rs: _RunState) -> None:
+        """Validate the run options and build the portfolio, event pipeline, broker and risk manager."""
         # Configuration and injected components can change between construction
         # and reuse. Fail before creating a broker or running any market event.
         validate_selector_execution_path(
@@ -244,7 +386,7 @@ class BacktestEngine:
                 1.0 / max(float(self.config_risk["max_leverage"]), 1.0),
             )
         )
-        portfolio = Portfolio(
+        rs.portfolio = Portfolio(
             self.initial_capital,
             account_mode=self.account_mode,
             initial_margin_rate=initial_margin_rate,
@@ -252,7 +394,7 @@ class BacktestEngine:
                 self.config_account.get("maintenance_margin_rate", 0.05)
             ),
         )
-        event_pipeline = TradingEventPipeline(
+        rs.event_pipeline = TradingEventPipeline(
             run_id=self.run_id,
             retention_limit=250000,
         )
@@ -261,8 +403,8 @@ class BacktestEngine:
         self.account_cost_contract = validate_account_cost_contract(
             config, account_mode=self.account_mode.value,
         )
-        broker = Broker(
-            portfolio,
+        rs.broker = Broker(
+            rs.portfolio,
             slippage=self.slippage,
             random_slip=self.random_slip,
             commission_rate=self.config_execution["commission_rate_taker"],
@@ -295,60 +437,66 @@ class BacktestEngine:
             opening_order_ttl_bars=self.config_execution.get(
                 "opening_order_ttl_bars", 0
             ),
-            event_pipeline=event_pipeline,
+            event_pipeline=rs.event_pipeline,
             timeframe=self.timeframe,
         )
         if self.portfolio_controller is not None:
-            self.portfolio_controller.bind(broker)
-        risk_manager = build_risk_manager(config)
-        budget = getattr(risk_manager, 'drawdown_budget', None)
-        drawdown_reducer = BacktestDrawdownReducer(budget) if budget is not None else None
-        state_machine = build_state_machine(config)
-        strategies = build_strategy_registry(config) if strategies is None else strategies
+            self.portfolio_controller.bind(rs.broker)
+        rs.risk_manager = build_risk_manager(config)
+        rs.budget = getattr(rs.risk_manager, 'drawdown_budget', None)
+        rs.drawdown_reducer = BacktestDrawdownReducer(rs.budget) if rs.budget is not None else None
+        rs.state_machine = build_state_machine(config)
+
+    def _prepare_strategies(self, rs: _RunState) -> None:
+        """Resolve the strategy registry, health policies, router and market-data adapter."""
+        rs.strategies = build_strategy_registry(config) if rs.strategies is None else rs.strategies
         if self.portfolio_controller is None:
-            self.portfolio_controller = build_portfolio_target_controller(config, strategies)
+            self.portfolio_controller = build_portfolio_target_controller(config, rs.strategies)
             self._automatic_portfolio_controller = self.portfolio_controller is not None
             if self.portfolio_controller is not None:
-                self.portfolio_controller.bind(broker)
-        for strategy in strategies.values():
+                self.portfolio_controller.bind(rs.broker)
+        for strategy in rs.strategies.values():
             reset = getattr(strategy, "reset_runtime_state", None)
             if callable(reset):
                 reset()
 
-        if routing_log_enabled:
-            if routing_log_path is None:
-                routing_log_path = os.path.join(
+        if rs.routing_log_enabled:
+            if rs.routing_log_path is None:
+                rs.routing_log_path = os.path.join(
                     os.getcwd(), "reports", "routing_log.csv"
                 )
-            log_dir = os.path.dirname(routing_log_path)
+            log_dir = os.path.dirname(rs.routing_log_path)
             if log_dir:
                 os.makedirs(log_dir, exist_ok=True)
         else:
-            routing_log_path = None
-        router = build_router(strategies, config, log_path=routing_log_path,
+            rs.routing_log_path = None
+        rs.router = build_router(rs.strategies, config, log_path=rs.routing_log_path,
                               capital_policy=self.capital_allocation_policy)
 
-        market_data = HistoricalMarketDataAdapter(
-            data_map,
+        rs.market_data = HistoricalMarketDataAdapter(
+            rs.data_map,
             timeframe=self.timeframe,
             calculate_indicators=self.portfolio_controller is None,
             alignment_mode=self.alignment_mode,
             universe=self.universe,
             temporal_policy=self.temporal_policy,
         )
-        processed_data = market_data.data_map
+        rs.processed_data = rs.market_data.data_map
+
+    def _prepare_market(self, rs: _RunState) -> Optional[Dict[str, Any]]:
+        """Build the empty result and return it early when there is no data to replay."""
         # Early exits must keep the same result keys as a completed run, or
         # callers that read close_events/benchmark silently get None and the
         # diagnostics that depend on them are dropped without explanation.
         empty_result = {
             "capital_allocation_policy": asdict(self.capital_allocation_policy),
             "capital_allocation_audit": [],
-            "temporal_data": {"audit": market_data.temporal_audit, "identity": market_data.temporal_identity},
+            "temporal_data": {"audit": rs.market_data.temporal_audit, "identity": rs.market_data.temporal_identity},
             "signal_observation": None,
             "signal_meta_layer": None,
             "trades": [],
             "entry_observations": [],
-            "effective_max_holding_days": getattr(router, "max_holding_days", None),
+            "effective_max_holding_days": getattr(rs.router, "max_holding_days", None),
             "equity_curve": pd.DataFrame(),
             "benchmark": None,
             "benchmark_fixed": None,
@@ -357,9 +505,9 @@ class BacktestEngine:
             "benchmark_turnover": pd.Series(dtype=float),
             "benchmark_costs": pd.Series(dtype=float),
             "benchmark_metadata": {},
-            "close_events": {name: 0 for name in strategies},
+            "close_events": {name: 0 for name in rs.strategies},
             "accounting_check": AccountingReconciler(self.initial_capital).result().to_dict(),
-            "event_log": tuple(event_pipeline.events),
+            "event_log": tuple(rs.event_pipeline.events),
             "run_id": self.run_id,
             "alignment_mode": self.alignment_mode,
             "account_mode": self.account_mode.value,
@@ -392,75 +540,79 @@ class BacktestEngine:
                 "health_transition_log": [],
             },
         }
-        if not processed_data:
+        if not rs.processed_data:
             logger.warning("No valid symbol data available after normalization")
             return empty_result
-        timestamps = market_data.timestamps
-        if len(timestamps) == 0:
+        rs.timestamps = rs.market_data.timestamps
+        if len(rs.timestamps) == 0:
             return empty_result
 
-        register_health_policies(strategies, processed_data, config.get("routing"),
+        register_health_policies(rs.strategies, rs.processed_data, config.get("routing"),
                                  research=config.get("research"))
 
-        execution = SimulatedExecutionAdapter(broker)
+        rs.execution = SimulatedExecutionAdapter(rs.broker)
         # STR-P1-01: the backtest carries the same venue-resident protective
         # stop the live path carries, and fills it inside the bar on the
         # pre-registered conservative OHLC path instead of discovering the
         # breach at the close and exiting at the next open.
         protective_config = config.get("protective_orders") or {}
-        stop_simulator = ResidentStopSimulator(
-            broker, strategies,
+        rs.stop_simulator = ResidentStopSimulator(
+            rs.broker, rs.strategies,
             enabled=bool(protective_config.get("backtest_resident", True)),
         )
-        self.stop_simulator = stop_simulator
-        if budget is not None and stop_simulator.enabled:
-            budget.confirmed_stop_provider = stop_simulator._resident_orders
-        observer = None
+        self.stop_simulator = rs.stop_simulator
+        if rs.budget is not None and rs.stop_simulator.enabled:
+            rs.budget.confirmed_stop_provider = rs.stop_simulator._resident_orders
+        return None
+
+    def _prepare_processor(self, rs: _RunState) -> None:
+        """Create the stop simulator, observer, event processor and the per-run bookkeeping."""
+        rs.observer = None
         if self.observation_policy.enabled:
-            observer = SignalObserver(policy=self.observation_policy,
-                costs=ObservationCosts.from_broker(broker), strategies=strategies,
-                state_machine=state_machine, temporal_policy=self.temporal_policy,
+            rs.observer = SignalObserver(policy=self.observation_policy,
+                costs=ObservationCosts.from_broker(rs.broker), strategies=rs.strategies,
+                state_machine=rs.state_machine, temporal_policy=self.temporal_policy,
                 financing=self.temporal_financing,
                 config_identity={name: config.get(name) for name in (
                     "state", "routing", "router", "risk", "strategy_health", "research")})
-        processor = EventProcessor(
-            portfolio=portfolio,
-            execution=execution,
-            risk_manager=risk_manager,
-            state_machine=state_machine,
-            router=router,
-            allocator=router.allocator,
+        rs.processor = EventProcessor(
+            portfolio=rs.portfolio,
+            execution=rs.execution,
+            risk_manager=rs.risk_manager,
+            state_machine=rs.state_machine,
+            router=rs.router,
+            allocator=rs.router.allocator,
             warmup_period=self.warmup_period,
             initial_equity=self.initial_capital,
             entry_audit_enabled=bool((config.get("research") or {}).get("entry_audit", False)),
             trace_gate_facts=bool((config.get("research") or {}).get(
                 "trace_gate_facts", (config.get("research") or {}).get("entry_audit", False))),
-            signal_observer=observer,
+            signal_observer=rs.observer,
             portfolio_controller=self.portfolio_controller,
             candidate_selector=self.candidate_selector,
         )
-        self.market_data_adapter = market_data
-        self.execution_adapter = execution
-        self.event_processor = processor
+        self.market_data_adapter = rs.market_data
+        self.execution_adapter = rs.execution
+        self.event_processor = rs.processor
 
-        logger.info("Starting backtest on %s bars", len(timestamps))
-        equity_curve = []
+        logger.info("Starting backtest on %s bars", len(rs.timestamps))
+        rs.equity_curve = []
         # BM3 exposure totals are sampled directly into each equity row. There
         # is no need to retain a second history of every position and mark.
-        accounting = AccountingReconciler(self.initial_capital)
-        bar_index = -1
-        last_event_timestamp = None
-        applied_breaker_actions: set[str] = set()
-        block_remaining = (config.get("research") or {}).get("block_remaining_fraction")
-        if block_remaining is not None and not 0 < float(block_remaining) < 1:
+        rs.accounting = AccountingReconciler(self.initial_capital)
+        rs.bar_index = -1
+        rs.last_event_timestamp = None
+        rs.applied_breaker_actions = set()
+        rs.block_remaining = (config.get("research") or {}).get("block_remaining_fraction")
+        if rs.block_remaining is not None and not 0 < float(rs.block_remaining) < 1:
             raise ValueError("Research block remaining fraction must be in (0, 1)")
-        entry_risk_policy = EntryRiskPolicy.from_mapping(
+        rs.entry_risk_policy = EntryRiskPolicy.from_mapping(
             config.get("entry_risk") if isinstance(config.get("entry_risk"), dict)
             else None
         )
-        risk_budget_audit: list[Dict[str, Any]] = []
-        checked_entries: dict[str, dict] = {}
-        lifecycle = {
+        rs.risk_budget_audit = []
+        rs.checked_entries = {}
+        rs.lifecycle = {
             "status": "completed",
             "active_start": None,
             "active_end": None,
@@ -480,302 +632,318 @@ class BacktestEngine:
             "health_resume_count": 0,
             "health_transition_log": [],
         }
-        recovery = dict(self.breaker_policy.get("recovery") or {})
-        recovery_mode = str(recovery.get("mode", "none"))
-        flat_bars = 0
-        health_bars = 0
-        waiting_for_recovery = False
-        health_activity = []
-        routed_names = set((config.get("routing") or {}).values()) - {"Cash"}
+        rs.recovery = dict(self.breaker_policy.get("recovery") or {})
+        rs.recovery_mode = str(rs.recovery.get("mode", "none"))
+        rs.flat_bars = 0
+        rs.health_bars = 0
+        rs.waiting_for_recovery = False
+        rs.health_activity = []
+        rs.routed_names = set((config.get("routing") or {}).values()) - {"Cash"}
         stream_start = (self.trading_start if self.portfolio_controller is not None else None)
-        stream = market_data.stream(start_at=stream_start, fast_bars=self.fast_bars)
-        stream_offset = int(timestamps.searchsorted(stream_start)) if stream_start is not None else 0
-        for bar_index, event in enumerate(stream, start=stream_offset):
-            if self.trading_start is not None and event.timestamp < self.trading_start:
-                continue  # History only: no cashflows, orders or health state before the window.
-            event = self._causal_executable_event(event)
-            for symbol, bar in event.bars.items():
-                if pd.notna(bar.get("close")) and float(bar["close"]) > 0:
-                    self._last_mark_times[symbol] = event.timestamp
-            last_event_timestamp = event.timestamp
-            if lifecycle["active_start"] is None:
-                lifecycle["active_start"] = event.timestamp
-            if waiting_for_recovery and recovery_mode == "timed_rebase":
-                flat_bars += 1
-                assessment = getattr(risk_manager, "health_assessment", None)
-                healthy = assessment is None or bool(
-                    getattr(assessment, "allows_new_risk", False)
-                )
-                health_bars = health_bars + 1 if healthy else 0
-                max_resumes = int(recovery.get("max_resumes", 1))
-                if (
-                    flat_bars >= int(recovery.get("flat_bars_required", 30))
-                    and health_bars >= int(recovery.get("health_bars_required", 5))
-                    and lifecycle["resume_count"] < max_resumes
-                ):
-                    current_equity = portfolio.get_total_value(processor.last_prices)
-                    risk_manager.manual_resume(
-                        approved_by=str(
-                            recovery.get("approved_by", "backtest_protocol_v1")
-                        ),
-                        current_equity=current_equity,
-                        rebase_high_water=bool(recovery.get("rebase_high_water", True)),
-                        occurred_at=event.timestamp,
-                        bar_index=bar_index,
-                    )
-                    lifecycle["resume_count"] += 1
-                    lifecycle["breaker_epochs"] = risk_manager.breaker_epoch + 1
-                    waiting_for_recovery = False
-                    flat_bars = 0
-                    health_bars = 0
-            # One bar, one order: (1) the previous bar's queued orders fill at
-            # this open, (2) protection is reconciled against the position that
-            # now exists and matched against this bar, (3) strategy logic runs
-            # on the close. Splitting the market event out of ``process`` is
-            # what puts the resident stop between (1) and (3).
-            execution.on_market_data(event)
-            stop_simulator.step(event, bar_index=bar_index)
-            for symbol, bar in event.bars.items():
-                if bool(bar.get("scheduled_exit", False)):
-                    broker.force_liquidate({symbol: bar}, timestamp=event.timestamp,
-                                           reason="AnnouncedMarginDelisting",
-                                           risk_action_id=f"delist:{symbol}:{event.timestamp}", scope_symbols={symbol})
-                    if abs(portfolio.get_position(symbol)["qty"]) > 1e-9:
-                        raise ValueError(f"Insufficient real liquidity to exit {symbol} before announced cutoff")
-            result = processor.process(event, execute_market_event=False)
-            # T-1.10: sample this bar's high/low against every open lot so
-            # MAE/MFE (adverse/favorable excursion) are available at close,
-            # not just entry/exit prices.
-            for symbol, bar in event.bars.items():
-                if symbol in portfolio.lot_books:
-                    portfolio.update_lot_extremes(
-                        symbol, float(bar["high"]), float(bar["low"])
-                    )
-            margin = portfolio.margin_snapshot(
-                result.prices, timestamp=event.timestamp, record=True
+        rs.stream = rs.market_data.stream(start_at=stream_start, fast_bars=self.fast_bars)
+        rs.stream_offset = int(rs.timestamps.searchsorted(stream_start)) if stream_start is not None else 0
+
+    def _bar_timing(self, rs: _RunState) -> None:
+        """Timed recovery from a portfolio breaker, evaluated before the bar's orders."""
+        rs.event = self._causal_executable_event(rs.event)
+        for symbol, bar in rs.event.bars.items():
+            if pd.notna(bar.get("close")) and float(bar["close"]) > 0:
+                self._last_mark_times[symbol] = rs.event.timestamp
+        rs.last_event_timestamp = rs.event.timestamp
+        if rs.lifecycle["active_start"] is None:
+            rs.lifecycle["active_start"] = rs.event.timestamp
+        if rs.waiting_for_recovery and rs.recovery_mode == "timed_rebase":
+            rs.flat_bars += 1
+            assessment = getattr(rs.risk_manager, "health_assessment", None)
+            healthy = assessment is None or bool(
+                getattr(assessment, "allows_new_risk", False)
             )
-            forced_trades = []
-            action_cost = 0.0
-            positions_before = sum(
-                1 for symbol in portfolio.positions
-                if float(portfolio.get_position(symbol).get("qty", 0.0)) != 0.0
-            )
-            decision = result.risk_decision
-            transition_id = (
-                decision.transition_id if decision is not None else None
-            )
-            portfolio_action_id = getattr(
-                risk_manager, "current_transition_id", None
-            )
-            if margin.liquidation_required:
-                forced_trades.extend(
-                    broker.force_liquidate(
-                        dict(event.bars),
-                        timestamp=event.timestamp,
-                        reason="MarginLiquidation",
-                        risk_action_id=(
-                            f"epoch-{getattr(risk_manager, 'breaker_epoch', 0)}"
-                            f"-margin-{bar_index}"
-                        ),
-                    )
-                )
-            else:
-                risk_plan = plan_risk_action(decision, event.timestamp.date(), block_remaining=block_remaining)
-                if risk_plan is not None and (risk_plan.action_id not in applied_breaker_actions or portfolio.positions):
-                    forced_trades.extend(broker.force_liquidate(
-                        dict(event.bars), timestamp=event.timestamp, reason=risk_plan.reason,
-                        remaining_fraction=risk_plan.remaining_fraction, risk_action_id=risk_plan.action_id,
-                    ))
-                    applied_breaker_actions.add(risk_plan.action_id)
-            if drawdown_reducer is not None and not margin.liquidation_required and not (decision and decision.force_liquidate):
-                forced_trades.extend(drawdown_reducer.step(event))
-            if forced_trades:
-                # Historical events already carry original frame positions.
-                # Resolve a compatibility fallback once per symbol, rather
-                # than reindexing the same timestamp for every strategy.
-                forced_positions = {
-                    symbol: int(event.positions[symbol]) if symbol in event.positions
-                    else int(processed_data[symbol].index.get_indexer([event.timestamp])[0])
-                    for symbol in event.bars
-                }
-                for strategy in strategies.values():
-                    for symbol in event.bars:
-                        strategy._consume_execution_trades(
-                            symbol, forced_positions[symbol], portfolio, execution
-                        )
-                result.equity = portfolio.get_equity(result.prices)
-                result.cash = float(portfolio.cash)
-                portfolio.margin_snapshot(
-                    result.prices, timestamp=event.timestamp, record=True
-                )
-                action_cost = forced_trade_cost(forced_trades)
-                if self.temporal_policy.mode != "strict":
-                    processor._previous_session_close_equity = result.equity
-                else:
-                    from core.market.temporal_data import strategy_market_prices
-                    known_marks = strategy_market_prices(event, processor.last_prices)
-                    if all(not position.get("qty") or symbol in known_marks
-                           for symbol, position in portfolio.positions.items()):
-                        processor._previous_session_close_equity = portfolio.get_equity(known_marks)
-                # Re-arm against the actual remaining inventory without a
-                # second intrabar matching pass or invented fills.
-                if drawdown_reducer is not None and budget.policy.enabled and stop_simulator.enabled:
-                    stop_simulator._sync(dict(event.bars), timestamp=event.timestamp, bar_index=bar_index)
-            # SR2-4: the real fill, not the signal close, decides how much is
-            # at stake. A breakout that gapped through the open is resized down
-            # under an explicit ``GapRiskResize``, never left silently over
-            # budget (STR-P1-02).
-            self._recheck_entry_risk(
-                portfolio=portfolio,
-                execution=execution,
-                prices=result.prices,
-                timestamp=event.timestamp,
-                bar_index=bar_index,
-                policy=entry_risk_policy,
-                checked_entries=checked_entries,
-                audit=risk_budget_audit,
-            )
-            risk_manager.record_breaker_action_result(
-                transition_id,
-                post_action_equity=result.equity,
-                cost=action_cost,
-                positions_before=positions_before,
-                positions_after=sum(
-                    1 for symbol in portfolio.positions
-                    if float(portfolio.get_position(symbol).get("qty", 0.0)) != 0.0
-                ),
-            )
-            if portfolio_action_id and portfolio_action_id != transition_id:
-                risk_manager.record_breaker_action_result(
-                    portfolio_action_id,
-                    post_action_equity=result.equity,
-                    cost=0.0,
-                    positions_before=positions_before,
-                    positions_after=sum(
-                        1 for symbol in portfolio.positions
-                        if float(portfolio.get_position(symbol).get("qty", 0.0)) != 0.0
+            rs.health_bars = rs.health_bars + 1 if healthy else 0
+            max_resumes = int(rs.recovery.get("max_resumes", 1))
+            if (
+                rs.flat_bars >= int(rs.recovery.get("flat_bars_required", 30))
+                and rs.health_bars >= int(rs.recovery.get("health_bars_required", 5))
+                and rs.lifecycle["resume_count"] < max_resumes
+            ):
+                current_equity = rs.portfolio.get_total_value(rs.processor.last_prices)
+                rs.risk_manager.manual_resume(
+                    approved_by=str(
+                        rs.recovery.get("approved_by", "backtest_protocol_v1")
                     ),
-                    executed=False,
-                    overridden_by=transition_id,
+                    current_equity=current_equity,
+                    rebase_high_water=bool(rs.recovery.get("rebase_high_water", True)),
+                    occurred_at=rs.event.timestamp,
+                    bar_index=rs.bar_index,
                 )
-            equity_curve.append(
-                {
-                    "timestamp": event.timestamp,
-                    "equity": result.equity,
-                    "cash": result.cash,
-                }
+                rs.lifecycle["resume_count"] += 1
+                rs.lifecycle["breaker_epochs"] = rs.risk_manager.breaker_epoch + 1
+                rs.waiting_for_recovery = False
+                rs.flat_bars = 0
+                rs.health_bars = 0
+
+    def _bar_market(self, rs: _RunState) -> None:
+        """One bar, one order: fills at the open, resident stops, scheduled exits, then strategy logic."""
+        # One bar, one order: (1) the previous bar's queued orders fill at
+        # this open, (2) protection is reconciled against the position that
+        # now exists and matched against this bar, (3) strategy logic runs
+        # on the close. Splitting the market event out of ``process`` is
+        # what puts the resident stop between (1) and (3).
+        rs.execution.on_market_data(rs.event)
+        rs.stop_simulator.step(rs.event, bar_index=rs.bar_index)
+        for symbol, bar in rs.event.bars.items():
+            if bool(bar.get("scheduled_exit", False)):
+                rs.broker.force_liquidate({symbol: bar}, timestamp=rs.event.timestamp,
+                                       reason="AnnouncedMarginDelisting",
+                                       risk_action_id=f"delist:{symbol}:{rs.event.timestamp}", scope_symbols={symbol})
+                if abs(rs.portfolio.get_position(symbol)["qty"]) > 1e-9:
+                    raise ValueError(f"Insufficient real liquidity to exit {symbol} before announced cutoff")
+        rs.result = rs.processor.process(rs.event, execute_market_event=False)
+
+    def _bar_risk(self, rs: _RunState) -> None:
+        """Lot extremes, margin and breaker liquidation, drawdown reduction and strategy fill intake."""
+        # T-1.10: sample this bar's high/low against every open lot so
+        # MAE/MFE (adverse/favorable excursion) are available at close,
+        # not just entry/exit prices.
+        for symbol, bar in rs.event.bars.items():
+            if symbol in rs.portfolio.lot_books:
+                rs.portfolio.update_lot_extremes(
+                    symbol, float(bar["high"]), float(bar["low"])
+                )
+        margin = rs.portfolio.margin_snapshot(
+            rs.result.prices, timestamp=rs.event.timestamp, record=True
+        )
+        forced_trades = []
+        rs.action_cost = 0.0
+        rs.positions_before = sum(
+            1 for symbol in rs.portfolio.positions
+            if float(rs.portfolio.get_position(symbol).get("qty", 0.0)) != 0.0
+        )
+        decision = rs.result.risk_decision
+        rs.transition_id = (
+            decision.transition_id if decision is not None else None
+        )
+        rs.portfolio_action_id = getattr(
+            rs.risk_manager, "current_transition_id", None
+        )
+        if margin.liquidation_required:
+            forced_trades.extend(
+                rs.broker.force_liquidate(
+                    dict(rs.event.bars),
+                    timestamp=rs.event.timestamp,
+                    reason="MarginLiquidation",
+                    risk_action_id=(
+                        f"epoch-{getattr(rs.risk_manager, 'breaker_epoch', 0)}"
+                        f"-margin-{rs.bar_index}"
+                    ),
+                )
             )
-            self._sample_exposure(
-                portfolio, result.prices, equity_curve[-1],
+        else:
+            risk_plan = plan_risk_action(decision, rs.event.timestamp.date(), block_remaining=rs.block_remaining)
+            if risk_plan is not None and (risk_plan.action_id not in rs.applied_breaker_actions or rs.portfolio.positions):
+                forced_trades.extend(rs.broker.force_liquidate(
+                    dict(rs.event.bars), timestamp=rs.event.timestamp, reason=risk_plan.reason,
+                    remaining_fraction=risk_plan.remaining_fraction, risk_action_id=risk_plan.action_id,
+                ))
+                rs.applied_breaker_actions.add(risk_plan.action_id)
+        if rs.drawdown_reducer is not None and not margin.liquidation_required and not (decision and decision.force_liquidate):
+            forced_trades.extend(rs.drawdown_reducer.step(rs.event))
+        if forced_trades:
+            # Historical events already carry original frame positions.
+            # Resolve a compatibility fallback once per symbol, rather
+            # than reindexing the same timestamp for every strategy.
+            forced_positions = {
+                symbol: int(rs.event.positions[symbol]) if symbol in rs.event.positions
+                else int(rs.processed_data[symbol].index.get_indexer([rs.event.timestamp])[0])
+                for symbol in rs.event.bars
+            }
+            for strategy in rs.strategies.values():
+                for symbol in rs.event.bars:
+                    strategy._consume_execution_trades(
+                        symbol, forced_positions[symbol], rs.portfolio, rs.execution
+                    )
+            rs.result.equity = rs.portfolio.get_equity(rs.result.prices)
+            rs.result.cash = float(rs.portfolio.cash)
+            rs.portfolio.margin_snapshot(
+                rs.result.prices, timestamp=rs.event.timestamp, record=True
             )
-            if self.terminal_policy == "valuation_only":
-                for symbol, position in portfolio.positions.items():
-                    if abs(float(position.get("qty", 0))) > 1e-12 and symbol not in event.bars:
-                        self.valuation_quality.append({
-                            "timestamp": event.timestamp, "symbol": symbol,
-                            "quantity": float(position["qty"]),
-                            "mark": result.prices.get(symbol), "status": "stale_no_real_bar",
-                        })
-            # T-1.8: accounting-identity check (Gate G2), one lightweight pass
-            # per bar using the same equity/prices the loop already computed.
-            accounting.check_bar(
-                bar_index, event.timestamp, result.equity, portfolio,
-                result.prices, broker.close_events,
+            rs.action_cost = forced_trade_cost(forced_trades)
+            if self.temporal_policy.mode != "strict":
+                rs.processor._previous_session_close_equity = rs.result.equity
+            else:
+                from core.market.temporal_data import strategy_market_prices
+                known_marks = strategy_market_prices(rs.event, rs.processor.last_prices)
+                if all(not position.get("qty") or symbol in known_marks
+                       for symbol, position in rs.portfolio.positions.items()):
+                    rs.processor._previous_session_close_equity = rs.portfolio.get_equity(known_marks)
+            # Re-arm against the actual remaining inventory without a
+            # second intrabar matching pass or invented fills.
+            if rs.drawdown_reducer is not None and rs.budget.policy.enabled and rs.stop_simulator.enabled:
+                rs.stop_simulator._sync(dict(rs.event.bars), timestamp=rs.event.timestamp, bar_index=rs.bar_index)
+
+    def _bar_bookkeeping(self, rs: _RunState) -> None:
+        """Entry-risk recheck, breaker results, equity curve, exposure and the accounting identity."""
+        # SR2-4: the real fill, not the signal close, decides how much is
+        # at stake. A breakout that gapped through the open is resized down
+        # under an explicit ``GapRiskResize``, never left silently over
+        # budget (STR-P1-02).
+        self._recheck_entry_risk(
+            portfolio=rs.portfolio,
+            execution=rs.execution,
+            prices=rs.result.prices,
+            timestamp=rs.event.timestamp,
+            bar_index=rs.bar_index,
+            policy=rs.entry_risk_policy,
+            checked_entries=rs.checked_entries,
+            audit=rs.risk_budget_audit,
+        )
+        rs.risk_manager.record_breaker_action_result(
+            rs.transition_id,
+            post_action_equity=rs.result.equity,
+            cost=rs.action_cost,
+            positions_before=rs.positions_before,
+            positions_after=sum(
+                1 for symbol in rs.portfolio.positions
+                if float(rs.portfolio.get_position(symbol).get("qty", 0.0)) != 0.0
+            ),
+        )
+        if rs.portfolio_action_id and rs.portfolio_action_id != rs.transition_id:
+            rs.risk_manager.record_breaker_action_result(
+                rs.portfolio_action_id,
+                post_action_equity=rs.result.equity,
+                cost=0.0,
+                positions_before=rs.positions_before,
+                positions_after=sum(
+                    1 for symbol in rs.portfolio.positions
+                    if float(rs.portfolio.get_position(symbol).get("qty", 0.0)) != 0.0
+                ),
+                executed=False,
+                overridden_by=rs.transition_id,
             )
-            terminal_action = result.breaker_action in {"liquidate", "locked"}
-            routed_health = {name: strategy.health for name, strategy in strategies.items()
-                             if name in routed_names and getattr(strategy, "health", None) is not None}
-            health_activity.append({
-                "timestamp": event.timestamp,
-                "strategy_states": {name: machine.status.value for name, machine in routed_health.items()},
-                "account_action": result.breaker_action,
-                "all_routed_strategies_blocked": bool(routed_health) and all(
-                    machine.status.value in {"cooldown", "manual_lock"} for machine in routed_health.values()),
-                "account_blocks_new_risk": bool(result.breaker_action in {"block_new", "liquidate", "locked"}),
+        rs.equity_curve.append(
+            {
+                "timestamp": rs.event.timestamp,
+                "equity": rs.result.equity,
+                "cash": rs.result.cash,
+            }
+        )
+        self._sample_exposure(
+            rs.portfolio, rs.result.prices, rs.equity_curve[-1],
+        )
+        if self.terminal_policy == "valuation_only":
+            for symbol, position in rs.portfolio.positions.items():
+                if abs(float(position.get("qty", 0))) > 1e-12 and symbol not in rs.event.bars:
+                    self.valuation_quality.append({
+                        "timestamp": rs.event.timestamp, "symbol": symbol,
+                        "quantity": float(position["qty"]),
+                        "mark": rs.result.prices.get(symbol), "status": "stale_no_real_bar",
+                    })
+        # T-1.8: accounting-identity check (Gate G2), one lightweight pass
+        # per bar using the same equity/prices the loop already computed.
+        rs.accounting.check_bar(
+            rs.bar_index, rs.event.timestamp, rs.result.equity, rs.portfolio,
+            rs.result.prices, rs.broker.close_events,
+        )
+
+    def _bar_terminal(self, rs: _RunState) -> bool:
+        """Health activity and breaker termination; returns True to stop replaying bars."""
+        terminal_action = rs.result.breaker_action in {"liquidate", "locked"}
+        routed_health = {name: strategy.health for name, strategy in rs.strategies.items()
+                         if name in rs.routed_names and getattr(strategy, "health", None) is not None}
+        rs.health_activity.append({
+            "timestamp": rs.event.timestamp,
+            "strategy_states": {name: machine.status.value for name, machine in routed_health.items()},
+            "account_action": rs.result.breaker_action,
+            "all_routed_strategies_blocked": bool(routed_health) and all(
+                machine.status.value in {"cooldown", "manual_lock"} for machine in routed_health.values()),
+            "account_blocks_new_risk": bool(rs.result.breaker_action in {"block_new", "liquidate", "locked"}),
+        })
+        policy_key = "on_locked" if rs.result.breaker_action == "locked" else "on_liquidate"
+        if terminal_action and self.breaker_policy.get(policy_key, "terminate") == "terminate":
+            if any(abs(float(pos["qty"])) > 1e-9 for pos in rs.portfolio.positions.values()):
+                rs.lifecycle.setdefault("risk_halt_started_at", rs.event.timestamp)
+                rs.lifecycle["unresolved_risk_positions"] = dict(rs.portfolio.positions)
+                return False  # Keep risk-only execution alive until the book is flat.
+            rs.lifecycle.pop("unresolved_risk_positions", None)
+            rs.lifecycle.update({
+                "status": "locked" if rs.result.breaker_action == "locked" else "terminated_by_risk",
+                "active_end": rs.event.timestamp,
+                "termination_timestamp": rs.event.timestamp,
+                "termination_reason": f"portfolio_{rs.result.breaker_action}",
+                "inactive_bars": max(0, len(rs.timestamps) - rs.bar_index - 1),
+                "inactive_days": max(
+                    0, (pd.Timestamp(rs.timestamps[-1]) - rs.event.timestamp).days
+                ),
             })
-            policy_key = "on_locked" if result.breaker_action == "locked" else "on_liquidate"
-            if terminal_action and self.breaker_policy.get(policy_key, "terminate") == "terminate":
-                if any(abs(float(pos["qty"])) > 1e-9 for pos in portfolio.positions.values()):
-                    lifecycle.setdefault("risk_halt_started_at", event.timestamp)
-                    lifecycle["unresolved_risk_positions"] = dict(portfolio.positions)
-                    continue  # Keep risk-only execution alive until the book is flat.
-                lifecycle.pop("unresolved_risk_positions", None)
-                lifecycle.update({
-                    "status": "locked" if result.breaker_action == "locked" else "terminated_by_risk",
-                    "active_end": event.timestamp,
-                    "termination_timestamp": event.timestamp,
-                    "termination_reason": f"portfolio_{result.breaker_action}",
-                    "inactive_bars": max(0, len(timestamps) - bar_index - 1),
+            return True
+        if terminal_action and self.breaker_policy.get(policy_key) == "cooldown":
+            if rs.lifecycle["resume_count"] >= int(rs.recovery.get("max_resumes", 1)):
+                rs.lifecycle.update({
+                    "status": "terminated_by_risk",
+                    "active_end": rs.event.timestamp,
+                    "termination_timestamp": rs.event.timestamp,
+                    "termination_reason": "recovery_limit_exhausted",
+                    "inactive_bars": max(0, len(rs.timestamps) - rs.bar_index - 1),
                     "inactive_days": max(
-                        0, (pd.Timestamp(timestamps[-1]) - event.timestamp).days
+                        0, (pd.Timestamp(rs.timestamps[-1]) - rs.event.timestamp).days
                     ),
                 })
-                break
-            if terminal_action and self.breaker_policy.get(policy_key) == "cooldown":
-                if lifecycle["resume_count"] >= int(recovery.get("max_resumes", 1)):
-                    lifecycle.update({
-                        "status": "terminated_by_risk",
-                        "active_end": event.timestamp,
-                        "termination_timestamp": event.timestamp,
-                        "termination_reason": "recovery_limit_exhausted",
-                        "inactive_bars": max(0, len(timestamps) - bar_index - 1),
-                        "inactive_days": max(
-                            0, (pd.Timestamp(timestamps[-1]) - event.timestamp).days
-                        ),
-                    })
-                    break
-                if not waiting_for_recovery:
-                    waiting_for_recovery = True
-                    flat_bars = 0
-                    health_bars = 0
-        if lifecycle["status"] not in {"terminated_by_risk", "locked"}:
+                return True
+            if not rs.waiting_for_recovery:
+                rs.waiting_for_recovery = True
+                rs.flat_bars = 0
+                rs.health_bars = 0
+        return False
+
+    def _finish_tail(self, rs: _RunState) -> None:
+        """Close the book at the end of the replay, or freeze it after a terminal breaker."""
+        if rs.lifecycle["status"] not in {"terminated_by_risk", "locked"}:
             self._close_tail_positions(
-                portfolio, broker, execution, strategies, equity_curve, accounting,
-                last_event_timestamp, bar_index,
+                rs.portfolio, rs.broker, rs.execution, rs.strategies, rs.equity_curve, rs.accounting,
+                rs.last_event_timestamp, rs.bar_index,
             )
-            lifecycle["active_end"] = last_event_timestamp
+            rs.lifecycle["active_end"] = rs.last_event_timestamp
         else:
             if self.terminal_policy == "valuation_only":
                 self._close_tail_positions(
-                    portfolio, broker, execution, strategies, equity_curve, accounting,
-                    last_event_timestamp, bar_index,
+                    rs.portfolio, rs.broker, rs.execution, rs.strategies, rs.equity_curve, rs.accounting,
+                    rs.last_event_timestamp, rs.bar_index,
                 )
                 if self.terminal_valuation.get("positions"):
                     self.terminal_valuation.update(status="insufficient",
                         reason="risk_halted_with_unresolved_positions; frozen tail is not a current market valuation")
-            terminal_equity = float(equity_curve[-1]["equity"])
-            terminal_cash = float(equity_curve[-1]["cash"])
-            if observer is not None:
+            terminal_equity = float(rs.equity_curve[-1]["equity"])
+            terminal_cash = float(rs.equity_curve[-1]["cash"])
+            if rs.observer is not None:
                 # Passive research continues over real tail bars. The stopped
                 # account is not resumed and its strategy state is not advanced.
-                for tail_event in market_data.stream():
-                    if tail_event.timestamp <= pd.Timestamp(lifecycle["termination_timestamp"]):
+                for tail_event in rs.market_data.stream():
+                    if tail_event.timestamp <= pd.Timestamp(rs.lifecycle["termination_timestamp"]):
                         continue
-                    observer.advance(tail_event)
+                    rs.observer.advance(tail_event)
                     for symbol in tail_event.bars:
-                        observer.observe(tail_event, symbol, portfolio=portfolio,
-                            risk_manager=risk_manager, router=router,
+                        rs.observer.observe(tail_event, symbol, portfolio=rs.portfolio,
+                            risk_manager=rs.risk_manager, router=rs.router,
                             audit={"reason": "account_terminated",
-                                   "account_state_as_of": lifecycle["termination_timestamp"]})
-                    observer.settle_decisions()
+                                   "account_state_as_of": rs.lifecycle["termination_timestamp"]})
+                    rs.observer.settle_decisions()
             if bool(self.breaker_policy.get("shadow_diagnostics", True)):
-                shadow_router = build_router(strategies, config, log_path=None,
+                shadow_router = build_router(rs.strategies, config, log_path=None,
                                               capital_policy=self.capital_allocation_policy)
                 shadow_processor = EventProcessor(
-                    portfolio=portfolio,
-                    execution=execution,
-                    risk_manager=risk_manager,
-                    state_machine=state_machine,
+                    portfolio=rs.portfolio,
+                    execution=rs.execution,
+                    risk_manager=rs.risk_manager,
+                    state_machine=rs.state_machine,
                     router=shadow_router,
                     allocator=shadow_router.allocator,
                     warmup_period=self.warmup_period,
-                    initial_equity=terminal_equity if equity_curve else self.initial_capital,
+                    initial_equity=terminal_equity if rs.equity_curve else self.initial_capital,
                 )
                 suppressed = 0
                 termination_timestamp = pd.Timestamp(
-                    lifecycle["termination_timestamp"]
+                    rs.lifecycle["termination_timestamp"]
                 )
-                for shadow_event in market_data.stream():
+                for shadow_event in rs.market_data.stream():
                     if shadow_event.timestamp <= termination_timestamp:
                         continue
                     for symbol, bar in shadow_event.bars.items():
@@ -790,14 +958,14 @@ class BacktestEngine:
                         )
                         if candidate is not None:
                             suppressed += 1
-                lifecycle["suppressed_setups_after_termination"] = suppressed
+                rs.lifecycle["suppressed_setups_after_termination"] = suppressed
             # Preserve the full capital-period experience as an explicit flat
             # cash tail while active-strategy metrics stop at active_end.
             frozen_prices = (
                 dict(self.event_processor.last_prices) if self.event_processor else {}
             )
-            for inactive_timestamp in timestamps[bar_index + 1:]:
-                equity_curve.append({
+            for inactive_timestamp in rs.timestamps[rs.bar_index + 1:]:
+                rs.equity_curve.append({
                     "timestamp": inactive_timestamp,
                     "equity": terminal_equity,
                     "cash": terminal_cash,
@@ -805,161 +973,173 @@ class BacktestEngine:
                 # The book is frozen too, so record it rather than leaving a
                 # hole that would read as "exposure unknown" in equity.csv.
                 self._sample_exposure(
-                    portfolio, frozen_prices, equity_curve[-1],
+                    rs.portfolio, frozen_prices, rs.equity_curve[-1],
                 )
+
+    def _finish_health(self, rs: _RunState) -> None:
+        """Fold the strategy health lifecycle into the run lifecycle and save the routing log."""
         # SR1-4: fold the strategy health lifecycle into the run lifecycle so
         # a strategy that stopped trading years ago cannot be reported as an
         # uneventful "completed" run.
         health_machines = {
-            name: strategy.health for name, strategy in strategies.items()
+            name: strategy.health for name, strategy in rs.strategies.items()
             if getattr(strategy, "health", None) is not None
         }
         for machine in health_machines.values():
-            machine.evaluate(last_event_timestamp)
-        lifecycle["strategy_health_status"] = {
+            machine.evaluate(rs.last_event_timestamp)
+        rs.lifecycle["strategy_health_status"] = {
             name: machine.status.value for name, machine in health_machines.items()
         }
         cooldown_starts = [
             machine.status_changed_at for machine in health_machines.values()
             if machine.status.value != "active" and machine.status_changed_at
         ]
-        lifecycle["disabled_or_cooldown_at"] = (
+        rs.lifecycle["disabled_or_cooldown_at"] = (
             min(cooldown_starts).isoformat() if cooldown_starts else None
         )
-        lifecycle["health_transition_log"] = transition_rows(
+        rs.lifecycle["health_transition_log"] = transition_rows(
             list(health_machines.values())
         )
-        lifecycle["suppressed_raw_setups"] = sum(
+        rs.lifecycle["suppressed_raw_setups"] = sum(
             int(getattr(strategy, "suppressed_setup_count", 0))
-            for strategy in strategies.values()
+            for strategy in rs.strategies.values()
         )
-        lifecycle["shadow_setup_count"] = sum(
+        rs.lifecycle["shadow_setup_count"] = sum(
             int(getattr(strategy, "raw_setup_count", 0))
-            for strategy in strategies.values()
+            for strategy in rs.strategies.values()
         )
-        lifecycle["probation_periods"] = sum(
+        rs.lifecycle["probation_periods"] = sum(
             1 for machine in health_machines.values()
             for row in machine.transitions if row.get("to") == "probation"
         )
-        lifecycle["health_resume_count"] = sum(
+        rs.lifecycle["health_resume_count"] = sum(
             machine.resume_count for machine in health_machines.values()
         )
-        if lifecycle["disabled_or_cooldown_at"] and last_event_timestamp is not None:
+        if rs.lifecycle["disabled_or_cooldown_at"] and rs.last_event_timestamp is not None:
             gate_start = pd.Timestamp(min(cooldown_starts))
-            end_stamp = pd.Timestamp(last_event_timestamp)
+            end_stamp = pd.Timestamp(rs.last_event_timestamp)
             if gate_start.tzinfo is not None and end_stamp.tzinfo is None:
                 end_stamp = end_stamp.tz_localize("UTC")
             elif gate_start.tzinfo is None and end_stamp.tzinfo is not None:
                 gate_start = gate_start.tz_localize("UTC")
-            lifecycle["health_gated_days"] = max(0, (end_stamp - gate_start).days)
+            rs.lifecycle["health_gated_days"] = max(0, (end_stamp - gate_start).days)
         else:
-            lifecycle["health_gated_days"] = 0
+            rs.lifecycle["health_gated_days"] = 0
 
-        router.save_log()
+        rs.router.save_log()
         logger.info("Backtest completed")
 
-        fixed_benchmark = fixed_equal_weight_buy_hold(
-            processed_data, self.initial_capital, start_idx=self.warmup_period
+    def _finish_benchmarks(self, rs: _RunState) -> None:
+        """Benchmarks and the lifecycle inactivity counters."""
+
+        rs.fixed_benchmark = fixed_equal_weight_buy_hold(
+            rs.processed_data, self.initial_capital, start_idx=self.warmup_period
         ) if self.calculate_benchmarks else None
-        dynamic_benchmark = dynamic_equal_weight_rebalanced(
-            processed_data,
+        rs.dynamic_benchmark = dynamic_equal_weight_rebalanced(
+            rs.processed_data,
             self.initial_capital,
             start_idx=self.warmup_period,
             cost_bps=self.benchmark_rebalance_cost_bps,
         ) if self.calculate_benchmarks else None
-        selected_benchmark = (
-            dynamic_benchmark if self.benchmark_mode == "dynamic" else fixed_benchmark
+        rs.selected_benchmark = (
+            rs.dynamic_benchmark if self.benchmark_mode == "dynamic" else rs.fixed_benchmark
         )
-        health_blocked = [row for row in health_activity if row["all_routed_strategies_blocked"]]
-        lifecycle["account_inactive_days"] = lifecycle["inactive_days"]
-        lifecycle["strategy_inactive_days"] = len({pd.Timestamp(row["timestamp"]).normalize() for row in health_blocked})
-        lifecycle["strategy_inactive_bars"] = len(health_blocked)
-        lifecycle["inactive_days"] += lifecycle["strategy_inactive_days"]
-        lifecycle["inactive_bars"] += len(health_blocked)
-        lifecycle["health_gated_days"] = lifecycle["strategy_inactive_days"]
-        lifecycle["operating_status"] = (
-            "account_risk_halted" if lifecycle["status"] in {"terminated_by_risk", "locked"}
-            else "strategy_health_paused" if health_activity and health_activity[-1]["all_routed_strategies_blocked"]
+        health_blocked = [row for row in rs.health_activity if row["all_routed_strategies_blocked"]]
+        rs.lifecycle["account_inactive_days"] = rs.lifecycle["inactive_days"]
+        rs.lifecycle["strategy_inactive_days"] = len({pd.Timestamp(row["timestamp"]).normalize() for row in health_blocked})
+        rs.lifecycle["strategy_inactive_bars"] = len(health_blocked)
+        rs.lifecycle["inactive_days"] += rs.lifecycle["strategy_inactive_days"]
+        rs.lifecycle["inactive_bars"] += len(health_blocked)
+        rs.lifecycle["health_gated_days"] = rs.lifecycle["strategy_inactive_days"]
+        rs.lifecycle["operating_status"] = (
+            "account_risk_halted" if rs.lifecycle["status"] in {"terminated_by_risk", "locked"}
+            else "strategy_health_paused" if rs.health_activity and rs.health_activity[-1]["all_routed_strategies_blocked"]
             else "evaluating_with_health_recovery"
         )
-        lifecycle["last_fill_at"] = max((trade["fill_time"] for trade in broker.trades), default=None)
-        lifecycle["strategy_recovery"] = {name: strategy.health.snapshot() for name, strategy in strategies.items()
-                                           if name in routed_names and getattr(strategy, "health", None) is not None}
-        signal_observation_result = None
-        if observer is not None:
-            observer.finish()
-            signal_observation_result = observer.export()
-            label_protocol = signal_observation_result.get("temporal_label_protocol")
+        rs.lifecycle["last_fill_at"] = max((trade["fill_time"] for trade in rs.broker.trades), default=None)
+        rs.lifecycle["strategy_recovery"] = {name: strategy.health.snapshot() for name, strategy in rs.strategies.items()
+                                           if name in rs.routed_names and getattr(strategy, "health", None) is not None}
+
+    def _finish_observation(self, rs: _RunState) -> None:
+        """Signal observation, meta layer, adaptive and replay results."""
+        rs.signal_observation_result = None
+        if rs.observer is not None:
+            rs.observer.finish()
+            rs.signal_observation_result = rs.observer.export()
+            label_protocol = rs.signal_observation_result.get("temporal_label_protocol")
             versioned_labels = bool(label_protocol and label_protocol.get("schema") == "strict-fixed-horizon/v1")
-            signal_observation_result["temporal_scope"] = {
+            rs.signal_observation_result["temporal_scope"] = {
                 "decision_mode": self.temporal_policy.mode,
                 "outcome_inputs": ("versioned_as_of_OHLCV_with_source_evidence" if versioned_labels else
                     "frozen_realised_bars_for_retrospective_execution_and_label_diagnostics"),
                 "outcomes_point_in_time_certified": False,
                 "strict_training_protocol_supported": versioned_labels,
                 "strict_training_eligible": bool(versioned_labels and any(
-                    row.get("training_eligible") for row in signal_observation_result["outcomes"])),
+                    row.get("training_eligible") for row in rs.signal_observation_result["outcomes"])),
                 "reason": ("only proven available eligible revisions enter each training cutoff; source publication claims are not independently authenticated"
                     if versioned_labels else "historical label revisions and availability are not independently proven")}
-            signal_observation_result["actual"] = reconcile_actuals(
-                signal_observation_result, broker.trades, broker.opening_orders, broker.execution_audit,
+            rs.signal_observation_result["actual"] = reconcile_actuals(
+                rs.signal_observation_result, rs.broker.trades, rs.broker.opening_orders, rs.broker.execution_audit,
                 mark_to_market=(config.require("backtest", "end_of_backtest_mode") == "mark_to_market"))
-            signal_observation_result["actual_financing"] = [item.to_dict() for item in portfolio.financing_ledger]
+            rs.signal_observation_result["actual_financing"] = [item.to_dict() for item in rs.portfolio.financing_ledger]
             from signal_meta.label_account_reconciliation import reconcile_observation_account
-            signal_observation_result["label_account_reconciliation"] = reconcile_observation_account(
-                signal_observation_result, broker.trades, initial_capital=self.initial_capital,
-                final_equity=float(equity_curve[-1]["equity"]) if equity_curve else self.initial_capital,
-                final_marks=dict(broker.last_prices), account_mode=self.account_mode.value,
+            rs.signal_observation_result["label_account_reconciliation"] = reconcile_observation_account(
+                rs.signal_observation_result, rs.broker.trades, initial_capital=self.initial_capital,
+                final_equity=float(rs.equity_curve[-1]["equity"]) if rs.equity_curve else self.initial_capital,
+                final_marks=dict(rs.broker.last_prices), account_mode=self.account_mode.value,
                 valuation_only=self.terminal_policy == "mark_to_market",
                 quote_currency=self.config_account.get("quote_currency", "USDT"))
-            signal_observation_result["ghost"] = replay_ghosts(market_data, signal_observation_result, broker)
-            if (signal_observation_result["actual"]["unmatched"]
-                    or signal_observation_result["ghost"]["errors"]):
-                signal_observation_result["status"] = "incomplete"
-        signal_meta_layer_result = (
-            build_signal_meta_layer(signal_observation_result, self.signal_meta_policy)
-            if self.signal_meta_policy.enabled and signal_observation_result is not None else None
+            rs.signal_observation_result["ghost"] = replay_ghosts(rs.market_data, rs.signal_observation_result, rs.broker)
+            if (rs.signal_observation_result["actual"]["unmatched"]
+                    or rs.signal_observation_result["ghost"]["errors"]):
+                rs.signal_observation_result["status"] = "incomplete"
+        rs.signal_meta_layer_result = (
+            build_signal_meta_layer(rs.signal_observation_result, self.signal_meta_policy)
+            if self.signal_meta_policy.enabled and rs.signal_observation_result is not None else None
         )
-        signal_adaptive_result = (
-            build_adaptive_signal_meta(signal_observation_result, self.signal_adaptive_policy)
-            if self.signal_adaptive_policy.enabled and signal_observation_result is not None else None
+        rs.signal_adaptive_result = (
+            build_adaptive_signal_meta(rs.signal_observation_result, self.signal_adaptive_policy)
+            if self.signal_adaptive_policy.enabled and rs.signal_observation_result is not None else None
         )
-        signal_meta_replay_result = (
-            replay_signal_meta(market_data, signal_observation_result, signal_adaptive_result,
-                               broker, self.signal_meta_replay_policy)
-            if self.signal_meta_replay_policy.enabled and signal_adaptive_result is not None else None
+        rs.signal_meta_replay_result = (
+            replay_signal_meta(rs.market_data, rs.signal_observation_result, rs.signal_adaptive_result,
+                               rs.broker, self.signal_meta_replay_policy)
+            if self.signal_meta_replay_policy.enabled and rs.signal_adaptive_result is not None else None
         )
+
+    def _result_core(self, rs: _RunState) -> Dict[str, Any]:
+        """First half of the run result (plain dict, key order preserved)."""
         return {
-            "temporal_data": {"audit": market_data.temporal_audit, "identity": market_data.temporal_identity,
-                "decision_audit": getattr(processor, "temporal_audit", [])},
+            "temporal_data": {"audit": rs.market_data.temporal_audit, "identity": rs.market_data.temporal_identity,
+                "decision_audit": getattr(rs.processor, "temporal_audit", [])},
             "terminal_valuation": self.terminal_valuation,
             "valuation_quality": self.valuation_quality,
             "portfolio_controller": (self.portfolio_controller.export()
                 if self.portfolio_controller is not None else None),
-            "signal_observation": signal_observation_result,
-            "signal_meta_layer": signal_meta_layer_result,
-            "signal_adaptive": signal_adaptive_result,
-            "signal_meta_replay": signal_meta_replay_result,
-            "strategy_activity": health_activity,
-            "effective_max_holding_days": getattr(router, "max_holding_days", None),
-            "trades": broker.trades,
-            "equity_curve": self._equity_frame(equity_curve),
-            "benchmark": selected_benchmark.equity if selected_benchmark else None,
-            "benchmark_fixed": fixed_benchmark.equity if fixed_benchmark else None,
-            "benchmark_dynamic": dynamic_benchmark.equity if dynamic_benchmark else None,
+            "signal_observation": rs.signal_observation_result,
+            "signal_meta_layer": rs.signal_meta_layer_result,
+            "signal_adaptive": rs.signal_adaptive_result,
+            "signal_meta_replay": rs.signal_meta_replay_result,
+            "strategy_activity": rs.health_activity,
+            "effective_max_holding_days": getattr(rs.router, "max_holding_days", None),
+            "trades": rs.broker.trades,
+            "equity_curve": self._equity_frame(rs.equity_curve),
+            "benchmark": rs.selected_benchmark.equity if rs.selected_benchmark else None,
+            "benchmark_fixed": rs.fixed_benchmark.equity if rs.fixed_benchmark else None,
+            "benchmark_dynamic": rs.dynamic_benchmark.equity if rs.dynamic_benchmark else None,
             "benchmark_weights": (
-                selected_benchmark.weights if selected_benchmark else pd.DataFrame()
+                rs.selected_benchmark.weights if rs.selected_benchmark else pd.DataFrame()
             ),
             "benchmark_turnover": (
-                selected_benchmark.turnover if selected_benchmark else pd.Series(dtype=float)
+                rs.selected_benchmark.turnover if rs.selected_benchmark else pd.Series(dtype=float)
             ),
             "benchmark_costs": (
-                selected_benchmark.costs if selected_benchmark else pd.Series(dtype=float)
+                rs.selected_benchmark.costs if rs.selected_benchmark else pd.Series(dtype=float)
             ),
             "benchmark_metadata": {
                 "selected": self.benchmark_mode,
-                "fixed": fixed_benchmark.metadata if fixed_benchmark else None,
-                "dynamic": dynamic_benchmark.metadata if dynamic_benchmark else None,
+                "fixed": rs.fixed_benchmark.metadata if rs.fixed_benchmark else None,
+                "dynamic": rs.dynamic_benchmark.metadata if rs.dynamic_benchmark else None,
             },
             # Per-strategy count of round trips each strategy actually saw
             # close. Diagnostics compares this against the reconstructed
@@ -968,57 +1148,62 @@ class BacktestEngine:
             # silently disables their health/cooldown safeguards.
             "close_events": {
                 name: int(getattr(strategy, "observed_close_events", 0))
-                for name, strategy in strategies.items()
+                for name, strategy in rs.strategies.items()
             },
             # T-1.8 / Gate G2: equity(t) == initial_capital + realized + unrealized,
             # checked every bar and summarized here for the report/roadmap gate.
-            "accounting_check": accounting.result().to_dict(),
-            "event_log": tuple(event_pipeline.events),
-            "entry_observations": processor.entry_audit,
+            "accounting_check": rs.accounting.result().to_dict(),
+            "event_log": tuple(rs.event_pipeline.events),
+            "entry_observations": rs.processor.entry_audit,
+        }
+
+    def _result_reports(self, rs: _RunState) -> Dict[str, Any]:
+        """Second half of the run result (plain dict, key order preserved)."""
+        return {
             "run_id": self.run_id,
             "alignment_mode": self.alignment_mode,
             "account_mode": self.account_mode.value,
             "account_cost_contract": self.account_cost_contract.to_dict(),
-            "margin_ledger": [item.to_dict() for item in portfolio.margin_ledger],
-            "financing_ledger": [item.to_dict() for item in portfolio.financing_ledger],
-            "execution_audit": list(broker.execution_audit),
-            "exit_lifecycle_audit": [row for strategy in strategies.values()
+            "margin_ledger": [item.to_dict() for item in rs.portfolio.margin_ledger],
+            "financing_ledger": [item.to_dict() for item in rs.portfolio.financing_ledger],
+            "execution_audit": list(rs.broker.execution_audit),
+            "exit_lifecycle_audit": [row for strategy in rs.strategies.values()
                                      for row in getattr(strategy, "exit_lifecycle_audit", [])],
-            "breaker_audit": list(risk_manager.breaker_audit),
+            "breaker_audit": list(rs.risk_manager.breaker_audit),
             "breaker_state": {
-                "recovery": risk_manager.breaker_checkpoint() if hasattr(risk_manager, "breaker_checkpoint") else None,
-                "action": risk_manager.breaker_action.value,
-                "high_water_equity": risk_manager.high_water_equity,
-                "drawdown": risk_manager.last_drawdown,
-                "daily_loss_triggered": bool(risk_manager.daily_loss_triggered),
-                "blocks_new_risk": bool(risk_manager._blocks_new_risk()),
-                "liquidation_triggered": risk_manager.breaker_action.value in {"liquidate", "locked"},
-                "locked": risk_manager.breaker_action.value == "locked",
-                "breaker_epoch": risk_manager.breaker_epoch,
+                "recovery": rs.risk_manager.breaker_checkpoint() if hasattr(rs.risk_manager, "breaker_checkpoint") else None,
+                "action": rs.risk_manager.breaker_action.value,
+                "high_water_equity": rs.risk_manager.high_water_equity,
+                "drawdown": rs.risk_manager.last_drawdown,
+                "daily_loss_triggered": bool(rs.risk_manager.daily_loss_triggered),
+                "blocks_new_risk": bool(rs.risk_manager._blocks_new_risk()),
+                "liquidation_triggered": rs.risk_manager.breaker_action.value in {"liquidate", "locked"},
+                "locked": rs.risk_manager.breaker_action.value == "locked",
+                "breaker_epoch": rs.risk_manager.breaker_epoch,
             },
-            "lifecycle": lifecycle,
+            "lifecycle": rs.lifecycle,
             # SR1-4: the health lifecycle is a first-class run artifact, not a
             # value that only exists inside a strategy object.
             "strategy_health": {
                 name: strategy.health_snapshot()
-                for name, strategy in strategies.items()
+                for name, strategy in rs.strategies.items()
                 if strategy.health_snapshot()
             },
             "strategy_health_transitions": transition_rows([
-                strategy.health for strategy in strategies.values()
+                strategy.health for strategy in rs.strategies.values()
                 if getattr(strategy, "health", None) is not None
             ]),
             # SR2-4 deliverable: reserved vs actually-risked, per entry fill.
-            "risk_budget_reconciliation": risk_budget_audit,
+            "risk_budget_reconciliation": rs.risk_budget_audit,
             # STR-P1-01 deliverable: every protective-stop intent and fill the
             # backtest produced, in the same shape the live path audits.
-            "stop_order_audit": list(stop_simulator.audit),
+            "stop_order_audit": list(rs.stop_simulator.audit),
             "protective_stop_summary": {
-                "backtest_resident_enabled": stop_simulator.enabled,
+                "backtest_resident_enabled": rs.stop_simulator.enabled,
                 "intrabar_path": CONSERVATIVE_BAR_PATH,
-                "triggered_stops": stop_simulator.triggered_stops,
+                "triggered_stops": rs.stop_simulator.triggered_stops,
                 "unprotected_position_bars": (
-                    stop_simulator.unprotected_position_bars
+                    rs.stop_simulator.unprotected_position_bars
                 ),
             },
             # SR3-1/SR3-2 deliverables: how every same-bar batch was ordered
@@ -1041,15 +1226,15 @@ class BacktestEngine:
                         for key, value in (decision.risk_budget or {}).items()
                     },
                 }
-                for decision in router.allocator.audit
+                for decision in rs.router.allocator.audit
             ],
-            "degenerate_ranking_batches": router.allocator.degenerate_batches,
+            "degenerate_ranking_batches": rs.router.allocator.degenerate_batches,
             "capital_allocation_policy": asdict(self.capital_allocation_policy),
-            "capital_allocation_audit": list(router.allocator.capital_audit),
-            "correlated_risk_audit": list(router.allocator.risk_governor.audit),
-            "drawdown_budget_audit": list(budget.audit) if budget is not None else [],
+            "capital_allocation_audit": list(rs.router.allocator.capital_audit),
+            "correlated_risk_audit": list(rs.router.allocator.risk_governor.audit),
+            "drawdown_budget_audit": list(rs.budget.audit) if rs.budget is not None else [],
             "strategy_health_cohorts": cohort_rows([
-                strategy.health for strategy in strategies.values()
+                strategy.health for strategy in rs.strategies.values()
                 if getattr(strategy, "health", None) is not None
             ]),
         }

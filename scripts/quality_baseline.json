@@ -3,9 +3,7 @@
   "tools": {
     "mypy": {
       "backtest/delayed_execution.py::var-annotated": 1,
-      "backtest/engine.py::operator": 32,
-      "backtest/engine.py::union-attr": 7,
-      "backtest/engine.py::var-annotated": 1,
+      "backtest/engine.py::union-attr": 1,
       "backtest/reporting/__init__.py::operator": 2,
       "backtest/reporting/metrics.py::arg-type": 2,
       "backtest/reporting/render/workbook.py::arg-type": 3,

@@ -369,7 +369,7 @@ P3为独立有限资金账户：原始参照进252候选，门控账户进0，�
 
 ### 衍生品工程边界
 
-[main.get_data](../../main.py)已显式传递market_type，入口新增合约、资金费、观察值及最大时效参数。只支持显式线性、报价币结算永续；不同币结算、反向、quanto、期货和主bar引擎非1乘数均明确拒绝。funding实际结果与预测分开，OI/mark/index按available_at合并，过期值标NaN/stale，合约身份必须匹配。
+[cli.data.get_data](../../cli/data.py)已显式传递market_type，入口新增合约、资金费、观察值及最大时效参数。只支持显式线性、报价币结算永续；不同币结算、反向、quanto、期货和主bar引擎非1乘数均明确拒绝。funding实际结果与预测分开，OI/mark/index按available_at合并，过期值标NaN/stale，合约身份必须匹配。
 
 [replay_funding_settlements](../../core/market/derivatives_data.py)按结算事件和成交后仓位快照重放，可完整核算每日三个8小时资金费事件；同时间成交按结算后生效处理，查缺失/重复/错网格/错合约。正负费率、多空、开平仓边界及重放已有手算fixture验证。当前[旧融资分支](../../core/broker/financing.py)明确拒绝日线按期末持仓近似计费，事件回放输入不会误当旧bar资金费重复扣款。
 

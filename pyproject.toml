@@ -33,7 +33,7 @@ dependencies = { file = ["requirements.txt"] }
 py-modules = ["main", "run_live", "resolve_live_order"]
 
 [tool.setuptools.packages.find]
-include = ["analysis*", "backtest*", "composition*", "config*", "core*", "dashboard*",
+include = ["analysis*", "backtest*", "cli*", "composition*", "config*", "core*", "dashboard*",
            "live_trading*", "ops*", "research*", "router*", "scripts*", "signal_meta*", "strategies*"]
 namespaces = true
 
@@ -81,7 +81,7 @@ paths = ["core", "ops", "signal_meta", "backtest", "live_trading", "strategies",
 # never the reverse. Scripts and tests are outside the rule set on purpose (they sit above everything).
 [tool.importlinter]
 root_packages = [
-    "core", "ops", "signal_meta", "config", "strategies", "router", "composition",
+    "cli", "core", "ops", "signal_meta", "config", "strategies", "router", "composition",
     "backtest", "live_trading", "analysis", "research", "dashboard",
 ]
 include_external_packages = false
@@ -91,6 +91,7 @@ name = "Layered architecture (high -> low)"
 type = "layers"
 layers = [
     "dashboard",
+    "cli",
     "research | analysis",
     "backtest | live_trading",
     "composition",

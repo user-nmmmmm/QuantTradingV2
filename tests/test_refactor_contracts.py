@@ -5,7 +5,7 @@ from pathlib import Path
 
 import yaml
 
-import main as backtest_entrypoint
+import cli.run as backtest_entrypoint
 from config.config import ConfigLoadError, ConfigLoader
 
 

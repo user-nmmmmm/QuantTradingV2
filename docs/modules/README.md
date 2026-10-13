@@ -9,7 +9,7 @@
 | [`live_trading.md`](live_trading.md) | `live_trading/`：实盘轮询、订单恢复、账户/保护单对账、执行适配器和状态导出 |
 | [`router.md`](router.md) | `router/`：市场状态 → 策略的路由与切换风控 |
 | [`strategies.md`](strategies.md) | `strategies/`：基类接口与成交生命周期、默认策略规则、TrendPortfolioV2/V3、配对研究、配置和扩展验证 |
-| [`analysis_dashboard_research_config.md`](analysis_dashboard_research_config.md) | `analysis/`、`dashboard/`、`research/`、`config/`，以及根目录的 `main.py`/`run_live.py` 入口脚本 |
+| [`analysis_dashboard_research_config.md`](analysis_dashboard_research_config.md) | `analysis/`、`dashboard/`、`research/`、`config/`，以及根目录的 `main.py`（`quant-backtest` 入口，实现在 `cli/`）/`run_live.py` 入口脚本 |
 | [`../authoritative_ledger.md`](../authoritative_ledger.md) | 离线事件账本的设计约束、计算口径及与交易运行时的集成边界 |
 | [`../../dashboard/FRONTEND.md`](../../dashboard/README.md) | 本地网页工作台的前后端模块、HTTP 接口、实验持久化和验证命令 |
 

@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import main as entrypoint
+import cli.run as entrypoint
 from backtest.coin_selector import disabled_identity, read_bundle, snapshot_bundle, write_selector_report
 from research.ml_selection.serving import create_selector, restore_selector
 from core.foundation.reproducibility import deterministic_result_digest, sha256_file
