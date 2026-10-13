@@ -181,7 +181,7 @@ V1 的证据说明瓶颈在**样本结构与目标设定**,而不在模型复杂
 | `BacktestEngine.run` | ~840 行单方法 | 每阶段 < 100 行 |
 | 选币实现 | 4 套 | 1 套协议 + 3 个 Scorer |
 | `Strategy` 基类 | 883 行 | 策略作者面向的协议 < 100 行;通用逻辑下沉到框架 |
-| mixin 复用实例状态 | Broker/LiveBroker/RiskManager/LiveTradingEngine | 组合 + 显式状态所有者 |
+| mixin 复用实例状态 | Broker/LiveBroker/RiskManager/LiveTradingEngine | 组合 + 显式状态所有者（B4 已把 mixin 改为持有 `host` 引用的协作类，状态所有权迁移仍待做，见 ADR 0018） |
 | 死代码/重复 | `statistical_arbitrage`、v2/v3 并存、`research/*.png` | 删除或正式化 |
 
 精简方式:**先搬迁后精简**。搬迁 PR 只改包路径并保留 re-export(一个版本周期);精简 PR 只在有黄金回归保护的前提下合并重复逻辑。

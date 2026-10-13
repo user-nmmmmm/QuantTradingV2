@@ -7,7 +7,7 @@
 | 层 | 检查 | 范围 | 当前状态 |
 |---|---|---|---|
 | 硬门槛 | `ruff check .`（只含 `E9,F63,F7,F82` 语法/未定义名级错误）、`mypy` 三个契约文件 | 全仓库 / `core/foundation/domain.py`、`core/foundation/runtime.py`、`live_trading/execution_adapter.py` | 0 违规，必须保持 |
-| **棘轮** | `scripts/quality_ratchet.py check`：ruff 的 `F,E4,E7,E9,B`（不含 `B905`）与 mypy（`core ops signal_meta backtest live_trading strategies router composition`） | 全仓库 / 上述八个包 | 存量记入基线：ruff 621 项、mypy 869 项；**只许减少，不许增加** |
+| **棘轮** | `scripts/quality_ratchet.py check`：ruff 的 `F,E4,E7,E9,B`（不含 `B905`）与 mypy（`core ops signal_meta backtest live_trading strategies router composition`） | 全仓库 / 上述八个包 | 存量记入基线：ruff 621 项、mypy 404 项（B4 之后，原 869 项）；**只许减少，不许增加** |
 | 导入方向 | `lint-imports`（分层契约 + `core` 不依赖其他包），详见 [架构边界说明](architecture_review.md) | 全部项目包 | 无已知例外；新增例外需要设计决定 |
 | 覆盖率 | `pytest --cov=core --cov=ops --cov=signal_meta --cov=backtest --cov=live_trading --cov-fail-under=85` | 五个包 | 实测约 89%；门槛从 55% 提到 85% |
 
@@ -49,5 +49,5 @@ python -m pip install pre-commit && pre-commit install
 - **B023（闭包里使用循环变量）**：`core/market/binance_depth_observer.py`（8）、`research/ml_selection/next_round.py`（4）、`analysis/execution_calibration.py`（4）、`scripts/run_trend_portfolio_v3.py`（4）、`backtest/reporting/trades.py`（2）等。若闭包在循环结束后才被调用，会拿到最后一次迭代的值。
 - **F841（赋值未使用）**：`core/broker/financing.py` 的 `seconds_per_year`，在资金费率/借贷利息计提函数内，看一下是不是漏掉了年化换算。
 - **B904**：`core/market/data_versions.py`、`scripts/fetch_spot_intraday.py` 里 `except` 中 `raise` 缺少 `from`，会丢失原始异常链。
-- **mypy `attr-defined`（475 项）**：绝大多数来自 mixin 访问宿主类属性，随"mixin 改组合"的重构自然消失，不需要单独处理。
+- **mypy `attr-defined`（49 项）**：原有 475 项绝大多数来自 mixin 访问宿主类属性，B4 把 mixin 改为协作类（[ADR 0018](adr/0018-mixins-to-collaborators.md)）后已消失，剩下的需要逐个看。
 - **F811 出现在测试里**多为 pytest fixture 参数遮蔽同名导入，属正常写法。

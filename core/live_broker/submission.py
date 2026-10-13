@@ -49,7 +49,7 @@ class SubmissionService:
         symbol: str,
         side: str,
         qty: float,
-        price: float = None,
+        price: Optional[float] = None,
         order_type: str = "market",
         timestamp: Any = None,
         slippage: float = 0.0,
@@ -260,8 +260,8 @@ class SubmissionService:
         )
         try:
             payload = record_order_call(host, "cancel", host.exchange.cancel_order,
-                record["exchange_order_id"], record["symbol"],
-                telemetry_context={"client_order_id": client_order_id, "symbol": record["symbol"]})
+                record["exchange_order_id"], record["symbol"],  # type: ignore[index]  # just transitioned: the record exists
+                telemetry_context={"client_order_id": client_order_id, "symbol": record["symbol"]})  # type: ignore[index]
         except Exception:
             # Cancel rejection/race is resolved by querying the exchange fact.
             return host.reconcile_order(client_order_id)

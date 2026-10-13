@@ -12,7 +12,7 @@
 
 原先集中在单个文件的实现已按职责拆入 `core/broker/`、`core/events/`、`core/exchange/`、`core/live_broker/`、`core/metrics/`、`core/risk/`，以及 `live_trading/tick_orchestrator.py`、`recovery.py`、`state_export.py`。各包的 `__init__.py` 保留原有常用导入入口，帮助调用方逐步迁移；拆包本身不代表交易算法、资金语义或验收状态发生变化。
 
-部分拆分通过 mixin 复用同一个实例状态，例如 `core/broker/` 和 `live_trading/engine.py`。未来若改为独立协作对象，需要单独固定订单、成交、恢复与状态写入的行为，再进行有针对性的迁移和回归验证。
+`Broker`、`LiveBroker`、`RiskManager`、`LiveTradingEngine` 原先通过 mixin 继承共享同一个实例状态；B4（[ADR 0018](adr/0018-mixins-to-collaborators.md)）已把 13 个 mixin 改为持有 `host` 引用的协作类，宿主以惰性属性持有它们并保留同签名的转发方法。状态仍由宿主持有，迁移到协作类需要单独固定订单、成交、恢复与状态写入的行为，再进行有针对性的迁移和回归验证。
 
 若需要追溯更早的架构判断，可读[2026-08 技术复盘归档](archive/2026-08-technical-reviews/README.md)和[历史项目文件分析](archive/2026-08-roadmap-consolidation/project_file_and_architecture_analysis.md)。这些材料保留当时快照，不维护当前完成状态。
 

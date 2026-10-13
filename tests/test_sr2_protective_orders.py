@@ -23,7 +23,7 @@ from core.trading.protective_orders import (
     ProtectiveState,
 )
 from core.trading.protective_stops import EntryRiskPolicy
-from live_trading.tick_orchestrator import TickOrchestratorMixin
+from tests.collaborator_host import TickOrchestratorHost
 
 
 def _order(
@@ -357,7 +357,7 @@ class _StubBroker:
         return SimpleNamespace(accepted=True, status=OrderStatus.CANCELED)
 
 
-class _StubEngine(TickOrchestratorMixin):
+class _StubEngine(TickOrchestratorHost):
     """Just enough of the live engine to exercise the SR2-5 wiring."""
 
     def __init__(self, broker, strategies):

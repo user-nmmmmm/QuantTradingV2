@@ -8,13 +8,15 @@ keeps observing inventory while the directive remains active.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
 from math import isfinite
-from typing import Any, Callable, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from core.foundation.domain import OrderStatus
 from core.risk.actions import RiskActionPlan
 from live_trading.recovery import balance_sync_succeeded
+
+if TYPE_CHECKING:
+    from live_trading.engine import LiveTradingEngine
 
 
 TERMINAL_RISK_STATUSES = {
@@ -32,23 +34,21 @@ class RiskActionProgress:
         return self.pending or self.performed
 
 
-class PortfolioRiskActionsMixin:
+class PortfolioRiskActions:
     """Execution helpers used by the live tick orchestrator."""
 
-    if TYPE_CHECKING:
-        broker: Any
-        state_store: Any
-        _snapshot: Any
-        _now: Callable[[], datetime]
-        _alert: Callable[..., Any]
-        _submit_risk_exit: Callable[..., bool]
+    def __init__(self, host: "LiveTradingEngine") -> None:
+        self._host = host
+
 
     def _risk_action_state_store(self):
-        ensure = getattr(self, "_ensure_state_store", None)
-        return ensure() if callable(ensure) else self.state_store
+        host = self._host
+        ensure = getattr(host, "_ensure_state_store", None)
+        return ensure() if callable(ensure) else host.state_store
 
     def _risk_action_position(self, symbol):
-        portfolio = self.broker.portfolio
+        host = self._host
+        portfolio = host.broker.portfolio
         held = float(portfolio.get_position(symbol)["qty"])
         lots = portfolio.open_lots(symbol)
         signed_lots = sum(lot.qty_open * (1 if lot.side == "long" else -1) for lot in lots)
@@ -61,35 +61,38 @@ class PortfolioRiskActionsMixin:
         }
 
     def _risk_action_unverifiable(self, checkpoint, reason):
+        host = self._host
         checkpoint["recovery_reason"] = reason
-        self._operational_state = "DEGRADED"
-        self._alert("error", "portfolio_risk_action_unverifiable", {
+        host._operational_state = "DEGRADED"
+        host._alert("error", "portfolio_risk_action_unverifiable", {
             "action_id": checkpoint["action_id"], "reason": reason,
         })
 
     def _cancel_risk_orders(self, orders):
         """Cancel with authoritative order facts; UNKNOWN never releases stock."""
+        host = self._host
         for record in orders:
-            result = self.broker.cancel_order(record["client_order_id"])
+            result = host.broker.cancel_order(record["client_order_id"])
             if result.status not in TERMINAL_RISK_STATUSES:
-                self._operational_state = "DEGRADED"
+                host._operational_state = "DEGRADED"
                 return False
-        return balance_sync_succeeded(self.broker, self.broker.sync())
+        return balance_sync_succeeded(host.broker, host.broker.sync())
 
     def _legacy_portfolio_risk_action(self, plan, targets, checkpoint):
         """Only attributed fills prove which historical positions a target owns."""
-        orders = self.broker.order_store
+        host = self._host
+        orders = host.broker.order_store
         for row in orders.list_non_terminal():
             if (row.get("intent") or {}).get("risk_action_id") == plan.action_id:
-                self.broker.reconcile_order(row["client_order_id"])
-        if not balance_sync_succeeded(self.broker, self.broker.sync()):
+                host.broker.reconcile_order(row["client_order_id"])
+        if not balance_sync_succeeded(host.broker, host.broker.sync()):
             raise ValueError("legacy_account_sync_failed")
         positions = {}
         for symbol, target in targets.items():
             target = float(target)
             if not isfinite(target) or target < 0:
                 raise ValueError(f"legacy_target_invalid:{symbol}")
-            events = [event for event in self.broker.close_events
+            events = [event for event in host.broker.close_events
                       if event.risk_action_id == plan.action_id and event.symbol == symbol]
             if not events:
                 raise ValueError(f"legacy_position_identity_missing:{symbol}")
@@ -100,8 +103,8 @@ class PortfolioRiskActionsMixin:
             if len(sides) != 1 or not sides.issubset({"sell", "cover"}):
                 raise ValueError(f"legacy_exit_direction_unverifiable:{symbol}")
             ids = sorted({event.position_id for event in events})
-            current = self._risk_action_position(symbol)
-            original_remaining = sum(lot.qty_open for lot in self.broker.portfolio.open_lots(symbol)
+            current = host._risk_action_position(symbol)
+            original_remaining = sum(lot.qty_open for lot in host.broker.portfolio.open_lots(symbol)
                                      if lot.position_id in ids)
             closed = sum(event.qty for event in events)
             original = target / plan.remaining_fraction if plan.remaining_fraction else closed + original_remaining
@@ -119,7 +122,8 @@ class PortfolioRiskActionsMixin:
         return checkpoint
 
     def _reconcile_portfolio_risk_action(self, plan):
-        state = self._risk_action_state_store()
+        host = self._host
+        state = host._risk_action_state_store()
         active_index = state.get("portfolio_risk_action_active")
         active_id = (active_index.get("action_id") if isinstance(active_index, dict) else active_index)
         active = state.get(f"portfolio_risk_action:{active_id}") if active_id else None
@@ -145,7 +149,7 @@ class PortfolioRiskActionsMixin:
             checkpoint = {
                 "version": 1, "action_id": plan.action_id, "reason": plan.reason,
                 "remaining_fraction": plan.remaining_fraction, "status": "preparing",
-                "created_at": self._now().isoformat(), "completed_at": None,
+                "created_at": host._now().isoformat(), "completed_at": None,
                 "positions": {}, "supersedes": supersedes,
             }
             # Persist before canceling anything, including a crash during migration.
@@ -154,19 +158,19 @@ class PortfolioRiskActionsMixin:
         if checkpoint["status"] == "completed" and plan.remaining_fraction > 0:
             return RiskActionProgress()
         if checkpoint["status"] == "legacy_unverifiable":
-            self._risk_action_unverifiable(checkpoint, checkpoint["recovery_reason"])
+            host._risk_action_unverifiable(checkpoint, checkpoint["recovery_reason"])
             return RiskActionProgress(pending=True)
 
         legacy = state.get(f"risk_targets:{plan.action_id}")
         if checkpoint["status"] == "preparing" and legacy is not None:
             backup_key = f"portfolio_risk_action_legacy_backup:{plan.action_id}"
             if state.get(backup_key) is None:
-                state.set(backup_key, {"targets": legacy, "captured_at": self._now().isoformat()})
+                state.set(backup_key, {"targets": legacy, "captured_at": host._now().isoformat()})
             try:
-                self._legacy_portfolio_risk_action(plan, legacy, checkpoint)
+                host._legacy_portfolio_risk_action(plan, legacy, checkpoint)
             except ValueError as exc:
                 checkpoint["status"] = "legacy_unverifiable"
-                self._risk_action_unverifiable(checkpoint, str(exc))
+                host._risk_action_unverifiable(checkpoint, str(exc))
                 state.set(key, checkpoint)
                 return RiskActionProgress(pending=True)
             state.set(key, checkpoint)
@@ -174,23 +178,23 @@ class PortfolioRiskActionsMixin:
         # A continuous liquidation repeats preparation, so a late opening fill
         # or a newly discovered symbol cannot escape a still-active halt.
         if checkpoint["status"] == "preparing" or plan.remaining_fraction == 0:
-            orders = [row for row in self.broker.order_store.list_non_terminal()
+            orders = [row for row in host.broker.order_store.list_non_terminal()
                       if row["side"] in {"buy", "short"}
                       or (checkpoint.get("supersedes") and
                           (row.get("intent") or {}).get("risk_action_id") == checkpoint["supersedes"])]
             performed = bool(orders)
-            if not self._cancel_risk_orders(orders):
+            if not host._cancel_risk_orders(orders):
                 return RiskActionProgress(pending=True, performed=performed)
             try:
                 positions = {}
-                for symbol, pos in self.broker.portfolio.positions.items():
+                for symbol, pos in host.broker.portfolio.positions.items():
                     if abs(float(pos["qty"])) <= 1e-12:
                         continue
-                    original = self._risk_action_position(symbol)
+                    original = host._risk_action_position(symbol)
                     original["target_qty"] = original["original_qty"] * plan.remaining_fraction
                     positions[symbol] = original
             except ValueError as exc:
-                self._risk_action_unverifiable(checkpoint, str(exc))
+                host._risk_action_unverifiable(checkpoint, str(exc))
                 state.set(key, checkpoint)
                 return RiskActionProgress(pending=True, performed=performed)
             # Keep zero targets even while flat if an owned order is unresolved.
@@ -204,28 +208,28 @@ class PortfolioRiskActionsMixin:
                 old_key = f"portfolio_risk_action:{checkpoint['supersedes']}"
                 old = state.get(old_key)
                 if old:
-                    old.update(status="completed", completed_at=self._now().isoformat(),
+                    old.update(status="completed", completed_at=host._now().isoformat(),
                                completion_reason="superseded", superseded_by=plan.action_id)
                     state.set(old_key, old)
 
         done = True
         for symbol, original in checkpoint["positions"].items():
-            before = len(self.broker.order_store.list_all())
-            before_qty = float(self.broker.portfolio.get_position(symbol)["qty"])
+            before = len(host.broker.order_store.list_all())
+            before_qty = float(host.broker.portfolio.get_position(symbol)["qty"])
             had_pending = any((row.get("intent") or {}).get("risk_action_id") == plan.action_id
-                              for row in self.broker.order_store.list_non_terminal())
-            accepted = self._submit_risk_exit(
+                              for row in host.broker.order_store.list_non_terminal())
+            accepted = host._submit_risk_exit(
                 symbol, plan.reason, original["target_qty"], plan.action_id,
-                self._snapshot.prices.get(symbol),
+                host._snapshot.prices.get(symbol),
                 original_position_ids=original["position_ids"] if plan.remaining_fraction > 0 else None,
                 original_side=original["side"] if plan.remaining_fraction > 0 else None,
             )
-            after_qty = float(self.broker.portfolio.get_position(symbol)["qty"])
-            performed = (performed or had_pending or len(self.broker.order_store.list_all()) != before
+            after_qty = float(host.broker.portfolio.get_position(symbol)["qty"])
+            performed = (performed or had_pending or len(host.broker.order_store.list_all()) != before
                          or abs(after_qty - before_qty) > 1e-12)
             done = done and accepted
         if done:
-            checkpoint.update(status="completed", completed_at=self._now().isoformat())
+            checkpoint.update(status="completed", completed_at=host._now().isoformat())
             state.set(key, checkpoint)
             current_index = state.get("portfolio_risk_action_active")
             indexed_id = current_index.get("action_id") if isinstance(current_index, dict) else current_index

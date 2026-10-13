@@ -113,13 +113,13 @@ class LiveBroker:
         self._last_event_by_order: Dict[str, str] = {}
         self._bar_timeframe = "unknown"
         self._bar_time = "unknown"
-        self.trades = []  # Compatibility projection only; OrderStore is authoritative.
+        self.trades: list[Any] = []  # Compatibility projection only; OrderStore is authoritative.
         from core.trading.order_latency import OrderLatencyRecorder, order_observation_sidecar_path
         self.order_latency = OrderLatencyRecorder(
             persistence_path=order_observation_sidecar_path(getattr(self.order_store, "path", None)))
-        self.close_events = []
-        self.projection_issues = []
-        self.unowned_positions = {}
+        self.close_events: list[Any] = []
+        self.projection_issues: list[Any] = []
+        self.unowned_positions: dict[str, Any] = {}
         self._rebuild_fill_projection()
         self.health_assessment = None
         self.last_account_sync_at: Optional[datetime] = None
@@ -408,7 +408,7 @@ class LiveBroker:
         symbol: str,
         side: str,
         qty: float,
-        price: float = None,
+        price: Optional[float] = None,
         order_type: str = 'market',
         timestamp: Any = None,
         slippage: float = 0.0,

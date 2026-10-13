@@ -13,7 +13,7 @@ from core.trading.order_store import OrderStore
 from core.trading.portfolio import Portfolio
 from core.trading.protective_orders import ProtectiveState
 from core.risk.persistent_guard import PersistentOrderSafetyGuard
-from live_trading.tick_orchestrator import TickOrchestratorMixin
+from tests.collaborator_host import TickOrchestratorHost
 
 NOW = datetime(2026, 6, 30, tzinfo=timezone.utc)
 SYMBOL = "BTC/USDT"
@@ -76,7 +76,7 @@ class OfflineBinance:
         return {"total": {"USDT": self.cash, "BTC": self.qty}}
 
 
-class Harness(TickOrchestratorMixin):
+class Harness(TickOrchestratorHost):
     def __init__(self, broker):
         self.broker = broker
         self.strategies = {"TrendBreakout": SimpleNamespace(context={SYMBOL: {"stop_loss": 90}})}

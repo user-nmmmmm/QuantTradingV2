@@ -5,12 +5,10 @@ Split by change reason (A4) — see docs/architecture_review.md:
 - live_trading/state_export.py     — durable JSON export of engine state
 - live_trading/tick_orchestrator.py — the body of one tick (data/sync/risk/routing)
 
-``LiveTradingEngine`` composes the three mixins below via inheritance rather
-than holding separate collaborator objects, so every method still
-reads/writes the exact same ``self`` attributes as before the split --
-behavior-identical, mechanical. A true composition redesign is a bigger
-change on this money-path-adjacent code and is deliberately left for a
-dedicated pass, not bundled into this file-size cleanup.
+``LiveTradingEngine`` holds the collaborators below (``_tick_orchestrator``, ``_risk_actions``, ``_recovery``,
+``_state_export``) and forwards their methods with the same signatures. The collaborators reach the shared
+state through their ``host`` reference and call back into the engine's own methods, so behavior is identical
+to the former mixins (B4, ADR 0018).
 
 ``LiveTradingEngine`` itself keeps ``__init__``, lifecycle (``initialize``,
 ``run``), and the cross-cutting helpers (``_now``, ``_alert``,
@@ -49,17 +47,35 @@ from ops.strategy_registration import register_health_policies
 from core.trading.state_store_v2 import StateStore, default_state_db_path
 from core.trading.sqlite_backup import SQLiteSnapshotManager
 from live_trading.execution_adapter import RecordedExecutionAdapter
-from live_trading.recovery import RecoveryMixin, account_new_risk_gate, balance_sync_succeeded
-from live_trading.state_export import StateExportMixin
-from live_trading.tick_orchestrator import TickOrchestratorMixin
+from live_trading.recovery import Recovery, account_new_risk_gate, balance_sync_succeeded
+from live_trading.state_export import StateExport
+from live_trading.tick_orchestrator import TickOrchestrator
 from live_trading.runtime_controls import RuntimeControls
 from live_trading.protection_schedule import RuntimeSchedulePolicy
+from live_trading.risk_actions import PortfolioRiskActions
+from functools import cached_property
 
 logger = get_logger(__name__)
 
 
-class LiveTradingEngine(TickOrchestratorMixin, RecoveryMixin, StateExportMixin):
+class LiveTradingEngine:
     """Live durability/scheduling shell with mode-independent event processing."""
+
+    @cached_property
+    def _tick_orchestrator(self) -> TickOrchestrator:
+        return TickOrchestrator(self)
+
+    @cached_property
+    def _risk_actions(self) -> PortfolioRiskActions:
+        return PortfolioRiskActions(self)
+
+    @cached_property
+    def _recovery(self) -> Recovery:
+        return Recovery(self)
+
+    @cached_property
+    def _state_export(self) -> StateExport:
+        return StateExport(self)
 
     def __init__(
         self,
@@ -470,3 +486,108 @@ class LiveTradingEngine(TickOrchestratorMixin, RecoveryMixin, StateExportMixin):
             self.market_data_adapter.close()
             if self._owns_fetcher:
                 self.fetcher.close()
+
+    def _update_data(self):
+        return self._tick_orchestrator._update_data()
+
+    def _tick(self) -> bool:
+        return self._tick_orchestrator._tick()
+
+    def _tick_once(self):
+        return self._tick_orchestrator._tick_once()
+
+    def _alert_strategy_health_transitions(self) -> None:
+        return self._tick_orchestrator._alert_strategy_health_transitions()
+
+    def _protective_manager(self):
+        return self._tick_orchestrator._protective_manager()
+
+    def _venue_protective_orders(self):
+        return self._tick_orchestrator._venue_protective_orders()
+
+    def _desired_protective_stop(self, symbol: str, strategy_id: str = ''):
+        return self._tick_orchestrator._desired_protective_stop(symbol, strategy_id)
+
+    def _recheck_live_entry_risk(self) -> bool:
+        return self._tick_orchestrator._recheck_live_entry_risk()
+
+    def _reconcile_external_positions(self) -> bool:
+        return self._tick_orchestrator._reconcile_external_positions()
+
+    def _reconcile_protective_orders(self) -> None:
+        return self._tick_orchestrator._reconcile_protective_orders()
+
+    def _risk_sequence(self, key: str) -> int:
+        return self._tick_orchestrator._risk_sequence(key)
+
+    def _apply_protective_intent(self, symbol: str, intent) -> None:
+        return self._tick_orchestrator._apply_protective_intent(symbol, intent)
+
+    def _reconcile_drawdown_budget(self, *, execute=True):
+        return self._tick_orchestrator._reconcile_drawdown_budget(execute=execute)
+
+    def _submit_risk_exit(
+        self,
+        symbol,
+        reason,
+        target_qty,
+        action_id,
+        reference,
+        *,
+        original_position_ids=None,
+        original_side=None,
+    ):
+        return self._tick_orchestrator._submit_risk_exit(
+            symbol,
+            reason,
+            target_qty,
+            action_id,
+            reference,
+            original_position_ids=original_position_ids,
+            original_side=original_side,
+        )
+
+    def _risk_action_state_store(self):
+        return self._risk_actions._risk_action_state_store()
+
+    def _risk_action_position(self, symbol):
+        return self._risk_actions._risk_action_position(symbol)
+
+    def _risk_action_unverifiable(self, checkpoint, reason):
+        return self._risk_actions._risk_action_unverifiable(checkpoint, reason)
+
+    def _cancel_risk_orders(self, orders):
+        return self._risk_actions._cancel_risk_orders(orders)
+
+    def _legacy_portfolio_risk_action(self, plan, targets, checkpoint):
+        return self._risk_actions._legacy_portfolio_risk_action(plan, targets, checkpoint)
+
+    def _reconcile_portfolio_risk_action(self, plan):
+        return self._risk_actions._reconcile_portfolio_risk_action(plan)
+
+    def _recover_orders(self) -> Dict:
+        return self._recovery._recover_orders()
+
+    def _has_unresolved_unknown(self, *, refresh: bool = False) -> bool:
+        return self._recovery._has_unresolved_unknown(refresh=refresh)
+
+    def _run_reconciliation_if_due(self, now: datetime, *, force: bool = False) -> Dict:
+        return self._recovery._run_reconciliation_if_due(now, force=force)
+
+    def _persist_account_reconciliation(self, report, now):
+        return self._recovery._persist_account_reconciliation(report, now)
+
+    def _strategy_health(self):
+        return self._state_export._strategy_health()
+
+    def _protective_order_state(self):
+        return self._state_export._protective_order_state()
+
+    def _critical_state_signature(self):
+        return self._state_export._critical_state_signature()
+
+    def _maybe_export_state(self, *, force: bool = False) -> bool:
+        return self._state_export._maybe_export_state(force=force)
+
+    def _export_state(self):
+        return self._state_export._export_state()

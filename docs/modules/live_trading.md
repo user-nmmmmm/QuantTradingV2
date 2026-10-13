@@ -4,12 +4,12 @@
 
 ## `live_trading/engine.py` — LiveTradingEngine
 
-`LiveTradingEngine` 组装依赖并运行轮询主循环。具体实现分布在 `engine.py` 及三个 mixin：
+`LiveTradingEngine` 组装依赖并运行轮询主循环。具体实现分布在 `engine.py` 及四个协作类（持有 `host` 引用，ADR 0018）：
 
 - `LiveMarketDataAdapter`（行情，来自 `core/market/market_data.py`）
 - `RecordedExecutionAdapter`（执行，包装一个 `LiveBroker`）
 - `RiskManager`、路由器、候选分配器及共享的 `EventProcessor`
-- `TickOrchestratorMixin`（`tick_orchestrator.py`）、`RecoveryMixin`（`recovery.py`）、`StateExportMixin`（`state_export.py`）
+- `TickOrchestrator`（`tick_orchestrator.py`）、`PortfolioRiskActions`（`risk_actions.py`）、`Recovery`（`recovery.py`）、`StateExport`（`state_export.py`）
 
 **关键方法**：
 
