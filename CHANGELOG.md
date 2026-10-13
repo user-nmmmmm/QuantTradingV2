@@ -8,6 +8,9 @@
 
 ## [Unreleased]
 
+### Added
+- 测试治理（路线图 C4）：`quarantine` 标记（带原因和到期日，过期后 CI 失败）、`tests/capabilities.py` 的能力探测跳过（Windows 上没有符号链接权限时跳过，Linux CI 保证不跳过）、完整套件的耗时预算（目标 ≤ 5 分钟，CI 步骤 8 分钟超时），约定写在 `docs/quality.md`。
+
 ### Changed
 - `BacktestEngine.run`（838 行）拆成 4 个准备阶段、每根 K 线 5 步、4 个收尾阶段和 2 个结果片段，`run` 只剩驱动；`main()` 拆成 10 个阶段，入口实现从 `main.py` 移到新包 `cli/`（`main.py` 剩 5 行，`quant-backtest` 入口不变；导入 `main` 里的私有函数改为 `cli.data` / `cli.replay` / `cli.run`）；`scripts/classification.json` 给 100 个脚本登记生命周期并由测试检查（ADR 0019）。
 - `Broker`、`LiveBroker`、`RiskManager`、`LiveTradingEngine` 的 13 个 mixin 改为持有 `host` 引用的协作类（`Matching`、`FillService`、`CircuitBreaker`、`OrderReconciler`、`TickOrchestrator` …），宿主惰性持有它们并保留同签名的转发方法，外部调用不变；mypy 存量 869 → 404（ADR 0018）。状态仍由宿主持有。

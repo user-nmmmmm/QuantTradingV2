@@ -8,6 +8,7 @@ import pandas as pd
 import pytest
 
 from core.foundation.reproducibility import canonical_json, sha256_file
+from tests.capabilities import requires_symlinks
 from research.ml_selection.candidate_dataset import (
     PAIR_IDENTITY_FIELDS, build_candidate_dataset, build_from_episode, compare_paired_accounts,
     load_candidate_training_rows,
@@ -362,6 +363,7 @@ def test_archived_missing_inputs_or_tampering_are_actionable(tmp_path):
     assert not (tmp_path / "new").exists()
 
 
+@requires_symlinks
 def test_archived_default_inputs_cannot_escape_via_symlink(tmp_path):
     source = archive(tmp_path)
     original = source / "dataset.csv"

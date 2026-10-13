@@ -34,6 +34,22 @@ python scripts/quality_ratchet.py update           # 修掉存量问题后，把
 - 标记：`--strict-markers` 已开启。`slow`（约 5 秒以上的测试，目前 14 个测试函数、18 个用例）、`network`（真实联网，目前没有）。快速循环：`python -m pytest -m "not slow" -n 4`。新增耗时测试请加 `@pytest.mark.slow`。
 - CI 会打印最慢的 20 个测试（`--durations=20`）。
 
+### 耗时预算
+
+- 完整套件在 CI（`-n 4`）上**目标 ≤ 5 分钟**，目前约 3 分钟；"Tests and coverage gate"步骤有 8 分钟的硬超时，整个 `quality` 作业 20 分钟。
+- 单个测试约 5 秒以上必须加 `@pytest.mark.slow`；本地循环用 `-m "not slow"`。超预算时先看 CI 打印的最慢 20 个测试，把慢的拆小或标记，而不是放宽超时。
+
+### 偶发失败（不稳定测试）
+
+1. **不要靠重跑掩盖。** 先复现：`python -m pytest <测试> -n 0` 连续跑多次（例如 20 次），再换成 `-n 4` 看是否只在并行下失败。
+2. **定位。** 常见原因：依赖当前时间或时区、测试间共享临时路径或全局状态（`monkeypatch` 漏恢复）、端口/文件锁、依赖字典或集合的遍历顺序、并行进程互相覆盖同名文件。
+3. **修，或隔离。** 修不了当天就加 `@pytest.mark.quarantine(reason="…（说明现象与已定位的原因，至少 10 个字符）", until="YYYY-MM-DD")`：测试继续运行，失败不阻塞（等同非严格 xfail），通过会显示为 XPASS。**期限最多约 30 天**；`tests/test_quarantine_policy.py` 在过期后让 CI 失败，逼着修复或删除；同时被隔离的测试最多 10 个。
+4. 隔离不是豁免：在 PR 描述里写明原因和负责人，修好后立即去掉标记。
+
+### 平台相关的跳过
+
+在 Windows 上创建符号链接需要开发者模式或管理员权限（`WinError 1314`）。依赖符号链接的测试用 `tests/capabilities.py` 的 `requires_symlinks`：先探测能力，不具备时跳过（本地 Windows 全绿），具备时照常运行。Linux CI 上能力探测必然成功，`tests/test_quarantine_policy.py` 保证这类跳过不会在 CI 上悄悄发生。新的平台相关测试照此写，不要用 `sys.platform` 硬编码。
+
 ## 本地钩子（可选）
 
 ```bash
