@@ -249,7 +249,7 @@ def test_final_partition_changes_do_not_change_optimizer_ranking(tmp_path, monke
                 "Exit_Window": 5, "Total_Ret%": 1, "Max_DD%": 0, "Sharpe": sign * entry,
                 "Trades": 1, "Win_Rate%": 1, "returns": returns})
             assert len(train_test_split_returns(returns, .7)["train"]) == 7
-        monkeypatch.setattr(optimize, "_evaluate_grid", lambda *args: evaluations)
+        monkeypatch.setattr(optimize, "_evaluate_grid", lambda *args, evaluations=evaluations: evaluations)
         optimize.run_grid_search(["TEST"], "scenario", 10, "2025-01-01", "2025-01-10")
         output = next((tmp_path / "reports").glob("optimization_*.csv"))
         chosen.append(pd.read_csv(output).iloc[0]["Entry_Window"])

@@ -359,9 +359,9 @@ class ProtectiveOrderManager:
                     note="legacy protection cannot be loosened without attributed identity"), record)
             replacing = stale + legacy
             if replacing:
-                current = [order for order in live if order not in replacing]
-                target = self._ratchet(symbol, desired_stop, current, long_side)
-                if len(replacing) == 1 and not current and target is not None:
+                surviving = [order for order in live if order not in replacing]
+                target = self._ratchet(symbol, desired_stop, surviving, long_side)
+                if len(replacing) == 1 and not surviving and target is not None:
                     self._requested_stop[symbol] = target
                     reason = "position_epoch_changed" if stale else "legacy_position_identity_migration"
                     return self._record(ProtectivePlan(symbol, ProtectiveState.REPLACING, [

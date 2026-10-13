@@ -222,7 +222,7 @@ class TradeReconstructionMixin:
                 lot_close_ptr = 0
                 lot_close_used = 0.0
 
-                def _next_lot_detail(matched):
+                def _next_lot_detail(matched, lot_closes_list=lot_closes_list):
                     nonlocal lot_close_ptr, lot_close_used
                     if lot_close_ptr >= len(lot_closes_list):
                         return None
@@ -665,7 +665,6 @@ class TradeReconstructionMixin:
         for s, trades in strat_map.items():
             pnls = [t["net_pnl"] for t in trades]
             s_wins = [p for p in pnls if p > 0]
-            s_losses = [p for p in pnls if p < 0]
             s_wr = len(s_wins) / len(pnls)
             s_pf = calculate_profit_factor(pnls)
             s_total = sum(pnls)

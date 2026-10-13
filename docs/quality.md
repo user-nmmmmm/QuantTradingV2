@@ -7,7 +7,7 @@
 | 层 | 检查 | 范围 | 当前状态 |
 |---|---|---|---|
 | 硬门槛 | `ruff check .`（只含 `E9,F63,F7,F82` 语法/未定义名级错误）、`mypy` 三个契约文件 | 全仓库 / `core/foundation/domain.py`、`core/foundation/runtime.py`、`live_trading/execution_adapter.py` | 0 违规，必须保持 |
-| **棘轮** | `scripts/quality_ratchet.py check`：ruff 的 `F,E4,E7,E9,B`（不含 `B905`）与 mypy（`core ops signal_meta backtest live_trading strategies router composition`） | 全仓库 / 上述八个包 | 存量记入基线：ruff 621 项、mypy 404 项（B4 之后，原 869 项）；**只许减少，不许增加** |
+| **棘轮** | `scripts/quality_ratchet.py check`：ruff 的 `F,E4,E7,E9,B`（不含 `B905`）与 mypy（`core ops signal_meta backtest live_trading strategies router composition`） | 全仓库 / 上述八个包 | 存量记入基线：ruff 588 项、mypy 326 项（C2 之后；最初 621 / 869）；**只许减少，不许增加** |
 | 导入方向 | `lint-imports`（分层契约 + `core` 不依赖其他包），详见 [架构边界说明](architecture_review.md) | 全部项目包 | 无已知例外；新增例外需要设计决定 |
 | 覆盖率 | `pytest --cov=core --cov=ops --cov=signal_meta --cov=backtest --cov=live_trading --cov-fail-under=85` | 五个包 | 实测约 89%；门槛从 55% 提到 85% |
 
@@ -58,12 +58,18 @@ python -m pip install pre-commit && pre-commit install
 
 `.pre-commit-config.yaml` 只用本地工具：硬门槛 ruff、棘轮、Markdown 断链、仓库卫生检查。
 
-## 存量问题里值得人工复核的几类
+## 存量问题的复核结论（C2，2026-10-14）
 
-棘轮只是冻结它们，没有修改任何行为。以下是扫描时发现、值得逐个看一眼的模式（未逐个判定是否为缺陷）：
+棘轮扫描曾列出几类值得人工看一眼的模式。逐个读过调用点之后的结论如下；**没有发现需要改变交易行为的缺陷**。
 
-- **B023（闭包里使用循环变量）**：`core/market/binance_depth_observer.py`（8）、`research/ml_selection/next_round.py`（4）、`analysis/execution_calibration.py`（4）、`scripts/run_trend_portfolio_v3.py`（4）、`backtest/reporting/trades.py`（2）等。若闭包在循环结束后才被调用，会拿到最后一次迭代的值。
-- **F841（赋值未使用）**：`core/broker/financing.py` 的 `seconds_per_year`，在资金费率/借贷利息计提函数内，看一下是不是漏掉了年化换算。
-- **B904**：`core/market/data_versions.py`、`scripts/fetch_spot_intraday.py` 里 `except` 中 `raise` 缺少 `from`，会丢失原始异常链。
-- **mypy `attr-defined`（49 项）**：原有 475 项绝大多数来自 mixin 访问宿主类属性，B4 把 mixin 改为协作类（[ADR 0018](adr/0018-mixins-to-collaborators.md)）后已消失，剩下的需要逐个看。
-- **F811 出现在测试里**多为 pytest fixture 参数遮蔽同名导入，属正常写法。
+| 模式 | 结论 | 处理 |
+|---|---|---|
+| **F841** `core/broker/financing.py` 的 `seconds_per_year` | 死代码，不是漏了年化换算：借贷利息的年化实际写在 `_accrue_short_borrow` 和 `_accrue_quote_borrow` 里（365 天、按实际经过秒数）；永续资金费率是"每个结算周期的费率"，本来就不年化 | 先写特征测试 `tests/test_financing_annualization.py`（用 3 小时间隔精确比较，改成 360 天会失败，已做变异验证），再删除死变量并把两处硬编码合并为 `SECONDS_PER_YEAR`。数值逐位不变 |
+| **B023**（闭包里使用循环变量），29 处，分布在 14 个文件 | **全部无害**：每个闭包都在定义它的那一轮迭代内被调用（例如 `binance_depth_observer` 在 `finally` 里取消并等待 `producer` 之后才进入下一次重连）。没有闭包活过迭代 | 用默认参数显式绑定循环变量，消除"晚绑定"隐患，语义等价；B023 现为 0 |
+| **B904** `core/market/data_versions.py`、`scripts/fetch_spot_intraday.py` | 原异常只是预期的控制流（"文件已存在，去比对内容"；"`float()` 解析失败，改按日期解析"），新抛出的 `ValueError` 与之无关 | 改为 `raise … from None` |
+| **F841** `backtest/reporting/trades.py` 的 `s_losses` | 无副作用的死赋值 | 删除 |
+| **mypy `attr-defined`**（原 49 项） | 无运行时缺陷。`LiveBroker` 的 6 个属性在 `configure_account_source()` 里迟绑定，读取前都有 `getattr(…, None)` 保护；`Broker.risk_action_targets` 同理；`protective_orders` 里变量名 `current` 先当列表后当单个订单（前一分支必然 `return`）；`signal_meta_replay` 的 `broker: object` 标注过窄；其余是动态附加的属性 | 用不创建属性的类级注解声明迟绑定属性（`getattr` 语义不变）、重命名变量、放宽标注，剩 2 处带理由的 `type: ignore`；`attr-defined` 49 → 11 |
+| 仍留在棘轮里的 `attr-defined`（`strategies/trend_breakout.py` 的 3 个私有 mixin，11 项） | `_raw_entry_signal`、`name`、`entry_window` 等由混入它们的具体策略类提供，不是缺陷 | 随策略 mixin 的重构处理（ADR 0018 把它们排除在 B4 之外） |
+| **F811 出现在测试里** | 多为 pytest fixture 参数遮蔽同名导入，属正常写法 | 不处理 |
+
+基线随之降低：ruff 621 → 588，mypy 365 → 326。以后新增这类模式，先判断闭包/异常/迟绑定属性是否真的越出了当前迭代或保护范围，再决定修还是用带理由的 `noqa`/`type: ignore`。

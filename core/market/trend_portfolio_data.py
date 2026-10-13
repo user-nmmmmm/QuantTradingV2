@@ -166,7 +166,7 @@ def list_bucket(get: Callable, prefix: str, *, delimiter=None, start_after=None,
         if source.get("error"):
             raise ValueError(f"S3 listing failed for {prefix}: {source['error']}")
         root = ET.fromstring(body)
-        def texts(path):
+        def texts(path, root=root):
             return [item.text or "" for item in root.findall(path)]
         keys.extend(texts("{*}Contents/{*}Key"))
         prefixes.extend(texts("{*}CommonPrefixes/{*}Prefix"))

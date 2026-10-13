@@ -831,7 +831,7 @@ class Strategy(ABC):
             )
             risk_governor.commit(committed, symbol=symbol)
             try:
-                result.risk_budget = committed.to_dict()
+                result.risk_budget = committed.to_dict()  # type: ignore[attr-defined]  # attached dynamically
             except AttributeError:  # frozen/foreign result objects
                 pass
         return result

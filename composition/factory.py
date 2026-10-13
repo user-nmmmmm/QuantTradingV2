@@ -194,7 +194,7 @@ def build_strategy_registry(
         if ablation not in (None, 'no_obv_confirmation', 'no_regime_restrictions', 'no_health'):
             raise ValueError('Unknown strategy ablation')
         if ablation == 'no_obv_confirmation':
-            registry['TrendBreakout'].use_obv = False
+            registry['TrendBreakout'].use_obv = False  # type: ignore[attr-defined]  # only TrendBreakout has the ablation switch
         elif ablation == 'no_regime_restrictions':
             registry['TrendBreakout'].allowed_states = set(MarketState)
     return registry

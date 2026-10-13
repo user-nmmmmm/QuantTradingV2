@@ -161,7 +161,7 @@ def join_quotes_to_execution(events, request_records, raw_quotes, *, market_cont
         row = {"account_id": account, "client_order_id": cid, "fill_id": fid,
                "fill_at": fill_at.isoformat(), "status": "unmatched", "reason": None}
         matches.append(row)
-        def reject(reason):
+        def reject(reason, row=row):
             row["reason"] = reason
         proof = proofs.get((account, fid))
         if proof is None:
@@ -693,7 +693,7 @@ def execution_readiness_report(ledgers, request_records=(), quotes=(), *, as_of,
     for symbol in sorted(set(symbols) | {o["symbol"] for o in orders.values()}):
         for side in ("buy", "sell"):
             for bucket in ("under_1k", "1k_to_10k", "10k_plus"):
-                select = lambda rs: sum(r["symbol"] == symbol and r["side"] == side and r["size_bucket"] == bucket for r in rs)
+                select = lambda rs, symbol=symbol, side=side, bucket=bucket: sum(r["symbol"] == symbol and r["side"] == side and r["size_bucket"] == bucket for r in rs)
                 ntrain, ntest = select(train), select(test)
                 strata.append({"symbol": symbol, "side": side, "size_bucket": bucket,
                     "qualified_fills": select(qualified), "train_fills": ntrain, "test_fills": ntest,

@@ -103,9 +103,9 @@ def suite_specs():
     specs = []
     for variant in ("momentum", "breakout"):
         for financing in ("assumed", "verified_only"):
-            def add(role, suffix, start=START, end=END, **updates):
-                specs.append({"run_id": f"{variant}__{financing}__{suffix}", "variant": variant,
-                    "financing_mode": financing, "role": role, "start": start, "end": end,
+            def add(role, suffix, start=START, end=END, *, _variant=variant, _financing=financing, **updates):
+                specs.append({"run_id": f"{_variant}__{_financing}__{suffix}", "variant": _variant,
+                    "financing_mode": _financing, "role": role, "start": start, "end": end,
                     "cost_multiplier": 1., "borrow_rate": .08, "horizons": [60, 120],
                     "min_quote_volume": 5_000_000., **updates})
             add("primary", "main")

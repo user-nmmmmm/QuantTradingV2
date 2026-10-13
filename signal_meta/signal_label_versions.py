@@ -144,7 +144,7 @@ class OutcomeRevisionBook:
             if row["status"] == "censored_source_retracted" and not retractions:
                 raise ValueError("source-retracted label lacks withdrawal proof")
             source_times = []
-            def check_head(source, namespace):
+            def check_head(source, namespace, key=key):
                 record = source["record"]
                 head_key = key, namespace, source["dataset_id"], record["record_id"]
                 rank = (as_utc_timestamp(record.get("revision_at") or record["available_at"]),

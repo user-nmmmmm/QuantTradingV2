@@ -8,6 +8,7 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 
@@ -26,7 +27,7 @@ ARMS = ("baseline", "gate", "sizing")
 
 @dataclass
 class _Account:
-    broker: object
+    broker: Any
     active: dict = field(default_factory=dict)
     audit_cursor: int = 0
     trade_cursor: int = 0

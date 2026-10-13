@@ -138,12 +138,12 @@ def _supervised_extensions(folder, protocol, frames, dataset):
     partition, _ = training_partitions(dataset, settings)
     curves = {}
     for kind in settings["models"]:
-        def portfolio_evaluator(model, train, validation, month):
+        def portfolio_evaluator(model, train, validation, month, kind=kind):
             selector = selection(dataset, settings, kind, {kind: model})
             episode = make_environment(frames, protocol, start=settings["splits"]["train_end"],
                 end=settings["splits"]["validation_end"]).run_episode(selector)
             return persist_episode(folder, f"learning_{kind}_{month}m", episode, selector)
-        def model_sink(model, month):
+        def model_sink(model, month, kind=kind):
             model.save(Path(folder) / "learning_models" / f"{kind}_{month}m.json")
         progress(folder, "next-3", "正在比较成熟训练期学习曲线", model=kind)
         curves[kind] = run_learning_curve(partition["train"], partition["validation"], features=FEATURE_COLUMNS,

@@ -57,6 +57,15 @@ logger = get_logger(__name__)
 class LiveBroker:
     """CCXT adapter backed by an authoritative idempotent order ledger."""
 
+    # Bound later by AccountSync.configure_account_source() / sync(); they are deliberately not initialised in
+    # __init__ because callers probe them with getattr(host, "_account_source", None). Annotations only declare them.
+    _account_source: Any
+    _account_source_environment: str
+    _account_source_maximum_age: float
+    account_reconciliation_report: Dict[str, Any]
+    account_balance_facts: Any
+    account_snapshot: Any
+
     @cached_property
     def _submission(self) -> SubmissionService:
         return SubmissionService(self)

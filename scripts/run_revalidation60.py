@@ -278,7 +278,7 @@ def write_research_outputs(root, frames, summaries):
         save(root / f"{name}_cohort_concentration.json", cohorts)
         base = cohorts["scenarios"]["0"]
         enough = cohorts["sample_status"] == "sufficient_for_estimation"
-        def assessed(value):
+        def assessed(value, enough=enough):
             return "insufficient" if not enough else ("pass" if value else "fail")
         row = lookup[name]
         bench = benchmark(pd.Timestamp(row["start"]), pd.Timestamp(row["end"]))

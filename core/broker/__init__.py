@@ -54,6 +54,9 @@ __all__ = [
 
 
 class Broker:
+    # Created on first use by Liquidation.force_liquidate (probed with getattr(host, "risk_action_targets", None)).
+    risk_action_targets: Dict[str, Any]
+
     @cached_property
     def _matching(self) -> Matching:
         return Matching(self)

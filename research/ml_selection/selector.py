@@ -39,7 +39,7 @@ def _pending_order_count(broker):
         book = getattr(venue, name, ()) or ()
         records = book.values() if isinstance(book, Mapping) else book
         for order in records:
-            value = order.get if isinstance(order, Mapping) else lambda key, default=None: getattr(order, key, default)
+            value = order.get if isinstance(order, Mapping) else lambda key, default=None, order=order: getattr(order, key, default)
             status = value("status", "")
             if str(getattr(status, "value", status)).lower() in terminal:
                 continue
