@@ -7,8 +7,8 @@
 | 层 | 检查 | 范围 | 当前状态 |
 |---|---|---|---|
 | 硬门槛 | `ruff check .`（只含 `E9,F63,F7,F82` 语法/未定义名级错误）、`mypy` 三个契约文件 | 全仓库 / `core/foundation/domain.py`、`core/foundation/runtime.py`、`live_trading/execution_adapter.py` | 0 违规，必须保持 |
-| **棘轮** | `scripts/quality_ratchet.py check`：ruff 的 `F,E4,E7,E9,B`（不含 `B905`）与 mypy（`core ops signal_meta backtest live_trading strategies router composition`） | 全仓库 / 上述八个包 | 存量记入基线：ruff 588 项、mypy 302 项（C3 收尾之后；最初 621 / 869）；**只许减少，不许增加** |
-| **mypy 硬门槛清单** | `scripts/mypy_hard_gate.txt`：已零错误的模块，`quality_ratchet.py check` 对其中任何发现直接失败，不看基线（[ADR 0022](adr/0022-mypy-hard-gate-list.md)） | 200 个受检文件中的 136 个 | 清单只增不减；基线只剩其余 64 个文件的存量 |
+| **棘轮** | `scripts/quality_ratchet.py check`：ruff 的 `F,E4,E7,E9,B`（不含 `B905`）与 mypy（`core ops signal_meta backtest live_trading strategies router composition`） | 全仓库 / 上述八个包 | 存量记入基线：ruff 588 项、mypy 301 项（B6 第一片之后；最初 621 / 869）；**只许减少，不许增加** |
+| **mypy 硬门槛清单** | `scripts/mypy_hard_gate.txt`：已零错误的模块，`quality_ratchet.py check` 对其中任何发现直接失败，不看基线（[ADR 0022](adr/0022-mypy-hard-gate-list.md)） | 200 个受检文件中的 138 个 | 清单只增不减；基线只剩其余 62 个文件的存量 |
 | **函数长度棘轮** | `quality_ratchet.py check` 的第三个工具：每个 ≥ 100 行的函数按"文件::函数"记录行数；只许变短，新出现的 ≥ 100 行函数直接失败（[ADR 0026](adr/0026-engine-function-limits-and-typed-run-state.md)） | 13 个包（`core ops signal_meta backtest live_trading strategies router composition cli config analysis research dashboard`） | 现有 87 个长函数记入基线，引擎与命令行里为 0 |
 | 导入方向 | `lint-imports`（分层契约 + `core` 不依赖其他包），详见 [架构边界说明](architecture_review.md) | 全部项目包 | 无已知例外；新增例外需要设计决定 |
 | 覆盖率 | `pytest --cov=core --cov=ops --cov=signal_meta --cov=backtest --cov=live_trading --cov-fail-under=90` | 五个包 | 行覆盖实测约 90.5%（Windows 本地，2026-10-14）；门槛 55% → 85% → 90%（C5，[ADR 0024](adr/0024-coverage-90-and-branch-coverage-evaluation.md)）。分支覆盖实测 79.8%，暂不设门槛 |
@@ -37,7 +37,7 @@ python scripts/quality_ratchet.py update           # 修掉存量问题后，把
 |---|---|---|---|---|
 | 2026-10-11 | 621 | 869 | 3 | 棘轮引入 |
 | 2026-10-14 | 588 | 313 | 129 | C2、B4、C3、B7 之后 |
-| 2026-10-14 | 588 | 302 | 136 | C3 收尾：11 处纯注解（`var-annotated`、默认值为 `None` 的参数）；其余 302 项多是靠运行时开关保证的 `None` 等，需要改写逻辑才能让 mypy 满意，留待各模块重构时处理 |
+| 2026-10-14 | 588 | 301 | 138 | B6 第一片（熔断器状态迁移，-1）之后；此前 C3 收尾：11 处纯注解（`var-annotated`、默认值为 `None` 的参数）；其余 302 项多是靠运行时开关保证的 `None` 等，需要改写逻辑才能让 mypy 满意，留待各模块重构时处理 |
 
 下一次回看：2027-01。基线一个季度没有下降要写明原因或计划。
 

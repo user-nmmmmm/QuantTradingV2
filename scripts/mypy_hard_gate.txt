@@ -81,6 +81,8 @@ core/planning/candidate_scoring.py
 core/planning/cost_aware_allocation.py
 core/risk/__init__.py
 core/risk/actions.py
+core/risk/circuit_breaker.py
+core/risk/delegation.py
 core/risk/persistent_guard.py
 core/risk/portfolio_governor.py
 core/risk/position_sizing.py
