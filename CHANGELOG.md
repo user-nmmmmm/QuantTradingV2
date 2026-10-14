@@ -9,6 +9,7 @@
 ## [Unreleased]
 
 ### Notes
+- 路线图 B6 第三片（ADR 0029）：`LiveBroker` 的 8 个账户同步状态属性（`account_reconciliation_report`、`unowned_positions`、`last_account_sync_at`、`_account_source` ……）搬进 `AccountSync`；`LiveBroker` 用 `Delegated` 保留旧名字，外部读写不变；其中六个属性仍然是“未绑定直到配置或同步”，`getattr(…, None)` 的探测语义不变。迁移前录制的金样本测试（`tests/test_live_broker_state_ownership.py`）一字不改地通过。
 - 路线图 B6 第二片（ADR 0028）：模拟撮合器 `Broker` 的 `pending_orders`、`active_orders` 搬进 `Matching`，`risk_action_targets` 搬进 `Liquidation`；`Broker` 用 `Delegated` 保留旧名字，外部读写不变。`risk_action_targets` 首次使用前读到 `{}` 而不是 `AttributeError`。迁移前录制的金样本测试（`tests/test_broker_state_ownership.py`）一字不改地通过。
 - 棘轮复核（C2）：借贷利息的年化只在 `_accrue_short_borrow` / `_accrue_quote_borrow` 里计算，`financing.py` 里原有的 `seconds_per_year` 局部变量是未使用的死代码，已合并为 `SECONDS_PER_YEAR` 并用测试固定；29 处"闭包里使用循环变量"逐一确认无害并显式绑定。这些改动在冻结范围内，但交易与回测行为不变（身份报告会显示为行为变化，因为字节变了）。
 
