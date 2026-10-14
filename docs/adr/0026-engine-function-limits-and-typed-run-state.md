@@ -19,6 +19,9 @@ B5（ADR 0019）把 `BacktestEngine.run` 与 `main()` 拆成了流水线，并�
 ## 范围说明
 路线图 B8 讲的是引擎与命令行。全仓库另有 55 个超过 100 行的函数，多数在交易核心里（`portfolio_target_controller.process` 406 行、`fill_service._execute_trade` 386 行、`tick_orchestrator._tick_once` 319 行 ……）。它们触及下单与风控路径，每一个都需要先固定行为再拆，不属于这次的机械搬动，也不应与它混在一个 PR 里；这里不宣称"全仓库无长函数"。
 
+## 后续：函数长度棘轮（2026-10-14）
+不去逐个重写交易核心里的长函数，而是让"不更糟"由机器保证。`quality_ratchet.py` 新增第三个工具 `function_length`（`pyproject.toml` 的 `[tool.quality_ratchet.function_length]`，限额 100 行，范围是 13 个项目包）：每个 ≥ 100 行的函数以"文件::类.函数"记录行数，只许变短；新出现的 ≥ 100 行函数会让 `check` 失败。基线里现有 **87 个**（上文的 55 只统计了其中 10 个包，这里是全部 13 个包，含 `research`、`analysis`、`dashboard`），最长的是 `portfolio_target_controller.process`（406 行）。引擎与命令行的四个文件在基线里为 0，并有测试固定。把基线里的长函数拆开是逐个的、需要先固定行为的工作，留给触碰它们的 PR。
+
 ## 备选方案
 - 把 `__init__` 的参数收进一个配置对象：会改变 `BacktestEngine` 的公共构造签名，影响全部调用方和历史脚本。
 - 把回放前置检查保留为多处 `return 7`、只拆别的部分：函数仍然超长。

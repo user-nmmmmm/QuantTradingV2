@@ -25,6 +25,7 @@ other modules are on the command line, so a subset run would not agree with the 
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import re
 import subprocess
@@ -121,7 +122,31 @@ def clean_modules(config: dict, findings: Counter | None = None) -> list[str]:
     return [name for name in found if name not in dirty]
 
 
-RUNNERS = {"ruff": run_ruff, "mypy": run_mypy}
+def run_function_length(config: dict) -> Counter:
+    """Line count of every function at or above ``limit`` lines, keyed ``file::Class.function`` (nested: ``a.b``)."""
+    limit = int(config.get("limit", 100))
+    counts: Counter = Counter()
+
+    def visit(node, prefix: str, rel: str) -> None:
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                name = f"{prefix}{child.name}"
+                length = child.end_lineno - child.lineno + 1
+                if length >= limit:
+                    counts[f"{rel}::{name}"] += length
+                visit(child, name + ".", rel)
+            elif isinstance(child, ast.ClassDef):
+                visit(child, f"{prefix}{child.name}.", rel)
+            else:
+                visit(child, prefix, rel)
+
+    for folder in config["paths"]:
+        for path in sorted((ROOT / folder).rglob("*.py")):
+            visit(ast.parse(path.read_text(encoding="utf-8")), "", path.relative_to(ROOT).as_posix())
+    return counts
+
+
+RUNNERS = {"ruff": run_ruff, "mypy": run_mypy, "function_length": run_function_length}
 
 
 def load_baseline() -> Dict[str, Dict[str, int]]:
