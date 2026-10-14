@@ -9,6 +9,7 @@
 ## [Unreleased]
 
 ### Notes
+- 路线图 B6 第五片（ADR 0031）：`TickOrchestrator` 独占写入的 8 个 tick 循环记账属性（`_tick_count`、`_consecutive_tick_crashes`、`_next_retry_delay`、`_consecutive_strategy_failures`、`_last_strategy_error`、`_last_tick_seconds`、`_alerted_health_transitions`、`_live_fill_risk_audit`）搬进它自己；`LiveTradingEngine` 与测试替身 `TickOrchestratorHost` 用 `Delegated` 保留旧名字，外部读写不变。`_alerted_health_transitions` 从构造起就是空集合（以前首次告警时才创建）。引擎、`runtime_controls` 和状态导出共同写入的状态（`_operational_state`、`_healthy`、`data_map` ……）留在引擎上。迁移前录制的金样本测试（`tests/test_tick_state_ownership.py`）一字不改地通过。
 - 路线图 B6 第四片（ADR 0030）：`LiveTradingEngine` 的 7 个对账与导出状态属性（`_reconciliation_status`、`_last_reconciliation_at`、`_last_order_sync_at`、`_unresolved_unknown_cache`、`_last_export_tick` ……）搬进 `Recovery` 和 `StateExport`；引擎用 `Delegated` 保留旧名字，外部读写不变；`_account_reconciliation_persistence_failed` 仍然是“未绑定直到首次账户对账”，`getattr(…, False)` 的探测语义不变。迁移前录制的金样本测试（`tests/test_live_engine_state_ownership.py`）一字不改地通过。
 - 路线图 B6 第三片（ADR 0029）：`LiveBroker` 的 8 个账户同步状态属性（`account_reconciliation_report`、`unowned_positions`、`last_account_sync_at`、`_account_source` ……）搬进 `AccountSync`；`LiveBroker` 用 `Delegated` 保留旧名字，外部读写不变；其中六个属性仍然是“未绑定直到配置或同步”，`getattr(…, None)` 的探测语义不变。迁移前录制的金样本测试（`tests/test_live_broker_state_ownership.py`）一字不改地通过。
 - 路线图 B6 第二片（ADR 0028）：模拟撮合器 `Broker` 的 `pending_orders`、`active_orders` 搬进 `Matching`，`risk_action_targets` 搬进 `Liquidation`；`Broker` 用 `Delegated` 保留旧名字，外部读写不变。`risk_action_targets` 首次使用前读到 `{}` 而不是 `AttributeError`。迁移前录制的金样本测试（`tests/test_broker_state_ownership.py`）一字不改地通过。

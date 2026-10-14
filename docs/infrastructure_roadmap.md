@@ -2,7 +2,7 @@
 
 > 核对日期：2026-10-14，依据 `main` 的 `b4f55f7`（#93）及实测数据。第 4 节末尾的"当前状态"、第 5 节"接下来的顺序"和第 9 节"交接说明"记录了这一天的进度、未决问题和本轮得到的教训。本文是**工程路线图**：排列基础设施与结构整理的顺序、依赖和退出条件。它不维护项目阶段（R0–R8）、任务状态或实盘准入，这些仍以[统一 Roadmap](unified_roadmap.md)为准；它也不改变任何策略研究结论。与之配套：[V4 架构设计（草案）](v4_architecture_design.md)、[架构决策记录](adr/README.md)、[质量门槛](quality.md)、[身份说明](identity.md)、[发布约定](releasing.md)。本文取代[工程结构优化路线图](engineering_structure_roadmap.md)中仍然适用的部分。
 
-**一句话状态：轨道 A 除新身份登记外、B 除 B6 外、C 全部、D 除 D1 外都已做完并合并（#52–#93）。还没做的只有三件：分支清理 D1（清单已重新生成，等所有者确认后才执行）、B6 状态所有权迁移（第一片熔断器已合并，其余按 ADR 0027 的顺序逐片做）、以及 B6 之后的新身份登记 A5。首个发布标签 `v3.0.0` 已在 2026-10-14 创建并推送（带注解，指向 `619abfa`，即 #94 的合并提交）。24 项里 22 项完成，按工作量算剩下的是最重的一块。另有两个数据问题等研究决定（见 D2）。**
+**一句话状态：轨道 A 除新身份登记外、B 全部（B6 的五片在 PR #95）、C 全部、D 除 D1 外都已做完。还没做的只有两件：分支清理 D1（清单已重新生成，等所有者确认后才执行）、以及新身份登记 A5（依赖已齐：标签已打、B6 已做完）。首个发布标签 `v3.0.0` 已在 2026-10-14 创建并推送（带注解，指向 `619abfa`，即 #94 的合并提交）。24 项里 23 项完成。另有两个数据问题等研究决定（见 D2）。**
 
 ## 1. 目标与原则
 
@@ -55,6 +55,7 @@
 | B6-2 | 模拟撮合器的 `pending_orders`、`active_orders` 搬进 `Matching`，`risk_action_targets` 搬进 `Liquidation`，`Broker` 用 `Delegated` 保留旧名；金样本测试一字不改通过（ADR 0028） | 已完成（B6 的第二片） | 本 PR |
 | B6-3 | `LiveBroker` 的 8 个账户同步状态属性搬进 `AccountSync`（六个“未绑定”属性保持未绑定，探测语义不变），`LiveBroker` 用 `Delegated` 保留旧名；金样本测试一字不改通过（ADR 0029） | 已完成（B6 的第三片） | 本 PR |
 | B6-4 | `LiveTradingEngine` 的 7 个对账与导出状态属性搬进 `Recovery`（5）和 `StateExport`（2），`_account_reconciliation_persistence_failed` 保持“未绑定”，引擎用 `Delegated` 保留旧名；金样本测试一字不改通过（ADR 0030） | 已完成（B6 的第四片） | 本 PR |
+| B6-5 | `TickOrchestrator` 独占写入的 8 个记账属性（tick 计数、崩溃与退避、策略失败、上次耗时、已告警的健康转换、实际成交风险审计）搬进它自己，引擎用 `Delegated` 保留旧名；与其他写入者共享的引擎级状态不搬；金样本测试一字不改通过（ADR 0031） | 已完成（B6 的第五片，B6 收尾） | 本 PR |
 | B7 | 报告生成的 4 个 mixin 改为协作类（`ReportGenerator` 保留全部同签名转发方法），Donchian 策略的 3 个私有 mixin 合成显式基类 `DonchianTrendStrategy`；代码里不再有 `*Mixin` 类；mypy 326 → 313（ADR 0025） | 已完成 | #86 |
 | B8 | 引擎与命令行里超过 100 行的 3 个函数拆开（`BacktestEngine.__init__` 149 → 73、`_close_tail_positions` 118 → 66、`replay_manifest` 131 → 43）；`_RunState`（48 个字段）与 `_MainState`（26 个字段）的 `Any` 注解全部换成具体类型，并有结构测试固定（ADR 0026） | 已完成 | #87；函数长度棘轮：#91 |
 | D5 收尾 | `devcontainer` 工作流：在 CI 里构建 `.devcontainer/` 并运行 `dev.py check --no-tests`（ADR 0023 后续） | 已完成 | #88 |
@@ -89,7 +90,7 @@
 
 | 编号 | 工作 | 规模 | 依赖 | 退出条件 |
 |---|---|---|---|---|
-| B6 | **状态所有权迁移**（**进行中**：第一片 `CircuitBreaker` 的 13 个属性已迁移，ADR 0027，#93；第二片 `Broker` 的订单簿与风控动作目标已迁移，ADR 0028；第三片 `LiveBroker` 的 `AccountSync`（8 个属性）已迁移，ADR 0029；第四片 `LiveTradingEngine` 的 `Recovery`/`StateExport`（7 个属性）已迁移，ADR 0030；只剩 `TickOrchestrator`，见 ADR 0030）：协作类现在通过 `host` 读写宿主上的 10–60 个属性；按属性设计归属，把状态搬进协作类，宿主属性改为只读代理或删除。涉及外部读写点（`state_export`、`recovery`、回测引擎、测试）和持久化路径，**每个宿主、每个协作类一个 PR**，先固定订单/成交/恢复/状态写入的行为 | L | B4 | 协作类拥有自己的状态；`host.<属性>` 引用显著减少；mypy 基线下降 |
+| B6 | **状态所有权迁移**（**已完成**，PR #95 合并后生效：第一片 `CircuitBreaker` 的 13 个属性已迁移，ADR 0027，#93；第二片 `Broker` 的订单簿与风控动作目标已迁移，ADR 0028；第三片 `LiveBroker` 的 `AccountSync`（8 个属性）已迁移，ADR 0029；第四片 `LiveTradingEngine` 的 `Recovery`/`StateExport`（7 个属性）已迁移，ADR 0030；第五片 `TickOrchestrator` 独占的 8 个记账属性已迁移，ADR 0031；与其他写入者共享的引擎级状态不搬，不再算 B6 的待办）：协作类现在通过 `host` 读写宿主上的 10–60 个属性；按属性设计归属，把状态搬进协作类，宿主属性改为只读代理或删除。涉及外部读写点（`state_export`、`recovery`、回测引擎、测试）和持久化路径，**每个宿主、每个协作类一个 PR**，先固定订单/成交/恢复/状态写入的行为 | L | B4 | 协作类拥有自己的状态；`host.<属性>` 引用显著减少；mypy 基线下降 |
 | B7 | **已完成**（#86，ADR 0025）：报告的 4 个 mixin 改为协作类（`ReportMetrics`、`TradeReconstruction`、`ReportWriters`、`ReportCharts`），`ReportGenerator` 惰性持有并保留全部同签名转发方法；策略的 3 个私有 mixin 合成显式基类 `DonchianTrendStrategy`。mixin 继承清零；mypy 326 → 313，`strategies/trend_breakout.py` 进硬门槛清单 | M | — | 代码里不再有 `*Mixin` 类 |
 | B8 | **已完成**（#87，ADR 0026）：引擎与命令行里没有超过 100 行的函数，状态对象字段都有具体类型。全仓库另有 87 个超过 100 行的函数（含 `research`/`analysis`/`dashboard`，多在交易核心：`portfolio_target_controller.process` 406、`fill_service._execute_trade` 386 ……），不在 B8 范围内。原范围：`BacktestEngine.__init__`（149 行）、`_close_tail_positions`（118 行）；`_RunState`/`_MainState` 的字段目前标注为 `Any`，逐个收紧类型 | M | B5 | 无超过 100 行的函数；状态对象有具体类型 |
 
@@ -120,9 +121,9 @@
 |---|---|---|
 | G0 | **已决：顺延** | ADR 0008；整理已完成，下一步是登记新身份（A5） |
 | A1–A4 | 已完成 | `v3.0.0` 标签已创建并推送（2026-10-14） |
-| A5 | 未开始 | 标签已就绪，等 B6；先说明 `capital:` 配置变更 |
+| A5 | 未开始 | 标签已就绪，B6 已做完；先说明 `capital:` 配置变更 |
 | B1–B5、B7、B8 | 已完成 | 见第 2 节；ADR 0011–0019、0025、0026 |
-| B6 | **进行中** | 第一片（`RiskManager` 的 `CircuitBreaker`，13 个属性）已合并（#93，ADR 0027）。ADR 0027 记录了方法（先录金样本测试 → 机械搬动 → 文档）和下一片的顺序（`Broker` 的 `Matching`/`Liquidation` 已在第二片完成，ADR 0028；`LiveBroker` 的 `AccountSync` 已在第三片完成，ADR 0029；`LiveTradingEngine` 的 `Recovery`/`StateExport` 已在第四片完成，ADR 0030）：只剩实盘主循环上的 `TickOrchestrator`（16）。最好在 A5 之前做完会碰冻结范围的部分；做不完的明确记为"观察期内不动" |
+| B6 | **已完成**（PR #95） | 第一片（`RiskManager` 的 `CircuitBreaker`，13 个属性）已合并（#93，ADR 0027）。ADR 0027 记录了方法（先录金样本测试 → 机械搬动 → 文档）和各片的顺序（`Broker` 的 `Matching`/`Liquidation` 已在第二片完成，ADR 0028；`LiveBroker` 的 `AccountSync` 已在第三片完成，ADR 0029；`LiveTradingEngine` 的 `Recovery`/`StateExport` 已在第四片完成，ADR 0030；`TickOrchestrator` 独占的 8 个记账属性已在第五片完成，ADR 0031）。留在宿主上的是被多个写入者共享的引擎级状态（`_operational_state`、`_healthy`、`data_map`、`_snapshot` ……）和 `Broker` 的 `orders_by_id`/`opening_orders`/`execution_audit` 等，它们的归属是下一个层次的设计问题，记为“观察期内不动” |
 | C1 | 已完成 | 约定在 CONTRIBUTING，季度记录在 `docs/quality.md`；下次回看 2027-01 |
 | C2、C4 | 已完成 | #82、#81 |
 | C3 | 已完成，持续项 | 硬门槛清单 138/200 个受检文件（B6 第一片后）；其余 62 个文件的 301 项发现多是靠运行时开关保证的 `None` 等，需要改写逻辑，随各模块重构清零后用 `promote --write` 收进（ADR 0022）。再加上函数长度棘轮（#91）：86 个 ≥ 100 行的函数只许变短 |
@@ -153,8 +154,8 @@ flowchart LR
 | 阶段 | 内容 |
 |---|---|
 | **立刻** | 所有者确认 D1 清单后由助手执行；研究侧决定 D2 的两个数据问题 |
-| **接着** | B6 的后续切片（一次一个协作类，一个 PR 里分"特征测试 / 迁移 / 文档"三个提交）；C3 每次一小批继续扩围 |
-| **登记之前尽量做完** | B6 里会碰冻结范围的部分（登记之后就要走重新登记流程）。可以只做价值最高的宿主，做不完的明确记为"观察期内不动" |
+| **接着** | C3 每次一小批继续扩围；A5 新身份登记 |
+| **登记之前** | B6 已做完（会碰冻结范围的部分都已完成）；登记之后冻结范围的改动要走重新登记流程 |
 | **然后** | A5 新身份登记（先写 `capital:` 配置变更说明与协议，引用 D2 的数据清单摘要）→ M1 |
 
 ## 6. 进入 V4 功能开发的条件（M1）
@@ -233,4 +234,4 @@ M1 之后的功能轨道（特征管线 → 回测两层化 → 选币统一 →
 - `scripts/` 新增脚本要同时更新 `scripts/README.md` 和 `scripts/classification.json`，否则测试失败。
 - 冻结的历史证据（`docs/archive/2026-08*`、`2026-09*`、`docs/research/ml_selection_next_acceptance_20261005.json`、`docs/codex_mail_findings_20260920.json`、`docs/research/current_strategy_protocol.json`、`reports/` 回执，以及 `docs/research/paper_continuation_acceptance_20261003.json` 这类记录当时文件哈希的 JSON）不得改写；移动文档要在 `docs/doc_index.json` 追加一条。
 
-**第一件事：** `v3.0.0` 已创建并推送；请所有者确认 D1 清单（`outputs/branch_cleanup_proposal.md`，不入库，只来自 `git branch` / `git worktree` 的输出，过时了就重新生成）。代码上的下一步是 B6 的下一片：`Broker` 的 `Matching`/`Liquidation`（ADR 0028）、`LiveBroker` 的 `AccountSync`（ADR 0029）和 `LiveTradingEngine` 的 `Recovery`/`StateExport`（ADR 0030）已完成，只剩 `TickOrchestrator`（16 个属性，实盘主循环），需要先单独盘点。**每一片的做法：** ① 在迁移**之前**的代码上录特征测试（金样本，覆盖该协作类的全部状态属性和对外读写）；② 把状态初始化搬进协作类，`host.<状态>` 机械改成 `self.<状态>`，宿主用 `core/risk/delegation.py::Delegated` 保留旧名，特征测试必须一字不改地通过；③ 文档、基线、`promote --write`、重新生成 `architecture_inventory`。
+**第一件事：** `v3.0.0` 已创建并推送；请所有者确认 D1 清单（`outputs/branch_cleanup_proposal.md`，不入库，只来自 `git branch` / `git worktree` 的输出，过时了就重新生成）。B6 已做完（ADR 0027–0031，PR #95）；下一步是 A5 新身份登记（先写 `capital:` 配置变更说明与协议）。**B6 每一片的做法（以后再做类似迁移时沿用）：** ① 在迁移**之前**的代码上录特征测试（金样本，覆盖该协作类的全部状态属性和对外读写）；② 把状态初始化搬进协作类，`host.<状态>` 机械改成 `self.<状态>`，宿主用 `core/risk/delegation.py::Delegated` 保留旧名，特征测试必须一字不改地通过；③ 文档、基线、`promote --write`、重新生成 `architecture_inventory`。
