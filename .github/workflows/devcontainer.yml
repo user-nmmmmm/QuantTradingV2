@@ -1,0 +1,38 @@
+name: devcontainer
+
+# Proves the dev container (.devcontainer/) really builds and that `dev.py check` passes inside it (roadmap D5,
+# docs/adr/0023). Informational, not a required check: it runs when the container definition or its inputs change,
+# weekly, and on demand.
+on:
+  pull_request:
+    paths:
+      - ".devcontainer/**"
+      - "scripts/dev.py"
+      - "requirements*.txt"
+      - ".github/workflows/devcontainer.yml"
+  push:
+    branches: [main]
+    paths:
+      - ".devcontainer/**"
+      - "scripts/dev.py"
+      - "requirements*.txt"
+  schedule:
+    - cron: "41 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Build the dev container and run the quality checks inside it
+        uses: devcontainers/ci@v0.3
+        with:
+          runCmd: python scripts/dev.py check --no-tests
+          push: never
