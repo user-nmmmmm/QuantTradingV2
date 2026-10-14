@@ -202,96 +202,20 @@ class BacktestEngine:
         capital_allocation: Optional[Dict[str, Any]] = None,
         candidate_selector: Any = None,
     ) -> None:
-        validate_selector_execution_path(
-            selector_enabled=candidate_selector is not None,
-            portfolio_controller=portfolio_controller,
-            portfolio_targets_enabled=(config.get("portfolio_targets") or {}).get("enabled", False),
-        )
-        self.candidate_selector = candidate_selector
-        self.capital_allocation_policy = CapitalAllocationPolicy.from_mapping({
-            **((config.get("allocation") or {}).get("capital") or {}),
-            **(capital_allocation or {}),
-        })
-        if self.capital_allocation_policy.enabled and (
-                portfolio_controller is not None or
-                (config.get("portfolio_targets") or {}).get("enabled", False)):
-            raise ValueError("smart capital allocation cannot run with a portfolio target controller")
+        self._init_candidate_selection(candidate_selector, portfolio_controller, capital_allocation)
         config_data = config.require("data")
-        from core.market.temporal_data import temporal_policy as parse_temporal_policy
-        self.temporal_policy = parse_temporal_policy(temporal_policy if temporal_policy is not None else config_data.get("temporal_policy"))
-        self.temporal_financing = temporal_financing
-        if temporal_financing is not None:
-            from signal_meta.temporal_financing import TemporalFinancing
-            from pathlib import Path
-            if isinstance(temporal_financing, (str, Path)):
-                self.temporal_financing = TemporalFinancing.from_json(temporal_financing)
-            elif isinstance(temporal_financing, dict):
-                if temporal_financing.get("schema") != "temporal-financing-evidence/v1":
-                    raise ValueError("unsupported financing evidence schema")
-                self.temporal_financing = TemporalFinancing(temporal_financing["dataset_id"],
-                    records=temporal_financing["records"])
-            elif not isinstance(temporal_financing, TemporalFinancing):
-                raise TypeError("temporal_financing requires a versioned financing provider or evidence file")
-        if self.temporal_policy.decision_delay_seconds:
-            raise ValueError("historical bar-close scheduler cannot execute delayed decisions before the next open; decision_delay_seconds must be zero")
-        config_benchmark = config.require("benchmark")
-        alignment_mode = alignment_mode or config_data["alignment_mode"]
-        benchmark_mode = benchmark_mode or config_benchmark["mode"]
-        benchmark_rebalance_cost_bps = (
-            config_benchmark["dynamic_rebalance_cost_bps"]
-            if benchmark_rebalance_cost_bps is None
-            else benchmark_rebalance_cost_bps
+        self._init_temporal_inputs(temporal_policy, temporal_financing, config_data)
+        alignment_mode, benchmark_mode, benchmark_rebalance_cost_bps, timeframe = self._resolve_run_settings(
+            config_data, alignment_mode, benchmark_mode, benchmark_rebalance_cost_bps, timeframe,
+            candidate_selector,
         )
-        timeframe = timeframe or config_data["timeframe"]
-        if candidate_selector is not None and timeframe != "1d":
-            raise ValueError("ML candidate selection currently requires daily bars")
-        if alignment_mode not in {"union", "intersection"}:
-            raise ValueError("alignment_mode must be 'union' or 'intersection'")
-        if benchmark_mode not in {"fixed", "dynamic"}:
-            raise ValueError("benchmark_mode must be 'fixed' or 'dynamic'")
-        if benchmark_rebalance_cost_bps < 0:
-            raise ValueError("benchmark_rebalance_cost_bps cannot be negative")
         self.initial_capital = initial_capital
         self.trading_start = None if trading_start is None else pd.Timestamp(trading_start)
-        self.signal_meta_policy = EVPolicy.from_mapping({
-            **(config.get("signal_meta_layer") or {}),
-            **(signal_meta_layer.to_dict() if isinstance(signal_meta_layer, EVPolicy)
-               else (signal_meta_layer or {}))})
-        self.signal_adaptive_policy = AdaptiveEVPolicy.from_mapping({
-            **(config.get("signal_adaptive") or {}),
-            **(signal_adaptive.to_dict() if isinstance(signal_adaptive, AdaptiveEVPolicy)
-               else (signal_adaptive or {}))})
-        self.signal_meta_replay_policy = MetaReplayPolicy.from_mapping({
-            **(config.get("signal_meta_replay") or {}),
-            **(signal_meta_replay.to_dict() if isinstance(signal_meta_replay, MetaReplayPolicy)
-               else (signal_meta_replay or {}))})
-        if self.signal_meta_replay_policy.enabled:
-            self.signal_adaptive_policy = replace(self.signal_adaptive_policy, enabled=True)
-        if self.signal_adaptive_policy.enabled:
-            self.signal_meta_policy = replace(self.signal_meta_policy, enabled=True)
-        observation_settings = {
-            **(config.get("signal_observation") or {}), **(signal_observation or {})}
-        if self.signal_meta_policy.enabled:
-            # P1 depends on P0 facts, but its parameters never enter the P0
-            # snapshot identity or the official decision path.
-            observation_settings["enabled"] = True
-        self.observation_policy = ObservationPolicy.from_mapping(observation_settings)
-        if (self.signal_meta_replay_policy.enabled
-                and self.signal_meta_replay_policy.horizon_bars not in self.observation_policy.horizons):
-            raise ValueError("P3 replay horizon must already exist in the P0 observation horizons")
+        self._init_signal_policies(signal_observation, signal_meta_layer, signal_adaptive, signal_meta_replay)
         self.config_execution = config.require("execution")
         self.config_risk = config.require("risk")
         self.config_account = config.get("account") or {}
-        configured_policy = dict((config.get("backtest") or {}).get("breaker_policy") or {})
-        self.breaker_policy = {**configured_policy, **(breaker_policy or {})}
-        self.breaker_policy.setdefault("on_reduce", "continue_reduced")
-        self.breaker_policy.setdefault("on_block_new", "exit_only")
-        self.breaker_policy.setdefault("on_liquidate", "terminate")
-        self.breaker_policy.setdefault("on_locked", "terminate")
-        self.breaker_policy.setdefault("shadow_diagnostics", True)
-        self.breaker_policy.setdefault("recovery", {"mode": "none"})
-        if self.breaker_policy["on_liquidate"] not in {"terminate", "cooldown"}:
-            raise ValueError("breaker_policy.on_liquidate must be terminate or cooldown")
+        self._init_breaker_policy(breaker_policy)
         self.account_mode = AccountMode(
             account_mode or self.config_account.get("mode", AccountMode.SPOT.value)
         )
@@ -323,6 +247,109 @@ class BacktestEngine:
         self.execution_adapter: Optional[SimulatedExecutionAdapter] = None
         self.event_processor: Optional[EventProcessor] = None
         self.stop_simulator: Optional[ResidentStopSimulator] = None
+
+    def _init_candidate_selection(self, candidate_selector, portfolio_controller, capital_allocation) -> None:
+        """Selector / capital-allocation inputs and their mutual exclusions (first thing __init__ validates)."""
+        validate_selector_execution_path(
+            selector_enabled=candidate_selector is not None,
+            portfolio_controller=portfolio_controller,
+            portfolio_targets_enabled=(config.get("portfolio_targets") or {}).get("enabled", False),
+        )
+        self.candidate_selector = candidate_selector
+        self.capital_allocation_policy = CapitalAllocationPolicy.from_mapping({
+            **((config.get("allocation") or {}).get("capital") or {}),
+            **(capital_allocation or {}),
+        })
+        if self.capital_allocation_policy.enabled and (
+                portfolio_controller is not None or
+                (config.get("portfolio_targets") or {}).get("enabled", False)):
+            raise ValueError("smart capital allocation cannot run with a portfolio target controller")
+
+    def _init_temporal_inputs(self, temporal_policy, temporal_financing, config_data) -> None:
+        """Temporal-data policy and the optional financing evidence."""
+        from core.market.temporal_data import temporal_policy as parse_temporal_policy
+        self.temporal_policy = parse_temporal_policy(temporal_policy if temporal_policy is not None else config_data.get("temporal_policy"))
+        self.temporal_financing = temporal_financing
+        if temporal_financing is not None:
+            from signal_meta.temporal_financing import TemporalFinancing
+            from pathlib import Path
+            if isinstance(temporal_financing, (str, Path)):
+                self.temporal_financing = TemporalFinancing.from_json(temporal_financing)
+            elif isinstance(temporal_financing, dict):
+                if temporal_financing.get("schema") != "temporal-financing-evidence/v1":
+                    raise ValueError("unsupported financing evidence schema")
+                self.temporal_financing = TemporalFinancing(temporal_financing["dataset_id"],
+                    records=temporal_financing["records"])
+            elif not isinstance(temporal_financing, TemporalFinancing):
+                raise TypeError("temporal_financing requires a versioned financing provider or evidence file")
+        if self.temporal_policy.decision_delay_seconds:
+            raise ValueError("historical bar-close scheduler cannot execute delayed decisions before the next open; decision_delay_seconds must be zero")
+
+    @staticmethod
+    def _resolve_run_settings(
+        config_data, alignment_mode, benchmark_mode, benchmark_rebalance_cost_bps, timeframe, candidate_selector,
+    ):
+        """Fill alignment / benchmark / timeframe from the config, validate them, return the resolved values."""
+        config_benchmark = config.require("benchmark")
+        alignment_mode = alignment_mode or config_data["alignment_mode"]
+        benchmark_mode = benchmark_mode or config_benchmark["mode"]
+        benchmark_rebalance_cost_bps = (
+            config_benchmark["dynamic_rebalance_cost_bps"]
+            if benchmark_rebalance_cost_bps is None
+            else benchmark_rebalance_cost_bps
+        )
+        timeframe = timeframe or config_data["timeframe"]
+        if candidate_selector is not None and timeframe != "1d":
+            raise ValueError("ML candidate selection currently requires daily bars")
+        if alignment_mode not in {"union", "intersection"}:
+            raise ValueError("alignment_mode must be 'union' or 'intersection'")
+        if benchmark_mode not in {"fixed", "dynamic"}:
+            raise ValueError("benchmark_mode must be 'fixed' or 'dynamic'")
+        if benchmark_rebalance_cost_bps < 0:
+            raise ValueError("benchmark_rebalance_cost_bps cannot be negative")
+        return alignment_mode, benchmark_mode, benchmark_rebalance_cost_bps, timeframe
+
+    def _init_signal_policies(self, signal_observation, signal_meta_layer, signal_adaptive, signal_meta_replay) -> None:
+        """P0-P3 research policies: config defaults, overrides, and the implied enablement chain."""
+        self.signal_meta_policy = EVPolicy.from_mapping({
+            **(config.get("signal_meta_layer") or {}),
+            **(signal_meta_layer.to_dict() if isinstance(signal_meta_layer, EVPolicy)
+               else (signal_meta_layer or {}))})
+        self.signal_adaptive_policy = AdaptiveEVPolicy.from_mapping({
+            **(config.get("signal_adaptive") or {}),
+            **(signal_adaptive.to_dict() if isinstance(signal_adaptive, AdaptiveEVPolicy)
+               else (signal_adaptive or {}))})
+        self.signal_meta_replay_policy = MetaReplayPolicy.from_mapping({
+            **(config.get("signal_meta_replay") or {}),
+            **(signal_meta_replay.to_dict() if isinstance(signal_meta_replay, MetaReplayPolicy)
+               else (signal_meta_replay or {}))})
+        if self.signal_meta_replay_policy.enabled:
+            self.signal_adaptive_policy = replace(self.signal_adaptive_policy, enabled=True)
+        if self.signal_adaptive_policy.enabled:
+            self.signal_meta_policy = replace(self.signal_meta_policy, enabled=True)
+        observation_settings = {
+            **(config.get("signal_observation") or {}), **(signal_observation or {})}
+        if self.signal_meta_policy.enabled:
+            # P1 depends on P0 facts, but its parameters never enter the P0
+            # snapshot identity or the official decision path.
+            observation_settings["enabled"] = True
+        self.observation_policy = ObservationPolicy.from_mapping(observation_settings)
+        if (self.signal_meta_replay_policy.enabled
+                and self.signal_meta_replay_policy.horizon_bars not in self.observation_policy.horizons):
+            raise ValueError("P3 replay horizon must already exist in the P0 observation horizons")
+
+    def _init_breaker_policy(self, breaker_policy) -> None:
+        """Circuit-breaker policy with its defaults and the one value that must be validated."""
+        configured_policy = dict((config.get("backtest") or {}).get("breaker_policy") or {})
+        self.breaker_policy = {**configured_policy, **(breaker_policy or {})}
+        self.breaker_policy.setdefault("on_reduce", "continue_reduced")
+        self.breaker_policy.setdefault("on_block_new", "exit_only")
+        self.breaker_policy.setdefault("on_liquidate", "terminate")
+        self.breaker_policy.setdefault("on_locked", "terminate")
+        self.breaker_policy.setdefault("shadow_diagnostics", True)
+        self.breaker_policy.setdefault("recovery", {"mode": "none"})
+        if self.breaker_policy["on_liquidate"] not in {"terminate", "cooldown"}:
+            raise ValueError("breaker_policy.on_liquidate must be terminate or cooldown")
 
     @staticmethod
     def _prepare_dataframe(df: pd.DataFrame) -> pd.DataFrame:
@@ -1372,36 +1399,7 @@ class BacktestEngine:
         if last_event_timestamp is None:
             return
         if self.terminal_policy == "valuation_only":
-            marks = dict(self.event_processor.last_prices) if self.event_processor else {}
-            rows = []
-            stale_long_value = 0.0
-            for symbol, position in sorted(portfolio.positions.items()):
-                quantity = float(position.get("qty", 0.0))
-                if abs(quantity) <= 1e-12:
-                    continue
-                last_mark_at = self._last_mark_times.get(symbol)
-                stale = last_mark_at is None or last_mark_at < last_event_timestamp
-                price = marks.get(symbol)
-                if stale and quantity > 0 and price is not None:
-                    stale_long_value += quantity * float(price)
-                identities = sorted({lot.position_id for lot in
-                    getattr(getattr(portfolio, "lot_books", {}).get(symbol), "open_lots", ())})
-                rows.append({"symbol": symbol, "quantity": quantity, "mark_price": price,
-                    "mark_timestamp": last_mark_at, "valuation_status": "stale" if stale else "current",
-                    "position_id": identities[0] if len(identities) == 1 else None,
-                    "position_ids": identities, "realized": False})
-            equity = float(portfolio.get_total_value(marks))
-            self.terminal_valuation = {
-                "policy": "valuation_only", "timestamp": last_event_timestamp,
-                "positions": rows, "equity": equity, "synthetic_fill_count": 0,
-                "status": "insufficient" if any(row["valuation_status"] == "stale" for row in rows) else "ok",
-                "stale_long_zero_recovery_equity": equity - stale_long_value,
-                "stale_long_zero_recovery_loss": stale_long_value,
-                "pending_orders": [{"order_id": order.id, "symbol": order.symbol,
-                    "side": order.side, "remaining_quantity": order.remaining_qty,
-                    "status": order.status.value} for order in broker.pending_orders + broker.active_orders
-                    if order.status not in TERMINAL_STATUSES],
-            }
+            self._record_terminal_valuation(portfolio, broker, last_event_timestamp)
             return
         open_symbols = [
             symbol
@@ -1419,32 +1417,9 @@ class BacktestEngine:
         eob_mode = self.terminal_policy
         zero_cost = eob_mode == "mark_to_market"
         synthetic_time = last_event_timestamp + pd.Timedelta(microseconds=1)
-        synthetic_bars: Dict[str, pd.Series] = {}
-        for symbol in open_symbols:
-            qty = portfolio.get_position(symbol)["qty"]
-            mark_price = self.event_processor.last_prices.get(symbol) if self.event_processor else None
-            if mark_price is None:
-                continue
-            side = "sell" if qty > 0 else "cover"
-            execution.submit_order(
-                symbol,
-                side,
-                abs(qty),
-                mark_price,
-                timestamp=last_event_timestamp,
-                strategy_id="EndOfBacktest",
-                exit_reason="EndOfBacktest",
-                zero_cost=zero_cost,
-            )
-            frame = self.market_data_adapter.data_map.get(symbol) if self.market_data_adapter else None
-            available = frame.loc[frame.index <= last_event_timestamp] if frame is not None else None
-            if available is None or available.empty:
-                raise ValueError(f"Cannot settle end-window exit without a real bar for {symbol}")
-            real_bar = available.iloc[-1]
-            synthetic_bars[symbol] = real_bar.copy()
-            synthetic_bars[symbol].name = synthetic_time
-            synthetic_bars[symbol]["open"] = mark_price
-            synthetic_bars[symbol]["liquidity_source_time"] = real_bar.name
+        synthetic_bars = self._submit_tail_exits(
+            open_symbols, portfolio, execution, last_event_timestamp, synthetic_time, zero_cost,
+        )
         if not synthetic_bars:
             return
 
@@ -1471,6 +1446,77 @@ class BacktestEngine:
             bar_index + 1, synthetic_time, final_equity, portfolio,
             final_prices, broker.close_events,
         )
+
+    def _record_terminal_valuation(self, portfolio: Portfolio, broker: Broker, last_event_timestamp: Any) -> None:
+        """``valuation_only``: value the open book at the last marks without closing anything."""
+        marks = dict(self.event_processor.last_prices) if self.event_processor else {}
+        rows = []
+        stale_long_value = 0.0
+        for symbol, position in sorted(portfolio.positions.items()):
+            quantity = float(position.get("qty", 0.0))
+            if abs(quantity) <= 1e-12:
+                continue
+            last_mark_at = self._last_mark_times.get(symbol)
+            stale = last_mark_at is None or last_mark_at < last_event_timestamp
+            price = marks.get(symbol)
+            if stale and quantity > 0 and price is not None:
+                stale_long_value += quantity * float(price)
+            identities = sorted({lot.position_id for lot in
+                getattr(getattr(portfolio, "lot_books", {}).get(symbol), "open_lots", ())})
+            rows.append({"symbol": symbol, "quantity": quantity, "mark_price": price,
+                "mark_timestamp": last_mark_at, "valuation_status": "stale" if stale else "current",
+                "position_id": identities[0] if len(identities) == 1 else None,
+                "position_ids": identities, "realized": False})
+        equity = float(portfolio.get_total_value(marks))
+        self.terminal_valuation = {
+            "policy": "valuation_only", "timestamp": last_event_timestamp,
+            "positions": rows, "equity": equity, "synthetic_fill_count": 0,
+            "status": "insufficient" if any(row["valuation_status"] == "stale" for row in rows) else "ok",
+            "stale_long_zero_recovery_equity": equity - stale_long_value,
+            "stale_long_zero_recovery_loss": stale_long_value,
+            "pending_orders": [{"order_id": order.id, "symbol": order.symbol,
+                "side": order.side, "remaining_quantity": order.remaining_qty,
+                "status": order.status.value} for order in broker.pending_orders + broker.active_orders
+                if order.status not in TERMINAL_STATUSES],
+        }
+
+    def _submit_tail_exits(
+        self,
+        open_symbols: list,
+        portfolio: Portfolio,
+        execution: SimulatedExecutionAdapter,
+        last_event_timestamp: Any,
+        synthetic_time: Any,
+        zero_cost: bool,
+    ) -> Dict[str, pd.Series]:
+        """Submit the EndOfBacktest exit for every open symbol and build its synthetic settlement bar."""
+        synthetic_bars: Dict[str, pd.Series] = {}
+        for symbol in open_symbols:
+            qty = portfolio.get_position(symbol)["qty"]
+            mark_price = self.event_processor.last_prices.get(symbol) if self.event_processor else None
+            if mark_price is None:
+                continue
+            side = "sell" if qty > 0 else "cover"
+            execution.submit_order(
+                symbol,
+                side,
+                abs(qty),
+                mark_price,
+                timestamp=last_event_timestamp,
+                strategy_id="EndOfBacktest",
+                exit_reason="EndOfBacktest",
+                zero_cost=zero_cost,
+            )
+            frame = self.market_data_adapter.data_map.get(symbol) if self.market_data_adapter else None
+            available = frame.loc[frame.index <= last_event_timestamp] if frame is not None else None
+            if available is None or available.empty:
+                raise ValueError(f"Cannot settle end-window exit without a real bar for {symbol}")
+            real_bar = available.iloc[-1]
+            synthetic_bars[symbol] = real_bar.copy()
+            synthetic_bars[symbol].name = synthetic_time
+            synthetic_bars[symbol]["open"] = mark_price
+            synthetic_bars[symbol]["liquidity_source_time"] = real_bar.name
+        return synthetic_bars
 
     def _benchmark(
         self, processed_data: Dict[str, pd.DataFrame], start_idx: int

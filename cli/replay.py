@@ -92,72 +92,53 @@ def _restore_temporal_replay_inputs(data_map, execution, report_dir):
     return vars(policy)
 
 
-def replay_manifest(manifest_path: str) -> int:
-    """Re-run a saved manifest and compare trades/equity/report payload exactly."""
+class _ReplayRefused(Exception):
+    """A replay precondition failed. ``str(exc)`` is printed after "Replay refused: " and the exit code is 7."""
 
-    path = Path(manifest_path).resolve()
-    manifest = load_manifest(path)
-    expected_code = manifest["code"]
-    config_path = ROOT / "config" / "params.yaml"
-    if manifest["config"]["sha256"] != sha256_file(config_path):
-        print("Replay refused: current config hash differs from manifest.", file=sys.stderr)
-        return 7
-    snapshots = load_data_snapshots(
-        path.parent / "data_inputs", manifest["data_snapshots"], verify=True
-    )
-    execution = manifest["execution"]
-    try:
-        replay_temporal_policy = _restore_temporal_replay_inputs(snapshots, execution, path.parent)
-        replay_temporal_financing = _restore_temporal_financing(execution, path.parent)
-    except (OSError, ValueError, KeyError) as exc:
-        print(f"Replay refused: frozen temporal evidence unavailable or changed: {exc}", file=sys.stderr)
-        return 7
+
+def _restore_research_policies(execution):
+    """The recorded P1-P3 research policies, refusing a manifest whose digests or dependencies are missing."""
     # An old manifest must not inherit a subsequently enabled research model.
     meta_policy = execution.get("signal_meta_layer") or {"enabled": False}
     if meta_policy.get("enabled", False) and not execution.get("signal_meta_layer_digest"):
-        print("Replay refused: enabled P1 policy has no recorded research digest.", file=sys.stderr)
-        return 7
+        raise _ReplayRefused("enabled P1 policy has no recorded research digest.")
     from signal_meta.signal_adaptive_types import AdaptiveEVPolicy, MetaReplayPolicy
     try:
         adaptive_policy = AdaptiveEVPolicy.from_mapping(execution.get("signal_adaptive") or {"enabled": False})
         meta_replay_policy = MetaReplayPolicy.from_mapping(execution.get("signal_meta_replay") or {"enabled": False})
     except (TypeError, ValueError) as exc:
-        print(f"Replay refused: invalid P2/P3 research policy: {exc}", file=sys.stderr)
-        return 7
+        raise _ReplayRefused(f"invalid P2/P3 research policy: {exc}") from None
     for name, policy in (("signal_adaptive", adaptive_policy), ("signal_meta_replay", meta_replay_policy)):
         if policy.enabled and not execution.get(f"{name}_digest"):
-            print(f"Replay refused: enabled {name} policy has no recorded research digest.", file=sys.stderr)
-            return 7
+            raise _ReplayRefused(f"enabled {name} policy has no recorded research digest.")
     if ((meta_replay_policy.enabled and not adaptive_policy.enabled)
             or (adaptive_policy.enabled and not meta_policy.get("enabled", False))):
-        print("Replay refused: P2/P3 research dependencies were not recorded as enabled.", file=sys.stderr)
-        return 7
+        raise _ReplayRefused("P2/P3 research dependencies were not recorded as enabled.")
     recorded_observation = execution.get("signal_observation") or {}
     if adaptive_policy.enabled and (not recorded_observation.get("enabled", False)
                                     or not execution.get("signal_observation_digest")):
-        print("Replay refused: P2 requires a recorded enabled P0 policy and digest.", file=sys.stderr)
-        return 7
+        raise _ReplayRefused("P2 requires a recorded enabled P0 policy and digest.")
     if (meta_replay_policy.enabled
             and meta_replay_policy.horizon_bars not in recorded_observation.get("horizons", [])):
-        print("Replay refused: P3 horizon is absent from the recorded P0 horizons.", file=sys.stderr)
-        return 7
+        raise _ReplayRefused("P3 horizon is absent from the recorded P0 horizons.")
+    return meta_policy, adaptive_policy, meta_replay_policy
+
+
+def _in_recorded_symbol_order(execution, snapshots):
+    """Snapshots re-keyed in the order the original run received its inputs (when the manifest recorded it)."""
     symbol_order = execution.get("data_symbol_order")
-    if symbol_order is not None:
-        if len(symbol_order) != len(snapshots) or set(symbol_order) != set(snapshots):
-            print("Replay refused: input symbol order does not match snapshots.", file=sys.stderr)
-            return 7
-        # Snapshot filenames/JSON keys are canonicalised alphabetically, but
-        # the original event stream and audit lists preserve input order.
-        snapshots = {symbol: snapshots[symbol] for symbol in symbol_order}
-    seed = int(execution["seed"])
-    np.random.seed(seed)
-    random.seed(seed)
-    try:
-        from research.ml_selection.serving import restore_selector
-        candidate_selector = restore_selector(execution, snapshots, path.parent)
-    except (OSError, ValueError, KeyError, TypeError, ImportError) as exc:
-        print(f"Replay refused: frozen coin selector unavailable or changed: {exc}", file=sys.stderr)
-        return 7
+    if symbol_order is None:
+        return snapshots
+    if len(symbol_order) != len(snapshots) or set(symbol_order) != set(snapshots):
+        raise _ReplayRefused("input symbol order does not match snapshots.")
+    # Snapshot filenames/JSON keys are canonicalised alphabetically, but
+    # the original event stream and audit lists preserve input order.
+    return {symbol: snapshots[symbol] for symbol in symbol_order}
+
+
+def _build_replay_engine(manifest, execution, policies, temporal_policy, temporal_financing, candidate_selector):
+    meta_policy, adaptive_policy, meta_replay_policy = policies
+    replay_temporal_policy, replay_temporal_financing = temporal_policy, temporal_financing
     engine = BacktestEngine(
         # Preserve the recorded numeric type too: early flat-account audit
         # rows distinguish JSON 10000 from 10000.0 in byte-exact digests.
@@ -180,7 +161,11 @@ def replay_manifest(manifest_path: str) -> int:
         capital_allocation=execution.get("capital_allocation") or {"enabled": False},
         candidate_selector=candidate_selector,
     )
-    result = engine.run(snapshots, routing_log_enabled=False)
+    return engine
+
+
+def _replay_report(result, execution, expected_code):
+    """Compare every recorded digest with the replayed result."""
     observed = deterministic_result_digest(result)
     expected = execution["result_digest"]
     research_expected = execution.get("signal_observation_digest")
@@ -221,5 +206,48 @@ def replay_manifest(manifest_path: str) -> int:
     for name, (expected_digest, observed_digest) in additional_research.items():
         report[f"{name}_expected"] = expected_digest
         report[f"{name}_observed"] = observed_digest
+    return report
+
+
+def replay_manifest(manifest_path: str) -> int:
+    """Re-run a saved manifest and compare trades/equity/report payload exactly."""
+
+    path = Path(manifest_path).resolve()
+    manifest = load_manifest(path)
+    expected_code = manifest["code"]
+    config_path = ROOT / "config" / "params.yaml"
+    if manifest["config"]["sha256"] != sha256_file(config_path):
+        print("Replay refused: current config hash differs from manifest.", file=sys.stderr)
+        return 7
+    snapshots = load_data_snapshots(
+        path.parent / "data_inputs", manifest["data_snapshots"], verify=True
+    )
+    execution = manifest["execution"]
+    try:
+        replay_temporal_policy = _restore_temporal_replay_inputs(snapshots, execution, path.parent)
+        replay_temporal_financing = _restore_temporal_financing(execution, path.parent)
+    except (OSError, ValueError, KeyError) as exc:
+        print(f"Replay refused: frozen temporal evidence unavailable or changed: {exc}", file=sys.stderr)
+        return 7
+    try:
+        policies = _restore_research_policies(execution)
+        snapshots = _in_recorded_symbol_order(execution, snapshots)
+    except _ReplayRefused as refusal:
+        print(f"Replay refused: {refusal}", file=sys.stderr)
+        return 7
+    seed = int(execution["seed"])
+    np.random.seed(seed)
+    random.seed(seed)
+    try:
+        from research.ml_selection.serving import restore_selector
+        candidate_selector = restore_selector(execution, snapshots, path.parent)
+    except (OSError, ValueError, KeyError, TypeError, ImportError) as exc:
+        print(f"Replay refused: frozen coin selector unavailable or changed: {exc}", file=sys.stderr)
+        return 7
+    engine = _build_replay_engine(
+        manifest, execution, policies, replay_temporal_policy, replay_temporal_financing, candidate_selector,
+    )
+    result = engine.run(snapshots, routing_log_enabled=False)
+    report = _replay_report(result, execution, expected_code)
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0 if report["status"] == "passed" else 8
