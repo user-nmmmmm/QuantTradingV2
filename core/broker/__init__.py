@@ -45,6 +45,7 @@ from datetime import datetime
 from typing import Callable
 from typing import Iterable
 from functools import cached_property
+from core.risk.delegation import Delegated
 
 logger = get_logger(__name__)
 
@@ -54,8 +55,10 @@ __all__ = [
 
 
 class Broker:
-    # Created on first use by Liquidation.force_liquidate (probed with getattr(host, "risk_action_targets", None)).
-    risk_action_targets: Dict[str, Any]
+    # The order books live on Matching and the risk-action targets on Liquidation (B6, ADR 0028); these names forward.
+    pending_orders = Delegated[List[Order]]("_matching")
+    active_orders = Delegated[List[Order]]("_matching")  # Orders that persist across bars (Limit/Stop)
+    risk_action_targets = Delegated[Dict[str, Dict[str, Dict[str, Any]]]]("_liquidation")
 
     @cached_property
     def _matching(self) -> Matching:
@@ -155,15 +158,11 @@ class Broker:
         # so this is the single place CloseEvents are constructed.
         self.close_events: List[CloseEvent] = []
         self._close_event_sequence = 0
-        self.pending_orders: List[Order] = []
         # Terminal closing orders must remain queryable after leaving the book.
         self.orders_by_id: Dict[str, Order] = {}
         # Retain cumulative opening fills and their immutable approvals even
         # after an order leaves the matching queues.
         self.opening_orders: Dict[str, Order] = {}
-        self.active_orders: List[
-            Order
-        ] = []  # Orders that persist across bars (Limit/Stop)
 
     QUOTE_BORROW_SYMBOL = Financing.QUOTE_BORROW_SYMBOL
 

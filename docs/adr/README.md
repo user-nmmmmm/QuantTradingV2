@@ -36,3 +36,5 @@
 | [0025](0025-report-and-strategy-mixins.md) | 报告生成改协作类、Donchian 策略的三个私有 mixin 合成显式基类（B7） | 已采纳 |
 | [0026](0026-engine-function-limits-and-typed-run-state.md) | 引擎与命令行的函数不超过 100 行；`_RunState`/`_MainState` 字段有具体类型（B8） | 已采纳 |
 | [0027](0027-state-ownership-first-slice-circuit-breaker.md) | 状态所有权迁移的第一片：熔断器的 13 个状态属性搬进 `CircuitBreaker`，宿主用 `Delegated` 保留旧名（B6） | 已采纳 |
+| [0028](0028-state-ownership-second-slice-broker-order-books.md) | 状态所有权迁移的第二片：`Broker` 的订单簿搬进 `Matching`、风控动作目标搬进 `Liquidation`（B6） | 已采纳 |
+| [0029](0029-state-ownership-third-slice-live-account-sync.md) | 状态所有权迁移的第三片：`LiveBroker` 的 8 个账户同步状态属性搬进 `AccountSync`（B6） | 已采纳 |
