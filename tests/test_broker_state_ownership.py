@@ -7,7 +7,6 @@ still read and write the same value.
 from __future__ import annotations
 
 import pandas as pd
-import pytest
 
 from core.broker import Broker
 from core.trading.portfolio import Portfolio
@@ -113,6 +112,17 @@ def test_the_old_names_read_and_write_through_the_broker():
     targets = {"x": {"A": {"target_qty": 1.0, "status": "pending"}}}
     broker.risk_action_targets = targets
     assert broker.risk_action_targets is targets
+
+
+def test_the_collaborators_are_where_the_state_lives():
+    broker = _broker()
+    order = broker.submit_order("A", "buy", 1, 50, order_type="limit", timestamp=_bar(0).name)
+    broker.process_orders({"A": _bar(1)})
+    broker.risk_action_targets = {"x": {}}
+    assert broker._matching.active_orders == [order] and broker.active_orders is broker._matching.active_orders
+    assert broker._matching.pending_orders == [] and broker.pending_orders is broker._matching.pending_orders
+    assert broker._liquidation.risk_action_targets == {"x": {}}
+    assert not {"pending_orders", "active_orders", "risk_action_targets"} & set(vars(broker))
 
 
 if __name__ == "__main__":

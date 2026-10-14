@@ -44,15 +44,19 @@ class Matching:
     """Order submission, per-bar matching, and order-book bookkeeping.
 
     Needs from the host: ``event_pipeline``, ``exchange_id``,
-    ``account_id``, ``timeframe``, ``_intent_sequence``, ``pending_orders``,
-    ``active_orders``, ``last_prices``, ``max_participation_rate``,
+    ``account_id``, ``timeframe``, ``_intent_sequence``, ``last_prices``, ``max_participation_rate``,
     ``_volume_budget``/``_volume_budget_bar``, ``opening_order_ttl_bars``,
     ``execution_audit``, ``reservation_projection``, and ``_execute_trade``
     (from ``FillService``).
+
+    It owns the order books (B6, ADR 0028): ``pending_orders`` (submitted, not yet seen by a bar) and
+    ``active_orders`` (resting across bars). ``Broker`` keeps both names as ``Delegated`` attributes.
     """
 
     def __init__(self, host: "Broker") -> None:
         self._host = host
+        self.pending_orders: List[Order] = []
+        self.active_orders: List[Order] = []
 
     def submit_order(
         self,
@@ -192,7 +196,7 @@ class Matching:
             host._set_status(order, BacktestOrderStatus.REJECTED, timestamp)
             return order
 
-        host.pending_orders.append(order)
+        self.pending_orders.append(order)
         if side in {"buy", "short"}:
             host.opening_orders[order.id] = order
         host._publish_order_event(order, timestamp)
@@ -295,14 +299,14 @@ class Matching:
             mark = bar.get("mark_price", bar.get("close", bar.get("open")))
             if mark is not None and pd.notna(mark):
                 host.last_prices[symbol] = float(mark)
-        for order in host.pending_orders:
+        for order in self.pending_orders:
             host._set_status(order, BacktestOrderStatus.SUBMITTED, order.timestamp)
-            host.active_orders.append(order)
-        host.pending_orders = []
+            self.active_orders.append(order)
+        self.pending_orders = []
 
         volume_budget = host._bar_volume_budget(current_bar)
 
-        for order in host.active_orders:
+        for order in self.active_orders:
             if order_filter is not None and not order_filter(order):
                 next_active_orders.append(order)
                 continue
@@ -415,7 +419,7 @@ class Matching:
                 host._set_status(order, BacktestOrderStatus.PARTIALLY_FILLED, current_time)
                 next_active_orders.append(order)
 
-        host.active_orders = next_active_orders
+        self.active_orders = next_active_orders
         return executed_trades
 
     def _expire_aged_opening_order(self, order: Order, current_time: Any) -> bool:
@@ -503,12 +507,11 @@ class Matching:
         })
 
     def has_active_open_order(self, symbol: str) -> bool:
-        host = self._host
         return any(
             order.symbol == symbol
             and order.side in {"buy", "short"}
             and order.remaining_qty > 0
-            for order in host.pending_orders + host.active_orders
+            for order in self.pending_orders + self.active_orders
         )
 
     def pending_open_notional(
@@ -525,9 +528,9 @@ class Matching:
         wanted = None if symbols is None else set(symbols)
         def targeted(order: Order) -> bool:
             return order.side in {"buy", "short"} and (wanted is None or order.symbol in wanted)
-        cancelled = [order for order in host.pending_orders + host.active_orders if targeted(order)]
-        host.pending_orders = [order for order in host.pending_orders if not targeted(order)]
-        host.active_orders = [order for order in host.active_orders if not targeted(order)]
+        cancelled = [order for order in self.pending_orders + self.active_orders if targeted(order)]
+        self.pending_orders = [order for order in self.pending_orders if not targeted(order)]
+        self.active_orders = [order for order in self.active_orders if not targeted(order)]
         for order in cancelled:
             if order.status not in {BacktestOrderStatus.CANCELED, BacktestOrderStatus.REJECTED,
                                     BacktestOrderStatus.EXPIRED, BacktestOrderStatus.FILLED}:
@@ -550,11 +553,11 @@ class Matching:
             )
 
         cancelled = [
-            order for order in host.pending_orders + host.active_orders
+            order for order in self.pending_orders + self.active_orders
             if _targeted(order)
         ]
-        host.pending_orders = [o for o in host.pending_orders if not _targeted(o)]
-        host.active_orders = [o for o in host.active_orders if not _targeted(o)]
+        self.pending_orders = [o for o in self.pending_orders if not _targeted(o)]
+        self.active_orders = [o for o in self.active_orders if not _targeted(o)]
         for order in cancelled:
             host._set_status(order, BacktestOrderStatus.CANCELED)
         return len(cancelled)
@@ -567,17 +570,17 @@ class Matching:
         in the wrong market regime.
         """
         host = self._host
-        before = len(host.pending_orders) + len(host.active_orders)
+        before = len(self.pending_orders) + len(self.active_orders)
 
-        cancelled = [o for o in host.pending_orders if o.symbol == symbol]
-        host.pending_orders = [o for o in host.pending_orders if o.symbol != symbol]
-        cancelled.extend(o for o in host.active_orders if o.symbol == symbol)
-        host.active_orders = [o for o in host.active_orders if o.symbol != symbol]
+        cancelled = [o for o in self.pending_orders if o.symbol == symbol]
+        self.pending_orders = [o for o in self.pending_orders if o.symbol != symbol]
+        cancelled.extend(o for o in self.active_orders if o.symbol == symbol)
+        self.active_orders = [o for o in self.active_orders if o.symbol != symbol]
 
         for o in cancelled:
             host._set_status(o, BacktestOrderStatus.CANCELED)
 
-        n = before - len(host.pending_orders) - len(host.active_orders)
+        n = before - len(self.pending_orders) - len(self.active_orders)
         if n > 0:
             logger.info(
                 "Cancelled %s stale order(s) for %s during state switch",

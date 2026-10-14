@@ -27,6 +27,8 @@ class Liquidation:
 
     def __init__(self, host: "Broker") -> None:
         self._host = host
+        # B6 (ADR 0028): risk action id -> {symbol: target}; ``Broker.risk_action_targets`` forwards here.
+        self.risk_action_targets: Dict[str, Dict[str, Dict[str, Any]]] = {}
 
     def force_liquidate(
         self,
@@ -44,9 +46,7 @@ class Liquidation:
             raise ValueError("remaining_fraction must be in [0, 1)")
         targets = None
         if risk_action_id is not None:
-            actions = getattr(host, "risk_action_targets", None)
-            if actions is None:
-                host.risk_action_targets = actions = {}
+            actions = self.risk_action_targets
             if risk_action_id not in actions:
                 actions[risk_action_id] = {
                     symbol: {"position_id": host.portfolio.get_lot_book(symbol)._current_position_id,
@@ -56,13 +56,13 @@ class Liquidation:
                     if position["qty"] and (scope_symbols is None or symbol in scope_symbols)
                 }
             targets = actions[risk_action_id]
-            for symbol, target in targets.items():
+            for symbol, recorded in targets.items():
                 qty = abs(float(host.portfolio.get_position(symbol)["qty"]))
                 current_id = host.portfolio.get_lot_book(symbol)._current_position_id
-                if qty <= target["target_qty"] + 1e-12:
-                    target["status"] = "complete"
-                elif current_id != target["position_id"]:
-                    target["status"] = "position_replaced"
+                if qty <= recorded["target_qty"] + 1e-12:
+                    recorded["status"] = "complete"
+                elif current_id != recorded["position_id"]:
+                    recorded["status"] = "position_replaced"
             scope_symbols = {symbol for symbol, target in targets.items() if target["status"] == "pending"}
         # Opening orders are cancelled because the account is de-risking, and
         # venue-resident protective stops are cancelled because this action is

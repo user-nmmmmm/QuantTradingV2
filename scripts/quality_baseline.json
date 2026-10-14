@@ -27,7 +27,7 @@
       "composition/factory.py::build_strategy_registry": 108,
       "core/analytics/strategy_health.py::StrategyHealthMachine.load": 103,
       "core/broker/fill_service.py::FillService._execute_trade": 386,
-      "core/broker/liquidation.py::Liquidation.force_liquidate": 114,
+      "core/broker/liquidation.py::Liquidation.force_liquidate": 112,
       "core/broker/matching.py::Matching.process_orders": 147,
       "core/broker/matching.py::Matching.submit_order": 143,
       "core/foundation/runtime.py::EventProcessor.process": 129,
