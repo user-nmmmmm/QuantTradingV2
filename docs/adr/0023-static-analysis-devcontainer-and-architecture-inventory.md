@@ -16,6 +16,9 @@
 | 架构图（D6） | 交付图 `架构图/` **不重新渲染也不改写**；新增自动生成的 `docs/architecture_inventory.md` 作为随代码更新的版本，并给交付图加路径移动表 `架构图/path_moves.json` | 渲染器不在仓库，且视觉核验回执绑定 HTML 哈希，改写会使回执失效。清单由 `scripts/architecture_inventory.py` 从 import-linter 契约和 Git 跟踪的文件生成，CI 用 `--check` 保证最新；检查同时验证交付图规格里每个源码路径要么存在、要么在移动表里指向存在的文件，所以以后再搬迁模块时会逼着更新移动表 |
 | 文档数量（D6） | 约定写入 `docs/README.md`：一个主题一个文件、`doc_index.json` 只追加、生成文档不手工编辑、季度回看 | 不设硬上限，避免为数量而合并；用约定而不是计数门槛 |
 
+## 后续：dev container 的验证（2026-10-14）
+本机仍没有 Docker，但 GitHub 的 runner 有。新增工作流 `.github/workflows/devcontainer.yml`（`devcontainers/ci`）：在 `.devcontainer/`、`scripts/dev.py`、`requirements*.txt` 变化时、每周一次和手动触发时，构建容器、运行 `postCreateCommand`（`dev.py setup`），再在容器里运行 `python scripts/dev.py check --no-tests`。它不是必需检查。首次运行（PR 上的 `build-and-check`）约 2 分钟通过，所以上表中"仍标注未实际运行"的结论不再成立：dev container 现在由 CI 验证，不再依赖某个有 Docker 的人。
+
 ## 备选方案
 - CodeQL 设为必需检查：误报会卡住所有 PR，先观察再决定。
 - 重新渲染交付图：需要外部渲染器和浏览器视觉核验，且会让旧回执失效；自动生成的清单已经满足"与代码一致且有检查"。

@@ -40,7 +40,7 @@ Optional: `python -m pip install pre-commit && pre-commit install` runs the same
 before each commit. How the quality gates and the ratchet work: `docs/quality.md`.
 
 Decisions that shaped these rules are recorded in `docs/adr/`. A dev container
-(`.devcontainer/`) is provided for a ready-made Linux/Python 3.11 environment (not exercised in CI).
+(`.devcontainer/`) is provided for a ready-made Linux/Python 3.11 environment; the `devcontainer` workflow builds it and runs `dev.py check --no-tests` inside it whenever its inputs change and weekly.
 
 ## Paying down the quality backlog
 The ratchet freezes the existing ruff/mypy findings; it does not excuse them (`docs/quality.md`). The convention:
