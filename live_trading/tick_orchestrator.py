@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import hashlib
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional, Set
 
 import pandas as pd
 
@@ -51,10 +51,24 @@ class TickOrchestrator:
 
     Needs from the host: the full ``LiveTradingEngine`` attribute set (broker, risk_manager, event_processor,
     state helpers) plus the ``Recovery``/``StateExport``/``PortfolioRiskActions`` methods it calls into.
+
+    It owns the tick loop's own bookkeeping (B6, ADR 0031): the tick counter, the crash/backoff counters, the
+    strategy-failure counters, the last tick's duration, the health transitions already alerted and the actual-fill risk
+    audit. ``LiveTradingEngine`` keeps every name as a ``Delegated`` attribute. State that the engine, ``runtime_controls``
+    and the state export also write (``_operational_state``, ``_healthy``, ``data_map``, ``_snapshot``, …) stays on the
+    engine: the orchestrator is only one of its writers.
     """
 
     def __init__(self, host: "LiveTradingEngine") -> None:
         self._host = host
+        self._tick_count = 0
+        self._consecutive_tick_crashes = 0
+        self._next_retry_delay = 0.0
+        self._consecutive_strategy_failures = 0
+        self._last_strategy_error: Optional[str] = None
+        self._last_tick_seconds: Optional[float] = None
+        self._alerted_health_transitions: Set[Any] = set()
+        self._live_fill_risk_audit: List[Dict[str, Any]] = []
 
 
     def _update_data(self):
@@ -79,30 +93,30 @@ class TickOrchestrator:
         try:
             host._tick_once()
         except Exception as exc:
-            host._consecutive_tick_crashes += 1
-            if host._consecutive_tick_crashes == 1:
-                host._next_retry_delay = min(
+            self._consecutive_tick_crashes += 1
+            if self._consecutive_tick_crashes == 1:
+                self._next_retry_delay = min(
                     host.failure_backoff_base_seconds,
                     host.failure_backoff_max_seconds,
                 )
             else:
-                host._next_retry_delay = min(
+                self._next_retry_delay = min(
                     host.failure_backoff_max_seconds,
                     max(
                         host.failure_backoff_base_seconds,
-                        host._next_retry_delay * 2,
+                        self._next_retry_delay * 2,
                     ),
                 )
             host._healthy = False
             host._operational_state = 'HALTED'
             logger.exception(
                 'Unexpected live tick failure; retrying in %.3fs',
-                host._next_retry_delay,
+                self._next_retry_delay,
             )
             host._alert('critical', 'tick_crashed', {
                 'error': type(exc).__name__,
-                'consecutive_failures': host._consecutive_tick_crashes,
-                'retry_delay_seconds': host._next_retry_delay,
+                'consecutive_failures': self._consecutive_tick_crashes,
+                'retry_delay_seconds': self._next_retry_delay,
             })
             try:
                 host._export_state()
@@ -110,9 +124,9 @@ class TickOrchestrator:
                 logger.exception('Failed to export state after live tick crash')
             return False
         finally:
-            host._last_tick_seconds = perf_counter() - started
-        host._consecutive_tick_crashes = 0
-        host._next_retry_delay = 0.0
+            self._last_tick_seconds = perf_counter() - started
+        self._consecutive_tick_crashes = 0
+        self._next_retry_delay = 0.0
         return True
 
     def _tick_once(self):
@@ -122,7 +136,7 @@ class TickOrchestrator:
         前仅补齐历史状态。bar 租约、订单对账及最终入场复核分别承担不同责任。
         """
         host = self._host
-        host._tick_count += 1
+        self._tick_count += 1
         host._unresolved_unknown_cache = None
         now = host._now()
         state_store = host._ensure_state_store()
@@ -414,23 +428,23 @@ class TickOrchestrator:
         state_store.set_many(runtime_states)
 
         if strategy_failures:
-            host._consecutive_strategy_failures += len(strategy_failures)
-            host._last_strategy_error = strategy_failures[-1][1]
+            self._consecutive_strategy_failures += len(strategy_failures)
+            self._last_strategy_error = strategy_failures[-1][1]
             halted = (
-                host._consecutive_strategy_failures
+                self._consecutive_strategy_failures
                 >= host.strategy_failure_threshold
             )
             host._healthy = False
             host._operational_state = "HALTED" if halted else "DEGRADED"
             host._alert("critical" if halted else "error", "strategy_processing_failed", {
                 "failures": strategy_failures,
-                "consecutive_failures": host._consecutive_strategy_failures,
+                "consecutive_failures": self._consecutive_strategy_failures,
                 "threshold": host.strategy_failure_threshold,
                 "operational_state": host._operational_state,
             })
         else:
-            host._consecutive_strategy_failures = 0
-            host._last_strategy_error = None
+            self._consecutive_strategy_failures = 0
+            self._last_strategy_error = None
         host._reconcile_protective_orders()
         host._alert_strategy_health_transitions()
         host._maybe_export_state()
@@ -443,10 +457,7 @@ class TickOrchestrator:
         own and needs a human.
         """
         host = self._host
-        seen = getattr(host, "_alerted_health_transitions", None)
-        if seen is None:
-            seen = set()
-            host._alerted_health_transitions = seen
+        seen = self._alerted_health_transitions
         for name, strategy in getattr(host, "strategies", {}).items():
             machine = getattr(strategy, "health", None)
             if machine is None:
@@ -563,10 +574,7 @@ class TickOrchestrator:
         if not callable(list_with_fills):
             return True
         state_store = host._ensure_state_store()
-        audit = getattr(host, "_live_fill_risk_audit", None)
-        if audit is None:
-            audit = []
-            host._live_fill_risk_audit = audit
+        audit = self._live_fill_risk_audit
 
         all_accepted = True
         for record in list_with_fills():

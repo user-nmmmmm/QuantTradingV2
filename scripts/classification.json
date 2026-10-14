@@ -75,6 +75,7 @@
     "recover_strategy_review_delivery.py": "historical",
     "regenerate_lock.py": "supported",
     "register_automation_tasks.ps1": "supported",
+    "register_bound_successor.py": "supported",
     "register_strategy_successor.py": "supported",
     "release_check.py": "supported",
     "render_capital_growth.py": "research",
