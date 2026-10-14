@@ -42,6 +42,7 @@
 | [`main_acceptance.py`](main_acceptance.py)、[`verify_baseline_archive.py`](verify_baseline_archive.py) | 主分支离线验收与历史基线归档校验。 |
 | [`roadmap_baseline.py`](roadmap_baseline.py)、[`roadmap_evidence.py`](roadmap_evidence.py)、[`roadmap_priority.py`](roadmap_priority.py) | 冻结工作树基线、绑定历史证据、核对任务优先级和依赖。 |
 | [`verify_roadmap_completion.py`](verify_roadmap_completion.py)、[`verify_roadmap_policy.py`](verify_roadmap_policy.py) | 检查完成定义与 Roadmap 政策规则；工程证据不等于交易准入。 |
+| [`register_bound_successor.py`](register_bound_successor.py) | 新身份登记（A5，[ADR 0032](../docs/adr/0032-bound-successor-registration.md)）：绑定带注解的发布标签，配置变更需附机器核对的声明；只写入新目录，不创建标签。 |
 | [`evaluate_matrix.py`](evaluate_matrix.py) | 对固定矩阵产物给出只读工程判定。 |
 | [`run_phase3_capacity.py`](run_phase3_capacity.py)、[`run_phase4_analysis.py`](run_phase4_analysis.py)、[`run_phase5_analysis.py`](run_phase5_analysis.py) | 重建各阶段容量、路由与研究治理证据。 |
 | [`validate_signal_observation.py`](validate_signal_observation.py)、[`validate_signal_meta_layer.py`](validate_signal_meta_layer.py)、[`validate_signal_adaptive.py`](validate_signal_adaptive.py) | 离线验证 P0 信号观察、P1 条件 EV、P2/P3 自适应研究链路。 |

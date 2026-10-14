@@ -1,0 +1,9 @@
+{
+  "added": [
+    "allocation.capital"
+  ],
+  "new_config_sha256": "9ba1f307c73442867f22f965c2b8a7b99f6357cf1ca27ea3db4d131ee3f96084",
+  "parent_config_sha256": "49665830ead75ec74f6ef736f3f8b1ee7fdb3122ba9f334cda9d944b26decb4e",
+  "reason": "Commit ca78e9c (2026-10-04) added the allocation.capital block to config/params.yaml after followup-successor-03 froze its configuration. The block is disabled by default (enabled: false) and is enabled only per run by --smart-allocation; the official candidate does not use it. Nothing else in the file changed.",
+  "schema": "config-change-statement/v1"
+}

@@ -40,3 +40,4 @@
 | [0029](0029-state-ownership-third-slice-live-account-sync.md) | 状态所有权迁移的第三片：`LiveBroker` 的 8 个账户同步状态属性搬进 `AccountSync`（B6） | 已采纳 |
 | [0030](0030-state-ownership-fourth-slice-live-engine-recovery-and-export.md) | 状态所有权迁移的第四片：`LiveTradingEngine` 的 7 个对账与导出状态属性搬进 `Recovery`/`StateExport`（B6） | 已采纳 |
 | [0031](0031-state-ownership-fifth-slice-tick-orchestrator.md) | 状态所有权迁移的第五片：`TickOrchestrator` 独占的 8 个 tick 循环记账属性搬进它自己；共享的引擎级状态留在引擎（B6） | 已采纳 |
+| [0032](0032-bound-successor-registration.md) | 新身份登记：绑定发布标签，配置变更走机器核对的声明；登记工具已完成，执行待所有者（A5） | 已采纳 |
