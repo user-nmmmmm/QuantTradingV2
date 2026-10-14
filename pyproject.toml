@@ -78,6 +78,13 @@ ignore = ["B905"]
 [tool.quality_ratchet.mypy]
 paths = ["core", "ops", "signal_meta", "backtest", "live_trading", "strategies", "router", "composition"]
 
+# Function length (B8, ADR 0026): a function of `limit` lines or more is tolerated only at its recorded length and
+# may only get shorter; a new one at or above the limit fails. The value counted is the function's line count.
+[tool.quality_ratchet.function_length]
+limit = 100
+paths = ["core", "ops", "signal_meta", "backtest", "live_trading", "strategies", "router", "composition", "cli", "config",
+         "analysis", "research", "dashboard"]
+
 # Import direction (import-linter, run in CI: `lint-imports`). Higher layers may import lower ones,
 # never the reverse. Scripts and tests are outside the rule set on purpose (they sit above everything).
 [tool.importlinter]

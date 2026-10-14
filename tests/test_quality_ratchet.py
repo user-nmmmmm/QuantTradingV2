@@ -68,7 +68,7 @@ def test_repository_configuration_and_baseline_are_consistent():
     assert {"F", "B"} <= set(config["ruff"]["select"]) and "B905" in config["ruff"]["ignore"]
     assert "core" in config["mypy"]["paths"]
     baseline = json.loads((ROOT / "scripts" / "quality_baseline.json").read_text(encoding="utf-8"))
-    assert baseline["schema"] == "quality-baseline/v1" and set(baseline["tools"]) == {"ruff", "mypy"}
+    assert baseline["schema"] == "quality-baseline/v1" and set(baseline["tools"]) == {"ruff", "mypy", "function_length"}
     for tool in baseline["tools"].values():
         assert all(key.count("::") == 1 and count > 0 for key, count in tool.items())
 
@@ -122,3 +122,35 @@ def test_no_clean_module_is_missing_from_the_gate_list():
     """A module that became clean must be gated so it cannot regress: `quality_ratchet.py promote --write`."""
     fresh = [name for name in ratchet.clean_modules(ratchet.settings()["mypy"]) if name not in set(ratchet.read_gate_list())]
     assert not fresh, "run `python scripts/quality_ratchet.py promote --write` and commit: " + ", ".join(fresh)
+
+
+# ---- B8: function length ---------------------------------------------------------------------------------------
+
+def _write(root: Path, name: str, body_lines: int) -> None:
+    body = "".join(f"    x{n} = {n}\n" for n in range(body_lines))
+    (root / name).write_text(f"def long():\n{body}", encoding="utf-8")
+
+
+def test_function_length_counts_only_functions_at_or_above_the_limit(tmp_path, monkeypatch):
+    monkeypatch.setattr(ratchet, "ROOT", tmp_path)
+    (tmp_path / "pkg").mkdir()
+    _write(tmp_path / "pkg", "a.py", 99)                      # def line + 99 statements = 100 lines: at the limit
+    _write(tmp_path / "pkg", "b.py", 98)                      # 99 lines: below it
+    (tmp_path / "pkg" / "c.py").write_text(
+        "class K:\n    def method(self):\n" + "".join(f"        y{n} = {n}\n" for n in range(120)), encoding="utf-8")
+    counts = ratchet.run_function_length({"limit": 100, "paths": ["pkg"]})
+    assert counts == Counter({"pkg/a.py::long": 100, "pkg/c.py::K.method": 121})
+
+
+def test_a_long_function_may_shrink_but_not_grow_and_a_new_one_fails():
+    baseline = {"pkg/a.py::long": 150}
+    assert ratchet.compare(Counter({"pkg/a.py::long": 150}), baseline) == ([], [])
+    worse, better = ratchet.compare(Counter({"pkg/a.py::long": 160, "pkg/new.py::fresh": 101}), baseline)
+    assert worse == ["pkg/a.py::long: 150 -> 160", "pkg/new.py::fresh: 0 -> 101"] and better == []
+    assert ratchet.compare(Counter({"pkg/a.py::long": 120}), baseline)[1] == ["pkg/a.py::long: 150 -> 120"]
+    assert ratchet.compare(Counter(), baseline)[1] == ["pkg/a.py::long: 150 -> 0"]    # shrunk below the limit
+
+
+def test_the_engine_and_the_command_line_have_no_function_over_the_limit_in_the_baseline():
+    baseline = json.loads((ROOT / "scripts" / "quality_baseline.json").read_text(encoding="utf-8"))["tools"]["function_length"]
+    assert not [key for key in baseline if key.split("::")[0] in {"backtest/engine.py", "cli/run.py", "cli/data.py", "cli/replay.py"}]
