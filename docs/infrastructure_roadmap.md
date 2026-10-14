@@ -83,7 +83,7 @@
 
 | 编号 | 工作 | 规模 | 依赖 | 退出条件 |
 |---|---|---|---|---|
-| B6 | **状态所有权迁移**：协作类现在通过 `host` 读写宿主上的 10–60 个属性；按属性设计归属，把状态搬进协作类，宿主属性改为只读代理或删除。涉及外部读写点（`state_export`、`recovery`、回测引擎、测试）和持久化路径，**每个宿主、每个协作类一个 PR**，先固定订单/成交/恢复/状态写入的行为 | L | B4 | 协作类拥有自己的状态；`host.<属性>` 引用显著减少；mypy 基线下降 |
+| B6 | **状态所有权迁移**（**进行中**：第一片 `CircuitBreaker` 的 13 个属性已迁移，ADR 0027，本 PR；其余见 ADR 0027 的候选顺序）：协作类现在通过 `host` 读写宿主上的 10–60 个属性；按属性设计归属，把状态搬进协作类，宿主属性改为只读代理或删除。涉及外部读写点（`state_export`、`recovery`、回测引擎、测试）和持久化路径，**每个宿主、每个协作类一个 PR**，先固定订单/成交/恢复/状态写入的行为 | L | B4 | 协作类拥有自己的状态；`host.<属性>` 引用显著减少；mypy 基线下降 |
 | B7 | **已完成**（#86，ADR 0025）：报告的 4 个 mixin 改为协作类（`ReportMetrics`、`TradeReconstruction`、`ReportWriters`、`ReportCharts`），`ReportGenerator` 惰性持有并保留全部同签名转发方法；策略的 3 个私有 mixin 合成显式基类 `DonchianTrendStrategy`。mixin 继承清零；mypy 326 → 313，`strategies/trend_breakout.py` 进硬门槛清单 | M | — | 代码里不再有 `*Mixin` 类 |
 | B8 | **已完成**（#87，ADR 0026）：引擎与命令行里没有超过 100 行的函数，状态对象字段都有具体类型。全仓库另有 87 个超过 100 行的函数（含 `research`/`analysis`/`dashboard`，多在交易核心：`portfolio_target_controller.process` 406、`fill_service._execute_trade` 386 ……），不在 B8 范围内。原范围：`BacktestEngine.__init__`（149 行）、`_close_tail_positions`（118 行）；`_RunState`/`_MainState` 的字段目前标注为 `Any`，逐个收紧类型 | M | B5 | 无超过 100 行的函数；状态对象有具体类型 |
 
@@ -116,10 +116,10 @@
 | A1–A4 | 已完成 | 遗留：`v3.0.0` 标签待所有者创建并推送 |
 | A5 | 未开始 | 依赖标签；先说明 `capital:` 配置变更 |
 | B1–B5、B7、B8 | 已完成 | 见第 2 节；ADR 0011–0019、0025、0026 |
-| B6 | 未开始 | 遗留项；最好在 A5 之前做完会碰冻结范围的部分 |
+| B6 | **进行中** | 第一片（`RiskManager` 的 `CircuitBreaker`，13 个属性）已完成，ADR 0027；下一片候选：`Broker` 的 `Matching`/`Liquidation`、`LiveBroker` 的 `AccountSync`、`LiveTradingEngine` 的 `Recovery`/`StateExport`；`TickOrchestrator`（16 个）最后。最好在 A5 之前做完会碰冻结范围的部分 |
 | C1 | 已完成 | 约定在 CONTRIBUTING，季度记录在 `docs/quality.md`；下次回看 2027-01 |
 | C2、C4 | 已完成 | #82、#81 |
-| C3 | 已完成，持续项 | 硬门槛清单 136/200 个受检文件（C3 收尾后；#85 时为 128）；其余 64 个文件的 302 项发现多是靠运行时开关保证的 `None` 等，随各模块重构清零后用 `promote --write` 收进（ADR 0022） |
+| C3 | 已完成，持续项 | 硬门槛清单 138/200 个受检文件（B6 第一片后；C3 收尾后为 136；#85 时为 128）；其余 62 个文件的 301 项发现多是靠运行时开关保证的 `None` 等，随各模块重构清零后用 `promote --write` 收进（ADR 0022） |
 | C5 | 已完成 | 门槛 90%（本地 Windows 实测行覆盖 90.58%，CI Linux 实测 90.51%）；#85 的 CI（Linux）上 90.51%，余量约 0.5 个百分点；若以后低于 90%，补测试而不是降门槛（ADR 0024） |
 | D1 | **待所有者确认清单** | 清单已重新生成：`outputs/branch_cleanup_proposal.md`（被 `.gitignore` 忽略，不入库）：55 个已合并的远端分支、50 个已合并的本地分支、8 条失效的 worktree 记录可以直接清理；5 个未合并的远端分支与 6 个未合并的本地分支要逐个决定。确认前不执行任何删除 |
 | D2 | 已完成 | `_frozen_inputs.json`（ADR 0020）；28 个文件仍无下载记录，但已被独立佐证（本 PR）：27 个只差最后一根日线（未收盘），`MATIC` 多出 83 行接口没有的日期；怎么处理这两点是研究决定，数据未改动 |
