@@ -1,13 +1,15 @@
 """B6 (ADR 0031): the tick loop's own bookkeeping is owned by ``TickOrchestrator``; the engine keeps the names.
 
 The golden rows were recorded on the code BEFORE the state moved: after every tick of the scripted runs the eight
-bookkeeping attributes must be identical, and every old attribute on ``LiveTradingEngine``  must still read and write the same value.
+bookkeeping attributes must be identical, and every old attribute on ``LiveTradingEngine`` (and on the
+``TickOrchestratorHost`` test double) must still read and write the same value.
 """
 from __future__ import annotations
 
 import tempfile
 from unittest.mock import MagicMock
 
+from tests.collaborator_host import TickOrchestratorHost
 from tests.test_p1_remaining import TestRemainingP1LiveSafety
 
 NAMES = ("_tick_count", "_consecutive_tick_crashes", "_next_retry_delay", "_consecutive_strategy_failures",
@@ -142,5 +144,26 @@ def test_the_old_names_read_and_write_through_the_engine():
             for name, value in values.items():
                 setattr(engine, name, value)
                 assert getattr(engine, name) is value
+        finally:
+            store.close()
+
+
+def test_the_test_double_forwards_the_same_names():
+    host = TickOrchestratorHost()
+    assert host._tick_count == 0 and host._live_fill_risk_audit == [] and host._next_retry_delay == 0.0
+    host._live_fill_risk_audit = audit = [{"k": 1}]
+    assert host._tick_orchestrator._live_fill_risk_audit is audit
+
+
+def test_the_collaborator_is_where_the_state_lives():
+    with tempfile.TemporaryDirectory() as directory:
+        engine, store = _engine(directory)
+        try:
+            engine._tick()
+            orchestrator = engine._tick_orchestrator
+            for name in NAMES:
+                assert getattr(engine, name) is getattr(orchestrator, name)
+            assert orchestrator._tick_count == 1
+            assert not set(NAMES) & set(vars(engine))
         finally:
             store.close()

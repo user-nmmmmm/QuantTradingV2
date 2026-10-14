@@ -22,7 +22,7 @@ import os
 import time
 import math
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 import pandas as pd
 
@@ -71,6 +71,16 @@ class LiveTradingEngine:
     _account_reconciliation_persistence_failed = Delegated[bool]("_recovery")
     _last_export_tick = Delegated[Optional[int]]("_state_export")
     _last_exported_critical_state = Delegated[Optional[tuple]]("_state_export")
+
+    # The tick loop's own bookkeeping lives on TickOrchestrator (B6, ADR 0031); these names forward to it.
+    _tick_count = Delegated[int]("_tick_orchestrator")
+    _consecutive_tick_crashes = Delegated[int]("_tick_orchestrator")
+    _next_retry_delay = Delegated[float]("_tick_orchestrator")
+    _consecutive_strategy_failures = Delegated[int]("_tick_orchestrator")
+    _last_strategy_error = Delegated[Optional[str]]("_tick_orchestrator")
+    _last_tick_seconds = Delegated[Optional[float]]("_tick_orchestrator")
+    _alerted_health_transitions = Delegated[Set[Any]]("_tick_orchestrator")
+    _live_fill_risk_audit = Delegated[List[Dict[str, Any]]]("_tick_orchestrator")
 
     @cached_property
     def _tick_orchestrator(self) -> TickOrchestrator:
@@ -172,8 +182,6 @@ class LiveTradingEngine:
             raise ValueError('failure backoff cannot be negative')
         self.failure_backoff_base_seconds = failure_backoff_base_seconds
         self.failure_backoff_max_seconds = failure_backoff_max_seconds
-        self._consecutive_tick_crashes = 0
-        self._next_retry_delay = 0.0
         if reconciliation_interval_seconds <= 0:
             raise ValueError("reconciliation_interval_seconds must be positive")
         if strategy_failure_threshold <= 0:
@@ -183,10 +191,6 @@ class LiveTradingEngine:
         self.reconciliation_interval_seconds = reconciliation_interval_seconds
         self.strategy_failure_threshold = strategy_failure_threshold
         self.state_export_interval_ticks = int(state_export_interval_ticks)
-        self._tick_count = 0
-        self._last_tick_seconds = None
-        self._consecutive_strategy_failures = 0
-        self._last_strategy_error: Optional[str] = None
         self._strategies_state_bound = False
         # SR2-5: venue-resident protective stops, reconciled every tick.
         self.protective_orders_enabled = bool(
@@ -197,7 +201,6 @@ class LiveTradingEngine:
         self.entry_risk_policy = EntryRiskPolicy.from_mapping(
             configuration.get("entry_risk") or {}
         )
-        self._live_fill_risk_audit = []
 
         alert_path = os.path.join(
             os.path.dirname(os.path.abspath(state_file)), "live_alerts.jsonl"
