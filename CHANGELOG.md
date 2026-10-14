@@ -8,6 +8,10 @@
 
 ## [Unreleased]
 
+## [3.1.0] - 2026-10-14
+
+结构整理的后续：B6 状态所有权迁移（协作类拥有自己的状态，宿主用 `Delegated` 保留旧名）、A5 的登记工具，以及 2026-10-12 之后的质量、数据与环境工作。冻结范围的行为身份相对 `v3.0.0` 有变化（`core/broker/`、`core/live_broker/`、`live_trading/` 中 9 个文件），所以新的冻结登记要绑定这个标签而不是 `v3.0.0`（[ADR 0032](docs/adr/0032-bound-successor-registration.md)）。交易与回测语义不变。
+
 ### Notes
 - 路线图 A5 工具（ADR 0032）：新增 `scripts/register_bound_successor.py`，把新的冻结登记绑定到带注解的发布标签及其行为身份（`release-bound-identity/v1`），配置哈希取标签处 `config/params.yaml` 的 LF 规范化 SHA-256；配置变更必须附 `config-change-statement/v1` 声明（`docs/research/capital_config_change_statement_20261014.json`），脚本核对父配置与标签处配置的差别恰好等于声明的新增项且每项默认关闭。旧脚本 `register_strategy_successor.py` 与旧登记的校验不变。**登记本身尚未执行**，需要先发 `v3.1.0`（`v3.0.0` 早于 B6，不覆盖现在的代码）。
 - 路线图 B6 第五片（ADR 0031）：`TickOrchestrator` 独占写入的 8 个 tick 循环记账属性（`_tick_count`、`_consecutive_tick_crashes`、`_next_retry_delay`、`_consecutive_strategy_failures`、`_last_strategy_error`、`_last_tick_seconds`、`_alerted_health_transitions`、`_live_fill_risk_audit`）搬进它自己；`LiveTradingEngine` 与测试替身 `TickOrchestratorHost` 用 `Delegated` 保留旧名字，外部读写不变。`_alerted_health_transitions` 从构造起就是空集合（以前首次告警时才创建）。引擎、`runtime_controls` 和状态导出共同写入的状态（`_operational_state`、`_healthy`、`data_map` ……）留在引擎上。迁移前录制的金样本测试（`tests/test_tick_state_ownership.py`）一字不改地通过。
