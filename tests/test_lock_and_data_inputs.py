@@ -150,3 +150,116 @@ def test_the_committed_manifest_covers_every_tracked_csv_and_matches_the_files()
     registered = json.loads((data_inputs.DATA_DIR / data_inputs.FROZEN_MANIFEST).read_text(encoding="utf-8"))["files"]
     assert set(registered) == set(tracked)
     assert data_inputs.main(["build", "--check"]) == 0
+
+
+# ---- D2 tail: independent corroboration against Binance's public klines -----------------------------------------
+
+from datetime import datetime, timezone                                  # noqa: E402
+from decimal import Decimal                                              # noqa: E402
+
+
+def _bars(days, volume="10", close="1.5"):
+    return {day: (Decimal("1"), Decimal("2"), Decimal("0.5"), Decimal(close), Decimal(volume)) for day in days}
+
+
+def test_compare_bars_ignores_decimal_formatting_and_reports_a_clean_match():
+    local = {"2020-01-01": (Decimal("51.43"), Decimal("59.0"), Decimal("42.747"), Decimal("42.999"), Decimal("98648.87"))}
+    remote = {"2020-01-01": tuple(Decimal(v) for v in ("51.43000000", "59.00000000", "42.74700000", "42.99900000", "98648.87000000"))}
+    result = data_inputs.compare_bars(local, remote)
+    assert result["status"] == "match" and result["rows_matching"] == 1 and result["difference_count"] == 0
+
+
+def test_a_difference_only_on_the_last_local_day_is_a_partial_final_bar_not_a_conflict():
+    days = ["2026-08-25", "2026-08-26", "2026-08-27"]
+    local = {**_bars(days), "2026-08-27": _bars(["x"], volume="3")["x"]}              # captured before the day closed
+    result = data_inputs.compare_bars(local, _bars(days, volume="10"))
+    assert result["status"] == "match_except_final_bar" and result["difference_count"] == 1
+    assert result["examples"]["differences"][0] == {"date": "2026-08-27", "field": "volume", "local": "3", "remote": "10"}
+
+
+@pytest.mark.parametrize("local_days, remote_days, remote_override, what", [
+    (["a1", "a2", "a3"], ["a1", "a2", "a3"], {"a2": _bars(["x"], close="9")["x"]}, "a difference on an earlier day"),
+    (["a1", "a2", "a3"], ["a1", "a2"], {}, "local rows the source does not have"),
+    (["a1", "a3"], ["a1", "a2", "a3"], {}, "source rows missing locally"),
+])
+def test_other_differences_are_mismatches(local_days, remote_days, remote_override, what):
+    local = _bars(local_days)
+    remote = {**_bars(remote_days), **remote_override}
+    result = data_inputs.compare_bars(local, remote)
+    assert result["status"] == "mismatch", what
+
+
+def test_remote_rows_outside_the_local_range_are_not_counted_against_the_file():
+    local = _bars(["2020-01-02", "2020-01-03"])
+    remote = _bars(["2020-01-01", "2020-01-02", "2020-01-03", "2020-01-04"])
+    assert data_inputs.compare_bars(local, remote)["status"] == "match"
+
+
+class _Response:
+    def __init__(self, payload):
+        self._payload = payload
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def read(self):
+        return json.dumps(self._payload).encode()
+
+
+def _kline(day_ms, close="1.5"):
+    return [day_ms, "1", "2", "0.5", close, "10", day_ms + 86_399_999, "0", 1, "0", "0", "0"]
+
+
+def test_fetch_pages_through_the_range_and_stops_when_the_source_is_empty(monkeypatch):
+    monkeypatch.setattr(data_inputs.time, "sleep", lambda s: None)
+    day0 = int(datetime(2020, 1, 1, tzinfo=timezone.utc).timestamp() * 1000)
+    pages = [[_kline(day0), _kline(day0 + 86_400_000)], [_kline(day0 + 2 * 86_400_000)]]
+    seen = []
+
+    def opener(url, timeout):
+        seen.append(url)
+        return _Response(pages.pop(0) if pages else [])
+    bars = data_inputs.fetch_binance_daily("BTCUSDT", "2020-01-01", "2020-01-03", opener=opener)
+    assert sorted(bars) == ["2020-01-01", "2020-01-02", "2020-01-03"] and bars["2020-01-02"][3] == Decimal("1.5")
+    assert "symbol=BTCUSDT" in seen[0] and "startTime=%d" % day0 in seen[0] and len(seen) == 2
+
+
+def test_an_unknown_symbol_is_reported_as_unavailable_not_as_an_error(monkeypatch):
+    import io
+    import urllib.error
+    monkeypatch.setattr(data_inputs.time, "sleep", lambda s: None)
+
+    def opener(url, timeout):
+        raise urllib.error.HTTPError(url, 400, "Bad Request", {}, io.BytesIO(b"{}"))
+    assert data_inputs.fetch_binance_daily("NOPEUSDT", "2020-01-01", "2020-01-02", opener=opener) is None
+
+
+def test_corroboration_is_bound_to_the_file_digest_and_dropped_when_the_file_changes(data_dir):
+    _register(data_dir)
+    manifest = data_inputs.corroborate(
+        data_dir, fetch=lambda symbol, first, last: data_inputs.read_bars(data_dir / (symbol[:3] + "_USDT.csv")),
+        now=lambda: datetime(2026, 10, 14, tzinfo=timezone.utc))
+    assert {e["corroboration"]["status"] for e in manifest["files"].values()} == {"match"}
+    (data_dir / data_inputs.FROZEN_MANIFEST).write_text(data_inputs.render(manifest), encoding="utf-8")
+    assert data_inputs.verify(data_dir) == []
+    kept = data_inputs.build(data_dir, previous=manifest)["files"]
+    assert all("corroboration" in entry for entry in kept.values())          # unchanged files keep their evidence
+
+    _csv(data_dir / "ETH_USDT.csv", ["2020-01-01", "2020-01-02", "2020-01-09"])
+    rebuilt = data_inputs.build(data_dir, previous=manifest)["files"]
+    assert "corroboration" in rebuilt["BTC_USDT.csv"] and "corroboration" not in rebuilt["ETH_USDT.csv"]
+
+
+def test_verify_rejects_evidence_that_belongs_to_another_version_or_has_an_unknown_status(data_dir):
+    _register(data_dir)
+    path = data_dir / data_inputs.FROZEN_MANIFEST
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    manifest["files"]["BTC_USDT.csv"]["corroboration"] = {"status": "match", "for_sha256": "0" * 64}
+    manifest["files"]["ETH_USDT.csv"]["corroboration"] = {"status": "great", "for_sha256": manifest["files"]["ETH_USDT.csv"]["sha256"]}
+    path.write_text(json.dumps(manifest), encoding="utf-8")
+    problems = data_inputs.verify(data_dir)
+    assert any("BTC_USDT.csv: corroboration belongs to a different version" in p for p in problems)
+    assert any("ETH_USDT.csv: corroboration status must be one of" in p for p in problems)
