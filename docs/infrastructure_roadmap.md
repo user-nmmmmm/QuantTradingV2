@@ -53,7 +53,7 @@
 | D5 | CodeQL 启用（不设必需检查）；dev container 保留并改用 `dev.py setup`，仍标"未实际运行"（本机无 Docker）；不增加 `install-smoke` 平台（ADR 0023） | 已完成（dev container 待有 Docker 的人验证） | #85 |
 | D6 | `docs/architecture_inventory.md` 由 `scripts/architecture_inventory.py` 生成并在 CI 核对；交付图 `架构图/` 不改写，`path_moves.json` 记录其引用的 16 个已搬迁路径并被检查；文档维护约定写入 `docs/README.md`（ADR 0023） | 已完成 | #85 |
 | B7 | 报告生成的 4 个 mixin 改为协作类（`ReportGenerator` 保留全部同签名转发方法），Donchian 策略的 3 个私有 mixin 合成显式基类 `DonchianTrendStrategy`；代码里不再有 `*Mixin` 类；mypy 326 → 313（ADR 0025） | 已完成 | #86 |
-| B8 | 引擎与命令行里超过 100 行的 3 个函数拆开（`BacktestEngine.__init__` 149 → 73、`_close_tail_positions` 118 → 66、`replay_manifest` 131 → 43）；`_RunState`（48 个字段）与 `_MainState`（26 个字段）的 `Any` 注解全部换成具体类型，并有结构测试固定（ADR 0026） | 已完成 | 本 PR |
+| B8 | 引擎与命令行里超过 100 行的 3 个函数拆开（`BacktestEngine.__init__` 149 → 73、`_close_tail_positions` 118 → 66、`replay_manifest` 131 → 43）；`_RunState`（48 个字段）与 `_MainState`（26 个字段）的 `Any` 注解全部换成具体类型，并有结构测试固定（ADR 0026） | 已完成 | #87；函数长度棘轮（ADR 0026 后续）：本 PR |
 
 当前规模（`main`，2026-10-14）：`core/` 根没有平铺模块，有 12 个子包（`analytics`、`broker`、`events`、`exchange`、`factors`、`foundation`、`live_broker`、`market`、`metrics`、`planning`、`risk`、`trading`）；顶层包新增 `ops/`、`signal_meta/`、`cli/`；4013 个测试、266 个测试文件，本地串行（Windows，未装 xdist）约 5 分钟，CI 并行约 3 分钟；ruff 588、mypy 313；`BacktestEngine.run` 32 行，`main.py` 5 行；`scripts/` 100 个脚本（`supported` 34、`research` 47、`historical` 19）；26 条 ADR（0020–0024 在 #85，0025 在 #86，0026 在 B8 的 PR）；分层契约无例外；0 个发布标签（远端只有证据标签 `evidence-archive-2026-09`）。覆盖率 2026-10-14 在 Windows 本地实测：行 89.54%（补测试前）→ 90.58%（补测试后），分支 79.8%；CI 的 `--cov` 范围是 `core`、`ops`、`signal_meta`、`backtest`、`live_trading`，**不含 `cli`**。
 
@@ -85,7 +85,7 @@
 |---|---|---|---|---|
 | B6 | **状态所有权迁移**：协作类现在通过 `host` 读写宿主上的 10–60 个属性；按属性设计归属，把状态搬进协作类，宿主属性改为只读代理或删除。涉及外部读写点（`state_export`、`recovery`、回测引擎、测试）和持久化路径，**每个宿主、每个协作类一个 PR**，先固定订单/成交/恢复/状态写入的行为 | L | B4 | 协作类拥有自己的状态；`host.<属性>` 引用显著减少；mypy 基线下降 |
 | B7 | **已完成**（#86，ADR 0025）：报告的 4 个 mixin 改为协作类（`ReportMetrics`、`TradeReconstruction`、`ReportWriters`、`ReportCharts`），`ReportGenerator` 惰性持有并保留全部同签名转发方法；策略的 3 个私有 mixin 合成显式基类 `DonchianTrendStrategy`。mixin 继承清零；mypy 326 → 313，`strategies/trend_breakout.py` 进硬门槛清单 | M | — | 代码里不再有 `*Mixin` 类 |
-| B8 | **已完成**（本 PR，ADR 0026）：引擎与命令行里没有超过 100 行的函数，状态对象字段都有具体类型。全仓库另有 55 个超过 100 行的函数（多在交易核心：`portfolio_target_controller.process` 406、`fill_service._execute_trade` 386 ……），不在 B8 范围内。原范围：`BacktestEngine.__init__`（149 行）、`_close_tail_positions`（118 行）；`_RunState`/`_MainState` 的字段目前标注为 `Any`，逐个收紧类型 | M | B5 | 无超过 100 行的函数；状态对象有具体类型 |
+| B8 | **已完成**（#87，ADR 0026）：引擎与命令行里没有超过 100 行的函数，状态对象字段都有具体类型。全仓库另有 87 个超过 100 行的函数（含 `research`/`analysis`/`dashboard`，多在交易核心：`portfolio_target_controller.process` 406、`fill_service._execute_trade` 386 ……），不在 B8 范围内。原范围：`BacktestEngine.__init__`（149 行）、`_close_tail_positions`（118 行）；`_RunState`/`_MainState` 的字段目前标注为 `Any`，逐个收紧类型 | M | B5 | 无超过 100 行的函数；状态对象有具体类型 |
 
 ### 轨道 C：质量债务
 目的：把"冻结的存量"变成"逐步清零"。
