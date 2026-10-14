@@ -306,7 +306,7 @@ class DataVersionStore:
         snapshot = self.read_snapshot(snapshot_id)
         if snapshot["manifest"]["kind"] != "records":
             raise ValueError("raw file snapshot has unknown historical availability")
-        latest = {}
+        latest: dict = {}
         for record in snapshot["records"]:
             if record["event_time"] > cutoff:
                 continue

@@ -74,7 +74,7 @@ class ClosedBarBuffer:
             rows, self._rows = self._rows, OrderedDict()
             self.received.clear()
             repair = set(self.repair_required)
-        result = {}
+        result: dict = {}
         for (symbol, timestamp), values in rows.items():
             if symbol not in repair:
                 result.setdefault(symbol, []).append({"timestamp": timestamp, **values})

@@ -1,3 +1,5 @@
+from typing import Optional
+
 import pandas as pd
 
 from core.foundation.logger import get_logger
@@ -192,7 +194,7 @@ class DataHandler:
         return result
 
     @staticmethod
-    def generate_quality_report(data_map: dict, output_path: str = None) -> dict:
+    def generate_quality_report(data_map: dict, output_path: Optional[str] = None) -> dict:
         """
         Generate comprehensive quality report for multiple symbols.
 

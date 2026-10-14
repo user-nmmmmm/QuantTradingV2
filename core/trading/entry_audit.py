@@ -37,7 +37,7 @@ def forced_trade_cost(trades):
 
 def reconcile(rows, trades, execution_audit):
     """Count observations separately from orders/fills; exits cannot inflate entries."""
-    fills = {}
+    fills: dict = {}
     for trade in trades:
         if trade.get("side") in ("buy", "short"):
             key = str(trade["order_id"])

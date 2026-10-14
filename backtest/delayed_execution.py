@@ -78,7 +78,9 @@ def replay_delayed_decisions(frames, decisions, *, initial_capital=10000., execu
         spread_bps=spread_bps, max_participation_rate=max_participation_rate, random_slip=False,
         exchange_id="binance", account_id="delayed-research", timeframe=execution_timeframe)
     timeline = sorted(set().union(*(set(frame.index) for frame in normalized.values())))
-    pending, rows, marks = list(queue), [], {}
+    pending = list(queue)
+    rows: list = []
+    marks: dict = {}
     for at in timeline:
         bars = {symbol: frame.loc[at] for symbol, frame in normalized.items() if at in frame.index}
         now = as_utc_timestamp(at)

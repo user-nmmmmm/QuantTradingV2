@@ -242,7 +242,7 @@ def calculate_group_drawdown_contribution(
     This is an ex-post report, never an input to a trading decision. Missing
     inputs remain null; clocks, coverage and sums are never repaired or filled.
     """
-    base = {"schema_version": "group-drawdown-attribution/v1", "formula_version": "1.0",
+    base: Dict[str, Any] = {"schema_version": "group-drawdown-attribution/v1", "formula_version": "1.0",
             "value": None, "unit": "ratio", "sample_size": 0, "by_group": {}, "paths": [],
             "cashflow_timing": cashflow_timing,
             "policy": "linked marked-equity contributions at common account TWR peak/trough"}

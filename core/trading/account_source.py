@@ -249,7 +249,7 @@ def build_local_account_projection(broker, source, *, identity, checked_at):
     cash, total_fees, orders, fills = initial + flows - financing, 0.0, [], []
     external_fills = _records(snapshot["fills"], "fills")
     authoritative_fills, _, _, _ = broker.order_store.projection_delta(0, 0)
-    fills_by_order = {}
+    fills_by_order: dict = {}
     for fill in authoritative_fills:
         fills_by_order.setdefault(fill["client_order_id"], []).append(fill)
     for row in broker.order_store.list_all():
