@@ -8,7 +8,7 @@ from ops.strategy_registration import register_health_policies
 from dataclasses import asdict, replace
 
 import os
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional
 from uuid import uuid4
 
 import pandas as pd
@@ -53,9 +53,28 @@ from signal_meta.signal_adaptive import build_adaptive_signal_meta
 from backtest.signal_ghost import replay_ghosts
 from backtest.signal_meta_replay import replay_signal_meta
 
+if TYPE_CHECKING:
+    from core.analytics.benchmarks import BenchmarkResult
+    from core.foundation.runtime import RuntimeResult
+    from core.risk import RiskManager
+    from core.risk.drawdown_budget import DrawdownBudget
+    from core.trading.state import MarketStateMachine
+    from router.router import Router
+    from strategies.base import Strategy
+
 logger = get_logger(__name__)
 
 DEFAULT_INITIAL_CAPITAL = 10000.0
+
+
+def _health_machines(strategies: Dict[str, Strategy], routed: Optional[set[str]] = None) -> Dict[str, Any]:
+    """Health machines of the strategies that have one (only the Donchian family does); ``routed`` limits the names."""
+    machines: Dict[str, Any] = {}
+    for name, strategy in strategies.items():
+        machine = getattr(strategy, "health", None)
+        if machine is not None and (routed is None or name in routed):
+            machines[name] = machine
+    return machines
 
 
 class _RunState:
@@ -72,6 +91,7 @@ class _RunState:
         "budget",
         "drawdown_reducer",
         "state_machine",
+        "requested_strategies",
         "strategies",
         "routing_log_enabled",
         "routing_log_path",
@@ -118,57 +138,58 @@ class _RunState:
         "signal_meta_replay_result",
     )
 
-    portfolio: Any
-    event_pipeline: Any
-    broker: Any
-    risk_manager: Any
-    budget: Any
-    drawdown_reducer: Any
-    state_machine: Any
-    strategies: Any
-    routing_log_enabled: Any
-    routing_log_path: Any
-    router: Any
-    data_map: Any
-    market_data: Any
-    processed_data: Any
-    timestamps: Any
-    execution: Any
-    stop_simulator: Any
-    observer: Any
-    processor: Any
-    equity_curve: Any
-    accounting: Any
-    bar_index: Any
-    last_event_timestamp: Any
+    portfolio: Portfolio
+    event_pipeline: TradingEventPipeline
+    broker: Broker
+    risk_manager: RiskManager
+    budget: Optional[DrawdownBudget]
+    drawdown_reducer: Optional[BacktestDrawdownReducer]
+    state_machine: MarketStateMachine
+    requested_strategies: Optional[Dict[str, Strategy]]
+    strategies: Dict[str, Strategy]
+    routing_log_enabled: bool
+    routing_log_path: Optional[str]
+    router: Router
+    data_map: Dict[str, pd.DataFrame]
+    market_data: HistoricalMarketDataAdapter
+    processed_data: Dict[str, pd.DataFrame]
+    timestamps: pd.Index
+    execution: SimulatedExecutionAdapter
+    stop_simulator: ResidentStopSimulator
+    observer: Optional[SignalObserver]
+    processor: EventProcessor
+    equity_curve: list[Dict[str, Any]]
+    accounting: AccountingReconciler
+    bar_index: int
+    last_event_timestamp: Optional[pd.Timestamp]
     applied_breaker_actions: set[str]
-    block_remaining: Any
-    entry_risk_policy: Any
+    block_remaining: Optional[float]
+    entry_risk_policy: EntryRiskPolicy
     risk_budget_audit: list[Dict[str, Any]]
     checked_entries: dict[str, dict]
-    lifecycle: Any
-    recovery: Any
-    recovery_mode: Any
-    flat_bars: Any
-    health_bars: Any
-    waiting_for_recovery: Any
-    health_activity: Any
-    routed_names: Any
-    stream: Any
-    stream_offset: Any
-    event: Any
-    result: Any
-    action_cost: Any
-    positions_before: Any
-    transition_id: Any
-    portfolio_action_id: Any
-    fixed_benchmark: Any
-    dynamic_benchmark: Any
-    selected_benchmark: Any
-    signal_observation_result: Any
-    signal_meta_layer_result: Any
-    signal_adaptive_result: Any
-    signal_meta_replay_result: Any
+    lifecycle: Dict[str, Any]
+    recovery: Dict[str, Any]
+    recovery_mode: str
+    flat_bars: int
+    health_bars: int
+    waiting_for_recovery: bool
+    health_activity: list[Dict[str, Any]]
+    routed_names: set[str]
+    stream: Iterable[MarketDataSlice]
+    stream_offset: int
+    event: MarketDataSlice
+    result: RuntimeResult
+    action_cost: float
+    positions_before: int
+    transition_id: Optional[str]
+    portfolio_action_id: Optional[str]
+    fixed_benchmark: Optional[BenchmarkResult]
+    dynamic_benchmark: Optional[BenchmarkResult]
+    selected_benchmark: Optional[BenchmarkResult]
+    signal_observation_result: Optional[Dict[str, Any]]
+    signal_meta_layer_result: Optional[Dict[str, Any]]
+    signal_adaptive_result: Optional[Dict[str, Any]]
+    signal_meta_replay_result: Optional[Dict[str, Any]]
 
 
 class BacktestEngine:
@@ -364,7 +385,7 @@ class BacktestEngine:
     ) -> Dict[str, Any]:
         rs = _RunState()
         rs.data_map = data_map
-        rs.strategies = strategies
+        rs.requested_strategies = strategies
         rs.routing_log_path = routing_log_path
         rs.routing_log_enabled = routing_log_enabled
         self._prepare_account(rs)
@@ -476,7 +497,7 @@ class BacktestEngine:
 
     def _prepare_strategies(self, rs: _RunState) -> None:
         """Resolve the strategy registry, health policies, router and market-data adapter."""
-        rs.strategies = build_strategy_registry(config) if rs.strategies is None else rs.strategies
+        rs.strategies = build_strategy_registry(config) if rs.requested_strategies is None else rs.requested_strategies
         if self.portfolio_controller is None:
             self.portfolio_controller = build_portfolio_target_controller(config, rs.strategies)
             self._automatic_portfolio_controller = self.portfolio_controller is not None
@@ -804,7 +825,8 @@ class BacktestEngine:
                     rs.processor._previous_session_close_equity = rs.portfolio.get_equity(known_marks)
             # Re-arm against the actual remaining inventory without a
             # second intrabar matching pass or invented fills.
-            if rs.drawdown_reducer is not None and rs.budget.policy.enabled and rs.stop_simulator.enabled:
+            if (rs.drawdown_reducer is not None and rs.budget is not None and rs.budget.policy.enabled
+                    and rs.stop_simulator.enabled):
                 rs.stop_simulator._sync(dict(rs.event.bars), timestamp=rs.event.timestamp, bar_index=rs.bar_index)
 
     def _bar_bookkeeping(self, rs: _RunState) -> None:
@@ -874,8 +896,7 @@ class BacktestEngine:
     def _bar_terminal(self, rs: _RunState) -> bool:
         """Health activity and breaker termination; returns True to stop replaying bars."""
         terminal_action = rs.result.breaker_action in {"liquidate", "locked"}
-        routed_health = {name: strategy.health for name, strategy in rs.strategies.items()
-                         if name in rs.routed_names and getattr(strategy, "health", None) is not None}
+        routed_health = _health_machines(rs.strategies, rs.routed_names)
         rs.health_activity.append({
             "timestamp": rs.event.timestamp,
             "strategy_states": {name: machine.status.value for name, machine in routed_health.items()},
@@ -1008,10 +1029,7 @@ class BacktestEngine:
         # SR1-4: fold the strategy health lifecycle into the run lifecycle so
         # a strategy that stopped trading years ago cannot be reported as an
         # uneventful "completed" run.
-        health_machines = {
-            name: strategy.health for name, strategy in rs.strategies.items()
-            if getattr(strategy, "health", None) is not None
-        }
+        health_machines = _health_machines(rs.strategies)
         for machine in health_machines.values():
             machine.evaluate(rs.last_event_timestamp)
         rs.lifecycle["strategy_health_status"] = {
@@ -1084,8 +1102,9 @@ class BacktestEngine:
             else "evaluating_with_health_recovery"
         )
         rs.lifecycle["last_fill_at"] = max((trade["fill_time"] for trade in rs.broker.trades), default=None)
-        rs.lifecycle["strategy_recovery"] = {name: strategy.health.snapshot() for name, strategy in rs.strategies.items()
-                                           if name in rs.routed_names and getattr(strategy, "health", None) is not None}
+        rs.lifecycle["strategy_recovery"] = {
+            name: machine.snapshot() for name, machine in _health_machines(rs.strategies, rs.routed_names).items()
+        }
 
     def _finish_observation(self, rs: _RunState) -> None:
         """Signal observation, meta layer, adaptive and replay results."""
@@ -1216,10 +1235,7 @@ class BacktestEngine:
                 for name, strategy in rs.strategies.items()
                 if strategy.health_snapshot()
             },
-            "strategy_health_transitions": transition_rows([
-                strategy.health for strategy in rs.strategies.values()
-                if getattr(strategy, "health", None) is not None
-            ]),
+            "strategy_health_transitions": transition_rows(list(_health_machines(rs.strategies).values())),
             # SR2-4 deliverable: reserved vs actually-risked, per entry fill.
             "risk_budget_reconciliation": rs.risk_budget_audit,
             # STR-P1-01 deliverable: every protective-stop intent and fill the
@@ -1260,10 +1276,7 @@ class BacktestEngine:
             "capital_allocation_audit": list(rs.router.allocator.capital_audit),
             "correlated_risk_audit": list(rs.router.allocator.risk_governor.audit),
             "drawdown_budget_audit": list(rs.budget.audit) if rs.budget is not None else [],
-            "strategy_health_cohorts": cohort_rows([
-                strategy.health for strategy in rs.strategies.values()
-                if getattr(strategy, "health", None) is not None
-            ]),
+            "strategy_health_cohorts": cohort_rows(list(_health_machines(rs.strategies).values())),
         }
 
     @staticmethod

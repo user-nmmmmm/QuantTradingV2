@@ -3,7 +3,7 @@
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional, Sequence
 import argparse
 import json
 import numpy as np
@@ -146,32 +146,32 @@ class _MainState:
         "market_data_audit",
     )
 
-    argv: Any
-    args: Any
-    start_date: Any
-    end_date: Any
-    data_map: Any
-    universe_identity: Any
-    download_started_at: Any
-    download_completed_at: Any
-    quality_report: Any
-    engine: Any
-    results: Any
-    temp_routing_log: Any
-    output_dir: Any
-    output_path: Any
-    reporter: Any
-    artifact_failures: Any
-    signal_summary: Any
-    meta_summary: Any
-    adaptive_summary: Any
-    meta_replay_summary: Any
-    effective_period: Any
-    selector_summary: Any
-    metrics: Any
-    event_summary: Any
-    audit_coverage: Any
-    market_data_audit: Any
+    argv: Optional[Sequence[str]]
+    args: argparse.Namespace
+    start_date: datetime
+    end_date: datetime
+    data_map: Dict[str, pd.DataFrame]
+    universe_identity: Dict[str, Any]
+    download_started_at: datetime
+    download_completed_at: datetime
+    quality_report: Dict[str, Any]
+    engine: BacktestEngine
+    results: Dict[str, Any]
+    temp_routing_log: str
+    output_dir: str
+    output_path: Path
+    reporter: ReportGenerator
+    artifact_failures: List[str]
+    signal_summary: Dict[str, Any]
+    meta_summary: Dict[str, Any]
+    adaptive_summary: Dict[str, Any]
+    meta_replay_summary: Dict[str, Any]
+    effective_period: Dict[str, Any]
+    selector_summary: Dict[str, Any]
+    metrics: Dict[str, Any]
+    event_summary: Dict[str, Any]
+    audit_coverage: Dict[str, Any]
+    market_data_audit: Dict[str, Any]
 
 
 def _parse_arguments(rs: _MainState) -> Optional[int]:
@@ -352,7 +352,10 @@ def _build_report(rs: _MainState) -> None:
 def _describe_run(rs: _MainState) -> Optional[int]:
     """Effective period, selector summary, run metadata and the main report."""
 
-    effective_timestamps = rs.engine.market_data_adapter.timestamps
+    adapter = rs.engine.market_data_adapter
+    if adapter is None:
+        raise RuntimeError("the engine finished without a market-data adapter")
+    effective_timestamps = adapter.timestamps
     rs.effective_period = {
         "start": effective_timestamps.min(),
         "end": effective_timestamps.max(),

@@ -24,6 +24,7 @@
 - 测试治理（路线图 C4）：`quarantine` 标记（带原因和到期日，过期后 CI 失败）、`tests/capabilities.py` 的能力探测跳过（Windows 上没有符号链接权限时跳过，Linux CI 保证不跳过）、完整套件的耗时预算（目标 ≤ 5 分钟，CI 步骤 8 分钟超时），约定写在 `docs/quality.md`。
 
 ### Changed
+- 路线图 B8（ADR 0026）：`BacktestEngine.__init__`（149 行）、`_close_tail_positions`（118 行）和 `cli/replay.py::replay_manifest`（131 行）拆成按原顺序调用的小函数，语句、消息和校验顺序不变（回放前置检查改为内部异常 `_ReplayRefused`，消息与退出码 7 不变）；`_RunState` 与 `_MainState` 的 74 个字段全部换成具体类型，结构测试固定。
 - 报告生成与 Donchian 策略里最后的 mixin 清零（路线图 B7，ADR 0025）：`ReportGenerator` 不再继承 `ReportMetricsMixin` 等四个类，改为惰性持有 `ReportMetrics`、`TradeReconstruction`、`ReportWriters`、`ReportCharts` 并保留全部同签名转发方法（原先单独使用 `TradeReconstructionMixin` 的调用方改用 `TradeReconstruction`）；`strategies/trend_breakout.py` 的三个私有 mixin 合成显式基类 `DonchianTrendStrategy`。行为不变；mypy 存量 326 → 313，该文件进入硬门槛清单。
 - `requirements.lock.txt` 改为规范形式（两行表头、`GitPython`/`gitdb` 调换顺序）并更新摘要，**没有任何版本变化**；锁文件在冻结范围内，身份报告会显示这一处变化（ADR 0021）。
 - Dependabot 的 GitHub Actions 更新改为每月一次、小版本与补丁合并成一个分组 PR、主版本单独成 PR；pip 更新仍不启用（ADR 0021）。
