@@ -365,3 +365,9 @@ def test_defaults_of_a_fresh_risk_manager():
     assert (risk._breaker_transition_sequence, risk.current_transition_id, risk.current_daily_action_id) == (0, None, None)
     assert risk.health_assessment is None and risk.breaker_audit == []
 
+def test_the_breaker_collaborator_is_where_the_state_lives():
+    """After B6 the collaborator owns the values; this fails on the pre-B6 layout on purpose."""
+    risk = _manager()
+    risk.high_water_equity = 77.0
+    assert risk._circuit_breaker.high_water_equity == 77.0
+    assert "high_water_equity" not in vars(risk)

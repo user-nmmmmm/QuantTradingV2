@@ -22,7 +22,10 @@ the shared state through their ``host`` reference, so behavior is identical to t
 0018). ``BreakerAction`` is re-exported here unchanged since it's part of this module's public API.
 """
 import math
-from typing import Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 from core.risk.circuit_breaker import (
     BreakerAction,
@@ -31,6 +34,7 @@ from core.risk.circuit_breaker import (
 )
 from core.risk.position_sizing import PositionSizing
 from core.risk.entry_policy import EntryPolicy
+from core.risk.delegation import Delegated
 from core.trading.portfolio import Portfolio
 from core.risk.reservation import RiskReservationProjection
 from typing import Tuple
@@ -46,6 +50,21 @@ class RiskManager:
     # Shrink a clamped order this far below the cap so float rounding in
     # qty*price cannot push it back over the limit it was clamped to.
     CAP_SAFETY_MARGIN = 1e-9
+
+    # The circuit breaker's durable state lives on CircuitBreaker (B6, ADR 0027); these names forward to it.
+    blocked_until = Delegated[Optional["pd.Timestamp"]]("_circuit_breaker")
+    probation_equity = Delegated[Optional[float]]("_circuit_breaker")
+    recovery_count = Delegated[int]("_circuit_breaker")
+    circuit_breaker_triggered = Delegated[bool]("_circuit_breaker")
+    daily_loss_triggered = Delegated[bool]("_circuit_breaker")
+    high_water_equity = Delegated[Optional[float]]("_circuit_breaker")
+    portfolio_breaker_action = Delegated[BreakerAction]("_circuit_breaker")
+    last_drawdown = Delegated[float]("_circuit_breaker")
+    breaker_epoch = Delegated[int]("_circuit_breaker")
+    _breaker_transition_sequence = Delegated[int]("_circuit_breaker")
+    current_transition_id = Delegated[Optional[str]]("_circuit_breaker")
+    current_daily_action_id = Delegated[Optional[str]]("_circuit_breaker")
+    health_assessment = Delegated[Any]("_circuit_breaker")
 
     @cached_property
     def _circuit_breaker(self) -> CircuitBreaker:
@@ -132,9 +151,6 @@ class RiskManager:
         self.recovery_policy = DrawdownRecoveryPolicy(**(recovery_policy or {}))
         if self.recovery_policy.probation_risk_multiplier > self.reduced_risk_multiplier:
             raise ValueError("probation risk must not exceed reduced risk")
-        self.blocked_until = None
-        self.probation_equity = None
-        self.recovery_count = 0
         self.liquidity_limit_pct = liquidity_limit_pct
         self.max_pos_size_pct = max_pos_size_pct
         self.min_entry_notional_pct = min_entry_notional_pct
@@ -146,20 +162,10 @@ class RiskManager:
         from core.risk.drawdown_budget import DrawdownBudget
         self.drawdown_budget = DrawdownBudget(self, drawdown_budget_policy, execution_costs)
 
-        self.circuit_breaker_triggered = False
-        self.daily_loss_triggered = False
-        self.high_water_equity: Optional[float] = None
-        self.portfolio_breaker_action = BreakerAction.NORMAL
-        self.last_drawdown = 0.0
         self.breaker_audit: list[Dict[str, object]] = []
-        self.breaker_epoch = 0
         # SR3-2: correlation-aware notional budgets, installed by
         # composition.factory. None keeps the pre-SR3 behaviour.
         self.cluster_policy = None
-        self._breaker_transition_sequence = 0
-        self.current_transition_id: Optional[str] = None
-        self.current_daily_action_id: Optional[str] = None
-        self.health_assessment = None
         # Populated by _entry_notional_caps so the gate/clamp can report the
         # equity/exposure figures behind a decision without recomputing them.
         self._last_entry_context: Dict[str, float] = {}
