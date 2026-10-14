@@ -1,8 +1,8 @@
 # 基础设施路线图（2026-10 起）
 
-> 核对日期：2026-10-14，依据 `main` 的 `3203836`（#82）及实测数据。第 4 节末尾的"当前状态"、第 5 节"接下来的顺序"和第 9 节"交接说明"记录了这一天的进度、未决问题和本轮得到的教训。本文是**工程路线图**：排列基础设施与结构整理的顺序、依赖和退出条件。它不维护项目阶段（R0–R8）、任务状态或实盘准入，这些仍以[统一 Roadmap](unified_roadmap.md)为准；它也不改变任何策略研究结论。与之配套：[V4 架构设计（草案）](v4_architecture_design.md)、[架构决策记录](adr/README.md)、[质量门槛](quality.md)、[身份说明](identity.md)、[发布约定](releasing.md)。本文取代[工程结构优化路线图](engineering_structure_roadmap.md)中仍然适用的部分。
+> 核对日期：2026-10-14，依据 `main` 的 `b4f55f7`（#93）及实测数据。第 4 节末尾的"当前状态"、第 5 节"接下来的顺序"和第 9 节"交接说明"记录了这一天的进度、未决问题和本轮得到的教训。本文是**工程路线图**：排列基础设施与结构整理的顺序、依赖和退出条件。它不维护项目阶段（R0–R8）、任务状态或实盘准入，这些仍以[统一 Roadmap](unified_roadmap.md)为准；它也不改变任何策略研究结论。与之配套：[V4 架构设计（草案）](v4_architecture_design.md)、[架构决策记录](adr/README.md)、[质量门槛](quality.md)、[身份说明](identity.md)、[发布约定](releasing.md)。本文取代[工程结构优化路线图](engineering_structure_roadmap.md)中仍然适用的部分。
 
-**一句话状态：结构整理（B1–B5、B7、B8）、身份与发布约定（A1–A4）、质量债务（C1–C5，C3 为持续项）和仓库/数据/环境（D2–D6）都已做完，其中 C1、C3、C5、D2–D6 在本 PR 里。还没做的是：首个发布标签 `v3.0.0`（需要仓库所有者）、分支清理（D1，需要所有者确认清单）、B6（状态所有权），以及整理之后的新身份登记（A5）。**
+**一句话状态：轨道 A 除新身份登记外、B 除 B6 外、C 全部、D 除 D1 外都已做完并合并（#52–#93）。还没做的只有四件：首个发布标签 `v3.0.0`（只能由仓库所有者创建）、分支清理 D1（清单已重新生成，等所有者确认后才执行）、B6 状态所有权迁移（第一片熔断器已合并，其余按 ADR 0027 的顺序逐片做）、以及 B6 之后的新身份登记 A5。24 项里 21 项完成，按工作量算剩下的是最重的一块。另有两个数据问题等研究决定（见 D2）。**
 
 ## 1. 目标与原则
 
@@ -47,15 +47,18 @@
 | C1 | 还债约定写入 CONTRIBUTING（顺手减少触碰文件的存量、规则清零后升硬门槛、季度回看）；`docs/quality.md` 增加季度记录表 | 已完成 | #85 |
 | C3 | mypy 硬门槛清单 `scripts/mypy_hard_gate.txt`（128 个零错误模块），`quality_ratchet.py check` 对其中任何发现直接失败，`promote` 收进新达标的模块（ADR 0022）。持续项：随重构继续清零并扩围 | 已完成（持续项） | #85 |
 | C5 | 覆盖率门槛 85% → 90%（行覆盖实测约 90.5%），为一批没有直接测试的运维与恢复工具补了行为测试；分支覆盖实测 79.8%，评估结论是暂不设门槛、按季度记录（ADR 0024） | 已完成 | #85 |
-| D2 | 冻结研究输入清单 `data/binance/1d/_frozen_inputs.json` 与 `scripts/data_inputs.py`：30 个已跟踪 CSV 登记行数、范围与 SHA-256（LF 规范化），来源状态如实标注（2 个有下载记录，28 个未核验；之后又用 Binance 公共日线做了独立佐证，见本 PR）；CI 与 `dev.py check` 核验（ADR 0020，`docs/data_identity.md`） | 已完成（28 个来源仍未核验） | #85 |
+| D2 | 冻结研究输入清单 `data/binance/1d/_frozen_inputs.json` 与 `scripts/data_inputs.py`：30 个已跟踪 CSV 登记行数、范围与 SHA-256（LF 规范化），来源状态如实标注（2 个有下载记录，28 个未核验；之后又用 Binance 公共日线做了独立佐证，见 #92）；CI 与 `dev.py check` 核验（ADR 0020，`docs/data_identity.md`） | 已完成（28 个来源仍未核验） | #85 |
 | D3 | `scripts/regenerate_lock.py`（再生成与离线 `--check`）；CI 从 `requirements.lock.txt` 安装并运行 `check_environment.py --strict-lock`、`verify_lock.py`、`regenerate_lock.py --check`；锁文件规范化（无版本变化）（ADR 0021） | 已完成（首次 CI 运行待观察） | #85 |
 | D4 | Dependabot：Actions 每月、小版本分组、主版本单独成 PR；pip 版本更新继续不启用并写明原因（ADR 0021） | 已完成 | #85 |
 | D5 | CodeQL 启用（不设必需检查）；dev container 保留并改用 `dev.py setup`，本机无 Docker，改由 CI 的 `devcontainer` 工作流构建并运行 `dev.py check`（#88）；不增加 `install-smoke` 平台（ADR 0023） | 已完成（dev container 待有 Docker 的人验证） | #85 |
 | D6 | `docs/architecture_inventory.md` 由 `scripts/architecture_inventory.py` 生成并在 CI 核对；交付图 `架构图/` 不改写，`path_moves.json` 记录其引用的 16 个已搬迁路径并被检查；文档维护约定写入 `docs/README.md`（ADR 0023） | 已完成 | #85 |
 | B7 | 报告生成的 4 个 mixin 改为协作类（`ReportGenerator` 保留全部同签名转发方法），Donchian 策略的 3 个私有 mixin 合成显式基类 `DonchianTrendStrategy`；代码里不再有 `*Mixin` 类；mypy 326 → 313（ADR 0025） | 已完成 | #86 |
-| B8 | 引擎与命令行里超过 100 行的 3 个函数拆开（`BacktestEngine.__init__` 149 → 73、`_close_tail_positions` 118 → 66、`replay_manifest` 131 → 43）；`_RunState`（48 个字段）与 `_MainState`（26 个字段）的 `Any` 注解全部换成具体类型，并有结构测试固定（ADR 0026） | 已完成 | #87；函数长度棘轮（ADR 0026 后续）：本 PR |
+| B8 | 引擎与命令行里超过 100 行的 3 个函数拆开（`BacktestEngine.__init__` 149 → 73、`_close_tail_positions` 118 → 66、`replay_manifest` 131 → 43）；`_RunState`（48 个字段）与 `_MainState`（26 个字段）的 `Any` 注解全部换成具体类型，并有结构测试固定（ADR 0026） | 已完成 | #87；函数长度棘轮：#91 |
+| D5 收尾 | `devcontainer` 工作流：在 CI 里构建 `.devcontainer/` 并运行 `dev.py check --no-tests`（ADR 0023 后续） | 已完成 | #88 |
+| C3 + D2 收尾 | C3：11 处纯注解，硬门槛 129 → 136；D2：`data_inputs.py corroborate` 对 28 个文件做独立佐证，发现 27 个文件最后一根日线未收盘、`MATIC` 多 83 行（ADR 0020 后续） | 已完成 | #92（取代 #89、#90） |
+| B6-1 | 熔断器的 13 个状态属性搬进 `CircuitBreaker`，`RiskManager` 用 `Delegated` 描述符保留旧名；先录金样本测试再迁移（ADR 0027） | 已完成（B6 的第一片） | #93 |
 
-当前规模（`main`，2026-10-14）：`core/` 根没有平铺模块，有 12 个子包（`analytics`、`broker`、`events`、`exchange`、`factors`、`foundation`、`live_broker`、`market`、`metrics`、`planning`、`risk`、`trading`）；顶层包新增 `ops/`、`signal_meta/`、`cli/`；4013 个测试、266 个测试文件，本地串行（Windows，未装 xdist）约 5 分钟，CI 并行约 3 分钟；ruff 588、mypy 313；`BacktestEngine.run` 32 行，`main.py` 5 行；`scripts/` 100 个脚本（`supported` 34、`research` 47、`historical` 19）；26 条 ADR（0020–0024 在 #85，0025 在 #86，0026 在 B8 的 PR）；分层契约无例外；0 个发布标签（远端只有证据标签 `evidence-archive-2026-09`）。覆盖率 2026-10-14 在 Windows 本地实测：行 89.54%（补测试前）→ 90.58%（补测试后），分支 79.8%；CI 的 `--cov` 范围是 `core`、`ops`、`signal_meta`、`backtest`、`live_trading`，**不含 `cli`**。
+当前规模（`main`，2026-10-14）：`core/` 根没有平铺模块，有 12 个子包（`analytics`、`broker`、`events`、`exchange`、`factors`、`foundation`、`live_broker`、`market`、`metrics`、`planning`、`risk`、`trading`）；顶层包新增 `ops/`、`signal_meta/`、`cli/`；4215 个测试、270 个测试文件，本地串行（Windows，未装 xdist）约 5 分钟，CI 并行约 3 分钟；ruff 588、mypy 301；`BacktestEngine.run` 32 行，`main.py` 5 行；`scripts/` 103 个脚本（`supported` 37、`research` 47、`historical` 19）；27 条 ADR（0020–0024 在 #85，0025 在 #86，0026 在 #87，0027 在 #93）；分层契约无例外；0 个发布标签（远端只有证据标签 `evidence-archive-2026-09`）。覆盖率 2026-10-14 在 Windows 本地实测：行 89.54%（补测试前）→ 90.58%（补测试后），分支 79.8%；CI 的 `--cov` 范围是 `core`、`ops`、`signal_meta`、`backtest`、`live_trading`，**不含 `cli`**。
 
 ## 3. 先决问题（阻塞项）
 
@@ -83,7 +86,7 @@
 
 | 编号 | 工作 | 规模 | 依赖 | 退出条件 |
 |---|---|---|---|---|
-| B6 | **状态所有权迁移**（**进行中**：第一片 `CircuitBreaker` 的 13 个属性已迁移，ADR 0027，本 PR；其余见 ADR 0027 的候选顺序）：协作类现在通过 `host` 读写宿主上的 10–60 个属性；按属性设计归属，把状态搬进协作类，宿主属性改为只读代理或删除。涉及外部读写点（`state_export`、`recovery`、回测引擎、测试）和持久化路径，**每个宿主、每个协作类一个 PR**，先固定订单/成交/恢复/状态写入的行为 | L | B4 | 协作类拥有自己的状态；`host.<属性>` 引用显著减少；mypy 基线下降 |
+| B6 | **状态所有权迁移**（**进行中**：第一片 `CircuitBreaker` 的 13 个属性已迁移，ADR 0027，#93；其余见 ADR 0027 的候选顺序）：协作类现在通过 `host` 读写宿主上的 10–60 个属性；按属性设计归属，把状态搬进协作类，宿主属性改为只读代理或删除。涉及外部读写点（`state_export`、`recovery`、回测引擎、测试）和持久化路径，**每个宿主、每个协作类一个 PR**，先固定订单/成交/恢复/状态写入的行为 | L | B4 | 协作类拥有自己的状态；`host.<属性>` 引用显著减少；mypy 基线下降 |
 | B7 | **已完成**（#86，ADR 0025）：报告的 4 个 mixin 改为协作类（`ReportMetrics`、`TradeReconstruction`、`ReportWriters`、`ReportCharts`），`ReportGenerator` 惰性持有并保留全部同签名转发方法；策略的 3 个私有 mixin 合成显式基类 `DonchianTrendStrategy`。mixin 继承清零；mypy 326 → 313，`strategies/trend_breakout.py` 进硬门槛清单 | M | — | 代码里不再有 `*Mixin` 类 |
 | B8 | **已完成**（#87，ADR 0026）：引擎与命令行里没有超过 100 行的函数，状态对象字段都有具体类型。全仓库另有 87 个超过 100 行的函数（含 `research`/`analysis`/`dashboard`，多在交易核心：`portfolio_target_controller.process` 406、`fill_service._execute_trade` 386 ……），不在 B8 范围内。原范围：`BacktestEngine.__init__`（149 行）、`_close_tail_positions`（118 行）；`_RunState`/`_MainState` 的字段目前标注为 `Any`，逐个收紧类型 | M | B5 | 无超过 100 行的函数；状态对象有具体类型 |
 
@@ -102,7 +105,7 @@
 | 编号 | 工作 | 规模 | 依赖 | 退出条件 |
 |---|---|---|---|---|
 | D1 | 分支与 worktree 清理：现在远端约 64 个分支、本地 12 个 worktree（**数字已变，必须重新生成清单**）；已合并分支、Dependabot 旧分支、`old-origin` 的分支、失效的 worktree；未合并分支逐个决定（其中两个有不在 `main` 上的 8 月提交：本地 `docs/readme-architecture-and-local-data` 的 `80b6833`、远端 `docs/readme-glossary-update` 的 `29f3a71`，先与 `main` 对比再定，另一个是 `claude/canonical-trading-events-*`）。**先列清单，经确认后执行**（不可逆） | S | 所有者的确认 | 远端只保留 `main` 与进行中的分支 |
-| D2 | **已完成**（#85，ADR 0020，`docs/data_identity.md`）：`data/binance/1d/_frozen_inputs.json` 为 30 个已跟踪 CSV 登记行数、范围与 SHA-256（LF 规范化），2 个有下载记录、28 个未核验；`scripts/data_inputs.py verify` 在 CI 与 `dev.py check` 中 | M | — | 28 个文件仍无下载记录；已用 Binance 公共日线逐行佐证（本 PR）：27 个只差最后一根（半根 K 线），`MATIC` 多 83 行，待研究决定 |
+| D2 | **已完成**（#85，ADR 0020，`docs/data_identity.md`）：`data/binance/1d/_frozen_inputs.json` 为 30 个已跟踪 CSV 登记行数、范围与 SHA-256（LF 规范化），2 个有下载记录、28 个未核验；`scripts/data_inputs.py verify` 在 CI 与 `dev.py check` 中 | M | — | 28 个文件仍无下载记录；已用 Binance 公共日线逐行佐证（#92）：27 个只差最后一根（半根 K 线），`MATIC` 多 83 行，待研究决定 |
 | D3 | **已完成**（#85，ADR 0021）：`scripts/regenerate_lock.py`；CI 从锁文件安装并运行 `check_environment.py --strict-lock`、`verify_lock.py`、`regenerate_lock.py --check` | M | — | 已在 #85 的 CI 上验证（锁定环境安装、严格比对均通过） |
 | D4 | **已完成**（#85，ADR 0021）：Actions 每月、小版本与补丁分组、主版本单独成 PR；pip 版本更新继续不启用（Dependabot 不能运行再生成脚本） | S | D3（已完成） | — |
 | D5 | **已完成**（#85，ADR 0023）：CodeQL 启用（不设必需检查）；dev container 保留并改用 `dev.py setup`，已由 CI 的 `devcontainer` 工作流验证（#88）；不增加 `install-smoke` 平台 | S | — | — |
@@ -116,13 +119,13 @@
 | A1–A4 | 已完成 | 遗留：`v3.0.0` 标签待所有者创建并推送 |
 | A5 | 未开始 | 依赖标签；先说明 `capital:` 配置变更 |
 | B1–B5、B7、B8 | 已完成 | 见第 2 节；ADR 0011–0019、0025、0026 |
-| B6 | **进行中** | 第一片（`RiskManager` 的 `CircuitBreaker`，13 个属性）已完成，ADR 0027；下一片候选：`Broker` 的 `Matching`/`Liquidation`、`LiveBroker` 的 `AccountSync`、`LiveTradingEngine` 的 `Recovery`/`StateExport`；`TickOrchestrator`（16 个）最后。最好在 A5 之前做完会碰冻结范围的部分 |
+| B6 | **进行中** | 第一片（`RiskManager` 的 `CircuitBreaker`，13 个属性）已合并（#93，ADR 0027）。ADR 0027 记录了方法（先录金样本测试 → 机械搬动 → 文档）和下一片的顺序：`Broker` 的 `Matching`/`Liquidation`（各 3）、`LiveBroker` 的 `AccountSync`（8）、`LiveTradingEngine` 的 `Recovery`（5）/`StateExport`（2），最后是实盘主循环上的 `TickOrchestrator`（16）。最好在 A5 之前做完会碰冻结范围的部分；做不完的明确记为"观察期内不动" |
 | C1 | 已完成 | 约定在 CONTRIBUTING，季度记录在 `docs/quality.md`；下次回看 2027-01 |
 | C2、C4 | 已完成 | #82、#81 |
-| C3 | 已完成，持续项 | 硬门槛清单 138/200 个受检文件（B6 第一片后；C3 收尾后为 136；#85 时为 128）；其余 62 个文件的 301 项发现多是靠运行时开关保证的 `None` 等，随各模块重构清零后用 `promote --write` 收进（ADR 0022） |
+| C3 | 已完成，持续项 | 硬门槛清单 138/200 个受检文件（B6 第一片后）；其余 62 个文件的 301 项发现多是靠运行时开关保证的 `None` 等，需要改写逻辑，随各模块重构清零后用 `promote --write` 收进（ADR 0022）。再加上函数长度棘轮（#91）：86 个 ≥ 100 行的函数只许变短 |
 | C5 | 已完成 | 门槛 90%（本地 Windows 实测行覆盖 90.58%，CI Linux 实测 90.51%）；#85 的 CI（Linux）上 90.51%，余量约 0.5 个百分点；若以后低于 90%，补测试而不是降门槛（ADR 0024） |
-| D1 | **待所有者确认清单** | 清单已重新生成：`outputs/branch_cleanup_proposal.md`（被 `.gitignore` 忽略，不入库）：55 个已合并的远端分支、50 个已合并的本地分支、8 条失效的 worktree 记录可以直接清理；5 个未合并的远端分支与 6 个未合并的本地分支要逐个决定。确认前不执行任何删除 |
-| D2 | 已完成 | `_frozen_inputs.json`（ADR 0020）；28 个文件仍无下载记录，但已被独立佐证（本 PR）：27 个只差最后一根日线（未收盘），`MATIC` 多出 83 行接口没有的日期；怎么处理这两点是研究决定，数据未改动 |
+| D1 | **待所有者确认清单** | 清单已于 2026-10-14 重新生成：`outputs/branch_cleanup_proposal.md`（被 `.gitignore` 忽略，不入库）。可直接清理：62 个已合并的远端分支、61 个已合并的本地分支、8 条失效的 worktree 记录（`infra/c3-tail`、`infra/d2-provenance` 已被 #92 取代，也可删）；需要逐个决定：7 个未合并的远端分支和 9 个未合并的本地分支（含 `codex/restore-smart-capital-72822-…`，有证据价值）。**确认前不执行任何删除**；清单过时就重新生成，不要用旧数字 |
+| D2 | 已完成 | `_frozen_inputs.json`（ADR 0020）；28 个文件无下载记录，但已被 Binance 公共日线逐行佐证（#92）：BTC、ETH 完全一致；**27 个文件的最后一根日线（2026-08-27）是未收盘的半根 K 线**；**`MATIC_USDT.csv` 多出 83 行接口没有的日期**。怎么处理（截掉最后一根、重新下载收盘数据、MATIC 的 83 行去留）是**研究决定**，数据文件未改动 |
 | D3 | 已完成 | 锁文件在 Linux/Windows × 3.11/3.13 都有现成轮子（仅 `multitasking` 为纯 Python 源码包）；#85 的 CI 上已验证通过（ADR 0021） |
 | D4–D6 | 已完成 | CodeQL 首次运行没有未处理的告警（#85 之后的 `main`），仍建议有人定期看一遍；dev container 已由 CI 验证（#88）（ADR 0021、0023） |
 
@@ -146,9 +149,9 @@ flowchart LR
 
 | 阶段 | 内容 |
 |---|---|
-| **立刻** | 所有者创建并推送 `v3.0.0`（见发布约定 §3）；确认或修改 D1 清单（`outputs/branch_cleanup_proposal.md`）后执行 |
-| **接着（互相独立，可并行）** | #85/#86 的 CI 已全绿（Linux 覆盖率 90.51%，CodeQL 无告警）；C3 每次一小批继续扩围；补齐 28 个数据文件的来源记录（D2 的缺口） |
-| **登记之前尽量做完** | B6：它们会碰冻结范围，登记之后就要走重新登记流程。B6 最重，可以拆开、只做其中价值最高的宿主；做不完的明确记为"观察期内不动" |
+| **立刻** | 所有者创建并推送 `v3.0.0`（见发布约定 §3）；所有者确认 D1 清单后由助手执行；研究侧决定 D2 的两个数据问题 |
+| **接着** | B6 的后续切片（一次一个协作类，一个 PR 里分"特征测试 / 迁移 / 文档"三个提交）；C3 每次一小批继续扩围 |
+| **登记之前尽量做完** | B6 里会碰冻结范围的部分（登记之后就要走重新登记流程）。可以只做价值最高的宿主，做不完的明确记为"观察期内不动" |
 | **然后** | A5 新身份登记（先写 `capital:` 配置变更说明与协议，引用 D2 的数据清单摘要）→ M1 |
 
 ## 6. 进入 V4 功能开发的条件（M1）
@@ -187,9 +190,10 @@ M1 之后的功能轨道（特征管线 → 回测两层化 → 选币统一 →
 
 ## 9. 交接说明（给下一个维护者或新会话）
 
-**工作方式（已在 #52–#82 中沿用）：**
+**工作方式（已在 #52–#93 中沿用）：**
 
 - 流程：从最新 `origin/main` 拉分支 → 实现并本地跑 `python scripts/dev.py check`（`--no-tests` 跳过长测试）和完整测试 → 提交 → 推送 → 开 PR → 等 CI。**合并由仓库所有者操作**，AI 助手的合并操作会被权限系统拦下；严格分支保护要求分支是最新的。**每个 PR 直接对 `main`，不要叠加**（见第 7 节）。
+- **按批次交付，不要并行开一堆 PR。** `main` 要求分支是最新的：每合并一个 PR，其余的都会变成 out-of-date；并行的 PR 又都要改 `CHANGELOG.md`、本文件、`docs/quality.md`、`scripts/quality_baseline.json`，于是还会有文本冲突（#88–#91 就是这样排了好几轮队，#89 还被刚合并的函数长度棘轮拒绝）。做法：同一批相关改动放进**一个 PR、几个提交**（每个提交仍只做一种事），CHANGELOG、状态表、质量页数字只在批次的**最后一个提交**里更新一次；同一时间尽量只留一个未合并的基础设施 PR。合并后其余分支用 `sync_with_base_branch` 工具同步（不要自己 `git merge`）。
 - 必需检查共 5 项：`quality` 与 `install-smoke`（ubuntu/windows × 3.11/3.13）。Dependabot 只管 GitHub Actions，每月一次、小版本与补丁分组、同时最多 2 个 PR（ADR 0021）。
 - 不可逆或对外可见的操作先列清单、经确认再做：删除分支、迁出文件、改仓库设置、创建标签或 Release。
 - 提交信息末尾带 `Co-Authored-By` 行，PR 描述末尾带 `Generated with Claude Code` 行（由会话的归属规则给出）。
@@ -206,6 +210,10 @@ M1 之后的功能轨道（特征管线 → 回测两层化 → 选币统一 →
 5. **持久化名与 `__module__`、`ROOT` 与 `__file__`**：搬迁时这两类东西会悄悄变（`request_budget` 的仓库根路径、`cli/` 的 `ROOT = parents[1]`、事件类型名）。每次搬迁前都 `grep` 它们。
 6. **用变异验证特征测试**：先写测试、在现状上通过、再人为改坏被测常量确认测试会失败，最后才清理（C2 的 `seconds_per_year` 就是这样做的）。
 7. **哈希固定的历史脚本不能动**：`scripts/classification.json` 里标为 `historical` 的 19 个脚本把自身哈希写进证据回执，搬迁或改 `ROOT` 会让历史批次无法核验或续跑；这就是 B5 没有搬迁 `scripts/` 的原因。
+8. **新加的棘轮会抓到你自己的改动。** C3 为了给两个变量加注解，把元组赋值拆成多行，让两个本来就超长的函数更长，被刚合并的函数长度棘轮拒绝。合并 `main` 之后要重新跑一遍 `python scripts/quality_ratchet.py check`，而不只是 `dev.py check` 里已经绿的那几项。
+9. **先量清单，再动手；先固定行为，再搬状态。** B6 之前先用 AST 统计每个协作类写了宿主的哪些属性、外部有多少读者，才选出熔断器作为第一片；金样本测试在迁移前的代码上录制，迁移后一字不改地通过（ADR 0027）。
+10. **被"类型收紧"暴露的问题，用等价写法修，不要顺手改行为。** B8 给状态对象加类型后冒出的 `Optional`、`getattr(…, None)` 都按原语义改写（例如集中到 `_health_machines`），并在 ADR 里写明。
+11. **向外部来源佐证数据，会发现自己没想到的问题。** D2 用 Binance 公共接口逐行比对，发现了 27 个文件的未收盘末根和 MATIC 的 83 行。发现的东西只记录、不擅自改冻结的输入。
 
 **已知陷阱：**
 
@@ -214,8 +222,12 @@ M1 之后的功能轨道（特征管线 → 回测两层化 → 选币统一 →
 - 工作区是 CRLF、仓库内容是 LF：读取工作区文件做哈希前要按 git 规则规范化（`core/foundation/source_identity.py` 已处理）；批量改写文本文件时保留原有换行符。
 - 在某些 shell 工具里，heredoc 中的反斜杠转义会被改写（出现过 `\0` 变成真正的空字节、`\\` 被吞掉）。需要写含转义的 Python 时，先把脚本写成文件再运行，或用 `chr(…)` 构造。
 - 链接检查只看已被 git 跟踪的文件：新增文档要先 `git add`。
+- **不要用裸 `git stash`**：栈在所有 worktree 之间共享，会碰到别的会话的条目。需要暂存时用临时提交；万一用了，用 `git stash list --format='%gd %H'` 找到自己那条，`git stash apply <SHA>` 之后再按 SHA 重新定位并 `drop`。
+- Git-Bash 的 `/tmp` 和 Windows 版 Python 看到的 `/tmp` 不是同一个目录；跨工具传文件时用会话的 scratchpad 目录。`grep -w` 对以 `.` 开头的模式会漏掉 `host.xxx`。
+- 合并 `main` 后文档有冲突：以 `main` 的结构为底、把自己的完成情况重新套上去，不要整文件 `git checkout --theirs`（会被自动模式拦下，也容易丢内容）。纯列表类冲突（CHANGELOG）保留两侧。
+- `tests/test_dashboard_lab.py::test_preset_validation_and_write_boundary_http` 在全量运行中偶发失败，单独跑通过（本机 localhost HTTP 的时序问题）；出现时先单独重跑确认，不要靠重跑掩盖。
 - 全量测试在 Windows 上曾偶发失败：`tests/test_data_versions.py::test_concurrent_identical_writes_publish_complete_objects_once`（`DataVersionStore._put` 读刚被另一线程换到位的文件时 `PermissionError`，负载下约 3/40）。已定位并在 #84 修复（Windows 上有界重试）；若再看到类似的偶发失败，先按 `docs/quality.md` 的流程复现和定位，不要靠重跑。
 - `scripts/` 新增脚本要同时更新 `scripts/README.md` 和 `scripts/classification.json`，否则测试失败。
 - 冻结的历史证据（`docs/archive/2026-08*`、`2026-09*`、`docs/research/ml_selection_next_acceptance_20261005.json`、`docs/codex_mail_findings_20260920.json`、`docs/research/current_strategy_protocol.json`、`reports/` 回执，以及 `docs/research/paper_continuation_acceptance_20261003.json` 这类记录当时文件哈希的 JSON）不得改写；移动文档要在 `docs/doc_index.json` 追加一条。
 
-**第一件事：** 请所有者创建并推送 `v3.0.0`（见[发布约定](releasing.md) §3，先 `python scripts/release_check.py v3.0.0`）；然后确认 D1 清单（`outputs/branch_cleanup_proposal.md`，不入库；它只来自 `git branch` / `git worktree` 的输出，过时了就重新生成，不要用旧数字）。#85/#86 的首次 CI 运行已全绿，之后按第 5 节"接着"一栏选做。
+**第一件事：** 请所有者创建并推送 `v3.0.0`（见[发布约定](releasing.md) §3，先 `python scripts/release_check.py v3.0.0`）；然后确认 D1 清单（`outputs/branch_cleanup_proposal.md`，不入库，只来自 `git branch` / `git worktree` 的输出，过时了就重新生成）。代码上的下一步是 B6 的下一片：按 ADR 0027 的顺序，从 `Broker` 的 `Matching`/`Liquidation` 开始。**每一片的做法：** ① 在迁移**之前**的代码上录特征测试（金样本，覆盖该协作类的全部状态属性和对外读写）；② 把状态初始化搬进协作类，`host.<状态>` 机械改成 `self.<状态>`，宿主用 `core/risk/delegation.py::Delegated` 保留旧名，特征测试必须一字不改地通过；③ 文档、基线、`promote --write`、重新生成 `architecture_inventory`。
