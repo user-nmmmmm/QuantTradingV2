@@ -58,3 +58,28 @@ def test_run_state_rejects_typos():
     state.portfolio = object()
     with pytest.raises(AttributeError):
         state.portfoilo = object()    # a misspelt field must fail, not silently create a new one
+
+
+# ---- B8 (ADR 0026) -------------------------------------------------------------------------------------------
+
+def _all_function_sizes(path: str) -> dict[str, int]:
+    tree = ast.parse((ROOT / path).read_text(encoding="utf-8"))
+    return {f"{n.name}@{n.lineno}": n.end_lineno - n.lineno + 1
+            for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
+
+
+@pytest.mark.parametrize("path", ["backtest/engine.py", "cli/run.py", "cli/data.py", "cli/replay.py"])
+def test_no_function_in_the_engine_or_the_command_line_is_over_the_limit(path):
+    too_long = {name: size for name, size in _all_function_sizes(path).items() if size >= STAGE_LIMIT}
+    assert not too_long, too_long
+
+
+@pytest.mark.parametrize("path, owner", [("backtest/engine.py", "_RunState"), ("cli/run.py", "_MainState")])
+def test_state_objects_declare_a_concrete_type_for_every_slot(path, owner):
+    tree = ast.parse((ROOT / path).read_text(encoding="utf-8"))
+    cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == owner)
+    slots = next(ast.literal_eval(n.value) for n in cls.body
+                 if isinstance(n, ast.Assign) and any(getattr(t, "id", "") == "__slots__" for t in n.targets))
+    annotated = {n.target.id: ast.unparse(n.annotation) for n in cls.body if isinstance(n, ast.AnnAssign)}
+    assert set(annotated) == set(slots), set(annotated) ^ set(slots)
+    assert not [name for name, annotation in annotated.items() if annotation == "Any"]

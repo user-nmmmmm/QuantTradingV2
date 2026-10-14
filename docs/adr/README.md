@@ -34,3 +34,4 @@
 | [0023](0023-static-analysis-devcontainer-and-architecture-inventory.md) | CodeQL 启用、dev container 与平台矩阵的结论、自动生成的架构清单（D5、D6） | 已采纳 |
 | [0024](0024-coverage-90-and-branch-coverage-evaluation.md) | 覆盖率门槛提到 90%；分支覆盖暂不设门槛（C5） | 已采纳 |
 | [0025](0025-report-and-strategy-mixins.md) | 报告生成改协作类、Donchian 策略的三个私有 mixin 合成显式基类（B7） | 已采纳 |
+| [0026](0026-engine-function-limits-and-typed-run-state.md) | 引擎与命令行的函数不超过 100 行；`_RunState`/`_MainState` 字段有具体类型（B8） | 已采纳 |
