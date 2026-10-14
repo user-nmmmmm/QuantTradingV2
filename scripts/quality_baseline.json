@@ -55,7 +55,7 @@
       "core/trading/protective_orders.py::ProtectiveOrderManager.evaluate": 177,
       "dashboard/robust_worker.py::run_research": 120,
       "dashboard/web.py::DashboardHandler._respond": 104,
-      "live_trading/engine.py::LiveTradingEngine.__init__": 166,
+      "live_trading/engine.py::LiveTradingEngine.__init__": 155,
       "live_trading/risk_actions.py::PortfolioRiskActions._reconcile_portfolio_risk_action": 115,
       "live_trading/tick_orchestrator.py::TickOrchestrator._recheck_live_entry_risk": 151,
       "live_trading/tick_orchestrator.py::TickOrchestrator._tick_once": 319,

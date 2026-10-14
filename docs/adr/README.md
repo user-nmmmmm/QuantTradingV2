@@ -38,3 +38,4 @@
 | [0027](0027-state-ownership-first-slice-circuit-breaker.md) | 状态所有权迁移的第一片：熔断器的 13 个状态属性搬进 `CircuitBreaker`，宿主用 `Delegated` 保留旧名（B6） | 已采纳 |
 | [0028](0028-state-ownership-second-slice-broker-order-books.md) | 状态所有权迁移的第二片：`Broker` 的订单簿搬进 `Matching`、风控动作目标搬进 `Liquidation`（B6） | 已采纳 |
 | [0029](0029-state-ownership-third-slice-live-account-sync.md) | 状态所有权迁移的第三片：`LiveBroker` 的 8 个账户同步状态属性搬进 `AccountSync`（B6） | 已采纳 |
+| [0030](0030-state-ownership-fourth-slice-live-engine-recovery-and-export.md) | 状态所有权迁移的第四片：`LiveTradingEngine` 的 7 个对账与导出状态属性搬进 `Recovery`/`StateExport`（B6） | 已采纳 |
