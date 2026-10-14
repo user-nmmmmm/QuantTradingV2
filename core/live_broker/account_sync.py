@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import math
 from copy import deepcopy
-from datetime import timezone
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 from core.trading.account_reconciliation import reconcile_account_snapshots
@@ -33,18 +33,29 @@ class AccountSync:
     """Fetch and apply the exchange's cash/position facts to the portfolio.
 
     Needs from the host: ``portfolio``, ``exchange``, ``exchange_boundary``,
-    ``market_type``, ``base_currency``, ``last_account_sync_at``, plus the
-    shared plumbing on ``LiveBroker`` itself (``_retry_exchange_call``,
-    ``_alert``, ``_clock``, ``_as_float``).
+    ``market_type``, ``base_currency``, plus the shared plumbing on
+    ``LiveBroker`` itself (``_retry_exchange_call``, ``_alert``, ``_clock``, ``_as_float``).
+
+    It owns the account-sync state (B6, ADR 0029); ``LiveBroker`` keeps every name as a ``Delegated`` attribute.
+    The first six are bound later by ``configure_account_source()`` / ``sync()`` and are deliberately not set in
+    ``__init__``: callers probe them with ``getattr(host, "_account_source", None)``.
     """
+
+    _account_source: Any
+    _account_source_environment: str
+    _account_source_maximum_age: float
+    account_reconciliation_report: Dict[str, Any]
+    account_balance_facts: Any
+    account_snapshot: Any
 
     def __init__(self, host: "LiveBroker") -> None:
         self._host = host
+        self.unowned_positions: Dict[str, Any] = {}
+        self.last_account_sync_at: Optional[datetime] = None
 
     @property
     def account_source_configured(self) -> bool:
-        host = self._host
-        return getattr(host, "_account_source", None) is not None
+        return getattr(self, "_account_source", None) is not None
 
     def configure_account_source(self, source, *, environment: str,
                                  maximum_snapshot_age_seconds: float = 90) -> None:
@@ -67,10 +78,10 @@ class AccountSync:
             raise ValueError("maximum_snapshot_age_seconds must be finite and positive")
         if not callable(getattr(source, "read", None)):
             raise ValueError("account source must implement read")
-        host._account_source = source
-        host._account_source_environment = environment
-        host._account_source_maximum_age = maximum_snapshot_age_seconds
-        host.account_reconciliation_report = host._account_source_failure("account_source_not_checked")
+        self._account_source = source
+        self._account_source_environment = environment
+        self._account_source_maximum_age = maximum_snapshot_age_seconds
+        self.account_reconciliation_report = host._account_source_failure("account_source_not_checked")
 
     def _account_source_failure(self, reason, *, checked_at=None):
         host = self._host
@@ -93,10 +104,10 @@ class AccountSync:
         try:
             if now.tzinfo is None or now.utcoffset() is None:
                 raise AccountSourceError("checked_at_requires_timezone")
-            source = getattr(host, "_account_source", None)
+            source = getattr(self, "_account_source", None)
             if source is None:
                 raise AccountSourceError("independent_account_source_unavailable")
-            identity = {"exchange": host.exchange_id, "environment": host._account_source_environment,
+            identity = {"exchange": host.exchange_id, "environment": self._account_source_environment,
                         "account": host.account_id,
                         "market_type": "spot_margin" if host.market_type == "margin" else host.market_type,
                         "base_currency": host.base_currency}
@@ -104,16 +115,16 @@ class AccountSync:
                 raise AccountSourceError("account_mode_unsupported")
             bundle = source.read(identity=identity, checked_at=now)
             data = normalize_account_source(bundle, identity=identity, checked_at=now,
-                                            maximum_age_seconds=host._account_source_maximum_age)
+                                            maximum_age_seconds=self._account_source_maximum_age)
             host._rebuild_fill_projection()
             expected = build_local_account_projection(host, data, identity=identity, checked_at=now)
             report = reconcile_account_snapshots(expected, data["snapshot"], checked_at=now,
-                        maximum_snapshot_age_seconds=host._account_source_maximum_age)
+                        maximum_snapshot_age_seconds=self._account_source_maximum_age)
             report["source"] = {"source_id": data["source_id"], "sha256": bundle.sha256,
                                 "evidence_kind": data["evidence_kind"],
                                 "captured_at": data["captured_at"], "coverage": data["coverage"],
                                 "opening_capital_source_id": data["opening_capital"]["source_id"]}
-            report["maximum_snapshot_age_seconds"] = host._account_source_maximum_age
+            report["maximum_snapshot_age_seconds"] = self._account_source_maximum_age
             host._compare_observed_account(data["snapshot"], report, now)
             report["ok"] = not report["issues"] and not report["differences"]
             report["production_account_source_verified"] = bool(
@@ -127,22 +138,22 @@ class AccountSync:
         except Exception as exc:
             reason = str(exc) if isinstance(exc, AccountSourceError) else "account_source_failed:" + type(exc).__name__
             report = host._account_source_failure(reason, checked_at=now if now.tzinfo else host._clock())
-        host.account_reconciliation_report = report
+        self.account_reconciliation_report = report
         return deepcopy(report)
 
     def _compare_observed_account(self, actual, report, now):
         host = self._host
-        observed = getattr(host, "account_snapshot", None)
+        observed = getattr(self, "account_snapshot", None)
         if not isinstance(observed, dict):
             # EOD may reconcile a pinned complete export without fetching live
             # balances. Runtime sync always supplies its separate observation.
             report["venue_balance_observation_compared"] = False
             return
         from core.trading.account_source import _time
-        if not 0 <= (now - _time(observed.get("observed_at"), "balance.observed_at")).total_seconds() <= host._account_source_maximum_age:
+        if not 0 <= (now - _time(observed.get("observed_at"), "balance.observed_at")).total_seconds() <= self._account_source_maximum_age:
             report["issues"].append("observed_account_balance_stale_or_future")
         if host.market_type == "margin":
-            facts = host.account_balance_facts[host.base_currency]
+            facts = self.account_balance_facts[host.base_currency]
             cash = {"free": facts["free"] - facts["liabilities"] - facts["interest"],
                     "locked": facts["locked"], "total": facts["net"]}
         else:
@@ -167,7 +178,7 @@ class AccountSync:
             host.portfolio.cash = next_cash
             host.portfolio.positions = positions
             host._rebuild_fill_projection()
-            host.unowned_positions = {}
+            self.unowned_positions = {}
             for symbol in set(positions) | set(host.portfolio.lot_books):
                 position = positions.get(symbol, {"qty": 0.0})
                 book = host.portfolio.lot_books.get(symbol)
@@ -179,25 +190,25 @@ class AccountSync:
                         or missing_identity):
                     host.projection_issues.append(f"unowned_position:{symbol}")
                     if abs(float(position["qty"])) > 1e-12:
-                        host.unowned_positions[symbol] = {
+                        self.unowned_positions[symbol] = {
                             "observed_qty": float(position["qty"]),
                             "projected_qty": book.net_qty if book else 0.0,
                             "owner": None,
                             "entry_time": None,
                             "policy": "flatten_unowned",
                         }
-            if getattr(host, "_account_source", None) is not None:
+            if getattr(self, "_account_source", None) is not None:
                 if not host.reconcile_full_account()["ok"]:
                     host._alert("error", "account_reconciliation_failed", {
-                        "issues": host.account_reconciliation_report["issues"],
+                        "issues": self.account_reconciliation_report["issues"],
                     })
                     return SyncResult(False, host._clock(), "account_reconciliation_failed")
             else:
-                host.account_reconciliation_report = host._account_source_failure("independent_account_source_unavailable")
-            host.last_account_sync_at = host._clock()
-            return SyncResult(True, host.last_account_sync_at)
+                self.account_reconciliation_report = host._account_source_failure("independent_account_source_unavailable")
+            self.last_account_sync_at = host._clock()
+            return SyncResult(True, self.last_account_sync_at)
         except Exception as exc:
-            host.account_reconciliation_report = host._account_source_failure("account_balance_sync_failed")
+            self.account_reconciliation_report = host._account_source_failure("account_balance_sync_failed")
             logger.exception("Failed to sync portfolio category=%s", type(exc).__name__)
             host._alert("error", "account_sync_failed", {
                 "error": type(exc).__name__,
@@ -232,7 +243,7 @@ class AccountSync:
             )
         # Keep the observed source payload for review; this is a venue fact,
         # not evidence that opening capital/fund flows/PnL have reconciled.
-        host.account_snapshot = {
+        self.account_snapshot = {
             "schema_version": 1, "source": "exchange.fetch_balance",
             "observed_at": host._clock().isoformat(),
             "exchange": host.exchange_id, "account": host.account_id,
@@ -285,7 +296,7 @@ class AccountSync:
         # Portfolio margin cash is capital plus realized PnL; convert net asset
         # balances to that representation so cash + unrealized equals NAV.
         cash = net_cash + sum(pos["qty"] * pos["avg_price"] for pos in positions.values())
-        host.account_balance_facts = facts
+        self.account_balance_facts = facts
         return cash, positions
 
     def _sync_spot_positions(self, balance: Dict[str, Any]) -> Dict[str, Dict[str, float]]:

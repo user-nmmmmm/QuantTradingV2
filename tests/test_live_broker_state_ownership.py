@@ -6,7 +6,11 @@ old attribute on ``LiveBroker`` must still read and write the same value.
 """
 from __future__ import annotations
 
-from tests.test_account_source_integration import NOW, account, configure  # noqa: F401  (``account`` is a fixture)
+from tests import test_account_source_integration as _source
+
+NOW = _source.NOW
+configure = _source.configure
+account = _source.account  # the fixture, re-exported so pytest finds it in this module
 
 _ABSENT = "<absent>"
 
@@ -78,3 +82,15 @@ def test_the_old_names_read_and_write_through_the_broker(account):
         setattr(broker, name, value)
         assert getattr(broker, name) is value
     assert broker.account_source_configured
+
+
+def test_the_collaborator_is_where_the_state_lives(account, tmp_path):
+    broker, _, data = account
+    configure(broker, data, tmp_path)
+    broker.sync()
+    sync = broker._account_sync
+    names = ("_account_source", "_account_source_environment", "_account_source_maximum_age", "account_reconciliation_report",
+             "account_snapshot", "unowned_positions", "last_account_sync_at")
+    for name in names:
+        assert getattr(broker, name) is getattr(sync, name)
+    assert not set(names + ("account_balance_facts",)) & set(vars(broker))

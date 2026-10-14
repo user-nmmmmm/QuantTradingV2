@@ -36,6 +36,7 @@ from core.risk.reservation import (
 )
 from core.foundation.domain import SyncResult
 from functools import cached_property
+from core.risk.delegation import Delegated
 
 """CCXT adapter backed by an authoritative idempotent order ledger.
 
@@ -57,14 +58,17 @@ logger = get_logger(__name__)
 class LiveBroker:
     """CCXT adapter backed by an authoritative idempotent order ledger."""
 
-    # Bound later by AccountSync.configure_account_source() / sync(); they are deliberately not initialised in
-    # __init__ because callers probe them with getattr(host, "_account_source", None). Annotations only declare them.
-    _account_source: Any
-    _account_source_environment: str
-    _account_source_maximum_age: float
-    account_reconciliation_report: Dict[str, Any]
-    account_balance_facts: Any
-    account_snapshot: Any
+    # The account-sync state lives on AccountSync (B6, ADR 0029); these names forward to it. The first six are bound
+    # later by AccountSync.configure_account_source() / sync() and stay unbound until then, because callers probe
+    # them with getattr(host, "_account_source", None).
+    _account_source = Delegated[Any]("_account_sync")
+    _account_source_environment = Delegated[str]("_account_sync")
+    _account_source_maximum_age = Delegated[float]("_account_sync")
+    account_reconciliation_report = Delegated[Dict[str, Any]]("_account_sync")
+    account_balance_facts = Delegated[Any]("_account_sync")
+    account_snapshot = Delegated[Any]("_account_sync")
+    unowned_positions = Delegated[Dict[str, Any]]("_account_sync")
+    last_account_sync_at = Delegated[Optional[datetime]]("_account_sync")
 
     @cached_property
     def _submission(self) -> SubmissionService:
@@ -128,10 +132,8 @@ class LiveBroker:
             persistence_path=order_observation_sidecar_path(getattr(self.order_store, "path", None)))
         self.close_events: list[Any] = []
         self.projection_issues: list[Any] = []
-        self.unowned_positions: dict[str, Any] = {}
         self._rebuild_fill_projection()
         self.health_assessment = None
-        self.last_account_sync_at: Optional[datetime] = None
         self.last_order_sync_at: Optional[datetime] = None
 
         self.alert_sink = alert_sink or build_default_alert_sink(logger)
