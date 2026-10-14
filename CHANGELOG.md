@@ -15,6 +15,7 @@
 - `DataVersionStore` 并发写入同一个不可变对象时，Windows 上读取刚被另一线程换到位的文件可能短暂抛出 `PermissionError`（负载下约 3/40 次使 `test_concurrent_identical_writes_publish_complete_objects_once` 失败）。现在这一处读取在 Windows 上有界重试（5 次，10–40 毫秒），内容不同仍报"immutable content conflict"，持续拒绝和其他平台照常抛出。存储的字节与语义不变；文件在冻结范围内，身份报告会显示为行为变化（仅 Windows 重试）。
 
 ### Added
+- `devcontainer` 工作流（D5 收尾）：用 `devcontainers/ci` 构建 `.devcontainer/`，并在容器里运行 `python scripts/dev.py check --no-tests`；容器输入变化时、每周一次和手动触发时运行，不是必需检查。首次运行通过。
 - 冻结研究输入清单（路线图 D2，ADR 0020）：`data/binance/1d/_frozen_inputs.json` 为 30 个已跟踪的 CSV 登记行数、范围与 SHA-256（CRLF 规范化为 LF），并如实标注来源核验状态（2 个有下载记录，28 个未核验）；`scripts/data_inputs.py verify` 在文件缺失、被替换或未登记时失败，已加入 CI 与 `dev.py check`。说明见 `docs/data_identity.md`。
 - 锁文件再生成脚本（D3，ADR 0021）：`scripts/regenerate_lock.py`（`--check` 离线核对规范形式、摘要与直接依赖）；CI 改为 `pip install -r requirements.lock.txt -r requirements-dev.txt` 后运行 `check_environment.py --strict-lock`。
 - mypy 硬门槛清单（C3，ADR 0022）：`scripts/mypy_hard_gate.txt`（128 个零错误模块），`quality_ratchet.py check` 对其中任何发现直接失败，`promote` 把新达标的模块收进清单。
