@@ -14,7 +14,7 @@ import json
 import math
 import os
 from pathlib import Path
-from typing import Dict
+from typing import Any, Dict, Optional
 from uuid import uuid4
 from typing import TYPE_CHECKING
 
@@ -79,14 +79,27 @@ def account_new_risk_gate(broker, now, *, persistence_failed=False) -> dict:
 class Recovery:
     """Non-terminal order recovery and periodic reconciliation.
 
-    Needs from the host: ``broker``, ``_unresolved_unknown_cache``,
-    ``_last_reconciliation_at``, ``reconciliation_interval_seconds``,
-    ``_reconciliation_status``, ``_last_order_sync_at``, and ``_alert``
+    Needs from the host: ``broker``, ``reconciliation_interval_seconds``, and ``_alert``
     (from ``LiveTradingEngine`` itself).
+
+    It owns the reconciliation state (B6, ADR 0030); ``LiveTradingEngine`` keeps every name as a ``Delegated``
+    attribute. ``_account_reconciliation_persistence_failed`` is bound by the first account reconciliation and is
+    deliberately not set in ``__init__``: callers probe it with ``getattr(host, …, False)``.
     """
+
+    _account_reconciliation_persistence_failed: bool
 
     def __init__(self, host: "LiveTradingEngine") -> None:
         self._host = host
+        self._unresolved_unknown_cache: Optional[bool] = None
+        self._last_reconciliation_at: Optional[datetime] = None
+        self._last_order_sync_at: Optional[datetime] = None
+        self._reconciliation_status: Dict[str, Any] = {
+            "last_run_at": None,
+            "checked_count": 0,
+            "discrepancy_count": 0,
+            "ok": None,
+        }
 
     def _recover_orders(self) -> Dict:
         host = self._host
@@ -95,12 +108,12 @@ class Recovery:
 
     def _has_unresolved_unknown(self, *, refresh: bool = False) -> bool:
         host = self._host
-        if refresh or host._unresolved_unknown_cache is None:
+        if refresh or self._unresolved_unknown_cache is None:
             checker = getattr(host.broker, "has_unresolved_unknown", None)
-            host._unresolved_unknown_cache = (
+            self._unresolved_unknown_cache = (
                 bool(checker()) if callable(checker) else False
             )
-        return host._unresolved_unknown_cache
+        return self._unresolved_unknown_cache
 
     def _run_reconciliation_if_due(
         self, now: datetime, *, force: bool = False,
@@ -108,17 +121,17 @@ class Recovery:
         host = self._host
         due = (
             force
-            or host._last_reconciliation_at is None
-            or (now - host._last_reconciliation_at).total_seconds()
+            or self._last_reconciliation_at is None
+            or (now - self._last_reconciliation_at).total_seconds()
             >= host.reconciliation_interval_seconds
         )
         if not due:
             gate = account_new_risk_gate(host.broker, now,
-                persistence_failed=getattr(host, "_account_reconciliation_persistence_failed", False))
-            host._reconciliation_status["account_entry_gate"] = gate
-            host._reconciliation_status["allows_new_risk"] = (
-                host._reconciliation_status.get("ok") is True and gate["allows_new_risk"])
-            return dict(host._reconciliation_status)
+                persistence_failed=getattr(self, "_account_reconciliation_persistence_failed", False))
+            self._reconciliation_status["account_entry_gate"] = gate
+            self._reconciliation_status["allows_new_risk"] = (
+                self._reconciliation_status.get("ok") is True and gate["allows_new_risk"])
+            return dict(self._reconciliation_status)
 
         recovered = dict(host._recover_orders() or {})
         unresolved = [
@@ -144,16 +157,16 @@ class Recovery:
             host.broker.account_reconciliation_report = deepcopy(account_report)
             try:
                 host._persist_account_reconciliation(account_report, now)
-                host._account_reconciliation_persistence_failed = False
+                self._account_reconciliation_persistence_failed = False
             except Exception as exc:
-                host._account_reconciliation_persistence_failed = True
+                self._account_reconciliation_persistence_failed = True
                 host._alert("error", "account_reconciliation_persistence_failed", {
                     "error": type(exc).__name__,
                 })
         gate = account_new_risk_gate(host.broker, now,
-            persistence_failed=getattr(host, "_account_reconciliation_persistence_failed", False))
-        host._last_reconciliation_at = now
-        host._reconciliation_status = {
+            persistence_failed=getattr(self, "_account_reconciliation_persistence_failed", False))
+        self._last_reconciliation_at = now
+        self._reconciliation_status = {
             "schema_version": 3,
             "scope": "order_and_account_reconciliation" if account_report is not None else "order_recovery",
             "last_run_at": now.isoformat(),
@@ -169,13 +182,13 @@ class Recovery:
             },
         }
         if not host._has_unresolved_unknown(refresh=True):
-            host._last_order_sync_at = now
+            self._last_order_sync_at = now
         if unresolved:
             host._alert("error", "reconcile_discrepancy", {
                 "discrepancy_count": len(unresolved),
                 "client_order_ids": unresolved,
             })
-        return dict(host._reconciliation_status)
+        return dict(self._reconciliation_status)
 
     def _persist_account_reconciliation(self, report, now):
         """Retain the same normalized report for periodic and daily consumers.

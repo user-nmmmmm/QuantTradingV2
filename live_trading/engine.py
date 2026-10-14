@@ -54,12 +54,23 @@ from live_trading.runtime_controls import RuntimeControls
 from live_trading.protection_schedule import RuntimeSchedulePolicy
 from live_trading.risk_actions import PortfolioRiskActions
 from functools import cached_property
+from core.risk.delegation import Delegated
 
 logger = get_logger(__name__)
 
 
 class LiveTradingEngine:
     """Live durability/scheduling shell with mode-independent event processing."""
+
+    # Reconciliation state lives on Recovery and export bookkeeping on StateExport (B6, ADR 0030); these names forward.
+    # _account_reconciliation_persistence_failed stays unbound until the first account reconciliation (callers probe it).
+    _unresolved_unknown_cache = Delegated[Optional[bool]]("_recovery")
+    _last_reconciliation_at = Delegated[Optional[datetime]]("_recovery")
+    _reconciliation_status = Delegated[Dict[str, Any]]("_recovery")
+    _last_order_sync_at = Delegated[Optional[datetime]]("_recovery")
+    _account_reconciliation_persistence_failed = Delegated[bool]("_recovery")
+    _last_export_tick = Delegated[Optional[int]]("_state_export")
+    _last_exported_critical_state = Delegated[Optional[tuple]]("_state_export")
 
     @cached_property
     def _tick_orchestrator(self) -> TickOrchestrator:
@@ -155,10 +166,8 @@ class LiveTradingEngine:
         self._operational_state = "STARTING"
         self._snapshot = None
         self._last_account_sync_at: Optional[datetime] = None
-        self._last_order_sync_at: Optional[datetime] = None
         self._last_written_breaker: Optional[bool] = None
         self._last_written_breaker_day: Optional[str] = None
-        self._last_exported_critical_state = None
         if failure_backoff_base_seconds < 0 or failure_backoff_max_seconds < 0:
             raise ValueError('failure backoff cannot be negative')
         self.failure_backoff_base_seconds = failure_backoff_base_seconds
@@ -176,18 +185,9 @@ class LiveTradingEngine:
         self.state_export_interval_ticks = int(state_export_interval_ticks)
         self._tick_count = 0
         self._last_tick_seconds = None
-        self._last_export_tick: Optional[int] = None
-        self._last_reconciliation_at: Optional[datetime] = None
-        self._reconciliation_status = {
-            "last_run_at": None,
-            "checked_count": 0,
-            "discrepancy_count": 0,
-            "ok": None,
-        }
         self._consecutive_strategy_failures = 0
         self._last_strategy_error: Optional[str] = None
         self._strategies_state_bound = False
-        self._unresolved_unknown_cache: Optional[bool] = None
         # SR2-5: venue-resident protective stops, reconciled every tick.
         self.protective_orders_enabled = bool(
             (configuration.get("protective_orders") or {}).get("enabled", True)

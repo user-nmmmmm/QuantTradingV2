@@ -14,7 +14,7 @@ from uuid import uuid4
 
 from core.foundation.logger import get_logger
 from live_trading.recovery import account_new_risk_gate
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from live_trading.engine import LiveTradingEngine
@@ -46,13 +46,17 @@ class StateExport:
     Needs from the host: ``_snapshot``, ``_healthy``,
     ``_operational_state``, ``health_assessment``, ``_reconciliation_status``,
     ``_consecutive_strategy_failures``, ``_last_strategy_error``, ``broker``,
-    ``symbols``, ``data_map``, ``state_file``, ``_tick_count``,
-    ``_last_export_tick``, ``_last_exported_critical_state``, ``_now()``, and
+    ``symbols``, ``data_map``, ``state_file``, ``_tick_count``, ``_now()``, and
     ``_has_unresolved_unknown()`` (from ``Recovery``).
+
+    It owns the export bookkeeping (B6, ADR 0030): the tick of the last export and the critical state it wrote.
+    ``LiveTradingEngine`` keeps both names as ``Delegated`` attributes.
     """
 
     def __init__(self, host: "LiveTradingEngine") -> None:
         self._host = host
+        self._last_export_tick: Optional[int] = None
+        self._last_exported_critical_state: Optional[tuple] = None
 
     def _strategy_health(self):
         """SR1-4: per-strategy lifecycle state, exported like any other fact."""
@@ -113,17 +117,17 @@ class StateExport:
     def _maybe_export_state(self, *, force: bool = False) -> bool:
         host = self._host
         critical_state = host._critical_state_signature()
-        transition = critical_state != host._last_exported_critical_state
+        transition = critical_state != self._last_exported_critical_state
         due = (
-            host._last_export_tick is None
-            or host._tick_count - host._last_export_tick
+            self._last_export_tick is None
+            or host._tick_count - self._last_export_tick
             >= host.state_export_interval_ticks
         )
         if not (force or transition or due):
             return False
         if host._export_state():
-            host._last_export_tick = host._tick_count
-            host._last_exported_critical_state = critical_state
+            self._last_export_tick = host._tick_count
+            self._last_exported_critical_state = critical_state
             return True
         return False
 
@@ -201,14 +205,14 @@ class StateExport:
                 ),
             }
             critical_state = host._critical_state_signature()
-            needs_fsync = critical_state != host._last_exported_critical_state
+            needs_fsync = critical_state != self._last_exported_critical_state
             with open(tmp_path, "w", encoding="utf-8") as handle:
                 json.dump(state_data, handle, indent=2)
                 handle.flush()
                 if needs_fsync:
                     os.fsync(handle.fileno())
             _replace_snapshot(tmp_path, host.state_file)
-            host._last_exported_critical_state = critical_state
+            self._last_exported_critical_state = critical_state
             return True
         except Exception:
             logger.exception("Failed to export state")

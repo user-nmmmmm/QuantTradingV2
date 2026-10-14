@@ -167,3 +167,23 @@ def test_the_old_names_read_and_write_through_the_engine(account, tmp_path):
             assert getattr(engine, name) is value
     finally:
         state.close()
+
+
+def test_the_collaborators_are_where_the_state_lives(account, tmp_path):
+    broker, _, data = account
+    configure(broker, data, tmp_path)
+    engine, state = make_engine(broker, tmp_path)
+    try:
+        engine._run_reconciliation_if_due(NOW)
+        engine._tick_count = 1
+        engine._maybe_export_state(force=True)
+        recovery, export = engine._recovery, engine._state_export
+        for name in ("_unresolved_unknown_cache", "_last_reconciliation_at", "_reconciliation_status", "_last_order_sync_at",
+                     "_account_reconciliation_persistence_failed"):
+            assert getattr(engine, name) is getattr(recovery, name)
+        for name in ("_last_export_tick", "_last_exported_critical_state"):
+            assert getattr(engine, name) is getattr(export, name)
+        assert export._last_export_tick == 1
+        assert not set(NAMES + ("_reconciliation_status",)) & set(vars(engine))
+    finally:
+        state.close()
