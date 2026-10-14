@@ -110,7 +110,7 @@ def signal_meta_diagnostics(payload):
     for key, rows in sorted(buckets.items(), key=lambda item: tuple(str(v) for v in item[0])):
         eligible, conditional, paired = [], [], []
         matured, flagged, invalid, censored, unresolved = 0, 0, 0, 0, 0
-        label_statuses = Counter()
+        label_statuses: Counter = Counter()
         for row in rows:
             label_status = str(row.get("label_status") or "missing_evaluation")
             label_statuses[label_status] += 1

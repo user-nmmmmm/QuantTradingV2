@@ -14,7 +14,7 @@
 | [`verify_lock.py`](verify_lock.py) | 校验运行依赖锁文件。 |
 | [`regenerate_lock.py`](regenerate_lock.py) | 在干净虚拟环境里重新解析 `requirements.txt` 并重写锁文件与摘要；`--check` 离线核对锁的规范形式、摘要和直接依赖。 |
 | [`architecture_inventory.py`](architecture_inventory.py) | 从代码生成 `docs/architecture_inventory.md`（分层顺序、包与模块数），`--check` 核对它是最新的，并核对 `架构图/` 交付图引用的源码路径仍可解析。 |
-| [`data_inputs.py`](data_inputs.py) | 冻结研究输入清单：为 `data/binance/1d` 的每个 CSV 登记行数、范围与 SHA-256；`verify` 在文件缺失、被替换或未登记时失败，`build` 重写清单。 |
+| [`data_inputs.py`](data_inputs.py) | 冻结研究输入清单：为 `data/binance/1d` 的每个 CSV 登记行数、范围与 SHA-256；`verify` 在文件缺失、被替换或未登记时失败，`build` 重写清单，`corroborate`（联网）与 Binance 公共日线逐行比对并记录佐证。 |
 | [`fetch_binance_data.py`](fetch_binance_data.py) | 下载并增量缓存 Binance 历史行情及数据 manifest。 |
 | [`run_backtest_matrix.py`](run_backtest_matrix.py) | 运行多标的、多周期、多时间窗的批量回测。 |
 | [`run_portable_tests.py`](run_portable_tests.py) | 在受限 Windows 临时目录中运行 pytest。 |

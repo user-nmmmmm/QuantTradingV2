@@ -16,6 +16,7 @@ backtest/reporting/render/pdf.py
 backtest/reporting/render/text.py
 backtest/reporting/risk_metrics.py
 backtest/reporting/serialization.py
+backtest/reporting/signal_meta_layer.py
 backtest/reporting/signal_observation.py
 backtest/signal_meta_replay.py
 composition/__init__.py
@@ -58,6 +59,8 @@ core/live_broker/retry.py
 core/live_broker/safe.py
 core/live_broker/submission.py
 core/market/__init__.py
+core/market/data.py
+core/market/data_versions.py
 core/market/derivatives_data.py
 core/market/market_data_errors.py
 core/market/market_read_batch.py
@@ -66,7 +69,9 @@ core/market/quote_borrow.py
 core/market/request_budget.py
 core/market/timeframes.py
 core/market/universe.py
+core/market/websocket_market.py
 core/metrics/__init__.py
+core/metrics/attribution.py
 core/metrics/performance.py
 core/metrics/trade_quality.py
 core/metrics/validation.py
@@ -83,6 +88,7 @@ core/risk/recovery.py
 core/risk/reservation.py
 core/trading/__init__.py
 core/trading/account_cost_contract.py
+core/trading/account_source.py
 core/trading/accounts.py
 core/trading/entry_risk.py
 core/trading/execution_port.py
@@ -123,6 +129,7 @@ signal_meta/__init__.py
 signal_meta/label_account_reconciliation.py
 signal_meta/paper_label_execution.py
 signal_meta/paper_labels.py
+signal_meta/signal_actuals.py
 signal_meta/signal_adaptive_types.py
 signal_meta/signal_observation_types.py
 signal_meta/temporal_labels.py

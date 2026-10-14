@@ -14,6 +14,9 @@
 - 旧的缓存清单、`file_retention_manifest.json` 的 CSV 计数检查、`data_versions.py` 的时点快照都**不改**：新清单与它们并存，只补上"哪些字节被采用"这一层。
 - `.gitignore` 对 `data/binance/` 的整体忽略改为只放行这一个文件，其余下载仍然被忽略。
 
+## 后续：独立佐证（2026-10-14）
+28 个 `unverified` 文件无法补出下载记录（原始下载没有留下缓存清单）。改为向 Binance 公共日线接口取同一区间，逐行比对，把结果作为 `corroboration` 块写进清单（`scripts/data_inputs.py corroborate`），绑定文件摘要，不改 `provenance.status`（佐证弱于下载记录）。结果：2 个完全一致，27 个只差最后一根日线（半根 K 线），`MATIC_USDT.csv` 多出 83 行接口没有的日期。发现已记录在 `docs/data_identity.md`，数据本身未改动，处理方式留给研究决定。
+
 ## 备选方案
 - 把 30 个文件都写进下载缓存清单：下载器会改写它，冻结和缓存混在一起，评审时分不清是下载更新还是输入被替换。
 - 用原样字节哈希：Windows 与 Linux 检出的摘要不同，CI 无法核验。

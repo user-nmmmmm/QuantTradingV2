@@ -17,6 +17,7 @@
 ### Added
 - `devcontainer` 工作流（D5 收尾）：用 `devcontainers/ci` 构建 `.devcontainer/`，并在容器里运行 `python scripts/dev.py check --no-tests`；容器输入变化时、每周一次和手动触发时运行，不是必需检查。首次运行通过。
 - 函数长度棘轮（B8 收尾，ADR 0026 后续）：`quality_ratchet.py` 新增 `function_length` 工具，>= 100 行的函数按文件::函数记录行数（现有 87 个），只许变短，新增的长函数让 CI 失败；引擎与命令行里为 0。
+- D2 收尾：`scripts/data_inputs.py corroborate` 联网比对每个文件与 Binance 公共日线，结果作为绑定文件摘要的 `corroboration` 块写进清单（`verify` 检查）。2 个完全一致，27 个只差最后一根日线（那一根是未收盘的半根 K 线），`MATIC_USDT.csv` 多出 83 行接口没有的日期；数据文件未改动，见 `docs/data_identity.md`。
 - 冻结研究输入清单（路线图 D2，ADR 0020）：`data/binance/1d/_frozen_inputs.json` 为 30 个已跟踪的 CSV 登记行数、范围与 SHA-256（CRLF 规范化为 LF），并如实标注来源核验状态（2 个有下载记录，28 个未核验）；`scripts/data_inputs.py verify` 在文件缺失、被替换或未登记时失败，已加入 CI 与 `dev.py check`。说明见 `docs/data_identity.md`。
 - 锁文件再生成脚本（D3，ADR 0021）：`scripts/regenerate_lock.py`（`--check` 离线核对规范形式、摘要与直接依赖）；CI 改为 `pip install -r requirements.lock.txt -r requirements-dev.txt` 后运行 `check_environment.py --strict-lock`。
 - mypy 硬门槛清单（C3，ADR 0022）：`scripts/mypy_hard_gate.txt`（128 个零错误模块），`quality_ratchet.py check` 对其中任何发现直接失败，`promote` 把新达标的模块收进清单。
@@ -26,6 +27,7 @@
 - 测试治理（路线图 C4）：`quarantine` 标记（带原因和到期日，过期后 CI 失败）、`tests/capabilities.py` 的能力探测跳过（Windows 上没有符号链接权限时跳过，Linux CI 保证不跳过）、完整套件的耗时预算（目标 ≤ 5 分钟，CI 步骤 8 分钟超时），约定写在 `docs/quality.md`。
 
 ### Changed
+- C3 收尾：11 处纯类型注解（局部容器变量、默认值为 `None` 的参数），不改变任何语句的行为；mypy 存量 313 → 302，7 个模块进入硬门槛清单（129 → 136）。另有两处（`backtest/delayed_execution.py`、`backtest/signal_ghost.py`）的注解需要把元组赋值拆成多行，会让它们本来就超长的函数更长，被函数长度棘轮拒绝，所以没有做。
 - 路线图 B8（ADR 0026）：`BacktestEngine.__init__`（149 行）、`_close_tail_positions`（118 行）和 `cli/replay.py::replay_manifest`（131 行）拆成按原顺序调用的小函数，语句、消息和校验顺序不变（回放前置检查改为内部异常 `_ReplayRefused`，消息与退出码 7 不变）；`_RunState` 与 `_MainState` 的 74 个字段全部换成具体类型，结构测试固定。
 - 报告生成与 Donchian 策略里最后的 mixin 清零（路线图 B7，ADR 0025）：`ReportGenerator` 不再继承 `ReportMetricsMixin` 等四个类，改为惰性持有 `ReportMetrics`、`TradeReconstruction`、`ReportWriters`、`ReportCharts` 并保留全部同签名转发方法（原先单独使用 `TradeReconstructionMixin` 的调用方改用 `TradeReconstruction`）；`strategies/trend_breakout.py` 的三个私有 mixin 合成显式基类 `DonchianTrendStrategy`。行为不变；mypy 存量 326 → 313，该文件进入硬门槛清单。
 - `requirements.lock.txt` 改为规范形式（两行表头、`GitPython`/`gitdb` 调换顺序）并更新摘要，**没有任何版本变化**；锁文件在冻结范围内，身份报告会显示这一处变化（ADR 0021）。

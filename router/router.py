@@ -35,7 +35,7 @@ class Router:
         self.cooldowns: Dict[str, int] = {}
         self._cooldown_started_at: Dict[str, Any] = {}
         self._cooldown_progress: Dict[str, tuple[Any, int]] = {}
-        self.log_buffer = []
+        self.log_buffer: list = []
         self._log_header_written = False
         self.max_holding_days = (
             float(max_holding_days) if max_holding_days is not None else None

@@ -74,7 +74,7 @@ class DataFetcher:
         self.temporal_policy = _temporal_policy(temporal_policy)
         self._temporal_enabled = temporal_policy is not None
         self._temporal_clock = clock or (lambda: pd.Timestamp.now(tz="UTC").floor("us"))
-        self._temporal_histories = {}
+        self._temporal_histories: dict = {}
 
         if self.proxy_url:
             logger.info("Using outbound proxy for data fetches: %s", safe_url(self.proxy_url))

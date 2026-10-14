@@ -126,7 +126,7 @@ class OrderStore:
                 self._connection.execute("INSERT INTO projection_order_changes(client_order_id) SELECT client_order_id FROM orders")
             self._connection.execute("CREATE TRIGGER IF NOT EXISTS projection_order_insert AFTER INSERT ON orders BEGIN INSERT INTO projection_order_changes(client_order_id) VALUES(new.client_order_id); END")
             self._connection.execute("CREATE TRIGGER IF NOT EXISTS projection_order_update AFTER UPDATE ON orders BEGIN INSERT INTO projection_order_changes(client_order_id) VALUES(new.client_order_id); END")
-        self._fill_projection_cache = {}
+        self._fill_projection_cache: dict = {}
         self._snapshot_manager = (
             None if path == ":memory:" else SQLiteSnapshotManager(path)
         )

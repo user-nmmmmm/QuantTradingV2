@@ -22,7 +22,7 @@ def reconcile_actuals(payload, trades, orders, execution_audit, *, mark_to_marke
         order = orders.get(order_id)
         summaries[candidate_id].update(opening_order_id=order_id,
             actual_status="submitted_without_fill", order_status=getattr(getattr(order, "status", None), "value", "unknown"))
-    stacks = defaultdict(deque)
+    stacks: defaultdict = defaultdict(deque)
     fill_rows, close_rows, valuations, unmatched = [], [], [], []
     for trade in trades:
         if mark_to_market and trade.get("exit_reason") == "EndOfBacktest":
