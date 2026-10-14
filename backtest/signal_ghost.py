@@ -51,8 +51,7 @@ def replay_ghosts(market_data, payload, template):
         decision = decisions[candidate["candidate_id"]]
         if decision["accepted"] is not None and decision["veto_stage"] not in {"warmup", "data"}:
             by_time[pd.Timestamp(candidate["timestamp"]).tz_localize(None)].append(candidate)
-    tracks: dict = {}
-    rows, errors = [], []
+    tracks, rows, errors = {}, [], []
     fill_log, financing_log, execution_log = [], [], []
     for event in market_data.stream():
         for key, track in list(tracks.items()):

@@ -4,7 +4,6 @@ backtest/__init__.py
 backtest/capacity.py
 backtest/cli.py
 backtest/coin_selector.py
-backtest/delayed_execution.py
 backtest/drawdown_budget.py
 backtest/equity_bookkeeping.py
 backtest/execution_adapter.py
@@ -19,7 +18,6 @@ backtest/reporting/risk_metrics.py
 backtest/reporting/serialization.py
 backtest/reporting/signal_meta_layer.py
 backtest/reporting/signal_observation.py
-backtest/signal_ghost.py
 backtest/signal_meta_replay.py
 composition/__init__.py
 core/__init__.py

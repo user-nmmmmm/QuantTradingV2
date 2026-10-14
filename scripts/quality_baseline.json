@@ -91,6 +91,7 @@
       "strategies/base.py::Strategy.submit_entry_candidate": 124
     },
     "mypy": {
+      "backtest/delayed_execution.py::var-annotated": 1,
       "backtest/engine.py::union-attr": 1,
       "backtest/reporting/__init__.py::operator": 2,
       "backtest/reporting/metrics.py::arg-type": 2,
@@ -103,6 +104,7 @@
       "backtest/reporting/trades.py::dict-item": 10,
       "backtest/reporting/trades.py::operator": 3,
       "backtest/reporting/trades.py::var-annotated": 1,
+      "backtest/signal_ghost.py::var-annotated": 1,
       "composition/factory.py::arg-type": 3,
       "composition/factory.py::assignment": 2,
       "composition/factory.py::var-annotated": 1,
