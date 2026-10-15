@@ -59,6 +59,7 @@ def world(tmp_path: Path):
     git(repo, "init", "-q")
     git(repo, "add", "-A")
     git(repo, "commit", "-qm", "release")
+    git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
     git(repo, "tag", "-a", "v3.1.0", "-m", "Release 3.1.0")
     historical = tmp_path / "historical"
     (historical / "source/config").mkdir(parents=True)
@@ -141,6 +142,7 @@ def test_registration_refuses_unsafe_inputs_and_writes_nothing(world, mutation, 
         (repo / "config/params.yaml").write_bytes(enabled)
         git(repo, "add", "-A")
         git(repo, "commit", "-qm", "enable")
+        git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
         git(repo, "tag", "-fa", "v3.1.0", "-m", "moved")
         world["config_change"].write_text(json.dumps(statement(new_config_sha256=sha(enabled))))
     with pytest.raises(ValueError, match=REFUSALS[mutation]):
@@ -153,6 +155,13 @@ def test_a_changed_configuration_outside_the_statement_is_visible():
     with pytest.raises(ValueError, match="differs from the statement"):
         check_config_change(statement(), parent_config=PARENT_CONFIG, new_config=NEW_CONFIG.replace(b"order: score", b"order: other"),
                             parent_config_hash=sha(PARENT_CONFIG), new_config_hash=sha(NEW_CONFIG))
+
+
+def test_registration_requires_the_main_reference(world):
+    git(world["repo_root"], "update-ref", "-d", "refs/remotes/origin/main")
+    with pytest.raises(ValueError, match="required main reference"):
+        register_bound_successor(**world)
+    assert not world["output"].exists()
 
 
 def assert_complete_registration(output):

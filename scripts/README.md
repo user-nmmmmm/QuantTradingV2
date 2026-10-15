@@ -43,6 +43,7 @@
 | [`roadmap_baseline.py`](roadmap_baseline.py)、[`roadmap_evidence.py`](roadmap_evidence.py)、[`roadmap_priority.py`](roadmap_priority.py) | 冻结工作树基线、绑定历史证据、核对任务优先级和依赖。 |
 | [`verify_roadmap_completion.py`](verify_roadmap_completion.py)、[`verify_roadmap_policy.py`](verify_roadmap_policy.py) | 检查完成定义与 Roadmap 政策规则；工程证据不等于交易准入。 |
 | [`register_bound_successor.py`](register_bound_successor.py) | 新身份登记（A5，[ADR 0032](../docs/adr/0032-bound-successor-registration.md)）：绑定带注解的发布标签，配置变更需附机器核对的声明；只写入新目录，不创建标签。 |
+| [`run_frozen_replay.py`](run_frozen_replay.py) | 历史 meta／control 回放的维护入口：在隔离子进程执行冻结清单中登记的原驱动，限制项目模块来源并记录逐模块摘要；缺失驱动或模块明确拒绝，`--verify-only` 只验包不执行。 |
 | [`evaluate_matrix.py`](evaluate_matrix.py) | 对固定矩阵产物给出只读工程判定。 |
 | [`run_phase3_capacity.py`](run_phase3_capacity.py)、[`run_phase4_analysis.py`](run_phase4_analysis.py)、[`run_phase5_analysis.py`](run_phase5_analysis.py) | 重建各阶段容量、路由与研究治理证据。 |
 | [`validate_signal_observation.py`](validate_signal_observation.py)、[`validate_signal_meta_layer.py`](validate_signal_meta_layer.py)、[`validate_signal_adaptive.py`](validate_signal_adaptive.py) | 离线验证 P0 信号观察、P1 条件 EV、P2/P3 自适应研究链路。 |
@@ -130,6 +131,8 @@
 ## 历史专项：策略审查交付
 
 以下脚本服务于已登记的策略审查批次，包含固定输入、独立任务、汇总、归档和交付。它们不是通用回测或实盘入口；应从相应的批次文档和证据目录复现。
+
+meta／control 回放请使用上面的 `run_frozen_replay.py`，不要直接执行当前 checkout 中的两个历史驱动。维护入口只接受 `revised_manifest.json` 登记的冻结驱动；没有该文件时保留为来源不足，不从当前版本补齐，也不改写历史脚本的哈希。
 
 | 环节 | 脚本 |
 | --- | --- |

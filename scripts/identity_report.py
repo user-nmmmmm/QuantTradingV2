@@ -20,7 +20,6 @@ This report never relaxes the legacy byte-level verifiers; it informs reviewers.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import subprocess
 import sys
@@ -40,8 +39,27 @@ def _ref(value: str):
 def _sha(ref):
     if ref is None:
         return None
-    return subprocess.run(["git", "rev-parse", ref], cwd=ROOT, check=True, capture_output=True,
-                          text=True).stdout.strip()
+    result = subprocess.run(["git", "rev-parse", "--verify", "--end-of-options", f"{ref}^{{commit}}"],
+                            cwd=ROOT, capture_output=True, text=True)
+    if result.returncode:
+        raise ValueError(f"required Git reference is missing or not a commit: {ref}")
+    return result.stdout.strip()
+
+
+def _scope_at(path: Path, ref):
+    """Read the declaration from the selected tree; never borrow the checkout's scope for a commit."""
+    if ref is None:
+        data = path.read_bytes()
+    else:
+        try:
+            relative = path.resolve().relative_to(ROOT.resolve()).as_posix()
+        except ValueError:
+            raise ValueError("--scope must name a repository path when selecting a Git commit") from None
+        result = subprocess.run(["git", "cat-file", "blob", f"{ref}:{relative}"], cwd=ROOT, capture_output=True)
+        if result.returncode:
+            raise ValueError(f"scope declaration is missing from selected commit {ref[:12]}: {relative}")
+        data = result.stdout
+    return Scope.from_json(data.decode("utf-8")), scope_sha256(data)
 
 
 def render(impact: Impact, *, base_label: str, head_label: str, scope_files: int) -> str:
@@ -99,6 +117,15 @@ def main(argv=None) -> int:
     parser.add_argument("--json", action="store_true", help="print machine-readable JSON instead of markdown")
     args = parser.parse_args(argv)
 
+    try:
+        return _run(args, parser)
+    except (ValueError, OSError, subprocess.CalledProcessError) as error:
+        print(f"ERROR: {error}", file=sys.stderr)
+        return 2
+
+
+def _run(args, parser):
+
     if args.bind_release:
         if not args.write_binding:
             parser.error("--bind-release needs --write-binding")
@@ -115,13 +142,15 @@ def main(argv=None) -> int:
               f"({len(data['receipt']['files'])} files) -> {args.write_binding}")
         return 0
 
-    scope = Scope.load(args.scope)
-    head_ref = _ref(args.head)
+    head_ref = _sha(_ref(args.head))
+    scope, head_scope_sha = _scope_at(args.scope, head_ref)
+    if args.verify_binding and args.scope.resolve() != (ROOT / "config/frozen_scope.json").resolve():
+        raise ValueError("release bindings must use the selected tree's config/frozen_scope.json")
     head = build_manifest(ROOT, scope, head_ref)
 
     if args.write_receipt:
-        data = receipt(head, ref_sha=_sha(head_ref))
-        data["scope_sha256"] = hashlib.sha256(args.scope.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+        data = receipt(head, ref_sha=head_ref)
+        data["scope_sha256"] = head_scope_sha
         if args.write_receipt.exists():
             print(f"refusing to overwrite {args.write_receipt}", file=sys.stderr)
             return 2
@@ -132,14 +161,18 @@ def main(argv=None) -> int:
     problems = []
     if args.verify_binding:
         saved = json.loads(args.verify_binding.read_text(encoding="utf-8"))
-        problems, impact = verify_binding(saved, ROOT, head, scope_sha256(args.scope.read_bytes()))
+        problems, impact = verify_binding(saved, ROOT, head, head_scope_sha)
         base_label = f"{saved.get('tag')}@{(saved.get('tag_commit') or 'unknown')[:10]}"
     elif args.verify_receipt:
         saved = json.loads(args.verify_receipt.read_text(encoding="utf-8"))
         impact = verify_receipt(saved, head)
+        if "scope_sha256" in saved and saved["scope_sha256"] != head_scope_sha:
+            problems.append("the frozen-scope declaration differs from the one recorded in the receipt")
         base_label = f"receipt@{(saved.get('git_sha') or 'unknown')[:10]}"
     elif args.base:
-        impact = compare(build_manifest(ROOT, scope, _ref(args.base)), head)
+        base_ref = _sha(_ref(args.base))
+        base_scope, _ = _scope_at(args.scope, base_ref)
+        impact = compare(build_manifest(ROOT, base_scope, base_ref), head)
         base_label = args.base
     else:
         parser.error("one of --base, --verify-receipt, --verify-binding, --write-receipt "

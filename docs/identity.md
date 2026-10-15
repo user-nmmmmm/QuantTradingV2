@@ -37,6 +37,10 @@ python scripts/identity_report.py --head WORKTREE --verify-receipt receipt.json 
 
 回执核对只给出行为是否变化，不区分"仅排版"；回执里的 `body` 字段使它仍能识别移动（见 §6）。
 
+指定 Git `--head` 时，源码与 `config/frozen_scope.json` 都从该提交读取，引用先固定为 commit SHA；不借用当前 checkout 的范围。`--base` 比较同样分别读取两端的声明。`WORKTREE` 则读取工作区当前范围，仍只统计已跟踪文件。缺少引用、引用不是 commit 或所选树缺少范围声明时明确失败，不写出成功回执或摘要。
+
+`--scope` 在 commit 模式下必须是仓库内路径，并从所选提交读取；本地外部范围只用于 `WORKTREE`。发布绑定固定核对所选树的 `config/frozen_scope.json`。新身份回执的 `scope_sha256` 也参与核对；不含该字段的旧回执继续按原文件身份校验。AUD-02 首批约束见 [ADR 0034](adr/0034-frozen-replay-and-reference-verification.md)。
+
 局限：它只回答"范围内的行为是否变了"，不判断变了是否合理；不改写任何旧的冻结记录；未被 git 跟踪的新文件在工作区模式下不计入。
 
 ## 4. 文档移动索引

@@ -25,6 +25,16 @@
       "verify_roadmap_policy.py",
       "register_strategy_successor.py",
       "named in the policy contract's source scope"
+    ],
+    [
+      "run_frozen_replay.py",
+      "run_strategy_review_meta.py",
+      "executes only the manifest-verified copy in the historical bundle, never the checkout script (ADR 0034)"
+    ],
+    [
+      "run_frozen_replay.py",
+      "replay_strategy_review_controls.py",
+      "executes only the manifest-verified copy in the historical bundle, never the checkout script (ADR 0034)"
     ]
   ],
   "scripts": {
@@ -90,6 +100,7 @@
     "run_backtest_matrix.py": "supported",
     "run_deep_recovery_backtest.py": "research",
     "run_expanded_universe_backtest.py": "research",
+    "run_frozen_replay.py": "supported",
     "run_health_recovery_experiment.py": "research",
     "run_ml_selection_next.py": "research",
     "run_offline_recovery_drill.py": "supported",
