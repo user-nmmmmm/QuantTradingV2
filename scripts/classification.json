@@ -38,6 +38,7 @@
     ]
   ],
   "scripts": {
+    "repository_governance.py": "supported",
     "architecture_inventory.py": "supported",
     "audit_execution_readiness.py": "research",
     "audit_ml_readiness.py": "research",

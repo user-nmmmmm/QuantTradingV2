@@ -8,6 +8,8 @@
 
 ## [Unreleased]
 
+- AUD-07: link private vulnerability reporting directly, document owner notification/review checks, and generate a read-only per-ref/SHA/worktree inventory in ignored local storage (ADR 0040).
+
 - AUD-06: align dependency and Python/Node instructions with the installed project and CI matrix; replace stale module paths with checked navigation, scan reference-style Markdown links, and restore historical report entry points without rewriting frozen evidence (ADR 0039).
 
 ### Fixed
