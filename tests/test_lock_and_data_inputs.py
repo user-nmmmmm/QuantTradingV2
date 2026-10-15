@@ -233,7 +233,7 @@ def test_an_unknown_symbol_is_reported_as_unavailable_not_as_an_error(monkeypatc
     monkeypatch.setattr(data_inputs.time, "sleep", lambda s: None)
 
     def opener(url, timeout):
-        raise urllib.error.HTTPError(url, 400, "Bad Request", {}, io.BytesIO(b"{}"))
+        raise urllib.error.HTTPError(url, 400, "Bad Request", {}, io.BytesIO(b'{"code":-1121,"msg":"Invalid symbol."}'))
     assert data_inputs.fetch_binance_daily("NOPEUSDT", "2020-01-01", "2020-01-02", opener=opener) is None
 
 

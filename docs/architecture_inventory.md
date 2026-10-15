@@ -35,7 +35,7 @@ flowchart TB
 | 包 | 模块数 | 子包（模块数） |
 |---|---|---|
 | `cli` | 3 | 平铺 3 |
-| `core` | 106 | `analytics` 7, `broker` 6, `events` 5, `exchange` 5, `factors` 6, `foundation` 10, `live_broker` 6, `market` 17, `metrics` 5, `planning` 7, `risk` 10, `trading` 22 |
+| `core` | 107 | `analytics` 7, `broker` 6, `events` 5, `exchange` 5, `factors` 6, `foundation` 11, `live_broker` 6, `market` 17, `metrics` 5, `planning` 7, `risk` 10, `trading` 22 |
 | `ops` | 14 | 平铺 11；`operations` 3 |
 | `signal_meta` | 17 | 平铺 17 |
 | `config` | 1 | 平铺 1 |
