@@ -79,10 +79,18 @@ def test_deadline_window_is_inclusive_and_at_most_thirty_utc_days(run_collection
 
 
 @pytest.mark.skipif(importlib.util.find_spec("xdist") is None, reason="pytest-xdist is not installed locally")
-def test_parallel_collection_enforces_the_whole_suite_limit(run_collection):
-    result = run_collection(_cases("class"), "-p", "xdist.plugin", "-n", "2", collect_only=False)
-    assert result.returncode != 0, result.stdout + result.stderr
-    assert "11 quarantined test cases" in result.stdout + result.stderr
+@pytest.mark.parametrize("count, days, message", [(10, 7, None), (11, 7, "11 quarantined test cases"),
+                                                 (1, -1, "expired"), (1, 31, "at most 30 days")])
+def test_parallel_collection_enforces_the_whole_suite_limit(run_collection, count, days, message):
+    result = run_collection(_cases("class", count=count, days=days), "-p", "xdist.plugin", "-n", "2", collect_only=False)
+    output = result.stdout + result.stderr
+    assert "INTERNALERROR" not in output, output
+    if message is None:
+        assert result.returncode == 0, output
+        assert "10 xpassed" in output, output
+    else:
+        assert result.returncode in {1, 2, 4}, output
+        assert message in output, output
 
 
 @pytest.mark.parametrize("kwargs, message", [
@@ -100,7 +108,9 @@ def test_invalid_markers_fail_collection_before_xfail_can_hide_them(kwargs, mess
     item = SimpleNamespace(nodeid="test_probe.py::test_case", iter_markers=lambda name: [marker],
                            get_closest_marker=lambda name: marker, add_marker=added.append)
     with pytest.raises(pytest.UsageError, match=message):
-        hooks.pytest_collection_modifyitems([item])
+        session = SimpleNamespace(shouldfail=False)
+        hooks.pytest_collection_modifyitems([item], session)
+    assert message in session.shouldfail
     assert added == []
 
 
@@ -124,7 +134,7 @@ def test_the_quarantine_hook_turns_a_marked_test_into_a_non_strict_xfail():
                              nodeid="test_probe.py::test_marked", iter_markers=lambda name: [mark],
                              add_marker=added.append)
     plain = SimpleNamespace(get_closest_marker=lambda name: None, iter_markers=lambda name: [], add_marker=added.append)
-    hooks.pytest_collection_modifyitems([plain, marked])
+    hooks.pytest_collection_modifyitems([plain, marked], SimpleNamespace(shouldfail=False))
     assert len(added) == 1
     assert added[0].name == "xfail" and added[0].kwargs["strict"] is False
     assert until in added[0].kwargs["reason"]

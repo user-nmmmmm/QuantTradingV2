@@ -38,7 +38,7 @@ def _marker_problems(marker, today):
 
 
 @pytest.hookimpl(tryfirst=True)
-def pytest_collection_modifyitems(items):
+def pytest_collection_modifyitems(items, session):
     # xdist workers each collect the full suite. Run before -k/-m/--deselect can shrink the item list.
     today = datetime.now(timezone.utc).date()
     quarantined, problems = [], []
@@ -51,7 +51,11 @@ def pytest_collection_modifyitems(items):
     if len(quarantined) > MAX_QUARANTINED_CASES:
         problems.insert(0, f"{len(quarantined)} quarantined test cases; maximum is {MAX_QUARANTINED_CASES} (after parameter expansion)")
     if problems:
-        raise pytest.UsageError("quarantine policy failed:\n" + "\n".join(problems))
+        message = "quarantine policy failed:\n" + "\n".join(problems)
+        # pytest still calls collection_finish on error. Tell xdist why the worker stops so the
+        # controller reports this policy failure instead of scheduling its items and crashing.
+        session.shouldfail = message
+        raise pytest.UsageError(message)
     for item, marker in quarantined:
         reason, until = marker.kwargs["reason"], marker.kwargs["until"]
         item.add_marker(pytest.mark.xfail(reason=f"quarantined until {until}: {reason}", strict=False))
