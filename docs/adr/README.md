@@ -41,3 +41,4 @@
 | [0030](0030-state-ownership-fourth-slice-live-engine-recovery-and-export.md) | 状态所有权迁移的第四片：`LiveTradingEngine` 的 7 个对账与导出状态属性搬进 `Recovery`/`StateExport`（B6） | 已采纳 |
 | [0031](0031-state-ownership-fifth-slice-tick-orchestrator.md) | 状态所有权迁移的第五片：`TickOrchestrator` 独占的 8 个 tick 循环记账属性搬进它自己；共享的引擎级状态留在引擎（B6） | 已采纳 |
 | [0032](0032-bound-successor-registration.md) | 新身份登记：绑定发布标签，配置变更走机器核对的声明；登记工具已完成，执行待所有者（A5） | 已采纳 |
+| [0033](0033-atomic-bound-registration.md) | AUD-01：登记与样本打开共用进程锁；完整暂存后原子发布，失败可重试 | 已采纳 |

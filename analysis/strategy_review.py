@@ -1,11 +1,14 @@
 """Common event-cohort evidence and a date-gated, single-use forward protocol."""
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import asdict, is_dataclass
 from datetime import datetime, timezone
+import errno
 import hashlib
 import json
 import math
+import os
 from pathlib import Path
 
 import numpy as np
@@ -111,9 +114,40 @@ def freeze_prospective(path, *, code_hash, config_hash, registry_hash, frozen_at
     return policy
 
 
+@contextmanager
+def exclusive_path_lock(path):
+    """Serialize cooperating writers; closing the handle (also on process exit) releases the lock.
+
+    Keep the sidecar in place: unlinking it would let another process lock a different inode.
+    Its existence is not a claim that the sample has been opened.
+    """
+    path = Path(path).resolve()
+    with path.with_suffix(path.suffix + ".lock").open("a+b") as stream:
+        try:
+            if os.name == "nt":
+                import msvcrt
+                # Byte-range locks may extend beyond EOF; do not write into a range another writer holds.
+                stream.seek(0)
+                msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError as exc:
+            if exc.errno in (errno.EACCES, errno.EAGAIN, errno.EDEADLK):
+                raise BlockingIOError(f"Protocol or registration is busy; retry: {path}") from exc
+            raise
+        yield
+
+
 def open_prospective(path, *, code_hash, config_hash, registry_hash, data_hash, labels_complete, now=None):
     """Claim final evaluation once; never makes a live admission decision."""
     path = Path(path)
+    with exclusive_path_lock(path):
+        return _open_prospective(path, code_hash=code_hash, config_hash=config_hash, registry_hash=registry_hash,
+                                 data_hash=data_hash, labels_complete=labels_complete, now=now)
+
+
+def _open_prospective(path, *, code_hash, config_hash, registry_hash, data_hash, labels_complete, now):
     record = json.loads(path.read_text(encoding="utf-8"))
     validate_prospective(record)
     point = pd.Timestamp(now or datetime.now(timezone.utc))
