@@ -1,5 +1,7 @@
 # QuantTrading 开发计划 v3.0
 
+> 2026-10-15 开发入口补充：公开工程 roadmap 已从 #98 整合到本 PR。AUD-01 随 #99 合并，AUD-02 首批随 #100 合并，剩余四项在本 PR 待合并；之后推进 AUD-03 数据身份和 AUD-04 质量门禁。修复提交与 CI 见[复核记录](infrastructure_roadmap.md#10-2026-10-15公开github复核)，退出条件见[当前队列](infrastructure_roadmap.md#5-2026-10-15复核后的开发队列)。不重开历史 FIX 编号，不宣称 SYS 或 R 阶段通过。
+
 > 基线日期：2026-09-20。项目阶段以[统一Roadmap](unified_roadmap.md)为准；每个任务的可执行说明见[开发详情](development_details.md)。
 > [结构化任务登记](development_task_registry.json) · [旧计划/邮件映射](roadmap_traceability.md) · [历史资料与邮件](archive/2026-09-roadmap-rebaseline/README.md)
 

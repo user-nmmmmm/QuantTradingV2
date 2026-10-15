@@ -144,7 +144,7 @@ def test_binding_roundtrip_and_what_it_detects(repo: Path):
     git(repo, "add", "-A")
     git(repo, "commit", "-qm", "move")
     problems, impact = verify_binding(saved, repo, *current(repo, "HEAD"))
-    assert problems == [] and impact.moved == [("core/a.py", "core/sub/a.py")] and not impact.changes_behavior
+    assert problems == [] and impact.moved == [("core/a.py", "core/sub/a.py")] and impact.changes_behavior
 
 
 def test_binding_detects_a_moved_tag_and_a_changed_scope_declaration(repo: Path):
@@ -325,3 +325,54 @@ def test_ancestry_command_errors_cannot_pass_tag_verification(repo, monkeypatch)
 
     monkeypatch.setattr(subprocess, "run", unavailable_ancestry)
     assert any("cannot verify" in p for p in verify_tag("v1.2.0", root=repo, main_ref="main"))
+
+
+@pytest.mark.parametrize("kind", ["receipt", "binding"])
+@pytest.mark.parametrize("scheme, expected", [("code-token/v1", 1), ("code-token/v2", 0)])
+def test_cli_verifies_saved_scheme_without_migrating_old_records(repo, monkeypatch, tmp_path, capsys,
+                                                                kind, scheme, expected):
+    setup_identity_cli(monkeypatch, repo)
+    target = repo / "core/a.py"
+    target.write_text('A = f"{1 + 1}"\n', encoding="utf-8")
+    git(repo, "add", "core/a.py")
+    git(repo, "commit", "-qm", "fstring release")
+    git(repo, "tag", "-a", "v1.2.0", "-m", "release")
+    saved = tmp_path / f"{kind}.json"
+    command = (["--bind-release", "v1.2.0", "--write-binding"] if kind == "binding"
+               else ["--head", "HEAD", "--write-receipt"])
+    assert identity_report.main([*command, str(saved), "--scheme", scheme]) == 0
+    recorded = saved.read_bytes()
+    capsys.readouterr()
+    assert identity_report.main([f"--verify-{kind}", str(saved), "--head", "WORKTREE", "--fail-on-change"]) == 0
+    assert f"scheme `{scheme}`" in capsys.readouterr().out
+    target.write_text('A = f"{1+1}"\n', encoding="utf-8")
+    assert identity_report.main([f"--verify-{kind}", str(saved), "--head", "WORKTREE", "--fail-on-change"]) == expected
+    assert saved.read_bytes() == recorded
+    other = "code-token/v2" if scheme.endswith("v1") else "code-token/v1"
+    assert identity_report.main([f"--verify-{kind}", str(saved), "--head", "WORKTREE", "--scheme", other]) == 2
+    assert "cannot migrate a receipt" in capsys.readouterr().err
+
+
+def test_import_only_cli_json_and_exit_code_require_behavioral_review(repo, monkeypatch, tmp_path, capsys):
+    setup_identity_cli(monkeypatch, repo)
+    target = repo / "core/a.py"
+    target.write_text("from math import floor as operation\nA = operation(1.2)\n", encoding="utf-8")
+    git(repo, "add", "core/a.py")
+    git(repo, "commit", "-qm", "floor")
+    saved = tmp_path / "identity.json"
+    assert identity_report.main(["--head", "HEAD", "--write-receipt", str(saved)]) == 0
+    assert json.loads(saved.read_text())["scheme"] == "code-token/v2"
+    capsys.readouterr()
+    target.write_text(target.read_text().replace("floor", "ceil"), encoding="utf-8")
+    assert identity_report.main(["--verify-receipt", str(saved), "--head", "WORKTREE", "--json", "--fail-on-change"]) == 1
+    result = json.loads(capsys.readouterr().out)
+    assert result["import_only"] == ["core/a.py"] and result["changes_identity"] and result["changes_behavior"]
+    assert result["behavior_status"] == "not_verified"
+
+
+def test_unknown_saved_scheme_is_rejected_before_receipt_output(repo, monkeypatch, tmp_path, capsys):
+    setup_identity_cli(monkeypatch, repo)
+    saved, output = tmp_path / "saved.json", tmp_path / "new.json"
+    saved.write_text('{"scheme": "code-token/unknown"}', encoding="utf-8")
+    assert identity_report.main(["--verify-receipt", str(saved), "--write-receipt", str(output)]) == 2
+    assert "unsupported identity scheme" in capsys.readouterr().err and not output.exists()

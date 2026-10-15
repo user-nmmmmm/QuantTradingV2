@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from analysis.research_evidence import ResearchEvidenceRun, candidate_panel_evidence, sharpe_dependence_diagnostic
+from analysis.research_evidence import ResearchEvidenceRun, candidate_panel_evidence, sharpe_dependence_diagnostic, source_identity
 from analysis.research_validation import deflated_sharpe_ratio, evaluate_holdout_admission
 from analysis.walk_forward import WalkForwardConfig, run_walk_forward
 from core.metrics import bootstrap_return_distribution, calculate_profit_factor, one_sided_bootstrap_p_value
@@ -14,6 +14,57 @@ from core.metrics import bootstrap_return_distribution, calculate_profit_factor,
 
 def series(values):
     return pd.Series(values, index=pd.date_range("2024-01-01", periods=len(values), tz="UTC"))
+
+
+@pytest.mark.parametrize("path", [
+    "cli/data.py", "cli/backtest.py", "ops/clock.py", "signal_meta/filter.py", "research/model.py",
+    "live_trading/engine.py", "config/runtime.toml", "pyproject.toml", "requirements.txt",
+    "requirements.lock.txt", "requirements.lock.sha256", "requirements-ml.txt", "resolve_live_order.py",
+])
+def test_research_identity_tracks_untracked_entrypoints_and_install_inputs(tmp_path, path):
+    original = source_identity(tmp_path)
+    target = tmp_path / path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("initial\n", encoding="utf-8")
+    registered = source_identity(tmp_path)
+    assert path in registered and registered != original
+    target.write_text("changed\n", encoding="utf-8")
+    assert source_identity(tmp_path) != registered
+    target.unlink()
+    assert source_identity(tmp_path) == original
+
+
+@pytest.mark.parametrize("path", ["cli/data.py", "pyproject.toml"])
+def test_research_run_invalidates_on_cli_or_packaging_mutation(tmp_path, monkeypatch, path):
+    import analysis.research_evidence as module
+    target = tmp_path / path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("initial\n", encoding="utf-8")
+    monkeypatch.setattr(module, "source_identity", lambda: source_identity(tmp_path))
+    run = ResearchEvidenceRun(candidates=["synthetic"], parameters={}, data_map={}, output=tmp_path / "run")
+    registration = (tmp_path / "run/registration.json").read_bytes()
+    assert run.verify_identity({})["source_unchanged"] is True
+    target.write_text("changed\n", encoding="utf-8")
+    result = run.verify_identity({})
+    assert result["identity_changed"] and result["source_unchanged"] is False
+    assert run.events[-1]["status"] == "changed"
+    assert (tmp_path / "run/registration.json").read_bytes() == registration
+
+
+def test_research_identity_remains_independent_of_frozen_scope_and_ignores_outputs(tmp_path):
+    scope = tmp_path / "config/frozen_scope.json"
+    scope.parent.mkdir()
+    scope.write_text('{"directories": [], "files": []}', encoding="utf-8")
+    (tmp_path / "cli").mkdir()
+    cli = tmp_path / "cli/data.py"
+    cli.write_text("VERSION = 1\n", encoding="utf-8")
+    before = source_identity(tmp_path)
+    assert "cli/data.py" in before
+    (tmp_path / "outputs").mkdir()
+    (tmp_path / "outputs/result.json").write_text("{}", encoding="utf-8")
+    assert source_identity(tmp_path) == before
+    cli.write_text("VERSION = 2\n", encoding="utf-8")
+    assert source_identity(tmp_path) != before
 
 
 def test_old_dsr_requires_real_trial_dispersion_and_matches_full_panel_scale():

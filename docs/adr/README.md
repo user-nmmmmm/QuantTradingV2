@@ -43,3 +43,4 @@
 | [0032](0032-bound-successor-registration.md) | 新身份登记：绑定发布标签，配置变更走机器核对的声明；登记工具已完成，执行待所有者（A5） | 已采纳 |
 | [0033](0033-atomic-bound-registration.md) | AUD-01：登记与样本打开共用进程锁；完整暂存后原子发布，失败可重试 | 已采纳 |
 | [0034](0034-frozen-replay-and-reference-verification.md) | AUD-02 首批：冻结驱动导入隔离、指定提交的范围声明、缺失引用拒绝 | 已采纳 |
+| [0035](0035-versioned-source-identity.md) | AUD-02 后续：独立研究/打包范围、v2 f-string 规范化、旧方案验证与保守导入结论 | 已采纳 |

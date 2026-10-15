@@ -21,10 +21,13 @@ def source_identity(root=None):
     """
     root = Path(root or Path(__file__).resolve().parents[1])
     paths = set()
-    for directory in ("analysis", "backtest", "composition", "config", "core", "router", "scripts", "strategies"):
+    for directory in ("analysis", "backtest", "cli", "composition", "config", "core", "live_trading",
+                      "ops", "research", "router", "scripts", "signal_meta", "strategies"):
         paths.update(p for p in (root / directory).rglob("*")
-                     if p.is_file() and p.suffix in {".py", ".yaml", ".yml", ".json"})
-    paths.update(root / name for name in ("main.py", "run_live.py", "requirements.lock.txt")
+                     if p.is_file() and p.suffix in {".py", ".yaml", ".yml", ".json", ".toml"})
+    paths.update(root / name for name in ("main.py", "run_live.py", "resolve_live_order.py", "pyproject.toml",
+                                         "requirements.txt", "requirements.lock.txt", "requirements.lock.sha256",
+                                         "requirements-ml.txt")
                  if (root / name).is_file())
     return {p.relative_to(root).as_posix(): sha256_file(p) for p in sorted(paths)}
 
