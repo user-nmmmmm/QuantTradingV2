@@ -52,6 +52,7 @@ import pandas as pd
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 from core.market.data_fetcher import DataFetcher, timeframe_delta  # noqa: E402
+from core.foundation.content_hash import LF_HASH_POLICY, cache_hash_matches, sha256_lf_bytes  # noqa: E402
 from core.foundation.logger import get_logger  # noqa: E402
 from core.market.universe import normalize_symbol  # noqa: E402
 
@@ -216,7 +217,7 @@ def main(argv=None) -> int:
                    and old_record.get("symbol") == normalize_symbol(symbol)
                    and old_record.get("file") == csv_path.name
                    and old_record.get("coverage", {}).get("status") == "complete"
-                   and csv_path.exists() and old_record.get("sha256") == sha256_file(csv_path))
+                   and csv_path.exists() and cache_hash_matches(csv_path.read_bytes(), old_record))
         existing = load_existing(csv_path) if trusted and not args.no_incremental else None
         if csv_path.exists() and not trusted:
             logger.warning("Unverified legacy cache excluded from incremental merge: %s", csv_path)
@@ -256,7 +257,7 @@ def main(argv=None) -> int:
             if not archived.exists():
                 archived.write_bytes(csv_path.read_bytes())
             legacy_copy = str(archived.relative_to(out_dir))
-        merged.to_csv(csv_path)
+        merged.to_csv(csv_path, lineterminator="\n")
         manifest["symbols"][symbol] = {
             "provider": args.exchange, "timeframe": args.timeframe, "market_type": "spot",
             "symbol": normalize_symbol(symbol), "original_symbol": symbol,
@@ -266,7 +267,7 @@ def main(argv=None) -> int:
             "rows": int(len(merged)),
             "first": merged.index.min().isoformat(),
             "last": merged.index.max().isoformat(),
-            "sha256": sha256_file(csv_path),
+            "sha256": sha256_lf_bytes(csv_path.read_bytes()), "hash_policy": LF_HASH_POLICY,
         }
         logger.info("  写入 %s（%d 行，%s .. %s）", csv_path.name, len(merged),
                     merged.index.min().date(), merged.index.max().date())

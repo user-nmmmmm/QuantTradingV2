@@ -47,6 +47,7 @@ core/factors/volatility.py
 core/factors/volume.py
 core/foundation/__init__.py
 core/foundation/clock.py
+core/foundation/content_hash.py
 core/foundation/domain.py
 core/foundation/live_safety.py
 core/foundation/logger.py
