@@ -1,5 +1,7 @@
 # QuantTrading 开发计划 v3.0
 
+> 2026-10-15开发入口补充：当前main的公开审查缺陷与CI依据见[复核记录](infrastructure_roadmap.md#10-2026-10-15公开github复核)，本轮工程修复包AUD-01–08见[基础设施路线图第5节](infrastructure_roadmap.md#5-2026-10-15复核后的开发队列)。这些是新增工程缺陷，不重开已验收的历史FIX编号，不宣称现有SYS或R阶段通过。
+
 > 基线日期：2026-09-20。项目阶段以[统一Roadmap](unified_roadmap.md)为准；每个任务的可执行说明见[开发详情](development_details.md)。
 > [结构化任务登记](development_task_registry.json) · [旧计划/邮件映射](roadmap_traceability.md) · [历史资料与邮件](archive/2026-09-roadmap-rebaseline/README.md)
 
