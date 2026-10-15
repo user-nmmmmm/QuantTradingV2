@@ -82,6 +82,8 @@ def test_registration_binds_the_tag_and_starts_a_fresh_clock(world):
     assert parent.read_bytes() == before and (out / "parent_protocol.json").read_bytes() == before
     assert binding["tag"] == "v3.1.0" and receipt["tag_commit"] == binding["tag_commit"]
     assert receipt["code_hash"] == binding["receipt"]["identity_sha256"]
+    assert receipt["identity_scheme"] == binding["receipt"]["scheme"] == "code-token/v2"
+    assert any("code-token/v2" in limitation for limitation in receipt["limitations"])
     assert receipt["config_hash"] == sha(NEW_CONFIG)
     assert receipt["config_change_sha256"] == sha(world["config_change"].read_bytes())
     assert receipt["test_start"] == "2099-02-01T00:00:00+00:00" and receipt["opened_at"] is None

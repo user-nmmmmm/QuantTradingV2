@@ -1,20 +1,21 @@
 """Behavioral source identity for a declared "frozen scope".
 
 Legacy identities hash raw file bytes, so a comment or a reformat changes them.
-This module adds a second, stricter-by-meaning scheme, ``code-token/v1``:
+This module provides versioned normalized source identities, ``code-token/v1``
+and ``code-token/v2`` (the default for new records):
 
 * Python files are reduced to their token stream without comments and without
   layout-only tokens (blank lines, line wrapping inside brackets, indentation
-  width, spacing). Two files with the same stream parse to the same program, so
-  any change that can alter behavior changes the hash, while comment-only and
-  whitespace-only edits do not.
+  width, spacing). V2 normalizes f-string expressions through their parsed
+  structure while preserving literal values, debug text, conversions and format
+  specifications. V1 retains the original f-string spelling for old records.
 * Other files in scope are hashed as bytes (text types with LF normalization).
 
 Each file also carries a ``body`` hash: the same token stream with import statements
 removed (non-Python files: the normalized bytes). It never takes part in the identity
 digest; it only lets a report recognize a file that was moved or whose only change is
-the import path of something that moved, so a relocation PR reads "moved N files,
-behavior unchanged" instead of a wall of deletions and additions.
+the import path of something that moved. These are syntactic classifications;
+they do not prove equivalent import targets, side effects or runtime behavior.
 
 Nothing here replaces or relaxes an existing verifier: old frozen records keep
 being checked with the scheme they were created with. This module only makes
@@ -22,6 +23,7 @@ the impact of a change on the frozen scope visible and comparable.
 """
 from __future__ import annotations
 
+import ast
 import hashlib
 import io
 import json
@@ -31,7 +33,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Dict, Iterable, List, Mapping, Optional, Tuple
 
-SCHEME = "code-token/v1"
+LEGACY_SCHEME = "code-token/v1"
+SCHEME = "code-token/v2"
+SUPPORTED_SCHEMES = (LEGACY_SCHEME, SCHEME)
 CRLF, LF = bytes([13, 10]), bytes([10])
 TEXT_SUFFIXES = {".py", ".yaml", ".yml", ".toml", ".txt"}
 _SKIPPED = {tokenize.COMMENT, tokenize.NL, tokenize.ENCODING}
@@ -43,8 +47,32 @@ def _sha(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def _python_tokens(source: str) -> List[str]:
+def _check_scheme(scheme: str) -> None:
+    if scheme not in SUPPORTED_SCHEMES:
+        raise ValueError(f"unsupported identity scheme: {scheme}")
+
+
+def _ast_structure(value):
+    """Stable field serialization, independent of ast.dump's version-specific omissions."""
+    if isinstance(value, ast.AST):
+        return [type(value).__name__, [[name, _ast_structure(item)] for name, item in ast.iter_fields(value)]]
+    if isinstance(value, list):
+        return [_ast_structure(item) for item in value]
+    return [type(value).__name__, repr(value)]
+
+
+def _string_item(text: str, scheme: str) -> str:
+    prefix = text[:next(i for i, char in enumerate(text) if char in "\"'")]
+    if scheme == SCHEME and "f" in prefix.lower():
+        # Debug '=' text is a Constant in JoinedStr, so its visible spaces survive.
+        tree = ast.parse(text, mode="eval")
+        return "FSTRING " + json.dumps(_ast_structure(tree), ensure_ascii=True, separators=(",", ":"))
+    return "STRING " + text
+
+
+def _python_tokens(source: str, scheme: str = SCHEME) -> List[str]:
     """Canonical token items of ``source``; raises ``tokenize.TokenError``/``SyntaxError`` if unreadable."""
+    _check_scheme(scheme)
     source = source.replace("\r\n", "\n").replace("\r", "\n")
     lines = source.split("\n")
     # offset of each line start, to cut f-string spans out of the original text
@@ -70,7 +98,7 @@ def _python_tokens(source: str) -> List[str]:
             if depth == 0:
                 # Python 3.12+ splits f-strings into several tokens; 3.11 yields one STRING.
                 text = source[offset(span_start):offset(token.end)]
-                out.append("STRING " + text)
+                out.append(_string_item(text, scheme))
             continue
         if depth:
             continue
@@ -82,28 +110,30 @@ def _python_tokens(source: str) -> List[str]:
             out.append("INDENT")
         elif kind == tokenize.DEDENT:
             out.append("DEDENT")
+        elif kind == tokenize.STRING:
+            out.append(_string_item(token.string, scheme))
         else:
             out.append(f"{tokenize.tok_name[kind]} {token.string}")
     return out
 
 
-def normalize_python(source: str) -> str:
+def normalize_python(source: str, *, scheme: str = SCHEME) -> str:
     """Canonical token text of ``source``; raises ``tokenize.TokenError``/``SyntaxError`` if unreadable."""
-    return "\x1f".join(_python_tokens(source))
+    return "\x1f".join(_python_tokens(source, scheme))
 
 
 _STATEMENT_START = {"\n", "INDENT", "DEDENT", "OP ;"}
 
 
-def python_body(source: str) -> str:
+def python_body(source: str, *, scheme: str = SCHEME) -> str:
     """Canonical token text with every ``import`` / ``from ... import`` statement removed.
 
     Statements are recognized at a statement boundary only, so ``yield from`` and
-    ``raise ... from`` are untouched. Everything that can run is still in the text:
-    only the *targets* of imports are ignored."""
+    ``raise ... from`` are untouched. Imports can execute code and bind different
+    values: this hash is only a classification aid, never an equivalence proof."""
     out: List[str] = []
     at_start, skipping = True, False
-    for item in _python_tokens(source):
+    for item in _python_tokens(source, scheme):
         if skipping:
             if item in ("\n", "OP ;"):
                 skipping, at_start = False, True
@@ -125,16 +155,17 @@ class FileIdentity:
     body: str = ""   # sha256 of the form without import statements; "" when unknown or empty
 
 
-def identify(path: str, data: bytes) -> FileIdentity:
+def identify(path: str, data: bytes, *, scheme: str = SCHEME) -> FileIdentity:
+    _check_scheme(scheme)
     raw = _sha(data)
     suffix = Path(path).suffix.lower()
     if suffix == ".py":
         try:
             source = data.decode("utf-8-sig")
-            text, body = normalize_python(source), python_body(source)
-            return FileIdentity(path, raw, _sha(text.encode("utf-8")), SCHEME,
+            text, body = normalize_python(source, scheme=scheme), python_body(source, scheme=scheme)
+            return FileIdentity(path, raw, _sha(text.encode("utf-8")), scheme,
                                 _sha(body.encode("utf-8")) if body else "")
-        except (tokenize.TokenError, SyntaxError, UnicodeDecodeError, IndentationError):
+        except (tokenize.TokenError, SyntaxError, UnicodeDecodeError, IndentationError, RecursionError):
             return FileIdentity(path, raw, raw, "bytes/v1")  # unreadable: be strict
     if suffix in TEXT_SUFFIXES:
         norm = _sha(data.replace(CRLF, LF))
@@ -216,7 +247,9 @@ def reader_for(root: Path, ref: Optional[str], paths: Optional[List[str]] = None
     return read_blob
 
 
-def build_manifest(root: Path | str, scope: Scope, ref: Optional[str] = None) -> Dict[str, FileIdentity]:
+def build_manifest(root: Path | str, scope: Scope, ref: Optional[str] = None, *,
+                   scheme: str = SCHEME) -> Dict[str, FileIdentity]:
+    _check_scheme(scheme)
     root = Path(root)
     in_scope = [p for p in list_paths_at(root, ref) if scope.contains(p)]
     read = reader_for(root, ref, in_scope)
@@ -224,7 +257,7 @@ def build_manifest(root: Path | str, scope: Scope, ref: Optional[str] = None) ->
     for path in in_scope:
         data = read(path)
         if data is not None:
-            manifest[path] = identify(path, data)
+            manifest[path] = identify(path, data, scheme=scheme)
     return manifest
 
 
@@ -251,8 +284,16 @@ class Impact:
 
     @property
     def changes_behavior(self) -> bool:
-        """True unless every difference is a move or an import-path edit (imports are not verified here)."""
-        return bool(self.behavioral or self.added or self.removed)
+        """Conservative compatibility flag: identity changes require behavioral review.
+
+        True means potentially changed, not proven different. Imports and moves
+        can change execution and are never exempted by a matching body hash.
+        """
+        return self.changes_identity
+
+    @property
+    def behavior_status(self) -> str:
+        return "not_verified" if self.changes_identity else "unchanged"
 
 
 def _pair_moves(base: Mapping[str, FileIdentity], head: Mapping[str, FileIdentity],
@@ -293,8 +334,8 @@ def compare(base: Mapping[str, FileIdentity], head: Mapping[str, FileIdentity]) 
             added.append(path)
         elif after is None:
             removed.append(path)
-        elif before.norm != after.norm:
-            if before.body and before.body == after.body:
+        elif before.norm != after.norm or before.scheme != after.scheme:
+            if before.scheme == after.scheme and before.body and before.body == after.body:
                 impact.import_only.append(path)
             else:
                 impact.behavioral.append(path)
@@ -304,8 +345,15 @@ def compare(base: Mapping[str, FileIdentity], head: Mapping[str, FileIdentity]) 
     return impact
 
 
-def receipt(manifest: Mapping[str, FileIdentity], *, ref_sha: Optional[str]) -> dict:
-    return {"schema": "frozen-scope-identity/v1", "scheme": SCHEME, "git_sha": ref_sha,
+def _check_manifest_scheme(manifest: Mapping[str, FileIdentity], scheme: str) -> None:
+    _check_scheme(scheme)
+    if any(i.scheme in SUPPORTED_SCHEMES and i.scheme != scheme for i in manifest.values()):
+        raise ValueError(f"manifest must be built with the recorded scheme {scheme}")
+
+
+def receipt(manifest: Mapping[str, FileIdentity], *, ref_sha: Optional[str], scheme: str = SCHEME) -> dict:
+    _check_manifest_scheme(manifest, scheme)
+    return {"schema": "frozen-scope-identity/v1", "scheme": scheme, "git_sha": ref_sha,
             "identity_sha256": identity_digest(manifest),
             "files": {p: {"norm": i.norm, "scheme": i.scheme, **({"body": i.body} if i.body else {})}
                       for p, i in sorted(manifest.items())}}
@@ -313,10 +361,12 @@ def receipt(manifest: Mapping[str, FileIdentity], *, ref_sha: Optional[str]) -> 
 
 def verify_receipt(saved: Mapping, manifest: Mapping[str, FileIdentity]) -> Impact:
     """Compare the current scope with a saved receipt (see ``receipt``)."""
-    if saved.get("schema") != "frozen-scope-identity/v1" or saved.get("scheme") != SCHEME:
+    if saved.get("schema") != "frozen-scope-identity/v1" or saved.get("scheme") not in SUPPORTED_SCHEMES:
         raise ValueError("unsupported identity receipt")
     previous = {p: FileIdentity(p, v["norm"], v["norm"], v["scheme"], v.get("body", ""))
                 for p, v in saved["files"].items()}
+    _check_manifest_scheme(previous, saved["scheme"])
+    _check_manifest_scheme(manifest, saved["scheme"])
     # raw hashes are not stored in receipts, so cosmetic edits cannot be told apart here by design;
     # receipts written before ``body`` existed simply cannot recognize moves or import-only edits
     return compare(previous, {p: FileIdentity(p, i.norm, i.norm, i.scheme, i.body) for p, i in manifest.items()})
@@ -344,7 +394,7 @@ def _tag_commit(root: Path, tag: str) -> str:
     return _git(root, "rev-parse", f"refs/tags/{tag}^{{commit}}").decode().strip()
 
 
-def bind_release(root: Path | str, tag: str) -> dict:
+def bind_release(root: Path | str, tag: str, *, scheme: str = SCHEME) -> dict:
     """Binding record: an annotated release tag, its commit, and the frozen-scope identity at that commit.
 
     The scope declaration is read from the tagged commit as well, so the record is a function of the tag alone."""
@@ -352,9 +402,9 @@ def bind_release(root: Path | str, tag: str) -> dict:
     commit = _tag_commit(root, tag)
     scope_bytes = _git(root, "cat-file", "blob", f"{commit}:{SCOPE_FILE}")
     scope = Scope.from_json(scope_bytes.decode("utf-8"))
-    manifest = build_manifest(root, scope, commit)
+    manifest = build_manifest(root, scope, commit, scheme=scheme)
     return {"schema": BINDING_SCHEMA, "tag": tag, "tag_commit": commit,
-            "scope_sha256": scope_sha256(scope_bytes), "receipt": receipt(manifest, ref_sha=commit)}
+            "scope_sha256": scope_sha256(scope_bytes), "receipt": receipt(manifest, ref_sha=commit, scheme=scheme)}
 
 
 def verify_binding(saved: Mapping, root: Path | str, head: Mapping[str, FileIdentity],

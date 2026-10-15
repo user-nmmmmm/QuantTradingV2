@@ -197,7 +197,7 @@ def _stage_registration(output, *, registry, old_bytes, old, statement_bytes, bi
         "test_start": protocol["test_start"], "test_end_exclusive": protocol["test_end_exclusive"],
         "mature_after": protocol["mature_after"], "opened_at": None,
         "limitations": ["Registration is not independent strategy validation or approval to trade.",
-                        "The code identity is behavioral (code-token/v1): comments and layout do not change it.",
+                        f"The code identity uses {binding['receipt']['scheme']}; it does not prove runtime equivalence.",
                         "Historical data, capacity and full-account evidence remain outstanding."],
     }
     _write(output / "acceptance.json", receipt)

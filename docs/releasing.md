@@ -43,7 +43,7 @@ git push origin vX.Y.Z
 | 字段 | 含义 |
 |---|---|
 | `tag`、`tag_commit` | 发布标签及其指向的提交 |
-| `scheme`、`identity_sha256`、`files` | 该提交上冻结范围的行为身份（`code-token/v1`）及逐文件哈希，即现有的身份回执 |
+| `scheme`、`identity_sha256`、`files` | 该提交的源码身份及逐文件哈希；新记录默认 `code-token/v2`，原 v1 记录保留原方案 |
 | `scope_sha256` | 当时 `config/frozen_scope.json` 的哈希 |
 
 ```bash
@@ -54,6 +54,6 @@ python scripts/identity_report.py --bind-release vX.Y.Z --write-binding reports/
 python scripts/identity_report.py --verify-binding reports/<批次>/identity_binding.json --head WORKTREE --fail-on-change
 ```
 
-核对失败的情形：标签被移动或删除、范围声明文件变了、冻结范围的行为变了。仅注释/排版的修改不算（沿用 `code-token/v1`）。
+核对失败的情形：标签被移动或删除、范围声明文件变了、冻结范围的源码身份变了（包含移动和导入变化）。验证自动使用绑定中记录的 v1/v2 方案；不以新方案重算并改写旧绑定。v1 保留 f-string 原文，v2 规范化普通表达式排版并保留可见的 debug 文本，详见[身份说明](identity.md)。升级方案或扩大到 `pyproject.toml` 等新范围须创建新绑定并按协议重新登记。
 
 绑定记录**不替换、不放宽**任何旧校验：旧登记（例如 `followup-successor-03` 的 395 个文件清单）继续按原来的逐字节方式验证，本页只规定之后新登记怎么写。真正的新身份登记（`scripts/register_strategy_successor.py`）要等结构整理完成后再做，见 [ADR 0008](adr/0008-defer-forward-observation-window.md)。

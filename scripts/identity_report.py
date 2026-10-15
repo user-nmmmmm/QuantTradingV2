@@ -25,7 +25,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-from core.foundation.source_identity import (Impact, Scope, SCHEME, bind_release, build_manifest, compare, identity_digest,
+from core.foundation.source_identity import (Impact, Scope, SCHEME, SUPPORTED_SCHEMES,
+                                  bind_release, build_manifest, compare, identity_digest,
                                   receipt, scope_sha256, verify_binding, verify_receipt)
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -62,20 +63,21 @@ def _scope_at(path: Path, ref):
     return Scope.from_json(data.decode("utf-8")), scope_sha256(data)
 
 
-def render(impact: Impact, *, base_label: str, head_label: str, scope_files: int) -> str:
+def render(impact: Impact, *, base_label: str, head_label: str, scope_files: int, scheme: str = SCHEME) -> str:
     if not impact.changes_identity:
         verdict = "unchanged"
-    elif impact.changes_behavior:
-        verdict = "**CHANGED**"
+    elif not (impact.behavioral or impact.added or impact.removed):
+        verdict = "**CHANGED** (moves / import statements only; behavior not verified)"
     else:
-        verdict = "**CHANGED** (moves / import paths only; behavior unchanged)"
-    lines = [f"### Frozen-scope behavioral identity: {verdict}",
+        verdict = "**CHANGED** (behavior not verified)"
+    lines = [f"### Frozen-scope identity: {verdict}",
              "",
-             f"`{base_label}` -> `{head_label}` | scheme `{SCHEME}` | {scope_files} files in scope", ""]
+             f"`{base_label}` -> `{head_label}` | scheme `{scheme}` | {scope_files} files in scope", ""]
     if impact.moved:
-        lines.append(f"Moved {len(impact.moved)} files, file content unchanged apart from import paths.")
+        lines.append(f"Moved {len(impact.moved)} files with matching import-stripped body hashes; "
+                     "runtime equivalence is not verified.")
         lines.append("")
-    sections = (("Behavioral changes", impact.behavioral), ("Added", impact.added),
+    sections = (("Other identity changes", impact.behavioral), ("Added", impact.added),
                 ("Removed", impact.removed),
                 ("Moved (old -> new)", [f"{old}` -> `{new}" for old, new in impact.moved]),
                 ("Only import statements changed", impact.import_only),
@@ -87,13 +89,11 @@ def render(impact: Impact, *, base_label: str, head_label: str, scope_files: int
             if len(paths) > 50:
                 lines.append(f"- ... and {len(paths) - 50} more")
             lines.append("")
-    if impact.changes_identity and not impact.changes_behavior:
-        lines.append("The identity digest changed, but only through file locations and import paths. "
-                     "Import targets are not verified by this report: the layering rules and the test suite "
-                     "cover them. Candidates frozen against the previous identity still need re-registration "
-                     "under their protocol (see docs/identity.md).")
-    elif impact.changes_identity:
-        lines.append("Candidates frozen against the previous identity must be re-registered under their "
+    if impact.changes_identity:
+        lines.append("Behavior is not verified: imports can bind different values or execute side effects, "
+                     "and moves can affect module names, relative imports and resource paths. "
+                     "Layering checks and tests provide additional evidence, not an equivalence proof. "
+                     "Candidates frozen against the previous identity must be re-registered under their "
                      "protocol before this change is treated as the same candidate (see docs/identity.md).")
     elif impact.cosmetic:
         lines.append("Only comments or layout changed: the behavioral identity is the same.")
@@ -107,6 +107,8 @@ def main(argv=None) -> int:
     parser.add_argument("--base", help="git ref to compare from (e.g. origin/main)")
     parser.add_argument("--head", default="HEAD", help="git ref or WORKTREE (default HEAD)")
     parser.add_argument("--scope", type=Path, default=SCOPE_FILE)
+    parser.add_argument("--scheme", choices=SUPPORTED_SCHEMES,
+                        help=f"normalization scheme for new records (default {SCHEME}); verification uses the saved scheme")
     parser.add_argument("--summary-file", type=Path, help="append the markdown report here (e.g. $GITHUB_STEP_SUMMARY)")
     parser.add_argument("--fail-on-change", action="store_true", help="exit 1 when the behavioral identity changed")
     parser.add_argument("--write-receipt", type=Path, help="write the identity of --head as a JSON receipt")
@@ -124,7 +126,20 @@ def main(argv=None) -> int:
         return 2
 
 
+def _selected_scheme(args):
+    path = args.verify_binding or args.verify_receipt
+    saved = json.loads(path.read_text(encoding="utf-8")) if path else None
+    record = saved.get("receipt", {}) if args.verify_binding else saved
+    scheme = record.get("scheme") if record is not None else (args.scheme or SCHEME)
+    if scheme not in SUPPORTED_SCHEMES:
+        raise ValueError(f"unsupported identity scheme: {scheme}")
+    if args.scheme and args.scheme != scheme:
+        raise ValueError("--scheme differs from the recorded identity scheme; verification cannot migrate a receipt")
+    return scheme, saved
+
+
 def _run(args, parser):
+    scheme, saved = _selected_scheme(args)
 
     if args.bind_release:
         if not args.write_binding:
@@ -133,7 +148,7 @@ def _run(args, parser):
             print(f"refusing to overwrite {args.write_binding}", file=sys.stderr)
             return 2
         try:
-            data = bind_release(ROOT, args.bind_release)
+            data = bind_release(ROOT, args.bind_release, scheme=scheme)
         except ValueError as error:
             print(f"ERROR: {error}", file=sys.stderr)
             return 2
@@ -146,10 +161,10 @@ def _run(args, parser):
     scope, head_scope_sha = _scope_at(args.scope, head_ref)
     if args.verify_binding and args.scope.resolve() != (ROOT / "config/frozen_scope.json").resolve():
         raise ValueError("release bindings must use the selected tree's config/frozen_scope.json")
-    head = build_manifest(ROOT, scope, head_ref)
+    head = build_manifest(ROOT, scope, head_ref, scheme=scheme)
 
     if args.write_receipt:
-        data = receipt(head, ref_sha=head_ref)
+        data = receipt(head, ref_sha=head_ref, scheme=scheme)
         data["scope_sha256"] = head_scope_sha
         if args.write_receipt.exists():
             print(f"refusing to overwrite {args.write_receipt}", file=sys.stderr)
@@ -160,11 +175,9 @@ def _run(args, parser):
 
     problems = []
     if args.verify_binding:
-        saved = json.loads(args.verify_binding.read_text(encoding="utf-8"))
         problems, impact = verify_binding(saved, ROOT, head, head_scope_sha)
         base_label = f"{saved.get('tag')}@{(saved.get('tag_commit') or 'unknown')[:10]}"
     elif args.verify_receipt:
-        saved = json.loads(args.verify_receipt.read_text(encoding="utf-8"))
         impact = verify_receipt(saved, head)
         if "scope_sha256" in saved and saved["scope_sha256"] != head_scope_sha:
             problems.append("the frozen-scope declaration differs from the one recorded in the receipt")
@@ -172,7 +185,7 @@ def _run(args, parser):
     elif args.base:
         base_ref = _sha(_ref(args.base))
         base_scope, _ = _scope_at(args.scope, base_ref)
-        impact = compare(build_manifest(ROOT, base_scope, base_ref), head)
+        impact = compare(build_manifest(ROOT, base_scope, base_ref, scheme=scheme), head)
         base_label = args.base
     else:
         parser.error("one of --base, --verify-receipt, --verify-binding, --write-receipt "
@@ -181,13 +194,14 @@ def _run(args, parser):
         print(f"ERROR: {problem}", file=sys.stderr)
 
     if args.json:
-        print(json.dumps({"changes_identity": impact.changes_identity, "changes_behavior": impact.changes_behavior,
+        print(json.dumps({"scheme": scheme, "changes_identity": impact.changes_identity,
+                          "changes_behavior": impact.changes_behavior, "behavior_status": impact.behavior_status,
                           "behavioral": impact.behavioral, "added": impact.added, "removed": impact.removed,
                           "moved": [list(pair) for pair in impact.moved], "import_only": impact.import_only,
                           "cosmetic": impact.cosmetic,
                           "head_identity_sha256": identity_digest(head)}, indent=2))
     else:
-        text = render(impact, base_label=base_label, head_label=args.head, scope_files=len(head))
+        text = render(impact, base_label=base_label, head_label=args.head, scope_files=len(head), scheme=scheme)
         print(text)
         if args.summary_file:
             with args.summary_file.open("a", encoding="utf-8") as handle:

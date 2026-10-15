@@ -8,7 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from core.foundation.source_identity import (Scope, build_manifest, compare, identify, identity_digest, normalize_python,
+from core.foundation.source_identity import (LEGACY_SCHEME, SCHEME, Scope, build_manifest,
+                                  compare, identify, identity_digest, normalize_python,
                                   python_body, receipt, verify_receipt)
 from scripts import identity_report
 
@@ -83,7 +84,113 @@ GOLDEN_SHA256 = "66b3bbe00d83ccc8417d727829ea9ea1d68f9c2c0948c3cf14e09399c58d202
 
 def test_normalized_form_is_identical_across_python_versions():
     import hashlib
-    assert hashlib.sha256(normalize_python(GOLDEN_SOURCE).encode()).hexdigest() == GOLDEN_SHA256
+    assert hashlib.sha256(normalize_python(GOLDEN_SOURCE, scheme=LEGACY_SCHEME).encode()).hexdigest() == GOLDEN_SHA256
+
+
+def test_v2_fstring_golden_is_portable_without_replacing_the_v1_golden():
+    assert identify("m.py", GOLDEN_SOURCE.encode()).scheme == SCHEME
+    assert identify("m.py", GOLDEN_SOURCE.encode()).norm == "f2b2ea094cf456177a6bc123e6b718ecf49f771d6ddcc8518cfc4381903513d4"
+
+
+@pytest.mark.parametrize("first, second", [
+    ('f"{value + 1}"', 'f"{value+1}"'),
+    ('f"{ value + 1 }"', 'f"{value+1}"'),
+    ('f"{value + 1!r:>{width + 1}}"', 'f"{value+1!r:>{width+1}}"'),
+    ('f"{{literal}} {value + 1}"', 'f"{{literal}} {value+1}"'),
+    ('rf"\\d{value + 1}"', 'rf"\\d{value+1}"'),
+    ('f"{ {\'a\': value + 1}[\'a\'] }"', 'f"{ {\'a\':value+1}[\'a\'] }"'),
+    ('f"{f\'{value + 1}\'}"', 'f"{f\'{value+1}\'}"'),
+    ('f"""value={\nvalue + 1\n}"""', 'f"""value={value+1}"""'),
+    ('f"{(lambda x: x + 1)(value)}"', 'f"{(lambda x:x+1)(value)}"'),
+    ('f"unicode λ {value + 1}"', 'f"unicode λ {value+1}"'),
+])
+def test_fstring_expression_layout_is_cosmetic_in_v2(first, second):
+    assert eval(first, {"value": 2, "width": 4}) == eval(second, {"value": 2, "width": 4})
+    assert norm_hash("result = " + first) == norm_hash("result = " + second)
+    assert identify("m.py", first.encode(), scheme=LEGACY_SCHEME).norm != identify(
+        "m.py", second.encode(), scheme=LEGACY_SCHEME).norm
+
+
+@pytest.mark.parametrize("first, second", [
+    ('f"{value + 1}"', 'f"{value + 2}"'),
+    ('f"a {value}"', 'f"a  {value}"'),
+    ('f"{{left}} {value}"', 'f"{{right}} {value}"'),
+    ('f"{text!s}"', 'f"{text!r}"'),
+    ('f"{value:.2f}"', 'f"{value:.3f}"'),
+    ('f"{value:>{width}}"', 'f"{value:>{width+1}}"'),
+    ('f"{value=}"', 'f"{value = }"'),
+    ('f"{value + 1=}"', 'f"{value+1=}"'),
+    ('f"{f\'{value + 1=}\'}"', 'f"{f\'{value+1=}\'}"'),
+    ('f"\\n{value}"', 'rf"\\n{value}"'),
+    ('f"""a\n{value}"""', 'f"""a\n\n{value}"""'),
+    ('f"{\'a b\'}"', 'f"{\'ab\'}"'),
+])
+def test_fstring_observable_changes_retain_distinct_identities(first, second):
+    namespace = {"value": 2, "width": 4, "text": "example"}
+    assert eval(first, namespace) != eval(second, namespace)
+    assert norm_hash("result = " + first) != norm_hash("result = " + second)
+
+
+def test_invalid_fstring_falls_back_to_bytes_and_unknown_schemes_are_rejected():
+    assert identify("m.py", b'result = f"{x +}"').scheme == "bytes/v1"
+    with pytest.raises(ValueError, match="unsupported identity scheme"):
+        identify("m.py", b"x = 1", scheme="code-token/unknown")
+
+
+def test_mixed_scheme_manifests_cannot_masquerade_as_an_unchanged_receipt():
+    old = {"m.py": identify("m.py", b"x = 1\n", scheme=LEGACY_SCHEME)}
+    new = {"m.py": identify("m.py", b"x = 1\n")}
+    assert compare(old, new).changes_identity  # even when the normalized bytes happen to match
+    saved = receipt(old, ref_sha=None, scheme=LEGACY_SCHEME)
+    with pytest.raises(ValueError, match="recorded scheme"):
+        verify_receipt(saved, new)
+    with pytest.raises(ValueError, match="recorded scheme"):
+        receipt(old, ref_sha=None)
+
+
+def test_import_retargeting_can_change_values_and_still_requires_review():
+    first = "from math import floor as operation\nresult = operation(1.2)\n"
+    second = first.replace("floor", "ceil")
+    one, two = {}, {}
+    exec(first, one)
+    exec(second, two)
+    assert one["result"] == 1 and two["result"] == 2
+    impact = compare({"m.py": identify("m.py", first.encode())}, {"m.py": identify("m.py", second.encode())})
+    assert impact.import_only == ["m.py"] and impact.changes_identity and impact.changes_behavior
+    report = identity_report.render(impact, base_label="old", head_label="new", scope_files=1)
+    assert "behavior not verified" in report and "behavior unchanged" not in report
+
+
+def test_move_classification_does_not_claim_module_identity_is_equivalent():
+    source = b"result = __name__\n"
+    impact = compare({"old.py": identify("old.py", source)}, {"new.py": identify("new.py", source)})
+    one, two = {"__name__": "old"}, {"__name__": "new"}
+    exec(source, one)
+    exec(source, two)
+    assert one["result"] != two["result"]
+    assert impact.moved == [("old.py", "new.py")] and impact.changes_behavior
+    assert impact.behavior_status == "not_verified"
+
+
+@pytest.mark.parametrize("before, after", [
+    ('quant-backtest = "main:main"', 'quant-backtest = "run_live:main"'),
+    ('include = ["cli*", "core*"]', 'include = ["core*"]'),
+    ('dependencies = {file = ["requirements.txt"]}', 'dependencies = {file = ["requirements-ml.txt"]}'),
+])
+def test_packaging_edits_change_frozen_identity_in_commits_and_worktree(repo, before, after):
+    scope = Scope.load(Path(__file__).resolve().parents[1] / "config/frozen_scope.json")
+    packaging = repo / "pyproject.toml"
+    packaging.write_text(before + "\n", encoding="utf-8")
+    git(repo, "add", "pyproject.toml")
+    git(repo, "commit", "-qm", "packaging baseline")
+    base = build_manifest(repo, scope, "HEAD")
+    packaging.write_text(after + "\n", encoding="utf-8")
+    assert compare(base, build_manifest(repo, scope)).behavioral == ["pyproject.toml"]
+    git(repo, "add", "pyproject.toml")
+    git(repo, "commit", "-qm", "packaging change")
+    changed = build_manifest(repo, scope, "HEAD")
+    assert compare(base, changed).behavioral == ["pyproject.toml"]
+    assert identity_digest(base) != identity_digest(changed)
 
 
 def test_unreadable_python_is_hashed_strictly():
@@ -178,7 +285,7 @@ def test_repository_scope_file_is_valid_and_covers_the_money_path():
     root = Path(__file__).resolve().parents[1]
     scope = Scope.load(root / "config" / "frozen_scope.json")
     for path in ("core/foundation/runtime.py", "backtest/engine.py", "live_trading/engine.py", "strategies/base.py",
-                 "config/params.yaml", "requirements.lock.txt", "main.py"):
+                 "config/params.yaml", "requirements.lock.txt", "main.py", "cli/data.py", "pyproject.toml"):
         assert scope.contains(path), path
     for path in ("tests/test_packaging.py", "docs/README.md", "scripts/identity_report.py", "analysis/optimize.py"):
         assert not scope.contains(path), path
@@ -226,10 +333,10 @@ def test_a_pure_move_is_reported_as_moved_not_as_added_and_removed(repo: Path):
     assert impact.moved == [("core/m.py", "ops/m.py")]
     assert impact.import_only == ["core/a.py"]
     assert not impact.added and not impact.removed and not impact.behavioral
-    assert impact.changes_identity and not impact.changes_behavior
+    assert impact.changes_identity and impact.changes_behavior and impact.behavior_status == "not_verified"
     text = identity_report.render(impact, base_label="b", head_label="h", scope_files=3)
     assert "Moved 1 files" in text and "`core/m.py` -> `ops/m.py`" in text
-    assert "behavior unchanged" in text
+    assert "behavior not verified" in text and "behavior unchanged" not in text
 
 
 def test_a_move_with_a_code_edit_is_not_a_move(repo: Path):
