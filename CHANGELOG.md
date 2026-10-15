@@ -8,6 +8,10 @@
 
 ## [Unreleased]
 
+## [3.1.1] - 2026-10-15
+
+Patch release preparation for the fixes merged in #99–#106. The [repair baseline and owner runbook](docs/repair_release_baseline.md) links the counterexample regressions, explains the treatment of existing evidence, and separates release/tag/binding checks from A5 registration prerequisites. The owner creates the annotated tag after merge and final-commit CI; real-data adoption and the remaining external evidence still require their own records.
+
 - AUD-07: link private vulnerability reporting directly, document owner notification/review checks, and generate a read-only per-ref/SHA/worktree inventory in ignored local storage (ADR 0040).
 
 - AUD-06: align dependency and Python/Node instructions with the installed project and CI matrix; replace stale module paths with checked navigation, scan reference-style Markdown links, and restore historical report entry points without rewriting frozen evidence (ADR 0039).
