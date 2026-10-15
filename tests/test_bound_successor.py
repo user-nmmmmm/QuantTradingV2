@@ -4,12 +4,15 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import hashlib
 import json
+import multiprocessing
 from pathlib import Path
+import shutil
 import subprocess
 
 import pytest
 
-from analysis.strategy_review import freeze_prospective
+from analysis import strategy_review
+from analysis.strategy_review import freeze_prospective, open_prospective
 from scripts import register_bound_successor as module
 from scripts.register_bound_successor import (
     STATEMENT_SCHEMA, check_config_change, register_bound_successor, structural_diff,
@@ -150,3 +153,240 @@ def test_a_changed_configuration_outside_the_statement_is_visible():
     with pytest.raises(ValueError, match="differs from the statement"):
         check_config_change(statement(), parent_config=PARENT_CONFIG, new_config=NEW_CONFIG.replace(b"order: score", b"order: other"),
                             parent_config_hash=sha(PARENT_CONFIG), new_config_hash=sha(NEW_CONFIG))
+
+
+def assert_complete_registration(output):
+    assert {path.name for path in output.iterdir()} == {
+        "review_protocol.json", "parent_protocol.json", "config_change.json",
+        "identity_binding.json", "prospective_protocol.json", "acceptance.json",
+    }
+    receipt = json.loads((output / "acceptance.json").read_text())
+    protocol = strategy_review.validate_prospective(json.loads((output / "prospective_protocol.json").read_text()))
+    assert receipt["protocol_hash"] == protocol["protocol_hash"]
+    assert receipt["identity_binding_sha256"] == sha((output / "identity_binding.json").read_bytes())
+    assert receipt["parent_protocol_sha256"] == sha((output / "parent_protocol.json").read_bytes())
+
+
+def opening_args(world):
+    path = world["historical_batch"] / "prospective_protocol.json"
+    record = json.loads(path.read_text())
+    return dict(path=path, code_hash=record["code_hash"], config_hash=record["config_hash"],
+                registry_hash=record["experiment_registry_hash"], data_hash="test-data", labels_complete=True,
+                now="2099-01-01T12:00:00Z")
+
+
+@pytest.mark.parametrize("mutation", ["receipt", "protocol", "registry"])
+def test_parent_changes_before_publication_are_rejected(world, monkeypatch, mutation):
+    original = module._write
+    parent = world["historical_batch"] / "prospective_protocol.json"
+
+    def write_and_change(path, value):
+        original(path, value)
+        if path.name == "acceptance.json":
+            if mutation == "receipt":
+                parent.with_suffix(".json.opened").write_text("claimed before JSON rewrite", encoding="utf-8")
+            elif mutation == "protocol":
+                parent.write_bytes(parent.read_bytes() + b"\n")
+            else:
+                (world["historical_batch"] / "review_protocol.json").write_text("changed", encoding="utf-8")
+
+    monkeypatch.setattr(module, "_write", write_and_change)
+    with pytest.raises(ValueError, match="exclusive opening receipt|changed during registration"):
+        register_bound_successor(**world)
+    assert not world["output"].exists()
+    assert not list(world["output"].parent.glob(".out.registration-*"))
+
+
+@pytest.mark.parametrize("phase", ["copy", "binding", "protocol", "acceptance", "publish"])
+@pytest.mark.parametrize("failure", [OSError, KeyboardInterrupt])
+def test_interrupted_build_is_unpublished_and_retryable(world, monkeypatch, phase, failure):
+    parent = world["historical_batch"] / "prospective_protocol.json"
+    before = parent.read_bytes()
+    with monkeypatch.context() as patch:
+        if phase == "copy":
+            def fail_copy(source, target):
+                Path(target).write_bytes(b"partial copy")
+                raise failure("interrupted copy")
+            patch.setattr(module.shutil, "copyfile", fail_copy)
+        elif phase in {"binding", "acceptance"}:
+            original = module._write
+            name = "identity_binding.json" if phase == "binding" else "acceptance.json"
+
+            def fail_write(path, value):
+                original(path, value)
+                if path.name == name:
+                    raise failure("interrupted receipt")
+            patch.setattr(module, "_write", fail_write)
+        elif phase == "protocol":
+            original = module.freeze_prospective
+
+            def fail_freeze(*args, **kwargs):
+                original(*args, **kwargs)
+                raise failure("interrupted freeze")
+            patch.setattr(module, "freeze_prospective", fail_freeze)
+        else:
+            def fail_publish(path, target):
+                raise failure("interrupted publication")
+            patch.setattr(Path, "rename", fail_publish)
+        with pytest.raises(failure, match="interrupted"):
+            register_bound_successor(**world)
+    assert parent.read_bytes() == before
+    assert not parent.with_suffix(".json.opened").exists()
+    assert not world["output"].exists()
+    assert not list(world["output"].parent.glob(".out.registration-*"))
+    register_bound_successor(**world)
+    assert_complete_registration(world["output"])
+
+
+@pytest.mark.parametrize("kind", ["directory", "file"])
+def test_a_destination_created_during_build_is_never_overwritten(world, monkeypatch, kind):
+    original = module._write
+    output = world["output"]
+
+    def write_and_create_destination(path, value):
+        original(path, value)
+        if path.name == "acceptance.json":
+            if kind == "directory":
+                output.mkdir()
+            else:
+                output.write_bytes(b"other owner")
+
+    monkeypatch.setattr(module, "_write", write_and_create_destination)
+    with pytest.raises(FileExistsError):
+        register_bound_successor(**world)
+    assert (list(output.iterdir()) == []) if kind == "directory" else (output.read_bytes() == b"other owner")
+    assert not list(output.parent.glob(".out.registration-*"))
+
+
+def test_a_busy_destination_does_not_publish_and_can_be_retried(world):
+    with strategy_review.exclusive_path_lock(world["output"]):
+        with pytest.raises(BlockingIOError, match="busy"):
+            register_bound_successor(**world)
+        assert not world["output"].exists()
+    register_bound_successor(**world)
+    assert_complete_registration(world["output"])
+
+
+def registration_process(world, ready, resume, result):
+    """Pause after the first staged copy, while the protocol lock is held."""
+    original = module.shutil.copyfile
+
+    def paused_copy(source, target):
+        value = original(source, target)
+        ready.set()
+        if not resume.wait(30):
+            raise TimeoutError("registration test was not resumed")
+        return value
+
+    module._utc_now = lambda: datetime(2099, 1, 1, 12, tzinfo=timezone.utc)
+    module.shutil.copyfile = paused_copy
+    try:
+        register_bound_successor(**world)
+        result.put("registered")
+    except BaseException as exc:
+        result.put(type(exc).__name__)
+
+
+def opening_process(world, ready, resume, result):
+    """Pause after the durable opening claim, before replacing the protocol JSON."""
+    original = Path.replace
+
+    def paused_replace(path, target):
+        ready.set()
+        if not resume.wait(30):
+            raise TimeoutError("opening test was not resumed")
+        return original(path, target)
+
+    Path.replace = paused_replace
+    try:
+        open_prospective(**opening_args(world))
+        result.put("opened")
+    except BaseException as exc:
+        result.put(type(exc).__name__)
+
+
+@pytest.fixture()
+def paused_process():
+    context = multiprocessing.get_context("spawn")
+    running = []
+
+    def start(target, world):
+        ready, resume, result = context.Event(), context.Event(), context.Queue()
+        process = context.Process(target=target, args=(world, ready, resume, result))
+        process.start()
+        running.append((process, resume, result))
+        assert ready.wait(30), "child did not reach the requested interleaving"
+        return process, resume, result
+
+    yield start
+    for process, resume, result in running:
+        # A killed child can leave Event's internal semaphore locked. Never signal it after death.
+        if process.is_alive():
+            resume.set()
+        process.join(10)
+        if process.is_alive():
+            process.kill()
+            process.join(10)
+        result.close()
+
+
+def test_registration_serializes_opening_and_another_registration(world, paused_process):
+    parent = world["historical_batch"] / "prospective_protocol.json"
+    before = parent.read_bytes()
+    process, resume, result = paused_process(registration_process, world)
+    assert not world["output"].exists()
+    with pytest.raises(BlockingIOError, match="busy"):
+        open_prospective(**opening_args(world))
+    with pytest.raises(BlockingIOError, match="busy"):
+        register_bound_successor(**world)
+    assert parent.read_bytes() == before and not parent.with_suffix(".json.opened").exists()
+    resume.set()
+    assert result.get(timeout=30) == "registered"
+    process.join(10)
+    assert process.exitcode == 0
+    assert_complete_registration(world["output"])
+    # Releasing the mutex must not consume the historical opening claim.
+    assert open_prospective(**opening_args(world))["status"] == "opened_for_final_evaluation"
+
+
+def test_opening_serializes_registration_and_retains_the_claim_after_a_crash(world, paused_process):
+    parent = world["historical_batch"] / "prospective_protocol.json"
+    before = parent.read_bytes()
+    process, _, _ = paused_process(opening_process, world)
+    assert parent.read_bytes() == before and parent.with_suffix(".json.opened").exists()
+    with pytest.raises(BlockingIOError, match="busy"):
+        register_bound_successor(**world)
+    process.kill()
+    process.join(10)
+    with pytest.raises(ValueError, match="exclusive opening receipt"):
+        register_bound_successor(**world)
+    assert not world["output"].exists()
+    assert parent.read_bytes() == before and parent.with_suffix(".json.opened").exists()
+
+
+def test_killed_registration_leaves_no_final_directory_and_retry_succeeds(world, paused_process):
+    parent = world["historical_batch"] / "prospective_protocol.json"
+    before = parent.read_bytes()
+    process, _, _ = paused_process(registration_process, world)
+    process.kill()
+    process.join(10)
+    assert not process.is_alive()
+    assert not world["output"].exists()
+    assert parent.read_bytes() == before and not parent.with_suffix(".json.opened").exists()
+    register_bound_successor(**world)
+    assert_complete_registration(world["output"])
+
+
+def test_concurrent_different_parents_cannot_replace_an_existing_registration(world, paused_process, tmp_path):
+    other = dict(world, historical_batch=tmp_path / "other-parent")
+    shutil.copytree(world["historical_batch"], other["historical_batch"])
+    process, resume, result = paused_process(registration_process, world)
+    register_bound_successor(**other)
+    output = world["output"]
+    before = {path.name: path.read_bytes() for path in output.iterdir()}
+    resume.set()
+    assert result.get(timeout=30) == "FileExistsError"
+    process.join(10)
+    assert process.exitcode == 0
+    assert {path.name: path.read_bytes() for path in output.iterdir()} == before
+    assert_complete_registration(output)
