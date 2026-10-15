@@ -20,14 +20,16 @@ import argparse
 from datetime import datetime, timezone
 import hashlib
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
+from tempfile import TemporaryDirectory
 from typing import Any, Dict, List
 
 import yaml
 
-from analysis.strategy_review import freeze_prospective, validate_prospective
+from analysis.strategy_review import exclusive_path_lock, freeze_prospective, validate_prospective
 from core.foundation.source_identity import bind_release
 from scripts.register_strategy_successor import _hash, _write
 from scripts.release_check import verify_tag
@@ -103,7 +105,17 @@ def check_config_change(statement: Dict[str, Any], *, parent_config: bytes, new_
 
 
 def register_bound_successor(*, repo_root, tag: str, historical_batch, config_change, output) -> Dict[str, Any]:
+    historical = Path(historical_batch)
+    with exclusive_path_lock(historical / "prospective_protocol.json"):
+        return _register_bound_successor(repo_root=repo_root, tag=tag, historical_batch=historical,
+                                         config_change=config_change, output=output)
+
+
+def _register_bound_successor(*, repo_root, tag, historical_batch, config_change, output) -> Dict[str, Any]:
     root, historical, output = Path(repo_root), Path(historical_batch), Path(output)
+    output = output.parent.resolve() / output.name
+    if os.path.lexists(output):
+        raise FileExistsError(f"Registration output already exists: {output}")
     statement_path = Path(config_change)
     problems = verify_tag(tag, root=root)
     if problems:
@@ -139,8 +151,31 @@ def register_bound_successor(*, repo_root, tag: str, historical_batch, config_ch
     if tagged_at > point:
         raise ValueError("the release tag is dated after the registration")
 
-    output.mkdir(parents=True, exist_ok=False)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with TemporaryDirectory(prefix=f".{output.name}.registration-", dir=output.parent) as temporary:
+        staged = Path(temporary)
+        receipt = _stage_registration(staged, registry=registry, old_bytes=old_bytes, old=old,
+                                      statement_bytes=statement_bytes, binding=binding, new_hash=new_hash,
+                                      point=point, tag=tag, commit=commit, tagged_at=tagged_at, identity=identity)
+        # The sample opener holds the same protocol lock. Recheck even non-cooperating/older writers.
+        if old_path.with_suffix(".json.opened").exists():
+            raise ValueError("Historical protocol has an exclusive opening receipt")
+        if old_path.read_bytes() != old_bytes:
+            raise ValueError("Historical protocol changed during registration")
+        if _hash(registry) != old["experiment_registry_hash"]:
+            raise ValueError("Historical experiment registry changed during registration")
+        with exclusive_path_lock(output):
+            if os.path.lexists(output):
+                raise FileExistsError(f"Registration output already exists: {output}")
+            staged.rename(output)
+        return receipt
+
+
+def _stage_registration(output, *, registry, old_bytes, old, statement_bytes, binding, new_hash,
+                        point, tag, commit, tagged_at, identity):
     shutil.copyfile(registry, output / "review_protocol.json")
+    if _hash(output / "review_protocol.json") != old["experiment_registry_hash"]:
+        raise ValueError("Historical experiment registry changed during registration")
     (output / "parent_protocol.json").write_bytes(old_bytes)
     (output / "config_change.json").write_bytes(statement_bytes)
     _write(output / "identity_binding.json", binding)
@@ -165,8 +200,6 @@ def register_bound_successor(*, repo_root, tag: str, historical_batch, config_ch
                         "The code identity is behavioral (code-token/v1): comments and layout do not change it.",
                         "Historical data, capacity and full-account evidence remain outstanding."],
     }
-    if old_path.read_bytes() != old_bytes:
-        raise ValueError("Historical protocol changed during registration")
     _write(output / "acceptance.json", receipt)
     return receipt
 
