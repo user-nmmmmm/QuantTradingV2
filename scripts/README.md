@@ -39,6 +39,7 @@
 | 脚本 | 用途 |
 | --- | --- |
 | [`check_repository_hygiene.py`](check_repository_hygiene.py) | 检查已跟踪临时文件，并按[文件保留清单](../docs/file_retention.md)核验冻结的历史证据。 |
+| [`repository_governance.py`](repository_governance.py) | D1 只读清单：显式基点、逐 ref/SHA/提交差异和 worktree 状态；只写新建的本地忽略文件，不联网或删除。见[所有者步骤](../docs/repository_governance.md)。 |
 | [`main_acceptance.py`](main_acceptance.py)、[`verify_baseline_archive.py`](verify_baseline_archive.py) | 主分支离线验收与历史基线归档校验。 |
 | [`roadmap_baseline.py`](roadmap_baseline.py)、[`roadmap_evidence.py`](roadmap_evidence.py)、[`roadmap_priority.py`](roadmap_priority.py) | 冻结工作树基线、绑定历史证据、核对任务优先级和依赖。 |
 | [`verify_roadmap_completion.py`](verify_roadmap_completion.py)、[`verify_roadmap_policy.py`](verify_roadmap_policy.py) | 检查完成定义与 Roadmap 政策规则；工程证据不等于交易准入。 |

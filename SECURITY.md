@@ -6,9 +6,22 @@ admission status.
 
 ## Reporting a vulnerability
 
-Please do **not** open a public issue for security problems. Use GitHub's
-private vulnerability reporting ("Security" tab, "Report a vulnerability") for
-this repository. Include affected files, impact and reproduction steps.
+Do **not** post vulnerability details in public issues, pull requests or logs.
+Use [Report a vulnerability](https://github.com/user-nmmmmm/QuantTradingV2/security/advisories/new)
+from this repository's [Security advisories](https://github.com/user-nmmmmm/QuantTradingV2/security/advisories)
+page and sign in to GitHub if asked. Include affected versions/files, impact
+and minimal reproduction steps in the **private** form. Remove credentials,
+account identifiers and unrelated private data from attachments.
+
+If the private form is unavailable, open a public contact request containing
+only: "Please provide a private security reporting contact." Do not include
+the vulnerability, affected versions, impact, reproduction or attachments;
+wait for a confirmed private route before sending any details. No fallback
+mailbox is currently published. A policy file does not enable GitHub's
+reporting feature or prove that a maintainer received a report.
+
+Maintainers: see the [channel checks and owner steps](docs/repository_governance.md)
+for enablement, notifications and evidence that must remain private.
 
 ## Handling credentials
 
