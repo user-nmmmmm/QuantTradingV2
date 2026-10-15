@@ -127,7 +127,7 @@ jobs:
         run: |
           quant-backtest --help
           quant-live --help
-      - name: Identity, data and runtime regressions across Python versions and platforms
+      - name: Identity, data, runtime and documentation regressions across Python versions and platforms
         run: |
           python -m pip install pytest==9.1.1
-          python -m pytest -q tests/test_source_identity.py tests/test_release_check.py tests/test_data_input_integrity.py tests/test_aud05_runtime_semantics.py tests/test_nonpositive_equity_metrics.py
+          python -m pytest -q tests/test_source_identity.py tests/test_release_check.py tests/test_data_input_integrity.py tests/test_aud05_runtime_semantics.py tests/test_nonpositive_equity_metrics.py tests/test_markdown_links.py tests/test_documentation_navigation.py tests/test_architecture_inventory.py tests/test_p2_01_10.py::TestP201ToP210::test_legacy_entrypoints_are_absent_and_canonical_name_documented

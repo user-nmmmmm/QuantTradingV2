@@ -47,3 +47,4 @@
 | [0036](0036-bound-data-corroboration.md) | AUD-03：实际字节绑定、末根不变量、空响应/文件名错误与旧缓存换行兼容 | 已采纳 |
 | [0037](0037-monotonic-quality-gates.md) | AUD-04：更新基线只减不增、本地/CI 共用任务、实际隔离数量与期限、容器配置触发 | 已采纳 |
 | [0038](0038-insolvent-equity-and-host-dispatch.md) | AUD-05：保留零负权益、正分母收益与回撤、catchup 别名一致、报表/Broker 宿主分派 | 已采纳 |
+| [0039](0039-documentation-navigation-and-reference-links.md) | AUD-06：依赖与环境说明、实际模块导航、引用式链接门禁及历史报告兼容入口 | 已采纳 |

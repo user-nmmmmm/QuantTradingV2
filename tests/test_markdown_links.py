@@ -69,3 +69,57 @@ def test_doc_index_targets_exist_and_do_not_chain():
     for old, new in moved.items():
         assert (ROOT / new).is_file(), f"{old} -> {new} does not exist"
         assert new not in moved, f"{old} points at {new}, which was moved again; update the entry"
+
+
+@pytest.mark.parametrize("text, target", [
+    ("[guide][manual]\n\n[manual]: missing.md\n", "docs/missing.md"),
+    ("[manual][]\n\n[manual]: missing.md 'title'\n", "docs/missing.md"),
+    ("[manual]\n\n[manual]: <missing.md> \"title\"\n", "docs/missing.md"),
+    ("[guide][MULTI  Word]\n\n[multi word]: missing.md\n", "docs/missing.md"),
+    ("[guide][multi\n word]\n\n[multi word]: missing.md\n", "docs/missing.md"),
+    ("![image][picture]\n\n[picture]: missing.png\n", "docs/missing.png"),
+    ("[guide][manual]\n\n[manual]:\n  missing.md\n", "docs/missing.md"),
+    ("[guide][manual]\n\n[manual]: missing%20file.md#section\n", "docs/missing file.md"),
+    ("[guide](<missing file.md> \"title\")\n", "docs/missing file.md"),
+    ("[guide](missing(file).md)\n", "docs/missing(file).md"),
+    ("[`manual`][]\n\n[`manual`]: missing.md\n", "docs/missing.md"),
+])
+def test_reference_and_inline_destinations_are_checked(tree, text, target):
+    source = tree / "docs/reference.md"
+    source.write_text(text, encoding="utf-8")
+    broken = [entry for entry in links.find_broken(links.tracked_files()) if entry["source"] == "docs/reference.md"]
+    assert [(entry["line"], entry["target"]) for entry in broken] == [(1, target)]
+
+
+@pytest.mark.parametrize("text", [
+    "[guide][manual]\n[manual]: b.md\n",
+    "[guide][manual]\n[manual]: b.md\n[MANUAL]: missing.md\n",
+    "[guide][manual]\n[manual]: https://example.com/missing.md\n",
+    "[guide][manual]\n[manual]: #local-anchor\n",
+    "[guide][manual]\n[manual]: ../outputs/generated.md\n",
+    "`[guide][manual]`\n[manual]: missing.md\n",
+    "``[guide] `example` [manual]``\n[manual]: missing.md\n",
+    "````md\n```\n[guide][manual]\n````\n[manual]: missing.md\n",
+    "~~~md\n```\n[guide][manual]\n~~~\n[manual]: missing.md\n",
+    "<!-- [guide][manual] -->\n[manual]: missing.md\n",
+    "[ordinary bracketed prose]\n",
+    "[unused]: missing.md\n",
+    "[`other`]\n\n[`manual`]: missing.md\n",
+])
+def test_valid_references_and_nonprose_do_not_create_false_broken_links(tree, text):
+    (tree / "docs/reference.md").write_text(text, encoding="utf-8")
+    assert not [entry for entry in links.find_broken(links.tracked_files()) if entry["source"] == "docs/reference.md"]
+
+
+def test_reference_destination_failure_reaches_cli_and_moved_hint(tree, capsys):
+    (tree / "docs/a.md").write_text("[guide][manual]\n\n[manual]: old.md\n", encoding="utf-8")
+    assert links.main([]) == 1
+    assert "docs/a.md:1: broken link -> docs/old.md (moved to docs/new.md)" in capsys.readouterr().out
+    (tree / "docs/a.md").write_text("[guide][manual]\n\n[manual]: new.md\n", encoding="utf-8")
+    assert links.main([]) == 0
+
+
+def test_indented_list_continuations_cannot_hide_reference_links(tree):
+    (tree / "docs/reference.md").write_text("- item\n    [guide][manual]\n\n[manual]: missing.md\n", encoding="utf-8")
+    broken = [entry for entry in links.find_broken(links.tracked_files()) if entry["source"] == "docs/reference.md"]
+    assert [(entry["line"], entry["target"]) for entry in broken] == [(2, "docs/missing.md")]

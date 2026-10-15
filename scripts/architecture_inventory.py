@@ -15,12 +15,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 import tomllib
 from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List, Optional
+
+from scripts.check_markdown_links import iter_links, tracked_files
 
 ROOT = Path(__file__).resolve().parents[1]
 INVENTORY = ROOT / "docs" / "architecture_inventory.md"
@@ -113,8 +116,34 @@ def diagram_problems() -> List[str]:
     return problems
 
 
+def navigation_problems() -> List[str]:
+    """The maintained README map must cover tracked packages and core slices."""
+    text = (ROOT / "README.md").read_text(encoding="utf-8")
+    start, end = "<!-- module-navigation:start -->", "<!-- module-navigation:end -->"
+    if text.count(start) != 1 or text.count(end) != 1 or text.index(start) >= text.index(end):
+        return ["README.md: exactly one ordered module-navigation block is required"]
+    block = text.split(start, 1)[1].split(end, 1)[0]
+    destinations = {target.rstrip("/") for _, target in iter_links(block)}
+    files = tracked_python()
+    known = set(tracked_files())
+    required = set(_config()["root_packages"])
+    required.update("/".join(path.split("/")[:2]) for path in files if path.startswith("core/") and path.count("/") >= 2)
+    problems = [f"README.md: module navigation omits {path}" for path in sorted(required - destinations)]
+    for target in sorted(destinations):
+        if target not in known and not any(path.startswith(target + "/") for path in known):
+            problems.append(f"README.md: module navigation points at untracked source {target}")
+    for document in sorted((ROOT / "docs/modules").glob("*.md")):
+        for line in document.read_text(encoding="utf-8").splitlines():
+            if not line.startswith("#"):
+                continue
+            for path in re.findall(r"`([^`]+)`", line):
+                if "/" in path and (path.endswith("/") or path.endswith(".py")) and not (ROOT / path).exists():
+                    problems.append(f"{document.relative_to(ROOT)}: module heading points at missing {path}")
+    return problems
+
+
 def check() -> List[str]:
-    problems = diagram_problems()
+    problems = diagram_problems() + navigation_problems()
     expected = render()
     if not INVENTORY.is_file() or INVENTORY.read_text(encoding="utf-8").replace("\r\n", "\n") != expected:
         problems.append("docs/architecture_inventory.md is out of date; run `python scripts/architecture_inventory.py --write`")
@@ -135,7 +164,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     for problem in problems:
         print(f"ERROR: {problem}", file=sys.stderr)
     if not problems:
-        print("Architecture inventory is current; the delivered diagram's source paths resolve")
+        print("Architecture inventory is current; README/module navigation and delivered diagram paths resolve")
     return 1 if problems else 0
 
 
