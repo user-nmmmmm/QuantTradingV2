@@ -285,7 +285,7 @@ flowchart LR
 
 ### 2.6 模块地图
 
-下表使用当前检出的实际路径；`python scripts/architecture_inventory.py --check` 核对包与 core 子包覆盖、链接目标及模块文档标题中的路径。完整模块数和分层契约见[自动架构清单](docs/architecture_inventory.md)，职责与接口见[模块导航](docs/modules/README.md)。
+下表路径相对规范检出目录 `QuantTradingV1/`；`python scripts/architecture_inventory.py --check` 核对包与 core 子包覆盖、链接目标及模块文档标题中的路径。完整模块数和分层契约见[自动架构清单](docs/architecture_inventory.md)，职责与接口见[模块导航](docs/modules/README.md)。
 
 <!-- module-navigation:start -->
 | 位置 | 职责与阅读入口 |
