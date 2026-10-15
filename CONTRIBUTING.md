@@ -13,7 +13,7 @@ The editable install is the supported mode: many modules resolve `config/`,
 yet. Do not add `sys.path` tweaks to scripts or tests; import the packages
 directly. Console entry points: `quant-backtest`, `quant-live`,
 `quant-resolve-order`, `quant-dashboard`, `quant-dev`.
-CI uses Python 3.11; the repository pin in `.python-version` is for local use.
+Full quality/coverage and ML jobs use Python 3.11. Install/import and selected runtime regressions also run on Ubuntu/Windows with Python 3.11/3.13; this matrix is not a full-suite result for every combination. The `.python-version` pin is for local use.
 Install Node.js 22 for the dashboard frontend checks (the dev container and CI include it).
 
 ## Before opening a PR
@@ -76,7 +76,7 @@ The ratchet freezes the existing ruff/mypy findings; it does not excuse them (`d
 - Adding or replacing a tracked market-data CSV: `git add` it, run `python scripts/data_inputs.py build`, and review
   the manifest diff in the same PR (`docs/data_identity.md`).
 - Moving, merging or archiving a tracked document: append an entry to `docs/doc_index.json`
-  (old path -> new path); the link check and the roadmap verifiers resolve moves through it.
+  (old path -> new path). Roadmap verifiers resolve moves through it; the link checker reports the current target but does not redirect browser links. Update active links or retain a compatibility page for immutable historical references.
 - Changes under `config/frozen_scope.json` paths: CI prints the frozen-scope identity impact in the job
   summary; comment/layout-only edits do not change it (`docs/identity.md`).
 - Releases: user-visible or frozen-scope changes get a line under `## [Unreleased]` in `CHANGELOG.md`; versions,

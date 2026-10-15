@@ -8,6 +8,9 @@ Scope and rules
 * Link targets under ``reports/``, ``outputs/``, ``data/`` or ``tmp/`` are not
   checked: they are generated or ignored locally and absent from a clean checkout.
 * Anchors (``#...``) and external URLs are not checked.
+* Inline links/images and full, collapsed and shortcut references are checked.
+  Reference labels use the first definition, ignoring case and repeated whitespace.
+  Unbound bracketed text is literal Markdown, not a link. Fenced/inline code and HTML comments are ignored.
 * A broken link whose target appears in ``docs/doc_index.json`` ("moved") is reported
   with the new location.
 * ``docs/link_check_baseline.json`` lists links that were already broken when this
@@ -17,20 +20,29 @@ Scope and rules
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import posixpath
 import re
 import subprocess
 import sys
 from pathlib import Path
+from urllib.parse import unquote
 
 ROOT = Path(__file__).resolve().parents[1]
 BASELINE = ROOT / "docs" / "link_check_baseline.json"
 DOC_INDEX = ROOT / "docs" / "doc_index.json"
 SKIP_SOURCES = ("docs/archive/2026-08", "docs/archive/2026-09")
 GENERATED_TARGETS = ("reports/", "outputs/", "data/", "tmp/")
-LINK = re.compile(r"\]\(([^)\s]+?)(?:#[^)\s]*)?(?:\s+\"[^\"]*\")?\)")
-FENCE = re.compile(r"^\s*(```|~~~)")
+LABEL = r"(?:\\.|[^\[\]\\])*"
+DESTINATION = r"(?:\\.|[^\s<>\\()]|\((?:\\.|[^\\()\n])*\))+"
+LINK = re.compile(r"(?<!\\)\[" + LABEL + r"\]\([ \t\n]*(<[^<>\n]*>|" + DESTINATION
+                  + r")?[ \t\n]*(?:\"[^\"\n]*\"|'[^'\n]*'|\([^\n)]*\))?[ \t\n]*\)")
+DEFINITION = re.compile(r"^ {0,3}\[(" + LABEL + r")\]:[ \t]*(?:\n[ \t]*)?(<[^<>\n]*>|(?:\\.|[^\s<>])+)"
+                        r"[ \t]*(?:\"[^\"\n]*\"|'[^'\n]*'|\([^\n)]*\))?[ \t]*(?:\n|$)", re.MULTILINE)
+REFERENCE = re.compile(r"(?<!\\)\[(" + LABEL + r")\](?:[ \t]*\[(" + LABEL + r")\])?")
+FENCE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
+CODE = re.compile(r"(?<![\\`])(`+)(?!`)(.*?)(?<!`)\1(?!`)", re.DOTALL)
 
 
 def tracked_files() -> list[str]:
@@ -38,16 +50,57 @@ def tracked_files() -> list[str]:
     return [p.decode("utf-8") for p in out.split(bytes([0])) if p]
 
 
+def _mask(text: str) -> str:
+    return re.sub(r"[^\n]", " ", text)
+
+
+def _prose(text: str) -> str:
+    """Mask fenced code/comments without changing offsets or line numbers."""
+    fence = None
+    lines = []
+    for line in text.splitlines(keepends=True):
+        marker = FENCE.match(line)
+        if fence:
+            if marker and marker[1][0] == fence[0] and len(marker[1]) >= len(fence) and not marker[2].strip():
+                fence = None
+            lines.append(_mask(line))
+        elif marker:
+            fence = marker[1]
+            lines.append(_mask(line))
+        else:
+            lines.append(line)
+    return re.sub(r"<!--.*?-->", lambda m: _mask(m[0]), "".join(lines), flags=re.DOTALL)
+
+
+def _unescape(text: str) -> str:
+    return html.unescape(re.sub(r"\\([!\"#$%&'()*+,\-./:;<=>?@\[\]\\^_`{|}~])", r"\1", text))
+
+
+def _label(text: str) -> str:
+    return " ".join(_unescape(text).split()).casefold()
+
+
 def iter_links(text: str):
-    in_fence = False
-    for number, line in enumerate(text.splitlines(), 1):
-        if FENCE.match(line):
-            in_fence = not in_fence
-            continue
-        if in_fence:
-            continue
-        for match in LINK.finditer(re.sub(r"`[^`]*`", "", line)):  # ignore inline code
-            yield number, match.group(1)
+    """Yield source line and destination, including forward reference definitions."""
+    prose = _prose(text)
+    code_ranges = [match.span() for match in CODE.finditer(prose)]
+
+    def in_code(offset):
+        return any(start <= offset < end for start, end in code_ranges)
+
+    definitions = {}
+    for match in DEFINITION.finditer(prose):
+        if not in_code(match.start()):
+            definitions.setdefault(_label(match[1]), match[2])
+    prose = DEFINITION.sub(lambda m: _mask(m[0]), prose)
+    for match in LINK.finditer(prose):
+        if match[1] and not in_code(match.start()):
+            yield prose.count("\n", 0, match.start()) + 1, _unescape(match[1].strip("<>"))
+    prose = LINK.sub(lambda m: _mask(m[0]), prose)
+    for match in REFERENCE.finditer(prose):
+        label = _label(match[2] or match[1])
+        if label in definitions and not in_code(match.start()):
+            yield prose.count("\n", 0, match.start()) + 1, _unescape(definitions[label].strip("<>"))
 
 
 def find_broken(files: list[str]) -> list[dict]:
@@ -66,6 +119,7 @@ def find_broken(files: list[str]) -> list[dict]:
         for line, target in iter_links(text):
             if re.match(r"^(?:[a-zA-Z][a-zA-Z0-9+.-]*:|/|#)", target):
                 continue
+            target = unquote(target.split("#", 1)[0].split("?", 1)[0])
             resolved = posixpath.normpath(posixpath.join(posixpath.dirname(source), target))
             if resolved.startswith(("..",)) or resolved.startswith(GENERATED_TARGETS):
                 continue

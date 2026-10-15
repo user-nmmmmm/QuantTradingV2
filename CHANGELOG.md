@@ -8,6 +8,8 @@
 
 ## [Unreleased]
 
+- AUD-06: align dependency and Python/Node instructions with the installed project and CI matrix; replace stale module paths with checked navigation, scan reference-style Markdown links, and restore historical report entry points without rewriting frozen evidence (ADR 0039).
+
 ### Fixed
 
 - AUD-05: preserve zero/negative equity, real report endpoints and drawdowns beyond 100% losses. Metrics formula 2.1 shares positive-denominator return handling across headline/risk/monthly statistics, charts and Excel; undefined intervals remain visible instead of being dropped or filled with zero. Catchup and regular fetches share derivative client aliases, and report section/Broker time hooks dispatch through the host subclass (ADR 0038).

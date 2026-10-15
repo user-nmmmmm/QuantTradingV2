@@ -1,11 +1,12 @@
 # 依赖与 Python 环境
 
-现有 CI 工作流使用 Python 3.11；根目录 `.python-version` 指定 3.13.2。这两个入口尚未统一，因此修改依赖或解释测试结果时应记录实际 Python 版本，不把单一环境的通过结果外推到另一版本。
+完整质量/覆盖率及 ML 作业使用 Python 3.11；安装、导入、入口命令和指定运行回归覆盖 Ubuntu/Windows × Python 3.11/3.13。根目录 `.python-version` 指定本地 3.13.2，`pyproject.toml` 的 Python 下限和 mypy 目标为 3.11。矩阵不是每个组合的完整套件结果，记录测试时应写明实际版本和任务范围。前端检查另需 Node.js 22，CI 与开发容器已安装。
 
 | 文件 | 当前作用 |
 | --- | --- |
 | `requirements.txt` | 精确固定直接运行依赖。 |
 | `requirements.lock.txt` | 固定运行环境的直接及传递依赖版本；用于需要严格复现的安装。 |
+| `requirements-ml.txt` | 可选 CPU 机器学习研究依赖，与 `pyproject.toml` 的 `ml` extra 一致；不表示研究获准交易。 |
 | `requirements-dev.txt` | 引用 `requirements.txt`，再固定测试、覆盖率、静态检查工具；CI 与它一起安装运行锁（见下）。 |
 | `requirements.lock.sha256` | 检查运行锁文件是否被无声改写。 |
 | `scripts/regenerate_lock.py` | 锁文件的**唯一**生成方式（不要手工编辑）；`--check` 离线核对规范形式、摘要和直接依赖。 |
