@@ -95,14 +95,14 @@ def test_checked_out_locked_branch_and_detached_worktree_require_individual_revi
 
 
 def test_prunable_registration_is_not_a_clean_worktree(repo, tmp_path):
-    # Register an absent worktree directly; no recursive filesystem operation is necessary.
-    registration = repo / ".git/worktrees/missing"
-    registration.mkdir(parents=True)
+    # Let Git create its complete registration, then simulate the checkout going missing.
     absent = tmp_path / "absent worktree"
-    (registration / "gitdir").write_text((absent / ".git").as_posix() + "\n", encoding="utf-8")
-    (registration / "HEAD").write_text("ref: refs/heads/missing\n", encoding="utf-8")
-    (registration / "commondir").write_text("../..\n", encoding="utf-8")
-    run(repo, "branch", "missing")
+    displaced = tmp_path / "displaced worktree"
+    assert absent.resolve().parent == displaced.resolve().parent == tmp_path.resolve()
+    run(repo, "worktree", "add", "-b", "missing", str(absent))
+    absent.rename(displaced)
+    assert not absent.exists() and (displaced / ".git").is_file()
+    assert "prunable" in run(repo, "worktree", "list", "--porcelain")
     result = governance.snapshot(repo, "main")
     missing = next(item for item in result["worktrees"] if Path(item["path"]).resolve() == absent.resolve())
     assert missing["prunable"] and missing["prune_reason"]
