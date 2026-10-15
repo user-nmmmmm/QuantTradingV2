@@ -45,3 +45,4 @@
 | [0034](0034-frozen-replay-and-reference-verification.md) | AUD-02 首批：冻结驱动导入隔离、指定提交的范围声明、缺失引用拒绝 | 已采纳 |
 | [0035](0035-versioned-source-identity.md) | AUD-02 后续：独立研究/打包范围、v2 f-string 规范化、旧方案验证与保守导入结论 | 已采纳 |
 | [0036](0036-bound-data-corroboration.md) | AUD-03：实际字节绑定、末根不变量、空响应/文件名错误与旧缓存换行兼容 | 已采纳 |
+| [0037](0037-monotonic-quality-gates.md) | AUD-04：更新基线只减不增、本地/CI 共用任务、实际隔离数量与期限、容器配置触发 | 已采纳 |

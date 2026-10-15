@@ -107,8 +107,8 @@
 
 | 脚本 | 用途 |
 | --- | --- |
-| [`dev.py`](dev.py) | 统一入口：`check`（与 CI `quality` 作业一致的顺序）、`lint`、`types`、`imports`、`ratchet`、`test`、`fast`、`setup`；也安装为 `quant-dev`。见[质量门槛](../docs/quality.md)。 |
-| [`quality_ratchet.py`](quality_ratchet.py) | ruff / mypy 存量问题的"只减不增"棘轮；基线在 `quality_baseline.json`。 |
+| [`dev.py`](dev.py) | CI 与本地共用任务：`check` 包含 90% 覆盖率、`frontend` 和 `sandbox`；`--no-tests` 跳过 Python 测试/覆盖率，保留前端。另有 `fast`、`setup`；也安装为 `quant-dev`。见[质量门槛](../docs/quality.md)。 |
+| [`quality_ratchet.py`](quality_ratchet.py) | ruff / mypy / 函数长度的"只减不增"棘轮；`check` 和 `update` 均拒绝逐条增长及 mypy 硬门槛失败，拒绝更新不写入 `quality_baseline.json`。 |
 | [`check_markdown_links.py`](check_markdown_links.py) | 检查被跟踪 Markdown 的相对链接；移动过的文档通过 `docs/doc_index.json` 提示新位置。 |
 | [`identity_report.py`](identity_report.py) | 比较两个提交（或工作区）对冻结范围行为身份的影响（区分行为变化、移动、仅导入变化），可写出和核对回执，以及绑定发布标签。见[身份说明](../docs/identity.md)、[发布约定](../docs/releasing.md)。 |
 | [`release_check.py`](release_check.py) | 只读检查发布标签、`pyproject.toml` 版本与 `CHANGELOG.md` 是否一致；`--verify-tag` 检查标签带注解且在主线上。见[发布约定](../docs/releasing.md)。 |

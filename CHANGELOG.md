@@ -10,6 +10,7 @@
 
 ### Fixed
 
+- AUD-04: refuse baseline updates that introduce or increase any finding, including mypy hard-gate failures; rejected updates leave the file unchanged. Local and CI quality checks share developer tasks with the 90% coverage gate and dashboard tests. Quarantine collection counts expanded cases and enforces a 10-case / 30-UTC-day limit, and `pyproject.toml` changes trigger container CI for PRs and main pushes (ADR 0037).
 - AUD-03: bind corroboration to the bytes actually read, reject stale or changing inputs and unknown filenames, validate partial-tail OHLCV invariants, and distinguish successful empty data from confirmed invalid symbols. New cache records declare LF-normalized hashes; legacy cache verification and incremental refresh accept newline equivalence without relaxing content or source checks (ADR 0036).
 - AUD-02: cover independent research CLI/runtime and installation inputs, include `pyproject.toml` in frozen scope, and require behavioral review for import-only edits and moves. New `code-token/v2` identities normalize f-string expression layout while preserving observable text and formatting; saved v1 receipts and bindings retain their original verifier (ADR 0035).
 - Consolidate the public engineering roadmap from #98 with the AUD-01/#99 and AUD-02/#100 implementation status and the remaining development queue.

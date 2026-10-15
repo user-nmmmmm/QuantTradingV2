@@ -9,6 +9,7 @@ on:
       - ".devcontainer/**"
       - "scripts/dev.py"
       - "requirements*.txt"
+      - "pyproject.toml"
       - ".github/workflows/devcontainer.yml"
   push:
     branches: [main]
@@ -16,6 +17,8 @@ on:
       - ".devcontainer/**"
       - "scripts/dev.py"
       - "requirements*.txt"
+      - "pyproject.toml"
+      - ".github/workflows/devcontainer.yml"
   schedule:
     - cron: "41 3 * * 1"
   workflow_dispatch:

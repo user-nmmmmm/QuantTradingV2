@@ -14,11 +14,13 @@ yet. Do not add `sys.path` tweaks to scripts or tests; import the packages
 directly. Console entry points: `quant-backtest`, `quant-live`,
 `quant-resolve-order`, `quant-dashboard`, `quant-dev`.
 CI uses Python 3.11; the repository pin in `.python-version` is for local use.
+Install Node.js 22 for the dashboard frontend checks (the dev container and CI include it).
 
 ## Before opening a PR
 One command runs what CI's `quality` job runs, in the same order, and prints a summary:
 ```bash
-python scripts/dev.py check              # or `quant-dev check`; add --no-tests to skip the long run
+python scripts/dev.py check              # or `quant-dev check`; full coverage, frontend and sandbox checks
+python scripts/dev.py check --no-tests   # skips Python tests/coverage and sandbox; still runs frontend
 python scripts/dev.py list               # all tasks (lint, types, imports, ratchet, links, fast, ...)
 ```
 The individual commands:
@@ -27,7 +29,9 @@ python -m ruff check .
 python scripts/quality_ratchet.py check
 lint-imports
 python -m mypy core/foundation/domain.py core/foundation/runtime.py live_trading/execution_adapter.py
-python -m pytest -q -n 4          # add -m "not slow" for a quick loop
+python scripts/dev.py test               # same five-package 90% coverage gate as CI
+python scripts/dev.py frontend           # all dashboard Node.js tests, with portable glob expansion
+python scripts/dev.py fast -- -k ledger  # focused loop without the full-suite coverage requirement
 python scripts/check_repository_hygiene.py
 python scripts/verify_roadmap_completion.py --structure-only
 python scripts/check_markdown_links.py
@@ -41,12 +45,17 @@ before each commit. How the quality gates and the ratchet work: `docs/quality.md
 
 Decisions that shaped these rules are recorded in `docs/adr/`. A dev container
 (`.devcontainer/`) is provided for a ready-made Linux/Python 3.11 environment; the `devcontainer` workflow builds it and runs `dev.py check --no-tests` inside it whenever its inputs change and weekly.
+Both PR and main-push filters include `pyproject.toml`; container success covers its shorter check,
+while the `tests` workflow enforces the complete Python suite and coverage. CI quality steps call the
+same `dev.py` tasks as local `check`. Without xdist, local execution is serial with the same coverage gate.
 
 ## Paying down the quality backlog
 The ratchet freezes the existing ruff/mypy findings; it does not excuse them (`docs/quality.md`). The convention:
 - A PR that touches a file also reduces that file's findings where the fix is mechanical and cannot change behavior
   (unused imports and variables, `raise ... from`, explicit loop-variable binding). Run
   `python scripts/quality_ratchet.py update` and commit the lower baseline so the improvement cannot be lost.
+  The update refuses any new or growing entry and any selected mypy hard-gate failure before writing;
+  improvements elsewhere cannot offset a regression, and rejected updates preserve the baseline bytes.
 - Do not fix a finding in code you are not otherwise changing if the fix could alter trading behavior; write a
   characterization test first, or leave it and note it in the PR.
 - When a rule reaches zero, promote it to the hard gate (`[tool.ruff.lint] select`) in its own PR: first

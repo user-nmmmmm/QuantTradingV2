@@ -2,9 +2,10 @@
 
   python scripts/dev.py list              # show tasks
   python scripts/dev.py check             # everything CI's `quality` job does, in order (keeps going, prints a summary)
-  python scripts/dev.py check --no-tests  # same without the long test run
+  python scripts/dev.py check --no-tests  # skip Python tests/coverage and sandbox rerun; keep frontend tests
   python scripts/dev.py lint types imports ratchet
-  python scripts/dev.py test -- -k ledger # extra arguments after `--` go to pytest
+  python scripts/dev.py test              # full suite with the same 90% coverage gate as CI
+  python scripts/dev.py fast -- -k ledger # focused tests without coverage; extra args after `--` go to pytest
   python scripts/dev.py fast              # tests without the `slow` marker
   python scripts/dev.py setup             # install dev dependencies and the project (editable)
 
@@ -38,13 +39,25 @@ def _tool(name: str) -> List[str]:
     return [found] if found else [name]
 
 
-def _pytest(extra: Sequence[str] = (), *, parallel: bool = True, fast: bool = False) -> List[str]:
+def _pytest(extra: Sequence[str] = (), *, parallel: bool = True, fast: bool = False,
+            coverage: bool = False) -> List[str]:
     cmd = [PY, "-m", "pytest", "-q"]
     if parallel and importlib.util.find_spec("xdist") is not None:
         cmd += ["-n", "4"]
     if fast:
         cmd += ["-m", "not slow"]
+    if coverage:
+        cmd += ["--durations=20", "--cov=core", "--cov=ops", "--cov=signal_meta", "--cov=backtest",
+                "--cov=live_trading", "--cov-fail-under=90"]
     return cmd + list(extra)
+
+
+def _frontend(extra: Sequence[str]) -> List[List[str]]:
+    # Shell globs do not expand consistently across platforms. Node receives the complete, sorted file list.
+    files = sorted((ROOT / "tests").glob("dashboard_*.test.mjs"))
+    if not files:
+        raise SystemExit("frontend tests missing: expected tests/dashboard_*.test.mjs")
+    return [["node", "--test", *(str(path) for path in files)]]
 
 
 @dataclass(frozen=True)
@@ -71,13 +84,16 @@ TASKS: Dict[str, Task] = {t.name: t for t in [
     Task("lint", "ruff hard gate (syntax / undefined-name level)", _simple(PY, "-m", "ruff", "check", ".")),
     Task("ratchet", "no new ruff/mypy findings above the baseline", _simple(PY, "scripts/quality_ratchet.py", "check")),
     Task("imports", "import direction (layered architecture)", lambda extra: [_tool("lint-imports")]),
+    Task("frontend", "dashboard frontend tests (requires Node.js 22)", _frontend),
     Task("types", "mypy on the typed contract files", _simple(PY, "-m", "mypy", *TYPED_FILES)),
     Task("hygiene", "tracked files and frozen artifacts", _simple(PY, "scripts/check_repository_hygiene.py")),
     Task("archive", "protected historical baseline archive", _simple(PY, "scripts/verify_baseline_archive.py")),
     Task("links", "Markdown relative links", _simple(PY, "scripts/check_markdown_links.py")),
     Task("roadmap", "roadmap completion structure", _simple(PY, "scripts/verify_roadmap_completion.py", "--structure-only")),
-    Task("test", "full test suite (parallel when pytest-xdist is installed); extra args go to pytest",
-         lambda extra: [_pytest(extra)], heavy=True),
+    Task("test", "full suite with the CI 90% coverage gate (parallel when pytest-xdist is installed)",
+         lambda extra: [_pytest(extra, coverage=True)], heavy=True),
+    Task("sandbox", "confirm the exchange sandbox suite is discoverable (network tests stay opt-in)",
+         _simple(PY, "-m", "pytest", "-q", "tests/test_exchange_sandbox_e2e.py"), heavy=True),
     Task("fast", "tests without the `slow` marker", lambda extra: [_pytest(extra, fast=True)], in_check=False),
     Task("identity", "frozen-scope identity impact versus origin/main", lambda extra:
          [[PY, "scripts/identity_report.py", "--base", "origin/main", "--head", "WORKTREE"]], in_check=False),
@@ -86,7 +102,8 @@ TASKS: Dict[str, Task] = {t.name: t for t in [
         [PY, "-m", "pip", "install", "-e", ".", "--no-deps"]], in_check=False),
 ]}
 
-CHECK_ORDER = ["env", "data", "arch", "lint", "ratchet", "imports", "types", "hygiene", "archive", "links", "roadmap", "test"]
+CHECK_ORDER = ["env", "data", "arch", "lint", "ratchet", "imports", "frontend", "types", "hygiene", "archive", "links",
+               "roadmap", "test", "sandbox"]
 
 
 def plan(names: Sequence[str], extra: Sequence[str] = (), *, no_tests: bool = False) -> List[tuple]:
@@ -129,7 +146,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         args, extra = args[:split], args[split + 1:]
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("tasks", nargs="*", help="task names, `check` for CI parity, or `list`")
-    parser.add_argument("--no-tests", action="store_true", help="with `check`: skip the long test run")
+    parser.add_argument("--no-tests", action="store_true", help="with `check`: skip Python tests/coverage and sandbox; keep frontend")
     options = parser.parse_args(args)
     if not options.tasks or options.tasks == ["list"]:
         width = max(map(len, TASKS))

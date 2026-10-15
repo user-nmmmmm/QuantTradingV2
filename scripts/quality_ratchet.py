@@ -18,7 +18,7 @@ contract files) is unchanged; this adds a wider net on top of it.
 
 The mypy hard-gate list (``scripts/mypy_hard_gate.txt``, infrastructure roadmap C3) holds the modules whose
 mypy findings reached zero. Unlike the baseline it cannot be loosened by ``update``: any finding in a listed
-module fails ``check``/``gate``, and a module only leaves the list in a PR that says why. Findings come from the
+module fails ``check``/``update``/``gate``, and a module only leaves the list in a PR that says why. Findings come from the
 same whole-package mypy run as the ratchet: with ``follow_imports = "skip"`` a module's result depends on which
 other modules are on the command line, so a subset run would not agree with the baseline.
 """
@@ -202,14 +202,6 @@ def main(argv=None) -> int:
     baseline = load_baseline()
 
     results = {name: RUNNERS[name](config[name]) for name in tools}
-    if args.command == "update":
-        for name, counts in results.items():
-            baseline[name] = dict(sorted(counts.items()))
-        BASELINE.write_text(json.dumps({"schema": "quality-baseline/v1", "tools": baseline}, indent=2,
-                                       sort_keys=True) + "\n", encoding="utf-8", newline="\n")
-        print("baseline updated: " + ", ".join(f"{n}={sum(c.values())}" for n, c in results.items()))
-        return 0
-
     failed = False
     if "mypy" in results and report_gate(results["mypy"]):
         failed = True
@@ -226,8 +218,18 @@ def main(argv=None) -> int:
             print(f"  Fix them, or run `python scripts/{Path(__file__).name} check --tool {name}` locally to see details.")
         else:
             print(f"[{name}] ok: {total} findings, baseline allows {known}")
-        if better:
+        if better and args.command == "check":
             print(f"note [{name}]: {len(better)} entries improved; run `python scripts/{Path(__file__).name} update` to lock them in")
+    if args.command == "update":
+        if failed:
+            print("baseline unchanged: fix all selected-tool regressions and mypy hard-gate failures before updating")
+            return 1
+        # Validate every selected tool before writing anything; improvements cannot offset a new or larger entry.
+        for name, counts in results.items():
+            baseline[name] = dict(sorted((key, count) for key, count in counts.items() if count))
+        BASELINE.write_text(json.dumps({"schema": "quality-baseline/v1", "tools": baseline}, indent=2,
+                                       sort_keys=True) + "\n", encoding="utf-8", newline="\n")
+        print("baseline updated: " + ", ".join(f"{n}={sum(c.values())}" for n, c in results.items()))
     return 1 if failed else 0
 
 

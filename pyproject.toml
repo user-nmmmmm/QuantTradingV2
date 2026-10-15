@@ -50,7 +50,7 @@ timeout = 600
 markers = [
     "slow: test takes roughly 5 s or more; deselect for a quick loop with -m 'not slow'",
     "network: needs a real network connection (none do today; keep new ones opt-in)",
-    "quarantine: known-unstable test (reason=, until=YYYY-MM-DD); failures do not block, the deadline is enforced by tests/test_quarantine_policy.py",
+    "quarantine: known-unstable test (reason=, until=YYYY-MM-DD); collection enforces <=10 actual cases and a deadline within 30 UTC days; failures do not block",
 ]
 
 [tool.ruff]
