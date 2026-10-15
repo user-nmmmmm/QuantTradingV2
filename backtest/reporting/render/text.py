@@ -42,14 +42,14 @@ class ReportWriters:
             f.write(self._host._format_primary_metrics(metrics))
             f.write("\n\n")
 
-            self._write_lifecycle_section(
+            self._host._write_lifecycle_section(
                 f,
                 metrics.get("BacktestLifecycle"),
                 metrics.get("FullCapitalPeriodMetrics"),
                 metrics.get("ActiveStrategyPeriodMetrics"),
             )
-            self._write_strategy_health_section(f, metrics.get("StrategyHealth"))
-            self._write_protective_stop_section(f, metrics.get("ProtectiveStops"))
+            self._host._write_strategy_health_section(f, metrics.get("StrategyHealth"))
+            self._host._write_protective_stop_section(f, metrics.get("ProtectiveStops"))
 
             f.write("Full Metrics (完整指标明细):\n")
             f.write("-----------------\n")
@@ -62,14 +62,14 @@ class ReportWriters:
                 f.write(f"{display_key:<45}: {self._host._format_metric_value(v)}\n")
             f.write("\n")
 
-            self._write_exposure_section(f, analysis.get("exposure"))
-            self._write_signal_funnel_section(f, analysis.get("signal_funnel"))
-            self._write_drawdown_events_section(f, analysis.get("drawdown_events"))
-            self._write_trade_quality_section(f, analysis.get("trade_quality"))
-            self._write_attribution_section(f, analysis.get("attribution"))
-            self._write_control_attribution(f, analysis.get("attribution"))
-            self._write_benchmark_section(f, analysis.get("benchmark_comparison"))
-            self._write_diagnostics_section(f, metrics.get("Diagnostics"))
+            self._host._write_exposure_section(f, analysis.get("exposure"))
+            self._host._write_signal_funnel_section(f, analysis.get("signal_funnel"))
+            self._host._write_drawdown_events_section(f, analysis.get("drawdown_events"))
+            self._host._write_trade_quality_section(f, analysis.get("trade_quality"))
+            self._host._write_attribution_section(f, analysis.get("attribution"))
+            self._host._write_control_attribution(f, analysis.get("attribution"))
+            self._host._write_benchmark_section(f, analysis.get("benchmark_comparison"))
+            self._host._write_diagnostics_section(f, metrics.get("Diagnostics"))
 
             f.write("File Descriptions (文件说明):\n")
             f.write("===========================\n")

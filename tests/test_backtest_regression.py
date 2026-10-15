@@ -2,6 +2,7 @@ import json
 import hashlib
 import tempfile
 import unittest
+from copy import deepcopy
 from pathlib import Path
 from tests.baseline_harness import ARTIFACTS, load_bundle, materialize
 from tests.engine_baseline_harness import (
@@ -136,7 +137,15 @@ class TestBacktestEngineEquivalenceBaseline(unittest.TestCase):
         # the fixture and the CI runner, and pinning 17 significant digits
         # turns that into a failure unrelated to behavior. Counts, timestamps,
         # statuses, key sets and container shapes still compare exactly.
-        problems = compare_artifacts(artifacts, bundle["artifacts"])
+        # Formula 2.1 changes insolvency semantics. The immutable v4 run has
+        # strictly positive equity, so every artifact must remain unchanged
+        # except the declared formula version. Pin both versions explicitly:
+        # do not accept arbitrary future version bumps or regenerate v4.
+        self.assertTrue(all(row["equity"] > 0 for row in bundle["artifacts"]["equity_curve"]))
+        self.assertEqual(bundle["artifacts"]["metrics"]["MetricsFormulaVersion"], "2.0")
+        expected = deepcopy(bundle["artifacts"])
+        expected["metrics"]["MetricsFormulaVersion"] = "2.1"
+        problems = compare_artifacts(artifacts, expected)
         self.assertEqual(
             problems, [],
             "Engine output diverged from the recorded baseline:\n"

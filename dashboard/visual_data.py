@@ -306,12 +306,16 @@ def load_backtest(reports_dir: Path, run_id: str) -> dict[str, Any]:
         except (TypeError, ValueError):
             invalid_rows += 1
             continue
-        if (None in row or equity is None or equity <= 0
+        if (None in row or equity is None
                 or (points and moment <= points[-1]["_moment"])):
             invalid_rows += 1
             continue
+        if not points and equity <= 0:
+            raise ValueError("starting equity must be positive")
         peak = max(peak, equity)
         drawdown = equity / peak - 1
+        if not math.isfinite(drawdown):
+            raise ValueError("equity drawdown is not representable")
         worst_drawdown = min(worst_drawdown, drawdown)
         points.append({"timestamp": timestamp, "equity": equity, "drawdown": drawdown, "_moment": moment})
     if not points:

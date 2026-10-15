@@ -63,27 +63,34 @@ def finite(value: float) -> float | None:
     return value if math.isfinite(value) else None
 
 
+def _equity_return(end: float, start: float) -> float | None:
+    """A loss may exceed 100%; a nonpositive capital denominator has no percentage return."""
+    return finite(end / start - 1) if start > 0 else None
+
+
 def analyze_equity(points: list[dict[str, Any]]) -> dict[str, Any]:
     """Compute observation-period statistics without assuming daily sampling."""
     moments = [utc_moment(point["timestamp"]) for point in points]
-    returns = [finite(right["equity"] / left["equity"] - 1)
+    returns = [_equity_return(right["equity"], left["equity"])
                for left, right in zip(points, points[1:])]
     # An unrepresentable return invalidates aggregate period statistics instead
     # of quietly changing their sample or reporting a misleading success ratio.
     valid_returns = returns if all(value is not None for value in returns) else []
     days = (moments[-1] - moments[0]).total_seconds() / 86400
+    start, end = points[0]["equity"], points[-1]["equity"]
     annualized = None
-    if days > 0:
-        try:
-            annualized = finite(math.expm1(
-                (math.log(points[-1]["equity"]) - math.log(points[0]["equity"])) * 365.25 / days
-            ))
-        except OverflowError:
-            pass
+    if days > 0 and start > 0 and end >= 0:
+        if end == 0:
+            annualized = -1.0
+        else:
+            try:
+                annualized = finite(math.expm1((math.log(end) - math.log(start)) * 365.25 / days))
+            except OverflowError:
+                pass
     aligned = points[0]["benchmark"] is not None and points[-1]["benchmark"] is not None
-    benchmark_return = (finite(points[-1]["benchmark"] / points[0]["benchmark"] - 1)
+    benchmark_return = (_equity_return(points[-1]["benchmark"], points[0]["benchmark"])
                         if aligned else None)
-    total_return = finite(points[-1]["equity"] / points[0]["equity"] - 1)
+    total_return = _equity_return(end, start)
     monthly = []
     for index, (point, moment) in enumerate(zip(points, moments)):
         month = moment.strftime("%Y-%m")
@@ -97,7 +104,7 @@ def analyze_equity(points: list[dict[str, Any]]) -> dict[str, Any]:
         current["period_end"] = point["timestamp"]
         current["periods"] += int(index > 0)
         if current["periods"]:
-            current["return"] = finite(point["equity"] / current["_equity"] - 1)
+            current["return"] = _equity_return(point["equity"], current["_equity"])
     for current in monthly:
         del current["_equity"]
     return {
@@ -117,11 +124,11 @@ def analyze_equity(points: list[dict[str, Any]]) -> dict[str, Any]:
         "monthly_returns": monthly,
         "benchmark_aligned": aligned,
         "methodology": {
-            "period_return": "Adjacent valid equity observations: equity[t] / equity[t-1] - 1; sampling may be irregular. Aggregate period statistics are undefined if any return is nonfinite.",
+            "period_return": "Adjacent finite equity observations: equity[t] / equity[t-1] - 1 with a positive prior equity denominator; sampling may be irregular. Aggregate period statistics are undefined if any return is undefined or nonfinite. Zero and negative observations are retained.",
             "positive_period_ratio": "Positive observation-period returns / all observation-period returns; not a closed-trade win rate.",
             "period_volatility": "Sample standard deviation of observation-period returns; not annualized.",
-            "annualized_return": "(end_equity / start_equity) ** (365.25 / elapsed_days) - 1; undefined for zero elapsed time.",
-            "monthly_return": "Last equity observed in UTC calendar month / previous observed month-end equity - 1. First month starts at first observation; missing months are omitted. Intervals spanning missing months belong to their ending month.",
+            "annualized_return": "(end_equity / start_equity) ** (365.25 / elapsed_days) - 1; requires positive start equity, nonnegative end equity and positive elapsed time. Zero end equity is -100%; negative end equity or unrepresentable results are undefined.",
+            "monthly_return": "Last equity observed in UTC calendar month / previous observed month-end equity - 1; requires a positive baseline, otherwise undefined. First month starts at first observation; missing months are omitted. Intervals spanning missing months belong to their ending month.",
             "benchmark_return": "Last matched benchmark / first matched benchmark - 1; available only when both report endpoints match. Excess is strategy return minus benchmark return (percentage points).",
             "fills_count": "Valid execution rows in trades.csv; fills are not closed trades.",
         },

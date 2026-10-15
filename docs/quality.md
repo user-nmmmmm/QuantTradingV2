@@ -16,6 +16,8 @@
 
 棘轮按"文件 + 规则"计数（忽略行号），所以无关修改不会打扰它。基线在 `scripts/quality_baseline.json`，规则配置在 `pyproject.toml` 的 `[tool.quality_ratchet]`。mypy 固定按 `linux` / `3.11` 分析，开发机和 CI 的计数一致。
 
+AUD-05 数值与扩展回归见 [ADR 0038](adr/0038-insolvent-equity-and-host-dispatch.md)：合成零负权益在 dashboard、报告、风险统计、图表及 Excel 间一致，未定义收益不缩小样本或填零；catchup 别名、报表分节和 Broker 时间覆盖进入实际调用。两份运行回归同时加入四组安装矩阵；没有提高棘轮额度或降低 90% 覆盖率门槛。历史报告的指标公式版本保留，新计算标记 `2.1`。
+
 ## 日常使用
 
 一条命令跑完与 CI `quality` 作业相同的质量检查并给出汇总：`python scripts/dev.py check`（也可用 `quant-dev`）。CI 的各质量步骤直接调用同一份 `dev.py` 任务；回归检查双向核对任务及顺序。依赖安装与 PR 的条件身份报告在质量任务之外，后者仅提供审阅信息。

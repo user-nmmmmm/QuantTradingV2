@@ -13,7 +13,7 @@ from core.analytics.strategy_health import (
     classify_exit_controller,
 )
 
-from core.metrics.performance import _clean_equity
+from core.metrics.performance import _clean_equity, equity_period_returns
 
 _FUNNEL_STAGES = ("risk_evaluated", "risk_approved", "order_created", "order_accepted", "filled")
 _ORDER_ACCEPTED_STATUSES = {"accepted", "partially_filled", "filled", "partial"}
@@ -412,19 +412,21 @@ def calculate_benchmark_comparison(equity: pd.Series, benchmark: pd.Series) -> D
                 "excess_return": None, "correlation": None}
     strategy = strategy.loc[common_index]
     bench = bench.loc[common_index]
-    strategy_returns = strategy.pct_change(fill_method=None).dropna()
-    bench_returns = bench.pct_change(fill_method=None).dropna()
+    strategy_returns = equity_period_returns(strategy).iloc[1:]
+    bench_returns = equity_period_returns(bench).iloc[1:]
     return_index = strategy_returns.index.intersection(bench_returns.index)
-    strategy_return = float(strategy.iloc[-1] / strategy.iloc[0] - 1)
-    benchmark_return = float(bench.iloc[-1] / bench.iloc[0] - 1)
+    strategy_return = float(strategy.iloc[-1] / strategy.iloc[0] - 1) if strategy.iloc[0] > 0 else None
+    benchmark_return = float(bench.iloc[-1] / bench.iloc[0] - 1) if bench.iloc[0] > 0 else None
     correlation = (
         float(strategy_returns.loc[return_index].corr(bench_returns.loc[return_index]))
-        if len(return_index) >= 2 and strategy_returns.std() > 0 and bench_returns.std() > 0 else None
+        if len(return_index) >= 2 and strategy_returns.notna().all() and bench_returns.notna().all()
+        and strategy_returns.std() > 0 and bench_returns.std() > 0 else None
     )
     return {
-        **identity_fields, "status": "ok", "sample_size": int(len(common_index)),
+        **identity_fields, "status": "ok" if strategy_return is not None and benchmark_return is not None else "undefined", "sample_size": int(len(common_index)),
         "strategy_return": strategy_return, "benchmark_return": benchmark_return,
-        "excess_return": strategy_return - benchmark_return, "correlation": correlation,
+        "excess_return": strategy_return - benchmark_return if strategy_return is not None and benchmark_return is not None else None,
+        "correlation": correlation,
     }
 
 
