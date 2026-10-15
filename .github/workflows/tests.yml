@@ -24,29 +24,27 @@ jobs:
       - name: Install the project (editable)
         run: python -m pip install -e . --no-deps
       - name: Verify environment and lock integrity
-        run: |
-          python scripts/check_environment.py
-          python scripts/check_environment.py --strict-lock
-          python scripts/verify_lock.py
-          python scripts/regenerate_lock.py --check
+        run: python scripts/dev.py env
       - name: Verify frozen research inputs
-        run: python scripts/data_inputs.py verify
+        run: python scripts/dev.py data
       - name: Architecture inventory matches the code
-        run: python scripts/architecture_inventory.py --check
+        run: python scripts/dev.py arch
       - name: Lint
-        run: python -m ruff check .
+        run: python scripts/dev.py lint
       - name: Quality ratchet (no new ruff/mypy findings; hard-gated mypy modules stay clean)
-        run: python scripts/quality_ratchet.py check
+        run: python scripts/dev.py ratchet
       - name: Check import direction (layers)
-        run: lint-imports
+        run: python scripts/dev.py imports
       - name: Dashboard frontend tests
-        run: node --test tests/dashboard_*.test.mjs
-      - name: Verify protected historical archive
-        run: python scripts/verify_baseline_archive.py
+        run: python scripts/dev.py frontend
+      - name: Type check critical runtime contracts
+        run: python scripts/dev.py types
       - name: Check tracked files and frozen artifacts
-        run: python scripts/check_repository_hygiene.py
+        run: python scripts/dev.py hygiene
+      - name: Verify protected historical archive
+        run: python scripts/dev.py archive
       - name: Check Markdown links
-        run: python scripts/check_markdown_links.py
+        run: python scripts/dev.py links
       - name: Report frozen-scope identity impact (informational)
         if: github.event_name == 'pull_request'
         run: >-
@@ -54,18 +52,14 @@ jobs:
           --base "origin/${{ github.base_ref }}" --head HEAD
           --summary-file "$GITHUB_STEP_SUMMARY"
       - name: Verify roadmap completion structure
-        run: python scripts/verify_roadmap_completion.py --structure-only
-      - name: Type check critical runtime contracts
-        run: python -m mypy core/foundation/domain.py core/foundation/runtime.py live_trading/execution_adapter.py
+        run: python scripts/dev.py roadmap
       - name: Tests and coverage gate
         # Budget: the suite runs in about 3 minutes with -n 4 (docs/quality.md, "耗时预算"); 8 minutes is the
         # point where something has regressed badly enough to stop the job.
         timeout-minutes: 8
-        run: >-
-          python -m pytest -q -n 4 --durations=20
-          --cov=core --cov=ops --cov=signal_meta --cov=backtest --cov=live_trading --cov-fail-under=90
+        run: python scripts/dev.py test
       - name: Sandbox suite is discoverable
-        run: python -m pytest -q tests/test_exchange_sandbox_e2e.py
+        run: python scripts/dev.py sandbox
 
   ml-research:
     runs-on: ubuntu-latest

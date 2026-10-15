@@ -12,12 +12,15 @@
 | **函数长度棘轮** | `quality_ratchet.py check` 的第三个工具：每个 ≥ 100 行的函数按"文件::函数"记录行数；只许变短，新出现的 ≥ 100 行函数直接失败（[ADR 0026](adr/0026-engine-function-limits-and-typed-run-state.md)） | 13 个包（`core ops signal_meta backtest live_trading strategies router composition cli config analysis research dashboard`） | 现有 86 个长函数记入基线，引擎与命令行里为 0 |
 | 导入方向 | `lint-imports`（分层契约 + `core` 不依赖其他包），详见 [架构边界说明](architecture_review.md) | 全部项目包 | 无已知例外；新增例外需要设计决定 |
 | 覆盖率 | `pytest --cov=core --cov=ops --cov=signal_meta --cov=backtest --cov=live_trading --cov-fail-under=90` | 五个包 | 行覆盖实测约 90.5%（Windows 本地，2026-10-14）；门槛 55% → 85% → 90%（C5，[ADR 0024](adr/0024-coverage-90-and-branch-coverage-evaluation.md)）。分支覆盖实测 79.8%，暂不设门槛 |
+| 前端与隔离策略 | `dev.py frontend`；pytest 收集钩子 | 所有 `tests/dashboard_*.test.mjs`；实际收集的 quarantine 用例 | 前端失败必须阻塞；最多 10 个隔离用例，期限为 UTC 当天至 30 天内（含边界），收集错误直接失败（[ADR 0037](adr/0037-monotonic-quality-gates.md)） |
 
 棘轮按"文件 + 规则"计数（忽略行号），所以无关修改不会打扰它。基线在 `scripts/quality_baseline.json`，规则配置在 `pyproject.toml` 的 `[tool.quality_ratchet]`。mypy 固定按 `linux` / `3.11` 分析，开发机和 CI 的计数一致。
 
 ## 日常使用
 
-一条命令跑完与 CI `quality` 作业相同的检查并给出汇总：`python scripts/dev.py check`（`--no-tests` 跳过测试，`list` 查看所有任务；也可用 `quant-dev`）。注意：断链检查只看已被 git 跟踪的文件，新增的文档要先 `git add`。
+一条命令跑完与 CI `quality` 作业相同的质量检查并给出汇总：`python scripts/dev.py check`（也可用 `quant-dev`）。CI 的各质量步骤直接调用同一份 `dev.py` 任务；回归检查双向核对任务及顺序。依赖安装与 PR 的条件身份报告在质量任务之外，后者仅提供审阅信息。
+
+完整 `check` 包括五个包的 90% 覆盖率门槛、Node.js 22 前端测试和 sandbox 可发现性复跑。没有 pytest-xdist 时只改为串行执行，覆盖率门槛保留；缺少覆盖率插件或 Node 会失败。`--no-tests` 显式跳过 Python 完整测试、覆盖率和 sandbox 复跑，**仍执行前端测试**，不能作为完整 CI 通过的依据。定向调试使用 `python scripts/dev.py fast -- -k ledger`，它不带覆盖率门槛；`list` 查看所有任务。断链检查只看已被 git 跟踪的文件，新增的文档要先 `git add`。
 
 ```bash
 python scripts/quality_ratchet.py check            # 与 CI 相同
@@ -26,7 +29,7 @@ python scripts/quality_ratchet.py update           # 修掉存量问题后，把
 ```
 
 - 新增代码触发新的 ruff 或 mypy 问题：`check` 失败并列出 `文件::规则: 旧 -> 新`。优先修掉；确属必要时用精确的 `# noqa: CODE` / `# type: ignore[code]` 并在评审里说明，不要直接改基线。
-- 修掉存量问题后 `check` 会提示"可锁定"，运行 `update` 并提交基线，改进就不会再丢。
+- 修掉存量问题后 `check` 会提示"可锁定"，运行 `update` 并提交基线，改进就不会再丢。`update` 先检查全部选中工具的逐条变化和 mypy 硬门槛：任一条新增或增长均拒绝，其他条目的改善不能抵扣；拒绝时文件字节保持原样。`--tool` 只更新所选工具，其余记录保留。缺失基线按零额度处理，不能借重新生成接纳现有问题。
 - 想把某类规则提升为硬门槛：先把它的存量清零，再把规则加入 `[tool.ruff.lint] select`，并从棘轮配置里去掉。
 - 一个模块的 mypy 发现清零后：`python scripts/quality_ratchet.py promote --write` 把它收进硬门槛清单，之后任何回退都会失败，`update` 也无法放宽；一个 `slow` 测试保证清单没有遗漏新达标的模块。
 - 日常原则（C1）：每个 PR 顺手减少触碰文件的存量，约定见 [CONTRIBUTING](../CONTRIBUTING.md)；每个季度记录一次基线总数（见下表）。
@@ -67,8 +70,10 @@ python scripts/quality_ratchet.py update           # 修掉存量问题后，把
 
 1. **不要靠重跑掩盖。** 先复现：`python -m pytest <测试> -n 0` 连续跑多次（例如 20 次），再换成 `-n 4` 看是否只在并行下失败。
 2. **定位。** 常见原因：依赖当前时间或时区、测试间共享临时路径或全局状态（`monkeypatch` 漏恢复）、端口/文件锁、依赖字典或集合的遍历顺序、并行进程互相覆盖同名文件。
-3. **修，或隔离。** 修不了当天就加 `@pytest.mark.quarantine(reason="…（说明现象与已定位的原因，至少 10 个字符）", until="YYYY-MM-DD")`：测试继续运行，失败不阻塞（等同非严格 xfail），通过会显示为 XPASS。**期限最多约 30 天**；`tests/test_quarantine_policy.py` 在过期后让 CI 失败，逼着修复或删除；同时被隔离的测试最多 10 个。
+3. **修，或隔离。** 修不了当天就加 `@pytest.mark.quarantine(reason="…（说明现象与已定位的原因，至少 10 个字符）", until="YYYY-MM-DD")`：有效隔离的测试继续运行，失败等同非严格 xfail，通过显示为 XPASS。`tests/conftest.py` 在收集阶段检查：期限必须位于 **UTC 当天至当天加 30 天（含边界）**，实际隔离用例最多 **10 个**。参数展开、类/模块继承、参数标记和子目录均计入，同一用例多个标记只计一次，但所有继承标记均须有效。检查先于 `-k`、`-m`、`--deselect`；每个 xdist worker 也检查完整收集结果。缺少原因、日期格式错误、超期或超量直接终止收集，不能被 xfail 吞掉；`tests/test_quarantine_policy.py` 用真实收集回归固定这些边界。
 4. 隔离不是豁免：在 PR 描述里写明原因和负责人，修好后立即去掉标记。
+
+容器工作流的 PR 与 main push 路径均包含 `pyproject.toml`，也包含工作流自身；更改打包、pytest 或质量配置会触发构建及 `check --no-tests`。完整 Python 测试和覆盖率仍由 `tests` 工作流执行。
 
 ### 平台相关的跳过
 

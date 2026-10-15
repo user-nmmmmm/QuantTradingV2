@@ -35,18 +35,22 @@ def test_notes_and_summaries_are_not_counted():
 
 @pytest.fixture()
 def fake_tools(tmp_path: Path, monkeypatch):
-    state = {"ruff": Counter({"a.py::F401": 2}), "mypy": Counter({"b.py::attr-defined": 4})}
+    state = {"ruff": Counter({"a.py::F401": 2}), "mypy": Counter({"b.py::attr-defined": 4}),
+             "function_length": Counter({"c.py::long": 150})}
     monkeypatch.setattr(ratchet, "BASELINE", tmp_path / "baseline.json")
-    monkeypatch.setattr(ratchet, "settings", lambda: {"ruff": {}, "mypy": {}})
+    monkeypatch.setattr(ratchet, "GATE_LIST", tmp_path / "gate.txt")
+    monkeypatch.setattr(ratchet, "settings", lambda: {name: {} for name in state})
     monkeypatch.setattr(ratchet, "RUNNERS", {"ruff": lambda config: Counter(state["ruff"]),
-                                             "mypy": lambda config: Counter(state["mypy"])})
+                                             "mypy": lambda config: Counter(state["mypy"]),
+                                             "function_length": lambda config: Counter(state["function_length"])})
+    ratchet.BASELINE.write_text(json.dumps({"schema": "quality-baseline/v1", "tools": state}), encoding="utf-8")
     return state
 
 
 def test_check_update_cycle(fake_tools, capsys):
     assert ratchet.main(["update"]) == 0
     saved = json.loads(ratchet.BASELINE.read_text(encoding="utf-8"))["tools"]
-    assert saved == {"ruff": {"a.py::F401": 2}, "mypy": {"b.py::attr-defined": 4}}
+    assert saved == fake_tools
     assert ratchet.main(["check"]) == 0
 
     fake_tools["ruff"]["a.py::F401"] = 1                      # improvement: still passes, suggests locking in
@@ -59,8 +63,56 @@ def test_check_update_cycle(fake_tools, capsys):
     assert ratchet.main(["check", "--tool", "ruff"]) == 0     # other tools are unaffected when limited
 
 
-def test_missing_baseline_means_everything_is_new(fake_tools):
-    assert ratchet.main(["check"]) == 1
+@pytest.mark.parametrize("command", ["check", "update"])
+def test_missing_baseline_means_everything_is_new(fake_tools, command):
+    ratchet.BASELINE.unlink()
+    assert ratchet.main([command]) == 1
+    assert not ratchet.BASELINE.exists()
+
+
+@pytest.mark.parametrize("tool", ["ruff", "mypy", "function_length"])
+@pytest.mark.parametrize("limited", [False, True])
+@pytest.mark.parametrize("new_pair", [False, True])
+def test_update_rejects_per_entry_regressions_without_writing_any_tool(fake_tools, tool, limited, new_pair, capsys):
+    before = ratchet.BASELINE.read_bytes()
+    # Improvements elsewhere cannot pay for a new pair or growth in an existing pair.
+    fake_tools["ruff"]["a.py::F401"] = 0
+    fake_tools["mypy"]["b.py::attr-defined"] = 0
+    fake_tools["function_length"]["c.py::long"] = 0
+    old_key = {"ruff": "a.py::F401", "mypy": "b.py::attr-defined", "function_length": "c.py::long"}[tool]
+    if new_pair:
+        fake_tools[tool]["new.py::new"] = 1  # even a lower aggregate must fail
+    else:
+        fake_tools[tool][old_key] = {"ruff": 3, "mypy": 5, "function_length": 151}[tool]
+    args = ["update"] + (["--tool", tool] if limited else [])
+    assert ratchet.main(args) == 1
+    assert ratchet.BASELINE.read_bytes() == before
+    assert f"ERROR [{tool}]" in capsys.readouterr().out
+
+
+def test_update_locks_decreases_and_removals_and_preserves_unselected_tools(fake_tools):
+    before = ratchet.load_baseline()
+    fake_tools["ruff"].clear()
+    fake_tools["mypy"]["b.py::attr-defined"] = 3
+    assert ratchet.main(["update", "--tool", "ruff"]) == 0
+    saved = ratchet.load_baseline()
+    assert saved["ruff"] == {}
+    assert saved["mypy"] == before["mypy"] and saved["function_length"] == before["function_length"]
+    assert ratchet.main(["update"]) == 0
+    assert ratchet.load_baseline()["mypy"] == {"b.py::attr-defined": 3}
+
+
+def test_tool_failure_cannot_partially_update_the_baseline(fake_tools, monkeypatch):
+    before = ratchet.BASELINE.read_bytes()
+    fake_tools["ruff"].clear()
+
+    def broken(config):
+        raise SystemExit("tool failed")
+
+    monkeypatch.setitem(ratchet.RUNNERS, "mypy", broken)
+    with pytest.raises(SystemExit, match="tool failed"):
+        ratchet.main(["update"])
+    assert ratchet.BASELINE.read_bytes() == before
 
 
 def test_repository_configuration_and_baseline_are_consistent():
@@ -87,7 +139,9 @@ def gate_list(tmp_path: Path, monkeypatch):
 
 def test_a_finding_in_a_gated_module_fails_check_even_with_a_baseline_that_allows_it(fake_tools, gate_list, capsys):
     gate_list.write_text("# header\nb.py\n", encoding="utf-8")
-    assert ratchet.main(["update"]) == 0                      # the baseline now tolerates b.py::attr-defined
+    before = ratchet.BASELINE.read_bytes()                    # simulate a pre-existing permissive baseline
+    assert ratchet.main(["update"]) == 1
+    assert ratchet.BASELINE.read_bytes() == before
     assert ratchet.main(["check"]) == 1                       # ... but b.py is gated, so it cannot be tolerated
     assert "ERROR [mypy gate] b.py::attr-defined: 4 finding(s)" in capsys.readouterr().out
     gate_list.write_text("other.py\n", encoding="utf-8")

@@ -1,8 +1,8 @@
 # 基础设施路线图（2026-10 起）
 
-> 核对日期：2026-10-15，当前实现基点为 GitHub main 的 `f242a55767ad5d0d72bc7dec0aba4cf3267e6dbb`（#101）。[公开代码与CI复核](#10-2026-10-15公开github复核)保留 ec409213 的原始核对与后续修复证据。#98 的公开工程 roadmap 已随 #101 合并，#98 已关闭。本文维护工程顺序与退出条件；项目阶段、历史任务和实盘准入仍以[统一Roadmap](unified_roadmap.md)为准。第2节保留历史工程交付，第5节是当前执行队列。
+> 核对日期：2026-10-15，当前实现基点为 GitHub main 的 `1278c50a24d2373324f8f2aa8bef7984596912e7`（#102）。[公开代码与CI复核](#10-2026-10-15公开github复核)保留 ec409213 的原始核对与后续修复证据。#98 的公开工程 roadmap 已随 #101 合并，#98 已关闭。本文维护工程顺序与退出条件；项目阶段、历史任务和实盘准入仍以[统一Roadmap](unified_roadmap.md)为准。第2节保留历史工程交付，第5节是当前执行队列。
 
-**当前状态：AUD-01 已随 #99 合并，AUD-02 两批已随 #100/#101 合并。本 PR 修复 AUD-03 的实际摘要绑定、末根分类、空响应、未知文件名及旧 cache 换行验证；代码项待本 PR CI 与合并。真实数据重新佐证、MATIC/末根采用版本与回执仍待研究决定。下一批推进 AUD-04 质量门禁，再收敛 AUD-05 和修复后基线。v3.1.0 仍指向旧 ec409213；实际 A5 登记须等新版本绑定及依赖条件满足，由所有者执行。**
+**当前状态：AUD-01/#99、AUD-02/#100/#101 和 AUD-03/#102 的代码修复已合并。AUD-04 本 PR 补齐 baseline 更新、共享本地/CI 任务、实际 quarantine 数量与期限、容器 pyproject 触发；待本 PR CI 与合并关闭。下一批推进 AUD-05 运行语义，再收敛修复后基线。真实数据重新佐证、MATIC/末根采用版本与回执仍待研究决定。v3.1.0 仍指向旧 ec409213；实际 A5 登记须等新版本绑定及依赖条件满足，由所有者执行。**
 
 ## 1. 目标与原则
 
@@ -121,15 +121,15 @@
 |---|---|---|
 | G0 | **已决：顺延** | ADR 0008；整理已完成，下一步是登记新身份（A5） |
 | A1–A4 | 已完成 | `v3.0.0` 标签已创建并推送（2026-10-14） |
-| A5 | **登记事务与源码身份已修复；数据采用及正式登记待验证** | #99/#100/#101 已合并；本 PR 修复 AUD-03 工具边界。相关数据采用、质量与运行缺陷继续收敛，形成新版本后由所有者登记 |
+| A5 | **登记事务、源码身份与数据工具已修复；数据采用及正式登记待验证** | #99–#102 已合并；本 PR 修复 AUD-04 门禁。相关数据采用与运行缺陷继续收敛，形成新版本后由所有者登记 |
 | B1–B5、B7、B8 | 已完成 | 见第 2 节；ADR 0011–0019、0025、0026 |
 | B6 | **已完成**（#95、#96） | 第一片（`RiskManager` 的 `CircuitBreaker`，13 个属性）已合并（#93，ADR 0027）。ADR 0027 记录了方法（先录金样本测试 → 机械搬动 → 文档）和各片的顺序（`Broker` 的 `Matching`/`Liquidation` 已在第二片完成，ADR 0028；`LiveBroker` 的 `AccountSync` 已在第三片完成，ADR 0029；`LiveTradingEngine` 的 `Recovery`/`StateExport` 已在第四片完成，ADR 0030；`TickOrchestrator` 独占的 8 个记账属性已在第五片完成，ADR 0031）。留在宿主上的是被多个写入者共享的引擎级状态（`_operational_state`、`_healthy`、`data_map`、`_snapshot` ……）和 `Broker` 的 `orders_by_id`/`opening_orders`/`execution_audit` 等，它们的归属是下一个层次的设计问题，记为“观察期内不动” |
 | C1 | 已完成 | 约定在 CONTRIBUTING，季度记录在 `docs/quality.md`；下次回看 2027-01 |
-| C2、C4 | C2交付保留；C4拒绝路径待修 | #81：按实际测试项计隔离上限并限制最长期限；见AUD-04 |
+| C2、C4 | C2交付保留；C4机器约束本 PR 待合并 | AUD-04：真实收集最多 10 项，UTC 当天至 30 天内有效；类/模块/参数标记与子目录计入，选择过滤不能隐藏超限 |
 | C3 | 已完成，持续项 | 硬门槛清单 139/202：AUD-03 新增零错误哈希模块并用 `promote --write` 收进；当前 mypy 300 项存量基线未提高。其余模块随重构清零扩围（ADR 0022）；函数长度棘轮继续禁止新增长函数或已有函数增长 |
 | C5 | 已完成 | 门槛 90%（本地 Windows 实测行覆盖 90.58%，CI Linux 实测 90.51%）；#85 的 CI（Linux）上 90.51%，余量约 0.5 个百分点；若以后低于 90%，补测试而不是降门槛（ADR 0024） |
 | D1 | **待所有者确认清单** | 清单已于 2026-10-14 重新生成：`outputs/branch_cleanup_proposal.md`（被 `.gitignore` 忽略，不入库）。可直接清理：62 个已合并的远端分支、61 个已合并的本地分支、8 条失效的 worktree 记录（`infra/c3-tail`、`infra/d2-provenance` 已被 #92 取代，也可删）；需要逐个决定：7 个未合并的远端分支和 9 个未合并的本地分支（含 `codex/restore-smart-capital-72822-…`，有证据价值）。**确认前不执行任何删除**；清单过时就重新生成，不要用旧数字 |
-| D2 | **工具修复本 PR 待合并；旧比较及采用版本待重评** | 30 份 CSV 中 2 份有下载记录、28 份没有。新比较绑定实际快照并检查末根不变量；原 27 份末根差异和 MATIC 多 83 行的记录保留为 legacy，不能按新规则视为已验证。研究采用决定另存证据，见 AUD-03 |
+| D2 | **工具修复已合并 #102；旧比较及采用版本待重评** | 30 份 CSV 中 2 份有下载记录、28 份没有。新比较绑定实际快照并检查末根不变量；原 27 份末根差异和 MATIC 多 83 行的记录保留为 legacy，不能按新规则视为已验证。研究采用决定另存证据，见 AUD-03 |
 | D3 | 已完成 | 锁文件在 Linux/Windows × 3.11/3.13 都有现成轮子（仅 `multitasking` 为纯 Python 源码包）；#85 的 CI 上已验证通过（ADR 0021） |
 | D4–D6 | 已完成 | CodeQL 首次运行没有未处理的告警（#85 之后的 `main`），仍建议有人定期看一遍；dev container 已由 CI 验证（#88）（ADR 0021、0023） |
 
@@ -141,14 +141,14 @@
 |---|---|---|---|
 | AUD-01 登记事务 | **已合并 #99**；opening receipt 竞争、登记目录原子发布与重试 | 已完成代码闭环；正式登记属于 AUD-08/A5 | [abcd3b7f](https://github.com/user-nmmmmm/QuantTradingV2/commit/abcd3b7fa7b57bf5079d6553f66de2e8d73806e1)、[ADR 0033](adr/0033-atomic-bound-registration.md)；进程竞争、中断、写入失败及重试回归；完整暂存后原子发布 |
 | AUD-02 冻结身份与证据 | **两批已合并 #100/#101**；本轮代码项闭环，保留历史缺失来源的补证边界 | 新候选按新方案和范围登记；不改写旧记录 | [fa0ba271](https://github.com/user-nmmmmm/QuantTradingV2/commit/fa0ba2717ee439d8acfbcc849bf8a43b5301aec3)、[a3a472db](https://github.com/user-nmmmmm/QuantTradingV2/commit/a3a472dba15bf0db18a2369bd3d5cdd2f1024824)、[ADR 0034](adr/0034-frozen-replay-and-reference-verification.md)、[ADR 0035](adr/0035-versioned-source-identity.md)；冻结导入与 scope/ref、研究/打包范围、v1/v2 回执及保守行为审查 |
-| AUD-03 数据身份与佐证 | **工具修复本 PR 待合并**；实际快照摘要、末根不变量、空响应/未知文件名、旧 cache LF/CRLF | 待本 PR CI 与合并关闭代码项；真实数据重评及采用回执仍开放 | [ADR 0036](adr/0036-bound-data-corroboration.md)；旧摘要和抓取中变更拒绝、损坏末根 mismatch、空成功区别于 -1121、文件名错误非零、换行等价通过而内容变更拒绝；采用版本另出证据 |
-| AUD-04 质量门禁 | P1/P2；#65/#67/#81/#88：棘轮更新不能接纳增长，本地/CI同检查，隔离实际项/期限，容器路径 | 与AUD-01并行；约1–2日 | 混合修旧增新不能更新baseline；覆盖率90%和Node测试均在本地check；超过10个隔离项或约30天期限被拒绝；pyproject变更触发容器 |
+| AUD-03 数据身份与佐证 | **工具修复已合并 #102**；实际快照摘要、末根不变量、空响应/未知文件名、旧 cache LF/CRLF | 代码项闭环；真实数据重评及采用回执仍开放 | [a22627be](https://github.com/user-nmmmmm/QuantTradingV2/commit/a22627bee35632a78c9e9003547c8afd5cf4fe73)、[ADR 0036](adr/0036-bound-data-corroboration.md)；旧摘要和抓取中变更拒绝、损坏末根 mismatch、空成功区别于 -1121、文件名错误非零、换行等价通过而内容变更拒绝；采用版本另出证据 |
+| AUD-04 质量门禁 | **本 PR 待合并**；#65/#67/#81/#88：更新逐条只减不增，共用质量任务，实际隔离数量/期限，容器配置触发 | 基于已合并 #102；本 PR CI 与合并后关闭代码项 | [ADR 0037](adr/0037-monotonic-quality-gates.md)；混合修旧增新拒绝且基线字节不变；完整 check 与 CI 共用 90% 覆盖率及 Node 任务；11 个隔离项、过期或超过 30 天拒绝，10 项和 0/30 天边界允许；pyproject 同时触发 PR/main push 容器 |
 | AUD-05 运行语义 | P2但直接影响结果；#45/#46/#79/#86：报表/Broker子类分派、catchup市场别名、零负权益 | 第一批修复后集成；约1–2日 | 权益100/120/0/-10保留真实结尾与回撤；别名路径一致；子类hook被调用；同一修复提交的CI通过 |
 | AUD-06 文档与导航 | P2；#52/#54/#59/#64/#68/#76/#83/#94：依赖、路径、引用式链接和历史报告映射 | 可独立修；本提案修正路线图依赖/分组，其余待代码或文档PR | 链接正反例、历史证据映射、模块图与实际布局一致；不改受保护历史字节 |
 | AUD-07 外部补证与审查 | D1清单、私密报告设置及7个quota PR：D1逐项清单、私密报告渠道、遗漏审查 | 所有者并行提供；不以等待补证阻塞其他修复 | 具体ref/SHA/worktree清单与批准对象；渠道实际可用或有备用联系人；补审范围/结果可追溯 |
 | AUD-08 修复后基线与登记 | 收敛修复、测试、标签和真实A5回执 | 受影响的AUD-01–05关闭后；再进入A5/M1 | 新SHA完整CI、反例回归、受影响历史证据处置、修复版本标签/身份绑定；所有者执行登记并更新统一Roadmap |
 
-#90与#92的末根分类意见在本 PR 按同一根因修复，旧分类不自动升级为新证据。日期核验与 G0 结论已更新，旧报告路径不重复排开发。#101 保留 imports 严格摘要并明确“行为未验证”。历史证据缺少原驱动/模块时继续拒绝；须单独登记适配器或补证，不能借用当前实现冒充原结果。
+#90与#92的末根分类意见已在 #102 按同一根因修复，旧分类不自动升级为新证据。日期核验与 G0 结论已更新，旧报告路径不重复排开发。#101 保留 imports 严格摘要并明确“行为未验证”。历史证据缺少原驱动/模块时继续拒绝；须单独登记适配器或补证，不能借用当前实现冒充原结果。
 
 ```mermaid
 flowchart LR
@@ -174,9 +174,9 @@ B6/B7/B8交付已完成；以后若明确延期结构工作，记录冻结/延�
 
 1. G0已有结论（ADR0008）；本次复现的登记/身份/数据缺陷已按AUD-01–05关闭并形成修复后基线，随后由所有者实际登记A5并提供回执。当前尚未达到此条件。
 2. 身份报告能识别移动（A2，已完成），并有发布标签约定且首个标签已创建（A3，**已完成**：`v3.0.0`）。
-3. D2清单已交付，但实际摘要绑定、末根分类和旧cache验证仍待AUD-03关闭；28个无下载记录文件的来源限制保留。D3锁定CI已通过当前main验证。
+3. D2 工具的实际摘要绑定、末根分类和旧 cache 验证已随 #102 合并；真实数据重新佐证和采用版本仍待决定，28 个无下载记录文件的来源限制保留。D3 锁定 CI 已通过 #102 实现提交验证。
 4. `core/` 已完成拆分且无新增的反向依赖（B1–B3，**已完成**）。
-5. D1按可审阅清单取得所有者确认并完成治理要求；C4的实际隔离数量与最长期限由AUD-04补齐机器约束。
+5. D1 按可审阅清单取得所有者确认并完成治理要求；C4 的实际隔离数量与最长期限由本 PR 的 AUD-04 补齐机器约束，待 CI 与合并关闭。
 
 M1 之后的功能轨道（特征管线 → 回测两层化 → 选币统一 → 新策略 → ML v2）见[V4 设计](v4_architecture_design.md)第 9 节；它们要沿用"先护栏、再搬迁、再功能"的顺序。注意 V4 设计里的"选币统一"和"回测两层化"是**功能**工作，不在本路线图范围内。
 
@@ -244,7 +244,7 @@ M1 之后的功能轨道（特征管线 → 回测两层化 → 选币统一 →
 - `scripts/` 新增脚本要同时更新 `scripts/README.md` 和 `scripts/classification.json`，否则测试失败。
 - 冻结的历史证据（`docs/archive/2026-08*`、`2026-09*`、`docs/research/ml_selection_next_acceptance_20261005.json`、`docs/codex_mail_findings_20260920.json`、`docs/research/current_strategy_protocol.json`、`reports/` 回执，以及 `docs/research/paper_continuation_acceptance_20261003.json` 这类记录当时文件哈希的 JSON）不得改写；移动文档要在 `docs/doc_index.json` 追加一条。
 
-**第一件事：** 完成本 PR 的 AUD-03 代码验证与合并，然后推进 AUD-04 质量门禁。研究侧按新规则重评实际数据并确认采用版本，AUD-05 随后收敛运行语义；AUD-01/02 不重复排期。v3.1.0 仍指向 ec409213，AUD-08 固定新修复版本并绑定后才由所有者执行 A5。D1 和私密披露渠道继续补证。**B6 后续搬迁沿用：** 先录金样本测试，再机械搬动，最后更新文档、质量基线和架构清单。
+**第一件事：** 完成本 PR 的 AUD-04 门禁验证与合并，然后推进 AUD-05 运行语义。研究侧按 #102 新规则重评实际数据并确认采用版本；AUD-01/02 与 AUD-03 代码项不重复排期。v3.1.0 仍指向 ec409213，AUD-08 固定新修复版本并绑定后才由所有者执行 A5。D1 和私密披露渠道继续补证。**B6 后续搬迁沿用：** 先录金样本测试，再机械搬动，最后更新文档、质量基线和架构清单。
 
 ## 10. 2026-10-15公开GitHub复核
 
@@ -277,7 +277,8 @@ M1 之后的功能轨道（特征管线 → 回测两层化 → 选币统一 →
 | AUD-01 | [#99](https://github.com/user-nmmmmm/QuantTradingV2/pull/99) 已合并为 [ef44a7d0](https://github.com/user-nmmmmm/QuantTradingV2/commit/ef44a7d0786f1eace0ecb0933482c59ec3e17102)。共享进程锁、完整暂存与原子发布，覆盖竞争、中断和重试；历史协议不改写 |
 | AUD-02 首批 | [#100](https://github.com/user-nmmmmm/QuantTradingV2/pull/100) 已合并为 [f91e6bc9](https://github.com/user-nmmmmm/QuantTradingV2/commit/f91e6bc91ba4b32748d03608844c6d5d0e17de73)。其 head fa0ba271 的 [tests](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38675877558)、[offline](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38675877579)、[CodeQL](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38675877574) 均成功；完整套件 4292 passed、15 skipped、111 subtests，覆盖率 90.58% |
 | AUD-02 剩余四项 | [#101](https://github.com/user-nmmmmm/QuantTradingV2/pull/101) 已合并为 [f242a557](https://github.com/user-nmmmmm/QuantTradingV2/commit/f242a55767ad5d0d72bc7dec0aba4cf3267e6dbb)。head a3a472db 的 [tests](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38678252287)、[offline](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38678252305)、[CodeQL](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38678252304) 均成功；4344 passed、15 skipped、111 subtests、覆盖率 90.59%，四组安装各 102 项身份/发布回归 |
-| AUD-03 | 本 PR 待合并；合成 CSV/HTTP/cache 回归覆盖实际快照摘要、陈旧/变化输入、合法与损坏末根、空列表及错误码、未知文件名、换行和内容篡改、增量下载及显式 LF 策略。四组安装 CI 增加数据回归；本 PR Checks 是实现提交的 CI 依据。真实 CSV 与旧佐证未重写或重新认证 |
-| 后续开发 | AUD-04 优先，AUD-05 随后集成；AUD-03 的实际数据重评与采用回执单列。AUD-06 文档继续随修复更新，AUD-07 补证单列，AUD-08 固定修复版本并重新绑定。现有 v3.1.0 标签、冻结记录与真实登记状态不改写 |
+| AUD-03 | [#102](https://github.com/user-nmmmmm/QuantTradingV2/pull/102) 已合并为 [1278c50a](https://github.com/user-nmmmmm/QuantTradingV2/commit/1278c50a24d2373324f8f2aa8bef7984596912e7)。head a22627be 的 [tests](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38681861437)、[offline](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38681861417)、[CodeQL](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38681861484) 均成功；4407 passed、15 skipped、111 subtests，覆盖率 90.60%，四组安装各 165 项身份/发布/数据回归。真实 CSV 与旧佐证未重写或重新认证 |
+| AUD-04 | 本 PR 待合并；基于 1278c50a。基线反例覆盖三工具逐条增长、混合改善、部分更新、工具失败与硬门槛；低覆盖率/Node 失败经共享运行器传播；隔离真实收集覆盖参数、继承、子目录、选择、边界与 xdist；容器两个事件的过滤均有 pyproject 回归。本 PR Checks 是精确实现提交的 CI 依据 |
+| 后续开发 | AUD-05 下一批集成；AUD-03 的实际数据重评与采用回执单列。AUD-06 文档继续随修复更新，AUD-07 补证单列，AUD-08 固定修复版本并重新绑定。现有 v3.1.0 标签、冻结记录与真实登记状态不改写 |
 
 关闭 AUD 工作包须提供修复 commit、对应反例的正确结果、同一 commit 的 CI 和受影响证据的处置。工程 CI、候选登记、策略研究结论分别记录。

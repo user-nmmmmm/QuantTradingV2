@@ -1,6 +1,6 @@
 # QuantTrading 开发计划 v3.0
 
-> 2026-10-15 开发入口补充：AUD-01 已随 #99 合并，AUD-02 两批已随 #100/#101 合并，#98 公开 roadmap 已整合并关闭。本 PR 修复 AUD-03 的数据摘要、末根分类、响应/文件名及 cache 换行边界；下一批推进 AUD-04。实际数据重评及采用版本仍待研究流程。修复与 CI 见[复核记录](infrastructure_roadmap.md#10-2026-10-15公开github复核)，退出条件见[当前队列](infrastructure_roadmap.md#5-2026-10-15复核后的开发队列)。不重开历史 FIX 编号，不宣称 SYS 或 R 阶段通过。
+> 2026-10-15 开发入口补充：AUD-01/#99、AUD-02/#100/#101 和 AUD-03/#102 的代码修复已合并，#98 公开 roadmap 已整合并关闭。本 PR 修复 AUD-04 的棘轮更新、本地/CI 共用任务、实际 quarantine 数量与期限以及 pyproject 容器触发；待 CI 与合并关闭后推进 AUD-05。实际数据重评及采用版本仍待研究流程。修复与 CI 见[复核记录](infrastructure_roadmap.md#10-2026-10-15公开github复核)，退出条件见[当前队列](infrastructure_roadmap.md#5-2026-10-15复核后的开发队列)。不重开历史 FIX 编号，不宣称 SYS 或 R 阶段通过。
 
 > 基线日期：2026-09-20。项目阶段以[统一Roadmap](unified_roadmap.md)为准；每个任务的可执行说明见[开发详情](development_details.md)。
 > [结构化任务登记](development_task_registry.json) · [旧计划/邮件映射](roadmap_traceability.md) · [历史资料与邮件](archive/2026-09-roadmap-rebaseline/README.md)

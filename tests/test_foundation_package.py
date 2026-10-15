@@ -27,9 +27,9 @@ def test_core_root_has_no_flat_modules_left():
 def test_typed_gate_targets_exist():
     for relative in dev.TYPED_FILES:
         assert (ROOT / relative).is_file(), relative
-    workflow = (ROOT / ".github" / "workflows" / "tests.yml").read_text(encoding="utf-8")
-    for relative in dev.TYPED_FILES:
-        assert relative in workflow, f"{relative} missing from the CI mypy step"
+    # CI calls the shared `types` task; test_dev_tasks verifies that workflow wiring and order.
+    command, = dev.TASKS["types"].build(())
+    assert command == [dev.PY, "-m", "mypy", *dev.TYPED_FILES]
 
 
 def test_persisted_domain_type_names_did_not_follow_the_module_move():
