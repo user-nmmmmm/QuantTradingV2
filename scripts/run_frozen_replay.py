@@ -103,6 +103,7 @@ class FrozenImports(importlib.abc.MetaPathFinder):
                 prefix = Path(folder).resolve().relative_to(self.source).as_posix() + "/"
                 if not any(relative.startswith(prefix) for relative in self.hashes):
                     raise ImportError(f"namespace is not recorded in the frozen manifest: {fullname}")
+            spec.submodule_search_locations = locations
             return spec
         origin = Path(spec.origin).resolve()
         if not origin.is_relative_to(self.source) or origin.suffix != ".py":
@@ -119,7 +120,6 @@ def run_worker(args, source, hashes, report):
     if existing:
         raise ImportError("project modules were loaded before frozen isolation: " + ", ".join(sorted(existing)))
     sys.meta_path.insert(0, guard)
-    sys.path.insert(0, str(source))
     runner = contained(source, report["runner"])
     sys.argv = [str(runner), "--batch", str(args.batch)]
     if args.output:

@@ -83,6 +83,19 @@ def test_a_policy_missing_from_frozen_tree_cannot_fall_back_to_checkout(tmp_path
     assert json.loads(provenance.read_text())["status"] == "failed"
 
 
+def test_frozen_namespace_stays_anchored_after_path_changes_and_cache_invalidation(tmp_path):
+    checkout = tmp_path / "checkout"
+    (checkout / "core").mkdir(parents=True)
+    (checkout / "core/policy.py").write_text("VALUE = 'checkout'\n", encoding="utf-8")
+    code = ("import core\nimport sys\nimport importlib\n"
+            f"sys.path.insert(0, {str(checkout)!r})\nimportlib.invalidate_caches()\n"
+            "from core.policy import VALUE\nassert VALUE == 'frozen'\n")
+    batch = bundle(tmp_path, code, {"core/policy.py": "VALUE = 'frozen'\n"})
+    result, provenance = launch(batch, tmp_path)
+    assert result.returncode == 0, result.stderr
+    assert json.loads(provenance.read_text())["modules"]["core.policy"]["path"] == "core/policy.py"
+
+
 def test_unrecorded_source_module_is_not_executed(tmp_path):
     marker = tmp_path / "unrecorded-code-executed"
     batch = bundle(tmp_path, "import core.unrecorded\n", {"core/recorded.py": "A = 1\n"})
