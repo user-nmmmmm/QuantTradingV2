@@ -16,6 +16,8 @@ import math
 from pathlib import Path
 import re
 
+from core.foundation.content_hash import cache_hash_matches
+
 ROOT = Path(__file__).resolve().parents[1]
 
 import numpy as np
@@ -181,7 +183,8 @@ def load_local_inputs(directory, symbols, *, start, end, boundary, timeframe):
         path = _contained_file(data_root, relative)
         content = path.read_bytes()
         actual = hashlib.sha256(content).hexdigest()
-        if actual != entry.get("sha256"):
+        matches = cache_hash_matches(content, entry) if kind == "binance-cache/v2" else actual == entry.get("sha256")
+        if not matches:
             raise ValueError(f"Input hash mismatch for {symbol}")
         frame = pd.read_csv(io.BytesIO(content), index_col="timestamp", float_precision="round_trip")
         actual_times = pd.to_datetime(frame.index, utc=True, errors="raise")

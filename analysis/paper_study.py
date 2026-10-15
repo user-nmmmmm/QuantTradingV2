@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from collections import Counter
 from copy import deepcopy
+import io
 import json
 from pathlib import Path
 from typing import Mapping
@@ -11,6 +12,7 @@ import numpy as np
 import pandas as pd
 
 from core.foundation.reproducibility import canonical_json, sha256_bytes, sha256_file
+from core.foundation.content_hash import cache_hash_matches
 
 
 ARMS = (
@@ -44,7 +46,9 @@ def freeze_registration(path: Path, identity: Mapping) -> str:
 def load_verified_inputs(manifest_path: Path):
     """Only listed spot BTC/ETH inputs; reject path escape and identity drift."""
     manifest_path = manifest_path.resolve()
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest_bytes = manifest_path.read_bytes()
+    manifest = json.loads(manifest_bytes)
+    manifest_hash = sha256_bytes(manifest_bytes)
     if (manifest.get("market_type") != "spot" or manifest.get("timeframe") != "1d"
             or manifest.get("exchange") != "binance"):
         raise ValueError("Expected Binance spot daily manifest")
@@ -55,9 +59,12 @@ def load_verified_inputs(manifest_path: Path):
         path = (manifest_path.parent / entry["file"]).resolve()
         if not path.is_relative_to(manifest_path.parent):
             raise ValueError("Input path escapes manifest directory")
-        if sha256_file(path) != entry["sha256"]:
+        content = path.read_bytes()
+        matches = (cache_hash_matches(content, entry) if manifest.get("schema_version") == "binance-cache/v2"
+                   else sha256_bytes(content) == entry["sha256"])
+        if not matches:
             raise ValueError(f"Input hash mismatch: {symbol}")
-        frame = pd.read_csv(path, index_col="timestamp", parse_dates=True,
+        frame = pd.read_csv(io.BytesIO(content), index_col="timestamp", parse_dates=True,
                             float_precision="round_trip")
         columns = ["open", "high", "low", "close", "volume"]
         if (frame.empty or not isinstance(frame.index, pd.DatetimeIndex)
@@ -74,7 +81,9 @@ def load_verified_inputs(manifest_path: Path):
         identities[symbol] = {**entry, "path": str(path)}
     if not frames[symbols[0]].index.equals(frames[symbols[1]].index):
         raise ValueError("BTC/ETH common timeline required; no silent intersection")
-    return frames, {"manifest_sha256": sha256_file(manifest_path),
+    if sha256_file(manifest_path) != manifest_hash:
+        raise ValueError("Input manifest changed while loading")
+    return frames, {"manifest_sha256": manifest_hash,
                     "symbols": identities, "membership_evidence": "unknown",
                     "universe": "fixed two-asset retrospective subset; not full market"}
 

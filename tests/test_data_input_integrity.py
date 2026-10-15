@@ -310,6 +310,97 @@ def test_incremental_refresh_accepts_legacy_newlines_and_writes_an_explicit_lf_i
     manifest = json.loads((path.parent / "_manifest.json").read_text())
     record = manifest["symbols"]["BTC/USDT"]
     assert record["hash_policy"] == "sha256-lf/v1"
+    assert b"\r\n" not in path.read_bytes()
     assert record["sha256"] == hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
     path.write_bytes(path.read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
     assert matrix.verify_cache(["BTC/USDT"], "4h") == manifest
+
+
+@pytest.mark.parametrize("loader", ["research", "paper"])
+@pytest.mark.parametrize("policy", [None, "sha256-lf/v1"])
+def test_cache_consumers_share_newline_compatibility_but_still_reject_content_changes(tmp_path, loader, policy):
+    from analysis.paper_study import load_verified_inputs
+    from scripts.run_research_automation import load_local_inputs
+
+    manifest = {"schema_version": "binance-cache/v2", "exchange": "binance", "provider": "binance",
+                "market_type": "spot", "timeframe": "1d", "failures": [], "symbols": {}}
+    for symbol in ("BTC/USDT", "ETH/USDT"):
+        path = tmp_path / (symbol.replace("/", "_") + ".csv")
+        path.write_bytes(CSV.replace(b"\n", b"\r\n"))
+        record = {"provider": "binance", "timeframe": "1d", "market_type": "spot",
+                  "symbol": symbol.replace("/", "-"), "file": path.name, "rows": 2,
+                  "first": "2020-01-01", "last": "2020-01-02", "coverage": {"status": "complete"},
+                  "sha256": hashlib.sha256(CSV).hexdigest()}
+        if policy:
+            record["hash_policy"] = policy
+        manifest["symbols"][symbol] = record
+    target = tmp_path / "_manifest.json"
+    target.write_text(json.dumps(manifest), encoding="utf-8")
+
+    def load():
+        if loader == "paper":
+            return load_verified_inputs(target)
+        return load_local_inputs(tmp_path, ["BTC/USDT", "ETH/USDT"],
+            start=pd.Timestamp("2020-01-01", tz="UTC"), end=pd.Timestamp("2020-01-03", tz="UTC"),
+            boundary=pd.Timestamp("2030-01-01", tz="UTC"), timeframe="1d")
+
+    frames, _ = load()
+    assert set(frames) == {"BTC/USDT", "ETH/USDT"} and all(len(frame) == 2 for frame in frames.values())
+    path = tmp_path / "BTC_USDT.csv"
+    path.write_bytes(path.read_bytes().replace(b"1.5", b"1.6"))
+    with pytest.raises(ValueError, match="hash mismatch"):
+        load()
+
+
+def test_paper_unversioned_receipts_keep_byte_exact_verification(tmp_path):
+    from analysis.paper_study import load_verified_inputs
+
+    path = tmp_path / "BTC_USDT.csv"
+    path.write_bytes(CSV.replace(b"\n", b"\r\n"))
+    record = {"file": path.name, "rows": 2, "first": "2020-01-01", "last": "2020-01-02",
+              "sha256": hashlib.sha256(CSV).hexdigest(), "hash_policy": "sha256-lf/v1"}
+    manifest = {"exchange": "binance", "market_type": "spot", "timeframe": "1d",
+                "symbols": {"BTC/USDT": record, "ETH/USDT": record}}
+    target = tmp_path / "manifest.json"
+    target.write_text(json.dumps(manifest), encoding="utf-8")
+    with pytest.raises(ValueError, match="hash mismatch"):
+        load_verified_inputs(target)
+
+
+def test_research_report_snapshots_keep_byte_exact_verification(tmp_path):
+    from scripts.run_research_automation import load_local_inputs
+
+    root = tmp_path / "data_inputs"
+    root.mkdir()
+    (root / "BTC_USDT.csv").write_bytes(CSV.replace(b"\n", b"\r\n"))
+    manifest = {"schema_version": "2.0", "data": {"source": "local", "exchange": "binance", "timeframe": "1d",
+                "symbols": {"BTC/USDT": {"start": "2020-01-01", "end": "2020-01-02"}}},
+                "data_snapshots": {"BTC/USDT": {"path": "BTC_USDT.csv", "sha256": hashlib.sha256(CSV).hexdigest(),
+                                              "hash_policy": "sha256-lf/v1"}}}
+    (tmp_path / "run_manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+    with pytest.raises(ValueError, match="hash mismatch"):
+        load_local_inputs(root, ["BTC/USDT"], start=pd.Timestamp("2020-01-01", tz="UTC"),
+            end=pd.Timestamp("2020-01-03", tz="UTC"), boundary=pd.Timestamp("2030-01-01", tz="UTC"), timeframe="1d")
+
+
+def test_paper_input_identity_rejects_a_manifest_changed_during_parsing(tmp_path, monkeypatch):
+    from analysis.paper_study import load_verified_inputs
+
+    path = tmp_path / "BTC_USDT.csv"
+    path.write_bytes(CSV)
+    record = {"file": path.name, "rows": 2, "first": "2020-01-01", "last": "2020-01-02",
+              "sha256": hashlib.sha256(CSV).hexdigest()}
+    target = tmp_path / "manifest.json"
+    target.write_text(json.dumps({"exchange": "binance", "market_type": "spot", "timeframe": "1d",
+                                 "symbols": {"BTC/USDT": record, "ETH/USDT": record}}), encoding="utf-8")
+    before = target.read_bytes()
+    read = pd.read_csv
+
+    def change_manifest(*args, **kwargs):
+        frame = read(*args, **kwargs)
+        target.write_bytes(before + b"\n")
+        return frame
+
+    monkeypatch.setattr(pd, "read_csv", change_manifest)
+    with pytest.raises(ValueError, match="manifest changed while loading"):
+        load_verified_inputs(target)

@@ -257,7 +257,7 @@ def main(argv=None) -> int:
             if not archived.exists():
                 archived.write_bytes(csv_path.read_bytes())
             legacy_copy = str(archived.relative_to(out_dir))
-        merged.to_csv(csv_path)
+        merged.to_csv(csv_path, lineterminator="\n")
         manifest["symbols"][symbol] = {
             "provider": args.exchange, "timeframe": args.timeframe, "market_type": "spot",
             "symbol": normalize_symbol(symbol), "original_symbol": symbol,
