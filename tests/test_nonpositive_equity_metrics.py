@@ -11,6 +11,7 @@ from openpyxl import load_workbook
 from backtest.reporting import ReportGenerator
 from backtest.reporting.risk_metrics import calculate_active_risk_metrics, calculate_portfolio_risk_metrics
 from core.metrics import calculate_benchmark_comparison, calculate_drawdown, calculate_drawdown_events, calculate_equity_metrics, monthly_returns
+from core.metrics.performance import monthly_return_records
 
 
 def _series(values):
@@ -103,6 +104,16 @@ def test_missing_months_after_zero_are_not_counted_as_observed_return_intervals(
     missing = result["MonthlyReturns"][2:4]
     assert all(row["observations"] == 0 and row["status"] == "insufficient_data" for row in missing)
     assert result["MonthlyReturnSamples"] == 1
+
+
+def test_monthly_records_distinguish_missing_endpoints_from_an_unrepresentable_return():
+    equity = pd.Series([1e-308, 1e308], index=pd.to_datetime(["2026-01-31", "2026-02-28"]))
+    first, second = monthly_return_records(equity)
+    assert first["status"] == "insufficient_data"
+    assert first["reason"] == "missing current or preceding month endpoint"
+    assert second["return"] is None and second["status"] == "undefined"
+    assert second["reason"] == "unrepresentable monthly return"
+    json.dumps([first, second], allow_nan=False)
 
 
 @pytest.mark.filterwarnings("error::RuntimeWarning")

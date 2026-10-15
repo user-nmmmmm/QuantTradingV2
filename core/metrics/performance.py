@@ -227,12 +227,13 @@ def monthly_return_records(equity: pd.Series) -> list[Dict[str, Any]]:
                         and month_rows.index[-1] + step >= month_start + pd.offsets.MonthBegin(1))
         result = returns.loc[timestamp]
         invalid_base = pd.notna(value) and pd.notna(previous.loc[timestamp]) and previous.loc[timestamp] <= 0
+        invalid_return = pd.notna(value) and pd.notna(previous.loc[timestamp]) and pd.isna(result)
         records.append({"month": timestamp.strftime("%Y-%m"), "observations": observed,
                         "complete_calendar_coverage": complete,
                         "return": float(result) if pd.notna(result) else None,
-                        "status": "ok" if pd.notna(result) else "undefined" if invalid_base else "insufficient_data",
+                        "status": "ok" if pd.notna(result) else "undefined" if invalid_return else "insufficient_data",
                         "reason": None if pd.notna(result) else "positive preceding month endpoint required" if invalid_base
-                        else "missing current or preceding month endpoint, or unrepresentable return"})
+                        else "unrepresentable monthly return" if invalid_return else "missing current or preceding month endpoint"})
     return records
 
 

@@ -21,4 +21,6 @@ dashboard 原先丢弃零负权益观测，使失败实验被展示为最后一�
 
 这些是报告计算、客户端选择和子类扩展行为的修复，改变冻结源码身份。旧指标版本、历史研究记录和登记回执保留原样；后续研究应以新提交重新计算并绑定来源。默认撮合、费用及风险规则不改；不执行真实交易、实际候选登记或数据采用。必要时回退本 PR，并按回退后的源码身份重新形成评估证据。
 
+现有引擎 v4 基线的权益始终为正，继续保留原文件及 `2.0` 版本。等价测试只在内存副本中将预期版本明确改为 `2.1`，其余成交、权益、基准、指标、状态及说明仍逐项比较；不自动接纳其他版本或重新生成基线。零负权益的新语义由独立合成回归固定。
+
 公开问题依据：[#45 权益观测](https://github.com/user-nmmmmm/QuantTradingV2/pull/45#discussion_r4152517719)、[#46 catchup 别名](https://github.com/user-nmmmmm/QuantTradingV2/pull/46#discussion_r4172564871)、[#79 Broker 时间 hook](https://github.com/user-nmmmmm/QuantTradingV2/pull/79#discussion_r4254922082)、[#86 报表分节 hook](https://github.com/user-nmmmmm/QuantTradingV2/pull/86#discussion_r4257221224)。
