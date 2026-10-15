@@ -221,7 +221,7 @@ class Broker:
 
     @classmethod
     def _iso_time(cls, value: Any) -> str:
-        return Matching._iso_time(value)
+        return cls._event_time(value).isoformat().replace("+00:00", "Z")
 
     def _publish_order_event(self, order: Order, occurred_at: Any) -> None:
         return self._matching._publish_order_event(order, occurred_at)

@@ -28,6 +28,11 @@ def timeframe_delta(timeframe: str) -> pd.Timedelta:
     return pd.Timedelta(_fixed_timeframe_delta(timeframe))
 
 
+def _ccxt_client_type(market_type: str) -> str:
+    """Use the same public client and pool key for snapshots and catchup pages."""
+    return "future" if market_type in {"future", "futures", "perpetual", "swap"} else "spot"
+
+
 class DataFetcher:
     DEFAULT_CCXT_EXCHANGES = ("binance", "okx", "kraken", "coinbase")
     # 每个交易所的瞬时网络抖动重试（指数退避：2s, 4s）
@@ -328,7 +333,7 @@ class DataFetcher:
         import ccxt
 
         logger.info("Fetching %s via CCXT (%s)...", ccxt_symbol, exchange_id)
-        client_type = "future" if market_type in {"future", "futures", "perpetual", "swap"} else "spot"
+        client_type = _ccxt_client_type(market_type)
         exchange = self._public_clients.get(exchange_id, client_type, lambda: getattr(ccxt, exchange_id)({
             "enableRateLimit": True,
             "proxies": self._build_ccxt_proxies(),
@@ -425,7 +430,7 @@ class DataFetcher:
         symbol = self._normalize_ccxt_symbol(symbol, exchange_id)
         stamp = pd.Timestamp(since)
         stamp = stamp.tz_localize("UTC") if stamp.tzinfo is None else stamp.tz_convert("UTC")
-        client_type = "future" if market_type in {"future", "futures"} else "spot" if market_type == "margin" else market_type
+        client_type = _ccxt_client_type(market_type)
         exchange = self._public_clients.get(exchange_id, client_type, lambda: getattr(ccxt, exchange_id)({
             "enableRateLimit": True, "proxies": self._build_ccxt_proxies(),
             "timeout": self.request_timeout_ms, "options": {"defaultType": client_type}}))

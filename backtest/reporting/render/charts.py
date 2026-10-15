@@ -21,7 +21,7 @@ from backtest.plot_style import (
     style_axes,
 )
 from core.foundation.logger import get_logger
-from core.metrics import infer_periods_per_year, monthly_returns
+from core.metrics import equity_period_returns, infer_periods_per_year, monthly_returns
 
 if TYPE_CHECKING:
     from backtest.reporting import ReportGenerator
@@ -97,7 +97,7 @@ class ReportCharts:
             ax1.legend(loc="lower right", bbox_to_anchor=(1, 1.02), ncol=2)
 
             # Plot 2: Drawdown
-            rolling_max = equity_curve["equity"].cummax()
+            rolling_max = equity_curve["equity"].cummax().where(lambda peak: peak > 0)
             drawdown = (equity_curve["equity"] - rolling_max) / rolling_max
 
             ax2.fill_between(
@@ -110,7 +110,7 @@ class ReportCharts:
             ax2.axhline(0, color=PALETTE["muted"], linewidth=0.7, alpha=0.65)
 
             # Plot 3: Returns for each observed period (daily or intraday).
-            returns = equity_curve["equity"].pct_change().fillna(0)
+            returns = equity_period_returns(equity_curve["equity"]).dropna()
             colors = [PALETTE["positive"] if x >= 0 else PALETTE["negative"] for x in returns]
             ax3.bar(
                 returns.index, returns, color=colors, alpha=0.8, linewidth=0
@@ -273,7 +273,7 @@ class ReportCharts:
                 return
 
             periods_per_year = infer_periods_per_year(equity.index) or 252.0
-            returns = equity.pct_change().dropna()
+            returns = equity_period_returns(equity)
 
             rolling_mean = returns.rolling(window).mean()
             rolling_std = returns.rolling(window).std()

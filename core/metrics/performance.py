@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 SECONDS_PER_YEAR = 365.25 * 24 * 60 * 60
-METRICS_FORMULA_VERSION = "2.0"
+METRICS_FORMULA_VERSION = "2.1"
 
 
 def infer_periods_per_year(index: pd.Index) -> Optional[float]:
@@ -25,12 +25,20 @@ def infer_periods_per_year(index: pd.Index) -> Optional[float]:
     return SECONDS_PER_YEAR / seconds if np.isfinite(seconds) and seconds > 0 else None
 
 
+def equity_period_returns(equity: pd.Series) -> pd.Series:
+    """Keep the observation clock; undefined/nonfinite returns are NaN, never bridged or zero-filled."""
+    values = pd.to_numeric(pd.Series(equity, copy=True), errors="coerce")
+    previous = values.shift()
+    returns = values / previous.where(previous > 0) - 1
+    return returns.where(np.isfinite(values) & np.isfinite(previous) & np.isfinite(returns))
+
+
 def monthly_returns(equity: pd.Series) -> pd.Series:
     """Changes between consecutive calendar month-end observations."""
     clean = _clean_equity(equity)
     if clean.empty or not isinstance(clean.index, pd.DatetimeIndex):
         return pd.Series(dtype=float, name="monthly_return")
-    result = clean.resample("ME").last().pct_change(fill_method=None).dropna()
+    result = equity_period_returns(clean.resample("ME").last()).dropna()
     result.name = "monthly_return"
     return result
 
@@ -59,7 +67,7 @@ def calculate_drawdown(equity: pd.Series) -> Dict[str, Any]:
         return empty
     rolling_peak = clean.cummax()
     amount = clean - rolling_peak
-    valid = (amount / rolling_peak.replace(0.0, np.nan)).dropna()
+    valid = (amount / rolling_peak.where(rolling_peak > 0)).dropna()
     if valid.empty:
         return {**empty, "status": "undefined", "sample_size": int(len(clean))}
     trough = valid.idxmin()
@@ -118,7 +126,7 @@ def calculate_drawdown_events(
         recovery_pos = j if j < n else None
         end_pos = recovery_pos if recovery_pos is not None else n - 1
         depth_amount = float(values[trough_pos] - peak_value)
-        depth_pct = depth_amount / peak_value if peak_value else None
+        depth_pct = depth_amount / peak_value if peak_value > 0 else None
         events.append({
             "peak": index[peak_pos], "peak_value": peak_value,
             "trough": index[trough_pos], "trough_value": float(values[trough_pos]),
@@ -161,9 +169,13 @@ def calculate_equity_metrics(equity_curve: pd.DataFrame, *, periods_per_year: Op
         return {}
     equity.index = equity.index.tz_localize("UTC") if equity.index.tz is None else equity.index.tz_convert("UTC")
     annualisation = periods_per_year if periods_per_year is not None else infer_periods_per_year(equity.index)
-    sharpe = calculate_sharpe(equity.pct_change(fill_method=None).dropna(), annualisation)
+    returns = equity_period_returns(equity).iloc[1:]
+    sharpe = (calculate_sharpe(returns, annualisation) if returns.notna().all()
+              else _result(None, "undefined", len(returns)))
     drawdown = calculate_drawdown(equity)
     monthlies = monthly_returns(equity)
+    month_records = monthly_return_records(equity)
+    invalid_months = sum(row["status"] == "undefined" for row in month_records)
     start, end = float(equity.iloc[0]), float(equity.iloc[-1])
     elapsed_days = _elapsed_days(equity.index[0], equity.index[-1])
     if start <= 0 or end < 0 or elapsed_days is None or elapsed_days <= 0:
@@ -180,17 +192,17 @@ def calculate_equity_metrics(equity_curve: pd.DataFrame, *, periods_per_year: Op
             "MaxDrawdownRecoveryPeriods": drawdown["recovery_periods"],
             "MaxDrawdownRecoveryDays": drawdown["recovery_days"],
             "MaxDrawdownOpen": drawdown["is_open"], "UnderwaterRatio": drawdown["underwater_ratio"],
-            "AvgMonthlyReturn": float(monthlies.mean()) if not monthlies.empty else None,
-            "MonthlyReturnStatus": "ok" if not monthlies.empty else "insufficient",
-            "MonthlyReturnSamples": int(len(monthlies)), "SharpeRatio": sharpe["value"],
+            "AvgMonthlyReturn": float(monthlies.mean()) if not monthlies.empty and not invalid_months else None,
+            "MonthlyReturnStatus": "undefined" if invalid_months else "ok" if not monthlies.empty else "insufficient",
+            "MonthlyReturnSamples": int(len(monthlies)) + invalid_months, "SharpeRatio": sharpe["value"],
             "SharpeStatus": sharpe["status"], "SharpeSamples": sharpe["sample_size"],
             "PeriodsPerYear": annualisation, "EndEquity": end,
-            "TotalReturn": None if start == 0 else end / start - 1,
+            "TotalReturn": None if start <= 0 else end / start - 1,
             "MetricsFormulaVersion": METRICS_FORMULA_VERSION,
             "AnnualizationPolicy": "explicit" if periods_per_year is not None else "regular_spacing_only",
             "AnnualizationReason": None if annualisation is not None else "irregular or insufficient clock; supply explicit periods_per_year",
             "TimestampPolicy": "UTC; naive legacy timestamps interpreted as UTC",
-            "MonthlyReturns": monthly_return_records(equity)}
+            "MonthlyReturns": month_records}
 
 
 def monthly_return_records(equity: pd.Series) -> list[Dict[str, Any]]:
@@ -202,7 +214,8 @@ def monthly_return_records(equity: pd.Series) -> list[Dict[str, Any]]:
                    else curve.index.tz_convert("UTC"))
     grouped = curve.resample("ME")
     end_values, counts = grouped.last(), grouped.count()
-    returns = end_values.pct_change(fill_method=None)
+    returns = equity_period_returns(end_values)
+    previous = end_values.shift()
     records = []
     for timestamp, value in end_values.items():
         observed = int(counts.loc[timestamp])
@@ -213,11 +226,13 @@ def monthly_return_records(equity: pd.Series) -> list[Dict[str, Any]]:
         complete = bool(observed and step is not None and month_rows.index[0] == month_start
                         and month_rows.index[-1] + step >= month_start + pd.offsets.MonthBegin(1))
         result = returns.loc[timestamp]
+        invalid_base = pd.notna(value) and pd.notna(previous.loc[timestamp]) and previous.loc[timestamp] <= 0
         records.append({"month": timestamp.strftime("%Y-%m"), "observations": observed,
                         "complete_calendar_coverage": complete,
                         "return": float(result) if pd.notna(result) else None,
-                        "status": "ok" if pd.notna(result) else "insufficient_data",
-                        "reason": None if pd.notna(result) else "missing current or preceding month endpoint"})
+                        "status": "ok" if pd.notna(result) else "undefined" if invalid_base else "insufficient_data",
+                        "reason": None if pd.notna(result) else "positive preceding month endpoint required" if invalid_base
+                        else "missing current or preceding month endpoint, or unrepresentable return"})
     return records
 
 
