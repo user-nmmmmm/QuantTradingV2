@@ -104,13 +104,17 @@ def verify_tag(tag: str, *, root: Path = ROOT, main_ref: str = "origin/main") ->
                                   _show(f"{tag}^{{commit}}", "CHANGELOG.md", root))
     except subprocess.CalledProcessError:
         problems.append(f"tag {tag} does not contain pyproject.toml and CHANGELOG.md")
-    exists = subprocess.run(["git", "rev-parse", "--verify", "--quiet", main_ref], cwd=root,
-                            capture_output=True).returncode == 0
-    if exists:
-        on_main = subprocess.run(["git", "merge-base", "--is-ancestor", f"{tag}^{{commit}}", main_ref],
-                                 cwd=root).returncode == 0
-        if not on_main:
+    reference = subprocess.run(["git", "rev-parse", "--verify", "--quiet", "--end-of-options",
+                                f"{main_ref}^{{commit}}"], cwd=root, capture_output=True, text=True)
+    if reference.returncode:
+        problems.append(f"required main reference is missing or not a commit: {main_ref}")
+    else:
+        ancestry = subprocess.run(["git", "merge-base", "--is-ancestor", f"{tag}^{{commit}}",
+                                   reference.stdout.strip()], cwd=root, capture_output=True)
+        if ancestry.returncode == 1:
             problems.append(f"tag {tag} is not reachable from {main_ref}")
+        elif ancestry.returncode:
+            problems.append(f"cannot verify tag {tag} ancestry against {main_ref}")
     return problems
 
 

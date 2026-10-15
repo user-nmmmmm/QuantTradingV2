@@ -42,3 +42,4 @@
 | [0031](0031-state-ownership-fifth-slice-tick-orchestrator.md) | 状态所有权迁移的第五片：`TickOrchestrator` 独占的 8 个 tick 循环记账属性搬进它自己；共享的引擎级状态留在引擎（B6） | 已采纳 |
 | [0032](0032-bound-successor-registration.md) | 新身份登记：绑定发布标签，配置变更走机器核对的声明；登记工具已完成，执行待所有者（A5） | 已采纳 |
 | [0033](0033-atomic-bound-registration.md) | AUD-01：登记与样本打开共用进程锁；完整暂存后原子发布，失败可重试 | 已采纳 |
+| [0034](0034-frozen-replay-and-reference-verification.md) | AUD-02 首批：冻结驱动导入隔离、指定提交的范围声明、缺失引用拒绝 | 已采纳 |

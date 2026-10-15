@@ -9,6 +9,7 @@
 ## [Unreleased]
 
 ### Fixed
+- AUD-02 首批：历史 meta／control 回放新增冻结清单绑定的隔离入口与逐模块来源记录；身份 CLI 按所选提交读取范围并固定引用，发布验证在主线引用缺失或祖先检查失败时明确拒绝（[ADR 0034](docs/adr/0034-frozen-replay-and-reference-verification.md)）。
 - AUD-01：发布标签绑定登记与前向样本打开共用进程锁；登记产物在同级临时目录完整生成并复查父协议、打开回执和实验登记后原子发布。复制失败、键盘中断或发布前进程终止不会留下正式半成品目录，可安全重试；已有输出拒绝覆盖（[ADR 0033](docs/adr/0033-atomic-bound-registration.md)）。
 
 ## [3.1.0] - 2026-10-14

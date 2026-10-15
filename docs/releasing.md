@@ -25,6 +25,8 @@
 - 标签一经推送不移动、不删除；写错就发下一个 PATCH。`evidence-archive-*` 这类证据标签不属于发布标签，不受此约定约束。
 - 创建并推送标签、创建 GitHub Release 是对外可见的操作，由仓库所有者执行。
 
+`--verify-tag` 要求 `--main-ref`（默认 `origin/main`）能够解析为 commit。缺失引用、非 commit 引用或无法完成祖先关系检查都使验证失败；不再因本地没有主线引用而跳过检查。调用者需先取得所需主线历史，不能以缺失引用代替发布证据（[ADR 0034](adr/0034-frozen-replay-and-reference-verification.md)）。
+
 ```bash
 python scripts/release_check.py vX.Y.Z                 # 打标签之前：版本号与 CHANGELOG 一致吗？
 git tag -a vX.Y.Z -m "Release X.Y.Z" <main 上的提交>
