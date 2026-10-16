@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "reviewed_on": "2026-09-26",
+  "reviewed_on": "2026-10-16",
   "tracked_reports": [
     {
       "path": "reports/deep_recovery_20260909_run.log",
@@ -43,7 +43,10 @@
     "path_prefix": "data/binance/1d/",
     "tracked_csv_count": 30,
     "manifest_path": "data/binance/1d/_manifest.json",
-    "purpose": "Existing local backtest dataset; modified files remain in the current worktree"
+    "frozen_manifest_path": "data/binance/1d/_frozen_inputs.json",
+    "research_policy_path": "data/binance/1d/_research_policy.json",
+    "adoption_receipt_path": "docs/data_review/20261016_adoption_receipt.json",
+    "purpose": "Owner-approved prefixes with separate research limits; original download history remains unchanged"
   },
   "reference_documents": [
     {

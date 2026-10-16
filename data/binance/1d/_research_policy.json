@@ -1,0 +1,129 @@
+{
+  "common_research_end_inclusive": "2026-08-26",
+  "files": {
+    "AAVE_USDT.csv": {
+      "research_end_inclusive": "2026-08-26",
+      "sha256": "5e6375df406b465a92d8318ae462da3d052f056e92454a75e540f53522380797"
+    },
+    "ADA_USDT.csv": {
+      "research_end_inclusive": "2026-08-26",
+      "sha256": "7806f184283acf7f7f60b5fc106f50f43eb8699430cd977ebd449179f1120571"
+    },
+    "APT_USDT.csv": {
+      "research_end_inclusive": "2026-08-26",
+      "sha256": "4508348f014b5363b2e2ef9e3946b121d43668207cea209b776ea6141a8922d1"
+    },
+    "ARB_USDT.csv": {
+      "research_end_inclusive": "2026-08-26",
+      "sha256": "0406d67a4f26c3d208b1292cfa8c912b17c9dd80c38f27afafa322ff8c3517a5"
+    },
+    "ATOM_USDT.csv": {
+      "research_end_inclusive": "2026-08-26",
+      "sha256": "be60e7702d1b81d9bc32320bee2b3dac0c99d5cae709aa04970b467d66f1139b"
+    },
+    "AVAX_USDT.csv": {
+      "research_end_inclusive": "2026-08-26",
+      "sha256": "6658348a6be4c287aadb9a3a8a5282ba68a5cf5ca9b3cd2929dabbc515aba574"
+    },
+    "BCH_USDT.csv": {
+      "research_end_inclusive": "2026-08-26",
+      "sha256": "265a5171d65129a9b5eba039734c2f5a4deeba9934da27e32d3daf7b08f974f2"
+    },
+    "BNB_USDT.csv": {
+      "research_end_inclusive": "2026-08-26",
+      "sha256": "c7bf781b12b431124f7d2b9cdb253ebbb87bbdd65c337aa4de8f4fc12eb6d12e"
+    },
+    "BTC_USDT.csv": {
+      "research_end_inclusive": "2026-08-26",
+      "sha256": "c7041dfa4f4c791e18597b645392a8a0a0bab41e035c13ab125174b4898310db"
+    },
+    "DOGE_USDT.csv": {
+      "research_end_inclusive": "2026-08-26",
+      "sha256": "8e6258f1535b8239ad669dbfc7c1e0ae8cc0d44036b65f0d57ad711b534b0a9b"
+    },
+    "DOT_USDT.csv": {
+      "research_end_inclusive": "2026-08-26",
+      "sha256": "362c3302a4efc6e0c79607b947c6fbb02ed7d6ba0798c002c8aa933c13be6bf6"
+    },
+    "ETC_USDT.csv": {
+      "research_end_inclusive": "2026-08-26",
+      "sha256": "29ac9fb58170f1a8eb44cb9e0cd2869e4f9df9448986cbbbfda90e85c79b7aaa"
+    },
+    "ETH_USDT.csv": {
+      "research_end_inclusive": "2026-08-26",
+      "sha256": "ebafb9256d94dc82d7a53e7d1e3e59bdac159d75d61b41ad7af344ebada00c77"
+    },
+    "FIL_USDT.csv": {
+      "research_end_inclusive": "2026-08-26",
+      "sha256": "2422ff123d09e9d70a617fa0e92c64760b4374433ef1049196478137ee3b361d"
+    },
+    "ICP_USDT.csv": {
+      "research_end_inclusive": "2026-08-26",
+      "sha256": "7cf06eb02acaba622045c85fe60dc9c9b9432f53bc33d177ba47bc90427f0b60"
+    },
+    "INJ_USDT.csv": {
+      "research_end_inclusive": "2026-08-26",
+      "sha256": "9ca42e2f9d3646bdb0bef81d6ef42df2967294e2c4ec0649185eab88417e3dc3"
+    },
+    "LDO_USDT.csv": {
+      "research_end_inclusive": "2026-08-26",
+      "sha256": "126bd943823bf82dd1a320fc312694555ca1633b2a5de7d29decd891be1cb489"
+    },
+    "LINK_USDT.csv": {
+      "research_end_inclusive": "2026-08-26",
+      "sha256": "301805a26815832bd0bc95002ea71b1d54529438aad12cb40e2aa7c392785cba"
+    },
+    "LTC_USDT.csv": {
+      "research_end_inclusive": "2026-08-26",
+      "sha256": "62b78d431d08c02d4e3d1ff1fbc27c1d8095b6ebe38e8fa2cff6ef8215db78f5"
+    },
+    "MATIC_USDT.csv": {
+      "research_end_inclusive": "2024-09-09",
+      "sha256": "c1358bf78c64fd8f478057142c0c5f8c454f5d2ed8451e2e0ee7a4f832c2c8b4"
+    },
+    "NEAR_USDT.csv": {
+      "research_end_inclusive": "2026-08-26",
+      "sha256": "1af73b2f5cb5fadea029847e5965300363d02d5b1797413b7563fbd46cd1e808"
+    },
+    "OP_USDT.csv": {
+      "research_end_inclusive": "2026-08-26",
+      "sha256": "a49f0def7e68ad2c8fc8bea4e69f7de901080f49e75d16cbfebaaec56b06437a"
+    },
+    "SEI_USDT.csv": {
+      "research_end_inclusive": "2026-08-26",
+      "sha256": "5002d2145922359e57334d22538e36b323b8c9cb6af07bc716f9a510f9a605cc"
+    },
+    "SOL_USDT.csv": {
+      "research_end_inclusive": "2026-08-26",
+      "sha256": "a2fa57d707e62d4d0228d68be5f81dcaf19a9f0bb8b050dd2784c8020b59745c"
+    },
+    "SUI_USDT.csv": {
+      "research_end_inclusive": "2026-08-26",
+      "sha256": "f80b28ca2fe04813fc11eabfe5e3313d2a83cabf7d368a9b2ad707c3503bde64"
+    },
+    "TIA_USDT.csv": {
+      "research_end_inclusive": "2026-08-26",
+      "sha256": "9a043debad5466be65909aeb4f8f08d10677ac1e2be8e72126223b73f5c9192e"
+    },
+    "TRX_USDT.csv": {
+      "research_end_inclusive": "2026-08-26",
+      "sha256": "bba3ed60fa71b2ee651e8259feb15119cb8c0314c03bf202294e7200f4d74ec7"
+    },
+    "UNI_USDT.csv": {
+      "research_end_inclusive": "2026-08-26",
+      "sha256": "3b950354cd90f3cea7c040ff84be1940559e82de3f920e6f498ab01b6b651caa"
+    },
+    "XLM_USDT.csv": {
+      "research_end_inclusive": "2026-08-26",
+      "sha256": "b6ed628fca013d658fbed475a69634347e0c35d4263ae2a74f38ba840537be7b"
+    },
+    "XRP_USDT.csv": {
+      "research_end_inclusive": "2026-08-26",
+      "sha256": "6aa0f7a18ec6aed13d94d28214e7d5aac2733cbe30b1486240acc232029c01db"
+    }
+  },
+  "receipt": "docs/data_review/20261016_adoption_receipt.json",
+  "receipt_sha256": "3911765c9908d08b4f4c84972493964e6cff36d9a8d6fab4b1d7f3840487ec29",
+  "schema": "adopted-research-window/v1",
+  "timeframe": "1d"
+}

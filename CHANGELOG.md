@@ -8,6 +8,8 @@
 
 ## [Unreleased]
 
+- Adopt the owner-approved daily prefixes and bind a separate receipt to the actual data commit. Enforce a 2026-08-26 research end for 29 inputs and 2024-09-09 for MATIC, while retaining the original BTC/ETH download files. Offline local/CI checks verify data, evidence, receipt and policy together; A5 remains deferred ([adoption record](docs/data_review/20261016_adoption.md), [ADR 0041](docs/adr/0041-approved-data-adoption-and-research-window.md)).
+
 - AUD-03 real-data review: record a separate v2 corroboration summary and unsigned adoption draft, distinguish MATIC's 83 unmatched dates from its matching delisting-day bar, and check proposed prefixes offline in both local and CI gates. Existing frozen inputs remain unchanged; owner decisions and formal adoption are pending ([plan](docs/data_review/20261015_adoption_plan.md)).
 
 ## [3.1.1] - 2026-10-15
