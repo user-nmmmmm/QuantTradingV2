@@ -1,8 +1,8 @@
 # 基础设施路线图（2026-10 起）
 
-> 核对日期：2026-10-16，当前实现基点为 GitHub main 的 `4750dcf956a16b9d4f6bac0ae5ea0617267eaa05`（#108）。[公开代码与CI复核](#10-2026-10-15公开github复核)保留原始核对与后续修复证据。#98 的公开工程 roadmap 已随 #101 合并，#98 已关闭。本文维护公开工程顺序与退出条件；第2节保留历史交付，第5节是当前队列。私密审计包及正式登记资料保持本地，本轮不改写[统一Roadmap](unified_roadmap.md)。
+> 核对日期：2026-10-16，当前实现基点为 GitHub main 的 `321875d1eb4cbf10104c627ca370276137b1e22e`（#109）。[公开代码与CI复核](#10-2026-10-15公开github复核)保留原始核对与后续修复证据。#98 的公开工程 roadmap 已随 #101 合并，#98 已关闭。本文维护公开工程顺序与退出条件；第2节保留历史交付，第5节是当前队列。私密审计包及正式登记资料保持本地，本轮不改写[统一Roadmap](unified_roadmap.md)。
 
-**当前状态：AUD-01–06 的工程修复已随 #99–#105 合并，AUD-07 工具/渠道指引已随 #106 合并，AUD-08 发布准备已随 #107 合并，真实数据 v2 重评已随 #108 合并。2026-10-16 所有者批准推荐采用方案：本 PR 将 27 份裁至 2026-08-26，MATIC 保留至 2024-09-09，研究上限对其余 29 份统一为 2026-08-26；正式技术回执独立绑定数据提交，main 在本 PR 合并后生效。下一步是采用 PR 的完整 CI 与合并，再固定最终发布提交/标签和身份绑定。A5 按要求暂缓，AUD-07 外部补证继续单列。**
+**当前状态：AUD-01–06 的工程修复已随 #99–#105 合并，AUD-07 工具/渠道指引已随 #106 合并，AUD-08 发布准备已随 #107 合并，真实数据 v2 重评及批准采用已随 #108/#109 合并。27 份已裁至 2026-08-26，MATIC 保留至 2024-09-09，研究上限对其余 29 份统一为 2026-08-26；独立技术回执绑定实际数据提交。#109 合并提交的 tests、offline、CodeQL、devcontainer 均成功。当前只做 v3.1.1 发版文档收尾；本 PR 合并后重新选定最终 main 并核对完整 CI，再由所有者另行发布标签和新身份绑定。本轮不创建标签、不执行 A5，AUD-07 外部补证继续单列。**
 
 ## 1. 目标与原则
 
@@ -83,7 +83,7 @@
 | 编号 | 工作 | 规模 | 依赖 | 退出条件 |
 |---|---|---|---|---|
 | A1–A4 | **已完成**（见第 2 节） | — | — | 标签 `v3.0.0` 已创建并推送，`identity_report.py --base v3.0.0` 可用 |
-| A5 | **工具已修复，正式登记暂缓**：采用变更合并后固定最终 SHA、完整 CI、新标签及身份绑定，再由所有者另行启动登记 | M | 已批准的数据采用、最终发布身份与所有者启动决定 | 原子登记、身份/配置/数据一致；实际回执确定新窗口，旧协议保留 |
+| A5 | **工具已修复，修复版正式登记暂缓**：#109 数据采用已合并；发版收尾合并后固定最终 SHA、完整 CI、新标签及身份绑定，再由所有者另行启动登记 | M | 数据采用已满足；最终发布身份与所有者启动决定待完成 | 原子登记、身份/配置/数据一致；实际回执确定新窗口，旧协议保留 |
 
 ### 轨道 B：结构（V4.0 的延续）
 **B1–B5 已完成**（第 2 节）。每步沿用的流程：依赖图 → 方案 → 搬迁（无垫片）→ 身份报告 → 全量测试。下面是**遗留项**，都不是路线图原来的退出条件，而是做完 B4/B5 后实测发现的后续：
@@ -109,7 +109,7 @@
 | 编号 | 工作 | 规模 | 依赖 | 退出条件 |
 |---|---|---|---|---|
 | D1 | 工具已随 #106 合并；从实际目标仓库重新生成逐 ref/SHA/worktree 清单，唯一提交和证据逐个保留。旧数量不再作为执行依据，所有者逐对象决定并保存执行前后回执，见[治理清单](repository_governance.md) | S | 所有者逐对象确认 | 新鲜清单、精确批准对象、执行前复查及执行后回执 |
-| D2 | 工具修复 #102、v2 重评 #108 已合并；本 PR 按批准方案采用 30 份输入，增加回执/数据提交/研究上限的一致性门禁（[ADR 0041](adr/0041-approved-data-adoption-and-research-window.md)） | M | 所有者选择已明确 | 采用提交与正式技术回执可追溯，30 份前缀为 v2 match；28 份来源缺口及历史可得性未知如实保留 |
+| D2 | **本轮工具、重评与批准采用已合并**（#102/#108/#109）：30 份输入的回执/数据提交/研究上限一致性门禁已在 main 通过（[ADR 0041](adr/0041-approved-data-adoption-and-research-window.md)） | M | 已满足本轮采用条件 | 数据提交与技术回执可追溯，30 份采用前缀为 v2 match；28 份来源缺口及历史可得性未知如实保留 |
 | D3 | **已完成**（#85，ADR 0021）：`scripts/regenerate_lock.py`；CI 从锁文件安装并运行 `check_environment.py --strict-lock`、`verify_lock.py`、`regenerate_lock.py --check` | M | — | 已在 #85 的 CI 上验证（锁定环境安装、严格比对均通过） |
 | D4 | **已完成**（#85，ADR 0021）：Actions 每月、小版本与补丁分组、主版本单独成 PR；pip 版本更新继续不启用（Dependabot 不能运行再生成脚本） | S | D3（已完成） | — |
 | D5 | **已完成**（#85，ADR 0023）：CodeQL 启用（不设必需检查）；dev container 保留并改用 `dev.py setup`，已由 CI 的 `devcontainer` 工作流验证（#88）；不增加 `install-smoke` 平台 | S | — | — |
@@ -121,15 +121,15 @@
 |---|---|---|
 | G0 | **已决：顺延** | ADR 0008；整理已完成，下一步是登记新身份（A5） |
 | A1–A4 | 已完成 | `v3.0.0` 标签已创建并推送（2026-10-14） |
-| A5 | **登记工具与底座已修复；正式登记暂缓** | 本 PR 完成批准的数据采用及研究窗口；合并后重新固定发布提交/标签与身份，再由所有者另行启动 A5 |
+| A5 | **登记工具与底座已修复；修复版正式登记暂缓** | #109 已完成批准的数据采用及研究窗口；发版收尾合并和最终 main CI 后，由所有者另行发布标签/绑定、启动登记 |
 | B1–B5、B7、B8 | 已完成 | 见第 2 节；ADR 0011–0019、0025、0026 |
 | B6 | **已完成**（#95、#96） | 第一片（`RiskManager` 的 `CircuitBreaker`，13 个属性）已合并（#93，ADR 0027）。ADR 0027 记录了方法（先录金样本测试 → 机械搬动 → 文档）和各片的顺序（`Broker` 的 `Matching`/`Liquidation` 已在第二片完成，ADR 0028；`LiveBroker` 的 `AccountSync` 已在第三片完成，ADR 0029；`LiveTradingEngine` 的 `Recovery`/`StateExport` 已在第四片完成，ADR 0030；`TickOrchestrator` 独占的 8 个记账属性已在第五片完成，ADR 0031）。留在宿主上的是被多个写入者共享的引擎级状态（`_operational_state`、`_healthy`、`data_map`、`_snapshot` ……）和 `Broker` 的 `orders_by_id`/`opening_orders`/`execution_audit` 等，它们的归属是下一个层次的设计问题，记为“观察期内不动” |
 | C1 | 已完成 | 约定在 CONTRIBUTING，季度记录在 `docs/quality.md`；下次回看 2027-01 |
 | C2、C4 | C2交付保留；C4机器约束已合并 #103 | AUD-04：真实收集最多 10 项，UTC 当天至 30 天内有效；类/模块/参数标记与子目录计入，选择过滤不能隐藏超限，xdist 控制端收到明确失败原因 |
 | C3 | 已完成，持续项 | 硬门槛清单 139/202：AUD-03 新增零错误哈希模块并用 `promote --write` 收进；当前 mypy 300 项存量基线未提高。其余模块随重构清零扩围（ADR 0022）；函数长度棘轮继续禁止新增长函数或已有函数增长 |
-| C5 | 已完成 | 门槛 90%（本地 Windows 实测行覆盖 90.58%，CI Linux 实测 90.51%）；#85 的 CI（Linux）上 90.51%，余量约 0.5 个百分点；若以后低于 90%，补测试而不是降门槛（ADR 0024） |
+| C5 | 已完成 | 门槛 90%；#109 合并提交的 Linux CI 实测 90.71%（4664 passed、15 skipped、111 subtests）。#85 的历史 CI 为 90.51%；若以后低于 90%，补测试而不是降门槛（ADR 0024） |
 | D1 | **外部执行回执待补** | #106 提供只读工具；#108 修正缺失 worktree 的真实 Git 测试夹具。实际清单、逐项批准及前后回执继续留在本地，旧数字不作为执行依据 |
-| D2 | **重评已合并，批准采用在本 PR 应用** | [正式采用记录](data_review/20261016_adoption.md)：30 份采用前缀 match，实际数据提交和研究策略可机器核对；2 份下载记录、28 份 unverified、全部 point_in_time unknown 保留 |
+| D2 | **重评与批准采用已合并 #108/#109** | [正式采用记录](data_review/20261016_adoption.md)：30 份采用前缀 match，实际数据提交和研究策略已由 main 门禁核对；2 份下载记录、28 份 unverified、全部 point_in_time unknown 保留 |
 | D3 | 已完成 | 锁文件在 Linux/Windows × 3.11/3.13 都有现成轮子（仅 `multitasking` 为纯 Python 源码包）；#85 的 CI 上已验证通过（ADR 0021） |
 | D4–D6 | 已完成 | CodeQL 首次运行没有未处理的告警（#85 之后的 `main`），仍建议有人定期看一遍；dev container 已由 CI 验证（#88）（ADR 0021、0023） |
 
@@ -141,12 +141,12 @@
 |---|---|---|---|
 | AUD-01 登记事务 | **已合并 #99**；opening receipt 竞争、登记目录原子发布与重试 | 已完成代码闭环；正式登记属于 AUD-08/A5 | [abcd3b7f](https://github.com/user-nmmmmm/QuantTradingV2/commit/abcd3b7fa7b57bf5079d6553f66de2e8d73806e1)、[ADR 0033](adr/0033-atomic-bound-registration.md)；进程竞争、中断、写入失败及重试回归；完整暂存后原子发布 |
 | AUD-02 冻结身份与证据 | **两批已合并 #100/#101**；本轮代码项闭环，保留历史缺失来源的补证边界 | 新候选按新方案和范围登记；不改写旧记录 | [fa0ba271](https://github.com/user-nmmmmm/QuantTradingV2/commit/fa0ba2717ee439d8acfbcc849bf8a43b5301aec3)、[a3a472db](https://github.com/user-nmmmmm/QuantTradingV2/commit/a3a472dba15bf0db18a2369bd3d5cdd2f1024824)、[ADR 0034](adr/0034-frozen-replay-and-reference-verification.md)、[ADR 0035](adr/0035-versioned-source-identity.md)；冻结导入与 scope/ref、研究/打包范围、v1/v2 回执及保守行为审查 |
-| AUD-03 数据身份与佐证 | **#102 工具修复、#108 真实 v2 重评已合并；本 PR 应用批准的采用与窗口** | 当前只待本 PR CI/合并；旧草案保持历史状态 | [正式采用记录](data_review/20261016_adoption.md)、[回执](data_review/20261016_adoption_receipt.json)、[ADR 0041](adr/0041-approved-data-adoption-and-research-window.md)；精确数据提交、原始/采用摘要、MATIC 83+1 处置、研究截止日及四组安装回归 |
+| AUD-03 数据身份与佐证 | **工具修复、真实 v2 重评与批准采用已合并 #102/#108/#109** | 本轮采用闭环；旧草案保持历史状态，来源和 PIT 限制继续保留 | [正式采用记录](data_review/20261016_adoption.md)、[回执](data_review/20261016_adoption_receipt.json)、[ADR 0041](adr/0041-approved-data-adoption-and-research-window.md)；精确数据提交、MATIC 83+1 处置、研究截止日及 #109 同一合并 SHA 的完整 CI |
 | AUD-04 质量门禁 | **已合并 #103**；#65/#67/#81/#88：更新逐条只减不增，共用质量任务，实际隔离数量/期限，容器配置触发 | 代码项闭环，沿用门槛 | [9b35e17e](https://github.com/user-nmmmmm/QuantTradingV2/commit/9b35e17eef7a34c0947d2bad9f4963c4010bc083)、[ADR 0037](adr/0037-monotonic-quality-gates.md)；混合修旧增新拒绝且基线字节不变；完整 check 与 CI 共用 90% 覆盖率及 Node；隔离边界及并行拒绝已验证；pyproject 同时触发 PR/main push 容器 |
 | AUD-05 运行语义 | **已合并 #104**：零负权益与回撤、正分母收益、catchup 别名和宿主分派，公式 2.1 | 代码项已闭环 | [ADR 0038](adr/0038-insolvent-equity-and-host-dispatch.md)、[发布基线](repair_release_baseline.md)中的反例及实现提交 CI；历史指标保持原口径 |
 | AUD-06 文档与导航 | **已合并 #105**：依赖、路径、引用式链接、历史报告映射及模块导航 | 已闭环，不重复排期 | [ADR 0039](adr/0039-documentation-navigation-and-reference-links.md)、路径和链接正反例回归；受保护历史字节保留 |
 | AUD-07 外部补证与审查 | **工具/指引已合并 #106**；普通报告者体验与通知、D1 实际治理回执和 #47–51/#61/#62 补审仍开放 | 所有者并行提供外部证据 | [治理清单](repository_governance.md)：逐对象批准与前后回执、渠道实际使用证据、逐原始 SHA/范围的补审结果与发现处置 |
-| AUD-08 修复后基线与登记 | **发布准备已合并 #107**；采用 PR 合并后固定最终发布 SHA、新标签与身份绑定，A5 暂缓 | 数据采用与最终 main CI 之后；A5 另等所有者启动 | [发布步骤](repair_release_baseline.md)；最终提交完整 CI、版本/标签/绑定和真实登记分别记录；本轮不执行 A5 |
+| AUD-08 修复后基线与登记 | **#107 发布准备、#109 数据采用已合并；本 PR 收尾 v3.1.1 文档** | 收尾合并后重新核对最终 main CI；标签/绑定由所有者另行发布，A5 继续暂缓 | [发布步骤](repair_release_baseline.md)；最终提交完整 CI、版本/标签/绑定和真实登记分别记录；本轮不创建标签、不执行 A5 |
 
 #90与#92的末根分类意见已在 #102 按同一根因修复，旧分类不自动升级为新证据。日期核验与 G0 结论已更新，旧报告路径不重复排开发。#101 保留 imports 严格摘要并明确“行为未验证”。历史证据缺少原驱动/模块时继续拒绝；须单独登记适配器或补证，不能借用当前实现冒充原结果。
 
@@ -174,7 +174,7 @@ B6/B7/B8交付已完成；以后若明确延期结构工作，记录冻结/延�
 
 1. G0已有结论（ADR0008）；本次复现的登记/身份/数据缺陷已按AUD-01–05关闭并形成修复后基线，随后由所有者实际登记A5并提供回执。当前尚未达到此条件。
 2. 身份报告能识别移动（A2，已完成），并有发布标签约定且首个标签已创建（A3，**已完成**：`v3.0.0`）。
-3. D2 工具修复 #102 和真实 v2 重评 #108 已合并；本 PR 采用明确批准的前缀与研究窗口，待同一 head CI 及合并。28 个无下载记录文件的来源限制保留，D3 锁定环境门禁继续执行。
+3. D2 工具修复 #102、真实 v2 重评 #108 和批准采用 #109 已合并，同一 main SHA 的采用门禁与完整 CI 通过；本项已满足本轮采用条件。28 个无下载记录文件的来源限制及全部 PIT 未知状态保留，D3 锁定环境门禁继续执行。
 4. `core/` 已完成拆分且无新增的反向依赖（B1–B3，**已完成**）。
 5. D1 按可审阅清单取得所有者确认并完成治理要求；C4 的实际隔离数量与最长期限已随 #103 补齐机器约束，并由并行回归验证。
 
@@ -189,7 +189,7 @@ M1 之后的功能轨道（特征管线 → 回测两层化 → 选币统一 →
 | 事件/状态的持久化格式被无意改变 | 事件编解码器按 `cls.__module__` 生成存储名，搬迁定义在 `core/foundation/domain.py` 里的类型会改变它；`core/events/codec.py` 的 `_WIRE_MODULES` 把它固定为旧名，`test_event_performance_contracts` 的线上哈希测试会拦下（ADR 0005、0016） |
 | 批量改写路径时误改"哈希固定的输入" | 搬迁时必须排除：`config/` 下非 `.py` 文件（`params.yaml` 的哈希就是冻结的 `config_hash`）、`tests/fixtures/`、`docs/baseline/`、`docs/baselines/`、冻结证据和记录文件哈希的验收 JSON；`dev.py check` 里的 `archive` 检查和若干测试会发现，但不要依赖它们 |
 | 协作类被浅拷贝 | 协作类缓存在宿主 `__dict__` 里，浅拷贝的副本会共用指向原宿主的协作类；用 `deepcopy`（会重定向 `host`）。现在仓库里没有这样的用法 |
-| 棘轮基线变成"永久豁免" | C1 的清零约定与季度回看；规则清零后升为硬门槛；**已确认缺陷AUD-04：update会接受新增；须实现机器拒绝，不以人工先check作为关闭证据** |
+| 棘轮基线变成"永久豁免" | C1 的清零约定与季度回看；规则清零后升为硬门槛；AUD-04/#103 已实现 update 逐项只减不增，拒绝新增/增长且保持基线字节不变，继续运行反例回归 |
 | 并行测试或新检查带来偶发失败 | C4：偶发失败必须定位，必要时用 `quarantine` 标记隔离并设期限，不得靠重跑掩盖 |
 | 一次性大改动难以评审 | 每个 PR 只含一种变化；搬迁 PR 要有依赖图与影响报告 |
 | 叠加的 PR 没进 `main` | **不要把 PR 叠在中间分支上**：叠加的 PR 合并后只进了中间分支（#72、#73 就是这样没进 `main`，靠 #74 补上）。每个 PR 直接对 `main`，上一个合并后再做下一个 |
@@ -244,7 +244,7 @@ M1 之后的功能轨道（特征管线 → 回测两层化 → 选币统一 →
 - `scripts/` 新增脚本要同时更新 `scripts/README.md` 和 `scripts/classification.json`，否则测试失败。
 - 冻结的历史证据（`docs/archive/2026-08*`、`2026-09*`、`docs/research/ml_selection_next_acceptance_20261005.json`、`docs/codex_mail_findings_20260920.json`、`docs/research/current_strategy_protocol.json`、`reports/` 回执，以及 `docs/research/paper_continuation_acceptance_20261003.json` 这类记录当时文件哈希的 JSON）不得改写；移动文档要在 `docs/doc_index.json` 追加一条。
 
-**第一件事：** 核对本次批准采用 PR 的完整 CI 并合并，再选定最终 main、发布版本和新身份绑定。AUD-01–06 的代码修复与 #107/#108 的准备/重评不重复排期。A5 按所有者要求保持暂缓，不创建标签或启动观察时钟；AUD-07 外部补证继续并行。**B6 后续搬迁沿用：** 先录金样本测试，再机械搬动，最后更新文档、质量基线和架构清单。
+**第一件事：** 完成并合并 v3.1.1 发版文档收尾，重新选定最终 main SHA，核对该 SHA 的 tests、offline、CodeQL、devcontainer 全部成功。随后由所有者另行创建带注解标签和 `code-token/v2` 绑定；当前 PR 不创建标签、不执行 A5。#109 数据采用已合并，不重复排期；AUD-07 外部补证继续并行，D1 仍是 M1 的待满足条件。若实际发版日期晚于 CHANGELOG 日期，先修订日期再固定最终提交及 CI。**B6 后续搬迁沿用：** 先录金样本测试，再机械搬动，最后更新文档、质量基线和架构清单。
 
 ## 10. 2026-10-15公开GitHub复核
 
@@ -281,6 +281,17 @@ M1 之后的功能轨道（特征管线 → 回测两层化 → 选币统一 →
 | AUD-04 | [#103](https://github.com/user-nmmmmm/QuantTradingV2/pull/103) 已合并为 [4e3669e5](https://github.com/user-nmmmmm/QuantTradingV2/commit/4e3669e57dc3148a017f470c0f0e165eeebcf70a)。head 9b35e17e 的 [tests](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38685776749)、[offline](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38685776845)、[container](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38685776676)、[CodeQL](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38685776815) 均成功；4457 passed、15 skipped、111 subtests，覆盖率 90.60%，四组安装各 165 项；容器含 46 项前端测试 |
 | AUD-05 | [#104](https://github.com/user-nmmmmm/QuantTradingV2/pull/104) 已合并；公式 2.1、零负权益、市场别名和宿主分派反例见发布基线，旧报告保持原口径 |
 | AUD-06–08 后续 | [#105](https://github.com/user-nmmmmm/QuantTradingV2/pull/105) 文档、[#106](https://github.com/user-nmmmmm/QuantTradingV2/pull/106) 治理工具、[#107](https://github.com/user-nmmmmm/QuantTradingV2/pull/107) 发布准备均已合并；外部补证及实际发布/A5 分别记录 |
-| 真实数据 | [#108](https://github.com/user-nmmmmm/QuantTradingV2/pull/108) 已合并到 4750dcf9；其 fe19b305 的 [完整 tests](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38715621802) 为 4639 passed、15 skipped、111 subtests、90.71%，四组安装各 358 项。当前批准采用的独立数据提交、回执与研究边界见[采用记录](data_review/20261016_adoption.md)，CI 以本 PR 最终 head 为准 |
+| 真实数据重评 | [#108](https://github.com/user-nmmmmm/QuantTradingV2/pull/108) 已合并到 4750dcf9；其 fe19b305 的 [完整 tests](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38715621802) 为 4639 passed、15 skipped、111 subtests、90.71%，四组安装各 358 项。该 review 和未批准草案保留原历史身份，后续正式采用另记 |
+| 批准数据采用 | [#109](https://github.com/user-nmmmmm/QuantTradingV2/pull/109) 已合并为 [321875d1](https://github.com/user-nmmmmm/QuantTradingV2/commit/321875d1eb4cbf10104c627ca370276137b1e22e)。[采用记录](data_review/20261016_adoption.md)及独立[技术回执](data_review/20261016_adoption_receipt.json)绑定数据提交 3c00f84d；30 份前缀、MATIC 83+1 和研究边界已由同一合并 SHA 的 CI 验证 |
+
+当前 main 基点 `321875d1eb4cbf10104c627ca370276137b1e22e` 的公开检查全部成功：
+
+- [tests](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38865046609)：4664 passed、15 skipped、111 subtests passed，覆盖率 90.71%；四组安装及 ML 检查成功，数据采用/研究窗口门禁通过。
+- [offline](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38865046618)：44 passed、6 subtests passed。
+- [CodeQL](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38865046845) 与 [devcontainer](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38865046579) 成功。
+
+这些运行证明 #109 合并后的基点，不代替本次文档收尾 PR 或其最终合并 SHA 的检查。
+文档收尾不触发 devcontainer 的路径过滤时，在目标分支手动运行该工作流并核对 head SHA。
+标签、身份绑定和 A5 仍按[发布步骤](repair_release_baseline.md)另行记录；本轮不创建标签或登记产物。
 
 关闭 AUD 工作包须提供修复 commit、对应反例的正确结果、同一 commit 的 CI 和受影响证据的处置。工程 CI、候选登记、策略研究结论分别记录。

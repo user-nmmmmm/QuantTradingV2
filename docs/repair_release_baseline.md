@@ -1,20 +1,26 @@
 # AUD-08：v3.1.1 修复发布基线与所有者 A5 步骤
 
-这是发布准备与工程证据索引。`pyproject.toml` 和 CHANGELOG 准备 `3.1.1`，
-正式标签由所有者在合并、选定最终提交并核对完整 CI 后创建。
+这是发布准备与工程证据索引。`pyproject.toml` 已为 `3.1.1`，
+CHANGELOG 将 #99–#109 的修复、重评和采用归入 `2026-10-16` 发布条目。
+正式标签由所有者在发版收尾合并、选定最终提交并核对完整 CI 后另行创建。
 工程测试、版本标签、身份绑定和 A5 正式登记分别记录。
 
-**A5 按所有者要求暂缓；下一步是采用 PR 合并后的最终 main CI、发布与新身份绑定。**
-2026-10-16 所有者已批准推荐方案，本 PR 应用[正式数据采用及研究上限](data_review/20261016_adoption.md)：
+**本轮只做 v3.1.1 发版文档收尾，不创建标签、不执行 A5。**
+下一步是收尾合并后的最终 main CI，再由所有者另行发布和生成新身份绑定；A5 继续暂缓。
+2026-10-16 批准的[正式数据采用及研究上限](data_review/20261016_adoption.md)已随
+[#109](https://github.com/user-nmmmmm/QuantTradingV2/pull/109) 合并到
+[`321875d1`](https://github.com/user-nmmmmm/QuantTradingV2/commit/321875d1eb4cbf10104c627ca370276137b1e22e)：
 27 份裁至 2026-08-26，MATIC 保留至 2024-09-09，其余 29 份研究结束日统一为 2026-08-26。
-独立采用回执绑定数据提交，旧 review/未批准草案作为历史保留；main 在本 PR 合并后生效。
+独立采用回执绑定数据提交 `3c00f84d5351ee9ea7e597eb17c7b93e3b2464ba`，
+旧 review/未批准草案作为历史保留；main 的采用门禁已验证数据、回执和研究窗口。
 `data_inputs.py verify` 通过只证明登记的文件身份一致；旧比较记录不能自动升级为新证据。
 当前准备不启动观察时钟，不修改既有登记，也不改变策略准入状态。
 
 ## 1. 修复基线与反例回归
 
-核对基点为 [9b20fcfa](https://github.com/user-nmmmmm/QuantTradingV2/commit/9b20fcfa6df1dbc3c08f8b8395f5122ffd339cc3)，
-即 [#106](https://github.com/user-nmmmmm/QuantTradingV2/pull/106) 的合并提交。
+原 AUD-08 修复索引的核对基点为 [9b20fcfa](https://github.com/user-nmmmmm/QuantTradingV2/commit/9b20fcfa6df1dbc3c08f8b8395f5122ffd339cc3)，
+即 [#106](https://github.com/user-nmmmmm/QuantTradingV2/pull/106) 的合并提交；下表保留该批修复的来源。
+当前发版收尾基于 #109 合并后的 `321875d1`，它仍不是收尾 PR 合并后的最终发布 SHA。
 旧带注解标签 `v3.1.0` 的 tag object 为 `268f51fb56535e926e4ed0066a0d238c907fd02e`，
 仍指向 `ec4092131a18dd20a7b5605a50fffc99168fff75`；不得把它改指向修复后的代码。
 按[发布约定](releasing.md)，本轮缺陷修复使用 PATCH `v3.1.1`。
@@ -34,9 +40,17 @@
 9b20fcfa 的主线运行：[tests](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38703618818)、
 [offline](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38703619048)、
 [CodeQL](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38703618983)。
-它们不代替本发布 PR 及最终合并提交的检查。此 PR 修改 `pyproject.toml`，会触发容器 CI；
+当前 #109 合并基点 `321875d1eb4cbf10104c627ca370276137b1e22e` 的
+[tests](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38865046609)
+为 4664 passed、15 skipped、111 subtests passed、90.71% 覆盖率，四组安装和 ML 检查成功；
+[offline](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38865046618)
+为 44 passed、6 subtests passed；
+[CodeQL](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38865046845) 和
+[devcontainer](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38865046579) 同一 SHA 成功。
+这些历史/基点运行不代替本次收尾 PR 及最终合并提交的检查。
 正式选定提交应有同一 SHA 的 tests、offline、CodeQL 和 devcontainer 成功记录。
-没有同一 SHA 的容器记录时，由所有者在 Actions 手动运行 devcontainer 并核对其 head SHA。
+本次只改文档，不修改已有的 `pyproject.toml` 版本；devcontainer 的路径过滤不会自动触发。
+没有同一 SHA 的容器记录时，在 Actions 选择目标分支手动运行 devcontainer，并核对运行的 head SHA。
 命令契约见 [Git 标签说明](https://git-scm.com/docs/git-tag)、
 [工作流运行查询](https://docs.github.com/en/rest/actions/workflow-runs#list-workflow-runs-for-a-repository)及
 [手动运行工作流](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow)。
@@ -48,12 +62,13 @@
 | 已推送标签与旧绑定 | 保留原对象、原方案和原字节；`code-token/v1` 记录按 v1 验证，不能用 v2 重算后覆盖。新登记使用新标签和 `code-token/v2` |
 | 旧候选协议、实验登记与观察窗 | 保留原件；既往打开/访问记录不能清除。新登记从实际操作时间重新起算，不继承旧等待天数；旧协议不因新代码 CI 通过而重新有效 |
 | 冻结历史回放 | 只执行冻结清单中的原驱动和模块；缺失来源继续拒绝。补来源或适配器须独立记录，不能用当前实现冒充原结果 |
-| 30 份冻结 CSV 与旧佐证 | 原始字节与 legacy 记录保留在来源 Git 提交；本 PR 按所有者批准选择采用前缀，以独立回执绑定数据提交、采用摘要和研究窗口。新清单的 v2 匹配来自保存的公开响应重放，未知来源和历史可得性不升级 |
+| 30 份冻结 CSV 与旧佐证 | 原始字节与 legacy 记录保留在来源 Git 提交；#109 已按批准选择采用前缀，以独立回执绑定数据提交、采用摘要和研究窗口。新清单的 v2 匹配来自保存的公开响应重放，未知来源和历史可得性不升级 |
 | 旧报表与指标 | 按生成时口径保留。公式 2.1 修复零负权益及未定义收益；如需比较，生成新目录中的独立结果并记录代码/输入/公式身份，不覆盖旧指标或混合两套口径 |
 | 受保护归档与历史验收 JSON | 继续使用归档/卫生门禁；历史报告路径通过兼容入口解析。工程修复不把历史研究 fail、未知来源或未完成项改成 pass |
 
 原 AUD-08/#107 的冻结范围变化只有 `pyproject.toml` 版本元数据。
-本次数据采用另改变 `cli/data.py` 的研究读取边界，属于冻结源码身份的行为变化；发布必须生成新绑定。
+#109 数据采用另改变 `cli/data.py` 的研究读取边界，属于冻结源码身份的行为变化；发布必须生成新绑定。
+本次收尾仅修改文档，不再改变冻结源码、输入或配置；旧标签的绑定仍不能覆盖 #109 的身份变化。
 本地的预备身份/模拟标签绑定仅用于核对工具链；正式绑定的 `tag_commit` 必须是所有者最终选定的合并 SHA。
 
 ## 3. 所有者操作：发布、绑定、再登记
@@ -61,13 +76,13 @@
 以下 PowerShell 步骤分阶段执行。任何命令非零、身份不符或前置证据未满足都应停止。
 旧 ADR 0032 中的 `v3.1.0` 是当时的发布计划；本轮应使用新的 `v3.1.1`，不移动旧标签。
 
-### 3.1 先完成数据采用，选定最终提交
+### 3.1 合并发版收尾，选定最终提交
 
-1. #107 发布准备和 #108 重评已合并；先合并本次数据采用 PR，运行
+1. #107 发布准备、#108 重评和 #109 批准采用已合并；先合并本次发版文档收尾，运行
    `python scripts/dev.py data data-review data-adoption` 核对批准选择、数据提交和研究边界。
    `python scripts/data_inputs.py corroborate` 会联网并**写回冻结清单**，若需更新证据，必须另行审阅并形成新采用回执，
    不能在已打标签的检出上运行后继续沿用旧绑定。
-2. 任何采用变更合并后，重新选定待发布的 main SHA，核对同一提交的完整 CI。
+2. 发版收尾或任何后续候选变更合并后，重新选定待发布的 main SHA，核对同一提交的完整 CI。
    如果 `v3.1.1` 已经推送而候选又改变，应准备下一个版本，不能移动标签或复用旧绑定。
    实际发版日期若不同，先更新 CHANGELOG 日期，再重新固定提交并运行 CI。
 3. 在完整、干净的 Git 检出中执行。公开数据的技术采用回执见上面的采用记录；
@@ -161,7 +176,9 @@ python scripts/release_check.py $releaseTag --verify-tag --main-ref origin/main
 if ($LASTEXITCODE -ne 0) { throw 'release tag verification failed' }
 python scripts/identity_report.py --verify-binding $bindingPath --head WORKTREE --fail-on-change
 if ($LASTEXITCODE -ne 0) { throw 'working candidate differs from the prepared binding' }
-$historicalBatch = (Resolve-Path 'reports/roadmap_v3/SYS-11/20260920-followup-successor-03').Path
+# 从本地保存位置取得真实父批次；新的干净检出不一定包含被忽略的 reports。
+$historicalBatchPath = '替换为本地真实父批次的绝对路径'
+$historicalBatch = (Resolve-Path -LiteralPath $historicalBatchPath).Path
 $statement = 'docs/research/capital_config_change_statement_20261014.json'
 $registrationDate = (Get-Date).ToUniversalTime().ToString('yyyyMMdd')
 $registrationOutput = "reports/roadmap_v3/A5/$registrationDate-bound-successor-v3.1.1"

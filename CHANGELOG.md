@@ -8,17 +8,20 @@
 
 ## [Unreleased]
 
-- Adopt the owner-approved daily prefixes and bind a separate receipt to the actual data commit. Enforce a 2026-08-26 research end for 29 inputs and 2024-09-09 for MATIC, while retaining the original BTC/ETH download files. Offline local/CI checks verify data, evidence, receipt and policy together; A5 remains deferred ([adoption record](docs/data_review/20261016_adoption.md), [ADR 0041](docs/adr/0041-approved-data-adoption-and-research-window.md)).
+## [3.1.1] - 2026-10-16
 
-- AUD-03 real-data review: record a separate v2 corroboration summary and unsigned adoption draft, distinguish MATIC's 83 unmatched dates from its matching delisting-day bar, and check proposed prefixes offline in both local and CI gates. Existing frozen inputs remain unchanged; owner decisions and formal adoption are pending ([plan](docs/data_review/20261015_adoption_plan.md)).
+Patch release preparation for the fixes in #99–#106, the release baseline in #107, the v2 data review in #108 and the approved adoption in #109. The [repair baseline and owner runbook](docs/repair_release_baseline.md) links regressions, historical-evidence treatment and the release/tag/binding sequence. After this closeout merges, select the final main commit and verify its complete CI before the owner creates the annotated tag and a new identity binding. A5 remains deferred; AUD-07 external evidence remains open.
 
-## [3.1.1] - 2026-10-15
+### Added
 
-Patch release preparation for the fixes merged in #99–#106. The [repair baseline and owner runbook](docs/repair_release_baseline.md) links the counterexample regressions, explains the treatment of existing evidence, and separates release/tag/binding checks from A5 registration prerequisites. The owner creates the annotated tag after merge and final-commit CI; real-data adoption and the remaining external evidence still require their own records.
-
+- AUD-03: retain the separate v2 review and historical unsigned draft, then bind the approved adoption to its actual data commit with a new [technical receipt](docs/data_review/20261016_adoption_receipt.json). Offline local/CI gates check inputs, evidence, receipt and research policy together ([adoption record](docs/data_review/20261016_adoption.md), [ADR 0041](docs/adr/0041-approved-data-adoption-and-research-window.md)).
 - AUD-07: link private vulnerability reporting directly, document owner notification/review checks, and generate a read-only per-ref/SHA/worktree inventory in ignored local storage (ADR 0040).
 
+### Changed
+
+- AUD-03: adopt the approved daily prefixes in #109. Trim 27 CSVs through 2026-08-26 and retain MATIC through 2024-09-09, separately accounting for 83 unmatched dates and one matching delisting-day bar. BTC/ETH raw downloads and the original download cache remain unchanged; the local research loader enforces a 2026-08-26 end for the other 29 inputs and 2024-09-09 for MATIC, including the DataVersionStore path. The adoption removes 111 raw rows; 67,266 adopted raw rows yield 67,218 research-eligible rows across the approved ranges.
 - AUD-06: align dependency and Python/Node instructions with the installed project and CI matrix; replace stale module paths with checked navigation, scan reference-style Markdown links, and restore historical report entry points without rewriting frozen evidence (ADR 0039).
+- Consolidate the public engineering roadmap from #98 through #101, then record the merged #99–#109 fixes, data adoption, final-release checks and separately pending owner operations.
 
 ### Fixed
 
@@ -26,11 +29,14 @@ Patch release preparation for the fixes merged in #99–#106. The [repair baseli
 - AUD-04: refuse baseline updates that introduce or increase any finding, including mypy hard-gate failures; rejected updates leave the file unchanged. Local and CI quality checks share developer tasks with the 90% coverage gate and dashboard tests. Quarantine collection counts expanded cases and enforces a 10-case / 30-UTC-day limit, and `pyproject.toml` changes trigger container CI for PRs and main pushes (ADR 0037).
 - AUD-03: bind corroboration to the bytes actually read, reject stale or changing inputs and unknown filenames, validate partial-tail OHLCV invariants, and distinguish successful empty data from confirmed invalid symbols. New cache records declare LF-normalized hashes; legacy cache verification and incremental refresh accept newline equivalence without relaxing content or source checks (ADR 0036).
 - AUD-02: cover independent research CLI/runtime and installation inputs, include `pyproject.toml` in frozen scope, and require behavioral review for import-only edits and moves. New `code-token/v2` identities normalize f-string expression layout while preserving observable text and formatting; saved v1 receipts and bindings retain their original verifier (ADR 0035).
-- Consolidate the public engineering roadmap from #98 with the AUD-01/#99 and AUD-02/#100 implementation status and the remaining development queue.
+- AUD-02: isolate frozen historical replay imports and record each module's source. Identity CLI scope comes from the selected head, references are pinned, and release verification refuses missing main references or failed ancestry checks ([ADR 0034](docs/adr/0034-frozen-replay-and-reference-verification.md)).
+- AUD-01: serialize release-bound registration and prospective-sample opening with a shared process lock. Build complete artifacts in a sibling temporary directory, recheck parent/registry/opening evidence and publish atomically. Competition, interruption and retry regressions prevent incomplete formal directories and refuse overwrites ([ADR 0033](docs/adr/0033-atomic-bound-registration.md)).
 
-### Fixed
-- AUD-02 首批：历史 meta／control 回放新增冻结清单绑定的隔离入口与逐模块来源记录；身份 CLI 按所选提交读取范围并固定引用，发布验证在主线引用缺失或祖先检查失败时明确拒绝（[ADR 0034](docs/adr/0034-frozen-replay-and-reference-verification.md)）。
-- AUD-01：发布标签绑定登记与前向样本打开共用进程锁；登记产物在同级临时目录完整生成并复查父协议、打开回执和实验登记后原子发布。复制失败、键盘中断或发布前进程终止不会留下正式半成品目录，可安全重试；已有输出拒绝覆盖（[ADR 0033](docs/adr/0033-atomic-bound-registration.md)）。
+### Notes
+
+- New registration requires a fresh `code-token/v2` binding to the final release commit. Existing tags, v1 bindings, historical CSVs, review drafts and protocol records retain their original identities; the adopted loader boundary changes frozen source identity.
+- The adopted prefixes match the captured public responses under v2 comparison. Source evidence was observed on 2026-10-15; replay does not establish historical availability. Two download records, 28 `unverified` origins and all `point_in_time: unknown` statuses remain unchanged. Technical adoption is not strategy validation or admission to trade.
+- This closeout prepares the 2026-10-16 release entry without creating a tag or starting A5. If publication occurs on a later date, update this entry before selecting and validating the final release commit. Full audits and registration materials remain local.
 
 ## [3.1.0] - 2026-10-14
 
