@@ -180,7 +180,7 @@ def main(argv: list[str] | None = None) -> int:
     except (ValueError, KeyError, TypeError, OSError, InvalidOperation, subprocess.CalledProcessError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
-    print(f"Data adoption draft checked: {len(draft['files'])} inputs; owner decisions pending; A5 not executed")
+    print(f"Historical unsigned draft checked: {len(draft['files'])} inputs; current adoption is verified separately; A5 not executed")
     return 0
 
 

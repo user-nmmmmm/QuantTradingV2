@@ -42,8 +42,9 @@ docs/baselines/generated/
 data/binance/*
 !data/binance/1d/
 data/binance/1d/*
-# The frozen research-input manifest is the one new file here that is versioned (scripts/data_inputs.py).
+# Version only the frozen identity and the owner-approved research-window metadata.
 !data/binance/1d/_frozen_inputs.json
+!data/binance/1d/_research_policy.json
 
 # Python caches and generated artifacts
 *.py[cod]

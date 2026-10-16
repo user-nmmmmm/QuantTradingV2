@@ -38,6 +38,7 @@
     ]
   ],
   "scripts": {
+    "data_adoption.py": "supported",
     "data_adoption_review.py": "supported",
     "repository_governance.py": "supported",
     "architecture_inventory.py": "supported",

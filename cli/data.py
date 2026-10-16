@@ -2,13 +2,40 @@
 
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from datetime import date
+import io
+import json
 import pandas as pd
 import re
 
+from core.foundation.content_hash import sha256_lf_bytes
 from core.market.data import DataHandler
 from core.market.data_fetcher import DataFetcher
 from core.market.temporal_data import compatibility_audit, freeze_ohlcv, temporal_policy as parse_temporal_policy
 from core.market.universe import PointInTimeUniverse, normalize_symbol, static_universe_manifest
+
+
+def _research_window(path: Path, timeframe: str, end: str) -> dict | None:
+    policy_path = path.parent / "_research_policy.json"
+    if not policy_path.exists():
+        return None
+    policy = json.loads(policy_path.read_bytes())
+    if policy.get("schema") != "adopted-research-window/v1" or policy.get("timeframe") != timeframe:
+        raise ValueError("unsupported adopted research policy or timeframe")
+    entry = policy.get("files", {}).get(path.name)
+    if not isinstance(entry, dict):
+        raise ValueError(f"{path.name}: not registered in the adopted research policy")
+    if (not isinstance(entry.get("research_end_inclusive"), str)
+            or not re.fullmatch(r"[0-9a-f]{64}", str(entry.get("sha256", "")))
+            or not isinstance(policy.get("receipt"), str)
+            or not re.fullmatch(r"[0-9a-f]{64}", str(policy.get("receipt_sha256", "")))):
+        raise ValueError("invalid adopted research policy fields")
+    cutoff = entry["research_end_inclusive"]
+    if date.fromisoformat(cutoff).isoformat() != cutoff or date.fromisoformat(end).isoformat() != end:
+        raise ValueError("adopted research end must be a canonical daily date")
+    if end > cutoff:
+        raise ValueError(f"{path.name}: requested end {end} exceeds adopted research end {cutoff}")
+    return {**entry, "receipt": policy["receipt"], "receipt_sha256": policy["receipt_sha256"]}
 
 
 def _load_local_ohlcv(symbol: str, start: str, end: str, data_dir: str, *,
@@ -37,18 +64,23 @@ def _load_local_ohlcv(symbol: str, start: str, end: str, data_dir: str, *,
             f"No local CSV for {symbol} in {root} (tried: {', '.join(c.name for c in candidates)})"
         )
 
+    research_window = _research_window(path, timeframe, end)
     raw_identity = None
     if temporal_policy is not None and parse_temporal_policy(temporal_policy).store_path:
-        import io
         from core.market.data_versions import DataVersionStore
         policy = parse_temporal_policy(temporal_policy)
         store = DataVersionStore(policy.store_path)
         raw_identity = store.freeze_files(f"raw-csv:{path.resolve()}", {path.name: path},
                                          observed_at=datetime.now(timezone.utc))
-        df = DataHandler.validate(pd.read_csv(io.BytesIO(store.read_file(
-            raw_identity["snapshot_id"], path.name)), index_col=0, parse_dates=True))
+        raw = store.read_file(raw_identity["snapshot_id"], path.name)
+        df = DataHandler.validate(pd.read_csv(io.BytesIO(raw), index_col=0, parse_dates=True))
+    elif research_window:
+        raw = path.read_bytes()
+        df = DataHandler.validate(pd.read_csv(io.BytesIO(raw), index_col=0, parse_dates=True))
     else:
         df = DataHandler.load_csv(str(path))
+    if research_window and sha256_lf_bytes(raw) != research_window["sha256"]:
+        raise ValueError(f"{path.name}: bytes differ from the adopted research policy")
     if temporal_policy is not None:
         df = freeze_ohlcv(df, symbol=symbol, timeframe=timeframe, policy=temporal_policy,
             source_reference=f"csv:{path.name}", dataset_id=f"csv:{path.resolve()}|{symbol}|{timeframe}")
@@ -56,6 +88,8 @@ def _load_local_ohlcv(symbol: str, start: str, end: str, data_dir: str, *,
             df.attrs["temporal_raw_file_snapshot"] = raw_identity["snapshot_id"]
     else:
         df.attrs["temporal_audit"] = compatibility_audit()
+    if research_window:
+        df.attrs["adopted_research_window"] = research_window
     if df.index.tz is not None:
         df.index = df.index.tz_convert("UTC").tz_localize(None)
     start_ts = pd.Timestamp(start)
