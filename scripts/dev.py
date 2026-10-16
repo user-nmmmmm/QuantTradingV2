@@ -79,6 +79,8 @@ TASKS: Dict[str, Task] = {t.name: t for t in [
                         [PY, "scripts/verify_lock.py"], [PY, "scripts/regenerate_lock.py", "--check"]]),
     Task("data", "frozen research inputs (tracked market data) match their manifest",
          _simple(PY, "scripts/data_inputs.py", "verify")),
+    Task("data-review", "unsigned data-adoption draft matches its versioned v2 evidence",
+         _simple(PY, "scripts/data_adoption_review.py", "--check")),
     Task("arch", "architecture inventory is current; delivered diagram paths resolve",
          _simple(PY, "scripts/architecture_inventory.py", "--check")),
     Task("lint", "ruff hard gate (syntax / undefined-name level)", _simple(PY, "-m", "ruff", "check", ".")),
@@ -102,7 +104,7 @@ TASKS: Dict[str, Task] = {t.name: t for t in [
         [PY, "-m", "pip", "install", "-e", ".", "--no-deps"]], in_check=False),
 ]}
 
-CHECK_ORDER = ["env", "data", "arch", "lint", "ratchet", "imports", "frontend", "types", "hygiene", "archive", "links",
+CHECK_ORDER = ["env", "data", "data-review", "arch", "lint", "ratchet", "imports", "frontend", "types", "hygiene", "archive", "links",
                "roadmap", "test", "sandbox"]
 
 

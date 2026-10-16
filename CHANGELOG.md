@@ -8,6 +8,8 @@
 
 ## [Unreleased]
 
+- AUD-03 real-data review: record a separate v2 corroboration summary and unsigned adoption draft, distinguish MATIC's 83 unmatched dates from its matching delisting-day bar, and check proposed prefixes offline in both local and CI gates. Existing frozen inputs remain unchanged; owner decisions and formal adoption are pending ([plan](docs/data_review/20261015_adoption_plan.md)).
+
 ## [3.1.1] - 2026-10-15
 
 Patch release preparation for the fixes merged in #99–#106. The [repair baseline and owner runbook](docs/repair_release_baseline.md) links the counterexample regressions, explains the treatment of existing evidence, and separates release/tag/binding checks from A5 registration prerequisites. The owner creates the annotated tag after merge and final-commit CI; real-data adoption and the remaining external evidence still require their own records.

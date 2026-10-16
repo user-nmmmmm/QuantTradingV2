@@ -38,6 +38,7 @@
 
 | 脚本 | 用途 |
 | --- | --- |
+| [`data_adoption_review.py`](data_adoption_review.py) | 从已固定的 Git 输入与 v2 佐证生成未批准的采用草案；`--check` 离线核对摘要、末根形态、下架边界和候选前缀，不下载、替换 CSV 或执行 A5。见[真实数据采用方案](../docs/data_review/20261015_adoption_plan.md)。 |
 | [`check_repository_hygiene.py`](check_repository_hygiene.py) | 检查已跟踪临时文件，并按[文件保留清单](../docs/file_retention.md)核验冻结的历史证据。 |
 | [`repository_governance.py`](repository_governance.py) | D1 只读清单：显式基点、逐 ref/SHA/提交差异和 worktree 状态；只写新建的本地忽略文件，不联网或删除。见[所有者步骤](../docs/repository_governance.md)。 |
 | [`main_acceptance.py`](main_acceptance.py)、[`verify_baseline_archive.py`](verify_baseline_archive.py) | 主分支离线验收与历史基线归档校验。 |
