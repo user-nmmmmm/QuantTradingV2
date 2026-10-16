@@ -3,416 +3,324 @@
   "files": {
     "AAVE_USDT.csv": {
       "corroboration": {
-        "checked_at": "2026-10-14T02:24:44Z",
-        "difference_count": 4,
+        "basis": "retained_prefix_of_saved_v2_review",
+        "checked_at": "2026-10-16T05:55:23Z",
+        "comparison_policy": "binance-daily-comparison/v2",
+        "difference_count": 0,
+        "evidence_review_sha256": "ff6e79d071d177df35ec78f4dbb074ce274909559011e9e65118492f687e7cf7",
         "examples": {
-          "differences": [
-            {
-              "date": "2026-08-27",
-              "field": "high",
-              "local": "127.08",
-              "remote": "130.47000000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "low",
-              "local": "123.81",
-              "remote": "123.00000000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "close",
-              "local": "126.87",
-              "remote": "128.09000000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "volume",
-              "local": "29435.55",
-              "remote": "150210.03400000"
-            }
-          ],
+          "differences": [],
+          "invalid_local": [],
+          "invalid_remote": [],
           "only_local": [],
           "only_remote": []
         },
-        "for_sha256": "743efaa565f6dd755f79ed6f522604e743b20181cc014132dea706b73b3b3ea4",
+        "for_sha256": "5e6375df406b465a92d8318ae462da3d052f056e92454a75e540f53522380797",
+        "invalid_local_count": 0,
+        "invalid_remote_count": 0,
         "only_local_count": 0,
         "only_remote_count": 0,
-        "rows_local": 2143,
+        "rows_local": 2142,
         "rows_matching": 2142,
-        "rows_remote": 2143,
+        "rows_remote": 2142,
         "source": "binance spot 1d klines (data-api.binance.vision)",
-        "status": "match_except_final_bar"
+        "source_checked_at": "2026-10-15T09:10:20Z",
+        "status": "match"
       },
       "first": "2020-10-15",
-      "last": "2026-08-27",
+      "last": "2026-08-26",
       "point_in_time": "unknown",
       "provenance": {
         "note": "bytes are pinned; no record shows where they came from",
         "status": "unverified"
       },
-      "rows": 2143,
-      "sha256": "743efaa565f6dd755f79ed6f522604e743b20181cc014132dea706b73b3b3ea4",
+      "rows": 2142,
+      "sha256": "5e6375df406b465a92d8318ae462da3d052f056e92454a75e540f53522380797",
       "symbol": "AAVE/USDT"
     },
     "ADA_USDT.csv": {
       "corroboration": {
-        "checked_at": "2026-10-14T02:24:44Z",
-        "difference_count": 3,
+        "basis": "retained_prefix_of_saved_v2_review",
+        "checked_at": "2026-10-16T05:55:23Z",
+        "comparison_policy": "binance-daily-comparison/v2",
+        "difference_count": 0,
+        "evidence_review_sha256": "ff6e79d071d177df35ec78f4dbb074ce274909559011e9e65118492f687e7cf7",
         "examples": {
-          "differences": [
-            {
-              "date": "2026-08-27",
-              "field": "high",
-              "local": "0.2124",
-              "remote": "0.21750000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "close",
-              "local": "0.2102",
-              "remote": "0.21380000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "volume",
-              "local": "22154480.6",
-              "remote": "121808789.40000000"
-            }
-          ],
+          "differences": [],
+          "invalid_local": [],
+          "invalid_remote": [],
           "only_local": [],
           "only_remote": []
         },
-        "for_sha256": "95b70e975a3ad88f688c50b5daf2799976081124c7ea778160874c37c91898cb",
+        "for_sha256": "7806f184283acf7f7f60b5fc106f50f43eb8699430cd977ebd449179f1120571",
+        "invalid_local_count": 0,
+        "invalid_remote_count": 0,
         "only_local_count": 0,
         "only_remote_count": 0,
-        "rows_local": 3055,
+        "rows_local": 3054,
         "rows_matching": 3054,
-        "rows_remote": 3055,
+        "rows_remote": 3054,
         "source": "binance spot 1d klines (data-api.binance.vision)",
-        "status": "match_except_final_bar"
+        "source_checked_at": "2026-10-15T09:10:20Z",
+        "status": "match"
       },
       "first": "2018-04-17",
-      "last": "2026-08-27",
+      "last": "2026-08-26",
       "point_in_time": "unknown",
       "provenance": {
         "note": "bytes are pinned; no record shows where they came from",
         "status": "unverified"
       },
-      "rows": 3055,
-      "sha256": "95b70e975a3ad88f688c50b5daf2799976081124c7ea778160874c37c91898cb",
+      "rows": 3054,
+      "sha256": "7806f184283acf7f7f60b5fc106f50f43eb8699430cd977ebd449179f1120571",
       "symbol": "ADA/USDT"
     },
     "APT_USDT.csv": {
       "corroboration": {
-        "checked_at": "2026-10-14T02:24:44Z",
-        "difference_count": 3,
+        "basis": "retained_prefix_of_saved_v2_review",
+        "checked_at": "2026-10-16T05:55:23Z",
+        "comparison_policy": "binance-daily-comparison/v2",
+        "difference_count": 0,
+        "evidence_review_sha256": "ff6e79d071d177df35ec78f4dbb074ce274909559011e9e65118492f687e7cf7",
         "examples": {
-          "differences": [
-            {
-              "date": "2026-08-27",
-              "field": "high",
-              "local": "0.573",
-              "remote": "0.58800000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "close",
-              "local": "0.569",
-              "remote": "0.57300000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "volume",
-              "local": "1907726.33",
-              "remote": "9016559.91000000"
-            }
-          ],
+          "differences": [],
+          "invalid_local": [],
+          "invalid_remote": [],
           "only_local": [],
           "only_remote": []
         },
-        "for_sha256": "35104a240e5ef5e8fad212612cf4e1ea352aaa3b23236f1e8eebd4cbbd5126ec",
+        "for_sha256": "4508348f014b5363b2e2ef9e3946b121d43668207cea209b776ea6141a8922d1",
+        "invalid_local_count": 0,
+        "invalid_remote_count": 0,
         "only_local_count": 0,
         "only_remote_count": 0,
-        "rows_local": 1409,
+        "rows_local": 1408,
         "rows_matching": 1408,
-        "rows_remote": 1409,
+        "rows_remote": 1408,
         "source": "binance spot 1d klines (data-api.binance.vision)",
-        "status": "match_except_final_bar"
+        "source_checked_at": "2026-10-15T09:10:20Z",
+        "status": "match"
       },
       "first": "2022-10-19",
-      "last": "2026-08-27",
+      "last": "2026-08-26",
       "point_in_time": "unknown",
       "provenance": {
         "note": "bytes are pinned; no record shows where they came from",
         "status": "unverified"
       },
-      "rows": 1409,
-      "sha256": "35104a240e5ef5e8fad212612cf4e1ea352aaa3b23236f1e8eebd4cbbd5126ec",
+      "rows": 1408,
+      "sha256": "4508348f014b5363b2e2ef9e3946b121d43668207cea209b776ea6141a8922d1",
       "symbol": "APT/USDT"
     },
     "ARB_USDT.csv": {
       "corroboration": {
-        "checked_at": "2026-10-14T02:24:44Z",
-        "difference_count": 4,
+        "basis": "retained_prefix_of_saved_v2_review",
+        "checked_at": "2026-10-16T05:55:23Z",
+        "comparison_policy": "binance-daily-comparison/v2",
+        "difference_count": 0,
+        "evidence_review_sha256": "ff6e79d071d177df35ec78f4dbb074ce274909559011e9e65118492f687e7cf7",
         "examples": {
-          "differences": [
-            {
-              "date": "2026-08-27",
-              "field": "high",
-              "local": "0.0929",
-              "remote": "0.09340000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "low",
-              "local": "0.0899",
-              "remote": "0.08970000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "close",
-              "local": "0.0914",
-              "remote": "0.09190000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "volume",
-              "local": "7228157.2",
-              "remote": "43784621.00000000"
-            }
-          ],
+          "differences": [],
+          "invalid_local": [],
+          "invalid_remote": [],
           "only_local": [],
           "only_remote": []
         },
-        "for_sha256": "14b4cb7178dcb5719afbd24c6cd3d280edd868cdc5fdb260e9a8bc4be6344c8c",
+        "for_sha256": "0406d67a4f26c3d208b1292cfa8c912b17c9dd80c38f27afafa322ff8c3517a5",
+        "invalid_local_count": 0,
+        "invalid_remote_count": 0,
         "only_local_count": 0,
         "only_remote_count": 0,
-        "rows_local": 1254,
+        "rows_local": 1253,
         "rows_matching": 1253,
-        "rows_remote": 1254,
+        "rows_remote": 1253,
         "source": "binance spot 1d klines (data-api.binance.vision)",
-        "status": "match_except_final_bar"
+        "source_checked_at": "2026-10-15T09:10:20Z",
+        "status": "match"
       },
       "first": "2023-03-23",
-      "last": "2026-08-27",
+      "last": "2026-08-26",
       "point_in_time": "unknown",
       "provenance": {
         "note": "bytes are pinned; no record shows where they came from",
         "status": "unverified"
       },
-      "rows": 1254,
-      "sha256": "14b4cb7178dcb5719afbd24c6cd3d280edd868cdc5fdb260e9a8bc4be6344c8c",
+      "rows": 1253,
+      "sha256": "0406d67a4f26c3d208b1292cfa8c912b17c9dd80c38f27afafa322ff8c3517a5",
       "symbol": "ARB/USDT"
     },
     "ATOM_USDT.csv": {
       "corroboration": {
-        "checked_at": "2026-10-14T02:24:44Z",
-        "difference_count": 3,
+        "basis": "retained_prefix_of_saved_v2_review",
+        "checked_at": "2026-10-16T05:55:23Z",
+        "comparison_policy": "binance-daily-comparison/v2",
+        "difference_count": 0,
+        "evidence_review_sha256": "ff6e79d071d177df35ec78f4dbb074ce274909559011e9e65118492f687e7cf7",
         "examples": {
-          "differences": [
-            {
-              "date": "2026-08-27",
-              "field": "high",
-              "local": "1.514",
-              "remote": "1.56400000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "close",
-              "local": "1.492",
-              "remote": "1.56200000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "volume",
-              "local": "300811.66",
-              "remote": "1481698.72000000"
-            }
-          ],
+          "differences": [],
+          "invalid_local": [],
+          "invalid_remote": [],
           "only_local": [],
           "only_remote": []
         },
-        "for_sha256": "9ee7d74a8d923dc00cba793f59abc42c9f226fd47754875a09b2284847c8cd58",
+        "for_sha256": "be60e7702d1b81d9bc32320bee2b3dac0c99d5cae709aa04970b467d66f1139b",
+        "invalid_local_count": 0,
+        "invalid_remote_count": 0,
         "only_local_count": 0,
         "only_remote_count": 0,
-        "rows_local": 2678,
+        "rows_local": 2677,
         "rows_matching": 2677,
-        "rows_remote": 2678,
+        "rows_remote": 2677,
         "source": "binance spot 1d klines (data-api.binance.vision)",
-        "status": "match_except_final_bar"
+        "source_checked_at": "2026-10-15T09:10:20Z",
+        "status": "match"
       },
       "first": "2019-04-29",
-      "last": "2026-08-27",
+      "last": "2026-08-26",
       "point_in_time": "unknown",
       "provenance": {
         "note": "bytes are pinned; no record shows where they came from",
         "status": "unverified"
       },
-      "rows": 2678,
-      "sha256": "9ee7d74a8d923dc00cba793f59abc42c9f226fd47754875a09b2284847c8cd58",
+      "rows": 2677,
+      "sha256": "be60e7702d1b81d9bc32320bee2b3dac0c99d5cae709aa04970b467d66f1139b",
       "symbol": "ATOM/USDT"
     },
     "AVAX_USDT.csv": {
       "corroboration": {
-        "checked_at": "2026-10-14T02:24:44Z",
-        "difference_count": 3,
+        "basis": "retained_prefix_of_saved_v2_review",
+        "checked_at": "2026-10-16T05:55:23Z",
+        "comparison_policy": "binance-daily-comparison/v2",
+        "difference_count": 0,
+        "evidence_review_sha256": "ff6e79d071d177df35ec78f4dbb074ce274909559011e9e65118492f687e7cf7",
         "examples": {
-          "differences": [
-            {
-              "date": "2026-08-27",
-              "field": "high",
-              "local": "7.444",
-              "remote": "7.58300000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "close",
-              "local": "7.367",
-              "remote": "7.52700000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "volume",
-              "local": "241359.51",
-              "remote": "1968876.18000000"
-            }
-          ],
+          "differences": [],
+          "invalid_local": [],
+          "invalid_remote": [],
           "only_local": [],
           "only_remote": []
         },
-        "for_sha256": "6f9447182f4a7b8c1c0144f5fa5573210650cf3e6ea758e5ed335e29bcd8dd5c",
+        "for_sha256": "6658348a6be4c287aadb9a3a8a5282ba68a5cf5ca9b3cd2929dabbc515aba574",
+        "invalid_local_count": 0,
+        "invalid_remote_count": 0,
         "only_local_count": 0,
         "only_remote_count": 0,
-        "rows_local": 2166,
+        "rows_local": 2165,
         "rows_matching": 2165,
-        "rows_remote": 2166,
+        "rows_remote": 2165,
         "source": "binance spot 1d klines (data-api.binance.vision)",
-        "status": "match_except_final_bar"
+        "source_checked_at": "2026-10-15T09:10:20Z",
+        "status": "match"
       },
       "first": "2020-09-22",
-      "last": "2026-08-27",
+      "last": "2026-08-26",
       "point_in_time": "unknown",
       "provenance": {
         "note": "bytes are pinned; no record shows where they came from",
         "status": "unverified"
       },
-      "rows": 2166,
-      "sha256": "6f9447182f4a7b8c1c0144f5fa5573210650cf3e6ea758e5ed335e29bcd8dd5c",
+      "rows": 2165,
+      "sha256": "6658348a6be4c287aadb9a3a8a5282ba68a5cf5ca9b3cd2929dabbc515aba574",
       "symbol": "AVAX/USDT"
     },
     "BCH_USDT.csv": {
       "corroboration": {
-        "checked_at": "2026-10-14T02:24:44Z",
-        "difference_count": 3,
+        "basis": "retained_prefix_of_saved_v2_review",
+        "checked_at": "2026-10-16T05:55:23Z",
+        "comparison_policy": "binance-daily-comparison/v2",
+        "difference_count": 0,
+        "evidence_review_sha256": "ff6e79d071d177df35ec78f4dbb074ce274909559011e9e65118492f687e7cf7",
         "examples": {
-          "differences": [
-            {
-              "date": "2026-08-27",
-              "field": "high",
-              "local": "269.6",
-              "remote": "274.10000000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "close",
-              "local": "268.1",
-              "remote": "269.70000000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "volume",
-              "local": "5667.261",
-              "remote": "33189.03000000"
-            }
-          ],
+          "differences": [],
+          "invalid_local": [],
+          "invalid_remote": [],
           "only_local": [],
           "only_remote": []
         },
-        "for_sha256": "763a3f90519863fe22cb48d2f079aa0fcbad3cfe60267e87bb69cdb24e2c5e57",
+        "for_sha256": "265a5171d65129a9b5eba039734c2f5a4deeba9934da27e32d3daf7b08f974f2",
+        "invalid_local_count": 0,
+        "invalid_remote_count": 0,
         "only_local_count": 0,
         "only_remote_count": 0,
-        "rows_local": 2465,
+        "rows_local": 2464,
         "rows_matching": 2464,
-        "rows_remote": 2465,
+        "rows_remote": 2464,
         "source": "binance spot 1d klines (data-api.binance.vision)",
-        "status": "match_except_final_bar"
+        "source_checked_at": "2026-10-15T09:10:20Z",
+        "status": "match"
       },
       "first": "2019-11-28",
-      "last": "2026-08-27",
+      "last": "2026-08-26",
       "point_in_time": "unknown",
       "provenance": {
         "note": "bytes are pinned; no record shows where they came from",
         "status": "unverified"
       },
-      "rows": 2465,
-      "sha256": "763a3f90519863fe22cb48d2f079aa0fcbad3cfe60267e87bb69cdb24e2c5e57",
+      "rows": 2464,
+      "sha256": "265a5171d65129a9b5eba039734c2f5a4deeba9934da27e32d3daf7b08f974f2",
       "symbol": "BCH/USDT"
     },
     "BNB_USDT.csv": {
       "corroboration": {
-        "checked_at": "2026-10-14T02:24:44Z",
-        "difference_count": 3,
+        "basis": "retained_prefix_of_saved_v2_review",
+        "checked_at": "2026-10-16T05:55:23Z",
+        "comparison_policy": "binance-daily-comparison/v2",
+        "difference_count": 0,
+        "evidence_review_sha256": "ff6e79d071d177df35ec78f4dbb074ce274909559011e9e65118492f687e7cf7",
         "examples": {
-          "differences": [
-            {
-              "date": "2026-08-27",
-              "field": "high",
-              "local": "707.6",
-              "remote": "715.79000000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "close",
-              "local": "704.88",
-              "remote": "711.85000000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "volume",
-              "local": "24567.333",
-              "remote": "121214.22100000"
-            }
-          ],
+          "differences": [],
+          "invalid_local": [],
+          "invalid_remote": [],
           "only_local": [],
           "only_remote": []
         },
-        "for_sha256": "b4f89ae24122c1361c49b9758bf16746eccb39c303b50a0261036ad6213e4435",
+        "for_sha256": "c7bf781b12b431124f7d2b9cdb253ebbb87bbdd65c337aa4de8f4fc12eb6d12e",
+        "invalid_local_count": 0,
+        "invalid_remote_count": 0,
         "only_local_count": 0,
         "only_remote_count": 0,
-        "rows_local": 3217,
+        "rows_local": 3216,
         "rows_matching": 3216,
-        "rows_remote": 3217,
+        "rows_remote": 3216,
         "source": "binance spot 1d klines (data-api.binance.vision)",
-        "status": "match_except_final_bar"
+        "source_checked_at": "2026-10-15T09:10:20Z",
+        "status": "match"
       },
       "first": "2017-11-06",
-      "last": "2026-08-27",
+      "last": "2026-08-26",
       "point_in_time": "unknown",
       "provenance": {
         "note": "bytes are pinned; no record shows where they came from",
         "status": "unverified"
       },
-      "rows": 3217,
-      "sha256": "b4f89ae24122c1361c49b9758bf16746eccb39c303b50a0261036ad6213e4435",
+      "rows": 3216,
+      "sha256": "c7bf781b12b431124f7d2b9cdb253ebbb87bbdd65c337aa4de8f4fc12eb6d12e",
       "symbol": "BNB/USDT"
     },
     "BTC_USDT.csv": {
       "corroboration": {
-        "checked_at": "2026-10-14T02:24:44Z",
+        "basis": "retained_prefix_of_saved_v2_review",
+        "checked_at": "2026-10-16T05:55:23Z",
+        "comparison_policy": "binance-daily-comparison/v2",
         "difference_count": 0,
+        "evidence_review_sha256": "ff6e79d071d177df35ec78f4dbb074ce274909559011e9e65118492f687e7cf7",
         "examples": {
           "differences": [],
+          "invalid_local": [],
+          "invalid_remote": [],
           "only_local": [],
           "only_remote": []
         },
         "for_sha256": "c7041dfa4f4c791e18597b645392a8a0a0bab41e035c13ab125174b4898310db",
+        "invalid_local_count": 0,
+        "invalid_remote_count": 0,
         "only_local_count": 0,
         "only_remote_count": 0,
         "rows_local": 2454,
         "rows_matching": 2454,
         "rows_remote": 2454,
         "source": "binance spot 1d klines (data-api.binance.vision)",
+        "source_checked_at": "2026-10-15T09:10:20Z",
         "status": "match"
       },
       "first": "2020-01-01",
@@ -430,170 +338,139 @@
     },
     "DOGE_USDT.csv": {
       "corroboration": {
-        "checked_at": "2026-10-14T02:24:44Z",
-        "difference_count": 3,
+        "basis": "retained_prefix_of_saved_v2_review",
+        "checked_at": "2026-10-16T05:55:23Z",
+        "comparison_policy": "binance-daily-comparison/v2",
+        "difference_count": 0,
+        "evidence_review_sha256": "ff6e79d071d177df35ec78f4dbb074ce274909559011e9e65118492f687e7cf7",
         "examples": {
-          "differences": [
-            {
-              "date": "2026-08-27",
-              "field": "high",
-              "local": "0.0877",
-              "remote": "0.09000000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "close",
-              "local": "0.08704",
-              "remote": "0.08914000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "volume",
-              "local": "129076023.0",
-              "remote": "690821674.00000000"
-            }
-          ],
+          "differences": [],
+          "invalid_local": [],
+          "invalid_remote": [],
           "only_local": [],
           "only_remote": []
         },
-        "for_sha256": "98456fa7e12e63e3a15ac1ec89a8394582f33d6880f745c3d13ebeedea531c20",
+        "for_sha256": "8e6258f1535b8239ad669dbfc7c1e0ae8cc0d44036b65f0d57ad711b534b0a9b",
+        "invalid_local_count": 0,
+        "invalid_remote_count": 0,
         "only_local_count": 0,
         "only_remote_count": 0,
-        "rows_local": 2611,
+        "rows_local": 2610,
         "rows_matching": 2610,
-        "rows_remote": 2611,
+        "rows_remote": 2610,
         "source": "binance spot 1d klines (data-api.binance.vision)",
-        "status": "match_except_final_bar"
+        "source_checked_at": "2026-10-15T09:10:20Z",
+        "status": "match"
       },
       "first": "2019-07-05",
-      "last": "2026-08-27",
+      "last": "2026-08-26",
       "point_in_time": "unknown",
       "provenance": {
         "note": "bytes are pinned; no record shows where they came from",
         "status": "unverified"
       },
-      "rows": 2611,
-      "sha256": "98456fa7e12e63e3a15ac1ec89a8394582f33d6880f745c3d13ebeedea531c20",
+      "rows": 2610,
+      "sha256": "8e6258f1535b8239ad669dbfc7c1e0ae8cc0d44036b65f0d57ad711b534b0a9b",
       "symbol": "DOGE/USDT"
     },
     "DOT_USDT.csv": {
       "corroboration": {
-        "checked_at": "2026-10-14T02:24:44Z",
-        "difference_count": 3,
+        "basis": "retained_prefix_of_saved_v2_review",
+        "checked_at": "2026-10-16T05:55:23Z",
+        "comparison_policy": "binance-daily-comparison/v2",
+        "difference_count": 0,
+        "evidence_review_sha256": "ff6e79d071d177df35ec78f4dbb074ce274909559011e9e65118492f687e7cf7",
         "examples": {
-          "differences": [
-            {
-              "date": "2026-08-27",
-              "field": "high",
-              "local": "0.884",
-              "remote": "0.89600000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "close",
-              "local": "0.876",
-              "remote": "0.88100000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "volume",
-              "local": "2066018.39",
-              "remote": "6012957.61000000"
-            }
-          ],
+          "differences": [],
+          "invalid_local": [],
+          "invalid_remote": [],
           "only_local": [],
           "only_remote": []
         },
-        "for_sha256": "68f02ad62439773be0938305da59c2629cd561c3c3f7eda6fa1396aa1ddf9072",
+        "for_sha256": "362c3302a4efc6e0c79607b947c6fbb02ed7d6ba0798c002c8aa933c13be6bf6",
+        "invalid_local_count": 0,
+        "invalid_remote_count": 0,
         "only_local_count": 0,
         "only_remote_count": 0,
-        "rows_local": 2201,
+        "rows_local": 2200,
         "rows_matching": 2200,
-        "rows_remote": 2201,
+        "rows_remote": 2200,
         "source": "binance spot 1d klines (data-api.binance.vision)",
-        "status": "match_except_final_bar"
+        "source_checked_at": "2026-10-15T09:10:20Z",
+        "status": "match"
       },
       "first": "2020-08-18",
-      "last": "2026-08-27",
+      "last": "2026-08-26",
       "point_in_time": "unknown",
       "provenance": {
         "note": "bytes are pinned; no record shows where they came from",
         "status": "unverified"
       },
-      "rows": 2201,
-      "sha256": "68f02ad62439773be0938305da59c2629cd561c3c3f7eda6fa1396aa1ddf9072",
+      "rows": 2200,
+      "sha256": "362c3302a4efc6e0c79607b947c6fbb02ed7d6ba0798c002c8aa933c13be6bf6",
       "symbol": "DOT/USDT"
     },
     "ETC_USDT.csv": {
       "corroboration": {
-        "checked_at": "2026-10-14T02:24:44Z",
-        "difference_count": 4,
+        "basis": "retained_prefix_of_saved_v2_review",
+        "checked_at": "2026-10-16T05:55:23Z",
+        "comparison_policy": "binance-daily-comparison/v2",
+        "difference_count": 0,
+        "evidence_review_sha256": "ff6e79d071d177df35ec78f4dbb074ce274909559011e9e65118492f687e7cf7",
         "examples": {
-          "differences": [
-            {
-              "date": "2026-08-27",
-              "field": "high",
-              "local": "7.93",
-              "remote": "7.99000000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "low",
-              "local": "7.79",
-              "remote": "7.75000000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "close",
-              "local": "7.87",
-              "remote": "7.84000000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "volume",
-              "local": "73565.17",
-              "remote": "289364.61000000"
-            }
-          ],
+          "differences": [],
+          "invalid_local": [],
+          "invalid_remote": [],
           "only_local": [],
           "only_remote": []
         },
-        "for_sha256": "c7f17828df6b8e6e914a6a6c1db5165a234c9dc9b2e24abcad1cee5b9f0de8ae",
+        "for_sha256": "29ac9fb58170f1a8eb44cb9e0cd2869e4f9df9448986cbbbfda90e85c79b7aaa",
+        "invalid_local_count": 0,
+        "invalid_remote_count": 0,
         "only_local_count": 0,
         "only_remote_count": 0,
-        "rows_local": 2999,
+        "rows_local": 2998,
         "rows_matching": 2998,
-        "rows_remote": 2999,
+        "rows_remote": 2998,
         "source": "binance spot 1d klines (data-api.binance.vision)",
-        "status": "match_except_final_bar"
+        "source_checked_at": "2026-10-15T09:10:20Z",
+        "status": "match"
       },
       "first": "2018-06-12",
-      "last": "2026-08-27",
+      "last": "2026-08-26",
       "point_in_time": "unknown",
       "provenance": {
         "note": "bytes are pinned; no record shows where they came from",
         "status": "unverified"
       },
-      "rows": 2999,
-      "sha256": "c7f17828df6b8e6e914a6a6c1db5165a234c9dc9b2e24abcad1cee5b9f0de8ae",
+      "rows": 2998,
+      "sha256": "29ac9fb58170f1a8eb44cb9e0cd2869e4f9df9448986cbbbfda90e85c79b7aaa",
       "symbol": "ETC/USDT"
     },
     "ETH_USDT.csv": {
       "corroboration": {
-        "checked_at": "2026-10-14T02:24:44Z",
+        "basis": "retained_prefix_of_saved_v2_review",
+        "checked_at": "2026-10-16T05:55:23Z",
+        "comparison_policy": "binance-daily-comparison/v2",
         "difference_count": 0,
+        "evidence_review_sha256": "ff6e79d071d177df35ec78f4dbb074ce274909559011e9e65118492f687e7cf7",
         "examples": {
           "differences": [],
+          "invalid_local": [],
+          "invalid_remote": [],
           "only_local": [],
           "only_remote": []
         },
         "for_sha256": "ebafb9256d94dc82d7a53e7d1e3e59bdac159d75d61b41ad7af344ebada00c77",
+        "invalid_local_count": 0,
+        "invalid_remote_count": 0,
         "only_local_count": 0,
         "only_remote_count": 0,
         "rows_local": 2454,
         "rows_matching": 2454,
         "rows_remote": 2454,
         "source": "binance spot 1d klines (data-api.binance.vision)",
+        "source_checked_at": "2026-10-15T09:10:20Z",
         "status": "match"
       },
       "first": "2020-01-01",
@@ -611,811 +488,631 @@
     },
     "FIL_USDT.csv": {
       "corroboration": {
-        "checked_at": "2026-10-14T02:24:44Z",
-        "difference_count": 4,
+        "basis": "retained_prefix_of_saved_v2_review",
+        "checked_at": "2026-10-16T05:55:23Z",
+        "comparison_policy": "binance-daily-comparison/v2",
+        "difference_count": 0,
+        "evidence_review_sha256": "ff6e79d071d177df35ec78f4dbb074ce274909559011e9e65118492f687e7cf7",
         "examples": {
-          "differences": [
-            {
-              "date": "2026-08-27",
-              "field": "high",
-              "local": "0.7198",
-              "remote": "0.72910000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "low",
-              "local": "0.7028",
-              "remote": "0.70250000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "close",
-              "local": "0.7158",
-              "remote": "0.70430000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "volume",
-              "local": "2037860.95",
-              "remote": "10142507.63000000"
-            }
-          ],
+          "differences": [],
+          "invalid_local": [],
+          "invalid_remote": [],
           "only_local": [],
           "only_remote": []
         },
-        "for_sha256": "a870b247a1aa7b13c29e53392b1228ed5332ed72ca900fa487908ac34a14d80f",
+        "for_sha256": "2422ff123d09e9d70a617fa0e92c64760b4374433ef1049196478137ee3b361d",
+        "invalid_local_count": 0,
+        "invalid_remote_count": 0,
+        "only_local_count": 0,
+        "only_remote_count": 0,
+        "rows_local": 2142,
+        "rows_matching": 2142,
+        "rows_remote": 2142,
+        "source": "binance spot 1d klines (data-api.binance.vision)",
+        "source_checked_at": "2026-10-15T09:10:20Z",
+        "status": "match"
+      },
+      "first": "2020-10-15",
+      "last": "2026-08-26",
+      "point_in_time": "unknown",
+      "provenance": {
+        "note": "bytes are pinned; no record shows where they came from",
+        "status": "unverified"
+      },
+      "rows": 2142,
+      "sha256": "2422ff123d09e9d70a617fa0e92c64760b4374433ef1049196478137ee3b361d",
+      "symbol": "FIL/USDT"
+    },
+    "ICP_USDT.csv": {
+      "corroboration": {
+        "basis": "retained_prefix_of_saved_v2_review",
+        "checked_at": "2026-10-16T05:55:23Z",
+        "comparison_policy": "binance-daily-comparison/v2",
+        "difference_count": 0,
+        "evidence_review_sha256": "ff6e79d071d177df35ec78f4dbb074ce274909559011e9e65118492f687e7cf7",
+        "examples": {
+          "differences": [],
+          "invalid_local": [],
+          "invalid_remote": [],
+          "only_local": [],
+          "only_remote": []
+        },
+        "for_sha256": "7cf06eb02acaba622045c85fe60dc9c9b9432f53bc33d177ba47bc90427f0b60",
+        "invalid_local_count": 0,
+        "invalid_remote_count": 0,
+        "only_local_count": 0,
+        "only_remote_count": 0,
+        "rows_local": 1934,
+        "rows_matching": 1934,
+        "rows_remote": 1934,
+        "source": "binance spot 1d klines (data-api.binance.vision)",
+        "source_checked_at": "2026-10-15T09:10:20Z",
+        "status": "match"
+      },
+      "first": "2021-05-11",
+      "last": "2026-08-26",
+      "point_in_time": "unknown",
+      "provenance": {
+        "note": "bytes are pinned; no record shows where they came from",
+        "status": "unverified"
+      },
+      "rows": 1934,
+      "sha256": "7cf06eb02acaba622045c85fe60dc9c9b9432f53bc33d177ba47bc90427f0b60",
+      "symbol": "ICP/USDT"
+    },
+    "INJ_USDT.csv": {
+      "corroboration": {
+        "basis": "retained_prefix_of_saved_v2_review",
+        "checked_at": "2026-10-16T05:55:23Z",
+        "comparison_policy": "binance-daily-comparison/v2",
+        "difference_count": 0,
+        "evidence_review_sha256": "ff6e79d071d177df35ec78f4dbb074ce274909559011e9e65118492f687e7cf7",
+        "examples": {
+          "differences": [],
+          "invalid_local": [],
+          "invalid_remote": [],
+          "only_local": [],
+          "only_remote": []
+        },
+        "for_sha256": "9ca42e2f9d3646bdb0bef81d6ef42df2967294e2c4ec0649185eab88417e3dc3",
+        "invalid_local_count": 0,
+        "invalid_remote_count": 0,
+        "only_local_count": 0,
+        "only_remote_count": 0,
+        "rows_local": 2136,
+        "rows_matching": 2136,
+        "rows_remote": 2136,
+        "source": "binance spot 1d klines (data-api.binance.vision)",
+        "source_checked_at": "2026-10-15T09:10:20Z",
+        "status": "match"
+      },
+      "first": "2020-10-21",
+      "last": "2026-08-26",
+      "point_in_time": "unknown",
+      "provenance": {
+        "note": "bytes are pinned; no record shows where they came from",
+        "status": "unverified"
+      },
+      "rows": 2136,
+      "sha256": "9ca42e2f9d3646bdb0bef81d6ef42df2967294e2c4ec0649185eab88417e3dc3",
+      "symbol": "INJ/USDT"
+    },
+    "LDO_USDT.csv": {
+      "corroboration": {
+        "basis": "retained_prefix_of_saved_v2_review",
+        "checked_at": "2026-10-16T05:55:23Z",
+        "comparison_policy": "binance-daily-comparison/v2",
+        "difference_count": 0,
+        "evidence_review_sha256": "ff6e79d071d177df35ec78f4dbb074ce274909559011e9e65118492f687e7cf7",
+        "examples": {
+          "differences": [],
+          "invalid_local": [],
+          "invalid_remote": [],
+          "only_local": [],
+          "only_remote": []
+        },
+        "for_sha256": "126bd943823bf82dd1a320fc312694555ca1633b2a5de7d29decd891be1cb489",
+        "invalid_local_count": 0,
+        "invalid_remote_count": 0,
+        "only_local_count": 0,
+        "only_remote_count": 0,
+        "rows_local": 1571,
+        "rows_matching": 1571,
+        "rows_remote": 1571,
+        "source": "binance spot 1d klines (data-api.binance.vision)",
+        "source_checked_at": "2026-10-15T09:10:20Z",
+        "status": "match"
+      },
+      "first": "2022-05-09",
+      "last": "2026-08-26",
+      "point_in_time": "unknown",
+      "provenance": {
+        "note": "bytes are pinned; no record shows where they came from",
+        "status": "unverified"
+      },
+      "rows": 1571,
+      "sha256": "126bd943823bf82dd1a320fc312694555ca1633b2a5de7d29decd891be1cb489",
+      "symbol": "LDO/USDT"
+    },
+    "LINK_USDT.csv": {
+      "corroboration": {
+        "basis": "retained_prefix_of_saved_v2_review",
+        "checked_at": "2026-10-16T05:55:23Z",
+        "comparison_policy": "binance-daily-comparison/v2",
+        "difference_count": 0,
+        "evidence_review_sha256": "ff6e79d071d177df35ec78f4dbb074ce274909559011e9e65118492f687e7cf7",
+        "examples": {
+          "differences": [],
+          "invalid_local": [],
+          "invalid_remote": [],
+          "only_local": [],
+          "only_remote": []
+        },
+        "for_sha256": "301805a26815832bd0bc95002ea71b1d54529438aad12cb40e2aa7c392785cba",
+        "invalid_local_count": 0,
+        "invalid_remote_count": 0,
+        "only_local_count": 0,
+        "only_remote_count": 0,
+        "rows_local": 2780,
+        "rows_matching": 2780,
+        "rows_remote": 2780,
+        "source": "binance spot 1d klines (data-api.binance.vision)",
+        "source_checked_at": "2026-10-15T09:10:20Z",
+        "status": "match"
+      },
+      "first": "2019-01-16",
+      "last": "2026-08-26",
+      "point_in_time": "unknown",
+      "provenance": {
+        "note": "bytes are pinned; no record shows where they came from",
+        "status": "unverified"
+      },
+      "rows": 2780,
+      "sha256": "301805a26815832bd0bc95002ea71b1d54529438aad12cb40e2aa7c392785cba",
+      "symbol": "LINK/USDT"
+    },
+    "LTC_USDT.csv": {
+      "corroboration": {
+        "basis": "retained_prefix_of_saved_v2_review",
+        "checked_at": "2026-10-16T05:55:23Z",
+        "comparison_policy": "binance-daily-comparison/v2",
+        "difference_count": 0,
+        "evidence_review_sha256": "ff6e79d071d177df35ec78f4dbb074ce274909559011e9e65118492f687e7cf7",
+        "examples": {
+          "differences": [],
+          "invalid_local": [],
+          "invalid_remote": [],
+          "only_local": [],
+          "only_remote": []
+        },
+        "for_sha256": "62b78d431d08c02d4e3d1ff1fbc27c1d8095b6ebe38e8fa2cff6ef8215db78f5",
+        "invalid_local_count": 0,
+        "invalid_remote_count": 0,
+        "only_local_count": 0,
+        "only_remote_count": 0,
+        "rows_local": 3179,
+        "rows_matching": 3179,
+        "rows_remote": 3179,
+        "source": "binance spot 1d klines (data-api.binance.vision)",
+        "source_checked_at": "2026-10-15T09:10:20Z",
+        "status": "match"
+      },
+      "first": "2017-12-13",
+      "last": "2026-08-26",
+      "point_in_time": "unknown",
+      "provenance": {
+        "note": "bytes are pinned; no record shows where they came from",
+        "status": "unverified"
+      },
+      "rows": 3179,
+      "sha256": "62b78d431d08c02d4e3d1ff1fbc27c1d8095b6ebe38e8fa2cff6ef8215db78f5",
+      "symbol": "LTC/USDT"
+    },
+    "MATIC_USDT.csv": {
+      "corroboration": {
+        "basis": "retained_prefix_of_saved_v2_review",
+        "checked_at": "2026-10-16T05:55:23Z",
+        "comparison_policy": "binance-daily-comparison/v2",
+        "difference_count": 0,
+        "evidence_review_sha256": "ff6e79d071d177df35ec78f4dbb074ce274909559011e9e65118492f687e7cf7",
+        "examples": {
+          "differences": [],
+          "invalid_local": [],
+          "invalid_remote": [],
+          "only_local": [],
+          "only_remote": []
+        },
+        "for_sha256": "c1358bf78c64fd8f478057142c0c5f8c454f5d2ed8451e2e0ee7a4f832c2c8b4",
+        "invalid_local_count": 0,
+        "invalid_remote_count": 0,
+        "only_local_count": 0,
+        "only_remote_count": 0,
+        "rows_local": 1964,
+        "rows_matching": 1964,
+        "rows_remote": 1964,
+        "source": "binance spot 1d klines (data-api.binance.vision)",
+        "source_checked_at": "2026-10-15T09:10:20Z",
+        "status": "match"
+      },
+      "first": "2019-04-26",
+      "last": "2024-09-09",
+      "point_in_time": "unknown",
+      "provenance": {
+        "note": "bytes are pinned; no record shows where they came from",
+        "status": "unverified"
+      },
+      "rows": 1964,
+      "sha256": "c1358bf78c64fd8f478057142c0c5f8c454f5d2ed8451e2e0ee7a4f832c2c8b4",
+      "symbol": "MATIC/USDT"
+    },
+    "NEAR_USDT.csv": {
+      "corroboration": {
+        "basis": "retained_prefix_of_saved_v2_review",
+        "checked_at": "2026-10-16T05:55:23Z",
+        "comparison_policy": "binance-daily-comparison/v2",
+        "difference_count": 0,
+        "evidence_review_sha256": "ff6e79d071d177df35ec78f4dbb074ce274909559011e9e65118492f687e7cf7",
+        "examples": {
+          "differences": [],
+          "invalid_local": [],
+          "invalid_remote": [],
+          "only_local": [],
+          "only_remote": []
+        },
+        "for_sha256": "1af73b2f5cb5fadea029847e5965300363d02d5b1797413b7563fbd46cd1e808",
+        "invalid_local_count": 0,
+        "invalid_remote_count": 0,
         "only_local_count": 0,
         "only_remote_count": 0,
         "rows_local": 2143,
-        "rows_matching": 2142,
+        "rows_matching": 2143,
         "rows_remote": 2143,
         "source": "binance spot 1d klines (data-api.binance.vision)",
-        "status": "match_except_final_bar"
+        "source_checked_at": "2026-10-15T09:10:20Z",
+        "status": "match"
       },
-      "first": "2020-10-15",
-      "last": "2026-08-27",
+      "first": "2020-10-14",
+      "last": "2026-08-26",
       "point_in_time": "unknown",
       "provenance": {
         "note": "bytes are pinned; no record shows where they came from",
         "status": "unverified"
       },
       "rows": 2143,
-      "sha256": "a870b247a1aa7b13c29e53392b1228ed5332ed72ca900fa487908ac34a14d80f",
-      "symbol": "FIL/USDT"
-    },
-    "ICP_USDT.csv": {
-      "corroboration": {
-        "checked_at": "2026-10-14T02:24:44Z",
-        "difference_count": 3,
-        "examples": {
-          "differences": [
-            {
-              "date": "2026-08-27",
-              "field": "high",
-              "local": "2.421",
-              "remote": "2.48000000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "close",
-              "local": "2.418",
-              "remote": "2.46000000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "volume",
-              "local": "272212.22",
-              "remote": "1470604.10000000"
-            }
-          ],
-          "only_local": [],
-          "only_remote": []
-        },
-        "for_sha256": "4b6730419a3b8e8aec8fd40aba9c45ac9bd518f94d78c7fd2865e709907b6d0f",
-        "only_local_count": 0,
-        "only_remote_count": 0,
-        "rows_local": 1935,
-        "rows_matching": 1934,
-        "rows_remote": 1935,
-        "source": "binance spot 1d klines (data-api.binance.vision)",
-        "status": "match_except_final_bar"
-      },
-      "first": "2021-05-11",
-      "last": "2026-08-27",
-      "point_in_time": "unknown",
-      "provenance": {
-        "note": "bytes are pinned; no record shows where they came from",
-        "status": "unverified"
-      },
-      "rows": 1935,
-      "sha256": "4b6730419a3b8e8aec8fd40aba9c45ac9bd518f94d78c7fd2865e709907b6d0f",
-      "symbol": "ICP/USDT"
-    },
-    "INJ_USDT.csv": {
-      "corroboration": {
-        "checked_at": "2026-10-14T02:24:44Z",
-        "difference_count": 3,
-        "examples": {
-          "differences": [
-            {
-              "date": "2026-08-27",
-              "field": "high",
-              "local": "5.609",
-              "remote": "5.62900000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "close",
-              "local": "5.406",
-              "remote": "5.49600000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "volume",
-              "local": "485586.29",
-              "remote": "1527987.78000000"
-            }
-          ],
-          "only_local": [],
-          "only_remote": []
-        },
-        "for_sha256": "19be8a446cb22fc238363a5680f5e20f3bc87514a3d2cf595f5d28c7d7ec5b65",
-        "only_local_count": 0,
-        "only_remote_count": 0,
-        "rows_local": 2137,
-        "rows_matching": 2136,
-        "rows_remote": 2137,
-        "source": "binance spot 1d klines (data-api.binance.vision)",
-        "status": "match_except_final_bar"
-      },
-      "first": "2020-10-21",
-      "last": "2026-08-27",
-      "point_in_time": "unknown",
-      "provenance": {
-        "note": "bytes are pinned; no record shows where they came from",
-        "status": "unverified"
-      },
-      "rows": 2137,
-      "sha256": "19be8a446cb22fc238363a5680f5e20f3bc87514a3d2cf595f5d28c7d7ec5b65",
-      "symbol": "INJ/USDT"
-    },
-    "LDO_USDT.csv": {
-      "corroboration": {
-        "checked_at": "2026-10-14T02:24:44Z",
-        "difference_count": 3,
-        "examples": {
-          "differences": [
-            {
-              "date": "2026-08-27",
-              "field": "high",
-              "local": "0.3635",
-              "remote": "0.37610000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "close",
-              "local": "0.361",
-              "remote": "0.36680000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "volume",
-              "local": "1538898.12",
-              "remote": "8207896.44000000"
-            }
-          ],
-          "only_local": [],
-          "only_remote": []
-        },
-        "for_sha256": "1eceb88e1f41b0732eee61643c8871ca4dd80dd88efa62ba00930f834532e0b9",
-        "only_local_count": 0,
-        "only_remote_count": 0,
-        "rows_local": 1572,
-        "rows_matching": 1571,
-        "rows_remote": 1572,
-        "source": "binance spot 1d klines (data-api.binance.vision)",
-        "status": "match_except_final_bar"
-      },
-      "first": "2022-05-09",
-      "last": "2026-08-27",
-      "point_in_time": "unknown",
-      "provenance": {
-        "note": "bytes are pinned; no record shows where they came from",
-        "status": "unverified"
-      },
-      "rows": 1572,
-      "sha256": "1eceb88e1f41b0732eee61643c8871ca4dd80dd88efa62ba00930f834532e0b9",
-      "symbol": "LDO/USDT"
-    },
-    "LINK_USDT.csv": {
-      "corroboration": {
-        "checked_at": "2026-10-14T02:24:44Z",
-        "difference_count": 3,
-        "examples": {
-          "differences": [
-            {
-              "date": "2026-08-27",
-              "field": "high",
-              "local": "11.65",
-              "remote": "11.98100000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "close",
-              "local": "11.623",
-              "remote": "11.91900000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "volume",
-              "local": "533397.49",
-              "remote": "2905916.54000000"
-            }
-          ],
-          "only_local": [],
-          "only_remote": []
-        },
-        "for_sha256": "26ab18b0ab7a84c0c9d456d2f255cdea8f6b45c89e2e3f84c185a1e0d07aa9c0",
-        "only_local_count": 0,
-        "only_remote_count": 0,
-        "rows_local": 2781,
-        "rows_matching": 2780,
-        "rows_remote": 2781,
-        "source": "binance spot 1d klines (data-api.binance.vision)",
-        "status": "match_except_final_bar"
-      },
-      "first": "2019-01-16",
-      "last": "2026-08-27",
-      "point_in_time": "unknown",
-      "provenance": {
-        "note": "bytes are pinned; no record shows where they came from",
-        "status": "unverified"
-      },
-      "rows": 2781,
-      "sha256": "26ab18b0ab7a84c0c9d456d2f255cdea8f6b45c89e2e3f84c185a1e0d07aa9c0",
-      "symbol": "LINK/USDT"
-    },
-    "LTC_USDT.csv": {
-      "corroboration": {
-        "checked_at": "2026-10-14T02:24:44Z",
-        "difference_count": 3,
-        "examples": {
-          "differences": [
-            {
-              "date": "2026-08-27",
-              "field": "high",
-              "local": "50.5",
-              "remote": "50.53000000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "close",
-              "local": "49.76",
-              "remote": "49.92000000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "volume",
-              "local": "67165.458",
-              "remote": "360736.63000000"
-            }
-          ],
-          "only_local": [],
-          "only_remote": []
-        },
-        "for_sha256": "9c9d5b6f12c6252a557ca340254da5ab51c390ae53437c4043d2d05e4d7fa1e5",
-        "only_local_count": 0,
-        "only_remote_count": 0,
-        "rows_local": 3180,
-        "rows_matching": 3179,
-        "rows_remote": 3180,
-        "source": "binance spot 1d klines (data-api.binance.vision)",
-        "status": "match_except_final_bar"
-      },
-      "first": "2017-12-13",
-      "last": "2026-08-27",
-      "point_in_time": "unknown",
-      "provenance": {
-        "note": "bytes are pinned; no record shows where they came from",
-        "status": "unverified"
-      },
-      "rows": 3180,
-      "sha256": "9c9d5b6f12c6252a557ca340254da5ab51c390ae53437c4043d2d05e4d7fa1e5",
-      "symbol": "LTC/USDT"
-    },
-    "MATIC_USDT.csv": {
-      "corroboration": {
-        "checked_at": "2026-10-14T02:24:44Z",
-        "difference_count": 0,
-        "examples": {
-          "differences": [],
-          "only_local": [
-            "2025-01-01",
-            "2025-01-02",
-            "2025-01-03",
-            "2025-01-04",
-            "2025-01-05"
-          ],
-          "only_remote": []
-        },
-        "for_sha256": "73136663796a3f9bfe9189f9df3de589b42e6a461ddc793bd15e791b61413f4d",
-        "only_local_count": 83,
-        "only_remote_count": 0,
-        "rows_local": 2048,
-        "rows_matching": 1965,
-        "rows_remote": 1965,
-        "source": "binance spot 1d klines (data-api.binance.vision)",
-        "status": "mismatch"
-      },
-      "first": "2019-04-26",
-      "last": "2025-03-24",
-      "point_in_time": "unknown",
-      "provenance": {
-        "note": "bytes are pinned; no record shows where they came from",
-        "status": "unverified"
-      },
-      "rows": 2048,
-      "sha256": "73136663796a3f9bfe9189f9df3de589b42e6a461ddc793bd15e791b61413f4d",
-      "symbol": "MATIC/USDT"
-    },
-    "NEAR_USDT.csv": {
-      "corroboration": {
-        "checked_at": "2026-10-14T02:24:44Z",
-        "difference_count": 3,
-        "examples": {
-          "differences": [
-            {
-              "date": "2026-08-27",
-              "field": "high",
-              "local": "1.9",
-              "remote": "1.96100000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "close",
-              "local": "1.871",
-              "remote": "1.92800000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "volume",
-              "local": "3200679.0",
-              "remote": "14304100.00000000"
-            }
-          ],
-          "only_local": [],
-          "only_remote": []
-        },
-        "for_sha256": "b0d81f0fb6e9c22a44f17c817ce71bd7a39a56914d2829c836863dc1c2e62339",
-        "only_local_count": 0,
-        "only_remote_count": 0,
-        "rows_local": 2144,
-        "rows_matching": 2143,
-        "rows_remote": 2144,
-        "source": "binance spot 1d klines (data-api.binance.vision)",
-        "status": "match_except_final_bar"
-      },
-      "first": "2020-10-14",
-      "last": "2026-08-27",
-      "point_in_time": "unknown",
-      "provenance": {
-        "note": "bytes are pinned; no record shows where they came from",
-        "status": "unverified"
-      },
-      "rows": 2144,
-      "sha256": "b0d81f0fb6e9c22a44f17c817ce71bd7a39a56914d2829c836863dc1c2e62339",
+      "sha256": "1af73b2f5cb5fadea029847e5965300363d02d5b1797413b7563fbd46cd1e808",
       "symbol": "NEAR/USDT"
     },
     "OP_USDT.csv": {
       "corroboration": {
-        "checked_at": "2026-10-14T02:24:44Z",
-        "difference_count": 3,
+        "basis": "retained_prefix_of_saved_v2_review",
+        "checked_at": "2026-10-16T05:55:23Z",
+        "comparison_policy": "binance-daily-comparison/v2",
+        "difference_count": 0,
+        "evidence_review_sha256": "ff6e79d071d177df35ec78f4dbb074ce274909559011e9e65118492f687e7cf7",
         "examples": {
-          "differences": [
-            {
-              "date": "2026-08-27",
-              "field": "high",
-              "local": "0.099",
-              "remote": "0.09980000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "close",
-              "local": "0.097",
-              "remote": "0.09730000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "volume",
-              "local": "6371299.02",
-              "remote": "30499510.13000000"
-            }
-          ],
+          "differences": [],
+          "invalid_local": [],
+          "invalid_remote": [],
           "only_local": [],
           "only_remote": []
         },
-        "for_sha256": "ef37fdfc7f0c14755439bfdcea5b4df4984f46257f3cbabdb3eb82b0db9883c0",
+        "for_sha256": "a49f0def7e68ad2c8fc8bea4e69f7de901080f49e75d16cbfebaaec56b06437a",
+        "invalid_local_count": 0,
+        "invalid_remote_count": 0,
         "only_local_count": 0,
         "only_remote_count": 0,
-        "rows_local": 1549,
+        "rows_local": 1548,
         "rows_matching": 1548,
-        "rows_remote": 1549,
+        "rows_remote": 1548,
         "source": "binance spot 1d klines (data-api.binance.vision)",
-        "status": "match_except_final_bar"
+        "source_checked_at": "2026-10-15T09:10:20Z",
+        "status": "match"
       },
       "first": "2022-06-01",
-      "last": "2026-08-27",
+      "last": "2026-08-26",
       "point_in_time": "unknown",
       "provenance": {
         "note": "bytes are pinned; no record shows where they came from",
         "status": "unverified"
       },
-      "rows": 1549,
-      "sha256": "ef37fdfc7f0c14755439bfdcea5b4df4984f46257f3cbabdb3eb82b0db9883c0",
+      "rows": 1548,
+      "sha256": "a49f0def7e68ad2c8fc8bea4e69f7de901080f49e75d16cbfebaaec56b06437a",
       "symbol": "OP/USDT"
     },
     "SEI_USDT.csv": {
       "corroboration": {
-        "checked_at": "2026-10-14T02:24:44Z",
-        "difference_count": 3,
+        "basis": "retained_prefix_of_saved_v2_review",
+        "checked_at": "2026-10-16T05:55:23Z",
+        "comparison_policy": "binance-daily-comparison/v2",
+        "difference_count": 0,
+        "evidence_review_sha256": "ff6e79d071d177df35ec78f4dbb074ce274909559011e9e65118492f687e7cf7",
         "examples": {
-          "differences": [
-            {
-              "date": "2026-08-27",
-              "field": "high",
-              "local": "0.04734",
-              "remote": "0.04857000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "close",
-              "local": "0.04681",
-              "remote": "0.04832000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "volume",
-              "local": "8787502.6",
-              "remote": "45691119.10000000"
-            }
-          ],
+          "differences": [],
+          "invalid_local": [],
+          "invalid_remote": [],
           "only_local": [],
           "only_remote": []
         },
-        "for_sha256": "97d3093e7cbcc1852aef6f63797e20030ee1761dbb584959a4ab212be98bad73",
+        "for_sha256": "5002d2145922359e57334d22538e36b323b8c9cb6af07bc716f9a510f9a605cc",
+        "invalid_local_count": 0,
+        "invalid_remote_count": 0,
         "only_local_count": 0,
         "only_remote_count": 0,
-        "rows_local": 1109,
+        "rows_local": 1108,
         "rows_matching": 1108,
-        "rows_remote": 1109,
+        "rows_remote": 1108,
         "source": "binance spot 1d klines (data-api.binance.vision)",
-        "status": "match_except_final_bar"
+        "source_checked_at": "2026-10-15T09:10:20Z",
+        "status": "match"
       },
       "first": "2023-08-15",
-      "last": "2026-08-27",
+      "last": "2026-08-26",
       "point_in_time": "unknown",
       "provenance": {
         "note": "bytes are pinned; no record shows where they came from",
         "status": "unverified"
       },
-      "rows": 1109,
-      "sha256": "97d3093e7cbcc1852aef6f63797e20030ee1761dbb584959a4ab212be98bad73",
+      "rows": 1108,
+      "sha256": "5002d2145922359e57334d22538e36b323b8c9cb6af07bc716f9a510f9a605cc",
       "symbol": "SEI/USDT"
     },
     "SOL_USDT.csv": {
       "corroboration": {
-        "checked_at": "2026-10-14T02:24:44Z",
-        "difference_count": 3,
+        "basis": "retained_prefix_of_saved_v2_review",
+        "checked_at": "2026-10-16T05:55:23Z",
+        "comparison_policy": "binance-daily-comparison/v2",
+        "difference_count": 0,
+        "evidence_review_sha256": "ff6e79d071d177df35ec78f4dbb074ce274909559011e9e65118492f687e7cf7",
         "examples": {
-          "differences": [
-            {
-              "date": "2026-08-27",
-              "field": "high",
-              "local": "102.29",
-              "remote": "110.60000000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "close",
-              "local": "101.32",
-              "remote": "109.14000000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "volume",
-              "local": "990346.46",
-              "remote": "5165991.59000000"
-            }
-          ],
+          "differences": [],
+          "invalid_local": [],
+          "invalid_remote": [],
           "only_local": [],
           "only_remote": []
         },
-        "for_sha256": "55e5b7f5009600428787ace4cd943a049ecc2485b83159810d2c426d6b82b7ae",
+        "for_sha256": "a2fa57d707e62d4d0228d68be5f81dcaf19a9f0bb8b050dd2784c8020b59745c",
+        "invalid_local_count": 0,
+        "invalid_remote_count": 0,
         "only_local_count": 0,
         "only_remote_count": 0,
-        "rows_local": 2208,
+        "rows_local": 2207,
         "rows_matching": 2207,
-        "rows_remote": 2208,
+        "rows_remote": 2207,
         "source": "binance spot 1d klines (data-api.binance.vision)",
-        "status": "match_except_final_bar"
+        "source_checked_at": "2026-10-15T09:10:20Z",
+        "status": "match"
       },
       "first": "2020-08-11",
-      "last": "2026-08-27",
+      "last": "2026-08-26",
       "point_in_time": "unknown",
       "provenance": {
         "note": "bytes are pinned; no record shows where they came from",
         "status": "unverified"
       },
-      "rows": 2208,
-      "sha256": "55e5b7f5009600428787ace4cd943a049ecc2485b83159810d2c426d6b82b7ae",
+      "rows": 2207,
+      "sha256": "a2fa57d707e62d4d0228d68be5f81dcaf19a9f0bb8b050dd2784c8020b59745c",
       "symbol": "SOL/USDT"
     },
     "SUI_USDT.csv": {
       "corroboration": {
-        "checked_at": "2026-10-14T02:24:44Z",
-        "difference_count": 3,
+        "basis": "retained_prefix_of_saved_v2_review",
+        "checked_at": "2026-10-16T05:55:23Z",
+        "comparison_policy": "binance-daily-comparison/v2",
+        "difference_count": 0,
+        "evidence_review_sha256": "ff6e79d071d177df35ec78f4dbb074ce274909559011e9e65118492f687e7cf7",
         "examples": {
-          "differences": [
-            {
-              "date": "2026-08-27",
-              "field": "high",
-              "local": "0.7677",
-              "remote": "0.79390000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "close",
-              "local": "0.7558",
-              "remote": "0.77960000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "volume",
-              "local": "11451580.0",
-              "remote": "80833771.20000000"
-            }
-          ],
+          "differences": [],
+          "invalid_local": [],
+          "invalid_remote": [],
           "only_local": [],
           "only_remote": []
         },
-        "for_sha256": "bd8f2b17e46d01e43f5314f63294a6baac331d3faabf7001df08279ad017fb68",
+        "for_sha256": "f80b28ca2fe04813fc11eabfe5e3313d2a83cabf7d368a9b2ad707c3503bde64",
+        "invalid_local_count": 0,
+        "invalid_remote_count": 0,
         "only_local_count": 0,
         "only_remote_count": 0,
-        "rows_local": 1213,
+        "rows_local": 1212,
         "rows_matching": 1212,
-        "rows_remote": 1213,
+        "rows_remote": 1212,
         "source": "binance spot 1d klines (data-api.binance.vision)",
-        "status": "match_except_final_bar"
+        "source_checked_at": "2026-10-15T09:10:20Z",
+        "status": "match"
       },
       "first": "2023-05-03",
-      "last": "2026-08-27",
+      "last": "2026-08-26",
       "point_in_time": "unknown",
       "provenance": {
         "note": "bytes are pinned; no record shows where they came from",
         "status": "unverified"
       },
-      "rows": 1213,
-      "sha256": "bd8f2b17e46d01e43f5314f63294a6baac331d3faabf7001df08279ad017fb68",
+      "rows": 1212,
+      "sha256": "f80b28ca2fe04813fc11eabfe5e3313d2a83cabf7d368a9b2ad707c3503bde64",
       "symbol": "SUI/USDT"
     },
     "TIA_USDT.csv": {
       "corroboration": {
-        "checked_at": "2026-10-14T02:24:44Z",
-        "difference_count": 3,
+        "basis": "retained_prefix_of_saved_v2_review",
+        "checked_at": "2026-10-16T05:55:23Z",
+        "comparison_policy": "binance-daily-comparison/v2",
+        "difference_count": 0,
+        "evidence_review_sha256": "ff6e79d071d177df35ec78f4dbb074ce274909559011e9e65118492f687e7cf7",
         "examples": {
-          "differences": [
-            {
-              "date": "2026-08-27",
-              "field": "high",
-              "local": "0.3597",
-              "remote": "0.36430000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "close",
-              "local": "0.353",
-              "remote": "0.35720000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "volume",
-              "local": "767805.18",
-              "remote": "5016642.48000000"
-            }
-          ],
+          "differences": [],
+          "invalid_local": [],
+          "invalid_remote": [],
           "only_local": [],
           "only_remote": []
         },
-        "for_sha256": "f9dc441d3638c0a96565837eefe6bcbbf8638b69f051a6d2e011c8c05ea7496a",
+        "for_sha256": "9a043debad5466be65909aeb4f8f08d10677ac1e2be8e72126223b73f5c9192e",
+        "invalid_local_count": 0,
+        "invalid_remote_count": 0,
         "only_local_count": 0,
         "only_remote_count": 0,
-        "rows_local": 1032,
+        "rows_local": 1031,
         "rows_matching": 1031,
-        "rows_remote": 1032,
+        "rows_remote": 1031,
         "source": "binance spot 1d klines (data-api.binance.vision)",
-        "status": "match_except_final_bar"
+        "source_checked_at": "2026-10-15T09:10:20Z",
+        "status": "match"
       },
       "first": "2023-10-31",
-      "last": "2026-08-27",
+      "last": "2026-08-26",
       "point_in_time": "unknown",
       "provenance": {
         "note": "bytes are pinned; no record shows where they came from",
         "status": "unverified"
       },
-      "rows": 1032,
-      "sha256": "f9dc441d3638c0a96565837eefe6bcbbf8638b69f051a6d2e011c8c05ea7496a",
+      "rows": 1031,
+      "sha256": "9a043debad5466be65909aeb4f8f08d10677ac1e2be8e72126223b73f5c9192e",
       "symbol": "TIA/USDT"
     },
     "TRX_USDT.csv": {
       "corroboration": {
-        "checked_at": "2026-10-14T02:24:44Z",
-        "difference_count": 3,
+        "basis": "retained_prefix_of_saved_v2_review",
+        "checked_at": "2026-10-16T05:55:23Z",
+        "comparison_policy": "binance-daily-comparison/v2",
+        "difference_count": 0,
+        "evidence_review_sha256": "ff6e79d071d177df35ec78f4dbb074ce274909559011e9e65118492f687e7cf7",
         "examples": {
-          "differences": [
-            {
-              "date": "2026-08-27",
-              "field": "high",
-              "local": "0.3361",
-              "remote": "0.33860000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "close",
-              "local": "0.3347",
-              "remote": "0.33770000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "volume",
-              "local": "23259485.1",
-              "remote": "103473197.10000000"
-            }
-          ],
+          "differences": [],
+          "invalid_local": [],
+          "invalid_remote": [],
           "only_local": [],
           "only_remote": []
         },
-        "for_sha256": "3a469cf5daca4fa3846dcde99266a9053b54cbd2723b567fbb00f200d2c36c41",
+        "for_sha256": "bba3ed60fa71b2ee651e8259feb15119cb8c0314c03bf202294e7200f4d74ec7",
+        "invalid_local_count": 0,
+        "invalid_remote_count": 0,
         "only_local_count": 0,
         "only_remote_count": 0,
-        "rows_local": 3000,
+        "rows_local": 2999,
         "rows_matching": 2999,
-        "rows_remote": 3000,
+        "rows_remote": 2999,
         "source": "binance spot 1d klines (data-api.binance.vision)",
-        "status": "match_except_final_bar"
+        "source_checked_at": "2026-10-15T09:10:20Z",
+        "status": "match"
       },
       "first": "2018-06-11",
-      "last": "2026-08-27",
+      "last": "2026-08-26",
       "point_in_time": "unknown",
       "provenance": {
         "note": "bytes are pinned; no record shows where they came from",
         "status": "unverified"
       },
-      "rows": 3000,
-      "sha256": "3a469cf5daca4fa3846dcde99266a9053b54cbd2723b567fbb00f200d2c36c41",
+      "rows": 2999,
+      "sha256": "bba3ed60fa71b2ee651e8259feb15119cb8c0314c03bf202294e7200f4d74ec7",
       "symbol": "TRX/USDT"
     },
     "UNI_USDT.csv": {
       "corroboration": {
-        "checked_at": "2026-10-14T02:24:44Z",
-        "difference_count": 3,
+        "basis": "retained_prefix_of_saved_v2_review",
+        "checked_at": "2026-10-16T05:55:23Z",
+        "comparison_policy": "binance-daily-comparison/v2",
+        "difference_count": 0,
+        "evidence_review_sha256": "ff6e79d071d177df35ec78f4dbb074ce274909559011e9e65118492f687e7cf7",
         "examples": {
-          "differences": [
-            {
-              "date": "2026-08-27",
-              "field": "high",
-              "local": "4.487",
-              "remote": "4.72000000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "close",
-              "local": "4.389",
-              "remote": "4.68400000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "volume",
-              "local": "1368482.89",
-              "remote": "5690208.20000000"
-            }
-          ],
+          "differences": [],
+          "invalid_local": [],
+          "invalid_remote": [],
           "only_local": [],
           "only_remote": []
         },
-        "for_sha256": "b7e2a8e7de12e8ac9f1cc326b1b6466b75856b2339783f629f87e40ee65c0b10",
+        "for_sha256": "3b950354cd90f3cea7c040ff84be1940559e82de3f920e6f498ab01b6b651caa",
+        "invalid_local_count": 0,
+        "invalid_remote_count": 0,
         "only_local_count": 0,
         "only_remote_count": 0,
-        "rows_local": 2171,
+        "rows_local": 2170,
         "rows_matching": 2170,
-        "rows_remote": 2171,
+        "rows_remote": 2170,
         "source": "binance spot 1d klines (data-api.binance.vision)",
-        "status": "match_except_final_bar"
+        "source_checked_at": "2026-10-15T09:10:20Z",
+        "status": "match"
       },
       "first": "2020-09-17",
-      "last": "2026-08-27",
+      "last": "2026-08-26",
       "point_in_time": "unknown",
       "provenance": {
         "note": "bytes are pinned; no record shows where they came from",
         "status": "unverified"
       },
-      "rows": 2171,
-      "sha256": "b7e2a8e7de12e8ac9f1cc326b1b6466b75856b2339783f629f87e40ee65c0b10",
+      "rows": 2170,
+      "sha256": "3b950354cd90f3cea7c040ff84be1940559e82de3f920e6f498ab01b6b651caa",
       "symbol": "UNI/USDT"
     },
     "XLM_USDT.csv": {
       "corroboration": {
-        "checked_at": "2026-10-14T02:24:44Z",
-        "difference_count": 3,
+        "basis": "retained_prefix_of_saved_v2_review",
+        "checked_at": "2026-10-16T05:55:23Z",
+        "comparison_policy": "binance-daily-comparison/v2",
+        "difference_count": 0,
+        "evidence_review_sha256": "ff6e79d071d177df35ec78f4dbb074ce274909559011e9e65118492f687e7cf7",
         "examples": {
-          "differences": [
-            {
-              "date": "2026-08-27",
-              "field": "high",
-              "local": "0.1854",
-              "remote": "0.18970000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "close",
-              "local": "0.1829",
-              "remote": "0.18730000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "volume",
-              "local": "15140292.0",
-              "remote": "68990646.00000000"
-            }
-          ],
+          "differences": [],
+          "invalid_local": [],
+          "invalid_remote": [],
           "only_local": [],
           "only_remote": []
         },
-        "for_sha256": "a8aee8c30bd462c33cbe11fc65d257f25a1f6076be391695b733152989bde6aa",
+        "for_sha256": "b6ed628fca013d658fbed475a69634347e0c35d4263ae2a74f38ba840537be7b",
+        "invalid_local_count": 0,
+        "invalid_remote_count": 0,
         "only_local_count": 0,
         "only_remote_count": 0,
-        "rows_local": 3011,
+        "rows_local": 3010,
         "rows_matching": 3010,
-        "rows_remote": 3011,
+        "rows_remote": 3010,
         "source": "binance spot 1d klines (data-api.binance.vision)",
-        "status": "match_except_final_bar"
+        "source_checked_at": "2026-10-15T09:10:20Z",
+        "status": "match"
       },
       "first": "2018-05-31",
-      "last": "2026-08-27",
+      "last": "2026-08-26",
       "point_in_time": "unknown",
       "provenance": {
         "note": "bytes are pinned; no record shows where they came from",
         "status": "unverified"
       },
-      "rows": 3011,
-      "sha256": "a8aee8c30bd462c33cbe11fc65d257f25a1f6076be391695b733152989bde6aa",
+      "rows": 3010,
+      "sha256": "b6ed628fca013d658fbed475a69634347e0c35d4263ae2a74f38ba840537be7b",
       "symbol": "XLM/USDT"
     },
     "XRP_USDT.csv": {
       "corroboration": {
-        "checked_at": "2026-10-14T02:24:44Z",
-        "difference_count": 3,
+        "basis": "retained_prefix_of_saved_v2_review",
+        "checked_at": "2026-10-16T05:55:23Z",
+        "comparison_policy": "binance-daily-comparison/v2",
+        "difference_count": 0,
+        "evidence_review_sha256": "ff6e79d071d177df35ec78f4dbb074ce274909559011e9e65118492f687e7cf7",
         "examples": {
-          "differences": [
-            {
-              "date": "2026-08-27",
-              "field": "high",
-              "local": "1.4228",
-              "remote": "1.47400000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "close",
-              "local": "1.405",
-              "remote": "1.45340000"
-            },
-            {
-              "date": "2026-08-27",
-              "field": "volume",
-              "local": "25392887.2",
-              "remote": "156992810.90000000"
-            }
-          ],
+          "differences": [],
+          "invalid_local": [],
+          "invalid_remote": [],
           "only_local": [],
           "only_remote": []
         },
-        "for_sha256": "501c0a65e784237affba24d5e9ae5e8120b67a19dbe992b4daacbb2ea7b8ccce",
+        "for_sha256": "6aa0f7a18ec6aed13d94d28214e7d5aac2733cbe30b1486240acc232029c01db",
+        "invalid_local_count": 0,
+        "invalid_remote_count": 0,
         "only_local_count": 0,
         "only_remote_count": 0,
-        "rows_local": 3038,
+        "rows_local": 3037,
         "rows_matching": 3037,
-        "rows_remote": 3038,
+        "rows_remote": 3037,
         "source": "binance spot 1d klines (data-api.binance.vision)",
-        "status": "match_except_final_bar"
+        "source_checked_at": "2026-10-15T09:10:20Z",
+        "status": "match"
       },
       "first": "2018-05-04",
-      "last": "2026-08-27",
+      "last": "2026-08-26",
       "point_in_time": "unknown",
       "provenance": {
         "note": "bytes are pinned; no record shows where they came from",
         "status": "unverified"
       },
-      "rows": 3038,
-      "sha256": "501c0a65e784237affba24d5e9ae5e8120b67a19dbe992b4daacbb2ea7b8ccce",
+      "rows": 3037,
+      "sha256": "6aa0f7a18ec6aed13d94d28214e7d5aac2733cbe30b1486240acc232029c01db",
       "symbol": "XRP/USDT"
     }
   },
