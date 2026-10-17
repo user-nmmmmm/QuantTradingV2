@@ -37,8 +37,9 @@ class BundleSnapshot:
 def _member_path(value: Any) -> str:
     if (not isinstance(value, str) or not value or "\\" in value
             or PureWindowsPath(value).drive or PurePosixPath(value).is_absolute()
+            or not PurePosixPath(value).parts
             or ".." in PurePosixPath(value).parts or PurePosixPath(value).as_posix() != value
-            or value == "manifest.json"):
+            or PurePosixPath(value).parts[0].casefold() == "manifest.json"):
         raise ValueError("Frozen selector members require portable relative paths")
     return value
 
@@ -57,12 +58,14 @@ def read_bundle_snapshot(bundle_path=None) -> BundleSnapshot:
     if not isinstance(package["files"], dict) or set(package["files"]) != {"model", "policy"}:
         raise ValueError("Frozen selector model inventory is incomplete")
     artifacts = {}
+    member_names = set()
     for name, record in package["files"].items():
         if not isinstance(record, dict):
             raise ValueError(f"Frozen selector {name} record must be a mapping")
         relative = _member_path(record["path"])
-        if relative in artifacts:
+        if relative.casefold() in member_names:
             raise ValueError("Frozen selector model paths must be distinct")
+        member_names.add(relative.casefold())
         source = (path.parent / relative).resolve()
         if not source.is_relative_to(path.parent) or not source.is_file():
             raise ValueError(f"Frozen selector {name} file is unavailable or outside its package")

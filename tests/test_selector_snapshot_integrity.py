@@ -106,7 +106,7 @@ def test_absolute_package_member_is_rejected_before_snapshot_creation(bundle):
         coin_selector.read_bundle(path)
 
 
-@pytest.mark.parametrize("relative", ["../model.json", r"..\model.json", r"C:\model.json", "manifest.json"])
+@pytest.mark.parametrize("relative", ["../model.json", r"..\model.json", r"C:\model.json", "manifest.json", "."])
 def test_nonportable_member_paths_fail_before_output(bundle, relative):
     path, package = bundle
     package["files"]["model"]["path"] = relative
@@ -134,6 +134,33 @@ def test_nested_relative_paths_remain_self_contained_and_existing_output_is_pres
     with pytest.raises(FileExistsError):
         coin_selector.snapshot_bundle(identity, output)
     assert snapshot.read_bytes() == before
+
+
+@pytest.mark.parametrize("relative", ["MANIFEST.JSON", "Manifest.Json", "manifest.json/model.json"])
+def test_manifest_name_is_reserved_across_case_sensitive_and_insensitive_filesystems(bundle, relative):
+    path, package = bundle
+    current = path.with_name("current.json")
+    original_model = (path.parent / "model.json").read_bytes()
+    path.unlink()
+    member = path.parent / relative
+    member.parent.mkdir(parents=True, exist_ok=True)
+    member.write_bytes(original_model)
+    package["files"]["model"]["path"] = relative
+    current.write_text(json.dumps(package), encoding="utf-8")
+    output = current.parent.parent / "snapshot"
+    with pytest.raises(ValueError, match="portable relative paths"):
+        coin_selector.snapshot_bundle({"bundle_path": str(current), "bundle_sha256": digest(current.read_bytes())}, output)
+    assert not output.exists()
+
+
+def test_case_aliased_members_are_rejected_before_reading_second_artifact(bundle):
+    path, package = bundle
+    package["files"]["policy"]["path"] = "MODEL.JSON"
+    path.write_text(json.dumps(package), encoding="utf-8")
+    output = path.parent.parent / "snapshot"
+    with pytest.raises(ValueError, match="paths must be distinct"):
+        coin_selector.snapshot_bundle({"bundle_path": str(path), "bundle_sha256": digest(path.read_bytes())}, output)
+    assert not output.exists()
 
 
 def test_byte_model_loader_retains_path_loader_identity_and_predictions(tmp_path):
