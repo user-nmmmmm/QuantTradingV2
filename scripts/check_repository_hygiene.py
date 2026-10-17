@@ -8,8 +8,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import subprocess
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -22,6 +23,18 @@ AUTOMATION_ENTRYPOINTS = (
     "scripts/run_automation.py",
     "tests/test_automation_runner.py",
 )
+# These delivery identities predate their migration out of Git in PR #62.
+# The manifest documents them; editing it cannot redefine the frozen evidence.
+EXTERNAL_RELEASE = "evidence-archive-2026-09"
+EXTERNAL_DOWNLOAD = "https://github.com/user-nmmmmm/QuantTradingV2/releases/download/" + EXTERNAL_RELEASE + "/"
+EXTERNAL_IDENTITIES = {
+    "deep_recovery_20260909_delivery.zip":
+        (6424423, "b9fbd4ed37de8f538536832c75e5c3f5f5fbc5ffb573e9cd514f81a871062c22"),
+    "revalidation_60_20260908_delivery.zip":
+        (7236330, "5b17777fc958822d217451d619f62cbb6475e960ff323f2727cacaab2b005c6d"),
+    "strategy_remediation_20260914_delivery.zip":
+        (49711435, "ccde58ba4ef4fb108adce8c805201acd73f3afda5e6a45837bc2077159ad6b05"),
+}
 
 
 def _tracked_paths() -> set[str]:
@@ -66,16 +79,46 @@ def _verify_frozen_file(entry: dict[str, object], errors: list[str]) -> None:
 def _verify_external_archive(entry: dict[str, object], tracked: set[str], errors: list[str]) -> None:
     """Archives kept outside git: metadata must be complete; a local copy, if any, must match."""
     name, size, digest, url = (entry.get(key) for key in ("name", "size_bytes", "sha256", "url"))
-    if (not isinstance(name, str) or "/" in name or not isinstance(size, int)
-            or not isinstance(digest, str) or len(digest) != 64
+    if (not isinstance(name, str) or not name or name in {".", ".."}
+            or PurePosixPath(name).name != name or PureWindowsPath(name).name != name
+            or PureWindowsPath(name).drive or type(size) is not int or size <= 0
+            or not isinstance(digest, str) or re.fullmatch(r"[0-9a-f]{64}", digest) is None
             or not isinstance(url, str) or not url.startswith("https://")):
         errors.append(f"Invalid external-archive entry: {entry!r}")
         return
     if any(path.rsplit("/", 1)[-1] == name for path in tracked):
         errors.append(f"External archive must not be tracked in git: {name}")
     local = ROOT / "reports" / name
-    if local.is_file():  # optional local copy, e.g. downloaded from the release
+    if local.exists() or local.is_symlink():  # optional copy must be a complete, matching file
         _verify_frozen_file({"path": f"reports/{name}", "size_bytes": size, "sha256": digest}, errors)
+
+
+def _verify_external_inventory(manifest: dict, tracked: set[str], errors: list[str]) -> None:
+    external = manifest.get("external_archives")
+    if not isinstance(external, dict) or external.get("release") != EXTERNAL_RELEASE:
+        errors.append("External delivery archive inventory is missing or names a different release")
+        return
+    entries = external.get("files")
+    if not isinstance(entries, list) or any(not isinstance(entry, dict) for entry in entries):
+        errors.append("External delivery archive files must be a list of records")
+        return
+    names = [entry.get("name") for entry in entries]
+    if any(not isinstance(name, str) for name in names):
+        errors.append("External delivery archive names must be strings")
+        return
+    if len(set(names)) != len(names):
+        errors.append("Duplicate external archive in file retention manifest")
+    if set(names) != set(EXTERNAL_IDENTITIES):
+        errors.append("External delivery archive inventory differs from the retained deliveries")
+    for entry in entries:
+        name = entry["name"]
+        if name in EXTERNAL_IDENTITIES:
+            size, digest = EXTERNAL_IDENTITIES[name]
+            if (type(entry.get("size_bytes")) is not int or entry.get("size_bytes") != size
+                    or entry.get("sha256") != digest or entry.get("url") != EXTERNAL_DOWNLOAD + name
+                    or entry.get("former_path") != "reports/" + name):
+                errors.append(f"External archive identity differs from the retained delivery: {name}")
+        _verify_external_archive(entry, tracked, errors)
 
 
 def check() -> list[str]:
@@ -117,12 +160,7 @@ def check() -> list[str]:
             if path not in tracked:
                 errors.append(f"Automation workflow dependency is not tracked: {path}")
 
-    external = manifest.get("external_archives", {})
-    external_names = [entry.get("name") for entry in external.get("files", [])]
-    if len(set(external_names)) != len(external_names):
-        errors.append("Duplicate external archive in file retention manifest")
-    for entry in external.get("files", []):
-        _verify_external_archive(entry, tracked, errors)
+    _verify_external_inventory(manifest, tracked, errors)
 
     for entry in manifest["reference_documents"]:
         if entry["path"] not in tracked:

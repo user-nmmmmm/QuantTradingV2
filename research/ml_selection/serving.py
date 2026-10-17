@@ -11,10 +11,10 @@ from copy import deepcopy
 from pathlib import Path
 import time
 
-from backtest.coin_selector import _account_compatibility, read_bundle
+from backtest.coin_selector import _account_compatibility, read_bundle_snapshot
 from core.foundation.reproducibility import sha256_file
 from research.ml_selection.dataset import build_inference_dataset, FEATURE_COLUMNS
-from research.ml_selection.models import load_model
+from research.ml_selection.models import load_model_bytes
 from research.ml_selection.selector import ResearchSelector
 
 
@@ -22,11 +22,12 @@ def create_selector(frames, *, initial_capital, bundle_path=None, account_mode=N
     """Return deterministic serving and a JSON-safe per-run identity."""
     started = time.monotonic()
     stage_started = time.monotonic()
-    path, package = read_bundle(bundle_path)
+    captured = read_bundle_snapshot(bundle_path)
+    path, package = captured.path, captured.package
     timings = {"bundle_validation_seconds": time.monotonic() - stage_started}
     stage_started = time.monotonic()
-    model = load_model(path.parent / package["files"]["model"]["path"])
-    policy = load_model(path.parent / package["files"]["policy"]["path"])
+    model = load_model_bytes(captured.artifact_bytes[package["files"]["model"]["path"]])
+    policy = load_model_bytes(captured.artifact_bytes[package["files"]["policy"]["path"]])
     if model.kind != "lightgbm" or policy.kind != "bernoulli_policy":
         raise ValueError("Frozen selector requires its LightGBM parent and RL policy")
     if (model.model_id != package["candidate"]["parent_model_id"]
@@ -59,7 +60,7 @@ def create_selector(frames, *, initial_capital, bundle_path=None, account_mode=N
         "account_contract": account_contract,
         "deployment_account_mode": account_mode,
         "training_account_mode": account_contract["training_account_mode"],
-        "bundle_path": str(path), "bundle_sha256": sha256_file(path),
+        "bundle_path": str(path), "bundle_sha256": captured.sha256,
         "source_protocol_id": package["source_protocol_id"],
         "model_files": deepcopy(package["files"]),
         "training_end_exclusive": package["training_end_exclusive"],
