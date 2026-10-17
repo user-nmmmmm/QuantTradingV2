@@ -12,7 +12,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--strict-lock", action="store_true")
     args = parser.parse_args()
-    errors = [] if sys.version_info >= (3, 11) else ["Python 3.11+ is required"]
+    errors = [] if sys.version_info >= (3, 11, 5) else ["Python 3.11.5+ is required"]
     required = pins(ROOT / ("requirements.lock.txt" if args.strict_lock else "requirements.txt"))
     for distribution, expected in required:
         try:

@@ -8,7 +8,7 @@
 > P1 固定分桶、P2 软状态与动态轴权重、P3 独立影子账户均不参与正式下单、风险预算或策略准入。
 > P1/P2/P3 are opt-in, research-only components; learned regimes never actuate the production account.
 
-[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.11.5+](https://img.shields.io/badge/python-3.11.5%2B-blue.svg)](https://www.python.org/downloads/)
 ![Status: Alpha](https://img.shields.io/badge/Status-Alpha-orange.svg)
 [![Tests: pytest](https://img.shields.io/badge/tests-pytest-green.svg)](#11-测试)
 
@@ -392,7 +392,7 @@ python -m pip install -e . --no-deps
 下文 `python` 均指已激活环境的解释器；PowerShell 无法激活时可直接替换为
 `.\.venv\Scripts\python.exe`。
 
-> 完整质量/覆盖率与 ML 作业使用 Python **3.11**，安装/导入/指定运行回归矩阵覆盖 **Ubuntu/Windows × Python 3.11/3.13**。`mypy` 目标为 3.11，`.python-version` 指定本地 3.13.2；矩阵通过不等同于在每个组合运行了完整套件。前端工程检查另需 **Node.js 22**（CI 和开发容器已包含）。
+> 最低 Python 版本为 **3.11.5**。完整质量/覆盖率与 ML 作业使用 Python **3.11**，安装/导入/指定运行回归矩阵覆盖 **Ubuntu/Windows × Python 3.11/3.13**。`mypy` 目标为 3.11，`.python-version` 指定本地 3.13.2；矩阵通过不等同于在每个组合运行了完整套件。前端工程检查另需 **Node.js 22**（CI 和开发容器已包含）。
 
 **核心依赖**（`requirements.txt`）：
 
@@ -401,16 +401,18 @@ python -m pip install -e . --no-deps
 | `ccxt` | 4.5.35 | 交易所连接（数据 + 实盘下单） |
 | `aiohttp` | 3.14.3 | 公共行情 WebSocket 客户端 |
 | `cryptography` | 50.0.2 | CCXT 私钥加载与签名 |
+| `idna` | 3.15 | HTTP 客户端的国际化域名转换 |
 | `pandas` | 2.3.3 | 数据处理 |
 | `numpy` | 2.4.2 | 数值与指标计算 |
 | `matplotlib` | 3.10.8 | 静态出图 |
+| `multidict` | 6.9.1 | 异步 HTTP 客户端的多值请求头与查询参数 |
 | `plotly` | 6.5.2 | 交互式图表 |
 | `openpyxl` | 3.1.5 | Excel 工作簿报告 |
 | `Pillow` | 12.3.0 | 图像与报告输出 |
 | `PyYAML` | 6.0.3 | `config/params.yaml` 解析 |
-| `requests` | 2.32.5 | HTTP 调用（如 Telegram 告警） |
+| `requests` | 2.33.1 | HTTP 调用（如 Telegram 告警） |
 | `urllib3` | 2.8.0 | Requests 的 HTTP 传输与流式响应处理 |
-| `soupsieve` | 2.8.4 | 数据提供者 HTML 解析所需的 CSS 选择器依赖 |
+| `soupsieve` | 3.0.3 | 数据提供者 HTML 解析所需的 CSS 选择器依赖 |
 | `yfinance` | 1.1.0 | Yahoo Finance 数据源 |
 
 ### 4.2 运行回测
