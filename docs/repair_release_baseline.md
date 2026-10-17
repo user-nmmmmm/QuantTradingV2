@@ -1,12 +1,13 @@
 # AUD-08：v3.1.1 修复发布基线与所有者 A5 步骤
 
 这是发布准备与工程证据索引。`pyproject.toml` 已为 `3.1.1`，
-CHANGELOG 将 #99–#109 的修复、重评和采用归入 `2026-10-16` 发布条目。
+CHANGELOG 将 #99–#113 的修复、重评、采用及依赖更新归入 `2026-10-17` 准备条目。
 正式标签由所有者在发版收尾合并、选定最终提交并核对完整 CI 后另行创建。
 工程测试、版本标签、身份绑定和 A5 正式登记分别记录。
 
-**本轮只做 v3.1.1 发版文档收尾，不创建标签、不执行 A5。**
-下一步是收尾合并后的最终 main CI，再由所有者另行发布和生成新身份绑定；A5 继续暂缓。
+**本轮只更新公开文档，不创建标签或新绑定、不执行 A5。D1 全部保留，不删除分支或 worktree。**
+下一步是本次更新合并后的最终 main CI；发布、绑定和 A5 均须所有者另行启动。
+最低 Python 现为 3.11.5，实际环境须按[依赖说明](dependency_management.md)安装更新。
 2026-10-16 批准的[正式数据采用及研究上限](data_review/20261016_adoption.md)已随
 [#109](https://github.com/user-nmmmmm/QuantTradingV2/pull/109) 合并到
 [`321875d1`](https://github.com/user-nmmmmm/QuantTradingV2/commit/321875d1eb4cbf10104c627ca370276137b1e22e)：
@@ -20,7 +21,7 @@ CHANGELOG 将 #99–#109 的修复、重评和采用归入 `2026-10-16` 发布�
 
 原 AUD-08 修复索引的核对基点为 [9b20fcfa](https://github.com/user-nmmmmm/QuantTradingV2/commit/9b20fcfa6df1dbc3c08f8b8395f5122ffd339cc3)，
 即 [#106](https://github.com/user-nmmmmm/QuantTradingV2/pull/106) 的合并提交；下表保留该批修复的来源。
-当前发版收尾基于 #109 合并后的 `321875d1`，它仍不是收尾 PR 合并后的最终发布 SHA。
+当前发版收尾基于 #113 合并后的 `f161d9539a3edd5c5e0390ab36cde69e9abd663d`，它仍不是本次文档更新合并后的最终发布 SHA。
 旧带注解标签 `v3.1.0` 的 tag object 为 `268f51fb56535e926e4ed0066a0d238c907fd02e`，
 仍指向 `ec4092131a18dd20a7b5605a50fffc99168fff75`；不得把它改指向修复后的代码。
 按[发布约定](releasing.md)，本轮缺陷修复使用 PATCH `v3.1.1`。
@@ -36,17 +37,21 @@ CHANGELOG 将 #99–#109 的修复、重评和采用归入 `2026-10-16` 发布�
 | AUD-05 | [#104 / 6bced1a3](https://github.com/user-nmmmmm/QuantTradingV2/commit/6bced1a3d9273c18475a26317375092d61e0adc4) | [test_aud05_runtime_semantics.py](../tests/test_aud05_runtime_semantics.py)、[test_nonpositive_equity_metrics.py](../tests/test_nonpositive_equity_metrics.py)：零负权益、真实结尾与超过 100% 回撤、未定义收益、市场别名及宿主 hook 分派 |
 | AUD-06 | [#105 / e778c56b](https://github.com/user-nmmmmm/QuantTradingV2/commit/e778c56b4639f9cd5e3bf192687e194ace0271ba) | [test_markdown_links.py](../tests/test_markdown_links.py)、[test_documentation_navigation.py](../tests/test_documentation_navigation.py)、[test_architecture_inventory.py](../tests/test_architecture_inventory.py)：引用式链接、真实布局、依赖说明和历史报告兼容入口 |
 | AUD-07 | [#106 / 9b20fcfa](https://github.com/user-nmmmmm/QuantTradingV2/commit/9b20fcfa6df1dbc3c08f8b8395f5122ffd339cc3) | [test_repository_governance.py](../tests/test_repository_governance.py)：逐 ref/SHA/worktree 清单、状态/历史不足/漂移拒绝、本地输出限制；外部渠道与补审见第 4 节 |
+| 选择器/归档后续 | [#111](https://github.com/user-nmmmmm/QuantTradingV2/pull/111)，[ADR 0042](adr/0042-captured-selector-bytes-and-retained-archive-identities.md) | [test_selector_snapshot_integrity.py](../tests/test_selector_snapshot_integrity.py)、[test_external_archive_integrity.py](../tests/test_external_archive_integrity.py)：验证、推断、回执与快照绑定相同字节，非便携/大小写冲突路径拒绝；独立归档身份约束 |
+| 依赖与环境后续 | [#112](https://github.com/user-nmmmmm/QuantTradingV2/pull/112)、[#113](https://github.com/user-nmmmmm/QuantTradingV2/pull/113) | [test_dependency_runtime_compatibility.py](../tests/test_dependency_runtime_compatibility.py)：实际 HTTP/WebSocket、签名/报表，Unicode 域名、原生/纯 Python 请求头与选择器结果；环境及元数据共同要求 Python 3.11.5+ |
 
 9b20fcfa 的主线运行：[tests](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38703618818)、
 [offline](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38703619048)、
 [CodeQL](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38703618983)。
-当前 #109 合并基点 `321875d1eb4cbf10104c627ca370276137b1e22e` 的
-[tests](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38865046609)
-为 4664 passed、15 skipped、111 subtests passed、90.71% 覆盖率，四组安装和 ML 检查成功；
-[offline](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38865046618)
+当前 #113 合并基点 `f161d9539a3edd5c5e0390ab36cde69e9abd663d` 的
+[tests](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/39030639436)
+为 4735 passed、15 skipped、111 subtests passed、90.73% 覆盖率，四组安装各 454 passed、ML 292 passed、前端 46 passed；
+[offline](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/39030639413)
 为 44 passed、6 subtests passed；
-[CodeQL](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38865046845) 和
-[devcontainer](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38865046579) 同一 SHA 成功。
+[CodeQL](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/39030639352) 和
+[devcontainer](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/39030639367) 同一 SHA 成功，
+[pip 依赖图更新](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/39030644223)也已成功。
+带采集时间的 Dependabot 重扫回执保留本地，不用 CI 成功代替告警状态核对。
 这些历史/基点运行不代替本次收尾 PR 及最终合并提交的检查。
 正式选定提交应有同一 SHA 的 tests、offline、CodeQL 和 devcontainer 成功记录。
 本次只改文档，不修改已有的 `pyproject.toml` 版本；devcontainer 的路径过滤不会自动触发。
@@ -68,7 +73,8 @@ CHANGELOG 将 #99–#109 的修复、重评和采用归入 `2026-10-16` 发布�
 
 原 AUD-08/#107 的冻结范围变化只有 `pyproject.toml` 版本元数据。
 #109 数据采用另改变 `cli/data.py` 的研究读取边界，属于冻结源码身份的行为变化；发布必须生成新绑定。
-本次收尾仅修改文档，不再改变冻结源码、输入或配置；旧标签的绑定仍不能覆盖 #109 的身份变化。
+#111 还改变选择器推断、模型构建与快照的源码身份；#112/#113 改变直接依赖、运行锁及打包元数据。
+本次收尾仅修改文档，不再改变冻结源码、输入或配置；旧标签的绑定不能覆盖这些后续变化。
 本地的预备身份/模拟标签绑定仅用于核对工具链；正式绑定的 `tag_commit` 必须是所有者最终选定的合并 SHA。
 
 ## 3. 所有者操作：发布、绑定、再登记
@@ -78,13 +84,13 @@ CHANGELOG 将 #99–#109 的修复、重评和采用归入 `2026-10-16` 发布�
 
 ### 3.1 合并发版收尾，选定最终提交
 
-1. #107 发布准备、#108 重评和 #109 批准采用已合并；先合并本次发版文档收尾，运行
+1. #107–#110 的发布准备、重评、批准采用及前次文档收尾，以及 #111–#113 后续修复均已合并；先合并本次公开文档更新，运行
    `python scripts/dev.py data data-review data-adoption` 核对批准选择、数据提交和研究边界。
    `python scripts/data_inputs.py corroborate` 会联网并**写回冻结清单**，若需更新证据，必须另行审阅并形成新采用回执，
    不能在已打标签的检出上运行后继续沿用旧绑定。
 2. 发版收尾或任何后续候选变更合并后，重新选定待发布的 main SHA，核对同一提交的完整 CI。
    如果 `v3.1.1` 已经推送而候选又改变，应准备下一个版本，不能移动标签或复用旧绑定。
-   实际发版日期若不同，先更新 CHANGELOG 日期，再重新固定提交并运行 CI。
+   CHANGELOG 当前使用 2026-10-17 准备日期；实际发版日期若不同，先更新日期，再重新固定提交并运行 CI。
 3. 在完整、干净的 Git 检出中执行。公开数据的技术采用回执见上面的采用记录；
    真实父批次、完整审计包及 A5 私密登记资料从本地保存位置取得，继续保留本地。
 
@@ -238,7 +244,8 @@ if ($parentAfter -ne $parentBefore -or $acceptance.parent_protocol_sha256 -ne $p
 | 项目 | 当前证据边界 | 退出条件 |
 |---|---|---|
 | 私密报告接收 | 已有启用状态与公开入口证据；普通报告者体验及通知投递仍需所有者核实 | 明确监控责任人、账号通知设置与私密接收证据；不公开私密报告 URL/账户信息 |
-| D1 清理 | 只读工具已交付，实际清单和审批留在本地 | 新鲜的逐 ref/SHA/worktree 对象清单、所有者逐项批准、执行前复查及执行后收据 |
-| #47–51、#61、#62 补审 | 原始 head 和 quota 通知已记录，尚无完整公开补审结果 | 逐 PR 审查范围/SHA、结果链接、发现处置及对应测试；未覆盖范围继续列出 |
+| D1 保留 | 本轮全部保留，不安排清理；清单、保留与治理记录只留本地 | 继续保留所有分支/worktree；以后若改变决定，重新核对逐对象清单并另行批准，不将缺失或 prunable 当作删除许可 |
+| #47–51、#61、#62 独立审查凭证 | #111 的工程后续已合并；治理清单保留原始 head 和历史 quota 通知，不能把已修复实现与第三方独立审查凭证混为一项 | 如需独立复核，保留逐原始 SHA/范围、结果链接、发现处置及测试；未覆盖范围和历史研究限制继续列出，私密审计不公开 |
 
-以上外部事项与数据采用待办分别记录，不在本 PR 中伪造完成状态。
+普通报告者体验、通知接收和独立审查凭证继续单列，不因本轮 CI 或依赖更新关闭。
+#109 的数据采用已完成；28 份来源未核验与历史可得性未知仍保留。完整审计包、治理和登记资料继续本地保留。

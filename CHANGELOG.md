@@ -8,15 +8,9 @@
 
 ## [Unreleased]
 
-- Refresh the HTTP, hostname, header-container and CSS-selector dependency pins while preserving other runtime versions. Require Python 3.11.5 or newer for the selected parser, with matching package metadata and environment checks. Extend Unicode hostname, native/Python header-container and selector compatibility checks across the installation matrix.
+## [3.1.1] - 2026-10-17
 
-- Remove the unused Streamlit dependency subtree, explicitly pin the HTTP, signing and image dependency versions used by the runtime, and regenerate the Linux/Python 3.11 lock. Add real-library client, signing and report compatibility regressions across the installation matrix.
-
-- Bind frozen selector inference, receipt hashes and replay snapshots to the same captured manifest/model bytes; reject nonportable package paths. Pin historical delivery archive identities independently of the editable manifest, and reject missing or rewritten records even without local ZIP copies. Align V4 draft identity/window guidance with the current contracts ([ADR 0042](docs/adr/0042-captured-selector-bytes-and-retained-archive-identities.md)).
-
-## [3.1.1] - 2026-10-16
-
-Patch release preparation for the fixes in #99–#106, the release baseline in #107, the v2 data review in #108 and the approved adoption in #109. The [repair baseline and owner runbook](docs/repair_release_baseline.md) links regressions, historical-evidence treatment and the release/tag/binding sequence. After this closeout merges, select the final main commit and verify its complete CI before the owner creates the annotated tag and a new identity binding. A5 remains deferred; AUD-07 external evidence remains open.
+Patch release preparation for the fixes in #99–#106, the release baseline in #107, the v2 data review and approved adoption in #108/#109, the earlier documentation closeout in #110, and the selector/archive integrity and dependency updates in #111–#113. The [repair baseline and owner runbook](docs/repair_release_baseline.md) links regressions, historical-evidence treatment and the release/tag/binding sequence. After this closeout merges, select the final main commit and verify its complete CI before any separately authorized release action. No v3.1.1 tag or new release binding is created here; A5 remains deferred and AUD-07 external evidence remains open.
 
 ### Added
 
@@ -27,10 +21,14 @@ Patch release preparation for the fixes in #99–#106, the release baseline in #
 
 - AUD-03: adopt the approved daily prefixes in #109. Trim 27 CSVs through 2026-08-26 and retain MATIC through 2024-09-09, separately accounting for 83 unmatched dates and one matching delisting-day bar. BTC/ETH raw downloads and the original download cache remain unchanged; the local research loader enforces a 2026-08-26 end for the other 29 inputs and 2024-09-09 for MATIC, including the DataVersionStore path. The adoption removes 111 raw rows; 67,266 adopted raw rows yield 67,218 research-eligible rows across the approved ranges.
 - AUD-06: align dependency and Python/Node instructions with the installed project and CI matrix; replace stale module paths with checked navigation, scan reference-style Markdown links, and restore historical report entry points without rewriting frozen evidence (ADR 0039).
-- Consolidate the public engineering roadmap from #98 through #101, then record the merged #99–#109 fixes, data adoption, final-release checks and separately pending owner operations.
+- Remove the unused Streamlit dependency subtree and explicitly pin the HTTP, signing and image dependencies used by the runtime (#112). Add real-library HTTP, WebSocket, signing and report regressions to the installation matrix.
+- Refresh Requests to 2.33.1, Soup Sieve to 3.0.3, Multidict to 6.9.1 and IDNA to 3.15 (#113). Pin hostname and header dependencies directly for editable installs; regenerate the Linux/Python 3.11 lock, keeping its other 46 versions unchanged. Extend Unicode hostname, native/Python header-container and selector compatibility checks.
+- Require Python 3.11.5 or newer for Soup Sieve 3.0.3, with matching package metadata, environment checks and installation guidance. Environments using Python 3.11.0–3.11.4 need a Python patch update before installation.
+- Consolidate the public engineering roadmap from #98 through #101, then record the merged #99–#113 fixes, data adoption, current-main CI, final-release checks and separately pending owner operations. Retain all branches and worktrees; inventories and governance receipts remain local.
 
 ### Fixed
 
+- Bind frozen selector inference, receipt hashes and replay snapshots to the same captured manifest/model bytes; reject nonportable and case-aliased package member paths (#111). Pin historical delivery archive identities independently of the editable manifest and reject missing or rewritten records even without local ZIP copies. Align V4 draft identity/window guidance with current contracts ([ADR 0042](docs/adr/0042-captured-selector-bytes-and-retained-archive-identities.md)).
 - AUD-05: preserve zero/negative equity, real report endpoints and drawdowns beyond 100% losses. Metrics formula 2.1 shares positive-denominator return handling across headline/risk/monthly statistics, charts and Excel; undefined intervals remain visible instead of being dropped or filled with zero. Catchup and regular fetches share derivative client aliases, and report section/Broker time hooks dispatch through the host subclass (ADR 0038).
 - AUD-04: refuse baseline updates that introduce or increase any finding, including mypy hard-gate failures; rejected updates leave the file unchanged. Local and CI quality checks share developer tasks with the 90% coverage gate and dashboard tests. Quarantine collection counts expanded cases and enforces a 10-case / 30-UTC-day limit, and `pyproject.toml` changes trigger container CI for PRs and main pushes (ADR 0037).
 - AUD-03: bind corroboration to the bytes actually read, reject stale or changing inputs and unknown filenames, validate partial-tail OHLCV invariants, and distinguish successful empty data from confirmed invalid symbols. New cache records declare LF-normalized hashes; legacy cache verification and incremental refresh accept newline equivalence without relaxing content or source checks (ADR 0036).
@@ -40,9 +38,9 @@ Patch release preparation for the fixes in #99–#106, the release baseline in #
 
 ### Notes
 
-- New registration requires a fresh `code-token/v2` binding to the final release commit. Existing tags, v1 bindings, historical CSVs, review drafts and protocol records retain their original identities; the adopted loader boundary changes frozen source identity.
+- New registration requires a fresh `code-token/v2` binding to the final release commit. The adopted loader boundary, #111 selector implementation and #112/#113 dependency/package metadata change frozen identity. Existing tags, v1 bindings, historical CSVs, review drafts and protocol records retain their original identities; old bindings cannot cover these later changes.
 - The adopted prefixes match the captured public responses under v2 comparison. Source evidence was observed on 2026-10-15; replay does not establish historical availability. Two download records, 28 `unverified` origins and all `point_in_time: unknown` statuses remain unchanged. Technical adoption is not strategy validation or admission to trade.
-- This closeout prepares the 2026-10-16 release entry without creating a tag or starting A5. If publication occurs on a later date, update this entry before selecting and validating the final release commit. Full audits and registration materials remain local.
+- This closeout prepares the 2026-10-17 release entry without creating a tag or starting A5. If publication occurs on a later date, update this entry before selecting and validating the final release commit. Full audits, governance and registration materials remain local.
 
 ## [3.1.0] - 2026-10-14
 

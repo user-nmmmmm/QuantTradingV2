@@ -64,6 +64,12 @@ prunable flags and clean/dirty/unavailable status. Spaces and newlines in paths
 remain data. Missing history, an invalid base or changing refs/worktree records
 fail the inventory. Receipts can only be written to new, ignored `outputs/` files.
 
+Current plan (2026-10-17): retain all branches and worktrees. Maintain the
+inventory and retention receipts locally; no cleanup is scheduled. Any later
+change of plan requires a fresh inventory and separate per-object approval.
+Missing or prunable registrations and object-store dependencies remain reasons
+to preserve evidence, not permission to remove it.
+
 For each proposed cleanup, the owner must:
 
 1. Review the exact ref/SHA or worktree path/HEAD from a fresh receipt. Preserve
@@ -80,14 +86,20 @@ For each proposed cleanup, the owner must:
 4. Execute only that separately approved cleanup and retain before/after receipts
    locally. This PR provides no deletion command or automated cleanup mode.
 
-## Historical reviews blocked by quota
+## Historical public review evidence
 
 Public API checks on 2026-10-15 found no submitted reviews or inline review
 comments for these seven merged PRs. Each conversation still contains only the
-linked quota notification. The original head below identifies the review scope;
-merging, passing CI or reviewing a later PR does not close these items.
+linked quota notification. The table below preserves that dated public snapshot
+and the original heads; it is not a current inventory of unimplemented fixes.
+The selector/archive integrity and design-guidance changes in
+[#111](https://github.com/user-nmmmmm/QuantTradingV2/pull/111) are now merged
+([ADR 0042](adr/0042-captured-selector-bytes-and-retained-archive-identities.md)).
+Their implementation and CI are separate from independent review receipts for
+the original diffs. Local audit coverage and findings remain local; neither a
+quota message nor a later passing PR establishes independent review approval.
 
-| PR | Original head SHA | Public quota notification | Status |
+| PR | Original head SHA | Public quota notification | Public status on 2026-10-15 |
 |---|---|---|---|
 | [#47](https://github.com/user-nmmmmm/QuantTradingV2/pull/47/files) | `66503a176d624281032661395288be054f6bd26a` | [notification](https://github.com/user-nmmmmm/QuantTradingV2/pull/47#issuecomment-5979562444) | Review pending |
 | [#48](https://github.com/user-nmmmmm/QuantTradingV2/pull/48/files) | `c37259e33b4cdbab5a9d66300b33b13767ecd878` | [notification](https://github.com/user-nmmmmm/QuantTradingV2/pull/48#issuecomment-5982106151) | Review pending |
@@ -110,9 +122,12 @@ obtain a review. No review request is sent by this tooling.
 
 1. After #105, AUD-06 implementation is merged at `e778c56b4639f9cd5e3bf192687e194ace0271ba`.
    AUD-07 adds direct disclosure guidance, the read-only D1 tool and this checklist.
-2. Owner notification checks, D1 per-object decisions and seven historical reviews
-   remain open until the evidence above exists. The enabled disclosure setting
-   does not close these separate tasks.
-3. Continue the repair baseline/release work after its prerequisites are met.
+2. Ordinary-reporter access, owner notification delivery and independent review
+   receipts remain separate external evidence items. The enabled disclosure
+   setting and #111 engineering fixes do not establish those results. D1 follows
+   the retain-all plan; the actual inventory and retention evidence stay local.
+3. #111 engineering fixes and #112/#113 dependency updates are merged. Continue
+   the [repair baseline/release work](repair_release_baseline.md) after selecting
+   and checking the final main commit; tags, bindings and A5 remain deferred.
    Engineering CI does not create a release tag, register an observation window
    or establish strategy admission. Existing historical evidence is preserved.
