@@ -8,6 +8,8 @@
 
 ## [Unreleased]
 
+- Refresh the HTTP, hostname, header-container and CSS-selector dependency pins while preserving other runtime versions. Require Python 3.11.5 or newer for the selected parser, with matching package metadata and environment checks. Extend Unicode hostname, native/Python header-container and selector compatibility checks across the installation matrix.
+
 - Remove the unused Streamlit dependency subtree, explicitly pin the HTTP, signing and image dependency versions used by the runtime, and regenerate the Linux/Python 3.11 lock. Add real-library client, signing and report compatibility regressions across the installation matrix.
 
 - Bind frozen selector inference, receipt hashes and replay snapshots to the same captured manifest/model bytes; reject nonportable package paths. Pin historical delivery archive identities independently of the editable manifest, and reject missing or rewritten records even without local ZIP copies. Align V4 draft identity/window guidance with the current contracts ([ADR 0042](docs/adr/0042-captured-selector-bytes-and-retained-archive-identities.md)).

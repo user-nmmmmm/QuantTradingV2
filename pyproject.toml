@@ -8,7 +8,7 @@ name = "quant-trading"
 version = "3.1.1"
 description = "Quant trading research, backtesting and exchange-connected runtime"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.11.5"
 dynamic = ["dependencies"]
 
 [project.optional-dependencies]

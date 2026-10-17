@@ -7,6 +7,7 @@ import gzip
 import hashlib
 import hmac
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import importlib
 import importlib.metadata
 import io
 from pathlib import Path
@@ -26,7 +27,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 @pytest.mark.parametrize("distribution,minimum", [
     ("aiohttp", "3.14.3"), ("cryptography", "50.0.2"), ("Pillow", "12.3.0"),
-    ("soupsieve", "2.8.4"), ("urllib3", "2.8.0"),
+    ("soupsieve", "3.0.3"), ("urllib3", "2.8.0"), ("requests", "2.33.1"),
+    ("idna", "3.15"), ("multidict", "6.9.1"),
 ])
 def test_installed_client_and_report_versions_meet_the_runtime_floor(distribution, minimum):
     assert Version(importlib.metadata.version(distribution)) >= Version(minimum)
@@ -51,6 +53,21 @@ def test_direct_environment_check_uses_distribution_import_aliases(monkeypatch, 
     monkeypatch.setattr(sys, "argv", ["check_environment"])
     assert not check_environment.main()
     assert "Environment OK" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("version,rejected", [((3, 11, 4), True), ((3, 11, 5), False), ((3, 13, 2), False)])
+def test_environment_enforces_the_parser_python_patch_floor(monkeypatch, capsys, version, rejected):
+    import tomllib
+
+    from scripts import check_environment
+
+    metadata = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    assert metadata["project"]["requires-python"] == ">=3.11.5"
+    monkeypatch.setattr(sys, "argv", ["check_environment"])
+    monkeypatch.setattr(sys, "version_info", version)
+    monkeypatch.setattr(check_environment, "pins", lambda path: [])
+    assert bool(check_environment.main()) is rejected
+    assert ("Python 3.11.5+ is required" in capsys.readouterr().err) is rejected
 
 
 @pytest.mark.parametrize("encoding", ["gzip", "deflate"])
@@ -205,3 +222,68 @@ def test_provider_html_selection_preserves_result_order():
     document = BeautifulSoup('<table><tr class="quote"><td>BTC</td></tr>'
                              '<tr class="quote"><td>ETH</td></tr></table>', "html.parser")
     assert [cell.get_text() for cell in document.select("table tr.quote > td")] == ["BTC", "ETH"]
+
+
+@pytest.mark.parametrize("entrypoint", ["domain", "label", "codec", "incremental_codec"])
+def test_internationalized_domains_round_trip_through_supported_apis(entrypoint):
+    import codecs
+
+    import idna
+    import idna.codec  # Register the third-party idna2008 codec.
+
+    text, expected = "bücher.example", b"xn--bcher-kva.example"
+    if entrypoint == "label":
+        assert idna.alabel("bücher") == b"xn--bcher-kva"
+        assert idna.ulabel(b"xn--bcher-kva") == "bücher"
+    elif entrypoint == "codec":
+        assert codecs.encode(text, "idna2008") == expected
+        assert codecs.decode(expected, "idna2008") == text
+    elif entrypoint == "incremental_codec":
+        encoder = codecs.getincrementalencoder("idna2008")()
+        decoder = codecs.getincrementaldecoder("idna2008")()
+        assert encoder.encode("bücher.") + encoder.encode("example", final=True) == expected
+        assert decoder.decode(b"xn--bcher-kva.") + decoder.decode(b"example", final=True) == text
+    else:
+        assert idna.encode(text) == expected
+        assert idna.decode(expected) == text
+
+
+@pytest.mark.parametrize("client", ["requests", "yarl"])
+def test_http_clients_prepare_unicode_hosts_before_transport(client):
+    from yarl import URL
+
+    address = "https://BÜCHER.example/prices?symbol=BTC"
+    prepared = (requests.Request("GET", address).prepare().url if client == "requests" else str(URL(address)))
+    assert prepared == "https://xn--bcher-kva.example/prices?symbol=BTC"
+
+
+@pytest.mark.parametrize("backend", ["multidict", "multidict._multidict_py"])
+@pytest.mark.parametrize("container", ["MultiDict", "CIMultiDict"])
+def test_header_containers_preserve_duplicates_and_copy_isolation(backend, container):
+    module = importlib.import_module(backend)
+    headers = getattr(module, container)([("X-Quote", "100"), ("X-Quote", "101")])
+    assert headers.getall("X-Quote") == ["100", "101"]
+    copied = headers.copy()
+    copied.add("X-Quote", "102")
+    assert copied.getall("X-Quote") == ["100", "101", "102"]
+    assert headers.getall("X-Quote") == ["100", "101"]
+    proxy = getattr(module, container + "Proxy")(headers)
+    assert list(proxy.items()) == [("X-Quote", "100"), ("X-Quote", "101")]
+    if container == "CIMultiDict":
+        assert proxy.getall("x-quote") == ["100", "101"]
+
+
+@pytest.mark.parametrize("selector,expected", [
+    ("ul \t li", ["BTC", "ETH"]),
+    ("ul > li /*comment*/", ["BTC", "ETH"]),
+    (r'li[data-code="A\20 B"]', ["BTC"]),
+    (r'li[data-code=A\20 B]', ["BTC"]),
+    ("li:nth-child(2)", ["ETH"]),
+])
+def test_css_selector_variants_preserve_compiled_and_html_results(selector, expected):
+    from bs4 import BeautifulSoup
+    import soupsieve
+
+    document = BeautifulSoup('<ul><li data-code="A B">BTC</li><li>ETH</li></ul>', "html.parser")
+    assert [cell.get_text() for cell in document.select(selector)] == expected
+    assert [cell.get_text() for cell in soupsieve.compile(selector).select(document)] == expected

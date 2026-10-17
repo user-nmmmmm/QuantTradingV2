@@ -1,6 +1,6 @@
 # 依赖与 Python 环境
 
-完整质量/覆盖率及 ML 作业使用 Python 3.11；安装、导入、入口命令和指定运行回归覆盖 Ubuntu/Windows × Python 3.11/3.13。根目录 `.python-version` 指定本地 3.13.2，`pyproject.toml` 的 Python 下限和 mypy 目标为 3.11。矩阵不是每个组合的完整套件结果，记录测试时应写明实际版本和任务范围。前端检查另需 Node.js 22，CI 与开发容器已安装。
+完整质量/覆盖率及 ML 作业使用 Python 3.11；安装、导入、入口命令和指定运行回归覆盖 Ubuntu/Windows × Python 3.11/3.13。根目录 `.python-version` 指定本地 3.13.2，`pyproject.toml` 的 Python 下限为 3.11.5，mypy 目标仍为 3.11。矩阵不是每个组合的完整套件结果，记录测试时应写明实际版本和任务范围。前端检查另需 Node.js 22，CI 与开发容器已安装。
 
 | 文件 | 当前作用 |
 | --- | --- |
@@ -32,7 +32,7 @@ python scripts/regenerate_lock.py --check
 升级依赖永远是单独的 PR：
 
 1. 修改 `requirements.txt`（及对应的 `requirements-dev.txt` / `requirements-ml.txt`）里的版本。
-2. 在 Linux、Python 3.11（与 CI 相同）上运行 `python scripts/regenerate_lock.py`（需要联网）；它会重写锁文件和摘要。不要手工编辑锁文件。
+2. 在 Linux、Python 3.11.5 或更高的 3.11 补丁版本（与 CI 同系列）上运行 `python scripts/regenerate_lock.py`（需要联网）；它会重写锁文件和摘要。不要手工编辑锁文件。
 3. 阅读锁文件的差异：传递依赖的变化也在其中。在目标 Python 版本上验证安装、测试与报告生成。
 4. 提交时写入 `CHANGELOG.md`（如有用户可见影响）。锁文件在冻结范围内，PR 的身份影响报告会显示这一变化。
 
@@ -40,9 +40,14 @@ python scripts/regenerate_lock.py --check
 
 ## 运行依赖边界
 
-行情客户端、签名和图像输出使用的 `aiohttp`、`cryptography`、`Pillow`、`soupsieve` 和 `urllib3`
+行情客户端、签名和图像输出使用的 `aiohttp`、`cryptography`、`idna`、`multidict`、`Pillow`、`requests`、`soupsieve` 和 `urllib3`
 在直接依赖中明确固定，普通可编辑安装与运行锁使用同一组已测试版本。`Pillow` 的导入名为 `PIL`，
 环境检查同时验证分发版本和正确的模块名。
+
+域名转换和多值请求头依赖也在直接依赖中固定，避免普通可编辑安装沿用旧环境中仍满足上游宽泛版本范围的包。
+Soup Sieve 固定为未撤回的 `3.0.3`，使用它的解析器改进需要 Python 至少为 3.11.5；项目声明与环境检查同步执行此下限。
+上游已撤回的 `3.0`/`3.0.1` 分发未正确表达这个要求，不应为了保留旧 Python 补丁版本而选择它们。升级须同时核对 `Requires-Python` 和撤回状态。
+安装矩阵同时核对国际化域名、`idna2008` codec、原生/纯 Python 请求头容器以及 CSS 选择器的正常行为。
 
 项目的命令行仪表盘使用 `dashboard.__main__`，Web 仪表盘使用 `dashboard.web` 的标准库 HTTP 服务；
 报告使用 Matplotlib 的 `Agg` 后端。未被这些入口使用的 Streamlit 依赖已移除，运行锁不再为它保留
