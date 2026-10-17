@@ -1,0 +1,207 @@
+"""Installed runtime dependencies preserve real client, signing and report behavior."""
+from __future__ import annotations
+
+import asyncio
+import base64
+import gzip
+import hashlib
+import hmac
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import importlib.metadata
+import io
+from pathlib import Path
+import sys
+from threading import Thread
+import zlib
+
+from packaging.requirements import Requirement
+from packaging.utils import canonicalize_name
+from packaging.version import Version
+import pytest
+import requests
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+@pytest.mark.parametrize("distribution,minimum", [
+    ("aiohttp", "3.14.3"), ("cryptography", "50.0.2"), ("Pillow", "12.3.0"),
+    ("soupsieve", "2.8.4"), ("urllib3", "2.8.0"),
+])
+def test_installed_client_and_report_versions_meet_the_runtime_floor(distribution, minimum):
+    assert Version(importlib.metadata.version(distribution)) >= Version(minimum)
+
+
+def test_editable_install_metadata_and_lock_preserve_the_supported_dependency_boundary():
+    declared = {canonicalize_name(line.split("==")[0]) for line in
+                (ROOT / "requirements.txt").read_text().splitlines() if "==" in line}
+    installed = {canonicalize_name(requirement.name) for text in
+                 importlib.metadata.requires("quant-trading") or []
+                 if (requirement := Requirement(text)).marker is None
+                 or requirement.marker.evaluate({"extra": ""})}
+    assert installed == declared
+    locked = {canonicalize_name(line.split("==")[0]) for line in
+              (ROOT / "requirements.lock.txt").read_text().splitlines() if "==" in line}
+    assert not {"streamlit", "gitpython", "gitdb", "smmap", "tornado", "pyarrow"} & locked
+
+
+def test_direct_environment_check_uses_distribution_import_aliases(monkeypatch, capsys):
+    from scripts import check_environment
+
+    monkeypatch.setattr(sys, "argv", ["check_environment"])
+    assert not check_environment.main()
+    assert "Environment OK" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("encoding", ["gzip", "deflate"])
+def test_requests_decodes_public_archive_stream_with_the_real_transport(tmp_path, monkeypatch, encoding):
+    from scripts import collect_factor_evidence as collector
+
+    payload = b'{"prices":[10,11,12],"complete":true}'
+    compressed = gzip.compress(payload) if encoding == "gzip" else zlib.compress(payload)
+    observed = []
+
+    class Handler(BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
+        def do_GET(self):
+            observed.append(dict(self.headers))
+            self.send_response(200)
+            self.send_header("Content-Encoding", encoding)
+            self.send_header("Transfer-Encoding", "chunked")
+            self.end_headers()
+            for start in range(0, len(compressed), 7):
+                chunk = compressed[start:start + 7]
+                self.wfile.write(f"{len(chunk):x}\r\n".encode() + chunk + b"\r\n")
+            self.wfile.write(b"0\r\n\r\n")
+            self.wfile.flush()
+
+        def log_message(self, *args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    worker = Thread(target=server.serve_forever, daemon=True)
+    worker.start()
+    base = f"http://127.0.0.1:{server.server_port}/"
+    monkeypatch.setattr(collector, "BASE", base)
+    monkeypatch.setenv("NO_PROXY", "127.0.0.1")
+    monkeypatch.setenv("no_proxy", "127.0.0.1")
+    try:
+        with requests.Session() as session:
+            archive = collector.PublicArchive(tmp_path, session=session, timeout=2)
+            raw, metadata = archive.fetch("sample", base + "prices")
+            assert raw == payload
+            assert metadata["status"] == 200
+            assert metadata["body_bytes"] == len(payload)
+            assert metadata["body_sha256"] == hashlib.sha256(payload).hexdigest()
+            assert archive.fetch("sample", base + "prices") == (raw, metadata)
+        assert len(observed) == 1
+        assert not {key.lower() for key in observed[0]} & {"authorization", "proxy-authorization"}
+    finally:
+        server.shutdown()
+        server.server_close()
+        worker.join(timeout=2)
+    assert not worker.is_alive()
+
+
+def test_aiohttp_websocket_echo_and_normal_close_use_the_installed_parser():
+    import aiohttp
+    from aiohttp import web
+
+    async def scenario():
+        async def echo(request):
+            websocket = web.WebSocketResponse()
+            await websocket.prepare(request)
+            await websocket.send_json({"status": "ready"})
+            async for message in websocket:
+                if message.type == aiohttp.WSMsgType.TEXT:
+                    await websocket.send_str(message.data)
+                    await websocket.close()
+            return websocket
+
+        app = web.Application()
+        app.router.add_get("/stream", echo)
+        runner = web.AppRunner(app)
+        await runner.setup()
+        import socket
+
+        listener = socket.socket()
+        listener.bind(("127.0.0.1", 0))
+        port = listener.getsockname()[1]
+        try:
+            await web.SockSite(runner, listener).start()
+            async with aiohttp.ClientSession() as session:
+                async with session.ws_connect(f"http://127.0.0.1:{port}/stream", heartbeat=1) as websocket:
+                    assert await websocket.receive_json() == {"status": "ready"}
+                    await websocket.send_str("complete-bar")
+                    assert (await websocket.receive()).data == "complete-bar"
+                    assert (await websocket.receive()).type == aiohttp.WSMsgType.CLOSE
+        finally:
+            await runner.cleanup()
+            listener.close()
+
+    asyncio.run(asyncio.wait_for(scenario(), timeout=10))
+
+
+@pytest.mark.parametrize("kind", ["rsa", "ed25519-raw", "ed25519-pem"])
+def test_ccxt_private_key_signatures_verify_with_the_installed_backend(kind):
+    from ccxt.base.exchange import Exchange
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import ed25519, padding, rsa
+
+    payload = b"symbol=BTCUSDT&side=BUY&timestamp=1"
+    key = (rsa.generate_private_key(public_exponent=65537, key_size=2048) if kind == "rsa"
+           else ed25519.Ed25519PrivateKey.generate())
+    if kind == "ed25519-raw":
+        secret = key.private_bytes(serialization.Encoding.Raw, serialization.PrivateFormat.Raw,
+                                   serialization.NoEncryption())
+    else:
+        secret = key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
+                                   serialization.NoEncryption()).decode("ascii")
+    signature = base64.b64decode(Exchange.rsa(payload.decode("ascii"), secret) if kind == "rsa"
+                                 else Exchange.eddsa(payload, secret))
+    if kind == "rsa":
+        key.public_key().verify(signature, payload, padding.PKCS1v15(), hashes.SHA256())
+    else:
+        key.public_key().verify(signature, payload)
+
+
+def test_ccxt_hmac_credentials_keep_the_same_signature():
+    from ccxt.base.exchange import Exchange
+
+    payload, secret = b"timestamp=1", b"synthetic-fixture-secret"
+    assert Exchange.hmac(payload, secret, hashlib.sha256) == hmac.new(secret, payload, hashlib.sha256).hexdigest()
+
+
+def test_generated_png_can_be_read_and_embedded_in_an_excel_report():
+    from matplotlib.backends.backend_agg import FigureCanvasAgg
+    from matplotlib.figure import Figure
+    from openpyxl import Workbook, load_workbook
+    from openpyxl.drawing.image import Image as WorkbookImage
+    from PIL import Image
+
+    figure = Figure(figsize=(2, 1), dpi=50)
+    FigureCanvasAgg(figure)
+    figure.subplots().plot([0, 1, 2], [100, 102, 101])
+    png = io.BytesIO()
+    figure.savefig(png, format="png")
+    with Image.open(io.BytesIO(png.getvalue())) as image:
+        assert image.format == "PNG"
+        assert image.size == (100, 50)
+        image.load()
+    workbook = Workbook()
+    workbook.active.add_image(WorkbookImage(io.BytesIO(png.getvalue())), "A1")
+    report = io.BytesIO()
+    workbook.save(report)
+    report.seek(0)
+    restored = load_workbook(report)
+    assert len(restored.active._images) == 1
+    restored.close()
+
+
+def test_provider_html_selection_preserves_result_order():
+    from bs4 import BeautifulSoup
+
+    document = BeautifulSoup('<table><tr class="quote"><td>BTC</td></tr>'
+                             '<tr class="quote"><td>ETH</td></tr></table>', "html.parser")
+    assert [cell.get_text() for cell in document.select("table tr.quote > td")] == ["BTC", "ETH"]

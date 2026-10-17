@@ -17,7 +17,7 @@ def main():
     for distribution, expected in required:
         try:
             if not args.strict_lock:
-                importlib.import_module({"PyYAML": "yaml"}.get(distribution, distribution.replace("-", "_")))
+                importlib.import_module({"PyYAML": "yaml", "Pillow": "PIL"}.get(distribution, distribution.replace("-", "_")))
             actual = importlib.metadata.version(distribution)
         except (ImportError, importlib.metadata.PackageNotFoundError) as exc:
             errors.append(f"{distribution} unavailable: {type(exc).__name__}")

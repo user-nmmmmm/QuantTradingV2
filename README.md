@@ -399,14 +399,18 @@ python -m pip install -e . --no-deps
 | 库 | 版本 | 用途 |
 | --- | --- | --- |
 | `ccxt` | 4.5.35 | 交易所连接（数据 + 实盘下单） |
+| `aiohttp` | 3.14.3 | 公共行情 WebSocket 客户端 |
+| `cryptography` | 50.0.2 | CCXT 私钥加载与签名 |
 | `pandas` | 2.3.3 | 数据处理 |
 | `numpy` | 2.4.2 | 数值与指标计算 |
 | `matplotlib` | 3.10.8 | 静态出图 |
 | `plotly` | 6.5.2 | 交互式图表 |
 | `openpyxl` | 3.1.5 | Excel 工作簿报告 |
-| `streamlit` | 1.54.0 | 已声明依赖，但当前代码库中未被任何模块导入使用 |
+| `Pillow` | 12.3.0 | 图像与报告输出 |
 | `PyYAML` | 6.0.3 | `config/params.yaml` 解析 |
 | `requests` | 2.32.5 | HTTP 调用（如 Telegram 告警） |
+| `urllib3` | 2.8.0 | Requests 的 HTTP 传输与流式响应处理 |
+| `soupsieve` | 2.8.4 | 数据提供者 HTML 解析所需的 CSS 选择器依赖 |
 | `yfinance` | 1.1.0 | Yahoo Finance 数据源 |
 
 ### 4.2 运行回测
