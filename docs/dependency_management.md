@@ -38,6 +38,21 @@ python scripts/regenerate_lock.py --check
 
 没有在 Linux 上再生成时，Windows 独有的依赖（例如 `colorama`）可能出现或消失，这只影响该平台，pip 仍会把它作为依赖安装。
 
+## 运行依赖边界
+
+行情客户端、签名和图像输出使用的 `aiohttp`、`cryptography`、`Pillow`、`soupsieve` 和 `urllib3`
+在直接依赖中明确固定，普通可编辑安装与运行锁使用同一组已测试版本。`Pillow` 的导入名为 `PIL`，
+环境检查同时验证分发版本和正确的模块名。
+
+项目的命令行仪表盘使用 `dashboard.__main__`，Web 仪表盘使用 `dashboard.web` 的标准库 HTTP 服务；
+报告使用 Matplotlib 的 `Agg` 后端。未被这些入口使用的 Streamlit 依赖已移除，运行锁不再为它保留
+GitPython、Tornado 或 PyArrow。未来接入需要这些库的新功能时，须重新声明依赖并验证对应入口。
+在旧环境执行安装不会自动卸载不再需要的包；需要精确核对新依赖闭包时，应建立新的虚拟环境，旧环境和历史证据继续保留。
+报表回归使用的 `jsonschema` 在开发依赖中显式声明，运行时安装无需为测试加载这条依赖链。
+
+本次版本范围覆盖 Linux/Windows 的 Python 3.11/3.13 矩阵。Cryptography 50 的上游二进制包不再覆盖
+32 位 Windows 或 Intel macOS；这些平台的源构建与 OpenSSL 维护须单独验证，不能由本仓库矩阵推断。
+
 ## Dependabot
 
 只对 GitHub Actions 启用：每月一次，小版本与补丁合并成一个分组 PR，主版本升级单独成 PR 并单独评审。pip 的版本更新不启用，因为 Dependabot 不能运行再生成脚本，每个 PR 都会让 `regenerate_lock.py --check` 失败；原因与取舍见 [ADR 0021](adr/0021-locked-ci-and-dependabot-policy.md)。仓库的安全警报保持开启，收到后按上面的"升级依赖"流程处理。

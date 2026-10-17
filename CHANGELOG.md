@@ -8,6 +8,8 @@
 
 ## [Unreleased]
 
+- Remove the unused Streamlit dependency subtree, explicitly pin the HTTP, signing and image dependency versions used by the runtime, and regenerate the Linux/Python 3.11 lock. Add real-library client, signing and report compatibility regressions across the installation matrix.
+
 - Bind frozen selector inference, receipt hashes and replay snapshots to the same captured manifest/model bytes; reject nonportable package paths. Pin historical delivery archive identities independently of the editable manifest, and reject missing or rewritten records even without local ZIP copies. Align V4 draft identity/window guidance with the current contracts ([ADR 0042](docs/adr/0042-captured-selector-bytes-and-retained-archive-identities.md)).
 
 ## [3.1.1] - 2026-10-16
