@@ -8,6 +8,8 @@
 
 ## [Unreleased]
 
+- Bind frozen selector inference, receipt hashes and replay snapshots to the same captured manifest/model bytes; reject nonportable package paths. Pin historical delivery archive identities independently of the editable manifest, and reject missing or rewritten records even without local ZIP copies. Align V4 draft identity/window guidance with the current contracts ([ADR 0042](docs/adr/0042-captured-selector-bytes-and-retained-archive-identities.md)).
+
 ## [3.1.1] - 2026-10-16
 
 Patch release preparation for the fixes in #99–#106, the release baseline in #107, the v2 data review in #108 and the approved adoption in #109. The [repair baseline and owner runbook](docs/repair_release_baseline.md) links regressions, historical-evidence treatment and the release/tag/binding sequence. After this closeout merges, select the final main commit and verify its complete CI before the owner creates the annotated tag and a new identity binding. A5 remains deferred; AUD-07 external evidence remains open.

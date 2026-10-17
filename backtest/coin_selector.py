@@ -7,9 +7,10 @@ in ``research.ml_selection.serving`` (B3, ADR 0017); importing this module never
 from __future__ import annotations
 
 from copy import deepcopy
+from dataclasses import dataclass
+import hashlib
 import json
-from pathlib import Path
-import shutil
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
 import pandas as pd
@@ -21,29 +22,66 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_BUNDLE = ROOT / "config" / "ml_selector_current.json"
 
 
-def read_bundle(bundle_path=None) -> tuple[Path, dict[str, Any]]:
+@dataclass(frozen=True)
+class BundleSnapshot:
+    path: Path
+    package: dict[str, Any]
+    manifest_bytes: bytes
+    artifact_bytes: dict[str, bytes]
+
+    @property
+    def sha256(self) -> str:
+        return hashlib.sha256(self.manifest_bytes).hexdigest()
+
+
+def _member_path(value: Any) -> str:
+    if (not isinstance(value, str) or not value or "\\" in value
+            or PureWindowsPath(value).drive or PurePosixPath(value).is_absolute()
+            or ".." in PurePosixPath(value).parts or PurePosixPath(value).as_posix() != value
+            or value == "manifest.json"):
+        raise ValueError("Frozen selector members require portable relative paths")
+    return value
+
+
+def read_bundle_snapshot(bundle_path=None) -> BundleSnapshot:
+    """Validate one immutable read of the manifest and each model artifact."""
     path = Path(bundle_path or DEFAULT_BUNDLE).resolve()
-    package = json.loads(path.read_text(encoding="utf-8"))
-    if package.get("schema") != "frozen-coin-selector/v1" or package.get("timeframe") != "1d":
+    manifest_bytes = path.read_bytes()
+    package = json.loads(manifest_bytes)
+    if (not isinstance(package, dict) or package.get("schema") != "frozen-coin-selector/v1"
+            or package.get("timeframe") != "1d"):
         raise ValueError("Unsupported frozen coin selector package")
     candidate = package["candidate"]
-    if candidate.get("selected_candidate") != "rl":
+    if not isinstance(candidate, dict) or candidate.get("selected_candidate") != "rl":
         raise ValueError("The frozen coin selector candidate must be RL")
-    if set(package["files"]) != {"model", "policy"}:
+    if not isinstance(package["files"], dict) or set(package["files"]) != {"model", "policy"}:
         raise ValueError("Frozen selector model inventory is incomplete")
+    artifacts = {}
     for name, record in package["files"].items():
-        source = (path.parent / record["path"]).resolve()
+        if not isinstance(record, dict):
+            raise ValueError(f"Frozen selector {name} record must be a mapping")
+        relative = _member_path(record["path"])
+        if relative in artifacts:
+            raise ValueError("Frozen selector model paths must be distinct")
+        source = (path.parent / relative).resolve()
         if not source.is_relative_to(path.parent) or not source.is_file():
             raise ValueError(f"Frozen selector {name} file is unavailable or outside its package")
-        if sha256_file(source) != record["sha256"]:
+        data = source.read_bytes()
+        if hashlib.sha256(data).hexdigest() != record["sha256"]:
             raise ValueError(f"Frozen selector {name} file hash mismatch")
-        payload = json.loads(source.read_text(encoding="utf-8"))
+        payload = json.loads(data)
         if payload["model_id"] != record["model_id"]:
             raise ValueError(f"Frozen selector {name} identity mismatch")
+        artifacts[relative] = data
     if (package["files"]["model"]["model_id"] != candidate["parent_model_id"]
             or package["files"]["policy"]["model_id"] != candidate["model_id"]):
         raise ValueError("Frozen selector candidate and weight identities differ")
-    return path, package
+    return BundleSnapshot(path, package, manifest_bytes, artifacts)
+
+
+def read_bundle(bundle_path=None) -> tuple[Path, dict[str, Any]]:
+    snapshot = read_bundle_snapshot(bundle_path)
+    return snapshot.path, snapshot.package
 
 
 def _account_compatibility(package, model, policy, deployment_mode):
@@ -92,15 +130,15 @@ def _account_compatibility(package, model, policy, deployment_mode):
 
 def snapshot_bundle(identity: dict[str, Any], directory: Path) -> Path:
     """Freeze the selected package alongside outputs, including compact reports."""
-    source, package = read_bundle(identity["bundle_path"])
-    if sha256_file(source) != identity["bundle_sha256"]:
+    captured = read_bundle_snapshot(identity["bundle_path"])
+    if captured.sha256 != identity["bundle_sha256"]:
         raise ValueError("Selector package changed during the backtest")
     directory.mkdir(parents=True, exist_ok=False)
-    shutil.copyfile(source, directory / "manifest.json")
-    for record in package["files"].values():
-        target = directory / record["path"]
+    (directory / "manifest.json").write_bytes(captured.manifest_bytes)
+    for relative, data in captured.artifact_bytes.items():
+        target = directory / relative
         target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(source.parent / record["path"], target)
+        target.write_bytes(data)
     return directory / "manifest.json"
 
 

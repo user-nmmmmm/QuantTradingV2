@@ -123,13 +123,18 @@ def _save_payload(path: str | Path, payload: dict[str, Any]) -> None:
     temporary.replace(target)
 
 
-def _load_payload(path: str | Path) -> dict[str, Any]:
-    result = json.loads(Path(path).read_text(encoding="utf-8"))
+def _validate_payload(result: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(result, dict):
+        raise ValueError("model artifact must be a mapping")
     if result.get("artifact_version") != ARTIFACT_VERSION:
         raise ValueError("unsupported model artifact version")
     if result.get("model_id") != _identity(result):
         raise ValueError("model artifact identity does not match its contents")
     return result
+
+
+def _load_payload(path: str | Path) -> dict[str, Any]:
+    return _validate_payload(json.loads(Path(path).read_bytes()))
 
 
 class RidgeModel:
@@ -442,7 +447,15 @@ def fit_model(train: pd.DataFrame, validation: pd.DataFrame, *, features: Sequen
 
 
 def load_model(path: str | Path) -> RidgeModel | LightGBMModel | LambdaRankModel | "BernoulliPolicy":
-    payload = _load_payload(path)
+    return _model_from_payload(_load_payload(path))
+
+
+def load_model_bytes(data: bytes) -> RidgeModel | LightGBMModel | LambdaRankModel | "BernoulliPolicy":
+    """Construct from already captured bytes, retaining every artifact check."""
+    return _model_from_payload(_validate_payload(json.loads(data)))
+
+
+def _model_from_payload(payload: dict[str, Any]) -> RidgeModel | LightGBMModel | LambdaRankModel | "BernoulliPolicy":
     scaler = FeatureScaler.from_dict(payload["scaler"])
     if tuple(payload["features"]) != scaler.features:
         raise ValueError("artifact feature order differs from scaler features")

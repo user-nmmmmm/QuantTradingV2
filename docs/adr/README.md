@@ -50,3 +50,4 @@
 | [0039](0039-documentation-navigation-and-reference-links.md) | AUD-06：依赖与环境说明、实际模块导航、引用式链接门禁及历史报告兼容入口 | 已采纳 |
 | [0040](0040-repository-governance-evidence.md) | AUD-07：私密披露入口、只读分支/worktree 清单和所有者外部补证步骤 | 已采纳 |
 | [0041](0041-approved-data-adoption-and-research-window.md) | AUD-03：正式采用回执绑定数据提交，保留下载原件并独立执行研究截止日 | 已采纳 |
+| [0042](0042-captured-selector-bytes-and-retained-archive-identities.md) | 推理与快照使用同一份已校验字节；历史交付身份独立固定 | 已采纳 |
