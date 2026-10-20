@@ -1,8 +1,17 @@
-"""Recover entry approvals from immutable order facts, never current equity."""
+"""Entry valuation and approval recovery from authoritative price/order facts."""
 from __future__ import annotations
 
 import math
 from typing import Any, Mapping
+
+
+def long_entry_reference_price(signal_price: Any, order_price: Any,
+                               current_mark: Any = None) -> float:
+    """Value a proposed long at the highest already known entry reference."""
+    prices = [_positive(signal_price, "signal_price"), _positive(order_price, "order_price")]
+    if current_mark is not None:
+        prices.append(_positive(current_mark, "current_mark"))
+    return max(prices)
 
 
 def resolve_approved_risk(intent: Mapping[str, Any]) -> tuple[float, str]:

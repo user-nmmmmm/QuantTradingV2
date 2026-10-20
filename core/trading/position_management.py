@@ -15,6 +15,8 @@ from typing import Any, Mapping
 import numpy as np
 import pandas as pd
 
+from core.trading.entry_risk import long_entry_reference_price
+
 
 @dataclass(frozen=True)
 class CapitalAllocationPolicy:
@@ -233,47 +235,18 @@ class SmartCapitalPlanner:
         def priority(item):
             return item["selection_rank_score"] if use_selection_ranking else item["raw_weight"]
 
-        remaining_slots = max(self.policy.max_positions - len(occupied), 0)
-        ranked_new = sorted((p for p in prepared if p["symbol"] not in occupied),
-                            key=lambda p: (-priority(p), p["symbol"]))
-        selected_new = {p["symbol"] for p in ranked_new[:remaining_slots]}
-        selected = []
-        for item in prepared:
-            if item["symbol"] in occupied or item["symbol"] in selected_new:
-                selected.append(item)
-            else:
-                decisions[item["symbol"]]["reason"] = "position_slots_exhausted"
-        if not selected:
-            summary["reason"] = "position_slots_exhausted"
-            return decisions, summary
         try:
-            constraints = self._constraints(selected, equity, held, pending, pending_risk,
-                                            cash_budget, gross_budget, portfolio,
-                                            risk_manager, risk_governor, cost_fn)
+            result = self._allocate_candidates(prepared, decisions, occupied, priority,
+                lambda selected: self._constraints(selected, equity, held, pending, pending_risk,
+                    cash_budget, gross_budget, portfolio, risk_manager, risk_governor, cost_fn))
         except (ValueError, TypeError, AttributeError, ArithmeticError):
             return reject_all("unverifiable_shared_risk_budget")
-
-        # Reallocate dust to the remaining eligible signals. Removing one weak
-        # signal at a time allows a feasible minimum order instead of dropping
-        # a whole batch whose first proportional shares are individually tiny.
-        live = list(range(len(selected)))
-        allocation = np.zeros(len(selected))
-        while live:
-            weights = np.array([selected[i]["raw_weight"] for i in live])
-            caps = np.array([selected[i]["cap"] for i in live])
-            subset = [(name, budget, coefficients[live]) for name, budget, coefficients in constraints]
-            result = _fill(weights, caps, subset)
-            dust = [j for j, i in enumerate(live)
-                    if result[j] + 1e-8 < selected[i]["minimum"] or result[j] <= 1e-10]
-            if not dust:
-                allocation[live] = result
-                break
-            remove = min(dust, key=lambda j: (priority(selected[live[j]]),
-                                              selected[live[j]]["symbol"]))
-            decisions[selected[live[remove]]["symbol"]]["reason"] = "below_minimum_allocation"
-            del live[remove]
-        total_weight = sum(selected[i]["raw_weight"] for i in live)
-        for i, item in enumerate(selected):
+        if result is None:
+            summary["reason"] = "position_slots_exhausted"
+            return decisions, summary
+        allocation, live, constraints, used = result
+        total_weight = sum(prepared[i]["raw_weight"] for i in live)
+        for i, item in enumerate(prepared):
             notional = float(allocation[i])
             decision = decisions[item["symbol"]]
             if notional <= 0:
@@ -285,10 +258,50 @@ class SmartCapitalPlanner:
         summary.update(approved_count=sum(d["approved_qty"] > 0 for d in decisions.values()),
                        approved_notional=sum(d["approved_notional"] for d in decisions.values()),
                        approved_risk=sum(d["approved_risk"] for d in decisions.values()),
-                       constraints={name: {"budget": budget, "used": float(coefficients @ allocation)}
+                       constraints={name: {"budget": budget, "used": float(coefficients @ used)}
                                     for name, budget, coefficients in constraints},
                        reason="planned")
         return decisions, summary
+
+    def _allocate_candidates(self, prepared, decisions, occupied, priority, constraints_for):
+        """Fill feasible position slots in the active selector's priority order."""
+        remaining_slots = max(self.policy.max_positions - len(occupied), 0)
+        ranked_new = sorted((i for i, item in enumerate(prepared) if item["symbol"] not in occupied),
+                            key=lambda i: (-priority(prepared[i]), prepared[i]["symbol"]))
+        selected_new = set(ranked_new[:remaining_slots])
+        live = [i for i, item in enumerate(prepared)
+                if item["symbol"] in occupied or i in selected_new]
+        waiting = iter(ranked_new[remaining_slots:])
+        for i in ranked_new[remaining_slots:]:
+            decisions[prepared[i]["symbol"]]["reason"] = "position_slots_exhausted"
+        if not live:
+            return None
+        allocation = np.zeros(len(prepared))
+        while live:
+            selected = [prepared[i] for i in live]
+            constraints = constraints_for(selected)
+            weights = np.array([item["raw_weight"] for item in selected])
+            caps = np.array([item["cap"] for item in selected])
+            result = _fill(weights, caps, constraints)
+            used = np.zeros(len(selected))
+            dust = [j for j, i in enumerate(live)
+                    if result[j] + 1e-8 < prepared[i]["minimum"] or result[j] <= 1e-10]
+            if not dust:
+                allocation[live] = result
+                used = result
+                break
+            # Removing one candidate redistributes dust; a new position also
+            # releases its slot for the next candidate in the same ranking.
+            remove = min(dust, key=lambda j: (priority(prepared[live[j]]),
+                                              prepared[live[j]]["symbol"]))
+            removed = prepared[live.pop(remove)]
+            decisions[removed["symbol"]]["reason"] = "below_minimum_allocation"
+            if removed["symbol"] not in occupied:
+                replacement = next(waiting, None)
+                if replacement is not None:
+                    live.append(replacement)
+                    live.sort()
+        return allocation, live, constraints, used
 
     @staticmethod
     def _execution_cost(broker, budget_model):
@@ -337,7 +350,7 @@ class SmartCapitalPlanner:
         current = float(frame["close"].iat[index])
         mark = prices.get(candidate.symbol)
         order_price = float(signal.get("price", current))
-        price = max(current, order_price)
+        price = long_entry_reference_price(current, order_price, mark)
         stop = float(signal.get("stop_loss", 0.))
         if not all(_finite(v) and float(v) > 0 for v in (current, order_price, price, mark, stop)):
             raise ValueError("invalid_price_or_stop")
@@ -361,7 +374,7 @@ class SmartCapitalPlanner:
         if not all(_finite(v) and v >= 0 for v in (health, regime, volatility)):
             raise ValueError("invalid_sizing_multiplier")
         qty = float(candidate.strategy.initial_entry_quantity(
-            signal=signal, equity=equity, current_price=current, stop_loss=stop,
+            signal=signal, equity=equity, current_price=price, stop_loss=stop,
             risk_manager=risk_manager)) * health * regime
         if not _finite(qty) or qty <= 0:
             raise ValueError("strategy_risk_blocked")

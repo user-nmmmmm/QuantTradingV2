@@ -13,6 +13,7 @@ from core.events import Signal
 from core.risk import RiskManager
 from core.planning.allocation import EntryCandidate
 from core.trading.entry_audit import note
+from core.trading.entry_risk import long_entry_reference_price
 from core.foundation.domain import OrderStatus
 from core.trading.order_lifecycle import order_fact, terminal_fact
 from core.trading.protective_orders import authoritative_position_ids
@@ -714,8 +715,7 @@ class Strategy(ABC):
     def submit_entry_candidate(
         self, candidate: EntryCandidate, *, portfolio: Portfolio,
         broker: ExecutionPort, risk_manager: RiskManager,
-        current_prices: Dict[str, float],
-        risk_governor: Optional[Any] = None,
+        current_prices: Dict[str, float], risk_governor: Optional[Any] = None,
     ) -> Optional[Any]:
         """Size and submit a proposal after portfolio-level ranking.
 
@@ -730,6 +730,13 @@ class Strategy(ABC):
         action = str(signal["action"])
         current_price = float(df["close"].iat[i])
         order_price = float(signal.get("price", current_price))
+        if action == "buy":
+            try:
+                current_price = long_entry_reference_price(
+                    current_price, order_price, current_prices.get(symbol))
+            except ValueError:
+                note("invalid_order_size_or_price")
+                return None
         stop_loss = float(signal.get("stop_loss", 0.0) or 0.0)
         equity = portfolio.get_equity(current_prices)
         size = self.initial_entry_quantity(
@@ -753,7 +760,7 @@ class Strategy(ABC):
         pending = pending_provider(current_prices) if callable(pending_provider) else {}
         projection = getattr(broker, "reservation_projection", None)
         projection_options = ({"reservation_projection": projection}
-            if candidate.capital_allocation is not None and projection is not None else {})
+            if projection is not None else {})
         clamp = getattr(risk_manager, "clamp_entry_qty", None)
         if callable(clamp):
             size = clamp(
@@ -766,17 +773,9 @@ class Strategy(ABC):
         budget_decision = None
         note(clamped_qty=size)
         if risk_governor is not None and size > 0 and stop_loss > 0:
-            planned_risk = size * abs(current_price - stop_loss)
-            parent_budget_options = {}
-            if getattr(getattr(risk_governor, "policy", None), "max_crypto_beta_stop_risk", None) is not None:
-                projection = getattr(broker, "reservation_projection", None)
-                if projection is not None:
-                    parent_budget_options["pending_stop_risk"] = projection.pending_stop_risk()
-            budget_decision = risk_governor.evaluate(
-                symbol=symbol, planned_risk=planned_risk,
-                equity=equity, portfolio=portfolio,
-                **parent_budget_options,
-            )
+            budget_decision = self._correlated_entry_budget(risk_governor, projection,
+                symbol=symbol, planned_risk=size * abs(current_price - stop_loss),
+                equity=equity, portfolio=portfolio)
             size *= budget_decision.scale
             note("correlated_budget" if size <= 0 else "entry_risk_check",
                  correlated_budget=budget_decision.to_dict(), budgeted_qty=size)
@@ -795,6 +794,7 @@ class Strategy(ABC):
             portfolio, symbol, size, current_price, current_volume=0.0,
             current_prices=current_prices, pending_open_notional=pending,
             action=action,
+            **projection_options,
         ):
             if risk_governor is not None and budget_decision is not None:
                 risk_governor.commit(
@@ -811,6 +811,7 @@ class Strategy(ABC):
             order_type=signal.get("order_type", "market"), timestamp=df.index[i],
             strategy_id=self.name, exit_reason="signal", stop_loss=stop_loss,
             sequence=0,
+            reference_price=current_price if action == "buy" else order_price,
             **self._signal_links(decision_event),
             approved_risk_amount=(
                 size * abs(current_price - stop_loss) if stop_loss > 0 else None
@@ -835,6 +836,17 @@ class Strategy(ABC):
             except AttributeError:  # frozen/foreign result objects
                 pass
         return result
+
+    @staticmethod
+    def _correlated_entry_budget(governor, projection, *, symbol, planned_risk, equity, portfolio):
+        pending_options = {}
+        policy = getattr(governor, "policy", None)
+        risk_caps = ("max_correlated_stop_risk", "max_crypto_beta_stop_risk")
+        if (projection is not None and getattr(policy, "enabled", True)
+                and any(getattr(policy, cap, None) is not None for cap in risk_caps)):
+            pending_options["pending_stop_risk"] = projection.pending_stop_risk()
+        return governor.evaluate(symbol=symbol, planned_risk=planned_risk,
+            equity=equity, portfolio=portfolio, **pending_options)
 
     @staticmethod
     def _signal_links(envelope):
