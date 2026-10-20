@@ -256,8 +256,7 @@ class PortfolioRiskGovernor:
                             OrderStatus.EXPIRED_UNSUBMITTED.value, OrderStatus.NO_POSITION.value}
                             and not row.get("filled_qty")):
                         continue
-                    if (row["status"] in {OrderStatus.SUBMITTING.value,
-                            OrderStatus.CANCELED.value, OrderStatus.EXPIRED.value}
+                    if (row["status"] in {OrderStatus.CANCELED.value, OrderStatus.EXPIRED.value}
                             and not row.get("submission_attempted") and not row.get("filled_qty")):
                         continue
                     try:

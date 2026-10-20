@@ -278,10 +278,12 @@ def stored_intent(session, **changes):
 @pytest.mark.parametrize("status,attempted,filled,expected", [
     (OrderStatus.REJECTED, True, 0., 0.),
     (OrderStatus.EXPIRED_UNSUBMITTED, False, 0., 0.),
-    (OrderStatus.SUBMITTING, False, 0., 0.),
+    (OrderStatus.SUBMITTING, False, 0., 50.),
+    (OrderStatus.SUBMITTING, True, 0., 50.),
     (OrderStatus.CANCELED, False, 0., 0.),
     (OrderStatus.EXPIRED, False, 0., 0.),
     (OrderStatus.UNKNOWN, True, 0., 50.),
+    (OrderStatus.UNKNOWN, False, 0., 50.),
     (OrderStatus.ACCEPTED, True, 0., 50.),
     (OrderStatus.PARTIALLY_FILLED, True, 5., 50.),
     (OrderStatus.FILLED, True, 20., 50.),
