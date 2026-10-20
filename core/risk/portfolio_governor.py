@@ -29,6 +29,9 @@ from dataclasses import dataclass, field
 from math import isfinite
 from typing import Any, Dict, Mapping, Optional, Tuple
 
+from core.foundation.domain import OrderStatus
+from core.trading.entry_risk import resolve_approved_risk
+
 DEFAULT_CLUSTER = "crypto_beta"
 
 
@@ -247,7 +250,14 @@ class PortfolioRiskGovernor:
                 reserved = 0.0
                 for row in self._order_store.list_all():
                     intent = row.get("intent") or {}
-                    if row["side"] not in {"buy", "short"}:
+                    if row["side"] not in {"buy", "short"} or intent.get("reduce_only"):
+                        continue
+                    if (row.get("status") in {OrderStatus.REJECTED.value,
+                            OrderStatus.EXPIRED_UNSUBMITTED.value, OrderStatus.NO_POSITION.value}
+                            and not row.get("filled_qty")):
+                        continue
+                    if (row.get("status") in {OrderStatus.CANCELED.value, OrderStatus.EXPIRED.value}
+                            and not row.get("submission_attempted") and not row.get("filled_qty")):
                         continue
                     try:
                         bar = pd.Timestamp(intent["bar_time"]) - timeframe_delta(intent["timeframe"])
@@ -257,7 +267,7 @@ class PortfolioRiskGovernor:
                         if expected.tzinfo:
                             expected = expected.tz_convert("UTC").tz_localize(None)
                         if bar == expected:
-                            reserved += abs(float(intent["reference_price"]) - float(intent["initial_stop"])) * float(row["requested_qty"])
+                            reserved += resolve_approved_risk({"requested_qty": row.get("requested_qty"), **intent})[0]
                     except (KeyError, ValueError, TypeError):
                         continue
                 self._session_risk = max(self._session_risk, reserved)
@@ -272,6 +282,16 @@ class PortfolioRiskGovernor:
             return RiskBudgetDecision(
                 True, 1.0, "no_risk_cap", cluster, planned_risk, planned_risk
             )
+        pending: Dict[str, float] = {}
+        try:
+            for pending_symbol, value in (pending_stop_risk or {}).items():
+                amount = float(value)
+                if isinstance(value, bool) or not isfinite(amount) or amount < 0:
+                    raise ValueError("invalid pending risk")
+                pending[pending_symbol] = amount
+        except (AttributeError, TypeError, ValueError, OverflowError):
+            return RiskBudgetDecision(
+                False, 0.0, "unverifiable_pending_risk", cluster, planned_risk, 0.0)
         headrooms: list[Tuple[str, float]] = []
         if self.policy.max_same_session_entry_risk is not None:
             headrooms.append((
@@ -281,23 +301,21 @@ class PortfolioRiskGovernor:
             ))
         if self.policy.max_correlated_stop_risk is not None:
             open_risk = open_risk_by_cluster(self.policy, portfolio).get(cluster, 0.0)
+            reserved_risk = sum(value for symbol, value in pending.items()
+                                if self.policy.cluster_for(symbol) == cluster)
             headrooms.append((
                 "correlated_stop_risk",
-                equity * float(self.policy.max_correlated_stop_risk) - open_risk,
+                equity * float(self.policy.max_correlated_stop_risk) - open_risk - reserved_risk,
             ))
         if self.policy.max_crypto_beta_stop_risk is not None:
             # A reservation transfers to the lot ledger on each fill; summing
             # both therefore covers accepted, partially filled and held risk
             # without treating major and altcoins as independent portfolios.
-            pending_values = ([self._session_risk] if pending_stop_risk is None else
-                              [float(value) for value in pending_stop_risk.values()])
-            pending = (sum(pending_values) if all(isfinite(value) and value >= 0
-                                                  for value in pending_values)
-                       else float("inf"))
+            pending_total = self._session_risk if pending_stop_risk is None else sum(pending.values())
             aggregate = crypto_beta_open_stop_risk(portfolio)
             headrooms.append((
                 "crypto_beta_stop_risk",
-                equity * float(self.policy.max_crypto_beta_stop_risk) - aggregate - pending,
+                equity * float(self.policy.max_crypto_beta_stop_risk) - aggregate - pending_total,
             ))
         binding, headroom = min(headrooms, key=lambda item: item[1])
         if headroom <= 0:

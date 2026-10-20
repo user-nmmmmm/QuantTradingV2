@@ -34,6 +34,7 @@ class ExecutionPort(Protocol):
         stop_loss: float = 0.0,
         zero_cost: bool = False,
         approved_risk_amount: Optional[float] = None,
+        reference_price: Optional[float] = None,
     ) -> ExecutionResult:
         ...
 

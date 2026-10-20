@@ -80,6 +80,7 @@ class Matching:
         signal_id: Optional[str] = None,
         causation_id: Optional[str] = None,
         match_not_before: Any = None,
+        reference_price: Optional[float] = None,
     ) -> Order:
         """
         提交订单（进入撮合队列）。
@@ -117,24 +118,14 @@ class Matching:
             strategy_id=strategy_id, action=side, sequence=resolved_sequence,
             requested_qty=qty, order_type=order_type.lower(), price=price,
             time_in_force=time_in_force,
-            reference_price=price,
+            reference_price=reference_price if reference_price is not None else price,
             initial_stop=stop_loss or None,
             approved_risk_amount=approved_risk_amount,
             signal_id=signal_id, causation_id=causation_id,
         )
         if intent.client_order_id in host.opening_orders:
             return host.opening_orders[intent.client_order_id]
-        reference = intent.reference_price or price
-        if not reference and otype is OrderType.MARKET:
-            guard = getattr(host, "opening_risk_guard", None)
-            bar = guard.bars.get(symbol) if guard is not None else None
-            if (bar is not None and getattr(bar, "name", None) == guard.timestamp
-                    and pd.Timestamp(timestamp) == guard.timestamp):
-                reference = guard.prices.get(symbol)
-            elif host._volume_budget_bar.get(symbol) == timestamp:
-                reference = host.last_prices.get(symbol)
-            if reference:
-                intent = replace(intent, reference_price=float(reference))
+        intent, reference = self._reservation_reference(intent, price, otype, timestamp)
         rejection = None
         try:
             intent, intent_envelope = ensure_opening_reservation(
@@ -201,6 +192,22 @@ class Matching:
             host.opening_orders[order.id] = order
         host._publish_order_event(order, timestamp)
         return order
+
+    def _reservation_reference(self, intent, price, order_type, timestamp):
+        """Keep explicit risk references; infer missing market references causally."""
+        reference = intent.reference_price or price
+        if not reference and order_type is OrderType.MARKET:
+            host, symbol = self._host, intent.symbol
+            guard = getattr(host, "opening_risk_guard", None)
+            bar = guard.bars.get(symbol) if guard is not None else None
+            if (bar is not None and getattr(bar, "name", None) == guard.timestamp
+                    and pd.Timestamp(timestamp) == guard.timestamp):
+                reference = guard.prices.get(symbol)
+            elif host._volume_budget_bar.get(symbol) == timestamp:
+                reference = host.last_prices.get(symbol)
+            if reference:
+                intent = replace(intent, reference_price=float(reference))
+        return intent, reference
 
     def submit_intent(self, intent: OrderIntent) -> Order:
         """Submit the exact canonical command without rebuilding its identity."""

@@ -188,6 +188,7 @@ class Broker:
         signal_id: Optional[str] = None,
         causation_id: Optional[str] = None,
         match_not_before: Any = None,
+        reference_price: Optional[float] = None,
     ) -> Order:
         return self._matching.submit_order(
             symbol,
@@ -210,6 +211,7 @@ class Broker:
             signal_id,
             causation_id,
             match_not_before,
+            reference_price,
         )
 
     def submit_intent(self, intent: OrderIntent) -> Order:
