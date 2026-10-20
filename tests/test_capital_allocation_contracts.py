@@ -1,5 +1,6 @@
 """Shared capital invariants across planning, submission, fills and recovery."""
-from dataclasses import replace
+from dataclasses import asdict, replace
+from types import SimpleNamespace
 
 import pandas as pd
 import pytest
@@ -291,6 +292,28 @@ def stored_intent(session, **changes):
     return replace(OrderIntent("binance", "test", "A/USDT", "1d",
         (session + pd.Timedelta(days=1)).isoformat(), "TrendBreakout", "buy", 0, 20.,
         price=100., reference_price=100., initial_stop=90., approved_risk_amount=50.), **changes)
+
+
+@pytest.mark.parametrize("approval,quantity,expected", [
+    ({}, {}, 200.),
+    ({"approved_risk_amount": 50.}, {}, 50.),
+    ({}, {"requested_qty": 2.}, 20.),
+])
+def test_legacy_session_recovery_preserves_approval_and_quantity_authority(approval, quantity, expected):
+    session = pd.Timestamp("2024-01-30")
+    intent = asdict(stored_intent(session))
+    intent.pop("approved_risk_amount")
+    intent.pop("requested_qty")
+    intent.update(approval)
+    intent.update(quantity)
+    row = {"side": "buy", "requested_qty": 20., "intent": intent}
+    governor = PortfolioRiskGovernor(CorrelationClusterPolicy(max_same_session_entry_risk=.06))
+    governor.bind_state_store(None, SimpleNamespace(list_all=lambda: [row]))
+    governor.begin_session(session)
+    assert governor.session_risk_used == expected
+    remaining = governor.evaluate(symbol="B/USDT", planned_risk=600., equity=10000.,
+                                  portfolio=Portfolio(10000.))
+    assert remaining.allowed_risk == pytest.approx(600. - expected)
 
 
 @pytest.mark.parametrize("status,attempted,filled,expected", [

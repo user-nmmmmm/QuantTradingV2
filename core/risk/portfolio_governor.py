@@ -252,11 +252,11 @@ class PortfolioRiskGovernor:
                     intent = row.get("intent") or {}
                     if row["side"] not in {"buy", "short"} or intent.get("reduce_only"):
                         continue
-                    if (row["status"] in {OrderStatus.REJECTED.value,
+                    if (row.get("status") in {OrderStatus.REJECTED.value,
                             OrderStatus.EXPIRED_UNSUBMITTED.value, OrderStatus.NO_POSITION.value}
                             and not row.get("filled_qty")):
                         continue
-                    if (row["status"] in {OrderStatus.CANCELED.value, OrderStatus.EXPIRED.value}
+                    if (row.get("status") in {OrderStatus.CANCELED.value, OrderStatus.EXPIRED.value}
                             and not row.get("submission_attempted") and not row.get("filled_qty")):
                         continue
                     try:
@@ -267,7 +267,7 @@ class PortfolioRiskGovernor:
                         if expected.tzinfo:
                             expected = expected.tz_convert("UTC").tz_localize(None)
                         if bar == expected:
-                            reserved += resolve_approved_risk(intent)[0]
+                            reserved += resolve_approved_risk({"requested_qty": row.get("requested_qty"), **intent})[0]
                     except (KeyError, ValueError, TypeError):
                         continue
                 self._session_risk = max(self._session_risk, reserved)
