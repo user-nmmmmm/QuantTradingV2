@@ -75,6 +75,7 @@ class MatchingMixin:
         signal_id: Optional[str] = None,
         causation_id: Optional[str] = None,
         match_not_before: Any = None,
+        reference_price: Optional[float] = None,
     ) -> Order:
         """
         提交订单（进入撮合队列）。
@@ -111,7 +112,7 @@ class MatchingMixin:
             strategy_id=strategy_id, action=side, sequence=resolved_sequence,
             requested_qty=qty, order_type=order_type.lower(), price=price,
             time_in_force=time_in_force,
-            reference_price=price,
+            reference_price=reference_price if reference_price is not None else price,
             initial_stop=stop_loss or None,
             approved_risk_amount=approved_risk_amount,
             signal_id=signal_id, causation_id=causation_id,

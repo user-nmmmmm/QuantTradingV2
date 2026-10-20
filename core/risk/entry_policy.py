@@ -177,6 +177,7 @@ class EntryPolicyMixin:
                 current_volume=current_volume,
                 current_prices=current_prices,
                 pending_open_notional=reserved,
+                reservation_projection=reservation_projection,
                 action=intent.action,
             )
             budget = self.drawdown_budget
