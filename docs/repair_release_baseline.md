@@ -2,11 +2,12 @@
 
 这是发布准备与工程证据索引。`pyproject.toml` 已为 `3.1.1`，
 CHANGELOG 将 #99–#113 的修复、重评、采用及依赖更新归入 `2026-10-17` 准备条目。
-正式标签由所有者在发版收尾合并、选定最终提交并核对完整 CI 后另行创建。
+所有者已于 2026-10-19 在最终提交 `122489fab5d3f5b5d206ec77cd0c5dbc160e292a`（#114 合并）上创建并推送
+带注解标签 `v3.1.1`（tag object `2551bf22cd72ef4308262a4f925ecaa88951cc79`），并完成 A5 正式登记（第 5 节）。
 工程测试、版本标签、身份绑定和 A5 正式登记分别记录。
 
-**本轮只更新公开文档，不创建标签或新绑定、不执行 A5。D1 全部保留，不删除分支或 worktree。**
-下一步是本次更新合并后的最终 main CI；发布、绑定和 A5 均须所有者另行启动。
+**本次只更新公开文档，记录已发生的标签与登记；D1 全部保留，不删除分支或 worktree。**
+登记之后 main 已前进（#117 改动了 8 个冻结范围文件），不再等同于登记身份，见第 5 节。
 最低 Python 现为 3.11.5，实际环境须按[依赖说明](dependency_management.md)安装更新。
 2026-10-16 批准的[正式数据采用及研究上限](data_review/20261016_adoption.md)已随
 [#109](https://github.com/user-nmmmmm/QuantTradingV2/pull/109) 合并到
@@ -249,3 +250,24 @@ if ($parentAfter -ne $parentBefore -or $acceptance.parent_protocol_sha256 -ne $p
 
 普通报告者体验、通知接收和独立审查凭证继续单列，不因本轮 CI 或依赖更新关闭。
 #109 的数据采用已完成；28 份来源未核验与历史可得性未知仍保留。完整审计包、治理和登记资料继续本地保留。
+
+## 5. v3.1.1 标签与 A5 登记（工程摘要）
+
+以下只记录可公开的工程事实，完整回执、绑定文件和父批次资料仅留本地。
+
+| 项目 | 记录 |
+|---|---|
+| 标签 | 带注解标签 `v3.1.1`，tag object `2551bf22cd72ef4308262a4f925ecaa88951cc79`，指向 `122489fab5d3f5b5d206ec77cd0c5dbc160e292a`（#114 合并）；2026-10-19 由所有者创建并推送，`release_check.py v3.1.1 --verify-tag --main-ref origin/main` 通过。`v3.1.0` 与 `v3.0.0` 未移动 |
+| 选定提交的 CI | 同一 SHA 的 tests、offline、CodeQL、devcontainer 均 completed/success；本机 `dev.py check --no-tests` 全部通过 |
+| 登记 | A5 正式登记于 2026-10-19 07:38 UTC，身份方案 `code-token/v2`，绑定标签 `v3.1.1`；父批次为 `followup-successor-03`，登记前后协议均未被打开，访问日志为空 |
+| 观察窗 | `test_start` 2026-11-19，`test_end_exclusive` 2027-05-18，`mature_after` 2027-06-07（均 UTC，取自实际回执，不继承旧窗口的等待天数）；`admission` 为 `paused_revalidation`，研究状态 `pending_unseen_evidence` |
+| 只读复核 | 六个登记文件齐全；回执与绑定、配置变更声明、父协议、实验登记的摘要互相吻合；父协议的当前摘要等于回执记录值；`validate_prospective` 与正式绑定校验通过。目录旁的 `.lock` 文件为 0 字节残留，不含数据 |
+| 旧登记 | `v3.1.0`（`code-token/v1`）的登记保留原样，不替换；它不覆盖 #99–#113 的修复 |
+
+**登记之后 main 已前进：** [#117](https://github.com/user-nmmmmm/QuantTradingV2/pull/117)（`fd3eaf22`）修改了
+`core/broker/__init__.py`、`core/broker/matching.py`、`core/risk/entry_policy.py`、`core/risk/portfolio_governor.py`、
+`core/trading/entry_risk.py`、`core/trading/execution_port.py`、`core/trading/position_management.py`、`strategies/base.py`。
+对该登记的绑定运行 `identity_report.py --verify-binding --head fd3eaf22 --fail-on-change` 报告了这 8 个文件的身份变化，
+行为未验证。按协议，针对旧身份冻结的候选在把这些改动视为同一候选之前必须重新登记；
+当前 main 因此不等同于已登记的 `v3.1.1` 候选。是否为 #117 准备新版本并再次登记由所有者决定，
+不能移动 `v3.1.1`，也不能删除已登记目录重跑。

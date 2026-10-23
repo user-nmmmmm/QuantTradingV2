@@ -8,6 +8,11 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Record the 2026-10-19 `v3.1.1` annotated tag (tag object `2551bf22`, commit `122489fa`) and the A5 `code-token/v2` registration (observation window [2026-11-19, 2027-05-18), earliest maturity 2027-06-07) in the [infrastructure roadmap](docs/infrastructure_roadmap.md) and the [release baseline](docs/repair_release_baseline.md). The 3.1.1 entry below is unchanged from the tagged commit; private receipts and registration artifacts stay local.
+- Note that #117 changed eight frozen-scope files after the registration, so current `main` is not the registered identity: new observation candidates need a new version and re-registration, and `v3.1.1` is never moved.
+
 ## [3.1.1] - 2026-10-17
 
 Patch release preparation for the fixes in #99–#106, the release baseline in #107, the v2 data review and approved adoption in #108/#109, the earlier documentation closeout in #110, and the selector/archive integrity and dependency updates in #111–#113. The [repair baseline and owner runbook](docs/repair_release_baseline.md) links regressions, historical-evidence treatment and the release/tag/binding sequence. After this closeout merges, select the final main commit and verify its complete CI before any separately authorized release action. No v3.1.1 tag or new release binding is created here; A5 remains deferred and AUD-07 external evidence remains open.
