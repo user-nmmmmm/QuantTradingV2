@@ -27,14 +27,14 @@
 | 领域 | 当前已有能力 | 本计划重点 |
 | --- | --- | --- |
 | 统计验证 | [PBO/CSCV、CPCV、White、DSR](../../analysis/paper_validation.py)，[共享研究证据](../../analysis/research_evidence.py)，[真正重新回测的 Walk-forward](../../analysis/walk_forward.py) | 候选族完整性、失败尝试、独立性和统计校准，继续保留诊断与准入的边界 |
-| 数据版本 | [版本与 as-of](../../core/data_versions.py)、[时序行情](../../core/temporal_data.py)、[因果标签](../../core/temporal_labels.py) | 研究入口与 ML 桥接的时间语义对齐，兼容回顾性模式 |
-| ML/状态 | [ML模型](../../research/ml_selection/models.py)、[数据集](../../research/ml_selection/dataset.py)、[状态元层](../../core/signal_regime_model.py) | 支持样本、门控参与率、概率含义与同风险基线 |
-| 执行与成本 | [成本模型](../../core/broker/cost_model.py)、[离线校准](../../analysis/execution_calibration.py)、[盘口采集](../../core/binance_depth_observer.py) | 真实证据资格、按日留后评价、实际成交与模型成本的差异 |
-| 组合 | [固定对角收缩与逆波动](../../core/selection_v2.py)、[成本约束优化](../../core/cost_aware_allocation.py) | 显式估计器身份、数据驱动收缩及风险/收益/换手分解 |
+| 数据版本 | [版本与 as-of](../../core/market/data_versions.py)、[时序行情](../../core/market/temporal_data.py)、[因果标签](../../signal_meta/temporal_labels.py) | 研究入口与 ML 桥接的时间语义对齐，兼容回顾性模式 |
+| ML/状态 | [ML模型](../../research/ml_selection/models.py)、[数据集](../../research/ml_selection/dataset.py)、[状态元层](../../signal_meta/signal_regime_model.py) | 支持样本、门控参与率、概率含义与同风险基线 |
+| 执行与成本 | [成本模型](../../core/broker/cost_model.py)、[离线校准](../../analysis/execution_calibration.py)、[盘口采集](../../core/market/binance_depth_observer.py) | 真实证据资格、按日留后评价、实际成交与模型成本的差异 |
+| 组合 | [固定对角收缩与逆波动](../../core/planning/selection_v2.py)、[成本约束优化](../../core/planning/cost_aware_allocation.py) | 显式估计器身份、数据驱动收缩及风险/收益/换手分解 |
 | 归因 | [因子登记](../../analysis/factor_registry.py)、[历史输入](../../analysis/historical_factor_inputs.py) | 历史资产资格与市值口径、代理和完整复现分开 |
 | 前向 | [前向数据与诊断](../../research/ml_selection/forward_evidence.py)、[决策桥](../../research/ml_selection/forward_bridge.py) | 原引擎成交、权益及费用轨迹输入和核验；当前决策桥不能提供组合收益 |
 
-基线数值只用于识别瓶颈：[2026-10-05冻结回测](ml_selection_frozen_backtest_20261005.md)中的 RL 连续账户仅接受两个候选，2026 独立账户零交易；[既有论文实施](paper_roadmap_implementation_20261003.md)已展示部分复杂方法在某些窗口更差。本次未重跑，不将旧结果或旧测试数量当作当前验收。
+基线数值只用于识别瓶颈：[2026-10-05冻结回测](../ml_selection_history.md)中的 RL 连续账户仅接受两个候选，2026 独立账户零交易；[既有论文实施](paper_applications.md)已展示部分复杂方法在某些窗口更差。本次未重跑，不将旧结果或旧测试数量当作当前验收。
 
 ## 3. 文献与任务的对应
 

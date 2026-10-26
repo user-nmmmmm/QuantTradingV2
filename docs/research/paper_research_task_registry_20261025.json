@@ -9,14 +9,15 @@
   "live_authorization": false,
   "state_rule": "This file describes planned scope only. It never updates or closes authoritative project tasks.",
   "synchronization_rule": "Review Markdown/JSON mismatches together; do not overwrite global task status.",
+  "source_documents_sha256_policy": "SHA-256 of the file bytes after CRLF to LF normalization",
   "source_documents": [
     {
       "path": "docs/research/paper_research_roadmap_20261025.md",
-      "sha256": "b8223eac5d9bb10ada7b9ff85948de0cc2e662202c8bea9373bdcc323af26029"
+      "sha256": "7e25478c6102f626d9b34bdcd476e4a84c61e9fcd0c2a04ed4eee05d88a44357"
     },
     {
       "path": "docs/research/paper_research_development_plan_20261025.md",
-      "sha256": "cde359dcc38e800c29b829134150f7a256e7a3bef7e226b6415b09b89198fdf6"
+      "sha256": "18781fa494a632dd7ebe1dcbd23d9888d708ef214de5dd484a486b6a317192b2"
     }
   ],
   "first_iteration": {
@@ -282,8 +283,8 @@
         "L08"
       ],
       "existing_paths": [
-        "core/temporal_data.py",
-        "core/data_versions.py",
+        "core/market/temporal_data.py",
+        "core/market/data_versions.py",
         "research/ml_selection/dataset.py",
         "research/ml_selection/selector.py",
         "research/ml_selection/forward_bridge.py"
@@ -358,10 +359,10 @@
         "L08"
       ],
       "existing_paths": [
-        "core/temporal_labels.py",
-        "core/signal_label_versions.py",
+        "signal_meta/temporal_labels.py",
+        "signal_meta/signal_label_versions.py",
         "research/ml_selection/dataset.py",
-        "analysis/paper_label_execution.py"
+        "signal_meta/paper_label_execution.py"
       ],
       "proposed_paths": [],
       "existing_test_paths": [
@@ -816,9 +817,9 @@
         "scripts/audit_execution_readiness.py",
         "scripts/calibrate_execution.py",
         "core/broker/cost_model.py",
-        "core/cost_aware_allocation.py",
-        "core/selection_v2.py",
-        "core/portfolio_target_controller.py"
+        "core/planning/cost_aware_allocation.py",
+        "core/planning/selection_v2.py",
+        "core/planning/portfolio_target_controller.py"
       ],
       "proposed_paths": [],
       "existing_test_paths": [
@@ -896,8 +897,8 @@
         "L05"
       ],
       "existing_paths": [
-        "core/selection_v2.py",
-        "core/cost_aware_allocation.py"
+        "core/planning/selection_v2.py",
+        "core/planning/cost_aware_allocation.py"
       ],
       "proposed_paths": [
         {
@@ -983,8 +984,8 @@
         "L05"
       ],
       "existing_paths": [
-        "core/selection_v2.py",
-        "core/cost_aware_allocation.py",
+        "core/planning/selection_v2.py",
+        "core/planning/cost_aware_allocation.py",
         "analysis/paper_validation.py",
         "analysis/research_evidence.py",
         "analysis/walk_forward.py"
@@ -1137,9 +1138,9 @@
         "L07"
       ],
       "existing_paths": [
-        "core/cost_aware_allocation.py",
-        "core/selection_v2.py",
-        "core/portfolio_target_controller.py"
+        "core/planning/cost_aware_allocation.py",
+        "core/planning/selection_v2.py",
+        "core/planning/portfolio_target_controller.py"
       ],
       "proposed_paths": [],
       "existing_test_paths": [
@@ -1209,9 +1210,9 @@
         "L07"
       ],
       "existing_paths": [
-        "core/cost_aware_allocation.py",
-        "core/selection_v2.py",
-        "core/portfolio_target_controller.py"
+        "core/planning/cost_aware_allocation.py",
+        "core/planning/selection_v2.py",
+        "core/planning/portfolio_target_controller.py"
       ],
       "proposed_paths": [],
       "existing_test_paths": [
@@ -1288,7 +1289,7 @@
         "research/ml_selection/models.py",
         "research/ml_selection/dataset.py",
         "research/ml_selection/pipeline.py",
-        "core/signal_regime_model.py"
+        "signal_meta/signal_regime_model.py"
       ],
       "proposed_paths": [],
       "existing_test_paths": [
@@ -1367,8 +1368,8 @@
         "research/ml_selection/forward_evidence.py",
         "research/ml_selection/forward_bridge.py",
         "scripts/collect_strategy_forward.py",
-        "core/temporal_data.py",
-        "core/data_versions.py",
+        "core/market/temporal_data.py",
+        "core/market/data_versions.py",
         "research/ml_selection/dataset.py",
         "research/ml_selection/selector.py"
       ],
@@ -1539,9 +1540,9 @@
         "research/ml_selection/forward_evidence.py",
         "research/ml_selection/forward_bridge.py",
         "scripts/collect_strategy_forward.py",
-        "core/cost_aware_allocation.py",
-        "core/selection_v2.py",
-        "core/portfolio_target_controller.py"
+        "core/planning/cost_aware_allocation.py",
+        "core/planning/selection_v2.py",
+        "core/planning/portfolio_target_controller.py"
       ],
       "proposed_paths": [],
       "existing_test_paths": [

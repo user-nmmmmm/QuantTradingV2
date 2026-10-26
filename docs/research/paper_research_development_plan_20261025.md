@@ -18,7 +18,7 @@
 4. 18汇总有限编排与报告，19整体验收，20冻结新候选，21仅在相应证据真正到期后裁决。
 5. PR25-15由14的瓶颈证据触发，单独估算/登记7–10人日，未启动时不阻塞近期主线。
 
-关键共享文件：analysis/research_evidence.py由身份/统计任务统一协调；core/selection_v2.py先增加估计器接口再接成本provider；ML dataset/selector/forward_bridge由一个接口负责人集成。每个变更集只承担一个可单独验收的行为。
+关键共享文件：analysis/research_evidence.py由身份/统计任务统一协调；core/planning/selection_v2.py先增加估计器接口再接成本provider；ML dataset/selector/forward_bridge由一个接口负责人集成。每个变更集只承担一个可单独验收的行为。
 
 ## 2. 单工作包的完整开发流程
 
@@ -54,7 +54,7 @@
 | strict/published | 按可证明发布/修订时间查询；与local语义分别测试 |
 | prospective | 登记后实际接收的观察，需候选冻结与连续原始收据；不能由补下载历史数据获得 |
 
-实现复用[TemporalDataPolicy与cutoff](../../core/temporal_data.py)、[DataVersionStore](../../core/data_versions.py)及[标签版本](../../core/signal_label_versions.py)。不同模式必须有不同身份和清晰报告。现有ML研究runner仍以retrospective协议为边界；完成适配不等于runner自动具有最终独立评价资格。
+实现复用[TemporalDataPolicy与cutoff](../../core/market/temporal_data.py)、[DataVersionStore](../../core/market/data_versions.py)及[标签版本](../../signal_meta/signal_label_versions.py)。不同模式必须有不同身份和清晰报告。现有ML研究runner仍以retrospective协议为边界；完成适配不等于runner自动具有最终独立评价资格。
 
 ### 3.2 研究协议的最小字段（拟新增的统一封装）
 
@@ -543,7 +543,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Historical archive verification failed' }
 if ($LASTEXITCODE -ne 0) { throw 'Repository hygiene failed' }
 & $py scripts/verify_roadmap_completion.py --structure-only
 if ($LASTEXITCODE -ne 0) { throw 'Roadmap structure failed' }
-& $py -m mypy core/domain.py core/runtime.py live_trading/execution_adapter.py
+& $py -m mypy core/foundation/domain.py core/foundation/runtime.py live_trading/execution_adapter.py
 if ($LASTEXITCODE -ne 0) { throw 'Runtime type check failed' }
 
 & $py scripts/run_portable_tests.py -q --cov=core --cov=backtest --cov=live_trading --cov-fail-under=55 --junitxml (Join-Path $runRoot 'integration.xml')
