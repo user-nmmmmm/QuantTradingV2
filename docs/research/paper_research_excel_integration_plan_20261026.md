@@ -1,6 +1,6 @@
 # 论文研究深化：结合 Excel 文献表的开发计划（2026-10-26）
 
-> 状态：**口径已定稿（§4）；B1（PR25-00/01/02）实施中，其余批次未开始。** 本文件不记录验收结果，验收证据见各批次提交与回执。
+> 状态：**口径已定稿（§4）；B1（PR25-00/01/02）工程交付已完成（§6），其余批次未开始。** 本文件不记录验收结果，验收证据见各批次提交与回执。
 > 输入：[Roadmap](paper_research_roadmap_20261025.md)、[详细开发与测试计划](paper_research_development_plan_20261025.md)（PR25-00…22 的任务卡、预算、测试矩阵均沿用，不重复）、《量化交易论文分类与研究导航.xlsx》。
 > 注：上述两份 20261025 文件目前只存在于主检出 `D:\QuantTradingV1\docs\research\`，不在本工作树/分支中（工作树为 clean）。落地时需先决定它们随哪个提交进入仓库。
 
@@ -81,3 +81,26 @@ Excel 已可读：288 篇（去重）、12 大类、37 小类、203 篇带 PDF �
 - 未阅读任何论文全文；表内内容只来自检索摘要与元数据，阅读层级均为“摘要”。
 - 本草案没有运行任何测试、实验或数据命令，也没有更新 `paper_research_task_registry_20261025.json`；落地 PR25-00 时需同步该 JSON（含两份文档的 SHA-256）。
 - “表内 6 篇不存在”依据题名/作者关键词检索；入库时应以脚本逐条核对并保存结果。
+
+## 6. B1 执行记录（PR25-00/01/02，2026-10-26）
+
+**范围与状态**：工程交付已落地并通过下列专项检查；**研究与外部证据维度均未评价**，未做独立复核，未改动任何正式项目任务状态，登记 JSON 中 23 项仍为 `planned`。
+
+| 工作包 | 交付 | 验证 |
+| --- | --- | --- |
+| PR25-00 | [文献登记](paper_literature_registry_20261026.json)（288 篇、Excel 字节哈希、L01–L08 表内/表外由题名**计算**得出）；[模块](../../analysis/literature_registry.py)、[脚本](../../scripts/build_paper_literature_registry.py) | 9 项测试；`check` 对真实 Excel 一致（L02=#12、L04=#252，其余 6 篇表外） |
+| PR25-01 | [基线采集](../../analysis/research_baseline.py)与[脚本](../../scripts/capture_research_baseline.py)（HEAD、未提交/未跟踪、源码身份、解释器/BLAS、CI Python） | 7 项测试；在本工作树实际采集一次（输出在被 Git 忽略的 `reports/paper_research_20261025/` 下，含 385 个文件的源码身份、Python 3.13.2 与 CI 矩阵 3.11/3.13 一致） |
+| PR25-02 | [搜索范围审计与源码闭包](../../analysis/search_scope.py) | 12 项测试：缺臂、日志截断、序号缺口、身份不一致、未知状态、闭包内测试/模型/数据变更、伪造哈希 |
+
+**固定基线上的既有测试**：统计组（`test_paper_validation`、`test_unified_research_evidence`、`test_phase5_research_validation`、`test_walk_forward`）86 项通过；加上本批新增与脚本分类/文档类测试共 204 项通过。静态检查：ruff、质量棘轮、仓库卫生、Markdown 链接、结构检查（`--structure-only`）、import-linter 通过。未运行完整 CI 套件，也未运行 `main_acceptance`。
+
+**对原计划的更正（现状核对结果）**：
+1. 原计划称 `source_identity` 默认目录不覆盖 `research/ml_selection`；实际 `research/` 整个目录已在内。真实缺口是**测试定义、模型二进制和数据/协议文件**，由 `source_closure` 补上；`ResearchEvidenceRun.verify_identity` 本身未改（外传哈希仍不核验，保持原行为）。
+2. 两份 20261025 文档按旧的平铺 `core/` 路径写成，当前布局在 `core/market`、`core/planning`、`core/foundation`、`signal_meta`；已改链接和登记路径，新增测试保证登记里的“已有路径”都存在。B4 的 `core/covariance_estimators.py` 仍是“拟新增”，落地位置需按新布局重新选定（原要求：core 不得导入 analysis）。
+3. 登记 JSON 的文档哈希改为 CRLF→LF 规范化后计算（路线图文件混用换行），并写明了政策。
+
+**未完成/限制**：
+- “固定小型账户 fixture 重放”未做：只用既有统计测试组作为基线，没有新增账户 fixture（留待 B2 前确定要用哪个）。
+- `search_scope` 只审计已记录的日志：尾部整行丢失且该臂恰好缺终态以外的情形，只能靠“终态缺失”发现；不能证明日志从未被整体截断。
+- 工作树基线落后于主检出（主检出在 `b82af6d8`，本分支在 `fd3eaf22` 之上）；合入前需用 `sync_with_base_branch` 同步，并重跑本批检查。
+- 文献阅读层级仍为“仅检索摘要”，未取得 L01–L08 全文。

@@ -8,6 +8,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- PR25-00/01/02 (paper research programme, batch B1): hashed paper literature registry built from the Excel workbook (L01-L08 presence computed, only L02 and L04 are in the table), offline research baseline capture, and a search-scope / source-closure audit for `ResearchEvidenceRun` records. Research-only tooling; no strategy, admission or live behaviour changes. Plan: `docs/research/paper_research_excel_integration_plan_20261026.md`.
+
 ## [3.1.1] - 2026-10-17
 
 Patch release preparation for the fixes in #99–#106, the release baseline in #107, the v2 data review and approved adoption in #108/#109, the earlier documentation closeout in #110, and the selector/archive integrity and dependency updates in #111–#113. The [repair baseline and owner runbook](docs/repair_release_baseline.md) links regressions, historical-evidence treatment and the release/tag/binding sequence. After this closeout merges, select the final main commit and verify its complete CI before any separately authorized release action. No v3.1.1 tag or new release binding is created here; A5 remains deferred and AUD-07 external evidence remains open.
