@@ -10,6 +10,7 @@
 | --- | --- | --- |
 | 首次安装、回测或打开网页 | [项目 README](../README.md)、[本地研究工作台](../dashboard/README.md) | [依赖与环境](dependency_management.md)、[前端维护](../dashboard/README.md) |
 | 理解代码职责和调用关系 | [代码模块说明](modules/README.md) | [架构边界审查](architecture_review.md)、[词汇表](glossary.md) |
+| 阅读 PR25 主线移植与研究合同 | [2026-10-28 主线开发记录](research/paper_research_main_development_20261028.md) | [专项 Roadmap](research/paper_research_roadmap_20261025.md)、[详细开发与测试计划](research/paper_research_development_plan_20261025.md)、[专项登记](research/paper_research_task_registry_20261025.json) |
 | 实施论文研究深化的研究计划 | [论文研究深化 Roadmap](research/paper_research_roadmap_20261025.md) | [详细开发与测试计划](research/paper_research_development_plan_20261025.md)、[Excel 文献整合计划](research/paper_research_excel_integration_plan_20261026.md)、[机器可读任务计划](research/paper_research_task_registry_20261025.json) |
 | 查看阶段、依赖与放行条件 | [统一 Roadmap v3](unified_roadmap.md) | [统一开发计划](development_plan.md)、[结构化任务登记](development_task_registry.json) |
 | 实施任务、核对交付和验收 | [开发详情](development_details.md) | [2026-09-20 后续实施记录](roadmap_acceptance_log.md) |
@@ -32,7 +33,9 @@
 
 以下按近期主题提供入口。带日期的实施记录说明对应批次的工作和证据，文件日期较新并不自动替代已批准契约或更新项目放行状态。
 
-- [2026-10-25 论文研究深化 Roadmap](research/paper_research_roadmap_20261025.md)、[详细开发与测试计划](research/paper_research_development_plan_20261025.md)、[Excel 文献整合计划](research/paper_research_excel_integration_plan_20261026.md)：基于八篇候选论文与 Excel 文献表的 23 项专项工作包；计划文档，尚未实施，状态见各文件。
+- [2026-10-28 PR25 主线移植与三项补充接口](research/paper_research_main_development_20261028.md)：保留当前架构、数据 adoption 与质量门槛，移植原专项工程并补充成本发布收据、原策略自动捕获和类型化 worker 输入；[当前验收](research/paper_research_main_acceptance_20261028.json)待当前提交检查，真实证据、条件支线和资金准入分别记录。
+
+- [2026-10-25 论文研究深化 Roadmap](research/paper_research_roadmap_20261025.md)、[详细开发与测试计划](research/paper_research_development_plan_20261025.md)、[Excel 文献整合计划](research/paper_research_excel_integration_plan_20261026.md)：基于八篇候选论文与 Excel 文献表的 23 项专项工作包规划快照；B1 已有工程交付，后续执行范围和验收见 [2026-10-28 主线记录](research/paper_research_main_development_20261028.md)，全局任务状态仍由原权威登记维护。
 - [机器学习选币:现状与历史记录](ml_selection.md)：操作说明、工程整改、回测开关与下一阶段 Roadmap 见 [ml_selection.md](ml_selection.md)；V1 复核、本轮执行、冻结回测、诊断与稳健性解读见 [ml_selection_history.md](ml_selection_history.md)；[学习清单](ml_selection_learning_checklist_20261005.md)。均为研究/工程记录，`formal_admission=false` 保持不变。
 - [2026-10-04 剩余论文任务](research/paper_remaining_tasks_20261004.md)：执行成本与盘口证据、历史因子输入、前瞻采集和严格标签的实现与缺口；[收益改进复核](research/paper_applications.md)记录固定方案的历史比较，保留主引擎与独立现货账户的口径差异。
 - [论文统计验证契约](research/paper_validation_contract_20261003.md)：PBO、purged/embargo 切分、White Reality Check 与 DSR 的输入、计算和证据不足行为；应用入口见[论文应用清单](research/paper_applications.md)和[工程完成记录](research/paper_applications.md)。

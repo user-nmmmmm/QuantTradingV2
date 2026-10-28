@@ -35,17 +35,17 @@ flowchart TB
 | 包 | 模块数 | 子包（模块数） |
 |---|---|---|
 | `cli` | 3 | 平铺 3 |
-| `core` | 107 | `analytics` 7, `broker` 6, `events` 5, `exchange` 5, `factors` 6, `foundation` 11, `live_broker` 6, `market` 17, `metrics` 5, `planning` 7, `risk` 10, `trading` 22 |
+| `core` | 112 | `analytics` 7, `broker` 6, `events` 5, `exchange` 5, `factors` 6, `foundation` 13, `live_broker` 6, `market` 18, `metrics` 5, `planning` 9, `risk` 10, `trading` 22 |
 | `ops` | 14 | 平铺 11；`operations` 3 |
-| `signal_meta` | 17 | 平铺 17 |
+| `signal_meta` | 18 | 平铺 18 |
 | `config` | 1 | 平铺 1 |
 | `strategies` | 7 | 平铺 7 |
 | `router` | 1 | 平铺 1 |
 | `composition` | 1 | 平铺 1 |
 | `backtest` | 24 | 平铺 12；`reporting` 12 |
 | `live_trading` | 9 | 平铺 9 |
-| `analysis` | 25 | 平铺 25 |
-| `research` | 24 | 平铺 1；`audit` 2, `ml_selection` 21 |
+| `analysis` | 32 | 平铺 32 |
+| `research` | 30 | 平铺 1；`audit` 2, `ml_selection` 27 |
 | `dashboard` | 14 | 平铺 14 |
 
 顶层入口文件：`main.py`、`resolve_live_order.py`、`run_live.py`。

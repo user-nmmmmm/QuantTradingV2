@@ -60,10 +60,22 @@ def test_every_check_task_is_present_in_the_ci_quality_job():
         if step["name"] in {"Install dependencies (runtime versions come from the lock)",
                             "Install the project (editable)", "Report frozen-scope identity impact (informational)"}:
             continue
+        if step["name"] == "Preserve exact checkout identity":
+            assert step.get("if") == "always()"
+            assert step["run"].splitlines() == [
+                "mkdir -p outputs/current-ci",
+                "git rev-parse HEAD > outputs/current-ci/checkout-sha.txt",
+                "git rev-parse 'HEAD^{tree}' > outputs/current-ci/checkout-tree.txt",
+            ]
+            continue
         command = shlex.split(step["run"])
         assert "if" not in step, step["name"]
         assert command[:2] == ["python", "scripts/dev.py"], step["name"]
-        assert len(command) == 3, step["name"]
+        expected_reports = [
+            "--", "--junitxml=outputs/current-ci/full-tests.xml",
+            "--cov-report=term", "--cov-report=json:outputs/current-ci/runtime-coverage.json",
+        ] if command[2] == "test" else []
+        assert command[3:] == expected_reports, step["name"]
         tasks.append(command[2])
     assert tasks == dev.CHECK_ORDER
 

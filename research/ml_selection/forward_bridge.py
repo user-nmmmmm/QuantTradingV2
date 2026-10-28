@@ -72,7 +72,10 @@ def capture_hook_state(candidates, *, event, portfolio, broker, risk_manager,
         raise ValueError("state bridge requires original risk budget state")
     budget_state = budget.snapshot().to_dict()
     equity = portfolio.get_total_value(dict(current_prices))
-    as_of = utc(event.timestamp) + pd.Timedelta(days=1)
+    from research.ml_selection.temporal_context import SelectionTemporalContext
+    temporal_context = SelectionTemporalContext.from_event(event)
+    strict = temporal_context.policy.mode == "strict"
+    as_of = temporal_context.decision_cutoff
     health, rows = {}, []
     for candidate in candidates:
         name = candidate.strategy_name
@@ -93,8 +96,8 @@ def capture_hook_state(candidates, *, event, portfolio, broker, risk_manager,
                                                                    as_of=as_of, features=features)})
     payload = {"schema": "ml-rl-hook-state/v1", "source": "original_engine_candidate_hook",
         "protocol_id": protocol_id, "policy_id": policy_id, "parent_model_id": parent_model_id,
-        "bar_time": utc(event.timestamp), "as_of": utc(event.timestamp) + pd.Timedelta(days=1),
-        "available_at": utc(event.timestamp) + pd.Timedelta(days=1), "timeframe": event.timeframe,
+        "bar_time": utc(event.timestamp), "as_of": as_of,
+        "available_at": as_of, "timeframe": event.timeframe,
         "candidates_collected_after_strategy_health": True,
         "portfolio": {"cash": portfolio.cash, "initial_capital": portfolio.initial_capital,
                       "equity": equity, "positions": portfolio.positions},
@@ -109,9 +112,66 @@ def capture_hook_state(candidates, *, event, portfolio, broker, risk_manager,
                  "risk_per_trade": risk_manager.risk_per_trade,
                  "budget": budget_state},
         "strategy_health": health, "candidates": rows}
+    if strict:
+        payload.update(schema="ml-rl-hook-state/v2", as_of=temporal_context.decision_cutoff,
+            available_at=temporal_context.decision_cutoff,
+            temporal_context=temporal_context.to_dict(), temporal_context_id=temporal_context.identity,
+            source_versions={symbol: frame.attrs.get("temporal_source_versions", {})
+                             for symbol, frame in getattr(event, "histories", {}).items()})
+        if not payload["source_versions"]:
+            raise ValueError("strict RL bridge requires source-version evidence")
     payload = __import__("json").loads(canonical_json(payload))
     payload["snapshot_id"] = _identity(payload)
     return payload
+
+
+def _validate_strict_hook_state(payload, as_of):
+    from research.ml_selection.temporal_context import SelectionTemporalContext
+    from core.market.data_versions import _record
+    from signal_meta.signal_observation_types import fingerprint
+    context = SelectionTemporalContext.from_mapping(payload.get("temporal_context"))
+    if context.policy.mode != "strict" or context.decision_cutoff != as_of or context.identity != payload.get("temporal_context_id"):
+        raise ValueError("strict bridge temporal context mismatch")
+    sources = payload.get("source_versions")
+    if not isinstance(sources, dict) or not sources:
+        raise ValueError("strict bridge source evidence missing")
+    for envelopes in sources.values():
+        for envelope in envelopes.values():
+            record = _record(envelope["record"])
+            if fingerprint(record) != envelope.get("record_sha256"):
+                raise ValueError("strict bridge source content mismatch")
+            available = record["available_at"]
+            if (available is None or utc(available) > as_of or
+                (context.policy.knowledge == "local" and utc(record["observed_at"]) > as_of) or
+                (context.policy.knowledge == "published" and record["availability_evidence"]["kind"] != "source_publication")):
+                raise ValueError("strict bridge source was unavailable at decision")
+            if utc(record["event_time"]) + pd.Timedelta(days=1) > as_of:
+                raise ValueError("strict bridge contains an unclosed source candle")
+    if any(row["symbol"] not in sources for row in payload["candidates"]):
+        raise ValueError("strict bridge candidate source missing")
+    from research.ml_selection.temporal_context import validate_causal_prices
+    validate_causal_prices(payload["prices"], sources, context)
+
+def _validate_bridge_candidates(payload, as_of):
+    keys = set()
+    for candidate in payload["candidates"]:
+        key = (candidate["symbol"], candidate["strategy_name"])
+        if key in keys:
+            raise ValueError("duplicate bridge candidate")
+        keys.add(key)
+        _finite(candidate["score"], "native candidate score")
+        if not isinstance(candidate.get("signal"), dict) or candidate["signal"].get("action") != "buy":
+            raise ValueError("RL bridge requires original spot entry signals")
+        captured_context = candidate.get("decision_context")
+        if captured_context is not None:
+            validate_decision_context_snapshot(captured_context, as_of=as_of)
+            if (captured_context.get("strategy") != candidate["strategy_name"]
+                    or captured_context.get("native_candidate_score") != candidate["score"]
+                    or captured_context.get("current_price") != payload["prices"].get(candidate["symbol"])):
+                raise ValueError("captured policy decision context disagrees with candidate or causal price")
+        health = payload["strategy_health"].get(candidate["strategy_name"])
+        if not isinstance(health, dict) or health.get("allows_new_entries") is not True:
+            raise ValueError("candidate lacks permitting strategy health state")
 
 
 def validate_hook_state(snapshot, *, protocol_id, policy_id, parent_model_id, information_cutoff):
@@ -122,7 +182,7 @@ def validate_hook_state(snapshot, *, protocol_id, policy_id, parent_model_id, in
     if identifier != _identity(payload):
         raise ValueError("RL state snapshot identity mismatch")
     required = {"portfolio", "prices", "orders", "risk", "strategy_health", "candidates", "available_at", "as_of", "bar_time"}
-    if not required <= set(payload) or payload.get("schema") != "ml-rl-hook-state/v1":
+    if not required <= set(payload) or payload.get("schema") not in {"ml-rl-hook-state/v1", "ml-rl-hook-state/v2"}:
         raise ValueError("incomplete RL account and strategy state")
     if payload.get("source") != "original_engine_candidate_hook" or payload.get("candidates_collected_after_strategy_health") is not True:
         raise ValueError("RL candidates require original strategy and health collection")
@@ -131,8 +191,12 @@ def validate_hook_state(snapshot, *, protocol_id, policy_id, parent_model_id, in
             raise ValueError(f"RL bridge {key} mismatch")
     cutoff = utc(information_cutoff)
     as_of = utc(payload["as_of"])
-    if payload.get("timeframe") != "1d" or utc(payload["bar_time"]) + pd.Timedelta(days=1) != as_of:
+    strict = payload.get("schema") == "ml-rl-hook-state/v2"
+    if payload.get("timeframe") != "1d" or (utc(payload["bar_time"]) + pd.Timedelta(days=1) > as_of
+            if strict else utc(payload["bar_time"]) + pd.Timedelta(days=1) != as_of):
         raise ValueError("RL bridge requires a daily closed-bar state")
+    if strict:
+        _validate_strict_hook_state(payload, as_of)
     if (utc(payload["available_at"]) < as_of or utc(payload["available_at"]) > cutoff
             or as_of > cutoff or as_of < cutoff.normalize()):
         raise ValueError("RL state is stale or unavailable at the information cutoff")
@@ -197,25 +261,7 @@ def validate_hook_state(snapshot, *, protocol_id, policy_id, parent_model_id, in
                 or not order.get("symbol") or order.get("side") not in {"buy", "sell"}
                 or order.get("timestamp") is None or utc(order["timestamp"]) > as_of):
             raise ValueError("incomplete or inconsistent RL matching order state")
-    keys = set()
-    for candidate in payload["candidates"]:
-        key = (candidate["symbol"], candidate["strategy_name"])
-        if key in keys:
-            raise ValueError("duplicate bridge candidate")
-        keys.add(key)
-        _finite(candidate["score"], "native candidate score")
-        if not isinstance(candidate.get("signal"), dict) or candidate["signal"].get("action") != "buy":
-            raise ValueError("RL bridge requires original spot entry signals")
-        captured_context = candidate.get("decision_context")
-        if captured_context is not None:
-            validate_decision_context_snapshot(captured_context, as_of=as_of)
-            if (captured_context.get("strategy") != candidate["strategy_name"]
-                    or captured_context.get("native_candidate_score") != candidate["score"]
-                    or captured_context.get("current_price") != payload["prices"].get(candidate["symbol"])):
-                raise ValueError("captured policy decision context disagrees with candidate or causal price")
-        health = payload["strategy_health"].get(candidate["strategy_name"])
-        if not isinstance(health, dict) or health.get("allows_new_entries") is not True:
-            raise ValueError("candidate lacks permitting strategy health state")
+    _validate_bridge_candidates(payload, as_of)
     return payload
 
 
@@ -227,13 +273,17 @@ def bridge_decision(snapshot, dataset, model, policy, *, protocol_id, informatio
         positions=account["positions"], get_total_value=lambda prices: account["equity"])
     broker = SimpleNamespace(pending_orders=state["orders"], active_orders=[])
     selector = ResearchSelector(dataset, mode="policy", model=model, policy=policy,
-        deterministic=True, initial_capital=account["initial_capital"], **dict(selection_options or {}))
+        deterministic=True, initial_capital=account["initial_capital"],
+        **({"temporal_context": state["temporal_context"]} if state["schema"] == "ml-rl-hook-state/v2" else {}),
+        **dict(selection_options or {}))
     candidates = [BridgeCandidate(row["symbol"], row["strategy_name"], row["score"],
                                  dict(row["signal"]), dict(row.get("audit") or {}),
                                  row.get("selection_rank_score"), row.get("decision_context"))
                   for row in state["candidates"]]
     selected = selector.select(candidates,
-        event=SimpleNamespace(timestamp=utc(state["bar_time"]), timeframe="1d"), portfolio=portfolio,
+        event=SimpleNamespace(timestamp=utc(state["bar_time"]), timeframe="1d",
+            selection_temporal_context=state.get("temporal_context"),
+            selection_source_versions=state.get("source_versions")), portfolio=portfolio,
         broker=broker, risk_manager=SimpleNamespace(**state["risk"]), current_prices=state["prices"])
     risk = state["risk"]
     blocked = (risk["breaker_action"] in {"block_new", "liquidate", "locked"}

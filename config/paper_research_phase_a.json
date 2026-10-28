@@ -1,0 +1,69 @@
+{
+  "schema": "paper-research-phase-a-config/v1",
+  "accepted_scope": [
+    "PR25-00",
+    "PR25-01",
+    "PR25-02"
+  ],
+  "evaluation_kind": "retrospective",
+  "information_policy": {
+    "mode": "retrospective",
+    "knowledge": "local",
+    "unknown": "exclude"
+  },
+  "paper_refs": [
+    "L01",
+    "L02"
+  ],
+  "candidate_ids": [
+    "broker_partial_close_v1"
+  ],
+  "benchmark_ids": [
+    "decimal_account_bridge_v1"
+  ],
+  "search_scope": "current_local_family",
+  "historical_global_search_complete": false,
+  "primary_metric": "max_absolute_account_bridge_error",
+  "economic_or_precision_target": {
+    "threshold": 1e-08,
+    "units": "quote_currency_or_asset_quantity_by_field",
+    "rationale": "Floating point reconciliation against independent Decimal arithmetic on a fixed synthetic account; no return or profit hypothesis."
+  },
+  "training_selection_rule": "No fitting, optimization, model selection or final sample access. Replay the declared deterministic account fixture only.",
+  "evaluation_windows": [
+    {
+      "id": "three_bar_account_fixture",
+      "start": "2024-01-01T00:00:00Z",
+      "end": "2024-01-04T00:00:00Z",
+      "role": "engineering_fixture"
+    }
+  ],
+  "cost_policy_id": "synthetic_taker_fee_10bps_no_slippage_v1",
+  "risk_policy_id": "synthetic_cash_only_no_leverage_v1",
+  "resampling": {
+    "method": "not_applicable",
+    "reason": "Deterministic independent account arithmetic; no return inference."
+  },
+  "attempt_budget": 2,
+  "resource_budget": {
+    "wall_time_seconds": 180,
+    "max_workers": 1,
+    "memory_mb": 512
+  },
+  "stop_rules": [
+    "Stop on source, configuration, protocol or data identity drift.",
+    "Stop on any account bridge difference above the declared precision target.",
+    "Retain failed and interrupted attempts; do not expand candidates or the attempt budget.",
+    "Do not train, access a final evaluation window, collect market data or place orders."
+  ],
+  "final_access_policy_id": null,
+  "research_conclusion": "not_evaluated",
+  "live_authorization": false,
+  "resource_budget_calibration": {
+    "purpose": "engineering input and resource pilot only; no market performance or final samples inspected",
+    "initial_wall_time_seconds": 60,
+    "pilot_receipt": "reports/paper_research_20261025/20261027-phase-a-79c0bfab/final_tests.xml",
+    "observation": "Full local byte audits plus source snapshot exceeded 60 seconds; 601 files, approximately 7 MB. Keep failed pilot.",
+    "candidate_family_unchanged": true
+  }
+}

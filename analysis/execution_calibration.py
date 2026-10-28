@@ -18,6 +18,7 @@ import pandas as pd
 from core.metrics.execution import calculate_execution_quality, _field
 from analysis.paper_validation import block_bootstrap_indices
 from core.market.quote_observations import validate_quote
+from core.planning.execution_cost_provider import cost_digest
 
 
 def _utc(value):
@@ -25,6 +26,32 @@ def _utc(value):
     if pd.isna(at) or at.tzinfo is None:
         raise ValueError("execution facts require aware timestamps")
     return at.tz_convert("UTC")
+
+
+def validate_execution_quote(raw):
+    """Preserve exact raw clocks after legacy scalar/provenance validation.
+
+    The collector/storage contract is unchanged. Strict execution research
+    cannot let Python datetime's microsecond parser move a +1ns quote backward
+    across a submission or decision boundary.
+    """
+    result = validate_quote(raw)
+    observed, available = _utc(raw["observed_at"]), _utc(raw["available_at"])
+    if available < observed:
+        raise ValueError("quote availability precedes exact observation time")
+    result["observed_at"], result["available_at"] = observed.isoformat(), available.isoformat()
+    occurred = raw.get("occurred_at")
+    if occurred is not None:
+        event = _utc(occurred)
+        if event > observed:
+            raise ValueError("venue quote follows exact local observation")
+        result["occurred_at"] = event.isoformat()
+    if raw.get("request_started_at") is not None:
+        requested = _utc(raw["request_started_at"])
+        if requested > observed:
+            raise ValueError("quote request follows exact response time")
+        result["request_started_at"] = requested.isoformat()
+    return result
 
 
 def deduplicate_request_records(records):
@@ -83,6 +110,7 @@ def read_fill_provenance(order_store_path):
                     availability_status = "invalid"
             result.append({"account_id": account, "exchange_id": exchange, "symbol": symbol,
                 "fill_id": fill_id, "client_order_id": client_id, "occurred_at": timestamp,
+                "parent_order_id": raw.get("parent_order_id"), "child_order_id": raw.get("child_order_id", client_id),
                 "qty": qty, "price": price,
                 "available_at": available, "availability_status": availability_status,
                 "kind": provenance_kind or ("synthetic_cumulative_order" if synthetic else
@@ -145,7 +173,7 @@ def join_quotes_to_execution(events, request_records, raw_quotes, *, market_cont
             rejected_quotes["invalid_quote_time"] += 1
             continue
         try:
-            quote = validate_quote(raw)
+            quote = validate_execution_quote(raw)
         except (ValueError, TypeError, KeyError, OverflowError):
             rejected_quotes["invalid_quote_fields"] += 1
             continue
@@ -243,6 +271,22 @@ def join_quotes_to_execution(events, request_records, raw_quotes, *, market_cont
         "independent_quotes": linked, "matches": matches,
         "reason": "no_canonical_fills" if not fills else None,
         "policy": "same venue/environment/product; locally available before decision or submit; real venue fill clock required"}
+
+
+def _execution_evidence_level(output, source, quote_join, errors, quote_ok, market_context):
+    # v1's real_venue_calibration is retained for legacy readers. Strict
+    # consumers must inspect this separately verified level, never inherit a
+    # caller's `source=live` assertion or an already prejoined quote label.
+    level = "simulation_diagnostic" if source == "simulation" else "sandbox_diagnostic" if source == "sandbox" else "legacy_source_assertion_only"
+    if (source == "live" and quote_join is not None and quote_join["status"] == "complete"
+            and not errors and quote_ok and market_context
+            and all(c.get("environment") == "live" for c in market_context.values())):
+        level = "verified_live_price"
+    output["evidence_verification_level"] = level
+    output["strict_real_venue_calibration"] = False
+    output["full_cost_evidence_verified"] = False
+    output["limitations"].append("Legacy real_venue_calibration is not a complete-cost or capacity qualification; strict fee/parent/maturity audit is separate")
+    return output
 
 
 def execution_sample_report(events, request_records=(), *, independent_quotes=None,
@@ -474,7 +518,7 @@ def execution_sample_report(events, request_records=(), *, independent_quotes=No
             for metric in ("first_fill_seconds", "completion_seconds"):
                 output["quality"][metric] = {"status": "not_modeled", "value": None,
                     "reason": "synthetic or unverified venue matching clock", "unit": "seconds"}
-    return output
+    return _execution_evidence_level(output, source, quote_join, errors, quote_ok, market_context)
 
 
 def read_execution_ledger(path, *, as_of):
@@ -578,6 +622,23 @@ def _notional_bucket(value):
             "1k_to_10k" if value < 10000 else "10k_plus")
 
 
+def _readiness_strata(symbols, orders, qualified, train, test, minimum_stratum_fills):
+    strata = []
+    for symbol in sorted(set(symbols) | {o["symbol"] for o in orders.values()}):
+        for side in ("buy", "sell"):
+            for bucket in ("under_1k", "1k_to_10k", "10k_plus"):
+                def select(rs, symbol=symbol, side=side, bucket=bucket):
+                    return sum(r["symbol"] == symbol and r["side"] == side and r["size_bucket"] == bucket for r in rs)
+                ntrain, ntest = select(train), select(test)
+                strata.append({"symbol": symbol, "side": side, "size_bucket": bucket,
+                    "qualified_fills": select(qualified), "train_fills": ntrain, "test_fills": ntest,
+                    "minimum_per_split": minimum_stratum_fills,
+                    "train_missing": max(0, minimum_stratum_fills - ntrain),
+                    "test_missing": max(0, minimum_stratum_fills - ntest),
+                    "status": "coverage_met" if min(ntrain, ntest) >= minimum_stratum_fills else "gap"})
+    return strata
+
+
 def execution_readiness_report(ledgers, request_records=(), quotes=(), *, as_of,
         symbols=("BTC/USDT", "ETH/USDT"), start_date=None, depth_records=(),
         minimum_train_days=10, minimum_test_days=5, minimum_stratum_fills=5,
@@ -617,7 +678,7 @@ def execution_readiness_report(ledgers, request_records=(), quotes=(), *, as_of,
     requests = [r for r in requests if _utc(r["received_at"]) <= cutoff]
     quote_map = {}
     for raw in quotes:
-        row = validate_quote(raw)
+        row = validate_execution_quote(raw)
         if max(_utc(row["observed_at"]), _utc(row["available_at"])) > cutoff:
             continue
         if row["quote_id"] in quote_map and quote_map[row["quote_id"]] != row:
@@ -670,7 +731,10 @@ def execution_readiness_report(ledgers, request_records=(), quotes=(), *, as_of,
                 "available_at": max(_utc(order["updated_at"]), _utc(request["received_at"]),
                     _utc(row["occurred_at"]), _utc(row.get("available_at") or row["occurred_at"]),
                     _utc(row.get("fee_available_at") or row["occurred_at"])).isoformat(),
-                "quote_id": matched["quote_id"]}
+                "quote_id": matched["quote_id"],
+                "account_id": row["account_id"], "exchange_id": row["exchange_id"],
+                "execution_fact_sha256": cost_digest({"fill": {k: v for k, v in row.items() if k != "order"},
+                                                      "order": order, "quote": matched})}
             price_qualified.append(candidate)
             fee_error = row.get("fee_qualification_error")
             if row.get("availability_status") != "explicit_local_fields":
@@ -689,18 +753,7 @@ def execution_readiness_report(ledgers, request_records=(), quotes=(), *, as_of,
              and _utc(r["available_at"]) < _utc(test_start + "T00:00:00Z")]
     test = [r for r in qualified if r["day"] in days[split:]]
     train_days, test_days = sorted({r["day"] for r in train}), sorted({r["day"] for r in test})
-    strata = []
-    for symbol in sorted(set(symbols) | {o["symbol"] for o in orders.values()}):
-        for side in ("buy", "sell"):
-            for bucket in ("under_1k", "1k_to_10k", "10k_plus"):
-                select = lambda rs, symbol=symbol, side=side, bucket=bucket: sum(r["symbol"] == symbol and r["side"] == side and r["size_bucket"] == bucket for r in rs)
-                ntrain, ntest = select(train), select(test)
-                strata.append({"symbol": symbol, "side": side, "size_bucket": bucket,
-                    "qualified_fills": select(qualified), "train_fills": ntrain, "test_fills": ntest,
-                    "minimum_per_split": minimum_stratum_fills,
-                    "train_missing": max(0, minimum_stratum_fills - ntrain),
-                    "test_missing": max(0, minimum_stratum_fills - ntest),
-                    "status": "coverage_met" if min(ntrain, ntest) >= minimum_stratum_fills else "gap"})
+    strata = _readiness_strata(symbols, orders, qualified, train, test, minimum_stratum_fills)
     observed_days = [o["order_date"] for o in orders.values()] + [_utc(q["observed_at"]).date().isoformat() for q in quotes]
     start = _utc(start_date + "T00:00:00Z") if start_date else _utc((min(observed_days) if observed_days else cutoff.date().isoformat()) + "T00:00:00Z")
     if start > cutoff or (cutoff - start).days > 3660:
@@ -760,3 +813,43 @@ def execution_readiness_report(ledgers, request_records=(), quotes=(), *, as_of,
             "capacity from passive displayed depth is a diagnostic, not proven fill capacity",
             "thresholds are explicit engineering coverage requirements, not statistical power guarantees",
             "no automatic orders or production configuration changes"]}
+
+
+def strict_execution_evidence_report(ledgers, request_records=(), quotes=(), *, as_of,
+                                     depth_records=(), **requirements):
+    """Versioned strict adapter over the existing read-only readiness auditor.
+
+    Real price and full fee evidence are graded separately. Engineering sample
+    counts do not certify precision or realized capacity. Caller-supplied data
+    can be audited for consistency, not authenticated as a venue signature.
+    """
+    ledgers = list(ledgers)
+    report = execution_readiness_report(ledgers, request_records, quotes, as_of=as_of,
+                                         depth_records=depth_records, **requirements)
+    coverage = report["coverage"]
+    if report["errors"]:
+        level = "invalid"
+    elif coverage["cost_qualified_fills"]:
+        level = "verified_live_complete_cost"
+    elif coverage["price_execution_qualified_fills"]:
+        level = "verified_live_price"
+    else:
+        level = "unverified"
+    parents, missing = {}, []
+    for ledger in ledgers:
+        for fill in ledger.get("fills", []):
+            parent = fill.get("parent_order_id")
+            key = "/".join(str(fill.get(k, "")) for k in ("account_id", "fill_id"))
+            if not parent:
+                missing.append(key)
+            else:
+                parents.setdefault(str(parent), set()).add(str(fill.get("child_order_id") or fill.get("client_order_id")))
+    report.update(schema="strict-execution-evidence/v1", evidence_verification_level=level,
+                  price_evidence_qualified=coverage["price_execution_qualified_fills"],
+                  full_cost_evidence_qualified=coverage["cost_qualified_fills"],
+                  parent_child_evidence={"parents": {k: sorted(v) for k, v in parents.items()},
+                                         "unknown_parent_fill_ids": sorted(set(missing)),
+                                         "status": "complete" if not missing and parents else "insufficient"},
+                  strict_real_venue_calibration=False)
+    report["limitations"].append("Receipt parent/child completeness is separate from fill/fee coverage; absent parent evidence cannot establish no group leakage")
+    return report

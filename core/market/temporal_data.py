@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 import hashlib
 import json
 import math
+from numbers import Real
 
 import pandas as pd
 
@@ -20,6 +21,7 @@ from core.market.timeframes import timeframe_delta
 
 
 OHLCV = ["open", "high", "low", "close", "volume"]
+LIFECYCLE = ("entry_blocked", "scheduled_exit")
 
 
 class TemporalDataError(ValueError):
@@ -65,6 +67,22 @@ def _utc(value):
 
 def _optional(value):
     return None if value is None or (not isinstance(value, (dict, list)) and pd.isna(value)) else value
+
+
+
+def _lifecycle_data(row):
+    """Only boolean or 0/1 evidence can permit entry; missing values block.
+
+    Absent columns retain the legacy OHLCV-only contract. Present strings,
+    empty values, NaN and other ambiguous scalars are unknown and block.
+    """
+    result = {}
+    for column in LIFECYCLE:
+        if column in row:
+            value = row[column]
+            explicit = pd.api.types.is_bool(value) or isinstance(value, Real) and value in (0, 1)
+            result[column] = bool(value) if explicit else True
+    return result
 
 
 def _digest(value):
@@ -201,7 +219,7 @@ class TemporalOHLCV:
         return True
 
     def import_identity(self, frame):
-        """恢复冻结身份指定的原始版本，并核对 OHLCV；不采信派生指标列。"""
+        """恢复冻结身份指定的原始版本，并核对 OHLCV/生命周期；不采信派生指标列。"""
         identity = frame.attrs.get("temporal_identity") or {}
         snapshots = identity.get("snapshot_ids", [])
         path = identity.get("store_path")
@@ -252,10 +270,16 @@ class TemporalOHLCV:
         for record in self.records:
             if record.get("record_type") == "tombstone":
                 continue
-            known.setdefault(record["record_id"], set()).add(tuple(record["data"][column] for column in OHLCV))
+            values = tuple(record["data"][column] for column in OHLCV)
+            known.setdefault(record["record_id"], {}).setdefault(values, []).append(_lifecycle_data(record["data"]))
         for at, row in frame.iterrows():
-            if tuple(float(row[column]) for column in OHLCV) not in known.get(_utc(at).isoformat(), set()):
+            values = tuple(float(row[column]) for column in OHLCV)
+            claims = known.get(_utc(at).isoformat(), {}).get(values, [])
+            if not claims:
                 raise TemporalDataError("frame values differ from frozen temporal versions")
+            lifecycle = _lifecycle_data(row)
+            if not any(all(claim.get(key) is value for key, value in lifecycle.items()) for claim in claims):
+                raise TemporalDataError("frame lifecycle evidence differs from frozen temporal versions")
 
     def ingest(self, frame, *, observed_at=None, local_receipt=False, source_reference=None):
         """追加原始版本；本地采集只为已收盘 bar 建立接收时刻的可用性证据。"""
@@ -268,6 +292,7 @@ class TemporalOHLCV:
             values = {column: float(row[column]) for column in OHLCV}
             if not all(math.isfinite(value) for value in values.values()):
                 raise TemporalDataError("finite raw OHLCV required for immutable versions")
+            values.update(_lifecycle_data(row))
             observed = _optional(row.get("observed_at")) or receipt
             available = _optional(row.get("available_at"))
             evidence = _optional(row.get("availability_evidence")) or frame.attrs.get("availability_evidence")
@@ -370,6 +395,7 @@ class TemporalOHLCV:
         cutoff = _utc(at)
         allowed = None if allowed_times is None else {_utc(value).isoformat() for value in allowed_times}
         chosen, rank_by_id = {}, {}
+        lifecycle_by_id: dict[str, set[str]] = {}
         unknown_ids = set()
         unavailable = 0
         for record in self.records:
@@ -390,6 +416,7 @@ class TemporalOHLCV:
                     continue
             rank = (_utc(record["revision_at"] or available or record["observed_at"]), _utc(record["observed_at"]))
             key = record["record_id"]
+            lifecycle_by_id.setdefault(key, set()).update(column for column in LIFECYCLE if column in record["data"])
             if key in rank_by_id and rank == rank_by_id[key] and record != chosen[key]:
                 raise TemporalDataError("ambiguous simultaneously available revisions")
             if key not in rank_by_id or rank > rank_by_id[key]:
@@ -400,9 +427,12 @@ class TemporalOHLCV:
         if unknown and self.policy.mode == "strict" and self.policy.unknown == "raise":
             raise TemporalDataError("historical availability unknown; strict history rejected")
         active = {key: record for key, record in chosen.items() if record.get("record_type") != "tombstone"}
-        rows = [record["data"] for _, record in sorted(active.items())]
+        if any(lifecycle_by_id[key]-record["data"].keys() for key, record in active.items()):
+            raise TemporalDataError("visible revision omits previously documented lifecycle evidence")
+        rows = [{**record["data"], **_lifecycle_data(record["data"])} for _, record in sorted(active.items())]
         index = pd.DatetimeIndex([_utc(key).tz_localize(None) for key in sorted(active)], name="timestamp")
-        result = pd.DataFrame(rows, index=index, columns=OHLCV)
+        columns = OHLCV + [column for column in LIFECYCLE if any(column in row for row in rows)]
+        result = pd.DataFrame(rows, index=index, columns=columns)
         result.attrs["temporal_audit"] = {**self.audit, "as_of": cutoff.isoformat()}
         # 证据复制并附内容哈希，下游可同时核对版本身份和可见 OHLCV，
         # 不能仅凭一个 as_of 字符串宣称数据当时已知。

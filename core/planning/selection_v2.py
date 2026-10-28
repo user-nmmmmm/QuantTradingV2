@@ -11,12 +11,13 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 import math
 from numbers import Integral
-from typing import Any, Iterable, Mapping
+from typing import Any, Iterable, Mapping, cast
 
 import numpy as np
 import pandas as pd
 
 from core.planning.cost_aware_allocation import CostAwareAllocationPolicy, allocate_cost_aware
+from core.planning.covariance_estimators import ESTIMATORS, estimate_covariance
 
 from core.analytics.indicators import Indicators
 from core.trading.protective_stops import ProtectiveStopPolicy, plan_initial_stop
@@ -363,13 +364,246 @@ class PortfolioTargetsV2:
     applied_multipliers: dict[str, float]
     cost_aware_audit: dict[str, Any] | None = None
     mandatory_reduction_weights: dict[str, float] | None = None
+    covariance_audit: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         result = asdict(self)
+        if self.covariance_audit is None:
+            result.pop("covariance_audit")
         if self.cost_aware_audit is None:
             result.pop("cost_aware_audit")
             result.pop("mandatory_reduction_weights")
         return result
+
+
+
+def _execution_cost_context(evaluation_kind, information_policy, contexts):
+    """Resolve one consumer mode without overriding stricter symbol contexts."""
+    from core.planning.execution_cost_provider import cost_evaluation_mode
+
+    kind = evaluation_kind
+
+    def normalized(value):
+        if value is None:
+            return None
+        policy = dict(value)
+        policy.setdefault("knowledge", "local")
+        policy.setdefault("unknown", "exclude")
+        cost_evaluation_mode(None, policy)
+        return policy
+
+    policy = normalized(information_policy)
+    for supplied in contexts:
+        other_kind = supplied.get("evaluation_kind")
+        other_policy = normalized(supplied.get("information_policy"))
+        if other_kind is not None:
+            if kind is not None and other_kind != kind:
+                raise ValueError("conflicting execution cost evaluation kinds")
+            kind = other_kind
+        if other_policy is not None:
+            if policy is not None and other_policy != policy:
+                raise ValueError("conflicting execution cost information policies")
+            policy = other_policy
+        # Validate every explicit per-symbol declaration before inferring the
+        # common mode. A conflicting strict policy cannot be overwritten.
+        cost_evaluation_mode(other_kind, other_policy)
+    return cost_evaluation_mode(kind, policy), policy
+
+
+def _selection_covariance(selection, symbols, covariance_estimator):
+    """Keep daily estimation, annualization and audit at a single boundary."""
+    policy = selection.policy
+    returns = selection.returns.reindex(columns=symbols).tail(policy.volatility_window)
+    if (
+        len(returns) != policy.volatility_window
+        or not np.isfinite(returns.to_numpy(dtype=float)).all()
+    ):
+        raise ValueError("portfolio covariance requires common complete trailing returns")
+    covariance_audit = None
+    if covariance_estimator is None:
+        # Keep the original arithmetic order and default serialization exactly.
+        covariance = returns.cov(ddof=1).to_numpy(dtype=float) * policy.periods_per_year
+        shrinkage = policy.covariance_diagonal_shrinkage
+        covariance = (1.0 - shrinkage) * covariance + shrinkage * np.diag(np.diag(covariance))
+    else:
+        estimated = estimate_covariance(returns, estimator_id=covariance_estimator)
+        covariance = estimated.covariance * policy.periods_per_year
+        covariance_audit = {
+            **estimated.audit,
+            "annualization_factor": policy.periods_per_year,
+            "annualized_once": True,
+            "forecast_horizon_conversion": "annual_covariance/periods_per_year*horizon_days",
+            "forecast_horizon_limitations": "linear mean and covariance scaling assumes no serial dependence; not compounded forecasts",
+        }
+    return returns, covariance, covariance_audit
+
+
+def _selection_cost_predictions(
+    selection,
+    symbols,
+    horizon,
+    execution_cost_provider,
+    execution_cost_contexts,
+    resolved_kind,
+    resolved_policy,
+):
+    """Query both trade directions and bind v2 responses to each exact request."""
+    predictions = []
+    for symbol in symbols:
+        supplied = dict((execution_cost_contexts or {}).get(symbol, {}))
+        if not supplied:
+            predictions.append(
+                {
+                    "status": "unsupported",
+                    "reason": "missing_decision_cost_context",
+                    "symbol": symbol,
+                }
+            )
+            continue
+        for key, expected in (("symbol", symbol), ("horizon_days", horizon)):
+            if key in supplied and supplied[key] != expected:
+                raise ValueError(f"cost context {key} conflicts with selection")
+        if "decision_at" in supplied and utc_time(supplied["decision_at"]) != utc_time(
+            selection.as_of
+        ):
+            raise ValueError("cost context decision_at conflicts with selection cutoff")
+        # The optimizer can buy or sell inside its envelope. Both
+        # directions must be supported before reducing them to one L1 scalar.
+        for side in ("buy", "sell"):
+            context = {
+                **supplied,
+                "symbol": symbol,
+                "decision_at": selection.as_of,
+                "horizon_days": horizon,
+                "side": side,
+                "evaluation_kind": resolved_kind,
+                "information_policy": resolved_policy,
+            }
+            try:
+                prediction = execution_cost_provider.estimate(context)
+                if not isinstance(prediction, Mapping):
+                    prediction = {
+                        "status": "unsupported",
+                        "reason": "invalid_cost_provider_payload",
+                    }
+            except Exception as error:
+                prediction = {
+                    "status": "unsupported",
+                    "reason": "cost_provider_error:" + type(error).__name__,
+                }
+            if (
+                prediction.get("schema") == "execution-cost-prediction/v2"
+                and prediction.get("status") == "supported"
+                and not _published_prediction_matches_request(prediction, context)
+            ):
+                from core.planning.execution_cost_provider import cost_digest
+
+                prediction = {
+                    "schema": "execution-cost-prediction/v2",
+                    "status": "unsupported",
+                    "reason": "published_cost_prediction_request_mismatch",
+                }
+                prediction["prediction_sha256"] = cost_digest(prediction)
+            predictions.append(prediction)
+    return predictions
+
+
+def _selection_cost_weights(
+    selection,
+    returns,
+    covariance,
+    weights,
+    existing,
+    existing_weights,
+    cost_aware_policy,
+    execution_cost_provider,
+    execution_cost_contexts,
+    mode_kwargs,
+    resolved_kind,
+    resolved_policy,
+    publication_verifier,
+):
+    """Optimize inside native caps; trust comes only from the explicit verifier."""
+    policy, symbols = selection.policy, selection.selected_symbols
+    all_existing = {s: float(w) for s, w in (existing_weights or {}).items()}
+    # The native selector's fully constrained weights are a hard envelope:
+    # optimization/partial adjustment may remove, never refill, risk budget.
+    upper = weights.copy()
+    if upper.sum() > cost_aware_policy.max_gross_weight:
+        upper *= cost_aware_policy.max_gross_weight / upper.sum()
+    horizon = cost_aware_policy.horizon_days
+    cost_kwargs = dict(mode_kwargs)
+    if execution_cost_provider is not None:
+        predictions = _selection_cost_predictions(
+            selection,
+            symbols,
+            horizon,
+            execution_cost_provider,
+            execution_cost_contexts,
+            resolved_kind,
+            resolved_policy,
+        )
+        cost_kwargs.update(cost_predictions=predictions, decision_at=selection.as_of)
+        if publication_verifier is not None:
+            cost_kwargs["publication_verifier"] = publication_verifier
+    weights, cost_audit = allocate_cost_aware(
+        returns.mean().to_numpy(dtype=float) * horizon,
+        covariance / policy.periods_per_year * horizon,
+        existing,
+        upper,
+        policy=cost_aware_policy,
+        **cost_kwargs,
+    )
+    envelope = dict(zip(symbols, map(float, upper)))
+    mandatory = {
+        s: envelope.get(s, 0.0) for s, w in all_existing.items() if w > envelope.get(s, 0.0) + 1e-12
+    }
+    if cost_audit["cash_fallback"]:
+        mandatory = {s: 0.0 for s, w in all_existing.items() if w > 0}
+    cost_audit.update(
+        as_of=selection.as_of,
+        symbols=list(symbols),
+        mandatory_reduction_weights=mandatory,
+        mandatory_turnover_weight=float(sum(all_existing[s] - w for s, w in mandatory.items())),
+        native_risk_envelope=envelope,
+    )
+    return weights, cost_audit, mandatory
+
+
+def _published_prediction_matches_request(prediction, context):
+    """A genuine signed forecast still cannot stand in for another request."""
+    from core.planning.execution_cost_provider import aware_time, cost_digest, strict_json
+
+    try:
+        expected = {
+            key: context[key]
+            for key in (
+                "decision_at",
+                "features_available_at",
+                "features",
+                "symbol",
+                "side",
+                "market_identity",
+                "horizon_days",
+                "feature_observation",
+            )
+        }
+        for key in ("decision_at", "features_available_at"):
+            expected[key] = aware_time(expected[key]).isoformat()
+        expected.update(
+            anchor=context.get("anchor", "decision_mid"),
+            evaluation_kind=context.get("evaluation_kind"),
+            information_policy=context.get("information_policy"),
+        )
+        return (
+            cost_digest(prediction.get("prediction_context")) == cost_digest(strict_json(expected))
+            and prediction.get("symbol") == context["symbol"]
+            and prediction.get("side") == context["side"]
+            and prediction.get("horizon_days") == context["horizon_days"]
+            and prediction.get("predicted_at") == expected["decision_at"]
+        )
+    except (ValueError, TypeError, KeyError):
+        return False
 
 
 def size_portfolio_targets(selection: SelectionResultV2, *, health_multiplier: float = 1.0,
@@ -377,7 +611,13 @@ def size_portfolio_targets(selection: SelectionResultV2, *, health_multiplier: f
                            stop_distances: Mapping[str, float] | None = None,
                            existing_weights: Mapping[str, float] | None = None,
                            daily_new_risk_budget: float = 0.02,
-                           cost_aware_policy: CostAwareAllocationPolicy | None = None) -> PortfolioTargetsV2:
+                           cost_aware_policy: CostAwareAllocationPolicy | None = None,
+                           covariance_estimator: str | None = None,
+                           execution_cost_provider=None,
+                           execution_cost_contexts: Mapping[str, Mapping[str, Any]] | None = None,
+                           evaluation_kind: str | None = None,
+                           information_policy: Mapping[str, Any] | None = None,
+                           publication_verifier=None) -> PortfolioTargetsV2:
     """Inverse volatility/covariance target, followed by non-refilling caps.
 
     Multipliers are explicit and applied exactly once here. An executor must
@@ -387,6 +627,16 @@ def size_portfolio_targets(selection: SelectionResultV2, *, health_multiplier: f
     """
     policy = selection.policy
     symbols = selection.selected_symbols
+    if covariance_estimator is not None and covariance_estimator not in ESTIMATORS:
+        raise ValueError("unknown covariance estimator")
+    if execution_cost_provider is not None and (cost_aware_policy is None or not cost_aware_policy.enabled):
+        raise ValueError("execution cost provider requires enabled cost-aware policy")
+    mode_kwargs = {}
+    resolved_kind, resolved_policy = "retrospective", None
+    if execution_cost_provider is not None or evaluation_kind is not None or information_policy is not None:
+        contexts=list((execution_cost_contexts or {}).values()) if execution_cost_provider is not None else []
+        resolved_kind,resolved_policy=_execution_cost_context(evaluation_kind,information_policy,contexts)
+        mode_kwargs={"evaluation_kind":resolved_kind,"information_policy":resolved_policy}
     for name, value in (("health_multiplier", health_multiplier), ("account_multiplier", account_multiplier)):
         if not math.isfinite(float(value)) or not 0 <= value <= 1:
             raise ValueError(f"{name} must be in [0, 1]")
@@ -396,22 +646,18 @@ def size_portfolio_targets(selection: SelectionResultV2, *, health_multiplier: f
     if cost_aware_policy is not None and cost_aware_policy.enabled:
         if any(not math.isfinite(float(w)) or float(w) < 0 for w in (existing_weights or {}).values()):
             raise ValueError("existing_weights must be finite and nonnegative")
+    mandatory: dict[str, float] | None
     if not symbols:
         result = PortfolioTargetsV2(selection.as_of, {}, {}, 0.0, 0.0, {}, {}, {}, multiplier_facts)
         if cost_aware_policy is not None and cost_aware_policy.enabled:
             from dataclasses import replace
-            _, audit = allocate_cost_aware([], np.zeros((0, 0)), [], [], policy=cost_aware_policy)
+            _, audit = allocate_cost_aware([], np.zeros((0, 0)), [], [], policy=cost_aware_policy,**mode_kwargs)
             mandatory = {s: 0. for s, w in (existing_weights or {}).items() if w > 0}
             audit.update(as_of=selection.as_of, symbols=[], mandatory_reduction_weights=mandatory,
                          mandatory_turnover_weight=float(sum((existing_weights or {}).values())))
             result = replace(result, cost_aware_audit=audit, mandatory_reduction_weights=mandatory)
         return result
-    returns = selection.returns.reindex(columns=symbols).tail(policy.volatility_window)
-    if len(returns) != policy.volatility_window or not np.isfinite(returns.to_numpy(dtype=float)).all():
-        raise ValueError("portfolio covariance requires common complete trailing returns")
-    covariance = returns.cov(ddof=1).to_numpy(dtype=float) * policy.periods_per_year
-    shrinkage = policy.covariance_diagonal_shrinkage
-    covariance = (1.0 - shrinkage) * covariance + shrinkage * np.diag(np.diag(covariance))
+    returns, covariance, covariance_audit = _selection_covariance(selection, symbols, covariance_estimator)
     volatility = np.sqrt(np.diag(covariance))
     if not np.isfinite(volatility).all() or (volatility <= 1e-12).any():
         raise ValueError("invalid realized volatility")
@@ -446,7 +692,7 @@ def size_portfolio_targets(selection: SelectionResultV2, *, health_multiplier: f
             weights *= multiplier
             for symbol in symbols:
                 constraints[symbol].append(f"{reason}_multiplier")
-    distances = np.empty(len(symbols), dtype=float)
+    distances: np.ndarray = np.empty(len(symbols), dtype=float)
     existing = np.array([float((existing_weights or {}).get(symbol, 0.0)) for symbol in symbols])
     if not np.isfinite(existing).all() or (existing < 0).any():
         raise ValueError("existing_weights must be finite and nonnegative")
@@ -479,28 +725,13 @@ def size_portfolio_targets(selection: SelectionResultV2, *, health_multiplier: f
         for index, symbol in enumerate(symbols):
             if increments[index] > 0:
                 constraints[symbol].append("daily_new_risk")
-    cost_audit, mandatory = None, None
+    cost_audit = None
+    mandatory = None
     if cost_aware_policy is not None and cost_aware_policy.enabled:
-        all_existing = {s: float(w) for s, w in (existing_weights or {}).items()}
-        # The native selector's fully constrained weights are a hard envelope:
-        # optimization/partial adjustment may remove, never refill, risk budget.
-        upper = weights.copy()
-        if upper.sum() > cost_aware_policy.max_gross_weight:
-            upper *= cost_aware_policy.max_gross_weight/upper.sum()
-        horizon = cost_aware_policy.horizon_days
-        weights, cost_audit = allocate_cost_aware(
-            returns.mean().to_numpy(dtype=float)*horizon,
-            covariance/policy.periods_per_year*horizon, existing, upper,
-            policy=cost_aware_policy)
-        envelope = dict(zip(symbols, map(float, upper)))
-        mandatory = {s: envelope.get(s, 0.) for s, w in all_existing.items()
-                     if w > envelope.get(s, 0.)+1e-12}
-        if cost_audit["cash_fallback"]:
-            mandatory = {s: 0. for s, w in all_existing.items() if w > 0}
-        cost_audit.update(as_of=selection.as_of, symbols=list(symbols),
-                          mandatory_reduction_weights=mandatory,
-                          mandatory_turnover_weight=float(sum(all_existing[s]-w for s, w in mandatory.items())),
-                          native_risk_envelope=envelope)
+        weights, cost_audit, mandatory = _selection_cost_weights(
+            selection, returns, covariance, weights, existing, existing_weights,
+            cost_aware_policy, execution_cost_provider, execution_cost_contexts,
+            mode_kwargs, resolved_kind, resolved_policy, publication_verifier)
         for symbol in symbols:
             constraints[symbol].append("cost_aware_research_target")
             if symbol in mandatory:
@@ -510,5 +741,5 @@ def size_portfolio_targets(selection: SelectionResultV2, *, health_multiplier: f
         float(np.sqrt(unconstrained @ covariance @ unconstrained)), float(np.sqrt(weights @ covariance @ weights)),
         {symbol: tuple(reasons) for symbol, reasons in constraints.items()},
         {symbol: selection.rows[symbol].add_allowed for symbol in symbols},
-        {symbol: float(selection.rows[symbol].stop_price) for symbol in symbols}, multiplier_facts,
-        cost_audit, mandatory)
+        {symbol: float(cast(float, selection.rows[symbol].stop_price)) for symbol in symbols}, multiplier_facts,
+        cost_audit, mandatory, covariance_audit)

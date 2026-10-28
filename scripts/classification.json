@@ -147,6 +147,13 @@
     "verify_ml_selector_baseline.py": "supported",
     "verify_roadmap_completion.py": "supported",
     "verify_roadmap_policy.py": "supported",
-    "verify_strategy_review_binance_archives.py": "historical"
+    "verify_strategy_review_binance_archives.py": "historical",
+    "calibrate_paper_statistics.py": "research",
+    "capture_paper_research_baseline.py": "research",
+    "paper_research_worker.py": "research",
+    "prepare_paper_research_smoke.py": "research",
+    "run_paper_portfolio_research.py": "research",
+    "run_paper_research_study.py": "research",
+    "verify_paper_research_phase_a.py": "research"
   }
 }

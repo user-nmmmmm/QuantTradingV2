@@ -1,8 +1,9 @@
 name: tests
 
 on:
+  workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, "codex/pr25-completion-*"]
   pull_request:
 
 jobs:
@@ -61,9 +62,26 @@ jobs:
         # Budget: the suite runs in about 3 minutes with -n 4 (docs/quality.md, "耗时预算"); 8 minutes is the
         # point where something has regressed badly enough to stop the job.
         timeout-minutes: 8
-        run: python scripts/dev.py test
+        run: >-
+          python scripts/dev.py test --
+          --junitxml=outputs/current-ci/full-tests.xml
+          --cov-report=term
+          --cov-report=json:outputs/current-ci/runtime-coverage.json
       - name: Sandbox suite is discoverable
         run: python scripts/dev.py sandbox
+      - name: Preserve exact checkout identity
+        if: always()
+        run: |
+          mkdir -p outputs/current-ci
+          git rev-parse HEAD > outputs/current-ci/checkout-sha.txt
+          git rev-parse 'HEAD^{tree}' > outputs/current-ci/checkout-tree.txt
+      - name: Preserve full regression and coverage receipts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: current-source-quality-evidence
+          path: outputs/current-ci/
+          retention-days: 30
 
   ml-research:
     runs-on: ubuntu-latest

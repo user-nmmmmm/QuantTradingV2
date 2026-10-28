@@ -17,6 +17,7 @@ import pandas as pd
 
 from core.foundation.reproducibility import canonical_json, sha256_file
 from research.ml_selection.environment import _actual_trades, _evaluated_curve, equity_rewards
+from research.ml_selection.support_diagnostics import selection_support_diagnostics, compare_selection_support
 
 
 def _records(value):
@@ -162,6 +163,20 @@ def ranking_observations(rows):
             "required_comparison": "Replay native, momentum, model and seeded random scores on the same frozen "
                                    "candidate batch with identical cash, holdings, reservations, health, risk, "
                                    "exit and execution conditions; separately report budget-constrained batches."}
+
+
+def _episode_diagnostic_result(decisions, fills, funnel, reward, selections):
+    return _clean(
+        {
+            "schema": "ml-selection-diagnostics/v1",
+            "decision_ledger": decisions,
+            "fill_ledger": fills,
+            "funnel": funnel,
+            "reward_reconciliation": reward,
+            "probability": probability_diagnostics(selections),
+            "support": selection_support_diagnostics(decisions),
+        }
+    )
 
 
 def build_episode_diagnostics(result, rewards, selection_audit=(), dataset=None,
@@ -364,9 +379,7 @@ def build_episode_diagnostics(result, rewards, selection_audit=(), dataset=None,
                        "costs_subtracted_twice": False})
     else:
         reward.update({"reconciliation_ok": None, "reason": "Missing initial capital; do not infer it from the first post-trade equity sample."})
-    return _clean({"schema": "ml-selection-diagnostics/v1", "decision_ledger": decisions,
-                   "fill_ledger": fills, "funnel": funnel, "reward_reconciliation": reward,
-                   "probability": probability_diagnostics(selections)})
+    return _episode_diagnostic_result(decisions, fills, funnel, reward, selections)
 
 
 def _csv(path, *, index=False):
@@ -378,6 +391,24 @@ def _csv(path, *, index=False):
         field = "bar_time" if "bar_time" in frame else frame.columns[0]
         frame.index = pd.to_datetime(frame.pop(field), utc=True)
     return frame
+
+
+def _write_existing_run_audit(target, reports, comparisons, result):
+    target.mkdir(parents=True, exist_ok=False)
+    for name, report in reports.items():
+        destination = target / name
+        destination.mkdir(parents=True)
+        for ledger in ("decision_ledger", "fill_ledger"):
+            pd.DataFrame(report[ledger]).to_csv(destination / f"{ledger}.csv", index=False)
+        for item in ("funnel", "reward_reconciliation", "probability", "support"):
+            (destination / f"{item}.json").write_text(
+                json.dumps(report[item], ensure_ascii=False, indent=2, allow_nan=False),
+                encoding="utf-8",
+            )
+    pd.DataFrame(comparisons).to_csv(target / "candidate_date_review.csv", index=False)
+    (target / "audit.json").write_text(
+        json.dumps(result, ensure_ascii=False, indent=2, allow_nan=False), encoding="utf-8"
+    )
 
 
 def audit_existing_run(folder, output):
@@ -474,6 +505,7 @@ def audit_existing_run(folder, output):
                   "identity_status": "manifest_and_protocol_verified" if registry and protocol_verified
                                      else "partial_missing_manifest_or_protocol"},
               "candidate_date_review": comparisons,
+              "support_comparison": compare_selection_support({name: item["decision_ledger"] for name, item in reports.items()}),
               "rl_probability_review": {name: r["probability"] for name, r in reports.items()
                                         if r["probability"]["policy_candidates"]},
               "best_rl_seed_review": best_seeds,
@@ -482,16 +514,7 @@ def audit_existing_run(folder, output):
                               "Date counts are per account path and per arm; they need not be identical.",
                               "Threshold sensitivity does not measure economic performance of a new policy."],
               "episodes": reports}
-    target.mkdir(parents=True, exist_ok=False)
-    for name, report in reports.items():
-        destination = target / name
-        destination.mkdir(parents=True)
-        for ledger in ("decision_ledger", "fill_ledger"):
-            pd.DataFrame(report[ledger]).to_csv(destination / f"{ledger}.csv", index=False)
-        for item in ("funnel", "reward_reconciliation", "probability"):
-            (destination / f"{item}.json").write_text(json.dumps(report[item], ensure_ascii=False, indent=2, allow_nan=False), encoding="utf-8")
-    pd.DataFrame(comparisons).to_csv(target / "candidate_date_review.csv", index=False)
-    (target / "audit.json").write_text(json.dumps(result, ensure_ascii=False, indent=2, allow_nan=False), encoding="utf-8")
+    _write_existing_run_audit(target, reports, comparisons, result)
     return result
 
 

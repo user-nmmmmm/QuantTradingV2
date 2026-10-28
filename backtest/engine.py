@@ -222,8 +222,10 @@ class BacktestEngine:
         temporal_financing: Any = None,
         capital_allocation: Optional[Dict[str, Any]] = None,
         candidate_selector: Any = None,
+        bar_capture: Any = None,
     ) -> None:
         self._init_candidate_selection(candidate_selector, portfolio_controller, capital_allocation)
+        self.bar_capture = bar_capture
         config_data = config.require("data")
         self._init_temporal_inputs(temporal_policy, temporal_financing, config_data)
         alignment_mode, benchmark_mode, benchmark_rebalance_cost_bps, timeframe = self._resolve_run_settings(
@@ -394,21 +396,32 @@ class BacktestEngine:
         if early is not None:
             return early
         self._prepare_processor(rs)
+        if self.bar_capture is not None:
+            self.bar_capture.bind(self, rs)
         for bar_index, event in enumerate(rs.stream, start=rs.stream_offset):
             rs.bar_index, rs.event = bar_index, event
             if self.trading_start is not None and rs.event.timestamp < self.trading_start:
                 continue  # History only: no cashflows, orders or health state before the window.
-            self._bar_timing(rs)
-            self._bar_market(rs)
-            self._bar_risk(rs)
-            self._bar_bookkeeping(rs)
-            if self._bar_terminal(rs):
+            if self._run_observed_bar(rs):
                 break
         self._finish_tail(rs)
         self._finish_health(rs)
         self._finish_benchmarks(rs)
         self._finish_observation(rs)
         return {**self._result_core(rs), **self._result_reports(rs)}
+
+    def _run_observed_bar(self, rs: _RunState) -> bool:
+        if self.bar_capture is None:
+            return self._run_bar(rs)
+        return self.bar_capture.process_bar(self, rs, self._run_bar)
+
+    def _run_bar(self, rs: _RunState) -> bool:
+        """One original bar lifecycle, optionally observed by an injected owner."""
+        self._bar_timing(rs)
+        self._bar_market(rs)
+        self._bar_risk(rs)
+        self._bar_bookkeeping(rs)
+        return self._bar_terminal(rs)
 
     def _prepare_account(self, rs: _RunState) -> None:
         """Validate the run options and build the portfolio, event pipeline, broker and risk manager."""

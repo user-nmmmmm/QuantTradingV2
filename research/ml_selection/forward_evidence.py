@@ -103,7 +103,63 @@ def load_public_forward_collection(folder, symbols, *, information_cutoff):
     return frames, evidence
 
 
-def evaluate_forward_store(folder, protocol, *, as_of=None):
+def _candidate_forward_preregistration(protocol, frozen, start):
+    require_candidate_clock = "next_research" in protocol["settings"]
+    candidate_clock = frozen.get("frozen_at")
+    candidate_preregistered, candidate_clock_status = None, "legacy_not_required"
+    if require_candidate_clock:
+        if candidate_clock is None:
+            candidate_clock_status = "missing"
+        else:
+            try:
+                candidate_time = utc(candidate_clock)
+            except (TypeError, ValueError, OverflowError):
+                candidate_clock_status = "invalid"
+            else:
+                candidate_preregistered = candidate_time < start
+                candidate_clock_status = (
+                    "before_registered_start"
+                    if candidate_preregistered
+                    else "at_or_after_registered_start"
+                )
+    return require_candidate_clock, candidate_clock, candidate_preregistered, candidate_clock_status
+
+
+def _forward_account_evidence(
+    folder, protocol, frozen, qualifying, observations, cutoff, account_receipts, pending
+):
+    # Verify separately supplied original-engine account facts; policy scores
+    # and proxy outcomes can never fill this gap. Later computation stays replay.
+    from research.ml_selection.forward_account_trajectory import summarize_forward_account_receipts
+
+    receipt_inputs = (
+        list((folder / "account_receipts").glob("*.json"))
+        if account_receipts is None
+        else list(account_receipts)
+    )
+    from research.ml_selection.forward_execution_binding import index_forward_execution_bindings
+
+    execution_bindings = index_forward_execution_bindings(
+        _read(path) for path in sorted((folder / "execution_bindings").glob("*.json"))
+    )
+    accounts = summarize_forward_account_receipts(
+        receipt_inputs,
+        protocol_id=protocol["protocol_id"],
+        frozen_candidate_id=frozen["model_id"],
+        qualifying_observation_ids=qualifying,
+        observation_receipts=observations,
+        as_of=cutoff,
+        execution_bindings=execution_bindings,
+        binding_store_root=folder,
+    )
+    if accounts["status"] != "verified":
+        pending.append("original_engine_simulated_fill_and_equity_evidence_pending")
+    if accounts["errors"]:
+        pending.append("invalid_original_engine_account_receipts")
+    return accounts
+
+
+def evaluate_forward_store(folder, protocol, *, as_of=None, account_receipts=None):
     """Evaluate preregistered dates and drift without changing recorded facts.
 
     Existing observations retain their recorded identities. The actual clock
@@ -128,20 +184,7 @@ def evaluate_forward_store(folder, protocol, *, as_of=None):
         raise ValueError("invalid preregistered forward observation window")
     frozen = _read(folder / "candidate.json")
     protocol_preregistered = utc(protocol["created_at"]) < start
-    require_candidate_clock = "next_research" in protocol["settings"]
-    candidate_clock = frozen.get("frozen_at")
-    candidate_preregistered, candidate_clock_status = None, "legacy_not_required"
-    if require_candidate_clock:
-        if candidate_clock is None:
-            candidate_clock_status = "missing"
-        else:
-            try:
-                candidate_time = utc(candidate_clock)
-            except (TypeError, ValueError, OverflowError):
-                candidate_clock_status = "invalid"
-            else:
-                candidate_preregistered = candidate_time < start
-                candidate_clock_status = "before_registered_start" if candidate_preregistered else "at_or_after_registered_start"
+    require_candidate_clock, candidate_clock, candidate_preregistered, candidate_clock_status = _candidate_forward_preregistration(protocol, frozen, start)
     preregistered = protocol_preregistered and (candidate_preregistered is True if require_candidate_clock else True)
     observations, qualifying, proxy = {}, [], {}
     gap_counts = {"retrospective": 0, "outside_registered_window": 0, "fresh_data_missing": 0,
@@ -255,12 +298,11 @@ def evaluate_forward_store(folder, protocol, *, as_of=None):
         pending.append("insufficient_verified_forward_decision_dates")
     if not eligible_keys or len(mature_keys) < len(eligible_keys):
         pending.append("forward_proxy_labels_pending_maturity_or_future_data")
-    # Original-engine fill/equity outcomes require a separate account trajectory.
-    # Decision-only bridges and planned positions never satisfy this condition.
-    pending.append("original_engine_simulated_fill_and_equity_evidence_pending")
+    accounts = _forward_account_evidence(folder, protocol, frozen, qualifying, observations, cutoff, account_receipts, pending)
     return {"schema": "ml-selection-forward-evidence/v1", "observed_at": clock.isoformat(),
         "information_cutoff": cutoff.isoformat(), "protocol_id": protocol["protocol_id"],
-        "frozen_candidate_id": frozen["model_id"], "status": "pending_forward_evidence",
+        "frozen_candidate_id": frozen["model_id"],
+        "status": "pending_forward_evidence" if pending else "forward_evidence_available",
         "registered_start": start.isoformat(), "registered_end": end.isoformat() if end is not None else None,
         "minimum_decision_dates": minimum, "maturity_horizon_bars": options.get("maturity_horizon_bars", 20),
         "preregistered_before_start": preregistered, "recorded_observations": len(observations),
@@ -273,8 +315,7 @@ def evaluate_forward_store(folder, protocol, *, as_of=None):
         "qualifying_observation_ids": qualifying, "gaps": gap_counts, "pending_reasons": pending,
         "proxy_evidence": {"basis": "independent_shadow_proxy_not_portfolio", "eligible_labels": len(eligible_keys),
                            "mature_labels": len(mature_keys), "pending_labels": len(eligible_keys - mature_keys)},
-        "simulated_account_evidence": {"status": "pending", "portfolio_return": None,
-            "reason": "decision_only_bridge_does_not_supply_original_engine_fills_or_equity"},
+        "simulated_account_evidence": accounts,
         "drift": {"status": "measured" if items else "pending_verified_forward_inputs",
                   "feature_missingness": missing, "feature_standardized_mean_shift": feature_drift,
                   "selection_probability": _summary(probability),

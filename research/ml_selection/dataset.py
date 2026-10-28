@@ -18,7 +18,7 @@ import pandas as pd
 
 from core.foundation.reproducibility import canonical_json, sha256_frame
 from core.market.timeframes import as_utc_timestamp
-from research.ml_selection.membership import interval_mask, validate_membership_evidence
+from research.ml_selection.membership import validate_membership_evidence
 
 
 DAY = pd.Timedelta(days=1)
@@ -170,23 +170,32 @@ def _feature_table(frame: pd.DataFrame) -> pd.DataFrame:
     return table
 
 
-def _benchmark_features(benchmark, table=None):
+def _history_available_at(frame, window, as_of):
+    """Use the serving cutoff while retaining missing daily-history slots."""
+    available = frame["_available_at"]
+    known = available.notna() & available.le(as_of)
+    return known.astype(int).rolling(window, min_periods=window).sum().eq(window).to_numpy()
+
+
+def _benchmark_features(benchmark, table=None, *, as_of=None):
     """Build benchmark history/availability once for an entire symbol universe."""
     if benchmark is None:
         return None
     table = _feature_table(benchmark) if table is None else table
-    usable = (table["contiguous_history"] >= 21) & _history_available(benchmark, 21)
+    available = (_history_available(benchmark, 21) if as_of is None else
+                 _history_available_at(benchmark, 21, as_of))
+    usable = (table["contiguous_history"] >= 21) & available
     return table[["return_5d", "return_20d", "volatility_20d"]].where(usable, axis=0)
 
 
-def _attach_benchmark(table, benchmark, *, benchmark_features=None):
+def _attach_benchmark(table, benchmark, *, benchmark_features=None, as_of=None):
     if benchmark is None:
         for column in ("btc_return_5d", "btc_return_20d", "btc_volatility_20d",
                        "relative_return_20d"):
             table[column] = 0.0
         table["benchmark_available"] = 0.0
         return table
-    benchmark_table = (_benchmark_features(benchmark) if benchmark_features is None
+    benchmark_table = (_benchmark_features(benchmark, as_of=as_of) if benchmark_features is None
                        else benchmark_features)
     for source, target in (("return_5d", "btc_return_5d"),
                            ("return_20d", "btc_return_20d"),
@@ -197,12 +206,24 @@ def _attach_benchmark(table, benchmark, *, benchmark_features=None):
     return table
 
 
-def feature_snapshot(frame: pd.DataFrame, *, as_of, benchmark=None) -> dict:
+def feature_snapshot(frame: pd.DataFrame, *, as_of=None, benchmark=None, temporal_context=None) -> dict:
     """Return the latest scheduled closed bar's features, never future candles.
 
     Availability/history flags must be checked by callers. An unavailable last
     candle returns NaN features rather than silently substituting an older bar.
     """
+    if temporal_context is not None:
+        from research.ml_selection.temporal_context import SelectionTemporalContext
+        context = SelectionTemporalContext.from_mapping(temporal_context)
+        if as_of is not None and _utc(as_of) != context.decision_cutoff:
+            raise ValueError("feature cutoff differs from temporal context")
+        own = context.visible(frame, symbol="feature")
+        bench = context.visible(benchmark, symbol="benchmark") if benchmark is not None else None
+        result = feature_snapshot(own, as_of=context.decision_cutoff, benchmark=bench)
+        from signal_meta.signal_observation_types import fingerprint
+        result.update(temporal_context=context.to_dict(), temporal_context_id=context.identity,
+                      source_versions_sha256=fingerprint(own.attrs.get("temporal_source_versions", {})))
+        return result
     cutoff = _utc(as_of)
     own = _normalise(frame)
     own = own.loc[own.index + DAY <= cutoff].copy()
@@ -218,7 +239,8 @@ def feature_snapshot(frame: pd.DataFrame, *, as_of, benchmark=None) -> dict:
         bench = _normalise(benchmark)
         bench = bench.loc[bench.index + DAY <= cutoff].copy()
         bench.loc[bench["_available_at"].isna() | (bench["_available_at"] > cutoff), "_valid"] = False
-    table = _attach_benchmark(_feature_table(own), bench)
+    table = _attach_benchmark(_feature_table(own), bench,
+        as_of=cutoff if own.attrs.get("selection_temporal_context") else None)
     row = table.iloc[-1]
     # _history_available uses the latest bar's nominal close; delayed but now
     # known observations may be used by serving at a later explicit cutoff.
@@ -240,8 +262,11 @@ def feature_snapshot(frame: pd.DataFrame, *, as_of, benchmark=None) -> dict:
 
 
 def _membership_at(membership, symbol, dates, *, validated=None, require_verified=False):
+    """Use the same knowledge predicate as the public membership audit."""
     if membership is None:
-        return np.ones(len(dates), dtype=bool), "observed_history_only"
+        return np.full(len(dates), not require_verified, dtype=bool), (
+            "membership_unknown" if require_verified else "observed_history_only")
+    from core.market.membership import membership_as_of
     facts = (validate_membership_evidence(membership, require_sources=require_verified)[0]
              if validated is None else validated)
     selected = facts.loc[facts.symbol == symbol]
@@ -252,11 +277,12 @@ def _membership_at(membership, symbol, dates, *, validated=None, require_verifie
         raise ValueError("delisted_at requires delisting_available_at")
     if "overlapping_listing_intervals" in reasons:
         raise ValueError("membership has overlapping listing intervals")
-    active: NDArray[np.bool_] = np.zeros(len(dates), dtype=bool)
-    for item in selected.loc[selected.evidence_valid].to_dict("records"):
-        active |= np.asarray(interval_mask(item, dates), dtype=bool)
-    basis = "source_verified_point_in_time_interval" if require_verified else "supplied_point_in_time_facts"
-    return active, basis
+    lookup = {symbol: selected.to_dict("records")}
+    rows = [membership_as_of(lookup, symbol, at, require_sources=require_verified,
+                             validate=False) for at in dates]
+    basis = (np.asarray([row["basis"] for row in rows], dtype=object) if require_verified else
+             "supplied_point_in_time_facts")
+    return np.asarray([row["eligible"] for row in rows], dtype=bool), basis
 
 
 def _shadow_labels(frame, table, horizon, commission, slippage, stop_multiple):
@@ -402,7 +428,8 @@ def forward_proxy_outcome(frame: pd.DataFrame, *, entry_not_before,
 def build_dataset(frames: Mapping[str, pd.DataFrame], *, horizon_bars=20,
                   min_history=61, min_quote_volume=0.0, commission_rate=0.001,
                   slippage_bps=5.0, stop_atr_multiple=2.0, membership=None,
-                  require_exchange_quote_volume=False, require_verified_membership=False) -> pd.DataFrame:
+                  require_exchange_quote_volume=False, require_verified_membership=False,
+                  temporal_contexts=None, membership_require_sources=False) -> pd.DataFrame:
     """Keep every observed candidate row; eligibility is a separate decision.
 
     A horizon of H trades from the next candle open to that H-th candle close,
@@ -413,14 +440,16 @@ def build_dataset(frames: Mapping[str, pd.DataFrame], *, horizon_bars=20,
         min_quote_volume=min_quote_volume, commission_rate=commission_rate,
         slippage_bps=slippage_bps, stop_atr_multiple=stop_atr_multiple, membership=membership,
         require_exchange_quote_volume=require_exchange_quote_volume,
-        require_verified_membership=require_verified_membership, include_labels=True)
+        require_verified_membership=require_verified_membership, include_labels=True,
+        temporal_contexts=temporal_contexts, membership_require_sources=membership_require_sources)
 
 
 def build_inference_dataset(frames: Mapping[str, pd.DataFrame], *, horizon_bars=20,
                             min_history=61, min_quote_volume=0.0, commission_rate=0.001,
                             slippage_bps=5.0, stop_atr_multiple=2.0, membership=None,
                             require_exchange_quote_volume=False,
-                            require_verified_membership=False) -> pd.DataFrame:
+                            require_verified_membership=False, temporal_contexts=None,
+                            membership_require_sources=False) -> pd.DataFrame:
     """Build the same causal features/eligibility without inspecting outcomes.
 
     Label options remain accepted so immutable serving bundles need no edits.
@@ -433,7 +462,8 @@ def build_inference_dataset(frames: Mapping[str, pd.DataFrame], *, horizon_bars=
         min_quote_volume=min_quote_volume, commission_rate=commission_rate,
         slippage_bps=slippage_bps, stop_atr_multiple=stop_atr_multiple, membership=membership,
         require_exchange_quote_volume=require_exchange_quote_volume,
-        require_verified_membership=require_verified_membership, include_labels=False)
+        require_verified_membership=require_verified_membership, include_labels=False,
+        temporal_contexts=temporal_contexts, membership_require_sources=membership_require_sources)
 
 
 def _data_identity(frames, prepared, result, *, policy, membership):
@@ -469,7 +499,7 @@ def _data_identity(frames, prepared, result, *, policy, membership):
 def _build_rows(frames, *, horizon_bars, min_history, min_quote_volume,
                 commission_rate, slippage_bps, stop_atr_multiple, membership,
                 require_exchange_quote_volume, require_verified_membership,
-                include_labels):
+                include_labels, temporal_contexts=None, membership_require_sources=False):
     _positive_int(horizon_bars, "horizon_bars")
     _positive_int(min_history, "min_history", MIN_FEATURE_HISTORY)
     parameters = {"min_quote_volume": min_quote_volume, "commission_rate": commission_rate,
@@ -481,8 +511,18 @@ def _build_rows(frames, *, horizon_bars, min_history, min_quote_volume,
         raise ValueError("Commission/slippage must be below 100%; stop multiple must be positive")
     if not isinstance(frames, Mapping):
         raise ValueError("frames must be a symbol -> DataFrame mapping")
-    if type(require_exchange_quote_volume) is not bool or type(require_verified_membership) is not bool:
+    if any(type(value) is not bool for value in
+           (require_exchange_quote_volume, require_verified_membership, membership_require_sources)):
         raise ValueError("Strict quote-volume and membership requirements must be boolean")
+    require_verified_membership = require_verified_membership or membership_require_sources
+    if temporal_contexts is not None:
+        return _build_temporal_dataset(frames, temporal_contexts, membership=membership,
+            min_history=min_history, min_quote_volume=min_quote_volume, include_labels=include_labels,
+            require_exchange_quote_volume=require_exchange_quote_volume,
+            require_verified_membership=require_verified_membership)
+    if membership is not None:
+        from core.market.membership import validate_interval_structure
+        validate_interval_structure(membership)
     prepared = {str(symbol): _normalise(frame) for symbol, frame in frames.items()}
     if len(prepared) != len(frames):
         raise ValueError("Symbols must remain unique after string normalization")
@@ -557,8 +597,99 @@ def _build_rows(frames, *, horizon_bars, min_history, min_quote_volume,
     return result
 
 
+
+def _temporal_context_rows(frames, context, *, membership, min_history, min_quote_volume,
+                           require_exchange_quote_volume, require_verified_membership):
+    from core.market.membership import membership_as_of
+    from signal_meta.signal_observation_types import fingerprint
+    strict = context.policy.mode == "strict"
+    verified = strict or require_verified_membership
+    facts, _ = validate_membership_evidence(membership, require_sources=verified)
+    visible = {symbol: context.visible(source, symbol=symbol) for symbol, source in frames.items()}
+    benchmark_symbol = next((symbol for symbol in sorted(visible)
+        if symbol.upper().replace("/", "").replace("-", "") in {"BTCUSDT", "BTCUSD", "BTC"}), None)
+    rows = []
+    for symbol, frame in visible.items():
+        snap = feature_snapshot(frame, as_of=context.decision_cutoff, benchmark=visible.get(benchmark_symbol))
+        member = membership_as_of(facts, symbol, context.decision_cutoff,
+            require_sources=verified, knowledge=context.policy.knowledge,
+            require_observed=strict and context.policy.knowledge == "local", validate=False)
+        if membership is None and not verified:
+            member = {"eligible": True, "basis": "observed_history_only", "pit_evidence_verified": False}
+        available = snap["history_available"] and snap["contiguous_history"] >= min_history
+        finite = all(np.isfinite(snap[name]) for name in FEATURE_COLUMNS)
+        quote = float(frame.close.iloc[-1]) * float(frame.volume.iloc[-1]) if len(frame) else 0.
+        reason = ("membership_inactive_or_unknown" if not member["eligible"] else
+                  "history_unavailable" if not available else
+                  "feature_unavailable" if not finite else
+                  "lifecycle_entry_blocked" if snap.get("entry_blocked") or snap.get("scheduled_exit") else
+                  "quote_volume_source_unverified" if require_exchange_quote_volume and
+                      snap.get("quote_volume_basis") != "exchange_quote_volume" else
+                  "insufficient_liquidity" if quote <= 0 or quote < min_quote_volume else "")
+        rows.append({**snap, "symbol": symbol, "eligible": not reason,
+            "exclusion_reason": reason, "membership_basis": member["basis"],
+            "pit_membership_verified": member["pit_evidence_verified"],
+            "history_available": bool(available), "label_net_return": np.nan,
+            "label_mae": np.nan, "label_available_at": pd.NaT,
+            "label_exit_reason": "versioned_label_evidence_required",
+            "label_basis": "strict_features_no_proxy_label",
+            "temporal_mode": context.policy.mode, "temporal_knowledge": context.policy.knowledge,
+            "temporal_context_id": context.identity,
+            "source_versions_sha256": fingerprint(frame.attrs.get("temporal_source_versions", {})),
+            "feature_source_versions_sha256": fingerprint({key: visible[key].attrs.get("temporal_source_versions", {})
+                for key in dict.fromkeys([symbol, *([benchmark_symbol] if benchmark_symbol else [])])})})
+    return rows
+
+
+def _temporal_data_identity(rows, contexts, *, membership, policy):
+    from core.market.membership import membership_rows
+    identity = {"schema": "ml-selection-data-identity/v2", "timezone": "UTC",
+                "feature_columns": list(FEATURE_COLUMNS), "eligibility_policy": policy,
+                "contexts": [context.to_dict() for context in contexts],
+                "membership_sha256": hashlib.sha256(canonical_json(membership_rows(membership)).encode()).hexdigest(),
+                "source_snapshots": [{key: _utc(row[key]).isoformat() if key == "as_of" else row[key] for key in (
+                    "symbol", "as_of", "temporal_context_id", "source_versions_sha256",
+                    "feature_source_versions_sha256", "feature_snapshot_sha256")} for row in rows],
+                "availability_limit": "explicit_context_and_verified_visible_source_versions"}
+    identity["data_identity_sha256"] = hashlib.sha256(canonical_json(identity).encode()).hexdigest()
+    return identity
+
+
+def _build_temporal_dataset(frames, contexts, *, membership, min_history, min_quote_volume,
+                            include_labels=True, require_exchange_quote_volume=False,
+                            require_verified_membership=False):
+    """Keep strict serving separate from retrospective proxy label traversal."""
+    from core.market.membership import validate_interval_structure
+    from research.ml_selection.temporal_context import SelectionTemporalContext, feature_snapshot_identity
+    if isinstance(contexts, (SelectionTemporalContext, dict)):
+        contexts = [contexts]
+    contexts = [SelectionTemporalContext.from_mapping(value) for value in contexts]
+    if not contexts or len({context.identity for context in contexts}) != len(contexts):
+        raise ValueError("nonempty unique temporal contexts required")
+    contexts = sorted(contexts, key=lambda value: value.decision_cutoff)
+    if membership is not None:
+        validate_interval_structure(membership)
+    policy = {"min_history": min_history, "min_quote_volume": min_quote_volume,
+              "require_exchange_quote_volume": require_exchange_quote_volume,
+              "require_verified_membership": require_verified_membership}
+    rows = []
+    for context in contexts:
+        rows.extend(_temporal_context_rows(frames, context, membership=membership, **policy))
+    for row in rows:
+        row["feature_snapshot_sha256"] = feature_snapshot_identity(row)
+    columns = list(_OUTPUT_COLUMNS) + ["pit_membership_verified", "temporal_mode", "temporal_knowledge",
+        "temporal_context_id", "source_versions_sha256", "feature_source_versions_sha256", "feature_snapshot_sha256"]
+    result = (pd.DataFrame(rows).sort_values(["as_of", "symbol"]).reset_index(drop=True)
+              if rows else pd.DataFrame(columns=columns))
+    if not include_labels:
+        result = result.drop(columns=[name for name in result if name.startswith("label_")])
+    result.attrs["data_identity"] = _temporal_data_identity(rows, contexts, membership=membership, policy=policy)
+    result.attrs["future_labels_computed"] = False
+    return result
+
+
 def chronological_split(dataset: pd.DataFrame, *, train_end, validation_end,
-                        test_end=None) -> dict[str, pd.DataFrame]:
+                        test_end=None, label_book=None) -> dict[str, pd.DataFrame]:
     """Split date groups and purge labels that have not matured before a boundary.
 
     Ranges are [start, end). Training and validation labels must be strictly
@@ -567,6 +698,17 @@ def chronological_split(dataset: pd.DataFrame, *, train_end, validation_end,
     or immature, its entire decision-date cohort is withheld. This prevents
     early stopped losers from remaining while later winners are censored.
     """
+    if label_book is not None:
+        if test_end is None:
+            raise ValueError("versioned label splits require an explicit test_end cutoff")
+        from research.ml_selection.label_materialization import materialize_training_labels
+        boundaries = {"train": train_end, "validation": validation_end, "test": test_end}
+        result = {}
+        for name, boundary in boundaries.items():
+            materialized = materialize_training_labels(dataset, cutoff=boundary, revision_book=label_book)
+            result[name] = chronological_split(materialized, train_end=train_end,
+                validation_end=validation_end, test_end=test_end)[name]
+        return result
     required = {"as_of", "eligible", "label_net_return", "label_available_at", *FEATURE_COLUMNS}
     if not required.issubset(dataset):
         raise ValueError(f"Dataset missing split columns: {sorted(required - set(dataset))}")
@@ -580,6 +722,11 @@ def chronological_split(dataset: pd.DataFrame, *, train_end, validation_end,
     label_valid = (maturity.notna() & (maturity > as_of)
                    & np.isfinite(dataset["label_net_return"])
                    & np.isfinite(dataset[list(FEATURE_COLUMNS)].to_numpy()).all(axis=1))
+    if "bar_time" in dataset:
+        cohorts = pd.to_datetime(dataset["bar_time"], utc=True, errors="coerce")
+        cohorts = cohorts.where(cohorts.notna(), as_of.dt.normalize())
+    else:
+        cohorts = as_of.dt.normalize()
     ranges = {"train": (None, train_end), "validation": (train_end, validation_end),
               "test": (validation_end, test_end)}
     result = {}
@@ -590,7 +737,45 @@ def chronological_split(dataset: pd.DataFrame, *, train_end, validation_end,
         if end is not None:
             selected &= as_of < end
         mature = label_valid & (maturity < end) if end is not None else label_valid
-        bad_dates = as_of.loc[selected & ~mature].unique()
-        selected &= ~as_of.isin(bad_dates)
+        # A decision cohort can have several receipt cutoffs, even across a
+        # partition boundary. Never retain just its early-maturing members.
+        in_range = pd.Series(True, index=dataset.index)
+        if start is not None:
+            in_range &= as_of >= start
+        if end is not None:
+            in_range &= as_of < end
+        bad_cohorts = cohorts.loc[eligible & (~mature | ~in_range)].unique()
+        selected &= ~cohorts.isin(bad_cohorts)
         result[name] = dataset.loc[selected].copy().sort_values(["as_of", "symbol"]).reset_index(drop=True)
+    return result
+
+
+def serving_snapshots_from_sources(sources, context):
+    """Recompute serving facts from verified envelopes, not self-signed cache fields."""
+    from signal_meta.signal_observation_types import fingerprint
+    from core.market.temporal_data import TemporalOHLCV
+    from research.ml_selection.temporal_context import SelectionTemporalContext
+    context = SelectionTemporalContext.from_mapping(context)
+    views = {}
+    for symbol, envelopes in sources.items():
+        dataset_ids = {envelope.get("dataset_id") for envelope in envelopes.values()}
+        if len(dataset_ids) > 1 or (dataset_ids and (None in dataset_ids or "" in dataset_ids)):
+            raise ValueError("serving source mixes dataset identities")
+        reader = TemporalOHLCV(next(iter(dataset_ids), "empty:" + symbol), timeframe="1d",
+            policy={"mode": context.policy.mode, "knowledge": context.policy.knowledge,
+                    "unknown": context.policy.unknown})
+        for envelope in envelopes.values():
+            if fingerprint(envelope["record"]) != envelope.get("record_sha256"):
+                raise ValueError("serving source envelope identity mismatch")
+            reader._accept(envelope["record"])
+        views[symbol] = context.visible(reader, symbol=symbol)
+    benchmark_id = next((symbol for symbol in sorted(views) if
+        symbol.upper().replace("/", "").replace("-", "") in {"BTCUSDT", "BTCUSD", "BTC"}), None)
+    result = {}
+    for symbol, frame in views.items():
+        snapshot = feature_snapshot(frame, as_of=context.decision_cutoff,
+                                    benchmark=views.get(benchmark_id))
+        snapshot["feature_source_versions_sha256"] = fingerprint({key: sources[key]
+            for key in dict.fromkeys([symbol, *([benchmark_id] if benchmark_id else [])])})
+        result[symbol] = snapshot
     return result

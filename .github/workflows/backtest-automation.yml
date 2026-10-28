@@ -3,7 +3,7 @@ name: Backtest automation (offline)
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, "codex/pr25-completion-*"]
   pull_request:
   schedule:
     - cron: '17 19 * * 0'

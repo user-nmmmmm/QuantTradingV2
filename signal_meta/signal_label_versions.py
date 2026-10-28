@@ -81,10 +81,27 @@ def _validate_financed_outcome(row, candidate, payload, protocol):
             raise ValueError(f"financed label {field} differs from evidence replay")
 
 
+def _check_source_revision_head(source, namespace, key, source_heads):
+    record = source["record"]
+    head_key = key, namespace, source["dataset_id"], record["record_id"]
+    rank = (
+        as_utc_timestamp(record.get("revision_at") or record["available_at"]),
+        as_utc_timestamp(record["observed_at"]),
+    )
+    prior = source_heads.get(head_key)
+    if prior is not None and (
+        rank < prior[0] or (rank == prior[0] and source["record_sha256"] != prior[1])
+    ):
+        raise ValueError("label source revision regressed or fell back after withdrawal")
+    source_heads[head_key] = rank, source["record_sha256"]
+
+
 class OutcomeRevisionBook:
     def __init__(self, payload, candidates, horizons, outcomes):
         self.versioned = payload.get("temporal_label_protocol") is not None
         self._latest = outcomes
+        self._candidate_contexts = {identifier: {"symbol": candidate["symbol"],
+            "as_of": candidate["context"]["available_at"]} for identifier, candidate in candidates.items()}
         self._rows = {}
         strict = payload.get("temporal_scope", {}).get("decision_mode") == "strict"
         if not self.versioned:
@@ -144,15 +161,6 @@ class OutcomeRevisionBook:
             if row["status"] == "censored_source_retracted" and not retractions:
                 raise ValueError("source-retracted label lacks withdrawal proof")
             source_times = []
-            def check_head(source, namespace, key=key):
-                record = source["record"]
-                head_key = key, namespace, source["dataset_id"], record["record_id"]
-                rank = (as_utc_timestamp(record.get("revision_at") or record["available_at"]),
-                        as_utc_timestamp(record["observed_at"]))
-                prior = source_heads.get(head_key)
-                if prior is not None and (rank < prior[0] or (rank == prior[0] and source["record_sha256"] != prior[1])):
-                    raise ValueError("label source revision regressed or fell back after withdrawal")
-                source_heads[head_key] = rank, source["record_sha256"]
             for source in sources + retractions:
                 record = source["record"]
                 if fingerprint(record) != source.get("record_sha256"):
@@ -171,7 +179,7 @@ class OutcomeRevisionBook:
                     raise ValueError("published labels require source publication evidence")
                 if source_available > available:
                     raise ValueError("label availability precedes its source version")
-                check_head(source, "ohlcv")
+                _check_source_revision_head(source, "ohlcv", key, source_heads)
                 if source in retractions and normalized.get("record_type") != "tombstone":
                     raise ValueError("retraction proof must contain an explicit tombstone")
                 if normalized.get("record_type") == "tombstone" and row["training_eligible"]:
@@ -187,7 +195,7 @@ class OutcomeRevisionBook:
                 if claim in financing_claims and financing_claims[claim] != digest:
                     raise ValueError("conflicting immutable financing revision")
                 financing_claims[claim] = digest
-                check_head(source, "financing")
+                _check_source_revision_head(source, "financing", key, source_heads)
             if row["account_mode"] != "spot" and row["status"] in {"matured", "censored_financing_evidence_invalidated"}:
                 _validate_financed_outcome(row, candidate, payload, protocol)
             if row["training_eligible"]:
@@ -233,6 +241,12 @@ class OutcomeRevisionBook:
             if row.get("training_eligible") or row.get("status") == "matured":
                 if key not in self._rows:
                     raise ValueError("matured outcome has no immutable label revision")
+
+    def candidate_context(self, candidate_id):
+        """Expose immutable join identity, without allowing a label to move dates."""
+        if candidate_id not in self._candidate_contexts:
+            raise ValueError("unknown training candidate identity")
+        return deepcopy(self._candidate_contexts[candidate_id])
 
     def as_of(self, cutoff):
         """Choose a version before cutoff, then apply eligibility (never reverse)."""
