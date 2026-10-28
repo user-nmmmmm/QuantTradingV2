@@ -114,7 +114,92 @@ class CostAwareAllocationPolicy:
         return cls(**dict(value or {}))
 
 
-def allocate_cost_aware(mu, covariance, existing, upper_weights, *, policy: CostAwareAllocationPolicy):
+def _bounded_cost_solution(
+    mu, covariance, existing, upper, anchor, policy, effective_trading_cost_bps
+):
+    """Solve the discretionary L1 problem after the mandatory risk envelope."""
+    n = len(mu)
+    covariance = (covariance + covariance.T) / 2
+    covariance += np.eye(n) * max(1e-10, -float(np.linalg.eigvalsh(covariance).min()) + 1e-10)
+    quadratic = policy.risk_aversion * covariance + 2 * policy.impact_penalty * np.eye(n)
+    carry = policy.holding_cost_bps_per_day * policy.horizon_days / 10000.0
+    cost = (effective_trading_cost_bps + policy.turnover_penalty_bps) / 10000.0
+    linear = mu - carry + 2 * policy.impact_penalty * existing
+
+    def coordinate(multiplier):
+        weights = anchor.copy()
+        for _ in range(1500):
+            previous = weights.copy()
+            for j in range(n):
+                diagonal = quadratic[j, j]
+                optimum = (linear[j] - quadratic[j] @ weights + diagonal * weights[j]) / diagonal
+                centered = optimum - anchor[j]
+                proximal = anchor[j] + np.sign(centered) * max(
+                    abs(centered) - (cost + multiplier) / diagonal, 0.0
+                )
+                weights[j] = np.clip(proximal, 0.0, upper[j])
+            if np.max(np.abs(weights - previous)) < 1e-10:
+                return weights
+        raise RuntimeError("bounded coordinate descent did not converge")
+
+    if policy.max_turnover_weight == 0:
+        optimized = anchor.copy()
+    else:
+        optimized = coordinate(0.0)
+        if np.abs(optimized - anchor).sum() > policy.max_turnover_weight:
+            low, high = 0.0, max(1.0, float(np.max(np.abs(linear))) + cost)
+            # For a sufficiently large L1 multiplier anchor is optimal.
+            while np.abs(coordinate(high) - anchor).sum() > policy.max_turnover_weight:
+                high *= 2
+                if high > 1e12:
+                    raise RuntimeError("turnover dual did not bracket")
+            for _ in range(55):
+                middle = (low + high) / 2
+                candidate = coordinate(middle)
+                if np.abs(candidate - anchor).sum() > policy.max_turnover_weight:
+                    low = middle
+                else:
+                    high, optimized = middle, candidate
+            optimized = coordinate(high)
+    weights = optimized.copy()
+    if policy.rebalance == "partial":
+        weights = anchor + policy.partial_fraction * (weights - anchor)
+    elif policy.rebalance == "band":
+        weights = np.where(np.abs(weights - anchor) <= policy.no_trade_band, anchor, weights)
+    return weights, optimized, carry, cost
+
+
+def _predicted_trading_cost(
+    cost_predictions, decision_at, policy, evaluation_kind, information_policy, publication_verifier
+):
+    """Validation failures freeze discretionary risk without blocking native exits."""
+    from core.planning.execution_cost_provider import conservative_trading_cost
+
+    verifier_kwargs = (
+        {} if publication_verifier is None else {"publication_verifier": publication_verifier}
+    )
+    try:
+        return conservative_trading_cost(
+            cost_predictions,
+            as_of=decision_at,
+            horizon_days=policy.horizon_days,
+            evaluation_kind=evaluation_kind,
+            information_policy=information_policy,
+            **verifier_kwargs,
+        )
+    except Exception as error:
+        return {
+            "status": "unsupported",
+            "reason": "cost_prediction_validation_error:" + type(error).__name__,
+            "trading_cost_bps": None,
+            "actual_account_costs_changed": False,
+            "production_approved": False,
+        }
+
+
+def allocate_cost_aware(mu, covariance, existing, upper_weights, *, policy: CostAwareAllocationPolicy,
+                        cost_predictions=None, decision_at=None, evaluation_kind=None,
+                        information_policy=None, publication_verifier=None):
     """Solve inside a pre-approved risk envelope with an internal turnover cap.
 
     Objective: .5*risk_aversion*w'Cov*w - mu'w + holding*w
@@ -150,52 +235,24 @@ def allocate_cost_aware(mu, covariance, existing, upper_weights, *, policy: Cost
     if upper.sum() > policy.max_gross_weight:
         upper *= policy.max_gross_weight / upper.sum()
     anchor = np.minimum(existing, upper)
-    covariance = (covariance + covariance.T)/2
+    effective_trading_cost_bps = policy.trading_cost_bps
+    if cost_predictions is not None:
+        predicted_cost = _predicted_trading_cost(
+            cost_predictions, decision_at, policy, evaluation_kind,
+            information_policy, publication_verifier)
+        audit["cost_provider"] = predicted_cost
+        audit["cost_source"] = "validated_prediction_upper_scalar"
+        if predicted_cost["status"] != "supported":
+            # Missing forecasts freeze discretionary trading, but holdings above
+            # native risk limits must still target the mandatory reduced anchor.
+            return anchor, {**audit, "status": "unsupported_cost_provider_mandatory_only",
+                            "cash_fallback": False, "anchor_weights": anchor.tolist(),
+                            "mandatory_turnover_weight": float(np.sum(existing-anchor)),
+                            "discretionary_turnover_weight": 0.}
+        effective_trading_cost_bps = predicted_cost["trading_cost_bps"]
     try:
-        covariance += np.eye(n)*max(1e-10, -float(np.linalg.eigvalsh(covariance).min())+1e-10)
-        quadratic = policy.risk_aversion*covariance + 2*policy.impact_penalty*np.eye(n)
-        carry = policy.holding_cost_bps_per_day*policy.horizon_days/10000.
-        cost = (policy.trading_cost_bps + policy.turnover_penalty_bps)/10000.
-        linear = mu-carry+2*policy.impact_penalty*existing
-
-        def coordinate(multiplier):
-            weights = anchor.copy()
-            for _ in range(1500):
-                previous = weights.copy()
-                for j in range(n):
-                    diagonal = quadratic[j, j]
-                    optimum = (linear[j]-quadratic[j]@weights+diagonal*weights[j])/diagonal
-                    centered = optimum-anchor[j]
-                    proximal = anchor[j]+np.sign(centered)*max(abs(centered)-(cost+multiplier)/diagonal, 0.)
-                    weights[j] = np.clip(proximal, 0., upper[j])
-                if np.max(np.abs(weights-previous)) < 1e-10:
-                    return weights
-            raise RuntimeError("bounded coordinate descent did not converge")
-
-        if policy.max_turnover_weight == 0:
-            optimized = anchor.copy()
-        else:
-            optimized = coordinate(0.)
-            if np.abs(optimized-anchor).sum() > policy.max_turnover_weight:
-                low, high = 0., max(1., float(np.max(np.abs(linear)))+cost)
-                # For a sufficiently large L1 multiplier anchor is optimal.
-                while np.abs(coordinate(high)-anchor).sum() > policy.max_turnover_weight:
-                    high *= 2
-                    if high > 1e12:
-                        raise RuntimeError("turnover dual did not bracket")
-                for _ in range(55):
-                    middle = (low+high)/2
-                    candidate = coordinate(middle)
-                    if np.abs(candidate-anchor).sum() > policy.max_turnover_weight:
-                        low = middle
-                    else:
-                        high, optimized = middle, candidate
-                optimized = coordinate(high)
-        weights = optimized.copy()
-        if policy.rebalance == "partial":
-            weights = anchor + policy.partial_fraction*(weights-anchor)
-        elif policy.rebalance == "band":
-            weights = np.where(np.abs(weights-anchor) <= policy.no_trade_band, anchor, weights)
+        weights, optimized, carry, cost = _bounded_cost_solution(
+            mu, covariance, existing, upper, anchor, policy, effective_trading_cost_bps)
     except (ValueError, RuntimeError, FloatingPointError, np.linalg.LinAlgError):
         return fail("solver_error_cash_fallback")
     turnover = float(np.abs(weights-anchor).sum())

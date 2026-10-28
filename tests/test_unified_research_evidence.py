@@ -35,13 +35,12 @@ def test_research_identity_tracks_untracked_entrypoints_and_install_inputs(tmp_p
 
 
 @pytest.mark.parametrize("path", ["cli/data.py", "pyproject.toml"])
-def test_research_run_invalidates_on_cli_or_packaging_mutation(tmp_path, monkeypatch, path):
-    import analysis.research_evidence as module
+def test_research_run_invalidates_on_cli_or_packaging_mutation(tmp_path, path):
     target = tmp_path / path
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text("initial\n", encoding="utf-8")
-    monkeypatch.setattr(module, "source_identity", lambda: source_identity(tmp_path))
-    run = ResearchEvidenceRun(candidates=["synthetic"], parameters={}, data_map={}, output=tmp_path / "run")
+    run = ResearchEvidenceRun(candidates=["synthetic"], parameters={}, data_map={},
+                              output=tmp_path / "run", source_root=tmp_path)
     registration = (tmp_path / "run/registration.json").read_bytes()
     assert run.verify_identity({})["source_unchanged"] is True
     target.write_text("changed\n", encoding="utf-8")

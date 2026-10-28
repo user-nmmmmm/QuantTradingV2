@@ -4,7 +4,7 @@ name: codeql
 # check, so a finding never blocks a merge by itself; review results under Security -> Code scanning.
 on:
   push:
-    branches: [main]
+    branches: [main, "codex/pr25-completion-*"]
   pull_request:
   schedule:
     - cron: "17 3 * * 1"   # Mondays, so new queries also run against an unchanged main

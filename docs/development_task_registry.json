@@ -5981,5 +5981,70 @@
       "path": "reports/roadmap_v3/followup/20260920-implementation/remote-ci.json",
       "sha256": "937586dbde4c95232cd20bb47ee37be72d7cf939943e37bf4b1dc0a1a1e92b2b"
     }
-  }
+  },
+  "supplemental_scopes": [
+    {
+      "id": "PR25-MAIN-PORT-20261028",
+      "started_on": "2026-10-28",
+      "engineering_owner": "Codex",
+      "reviewer": "pending_current_commit_review",
+      "accepted_scope": [
+        "PR25-00",
+        "PR25-01",
+        "PR25-02",
+        "PR25-03",
+        "PR25-04",
+        "PR25-05",
+        "PR25-06",
+        "PR25-07",
+        "PR25-08",
+        "PR25-09",
+        "PR25-10",
+        "PR25-11",
+        "PR25-12",
+        "PR25-13",
+        "PR25-14",
+        "PR25-16",
+        "PR25-17",
+        "PR25-18",
+        "PR25-19",
+        "PR25-20",
+        "PR25-21",
+        "PR25-22"
+      ],
+      "mapped_tasks": [
+        "SYS-01",
+        "SYS-04",
+        "SYS-10",
+        "SYS-11",
+        "SYS-12",
+        "SYS-13",
+        "SYS-16",
+        "SYS-17",
+        "SYS-19",
+        "FIX-03",
+        "FIX-08"
+      ],
+      "new_feature_scopes": [
+        "trusted_local_cost_publication_and_feature_observation_receipts",
+        "original_policy_decision_intent_capture_and_store_v2_binding",
+        "typed_data_manifest_to_actual_bounded_worker_transport"
+      ],
+      "scope_status": "pending_current_commit_checks",
+      "engineering": "pending_current_commit_checks",
+      "research": "not_evaluated_for_current_main",
+      "external_evidence": "pending",
+      "evidence": "docs/research/paper_research_main_acceptance_20261028.json",
+      "development_record": "docs/research/paper_research_main_development_20261028.md",
+      "global_task_status_changed": false,
+      "global_task_count_preserved": 41,
+      "live_authorization": false,
+      "historical_origin": "unpublished b82 worktree local evidence",
+      "historical_receipts_are_current_acceptance": false,
+      "conditional_PR25_15": "not_triggered",
+      "actual_candidate_freeze": "no_candidate_promoted",
+      "actual_maturity_adjudication": "pending",
+      "remote_ci": "pending_current_commit_checks"
+    }
+  ]
 }

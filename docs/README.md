@@ -10,6 +10,7 @@
 | --- | --- | --- |
 | 首次安装、回测或打开网页 | [项目 README](../README.md)、[本地研究工作台](../dashboard/README.md) | [依赖与环境](dependency_management.md)、[前端维护](../dashboard/README.md) |
 | 理解代码职责和调用关系 | [代码模块说明](modules/README.md) | [架构边界审查](architecture_review.md)、[词汇表](glossary.md) |
+| 阅读 PR25 主线移植与研究合同 | [2026-10-28 主线开发记录](research/paper_research_main_development_20261028.md) | [专项 Roadmap](research/paper_research_roadmap_20261025.md)、[详细开发与测试计划](research/paper_research_development_plan_20261025.md)、[专项登记](research/paper_research_task_registry_20261025.json) |
 | 查看阶段、依赖与放行条件 | [统一 Roadmap v3](unified_roadmap.md) | [统一开发计划](development_plan.md)、[结构化任务登记](development_task_registry.json) |
 | 实施任务、核对交付和验收 | [开发详情](development_details.md) | [2026-09-20 后续实施记录](roadmap_acceptance_log.md) |
 | 核对回测假设和指标公式 | [当前回测行为](backtest_assumptions.md) | [指标公式与专项标准](archive/2026-10-doc-consolidation/backtest_metrics_detailed_development_plan.md) |
@@ -30,6 +31,8 @@
 ## 最新行为变更
 
 以下按近期主题提供入口。带日期的实施记录说明对应批次的工作和证据，文件日期较新并不自动替代已批准契约或更新项目放行状态。
+
+- [2026-10-28 PR25 主线移植与三项补充接口](research/paper_research_main_development_20261028.md)：保留当前架构、数据 adoption 与质量门槛，移植原专项工程并补充成本发布收据、原策略自动捕获和类型化 worker 输入；[当前验收](research/paper_research_main_acceptance_20261028.json)待当前提交检查，真实证据、条件支线和资金准入分别记录。
 
 - [机器学习选币:现状与历史记录](ml_selection.md)：操作说明、工程整改、回测开关与下一阶段 Roadmap 见 [ml_selection.md](ml_selection.md)；V1 复核、本轮执行、冻结回测、诊断与稳健性解读见 [ml_selection_history.md](ml_selection_history.md)；[学习清单](ml_selection_learning_checklist_20261005.md)。均为研究/工程记录，`formal_admission=false` 保持不变。
 - [2026-10-04 剩余论文任务](research/paper_remaining_tasks_20261004.md)：执行成本与盘口证据、历史因子输入、前瞻采集和严格标签的实现与缺口；[收益改进复核](research/paper_applications.md)记录固定方案的历史比较，保留主引擎与独立现货账户的口径差异。

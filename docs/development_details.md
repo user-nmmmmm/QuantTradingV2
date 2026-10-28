@@ -1930,3 +1930,14 @@ check状态用pass/fail/insufficient/pending；不适用须明确标注not_appli
 **兼容与迁移：** 现有手动CLI继续可用；自动化要求新建独占目录及full报告。历史报告/研究fail/策略锁不改写，合成证据不迁移为真实运行证据。
 
 **来源与操作：** [自动化方案](archive/2026-10-doc-consolidation/automated_backtest_plan.md)。六项Windows调度已注册，本轮真实矩阵与研究流程已运行；当前1个真实自然日，14天连续记录、独立标的证据和实际告警送达仍未取得，整体保留待验收。远端CI按具体提交的独立回执判断。
+
+
+## PR25-MAIN-PORT-20261028 独立研究补充合同
+
+本补充映射现有 SYS-01/04/10/11/12/13/16/17/19、FIX-03/08，不修改上文 41 项任务的原始属性与状态。范围及依赖沿用[PR25 开发计划](research/paper_research_development_plan_20261025.md)和[23项专项登记](research/paper_research_task_registry_20261025.json)；具体接口与未支持输入见[主线开发记录](research/paper_research_main_development_20261028.md)。
+
+**accepted_scope：** 把旧 PR25 22 项非条件工程范围适配到 main 的分层、数据身份与 selector 合同，并补充可信本地成本发布/观察收据、原策略决策与 intent 自动签名捕获、类型化数据 CLI 到真实 bounded worker 的输入传输。
+
+**验收契约：** 源码/配置/输入和协议在当前 main 提交下重新核验；正反例必须覆盖 strict/local 可得时间、原事件身份、store v2 绑定、worker 实际消费与输入漂移。扩展 Ruff/mypy 棘轮、函数长度、架构方向及已有回归按当前门禁执行，不能放宽阈值或增加断链基线豁免。工程与 CI 均待当前提交检查，结果汇总到[当前验收回执](research/paper_research_main_acceptance_20261028.json)。
+
+**边界：** `unpublished b82 worktree local evidence` 的旧测试及机器回执只作历史；本次不复制为 main 验收。strict/published 外部发布证据仍 unsupported；初始持仓/margin/funding 未扩展，不支持输入拒绝。真实未来原始证据继续 pending；PR25-15 未启动，20 不强造候选，21 未到期不裁决；不改写旧准入或发布结果。

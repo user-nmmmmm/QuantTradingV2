@@ -8,6 +8,12 @@
 
 ## [Unreleased]
 
+### Added
+
+- PR25 isolated research: exact local source/data identity, mature temporal labels and membership, registered statistical diagnostics, execution-cost providers, covariance and account-based portfolio comparisons, and atomic final-sample access.
+- Authenticated local model/feature publication receipts, native policy and full-bar account capture (explicitly enabled), and safe typed JSON/CSV inputs delivered to bounded research workers. See the [main integration record](docs/research/paper_research_main_development_20261028.md) for supported modes and external evidence still required.
+- Branch preflight CI and exact-checkout JUnit/coverage artifacts for the PR25 integration, retaining existing quality, architecture and 90% runtime coverage gates. New observation candidates require their own identities and registration.
+
 ### Changed
 
 - Record the 2026-10-19 `v3.1.1` annotated tag (tag object `2551bf22`, commit `122489fa`) and the A5 `code-token/v2` registration (observation window [2026-11-19, 2027-05-18), earliest maturity 2027-06-07) in the [infrastructure roadmap](docs/infrastructure_roadmap.md) and the [release baseline](docs/repair_release_baseline.md). The 3.1.1 entry below is unchanged from the tagged commit; private receipts and registration artifacts stay local.

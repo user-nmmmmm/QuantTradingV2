@@ -1,0 +1,118 @@
+{
+  "schema": "paper-research-main-acceptance/v1",
+  "recorded_at": "2026-10-28T03:52:43.626273+00:00",
+  "source_base": "b47f66cc4a3391de75f638da4a25d5e6fd75f41d",
+  "branch": "codex/pr25-completion-20261028",
+  "implementation": "scoped_engineering_implemented",
+  "ci_gate": "pending_current_commit_remote_checks",
+  "remote_ci_claimed_pass": false,
+  "global_task_status_changed": false,
+  "live_authorization": false,
+  "source_rule": "Previous unpublished b82 worktree receipts remain local historical evidence. This file records main integration; final CI status is the actual same-head GitHub checks, linked in the pull request and delivery receipt.",
+  "new_features": [
+    "Authenticated local execution-cost model publication and feature-observation receipts with independently configured strict/local verifier",
+    "Original native policy/intent capture with signed append-only store bindings and full BacktestEngine bar observer; default off",
+    "Safe typed JSON/CSV manifest CLI, registered input bindings and immutable transport to actual bounded workers"
+  ],
+  "local_scoped_verification": {
+    "cost_publication": {
+      "passed": 169,
+      "receipt": "outputs/pr25_execution_stage_20261028.xml"
+    },
+    "portfolio": {
+      "passed": 115,
+      "coverage_percent": 91.0714,
+      "receipt": "outputs/portfolio_stage_owned_qa.json"
+    },
+    "published_allocation": {
+      "passed": 227,
+      "coverage_percent": 90.243902439,
+      "receipt": "outputs/published_allocation_owned_qa.json"
+    },
+    "typed_transport": {
+      "passed": 155,
+      "skipped": 1,
+      "receipt": "reports/pr25_typed_ci_20261028_01/owned_verification.json"
+    },
+    "legacy_ratchet_refactor": {
+      "passed": 269,
+      "receipt": "outputs/pr25_legacy_ratchet_refactor_20261028.xml"
+    },
+    "signed_policy_capture": {
+      "latest_affected_tests_passed": 39,
+      "previous_full_matrix_passed": 135,
+      "latest_receipt": "outputs/pr25-forward-main-policy-identity-20261028.xml",
+      "previous_receipt": "outputs/pr25-forward-main-source-verified-20261028.xml",
+      "scope_note": "The final policy-mode identity delta is covered by39 affected cases; the135-case local matrix precedes that delta. Full latest-source coverage is determined by remote same-commit CI."
+    }
+  },
+  "test_count_rule": "Scoped groups overlap and are not a full-suite total. Current full-suite and matrix checks will be recorded by GitHub Actions, not inferred from these counts.",
+  "remaining_conditions": [
+    "Readable Excel original table IDs and full 106-paper index; eight selected source identities/key sections only",
+    "Independent venue orders/fills/fees/pretrade quotes and real calibration precision/capacity",
+    "Full historical membership/market-cap/current-supply and timestamped fine-bar evidence",
+    "Matched-opportunity and matched-participation original-account economic controls",
+    "Real policy/account forward collection and actual future natural days/label and fee maturity",
+    "Strict published/external vendor model publication is unsupported; local authority does not authenticate venue evidence",
+    "Initial inventory, margin and funding account modes are not supported by the spot forward capture/replay adapter and fail closed"
+  ],
+  "conditional_status": {
+    "PR25-15": "not_triggered",
+    "PR25-20": "no_supported_candidate_promoted",
+    "PR25-21": "actual_maturity_adjudication_pending",
+    "PR25-22": "synthetic_access_verified_real_final_unconsumed"
+  },
+  "ci_requirements": {
+    "quality_coverage_percent": 90,
+    "ratchet_baseline_increase": false,
+    "required_matrix": [
+      "ubuntu/3.11",
+      "ubuntu/3.13",
+      "windows/3.11",
+      "windows/3.13"
+    ],
+    "jobs_unchanged": "Existing tests, install-smoke, offline automation and CodeQL retain their job logic; push trigger added only for codex/pr25-completion-* so CI runs before creating the PR."
+  },
+  "global_task_records_verified_unchanged": 41,
+  "local_preflight": {
+    "status": "pass_scoped_gates",
+    "gates": [
+      "lint",
+      "ratchet",
+      "imports",
+      "architecture_inventory",
+      "markdown_links",
+      "critical_types",
+      "roadmap_structure",
+      "hygiene",
+      "protected_archive",
+      "frontend",
+      "frozen_inputs",
+      "data_review",
+      "approved_data_adoption"
+    ],
+    "log": "outputs/pr25_main_static_preflight_20261028.log",
+    "environment_boundary": "Full strict dependency environment and platform/coverage gates are checked by clean GitHub runners; the old worktree Python environment is not claimed to match latest main lock."
+  },
+  "followup_shared_layer_alignment": {
+    "source_identity": "core/foundation/source_bytes.py",
+    "temporal_context": "signal_meta/selection_context.py",
+    "compatibility": "Original analysis/research and ML context imports remain re-exported; forbidden research-analysis and signal_meta-research imports removed.",
+    "regression": {
+      "passed": 138,
+      "skipped": 2,
+      "receipt": "outputs/pr25_shared_layers_verified_20261028.xml"
+    },
+    "capture_current_source": {
+      "passed": 39,
+      "receipt": "outputs/pr25_forward_shared_layers_20261028.xml"
+    }
+  },
+  "external_workbook_retry": {
+    "date": "2026-10-28",
+    "status": "download_failed_once_official_transfer",
+    "workbook_content_read": false,
+    "mapping_promoted": false
+  },
+  "line_endings": "Changed text files normalized to LF before submission; local scoped runs retain their own previous raw-byte snapshots. Authoritative current-source checks run on the submitted commit."
+}

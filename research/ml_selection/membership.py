@@ -12,6 +12,8 @@ import pandas as pd
 
 from core.market.timeframes import as_utc_timestamp
 
+from core.market.membership import membership_as_of, membership_rows
+
 
 def _stamp(value):
     if value is None or pd.isna(value):
@@ -30,18 +32,8 @@ def _source(value):
 def membership_frame(evidence) -> pd.DataFrame:
     """Accept one interval or a list of intervals for each registered symbol."""
     if isinstance(evidence, Mapping):
-        rows = []
-        for symbol, intervals in evidence.items():
-            intervals = [intervals] if isinstance(intervals, Mapping) else intervals
-            if not isinstance(intervals, (list, tuple)) or not all(isinstance(item, Mapping) for item in intervals):
-                raise ValueError("membership facts require an interval mapping or list of interval mappings")
-            for item in intervals:
-                if "symbol" in item and item["symbol"] != symbol:
-                    raise ValueError("membership interval symbol disagrees with its mapping key")
-                rows.append({**dict(item), "symbol": symbol})
-        frame = pd.DataFrame(rows)
-        if frame.empty:
-            frame = pd.DataFrame(columns=["symbol"])
+        rows = membership_rows(evidence)
+        frame = pd.DataFrame(rows, columns=None if rows else ["symbol"])
     elif evidence is None:
         frame = pd.DataFrame(columns=["symbol"])
     elif isinstance(evidence, pd.DataFrame):
@@ -138,22 +130,19 @@ def audit_membership(evidence, decisions: pd.DataFrame, *, missing_policy="exclu
         raise ValueError("membership decisions require valid as_of")
     rows = []
     for row, as_of in zip(decisions.to_dict("records"), times):
-        supplied = facts.loc[facts.symbol == row["symbol"]]
-        valid = supplied.loc[supplied.evidence_valid]
-        known = valid.loc[valid.available_at <= as_of] if len(valid) else valid
-        active = known.loc[[bool(interval_mask(item, pd.DatetimeIndex([as_of]))[0])
-                            for item in known.to_dict("records")]] if len(known) else known
-        insufficient = supplied.empty or valid.empty or known.empty
-        if len(active):
-            basis, eligible, reason = "source_verified_point_in_time_interval", True, ""
+        decision = membership_as_of(facts, row["symbol"], as_of,
+                                    require_sources=True, validate=False)
+        insufficient = decision["reason"] == "membership_evidence_missing_invalid_or_not_yet_available"
+        if decision["eligible"]:
+            basis, eligible, reason = decision["basis"], True, ""
         elif insufficient:
             basis = "observed_history_only_downgraded" if missing_policy == "downgrade" else "membership_unknown"
-            eligible, reason = missing_policy == "downgrade", "membership_evidence_missing_invalid_or_not_yet_available"
+            eligible, reason = missing_policy == "downgrade", decision["reason"]
         else:
-            basis, eligible, reason = "source_verified_point_in_time_interval", False, "outside_effective_listing_interval"
+            basis, eligible, reason = decision["basis"], False, decision["reason"]
         rows.append({**row, "membership_eligible": eligible, "membership_basis": basis,
-                     "membership_reason": reason, "pit_evidence_verified": bool(len(active)),
-                     "membership_sources": active.source.tolist() if len(active) else []})
+                     "membership_reason": reason, "pit_evidence_verified": decision["pit_evidence_verified"],
+                     "membership_sources": decision["sources"]})
     annotated = pd.DataFrame(rows, columns=None if rows else [*decisions.columns, "membership_eligible", "membership_basis", "membership_reason", "pit_evidence_verified", "membership_sources"])
     return annotated, {**report, "missing_policy": missing_policy, "decision_rows": len(rows),
                        "eligible_decisions": sum(row["membership_eligible"] for row in rows),

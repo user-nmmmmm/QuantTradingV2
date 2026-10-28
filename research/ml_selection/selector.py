@@ -67,7 +67,7 @@ class ResearchSelector:
                  deterministic=True, seed=42, min_expected_return=0.0,
                  score_scale=100.0, score_cap=5.0, initial_capital=None,
                  policy_threshold=None, policy_gate_mode=None, selector_contract=None,
-                 capital_score_source="selector_score"):
+                 capital_score_source="selector_score", temporal_context=None):
         if mode not in {"model", "policy", "momentum", "random", "qualified_native"}:
             raise ValueError("unsupported selection mode")
         metadata = getattr(policy, "metadata", {}) or {}
@@ -108,6 +108,10 @@ class ResearchSelector:
                 or not math.isfinite(float(initial_capital)) or initial_capital <= 0):
             raise ValueError("initial_capital must be finite and positive")
         self.mode, self.model, self.policy = mode, model, policy
+        from research.ml_selection.temporal_context import SelectionTemporalContext
+        self.temporal_context = (None if temporal_context is None else
+                                 SelectionTemporalContext.from_mapping(temporal_context))
+        self._active_temporal_context = None
         self.contract = contract
         self.explicit_selector_contract = selector_contract is not None
         self.selector_contract = self.contract
@@ -136,6 +140,8 @@ class ResearchSelector:
         rows = dataset.copy()
         rows["as_of"] = pd.to_datetime(rows.as_of, utc=True)
         keep = ["symbol", "as_of", "eligible", "exclusion_reason", *FEATURE_COLUMNS]
+        keep += [name for name in ("bar_time", "membership_basis", "temporal_mode", "temporal_knowledge",
+            "temporal_context_id", "source_versions_sha256", "feature_source_versions_sha256", "feature_snapshot_sha256", "pit_membership_verified") if name in rows]
         self.table = rows[keep].set_index(["symbol", "as_of"])
         if self.table.index.has_duplicates:
             raise ValueError("duplicate candidate snapshots")
@@ -168,6 +174,11 @@ class ResearchSelector:
                "selection_probability_semantics": (POLICY_PROBABILITY_SEMANTICS
                                                    if self.contract["policy_gate"] else None),
                **facts}
+        context = self._active_temporal_context
+        if context is not None and context.policy.mode == "strict":
+            row.update(temporal_mode="strict", temporal_knowledge=context.policy.knowledge,
+                       temporal_context_id=context.identity,
+                       decision_cutoff=context.decision_cutoff.isoformat())
         self.audit.append(row)
         if attached is not None:
             attached.update({key: value for key, value in row.items() if key != "reason"})
@@ -201,11 +212,30 @@ class ResearchSelector:
                 "reason_counts": dict(Counter(row["reason"] for row in self.audit)),
                 "selected_count_semantics": "selector_acceptance_not_order_or_fill"}
 
-    def select(self, candidates, *, event, portfolio, broker, risk_manager, current_prices):
-        candidates = list(candidates)
-        if event.timeframe != "1d":
-            raise ValueError("ML selection requires daily closed bars")
-        bar_time, as_of = utc(event.timestamp), utc(event.timestamp) + pd.Timedelta(days=1)
+    def _decision_inputs(self, event, current_prices):
+        from research.ml_selection.temporal_context import SelectionTemporalContext
+        event_context = SelectionTemporalContext.from_event(event)
+        context = self.temporal_context or event_context
+        if (self.temporal_context is not None and event_context.policy.mode == "strict"
+                and context.identity != event_context.identity):
+            raise ValueError("selector context differs from the actual strict event")
+        bar_time, as_of = utc(event.timestamp), context.decision_cutoff
+        if as_of < bar_time + pd.Timedelta(days=1):
+            raise ValueError("ML cutoff precedes signal candle close")
+        self._active_temporal_context = context
+        proofs, snapshots = {}, {}
+        if context.policy.mode == "strict":
+            from research.ml_selection.temporal_context import validate_causal_prices
+            from research.ml_selection.dataset import serving_snapshots_from_sources
+            proofs = getattr(event, "selection_source_versions", None)
+            if proofs is None:
+                proofs = {symbol: history.attrs.get("temporal_source_versions", {})
+                          for symbol, history in getattr(event, "histories", {}).items()}
+            validate_causal_prices(current_prices, proofs, context)
+            snapshots = serving_snapshots_from_sources(proofs, context)
+        return context, bar_time, as_of, proofs, snapshots
+
+    def _account_features(self, portfolio, broker, risk_manager, current_prices):
         equity = float(portfolio.get_total_value(dict(current_prices)))
         if not math.isfinite(equity):
             raise ValueError("portfolio equity must be finite")
@@ -229,9 +259,6 @@ class ResearchSelector:
         drawdown = float(drawdown)
         if not math.isfinite(drawdown) or drawdown < 0:
             raise ValueError("portfolio drawdown must be finite and nonnegative")
-        # Updating the accounting state precedes the empty candidate return.
-        if not candidates:
-            return []
         held = [(s, p) for s, p in portfolio.positions.items() if p.get("qty", 0)]
         gross = sum(abs(float(p.get("qty", 0)) * float(current_prices.get(s, p.get("avg_price", 0))))
                     for s, p in held)
@@ -241,11 +268,40 @@ class ResearchSelector:
                    "portfolio_drawdown": drawdown,
                    "held_count_fraction": len(held) / 8.0,
                    "pending_count_fraction": pending_count / 8.0}
-        model_scoring = self.mode in {"model", "policy"} and (
-            self.contract["ranking"] or self.contract["return_gate"])
+        return account, equity
+
+    def _strict_snapshot_reason(self, row, candidate, context, bar_time, proofs, snapshots):
+        from research.ml_selection.temporal_context import feature_snapshot_identity
+        from signal_meta.signal_observation_types import fingerprint
+        if (row.get("temporal_mode") != "strict" or
+                row.get("temporal_knowledge") != context.policy.knowledge or
+                row.get("temporal_context_id") != context.identity or
+                row.get("bar_time") is None or pd.isna(row.get("bar_time")) or
+                utc(row.get("bar_time")) != bar_time or
+                not isinstance(row.get("source_versions_sha256"), str)):
+            return "temporal_snapshot_identity_mismatch"
+        matching = (candidate.symbol in proofs and
+            row["source_versions_sha256"] == fingerprint(proofs[candidate.symbol]) and
+            row.get("feature_snapshot_sha256") == feature_snapshot_identity(
+                {**row.to_dict(), "symbol": candidate.symbol, "as_of": context.decision_cutoff}))
+        actual = snapshots.get(candidate.symbol)
+        if actual is None or row.get("feature_source_versions_sha256") != actual["feature_source_versions_sha256"]:
+            matching = False
+        if matching:
+            try:
+                matching = utc(actual["bar_time"]) == bar_time and bool(np.allclose(
+                    [float(row[name]) for name in FEATURE_COLUMNS],
+                    [float(actual[name]) for name in FEATURE_COLUMNS],
+                    rtol=1e-12, atol=1e-14, equal_nan=True))
+            except (TypeError, ValueError):
+                matching = False
+        return "" if matching else "strict_feature_or_source_identity_mismatch"
+
+    def _serving_rows(self, candidates, *, context, bar_time, as_of, proofs, actual_snapshots,
+                      model_scoring, current_prices, equity, risk_manager, account):
         needs_features = (model_scoring or self.contract["policy_gate"] or
                           (self.contract["ranking"] and self.mode == "momentum"))
-        needs_snapshot = self.contract["eligibility_filter"] or needs_features
+        needs_snapshot = context.policy.mode == "strict" or self.contract["eligibility_filter"] or needs_features
         valid, features, eligibility, decision_contexts = [], [], [], []
         for candidate in candidates:
             key = (candidate.symbol, as_of)
@@ -257,6 +313,15 @@ class ResearchSelector:
                                    "reason": "missing_causal_snapshot", **account})
                 continue
             row = self.table.loc[key] if needs_snapshot else None
+            if context.policy.mode == "strict":
+                reason = self._strict_snapshot_reason(row, candidate, context, bar_time,
+                                                      proofs, actual_snapshots)
+                if reason:
+                    self._record(candidate, {"bar_time": bar_time.isoformat(), "as_of": as_of.isoformat(),
+                        "symbol": candidate.symbol, "selected": False, "eligible": False,
+                        "membership_qualified": None, "data_qualified": False, "mode": self.mode,
+                        "reason": reason, **account})
+                    continue
             if self.contract["eligibility_filter"] and not bool(row.eligible):
                 self._record(candidate, {"bar_time": bar_time.isoformat(), "as_of": as_of.isoformat(),
                                    "symbol": candidate.symbol, "selected": False,
@@ -293,11 +358,23 @@ class ResearchSelector:
                                                               as_of=as_of, features=policy_context))
             features.append({**({name: row[name] for name in FEATURE_COLUMNS} if row is not None else {}),
                              **account, **policy_context})
-        if not valid:
-            return []
-        frame = pd.DataFrame(features)
-        return_gates = None
-        policy_actions = None
+        return valid, features, eligibility, decision_contexts, needs_snapshot
+
+    def _check_artifact_times(self, as_of, model_scoring):
+        context = self._active_temporal_context
+        if context is None or context.policy.mode != "strict":
+            return
+        artifacts = ([self.model] if model_scoring else []) + ([self.policy] if self.contract["policy_gate"] else [])
+        for artifact in artifacts:
+            metadata = getattr(artifact, "metadata", {}) or {}
+            for name in ("train_latest_label_available_at", "available_at", "trained_at"):
+                if metadata.get(name) is not None:
+                    bound = utc(metadata[name])
+                    if bound > as_of or (name == "train_latest_label_available_at" and bound == as_of):
+                        raise ValueError("model or policy training/availability exceeds decision cutoff")
+
+    def _score_candidates(self, valid, frame, model_scoring):
+        return_gates, expected_returns = None, None
         if model_scoring:
             predictions = np.asarray(self.model.predict(frame), dtype=float)
             if predictions.shape != (len(valid),) or not np.isfinite(predictions).all():
@@ -322,7 +399,11 @@ class ResearchSelector:
         else:
             predictions = np.array([c.score for c in valid], dtype=float)
             scores, gates = predictions, np.ones(len(valid), dtype=bool)
+        return predictions, expected_returns, scores, gates, return_gates
+
+    def _policy_choices(self, valid, frame, *, bar_time, as_of, gates, return_gates, decision_contexts):
         probabilities = np.ones(len(valid))
+        policy_actions = None
         if self.contract["policy_gate"]:
             options = {"deterministic": self.deterministic}
             # Preserve compatibility with older policy adapters at the old
@@ -360,6 +441,11 @@ class ResearchSelector:
                                             "decision_context_available_at": as_of.isoformat(),
                                             "credit_assignment": "episode_account_return_to_go_not_individual_pnl",
                                             "probability": float(probabilities[i])})
+        return gates, probabilities, policy_actions
+
+    def _accepted_candidates(self, valid, *, predictions, expected_returns, scores, gates,
+                             probabilities, policy_actions, return_gates, eligibility,
+                             decision_contexts, model_scoring, needs_snapshot, bar_time, as_of, account):
         selected = []
         return_applied = self.contract["return_gate"]
         for i, candidate in enumerate(valid):
@@ -410,3 +496,31 @@ class ResearchSelector:
                 else:
                     selected.append(replace(candidate, score=float(scores[i])))
         return selected
+
+    def select(self, candidates, *, event, portfolio, broker, risk_manager, current_prices):
+        candidates = list(candidates)
+        if event.timeframe != "1d":
+            raise ValueError("ML selection requires daily closed bars")
+        context, bar_time, as_of, proofs, snapshots = self._decision_inputs(event, current_prices)
+        account, equity = self._account_features(portfolio, broker, risk_manager, current_prices)
+        if not candidates:
+            return []
+        model_scoring = self.mode in {"model", "policy"} and (
+            self.contract["ranking"] or self.contract["return_gate"])
+        valid, features, eligibility, decision_contexts, needs_snapshot = self._serving_rows(
+            candidates, context=context, bar_time=bar_time, as_of=as_of, proofs=proofs,
+            actual_snapshots=snapshots, model_scoring=model_scoring, current_prices=current_prices,
+            equity=equity, risk_manager=risk_manager, account=account)
+        if not valid:
+            return []
+        self._check_artifact_times(as_of, model_scoring)
+        frame = pd.DataFrame(features)
+        predictions, expected_returns, scores, gates, return_gates = self._score_candidates(valid, frame, model_scoring)
+        gates, probabilities, policy_actions = self._policy_choices(valid, frame,
+            bar_time=bar_time, as_of=as_of, gates=gates, return_gates=return_gates,
+            decision_contexts=decision_contexts)
+        return self._accepted_candidates(valid, predictions=predictions, expected_returns=expected_returns,
+            scores=scores, gates=gates, probabilities=probabilities, policy_actions=policy_actions,
+            return_gates=return_gates, eligibility=eligibility, decision_contexts=decision_contexts,
+            model_scoring=model_scoring, needs_snapshot=needs_snapshot,
+            bar_time=bar_time, as_of=as_of, account=account)

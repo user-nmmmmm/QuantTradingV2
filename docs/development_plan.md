@@ -126,3 +126,12 @@ B0分两层：先建立可追溯的准备基线，记录当前已知失败；FIX
 - B8：人工批准、权限、金额、急停和回滚边界齐全。计划文件本身不构成启动真实交易或解除策略锁的授权。
 
 每项证据至少包括task_id、run_id、源码/工作区摘要、配置与数据身份、契约版本、逐项结论、限制与产物索引。详见开发详情的统一交付规范。
+
+
+## 7. 2026-10-28 PR25 主线补充范围
+
+`PR25-MAIN-PORT-20261028` 是现有 SYS-01/04/10/11/12/13/16/17/19、FIX-03/08 的独立研究补充 scope。原 41 项任务和当前架构、AUD、质量与发布队列原样保留；不把专项工程直接记为全项目任务关闭。
+
+执行合同见[PR25 Roadmap](research/paper_research_roadmap_20261025.md)和[详细开发与测试计划](research/paper_research_development_plan_20261025.md)，移植及三项补充接口见[本轮开发记录](research/paper_research_main_development_20261028.md)。当前工程与 CI 状态为待当前提交检查，[本轮验收回执](research/paper_research_main_acceptance_20261028.json)仅在取得当前源码身份和实际检查结果后填写。旧运行属于 `unpublished b82 worktree local evidence`，不能移作当前 main 通过依据。
+
+真实成交/费用、历史成员、发布时间和未来原始观察仍按输入证据判断。PR25-15 未触发；20 不强造候选；21 保留未来裁决待证据；本 scope 不授予真实资金权限。

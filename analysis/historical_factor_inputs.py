@@ -18,6 +18,10 @@ from core.market.data_versions import DataVersionStore
 
 METRICS = {"PriceUSD": "price_usd", "CapMrktCurUSD": "market_cap_usd", "SplyCur": "current_supply"}
 DEFAULT_ASSETS = ("ada", "btc", "eth", "ltc", "sol", "xrp")
+MARKET_CAP_CONVENTIONS = {
+    "coinmetrics_current_supply_v1": "SplyCur * PriceUSD; current supply, not free-float or CMC circulating supply",
+    "explicit_current_supply_v1": "current supply * price USD",
+}
 
 
 def public_metric_groups(catalog, *, assets=DEFAULT_ASSETS):
@@ -205,3 +209,58 @@ def lifecycle_evidence_records(manifest, *, raw_sha256, observed_at, source_refe
                 "availability_evidence": {"kind": "local_receipt", "reference": f"{source_reference}#sha256={raw_sha256}"},
                 "data": data})
     return records
+
+
+def historical_factor_input_panel(store, snapshot_id, decision_cutoffs, *, membership,
+                                  knowledge="local", unknown="exclude"):
+    """Return only visible member/capitalization inputs for each formation.
+
+    This is an input panel, not a full-market factor or an executable return.
+    Current supply capitalization and provider coverage remain explicit.
+    Unknown definitions, missing fields and invalidated versions stay absent.
+    """
+    from core.market.membership import membership_as_of, validate_interval_structure
+    validate_interval_structure(membership)
+    store = store if isinstance(store, DataVersionStore) else DataVersionStore(store)
+    cutoffs = [pd.to_datetime(at, utc=True) for at in decision_cutoffs]
+    if not cutoffs or any(pd.isna(at) for at in cutoffs) or len(set(cutoffs)) != len(cutoffs):
+        raise ValueError("unique finite factor formation cutoffs required")
+    output = []
+    for cutoff in sorted(cutoffs):
+        records = store.as_of(snapshot_id, cutoff, knowledge=knowledge, unknown=unknown)
+        for record in records:
+            data = record["data"]
+            symbol = data.get("asset")
+            if not isinstance(symbol, str) or not symbol:
+                raise ValueError("factor input requires explicit asset identity")
+            member = membership_as_of(membership, symbol, cutoff, require_sources=True,
+                knowledge=knowledge, require_observed=knowledge == "local")
+            metrics = [data.get(name) for name in ("price_usd", "market_cap_usd", "current_supply")]
+            complete = all(isinstance(value, (int, float)) and not isinstance(value, bool)
+                           and math.isfinite(value) and value > 0 for value in metrics)
+            definition = data.get("market_cap_convention")
+            convention_id = next((key for key, value in MARKET_CAP_CONVENTIONS.items() if value == definition), None)
+            definition_known = convention_id is not None
+            identity_ok = not complete or math.isclose(metrics[1], metrics[0] * metrics[2], rel_tol=1e-6, abs_tol=1e-12)
+            qualified = complete and definition_known and identity_ok and member["eligible"] and not data.get("quality_issues")
+            reason = (member["reason"] if not member["eligible"] else "missing_or_invalid_factor_metrics" if not complete else
+                      "market_cap_definition_unknown_or_volume_proxy" if not definition_known else
+                      "market_cap_supply_price_identity_mismatch" if not identity_ok else
+                      "source_quality_issues" if data.get("quality_issues") else "")
+            output.append({"as_of": cutoff, "asset": symbol, "event_time": record["event_time"],
+                "record_id": record["record_id"], "revision_id": record["revision_id"],
+                "available_at": record["available_at"], "observed_at": record["observed_at"],
+                "price_usd": metrics[0] if qualified else None,
+                "market_cap_usd": metrics[1] if qualified else None,
+                "current_supply": metrics[2] if qualified else None,
+                "market_cap_convention": definition, "market_cap_definition_id": convention_id,
+                "input_qualified": qualified,
+                "reason": reason, "membership_basis": member["basis"],
+                "full_market_replication": False})
+    panel = pd.DataFrame(output)
+    return panel, {"schema": "historical-factor-input-panel/v1", "knowledge": knowledge,
+        "formation_cutoffs": [at.isoformat() for at in sorted(cutoffs)],
+        "rows": len(output), "qualified_rows": sum(row["input_qualified"] for row in output),
+        "source_snapshot_id": snapshot_id, "full_market_replication": False,
+        "unknown_inputs": "null; no price, supply or membership substitution",
+        "source_authentication": "documented byte identities; not provider authentication"}

@@ -76,7 +76,14 @@ def prepare(settings, folder):
     protocol = freeze_protocol(folder, settings, parameters, options, evidence)
     progress(folder, "R1-R2", "正在生成因果特征和成熟标签", symbols=len(frames))
     started = time.monotonic()
-    dataset = build_dataset(frames, **settings.get("dataset", {}))
+    dataset_options = dict(settings.get("dataset", {}))
+    if dataset_options.get("membership") is not None:
+        # Validate before feature/label construction; construction and reporting
+        # consume exactly the same source-aware eligibility parser.
+        from research.ml_selection.membership import validate_membership_evidence
+        validate_membership_evidence(dataset_options["membership"])
+        dataset_options["membership_require_sources"] = True
+    dataset = build_dataset(frames, **dataset_options)
     dataset = dataset.loc[dataset.as_of >= utc(settings["start"])].reset_index(drop=True)
     membership_report = None
     if settings.get("dataset", {}).get("membership") is not None:

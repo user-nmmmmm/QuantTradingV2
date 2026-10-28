@@ -17,14 +17,71 @@ from core.market.timeframes import timeframe_delta
 from core.market.universe import normalize_symbol
 
 
+def _verified_fine_interval(data, coarse_frame, start, coarse_delta, fine_delta, cutoff):
+    expected = pd.date_range(start, start + coarse_delta, freq=fine_delta, inclusive="left")
+    if not expected.isin(data.index).all():
+        return None, None, "fine_interval_incomplete"
+    interval = data.loc[expected]
+    if (
+        "is_complete_bar" in interval
+        and not interval["is_complete_bar"]
+        .map(
+            lambda value: (
+                value is True
+                or isinstance(value, (bool, np.bool_))
+                and bool(value)
+                or isinstance(value, str)
+                and value.strip().lower() == "true"
+            )
+        )
+        .all()
+    ):
+        return None, None, "fine_interval_incomplete"
+    values = interval[["open", "high", "low", "close", "volume"]].to_numpy(float)
+    if (
+        not np.isfinite(values).all()
+        or (values[:, :4] <= 0).any()
+        or (values[:, 4] < 0).any()
+        or (values[:, 2] > np.minimum(values[:, 0], values[:, 3])).any()
+        or (values[:, 1] < np.maximum(values[:, 0], values[:, 3])).any()
+    ):
+        return None, None, "invalid_fine_ohlcv"
+    available = pd.Series(
+        [
+            _time(v)
+            for v in interval.get("available_at", pd.Series(expected + fine_delta, index=expected))
+        ],
+        index=expected,
+    )
+    if (available.to_numpy() < (expected + fine_delta).to_numpy()).any() or (
+        available > cutoff
+    ).any():
+        return None, None, "fine_data_not_available"
+    aggregate = [values[0, 0], values[:, 1].max(), values[:, 2].min(), values[-1, 3]]
+    parent = coarse_frame.loc[start, ["open", "high", "low", "close"]].to_numpy(float)
+    if not np.allclose(aggregate, parent, rtol=1e-8, atol=1e-10):
+        return None, None, "fine_parent_mismatch"
+    return interval, available, None
+
+
 def refine_barrier_labels(frames, candidates, *, config: BarrierConfig, costs: LabelCosts,
-                         as_of, fine_frames=None, fine_timeframe="1h"):
+                         as_of, fine_frames=None, fine_timeframe="1h", temporal_context=None):
     """Resolve only proven coarse-bar conflicts; preserve every unresolved label.
 
     A complete fine interval must reproduce parent OHLC (volume can differ by
     feed conventions). Both barriers inside one fine bar remain ambiguous.
     Availability still includes the parent evidence used to verify the path.
     """
+    context = None
+    if temporal_context is not None:
+        from signal_meta.selection_context import SelectionTemporalContext
+        context = SelectionTemporalContext.from_mapping(temporal_context)
+        if _time(as_of) != context.decision_cutoff:
+            raise ValueError("label cutoff differs from temporal context")
+        frames = {symbol: context.visible(frame, symbol=symbol, timeframe=config.timeframe)
+                  for symbol, frame in frames.items()}
+        fine_frames = {symbol: context.visible(frame, symbol=symbol, timeframe=fine_timeframe)
+                       for symbol, frame in (fine_frames or {}).items()}
     result = label_candidates(frames, candidates, config=config, costs=costs, as_of=as_of)
     coarse_delta = pd.Timedelta(timeframe_delta(config.timeframe))
     fine_delta = pd.Timedelta(timeframe_delta(fine_timeframe))
@@ -44,34 +101,9 @@ def refine_barrier_labels(frames, candidates, *, config: BarrierConfig, costs: L
         if symbol not in fine:
             continue
         start = _time(row["exit_bar"])
-        expected = pd.date_range(start, start + coarse_delta, freq=fine_delta, inclusive="left")
-        data = fine[symbol]
-        if not expected.isin(data.index).all():
-            row["refinement_status"] = "fine_interval_incomplete"
-            continue
-        interval = data.loc[expected]
-        if "is_complete_bar" in interval and not interval["is_complete_bar"].map(
-                lambda value: value is True or isinstance(value, (bool, np.bool_)) and bool(value)
-                or isinstance(value, str) and value.strip().lower() == "true").all():
-            row["refinement_status"] = "fine_interval_incomplete"
-            continue
-        values = interval[["open", "high", "low", "close", "volume"]].to_numpy(float)
-        if (not np.isfinite(values).all() or (values[:, :4] <= 0).any()
-                or (values[:, 4] < 0).any()
-                or (values[:, 2] > np.minimum(values[:, 0], values[:, 3])).any()
-                or (values[:, 1] < np.maximum(values[:, 0], values[:, 3])).any()):
-            row["refinement_status"] = "invalid_fine_ohlcv"
-            continue
-        available = pd.Series([_time(v) for v in interval.get(
-            "available_at", pd.Series(expected + fine_delta, index=expected))], index=expected)
-        if ((available.to_numpy() < (expected + fine_delta).to_numpy()).any()
-                or (available > cutoff).any()):
-            row["refinement_status"] = "fine_data_not_available"
-            continue
-        aggregate = [values[0, 0], values[:, 1].max(), values[:, 2].min(), values[-1, 3]]
-        parent = coarse[symbol].loc[start, ["open", "high", "low", "close"]].to_numpy(float)
-        if not np.allclose(aggregate, parent, rtol=1e-8, atol=1e-10):
-            row["refinement_status"] = "fine_parent_mismatch"
+        interval, available, status = _verified_fine_interval(fine[symbol], coarse[symbol], start, coarse_delta, fine_delta, cutoff)
+        if status is not None:
+            row["refinement_status"] = status
             continue
         entry = row["entry_reference"]
         sign = 1 if row["direction"] == "long" else -1
@@ -117,6 +149,10 @@ def refine_barrier_labels(frames, candidates, *, config: BarrierConfig, costs: L
         "timeframe": fine_timeframe, "supplied_symbols": sorted(fine),
         "policy": "complete parent-consistent interval; unresolved conflicts retained",
         "execution_calibrated": False}
+    if context is not None:
+        result["selection_temporal_context"] = context.to_dict()
+        result["fine_data_contract"]["source_policy"] = "actual source versions visible at cutoff; unknown source availability excluded"
+        result["fine_data_contract"]["point_in_time_certified"] = False
     return result
 
 
