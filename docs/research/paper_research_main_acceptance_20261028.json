@@ -114,5 +114,43 @@
     "workbook_content_read": false,
     "mapping_promoted": false
   },
-  "line_endings": "Changed text files normalized to LF before submission; local scoped runs retain their own previous raw-byte snapshots. Authoritative current-source checks run on the submitted commit."
+  "line_endings": "Changed text files normalized to LF before submission; local scoped runs retain their own previous raw-byte snapshots. Authoritative current-source checks run on the submitted commit.",
+  "remote_ci_attempts": [
+    {
+      "head_sha": "a90f9aa52a7a5161a5ff5365a11c594aeab53572",
+      "tree_sha": "43a57bd944321471bb2ca1c39b32135d63d85d11",
+      "tests_run": 40635495978,
+      "automation_run": 40635496155,
+      "codeql_run": 40635496130,
+      "completed_jobs_passed": 8,
+      "quality": "failed",
+      "quality_tests_passed": 5287,
+      "quality_tests_failed": 11,
+      "quality_tests_skipped": 15,
+      "coverage_percent": 90.95,
+      "retained_artifact_id": 12793512681,
+      "fix_scope": [
+        "Register research scripts and keep strict shared-task/report contract",
+        "Remove sys.path mutation while preserving isolated typed worker provenance and early resource caps",
+        "Promote seven clean typed modules; remove three improved mypy baseline entries",
+        "Make held-out callback code identity independent of marshal reference state",
+        "Reject invalid calibration designs before output side effects"
+      ]
+    }
+  ],
+  "ci_repair_verification": {
+    "governance_tests_passed": 49,
+    "controlled_holdout_tests_passed": 25,
+    "controlled_holdout_with_coverage_passed": 25,
+    "cli_worker_packaging_tests_passed": 63,
+    "cli_worker_existing_symlink_skip": 1,
+    "counts_overlap": true,
+    "code_identity_scheme": "python-executable-fields/v1",
+    "legacy_holdout_binding": "Inspectable; original marshal binding cannot consume or auto-upgrade. An explicit new registration is required for the new identity scheme.",
+    "gates_strengthened": {
+      "new_mypy_hard_gate_modules": 7,
+      "mypy_baseline_findings_removed": 3,
+      "coverage_requirement_unchanged": 90
+    }
+  }
 }

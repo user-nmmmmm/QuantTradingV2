@@ -55,13 +55,13 @@ def snapshot_sources(root, destination, hashes):
 
 
 def calibrate(output, *, design=None):
+    design = validate_calibration_design(
+        deepcopy(DEFAULT_CALIBRATION_DESIGN if design is None else design)
+    )
     output = Path(output).resolve()
     if not output.is_relative_to(ROOT):
         raise ValueError("calibration bundle must be inside the repository")
     output.mkdir(parents=True, exist_ok=False)
-    design = validate_calibration_design(
-        deepcopy(DEFAULT_CALIBRATION_DESIGN if design is None else design)
-    )
     _write(output / "design.json", design)
     import numpy as np
     import pandas as pd

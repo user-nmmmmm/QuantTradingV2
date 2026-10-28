@@ -48,6 +48,7 @@ core/factors/volume.py
 core/foundation/__init__.py
 core/foundation/clock.py
 core/foundation/content_hash.py
+core/foundation/data_identity.py
 core/foundation/domain.py
 core/foundation/live_safety.py
 core/foundation/logger.py
@@ -55,6 +56,7 @@ core/foundation/redaction.py
 core/foundation/reproducibility.py
 core/foundation/runtime.py
 core/foundation/runtime_identity.py
+core/foundation/source_bytes.py
 core/live_broker/account_sync.py
 core/live_broker/retry.py
 core/live_broker/safe.py
@@ -65,6 +67,7 @@ core/market/data_versions.py
 core/market/derivatives_data.py
 core/market/market_data_errors.py
 core/market/market_read_batch.py
+core/market/membership.py
 core/market/public_data_clients.py
 core/market/quote_borrow.py
 core/market/request_budget.py
@@ -80,6 +83,9 @@ core/planning/__init__.py
 core/planning/allocation.py
 core/planning/candidate_scoring.py
 core/planning/cost_aware_allocation.py
+core/planning/covariance_estimators.py
+core/planning/execution_cost_provider.py
+core/planning/selection_v2.py
 core/risk/__init__.py
 core/risk/actions.py
 core/risk/circuit_breaker.py
@@ -132,6 +138,7 @@ signal_meta/__init__.py
 signal_meta/label_account_reconciliation.py
 signal_meta/paper_label_execution.py
 signal_meta/paper_labels.py
+signal_meta/selection_context.py
 signal_meta/signal_actuals.py
 signal_meta/signal_adaptive_types.py
 signal_meta/signal_observation_types.py

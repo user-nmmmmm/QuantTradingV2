@@ -3,11 +3,80 @@
 from __future__ import annotations
 
 import importlib
+from importlib.machinery import ModuleSpec
+from importlib.util import spec_from_file_location
 import inspect
 import json
 import os
 from pathlib import Path
 import sys
+
+
+class _RegisteredProjectFinder:
+    """Resolve only this job's project prefixes from its registered source tree."""
+
+    def __init__(self, root, prefixes):
+        self.root = root
+        self.prefixes = frozenset(prefixes)
+
+    def find_spec(self, fullname, path=None, target=None):
+        parts = fullname.split(".")
+        if (
+            parts[0] not in self.prefixes
+            or parts[0] in sys.stdlib_module_names
+            or any(not part.isidentifier() for part in parts)
+        ):
+            return None
+        candidate = self.root.joinpath(*parts).resolve()
+        if not candidate.is_relative_to(self.root):
+            raise ValueError("registered project import escapes source root")
+        if candidate.is_dir():
+            initializer = candidate / "__init__.py"
+            if initializer.is_file():
+                if not initializer.resolve().is_relative_to(self.root):
+                    raise ValueError("registered package initializer escapes source root")
+                return spec_from_file_location(
+                    fullname, initializer, submodule_search_locations=[str(candidate)]
+                )
+            spec = ModuleSpec(fullname, loader=None, is_package=True)
+            spec.submodule_search_locations = [str(candidate)]
+            return spec
+        source = candidate.with_suffix(".py")
+        if source.is_file():
+            if not source.resolve().is_relative_to(self.root):
+                raise ValueError("registered module escapes source root")
+            return spec_from_file_location(fullname, source)
+        return None
+
+
+def _project_import_prefixes(task):
+    prefixes = set()
+    if task["kind"] == "python_callable":
+        module_name = task["callable"].split(":", 1)[0]
+        parts = module_name.split(".")
+        if any(not part.isidentifier() for part in parts):
+            raise ValueError("stable importable module name required")
+        if parts[0] in sys.stdlib_module_names:
+            raise ValueError(
+                "actual imported module origin differs from registered source: "
+                "stdlib callable prefix is forbidden"
+            )
+        prefixes.add(parts[0])
+    if task.get("input_bindings"):
+        # These are the fixed typed decoder and exact identity dependencies;
+        # never infer import prefixes by scanning the supplied directory.
+        prefixes.update({"analysis", "core"})
+    return prefixes
+
+
+def _dispatch_in_registered_source(task, root, request):
+    # main installs OS limits before reaching this project-code import boundary.
+    finder = _RegisteredProjectFinder(root, _project_import_prefixes(task))
+    sys.meta_path.insert(0, finder)
+    try:
+        return _dispatch(task, root, request)
+    finally:
+        sys.meta_path.remove(finder)
 
 
 def _callable_function(task, root):
@@ -95,8 +164,7 @@ def main():
         cap = int(request["memory_mb"] * 1024 * 1024)
         resource.setrlimit(resource.RLIMIT_AS, (cap, cap))
     root = Path(request["source_root"]).resolve()
-    sys.path.insert(0, str(root))
-    result = _dispatch(request["job"], root, request)
+    result = _dispatch_in_registered_source(request["job"], root, request)
     encoded = json.dumps(result, ensure_ascii=False, allow_nan=False, sort_keys=True)
     Path(request["result_path"]).write_text(encoded, encoding="utf-8")
 

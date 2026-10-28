@@ -12,7 +12,8 @@ from datetime import datetime, timezone
 from io import BytesIO
 import importlib
 import inspect
-import marshal
+import struct
+import sys
 import types
 import os
 from pathlib import Path
@@ -64,12 +65,54 @@ def _alive(pid):
         return True
 
 
+_CODE_IDENTITY_SCHEME = "python-executable-fields/v1"
+_CODE_FIELDS = (
+    "co_argcount", "co_posonlyargcount", "co_kwonlyargcount", "co_nlocals",
+    "co_stacksize", "co_flags", "co_code", "co_consts", "co_names", "co_varnames",
+    "co_freevars", "co_cellvars", "co_filename", "co_name", "co_qualname",
+    "co_firstlineno", "co_linetable", "co_exceptiontable",
+)
+
+
+def _code_value(value):
+    """Preserve executable values/types without marshal's reference flags."""
+    if isinstance(value, types.CodeType):
+        return {"type": "code", "fields": {
+            name: _code_value(getattr(value, name)) for name in _CODE_FIELDS}}
+    if value is None or value is Ellipsis:
+        return {"type": "none" if value is None else "ellipsis"}
+    if type(value) in {bool, int, str}:
+        return {"type": type(value).__name__, "value": value}
+    if type(value) in {float, complex}:
+        parts = (value.real, value.imag) if type(value) is complex else (value,)
+        return {"type": type(value).__name__,
+                "bits": [struct.pack("!d", number).hex() for number in parts]}
+    if type(value) is bytes:
+        return {"type": "bytes", "value": value.hex()}
+    if type(value) in {tuple, frozenset}:
+        items = [_code_value(item) for item in value]
+        if type(value) is frozenset:
+            items.sort(key=canonical_json)
+        return {"type": type(value).__name__, "items": items}
+    raise PermissionError("unsupported evaluator executable constant type")
+
+
+def _code_identity(code):
+    """Scheme changes require a new registration; old bindings never upgrade."""
+    return _digest({"scheme": _CODE_IDENTITY_SCHEME,
+                    "runtime": sys.implementation.cache_tag, "code": _code_value(code)})
+
+
 def _callback_binding(evaluator, source_root, source_hashes):
     """Verify import provenance plus executable/default/global-state identity.
 
     Closures and nested functions are refused. Referenced JSON global values
     are frozen too; modules are identified by name/version, while callable
     globals bind their bytecode and defaults in addition to source bytes.
+    Code fields/constants use a versioned value identity: Python marshal also
+    records object reference state, which can differ between identical processes.
+    Existing marshal bindings remain inspectable but cannot consume under this
+    scheme; they need an explicit new registration rather than a silent upgrade.
     """
     if (
         not inspect.isfunction(evaluator)
@@ -111,7 +154,7 @@ def _callback_binding(evaluator, source_root, source_hashes):
             ):
                 raise PermissionError("referenced evaluator helper is outside closure")
             globals_bound[name] = {
-                "code": sha256_bytes(marshal.dumps(value.__code__)),
+                "code": _code_identity(value.__code__),
                 "defaults": _strict_json(value.__defaults__),
                 "kwdefaults": _strict_json(value.__kwdefaults__),
             }
@@ -122,7 +165,8 @@ def _callback_binding(evaluator, source_root, source_hashes):
         "qualname": evaluator.__qualname__,
         "source": relative,
         "source_sha256": source_hashes[relative],
-        "code_sha256": sha256_bytes(marshal.dumps(evaluator.__code__)),
+        "code_identity_scheme": _CODE_IDENTITY_SCHEME,
+        "code_sha256": _code_identity(evaluator.__code__),
         "defaults": _strict_json(evaluator.__defaults__),
         "kwdefaults": _strict_json(evaluator.__kwdefaults__),
         "referenced_globals": globals_bound,

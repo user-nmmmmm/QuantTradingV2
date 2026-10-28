@@ -81,6 +81,13 @@
 | [`plot_return_followup.py`](plot_return_followup.py) | 从 `--report` 指定的已完成连续账户结果导出图表，不重新选参或重跑账户。 |
 | [`review_barrier_first_touch.py`](review_barrier_first_touch.py) | 用细周期 manifest 复核历史双障碍歧义，保存新标签、变化表和输入身份。 |
 | [`review_barrier_cascade.py`](review_barrier_cascade.py) | 读取上一轮复核目录，仅细化仍有歧义的标签，保留已验证路径并写入新目录。 |
+| [`calibrate_paper_statistics.py`](calibrate_paper_statistics.py) | 按预登记有限设计校准统计检验并冻结源码、输入与尝试日志。 |
+| [`capture_paper_research_baseline.py`](capture_paper_research_baseline.py) | 捕获研究工程基线、环境身份及可手算账户夹具。 |
+| [`paper_research_worker.py`](paper_research_worker.py) | 执行已登记 typed 输入和资源限制下的隔离研究任务。 |
+| [`prepare_paper_research_smoke.py`](prepare_paper_research_smoke.py) | 生成固定合成输入，准备有界编排冒烟研究。 |
+| [`run_paper_portfolio_research.py`](run_paper_portfolio_research.py) | 执行协方差和单期组合对照，保留原账户及成本身份。 |
+| [`run_paper_research_study.py`](run_paper_research_study.py) | 登记并运行有限研究计划，核验 CLI 输入及 worker 传输。 |
+| [`verify_paper_research_phase_a.py`](verify_paper_research_phase_a.py) | 核验阶段 A 的固定账户快照、身份和恢复合同。 |
 
 两类收益复核使用不同执行路径：`run_return_followup.py` 的研究账户由 `analysis/paper_portfolio.py` 驱动 Broker；`run_return_followup_engine.py` 使用完整回测引擎。它们的结果应按各自协议解释。新导入细周期数据保留本次真实可用时间，不能倒填成历史决策时已知。
 

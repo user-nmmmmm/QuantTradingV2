@@ -390,16 +390,15 @@ def _launch_final_process(holdout, identity):
     callback = holdout[0].test_evaluator
     script = """import importlib,json,sys
 from analysis.controlled_holdout import AtomicHoldoutVault
-sys.path.insert(0,sys.argv[2])
-callback=getattr(importlib.import_module(sys.argv[3]),sys.argv[4])
+callback=getattr(importlib.import_module(sys.argv[2]),sys.argv[3])
 try:
- result=AtomicHoldoutVault(sys.argv[1]).evaluate(evaluation_id=sys.argv[5],evaluator=callback)
+ result=AtomicHoldoutVault(sys.argv[1]).evaluate(evaluation_id=sys.argv[4],evaluator=callback)
  print(json.dumps({'status':result['status']}))
 except (RuntimeError,PermissionError,ValueError) as error:
- print(json.dumps({'status':'blocked','reason':str(error)}))
+ print(json.dumps({'status':'blocked','error_type':type(error).__name__,'reason':str(error)}))
 """
     env = dict(os.environ)
-    env["PYTHONPATH"] = os.pathsep.join(str(p) for p in sys.path if p)
+    env["PYTHONPATH"] = os.pathsep.join([str(source), *(str(p) for p in sys.path if p)])
     env["OPENBLAS_NUM_THREADS"] = "1"
     # Base executable makes the Popen PID the actual evaluator PID on Windows,
     # so this test can terminate exactly its own child without leaving a launcher.
@@ -409,7 +408,6 @@ except (RuntimeError,PermissionError,ValueError) as error:
             "-c",
             script,
             str(holdout[0].path),
-            str(source),
             callback.__module__,
             callback.__name__,
             identity,
@@ -428,12 +426,18 @@ def test_two_actual_processes_cannot_both_consume_final_data(holdout):
         _launch_final_process(holdout, "process-2"),
     ]
     results = []
-    for process in processes:
-        stdout, stderr = process.communicate(timeout=20)
-        assert process.returncode == 0, stderr.decode(errors="replace")
-        results.append(json.loads(stdout))
-    assert sorted(row["status"] for row in results) == ["blocked", "completed"]
-    assert vault.inspect()["status"] == "completed"
+    try:
+        for process in processes:
+            stdout, stderr = process.communicate(timeout=20)
+            assert process.returncode == 0, stderr.decode(errors="replace")
+            results.append(json.loads(stdout))
+        assert sorted(row["status"] for row in results) == ["blocked", "completed"], results
+        assert vault.inspect()["status"] == "completed"
+    finally:
+        for process in processes:
+            if process.poll() is None:
+                process.kill()
+                process.communicate(timeout=5)
 
 
 def test_actual_process_crash_resumes_only_same_consumed_evaluation(holdout):
@@ -446,11 +450,16 @@ def test_actual_process_crash_resumes_only_same_consumed_evaluation(holdout):
     while time.monotonic() < deadline:
         if vault.inspect()["status"] == "evaluating":
             break
+        if process.poll() is not None:
+            stdout, stderr = process.communicate(timeout=5)
+            pytest.fail(f"evaluation subprocess exited before consumption: {process.returncode}; "
+                        f"stdout={stdout.decode(errors='replace')}; stderr={stderr.decode(errors='replace')}")
         time.sleep(0.02)
     else:
         process.kill()
-        process.communicate()
-        pytest.fail("evaluation subprocess did not obtain consumption state")
+        stdout, stderr = process.communicate(timeout=5)
+        pytest.fail("evaluation subprocess did not obtain consumption state; "
+                    f"stdout={stdout.decode(errors='replace')}; stderr={stderr.decode(errors='replace')}")
     process.kill()
     process.communicate(timeout=5)
     assert vault.inspect()["status"] == "evaluating"
@@ -528,3 +537,61 @@ def test_shared_protocol_timestamp_gate_keeps_one_nanosecond_windows_and_iso_val
     for malformed in ("tomorrow", "January 1, 2020", "2020-01-01T00:00:00"):
         with pytest.raises(ValueError, match="ISO timestamp"):
             _timestamp(malformed, "invalid")
+
+
+@pytest.mark.parametrize("referenced_helper", [False, True])
+def test_incidental_code_object_references_do_not_change_frozen_evaluator(holdout, referenced_helper):
+    if referenced_helper:
+        _install_waiting_callback(holdout, 0)
+    vault = register(holdout)
+    callback = vault.test_evaluator
+    code = (callback.__globals__["score"] if referenced_helper else callback).__code__
+    # These are the same executable objects, with no changed source or values.
+    # marshal's reference flags used to change merely because they were retained.
+    retained = [code.co_consts, code.co_names, code.co_varnames, code.co_code, *code.co_consts]
+    result = vault.evaluate(evaluation_id="retained-identical-code", evaluator=callback)
+    assert result["status"] == "completed"
+    assert retained[0] is code.co_consts
+
+
+def test_real_code_constant_change_still_refuses_final_access(holdout):
+    vault = register(holdout)
+    callback = vault.test_evaluator
+    callback.__code__ = callback.__code__.replace(co_consts=tuple(
+        "supported" if value == "not_supported" else value for value in callback.__code__.co_consts))
+    with pytest.raises(PermissionError, match="identity differs"):
+        vault.evaluate(evaluation_id="changed-executable", evaluator=callback)
+    assert vault.inspect()["status"] == "frozen"
+
+
+def test_legacy_marshal_binding_remains_readable_but_never_upgrades_or_consumes(holdout):
+    import marshal
+
+    vault = register(holdout)
+    with vault._db() as db:
+        value = vault._read(db)
+        binding = value["evaluator_binding"]
+        binding.pop("code_identity_scheme")
+        binding["code_sha256"] = module.sha256_bytes(marshal.dumps(vault.test_evaluator.__code__))
+        vault._store(db, value, {"action": "legacy_marshaled_binding_fixture"})
+    prior = vault.inspect()
+    assert prior["status"] == "frozen" and "code_identity_scheme" not in prior["evaluator_binding"]
+    with pytest.raises(PermissionError, match="identity differs"):
+        vault.evaluate(evaluation_id="cannot-upgrade", evaluator=vault.test_evaluator)
+    assert vault.inspect() == prior
+
+
+def test_code_identity_preserves_constant_types_nested_code_and_unordered_values():
+    def first():
+        return {"a", "b"}, (1, True, 1.0, b"a", "a"), lambda: 1
+
+    code = first.__code__
+    assert module._code_value(True) != module._code_value(1)
+    assert module._code_value(1) != module._code_value(1.0)
+    assert module._code_value(b"a") != module._code_value("a")
+    assert module._code_value(0.0) != module._code_value(-0.0)
+    assert module._code_value(frozenset(["a", "b"])) == module._code_value(frozenset(["b", "a"]))
+    nested = next(value for value in code.co_consts if isinstance(value, type(code)))
+    changed = nested.replace(co_consts=(None, 2))
+    outer = code.replace(co_consts=tuple(changed if value is nested else value for value in code.co_consts))
+    assert module._code_identity(code) != module._code_identity(outer)

@@ -4,21 +4,12 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
-import sys
+
+from analysis.paper_research_orchestration import run_study
+from analysis.search_scope import _load_json
+from analysis.paper_research_typed_inputs import load_typed_data_manifest
 
 ROOT = Path(__file__).resolve().parents[1]
-
-
-def _bootstrap():
-    sys.path.insert(0, str(ROOT))
-    from analysis.paper_research_orchestration import run_study
-    from analysis.search_scope import _load_json
-    from analysis.paper_research_typed_inputs import load_typed_data_manifest
-
-    return run_study, _load_json, load_typed_data_manifest
-
-
-run_study, _load_json, load_typed_data_manifest = _bootstrap()
 
 
 def main(argv=None):
