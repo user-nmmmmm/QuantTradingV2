@@ -1,7 +1,5 @@
 # 论文驱动的研究深化 Roadmap（2026-10-25）
 
-> **2026-10-28 主线移植说明**：正文保留 2026-10-25 规划合同，“拟新增/未实现/未执行”属于制定计划时的描述，代码与文档链接已迁移到当前 main 的规范路径。当前范围见[主线开发记录](paper_research_main_development_20261028.md)，当前提交验收统一见[主线验收回执](paper_research_main_acceptance_20261028.json)（待当前提交检查）。2026-10-27 运行记录属于 `unpublished b82 worktree local evidence`，不作为当前 main 验收。
-
 > 适用项目：Still Water QuantTrading / QuantTradingV1。日期采用 Asia/Singapore。
 > 配套执行文件：[详细开发与测试计划](paper_research_development_plan_20261025.md)。
 > 机器计划视图：[23项工作包及证据清单](paper_research_task_registry_20261025.json)，全部保留计划状态。

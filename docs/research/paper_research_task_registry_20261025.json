@@ -2,21 +2,22 @@
   "schema_version": "quanttrading.paper_research_planning/v1",
   "plan_date": "2026-10-25",
   "timezone": "Asia/Singapore",
-  "authority": "planning_and_scoped_execution_no_global_closure",
+  "authority": "planning_only",
   "authoritative_registry": "docs/development_task_registry.json",
   "project_stage_authority": "docs/unified_roadmap.md",
-  "execution_started": true,
+  "execution_started": false,
   "live_authorization": false,
-  "state_rule": "planning_status retains the 2026-10-25 planning contract; current execution awaits this main-port commit checks and never closes global project tasks.",
+  "state_rule": "This file describes planned scope only. It never updates or closes authoritative project tasks.",
   "synchronization_rule": "Review Markdown/JSON mismatches together; do not overwrite global task status.",
+  "source_documents_sha256_policy": "SHA-256 of the file bytes after CRLF to LF normalization",
   "source_documents": [
     {
       "path": "docs/research/paper_research_roadmap_20261025.md",
-      "sha256": "b45a50192ba34bdca6ef43b9f4841d576b3f1c2bf82a731d8fa5c3fc248cd637"
+      "sha256": "7e25478c6102f626d9b34bdcd476e4a84c61e9fcd0c2a04ed4eee05d88a44357"
     },
     {
       "path": "docs/research/paper_research_development_plan_20261025.md",
-      "sha256": "07509869b2d59b61f0b13b0a3923acd3225a9db74735ac6be7f3069efe678a5d"
+      "sha256": "18781fa494a632dd7ebe1dcbd23d9888d708ef214de5dd484a486b6a317192b2"
     }
   ],
   "first_iteration": {
@@ -68,11 +69,11 @@
         "excludes_external_wait": true
       },
       "owner_role": "工程与研究验收",
-      "assignee": "Codex",
-      "reviewer": "pending_current_commit_review",
-      "started_at": "2026-10-28",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
       "completed_at": null,
-      "acceptance_evidence": "docs/research/paper_research_main_acceptance_20261028.json",
+      "acceptance_evidence": null,
       "paper_refs": [
         "L01",
         "L02",
@@ -113,18 +114,7 @@
       "proposed_existing_task_mapping": [
         "SYS-01",
         "SYS-10"
-      ],
-      "execution": {
-        "implementation": "ported_for_current_main_verification",
-        "engineering": "pending_current_commit_checks",
-        "research": "not_evaluated_for_current_main",
-        "external_evidence": "pending",
-        "evidence": "docs/research/paper_research_main_acceptance_20261028.json",
-        "planning_status_is_original_snapshot": true,
-        "live_authorization": false,
-        "literature_provenance": "docs/research/paper_research_literature_followup_20261027.json",
-        "full_workbook_mapping": false
-      }
+      ]
     },
     {
       "id": "PR25-01",
@@ -141,11 +131,11 @@
         "excludes_external_wait": true
       },
       "owner_role": "工程与研究验收",
-      "assignee": "Codex",
-      "reviewer": "pending_current_commit_review",
-      "started_at": "2026-10-28",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
       "completed_at": null,
-      "acceptance_evidence": "docs/research/paper_research_main_acceptance_20261028.json",
+      "acceptance_evidence": null,
       "paper_refs": [],
       "existing_paths": [
         "scripts/check_environment.py",
@@ -188,16 +178,7 @@
       "proposed_existing_task_mapping": [
         "SYS-01",
         "SYS-10"
-      ],
-      "execution": {
-        "implementation": "ported_for_current_main_verification",
-        "engineering": "pending_current_commit_checks",
-        "research": "not_evaluated_for_current_main",
-        "external_evidence": "pending",
-        "evidence": "docs/research/paper_research_main_acceptance_20261028.json",
-        "planning_status_is_original_snapshot": true,
-        "live_authorization": false
-      }
+      ]
     },
     {
       "id": "PR25-02",
@@ -216,11 +197,11 @@
         "excludes_external_wait": true
       },
       "owner_role": "工程与研究验收",
-      "assignee": "Codex",
-      "reviewer": "pending_current_commit_review",
-      "started_at": "2026-10-28",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
       "completed_at": null,
-      "acceptance_evidence": "docs/research/paper_research_main_acceptance_20261028.json",
+      "acceptance_evidence": null,
       "paper_refs": [
         "L01",
         "L02",
@@ -274,16 +255,7 @@
       "proposed_existing_task_mapping": [
         "SYS-01",
         "SYS-10"
-      ],
-      "execution": {
-        "implementation": "ported_for_current_main_verification",
-        "engineering": "pending_current_commit_checks",
-        "research": "not_evaluated_for_current_main",
-        "external_evidence": "pending",
-        "evidence": "docs/research/paper_research_main_acceptance_20261028.json",
-        "planning_status_is_original_snapshot": true,
-        "live_authorization": false
-      }
+      ]
     },
     {
       "id": "PR25-03",
@@ -302,11 +274,11 @@
         "excludes_external_wait": true
       },
       "owner_role": "数据与研究",
-      "assignee": "Codex",
-      "reviewer": "pending_current_commit_review",
-      "started_at": "2026-10-28",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
       "completed_at": null,
-      "acceptance_evidence": "docs/research/paper_research_main_acceptance_20261028.json",
+      "acceptance_evidence": null,
       "paper_refs": [
         "L08"
       ],
@@ -357,16 +329,7 @@
       "proposed_existing_task_mapping": [
         "SYS-04",
         "SYS-10"
-      ],
-      "execution": {
-        "implementation": "ported_for_current_main_verification",
-        "engineering": "pending_current_commit_checks",
-        "research": "not_evaluated_for_current_main",
-        "external_evidence": "pending",
-        "evidence": "docs/research/paper_research_main_acceptance_20261028.json",
-        "planning_status_is_original_snapshot": true,
-        "live_authorization": false
-      }
+      ]
     },
     {
       "id": "PR25-04",
@@ -387,11 +350,11 @@
         "excludes_external_wait": true
       },
       "owner_role": "数据与研究",
-      "assignee": "Codex",
-      "reviewer": "pending_current_commit_review",
-      "started_at": "2026-10-28",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
       "completed_at": null,
-      "acceptance_evidence": "docs/research/paper_research_main_acceptance_20261028.json",
+      "acceptance_evidence": null,
       "paper_refs": [
         "L08"
       ],
@@ -440,16 +403,7 @@
       "proposed_existing_task_mapping": [
         "SYS-04",
         "SYS-10"
-      ],
-      "execution": {
-        "implementation": "ported_for_current_main_verification",
-        "engineering": "pending_current_commit_checks",
-        "research": "not_evaluated_for_current_main",
-        "external_evidence": "pending",
-        "evidence": "docs/research/paper_research_main_acceptance_20261028.json",
-        "planning_status_is_original_snapshot": true,
-        "live_authorization": false
-      }
+      ]
     },
     {
       "id": "PR25-05",
@@ -470,11 +424,11 @@
         "excludes_external_wait": true
       },
       "owner_role": "数据与研究",
-      "assignee": "Codex",
-      "reviewer": "pending_current_commit_review",
-      "started_at": "2026-10-28",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
       "completed_at": null,
-      "acceptance_evidence": "docs/research/paper_research_main_acceptance_20261028.json",
+      "acceptance_evidence": null,
       "paper_refs": [
         "L06",
         "L08"
@@ -524,16 +478,7 @@
       "proposed_existing_task_mapping": [
         "SYS-04",
         "SYS-10"
-      ],
-      "execution": {
-        "implementation": "ported_for_current_main_verification",
-        "engineering": "pending_current_commit_checks",
-        "research": "not_evaluated_for_current_main",
-        "external_evidence": "pending",
-        "evidence": "docs/research/paper_research_main_acceptance_20261028.json",
-        "planning_status_is_original_snapshot": true,
-        "live_authorization": false
-      }
+      ]
     },
     {
       "id": "PR25-06",
@@ -552,11 +497,11 @@
         "excludes_external_wait": true
       },
       "owner_role": "研究工程",
-      "assignee": "Codex",
-      "reviewer": "pending_current_commit_review",
-      "started_at": "2026-10-28",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
       "completed_at": null,
-      "acceptance_evidence": "docs/research/paper_research_main_acceptance_20261028.json",
+      "acceptance_evidence": null,
       "paper_refs": [
         "L01",
         "L02",
@@ -608,16 +553,7 @@
       "proposed_existing_task_mapping": [
         "SYS-10",
         "SYS-11"
-      ],
-      "execution": {
-        "implementation": "ported_for_current_main_verification",
-        "engineering": "pending_current_commit_checks",
-        "research": "not_evaluated_for_current_main",
-        "external_evidence": "pending",
-        "evidence": "docs/research/paper_research_main_acceptance_20261028.json",
-        "planning_status_is_original_snapshot": true,
-        "live_authorization": false
-      }
+      ]
     },
     {
       "id": "PR25-07",
@@ -636,11 +572,11 @@
         "excludes_external_wait": true
       },
       "owner_role": "研究工程",
-      "assignee": "Codex",
-      "reviewer": "pending_current_commit_review",
-      "started_at": "2026-10-28",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
       "completed_at": null,
-      "acceptance_evidence": "docs/research/paper_research_main_acceptance_20261028.json",
+      "acceptance_evidence": null,
       "paper_refs": [
         "L01",
         "L02",
@@ -689,16 +625,7 @@
       "proposed_existing_task_mapping": [
         "SYS-10",
         "SYS-11"
-      ],
-      "execution": {
-        "implementation": "ported_for_current_main_verification",
-        "engineering": "pending_current_commit_checks",
-        "research": "not_evaluated_for_current_main",
-        "external_evidence": "pending",
-        "evidence": "docs/research/paper_research_main_acceptance_20261028.json",
-        "planning_status_is_original_snapshot": true,
-        "live_authorization": false
-      }
+      ]
     },
     {
       "id": "PR25-08",
@@ -719,11 +646,11 @@
         "excludes_external_wait": true
       },
       "owner_role": "执行与数据",
-      "assignee": "Codex",
-      "reviewer": "pending_current_commit_review",
-      "started_at": "2026-10-28",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
       "completed_at": null,
-      "acceptance_evidence": "docs/research/paper_research_main_acceptance_20261028.json",
+      "acceptance_evidence": null,
       "paper_refs": [
         "L04"
       ],
@@ -776,16 +703,7 @@
         "SYS-03",
         "SYS-05",
         "SYS-17"
-      ],
-      "execution": {
-        "implementation": "ported_for_current_main_verification",
-        "engineering": "pending_current_commit_checks",
-        "research": "not_evaluated_for_current_main",
-        "external_evidence": "pending",
-        "evidence": "docs/research/paper_research_main_acceptance_20261028.json",
-        "planning_status_is_original_snapshot": true,
-        "live_authorization": false
-      }
+      ]
     },
     {
       "id": "PR25-09",
@@ -806,11 +724,11 @@
         "excludes_external_wait": true
       },
       "owner_role": "执行与数据",
-      "assignee": "Codex",
-      "reviewer": "pending_current_commit_review",
-      "started_at": "2026-10-28",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
       "completed_at": null,
-      "acceptance_evidence": "docs/research/paper_research_main_acceptance_20261028.json",
+      "acceptance_evidence": null,
       "paper_refs": [
         "L04"
       ],
@@ -864,16 +782,7 @@
         "SYS-03",
         "SYS-05",
         "SYS-17"
-      ],
-      "execution": {
-        "implementation": "ported_for_current_main_verification",
-        "engineering": "pending_current_commit_checks",
-        "research": "not_evaluated_for_current_main",
-        "external_evidence": "pending",
-        "evidence": "docs/research/paper_research_main_acceptance_20261028.json",
-        "planning_status_is_original_snapshot": true,
-        "live_authorization": false
-      }
+      ]
     },
     {
       "id": "PR25-10",
@@ -894,11 +803,11 @@
         "excludes_external_wait": true
       },
       "owner_role": "执行与数据",
-      "assignee": "Codex",
-      "reviewer": "pending_current_commit_review",
-      "started_at": "2026-10-28",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
       "completed_at": null,
-      "acceptance_evidence": "docs/research/paper_research_main_acceptance_20261028.json",
+      "acceptance_evidence": null,
       "paper_refs": [
         "L04",
         "L07"
@@ -960,16 +869,7 @@
         "SYS-03",
         "SYS-05",
         "SYS-17"
-      ],
-      "execution": {
-        "implementation": "ported_for_current_main_verification",
-        "engineering": "pending_current_commit_checks",
-        "research": "not_evaluated_for_current_main",
-        "external_evidence": "pending",
-        "evidence": "docs/research/paper_research_main_acceptance_20261028.json",
-        "planning_status_is_original_snapshot": true,
-        "live_authorization": false
-      }
+      ]
     },
     {
       "id": "PR25-11",
@@ -988,11 +888,11 @@
         "excludes_external_wait": true
       },
       "owner_role": "研究工程",
-      "assignee": "Codex",
-      "reviewer": "pending_current_commit_review",
-      "started_at": "2026-10-28",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
       "completed_at": null,
-      "acceptance_evidence": "docs/research/paper_research_main_acceptance_20261028.json",
+      "acceptance_evidence": null,
       "paper_refs": [
         "L05"
       ],
@@ -1002,7 +902,7 @@
       ],
       "proposed_paths": [
         {
-          "path": "core/planning/covariance_estimators.py",
+          "path": "core/covariance_estimators.py",
           "status": "proposed_not_implemented"
         },
         {
@@ -1029,7 +929,7 @@
       },
       "planned_work_and_contract": [
         "复用：size_portfolio_targets及原有固定20%对角收缩。",
-        "拟新增纯函数模块（建议core/planning/covariance_estimators.py，供运行内核与研究共同使用）和tests/test_covariance_estimators.py；不能让core导入analysis形成反向依赖。",
+        "拟新增纯函数模块（建议core/covariance_estimators.py，供运行内核与研究共同使用）和tests/test_covariance_estimators.py；不能让core导入analysis形成反向依赖。",
         "初始三臂：sample、fixed_diag_020、lw_constant_correlation。若加入lw_scaled_identity，另登记候选与预算，并明确其目标不同。",
         "统一输入：截止前共同完整简单收益；样本去均值；输出ddof=1口径、日频矩阵；年化只在声明边界乘365一次。若论文强度计算采用1/T矩，明确转换公式和参考验证。",
         "审计：样本量、centering、ddof、单位、目标、强度、特征值、退化策略及算法版本。",
@@ -1053,16 +953,7 @@
         "SYS-10",
         "SYS-12",
         "SYS-13"
-      ],
-      "execution": {
-        "implementation": "ported_for_current_main_verification",
-        "engineering": "pending_current_commit_checks",
-        "research": "not_evaluated_for_current_main",
-        "external_evidence": "pending",
-        "evidence": "docs/research/paper_research_main_acceptance_20261028.json",
-        "planning_status_is_original_snapshot": true,
-        "live_authorization": false
-      }
+      ]
     },
     {
       "id": "PR25-12",
@@ -1084,11 +975,11 @@
         "excludes_external_wait": true
       },
       "owner_role": "研究工程",
-      "assignee": "Codex",
-      "reviewer": "pending_current_commit_review",
-      "started_at": "2026-10-28",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
       "completed_at": null,
-      "acceptance_evidence": "docs/research/paper_research_main_acceptance_20261028.json",
+      "acceptance_evidence": null,
       "paper_refs": [
         "L05"
       ],
@@ -1143,16 +1034,7 @@
         "SYS-10",
         "SYS-12",
         "SYS-13"
-      ],
-      "execution": {
-        "implementation": "ported_for_current_main_verification",
-        "engineering": "pending_current_commit_checks",
-        "research": "not_evaluated_for_current_main",
-        "external_evidence": "pending",
-        "evidence": "docs/research/paper_research_main_acceptance_20261028.json",
-        "planning_status_is_original_snapshot": true,
-        "live_authorization": false
-      }
+      ]
     },
     {
       "id": "PR25-13",
@@ -1174,11 +1056,11 @@
         "excludes_external_wait": true
       },
       "owner_role": "研究工程",
-      "assignee": "Codex",
-      "reviewer": "pending_current_commit_review",
-      "started_at": "2026-10-28",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
       "completed_at": null,
-      "acceptance_evidence": "docs/research/paper_research_main_acceptance_20261028.json",
+      "acceptance_evidence": null,
       "paper_refs": [
         "L06"
       ],
@@ -1227,16 +1109,7 @@
         "SYS-10",
         "SYS-12",
         "SYS-13"
-      ],
-      "execution": {
-        "implementation": "ported_for_current_main_verification",
-        "engineering": "pending_current_commit_checks",
-        "research": "not_evaluated_for_current_main",
-        "external_evidence": "pending",
-        "evidence": "docs/research/paper_research_main_acceptance_20261028.json",
-        "planning_status_is_original_snapshot": true,
-        "live_authorization": false
-      }
+      ]
     },
     {
       "id": "PR25-14",
@@ -1256,11 +1129,11 @@
         "excludes_external_wait": true
       },
       "owner_role": "研究工程",
-      "assignee": "Codex",
-      "reviewer": "pending_current_commit_review",
-      "started_at": "2026-10-28",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
       "completed_at": null,
-      "acceptance_evidence": "docs/research/paper_research_main_acceptance_20261028.json",
+      "acceptance_evidence": null,
       "paper_refs": [
         "L07"
       ],
@@ -1309,16 +1182,7 @@
         "SYS-10",
         "SYS-12",
         "SYS-13"
-      ],
-      "execution": {
-        "implementation": "ported_for_current_main_verification",
-        "engineering": "pending_current_commit_checks",
-        "research": "not_evaluated_for_current_main",
-        "external_evidence": "pending",
-        "evidence": "docs/research/paper_research_main_acceptance_20261028.json",
-        "planning_status_is_original_snapshot": true,
-        "live_authorization": false
-      }
+      ]
     },
     {
       "id": "PR25-15",
@@ -1341,7 +1205,7 @@
       "reviewer": null,
       "started_at": null,
       "completed_at": null,
-      "acceptance_evidence": "docs/research/paper_research_main_acceptance_20261028.json",
+      "acceptance_evidence": null,
       "paper_refs": [
         "L07"
       ],
@@ -1391,18 +1255,7 @@
       ],
       "proposed_existing_task_mapping": [
         "SYS-13"
-      ],
-      "execution": {
-        "implementation": "not_started",
-        "engineering": "not_applicable",
-        "research": "not_triggered",
-        "external_evidence": "pending",
-        "evidence": "docs/research/paper_research_main_acceptance_20261028.json",
-        "planning_status_is_original_snapshot": true,
-        "live_authorization": false,
-        "status": "not_triggered",
-        "reason": "No qualified real cost domain and no validated single-period bottleneck."
-      }
+      ]
     },
     {
       "id": "PR25-16",
@@ -1422,11 +1275,11 @@
         "excludes_external_wait": true
       },
       "owner_role": "研究工程",
-      "assignee": "Codex",
-      "reviewer": "pending_current_commit_review",
-      "started_at": "2026-10-28",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
       "completed_at": null,
-      "acceptance_evidence": "docs/research/paper_research_main_acceptance_20261028.json",
+      "acceptance_evidence": null,
       "paper_refs": [
         "L01",
         "L02",
@@ -1480,16 +1333,7 @@
         "SYS-10",
         "SYS-12",
         "SYS-13"
-      ],
-      "execution": {
-        "implementation": "ported_for_current_main_verification",
-        "engineering": "pending_current_commit_checks",
-        "research": "not_evaluated_for_current_main",
-        "external_evidence": "pending",
-        "evidence": "docs/research/paper_research_main_acceptance_20261028.json",
-        "planning_status_is_original_snapshot": true,
-        "live_authorization": false
-      }
+      ]
     },
     {
       "id": "PR25-17",
@@ -1512,11 +1356,11 @@
         "excludes_external_wait": true
       },
       "owner_role": "工程与研究验收",
-      "assignee": "Codex",
-      "reviewer": "pending_current_commit_review",
-      "started_at": "2026-10-28",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
       "completed_at": null,
-      "acceptance_evidence": "docs/research/paper_research_main_acceptance_20261028.json",
+      "acceptance_evidence": null,
       "paper_refs": [
         "L08"
       ],
@@ -1574,16 +1418,7 @@
         "SYS-11",
         "SYS-16",
         "SYS-17"
-      ],
-      "execution": {
-        "implementation": "ported_for_current_main_verification",
-        "engineering": "pending_current_commit_checks",
-        "research": "not_evaluated_for_current_main",
-        "external_evidence": "pending",
-        "evidence": "docs/research/paper_research_main_acceptance_20261028.json",
-        "planning_status_is_original_snapshot": true,
-        "live_authorization": false
-      }
+      ]
     },
     {
       "id": "PR25-18",
@@ -1604,11 +1439,11 @@
         "excludes_external_wait": true
       },
       "owner_role": "工程与研究验收",
-      "assignee": "Codex",
-      "reviewer": "pending_current_commit_review",
-      "started_at": "2026-10-28",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
       "completed_at": null,
-      "acceptance_evidence": "docs/research/paper_research_main_acceptance_20261028.json",
+      "acceptance_evidence": null,
       "paper_refs": [
         "L01",
         "L03"
@@ -1669,16 +1504,7 @@
         "SYS-11",
         "SYS-16",
         "SYS-17"
-      ],
-      "execution": {
-        "implementation": "ported_for_current_main_verification",
-        "engineering": "pending_current_commit_checks",
-        "research": "not_evaluated_for_current_main",
-        "external_evidence": "pending",
-        "evidence": "docs/research/paper_research_main_acceptance_20261028.json",
-        "planning_status_is_original_snapshot": true,
-        "live_authorization": false
-      }
+      ]
     },
     {
       "id": "PR25-19",
@@ -1702,11 +1528,11 @@
         "excludes_external_wait": true
       },
       "owner_role": "工程与研究验收",
-      "assignee": "Codex",
-      "reviewer": "pending_current_commit_review",
-      "started_at": "2026-10-28",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
       "completed_at": null,
-      "acceptance_evidence": "docs/research/paper_research_main_acceptance_20261028.json",
+      "acceptance_evidence": null,
       "paper_refs": [],
       "existing_paths": [
         "scripts/run_paper_roadmap.py",
@@ -1764,16 +1590,7 @@
         "SYS-11",
         "SYS-16",
         "SYS-17"
-      ],
-      "execution": {
-        "implementation": "ported_for_current_main_verification",
-        "engineering": "pending_current_commit_checks",
-        "research": "not_evaluated_for_current_main",
-        "external_evidence": "pending",
-        "evidence": "docs/research/paper_research_main_acceptance_20261028.json",
-        "planning_status_is_original_snapshot": true,
-        "live_authorization": false
-      }
+      ]
     },
     {
       "id": "PR25-20",
@@ -1794,11 +1611,11 @@
         "excludes_external_wait": true
       },
       "owner_role": "工程与研究验收",
-      "assignee": "Codex",
-      "reviewer": "pending_current_commit_review",
-      "started_at": "2026-10-28",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
       "completed_at": null,
-      "acceptance_evidence": "docs/research/paper_research_main_acceptance_20261028.json",
+      "acceptance_evidence": null,
       "paper_refs": [
         "L01",
         "L02",
@@ -1855,17 +1672,7 @@
         "SYS-11",
         "SYS-16",
         "SYS-17"
-      ],
-      "execution": {
-        "implementation": "candidate_freeze_tooling_ported",
-        "engineering": "pending_current_commit_checks",
-        "research": "not_evaluated_for_current_main",
-        "external_evidence": "pending",
-        "evidence": "docs/research/paper_research_main_acceptance_20261028.json",
-        "planning_status_is_original_snapshot": true,
-        "live_authorization": false,
-        "candidate_action": "no_candidate_promoted"
-      }
+      ]
     },
     {
       "id": "PR25-21",
@@ -1886,11 +1693,11 @@
         "excludes_external_wait": true
       },
       "owner_role": "工程与研究验收",
-      "assignee": "Codex",
-      "reviewer": "pending_current_commit_review",
-      "started_at": "2026-10-28",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
       "completed_at": null,
-      "acceptance_evidence": "docs/research/paper_research_main_acceptance_20261028.json",
+      "acceptance_evidence": null,
       "paper_refs": [
         "L01",
         "L02",
@@ -1951,17 +1758,7 @@
         "SYS-11",
         "SYS-16",
         "SYS-17"
-      ],
-      "execution": {
-        "implementation": "maturity_adjudication_tooling_ported",
-        "engineering": "pending_current_commit_checks",
-        "research": "not_evaluated_for_current_main",
-        "external_evidence": "pending",
-        "evidence": "docs/research/paper_research_main_acceptance_20261028.json",
-        "planning_status_is_original_snapshot": true,
-        "live_authorization": false,
-        "actual_adjudication": "pending_no_eligible_due_candidate"
-      }
+      ]
     },
     {
       "id": "PR25-22",
@@ -1980,11 +1777,11 @@
         "excludes_external_wait": true
       },
       "owner_role": "研究工程",
-      "assignee": "Codex",
-      "reviewer": "pending_current_commit_review",
-      "started_at": "2026-10-28",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
       "completed_at": null,
-      "acceptance_evidence": "docs/research/paper_research_main_acceptance_20261028.json",
+      "acceptance_evidence": null,
       "paper_refs": [
         "L01",
         "L03",
@@ -2038,63 +1835,7 @@
       "proposed_existing_task_mapping": [
         "SYS-10",
         "SYS-11"
-      ],
-      "execution": {
-        "implementation": "ported_for_current_main_verification",
-        "engineering": "pending_current_commit_checks",
-        "research": "not_evaluated_for_current_main",
-        "external_evidence": "pending",
-        "evidence": "docs/research/paper_research_main_acceptance_20261028.json",
-        "planning_status_is_original_snapshot": true,
-        "live_authorization": false,
-        "real_final_consumed": false
-      }
+      ]
     }
-  ],
-  "execution_summary": {
-    "date": "2026-10-28",
-    "scope": "current main port and three explicitly scoped additions",
-    "implementation": "ported_for_current_main_verification",
-    "engineering": "pending_current_commit_checks",
-    "research": "not_evaluated_for_current_main",
-    "external_evidence": "pending",
-    "acceptance": "docs/research/paper_research_main_acceptance_20261028.json",
-    "actual_new_candidate": "no_candidate_promoted",
-    "actual_maturity_adjudication": "pending",
-    "conditional_PR25_15": "not_triggered",
-    "remote_ci": "pending_current_commit_checks",
-    "live_authorization": false
-  },
-  "execution_history": [
-    {
-      "date": "2026-10-27",
-      "origin": "unpublished b82 worktree local evidence",
-      "current_main_acceptance": false,
-      "historical_receipts_imported": false,
-      "original_files_preserved_in_original_worktree": true,
-      "historical_summary": {
-        "date": "2026-10-27",
-        "scope": "PR25 continuation",
-        "implementation": "scoped_engineering_implemented",
-        "engineering": "scoped_tests_pass_full_regression_environment_blocked",
-        "research": "bounded_diagnostics_no_supported_candidate",
-        "external_evidence": "pending",
-        "actual_new_candidate": "no_candidate_promoted",
-        "actual_maturity_adjudication": "pending",
-        "conditional_PR25_15": "not_triggered",
-        "remote_python311_ci": "not_executed",
-        "live_authorization": false
-      },
-      "interpretation": "Historical local diagnostics and environment failures are not evidence about the current main-port commit."
-    }
-  ],
-  "port_context": {
-    "date": "2026-10-28",
-    "origin": "unpublished b82 worktree local evidence",
-    "history_is_current_acceptance": false,
-    "historical_engineering_receipts_imported": false,
-    "current_acceptance": "docs/research/paper_research_main_acceptance_20261028.json",
-    "current_development_record": "docs/research/paper_research_main_development_20261028.md",
-    "preserved_global_task_count": 41
-  }
+  ]
 }

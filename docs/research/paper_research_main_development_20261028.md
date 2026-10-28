@@ -6,9 +6,15 @@
 
 ## 来源与兼容边界
 
-2026-10-27 的工程回执属于 `unpublished b82 worktree local evidence`：未发布工作树的源码、目录、依赖及局部诊断与当前 main 不同。旧工程验收和 implementation 机器回执保留在原工作树，本次不复制为 main 的验收。迁入的[文献原映射](paper_research_literature_map_20261027.md)和[补充阅读记录](paper_research_literature_followup_20261027.md)仅保留来源与实际阅读层级；当前未重新取得 Excel 正文。
+2026-10-27 的工程回执属于 `unpublished b82 worktree local evidence`：未发布工作树的源码、目录、依赖及局部诊断与当前 main 不同。旧工程验收和 implementation 机器回执保留在原工作树，本次不复制为 main 的验收。迁入的[文献原映射](paper_research_literature_map_20261027.md)和[补充阅读记录](paper_research_literature_followup_20261027.md)仅保留来源与实际阅读层级；本轮未重新取得 Excel 正文。main #119 已登记的 [288 条工作簿记录](paper_literature_registry_20261026.json)及 [B1 执行历史](paper_research_excel_integration_plan_20261026.md)一并保留：L02 对应表内 #12、L04 对应 #252，其余六篇属于原始来源层；登记的阅读层级仍以检索摘要/元数据为限。
 
 移植保留 main 的分层包路径、数据 adoption 规则、版本及字节身份、selector 合同和快照完整性，以及原有架构、质量棘轮、AUD 和发布状态。研究数据与标签继续使用当时可得的版本；新增严格时间入口具有单独身份，不替换回顾性入口。旧默认、原策略与风控门槛继续适用。
+
+## 合入 main B1 后的规划与执行口径
+
+本轮纳入 main `b52f45d6`（#119）的 B1 文献登记、基线采集、搜索范围/源码闭包 API 与对应测试。20261025 Roadmap、详细计划和 23 项 JSON 保留 main 的原始规划快照，`execution_started=false` 描述该规划文件本身；先前 PR120 逐项执行维度迁入[主线机器回执](paper_research_main_acceptance_20261028.json)的 `main_b1_integration.previous_task_execution_projection`，本轮作用域仍按本文及当前提交 Checks 核对。
+
+实际执行使用当前 `python scripts/dev.py check`：runtime 覆盖范围为 `core`、`ops`、`signal_meta`、`backtest`、`live_trading`，最低覆盖率 **90%**，并执行质量棘轮、分层、架构、文档、数据 adoption 和四平台验证。原始计划 §7.6 的 55% 与旧测试命令属于 20261025 规划快照，运行本轮验证时按上述当前统一入口执行。协方差实现位置为 `core/planning/covariance_estimators.py`。
 
 ## 本轮三项补充功能
 

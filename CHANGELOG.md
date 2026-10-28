@@ -13,6 +13,11 @@
 - PR25 isolated research: exact local source/data identity, mature temporal labels and membership, registered statistical diagnostics, execution-cost providers, covariance and account-based portfolio comparisons, and atomic final-sample access.
 - Authenticated local model/feature publication receipts, native policy and full-bar account capture (explicitly enabled), and safe typed JSON/CSV inputs delivered to bounded research workers. See the [main integration record](docs/research/paper_research_main_development_20261028.md) for supported modes and external evidence still required.
 - Branch preflight CI and exact-checkout JUnit/coverage artifacts for the PR25 integration, retaining existing quality, architecture and 90% runtime coverage gates. New observation candidates require their own identities and registration.
+- PR25-00/01/02 (paper research programme, batch B1): hashed paper literature registry built from the Excel workbook (L01-L08 presence computed, only L02 and L04 are in the table), offline research baseline capture, and a search-scope / source-closure audit for `ResearchEvidenceRun` records. Research-only tooling; no strategy, admission or live behaviour changes. Plan: `docs/research/paper_research_excel_integration_plan_20261026.md`.
+
+### Fixed
+
+- Preserve lifecycle entry guards through temporal revisions and cutoff views. Unknown or omitted previously known guards fail closed, so strict ML selection cannot enter a blocked or scheduled-exit candle. Plain OHLCV records retain their existing identity.
 
 ### Changed
 

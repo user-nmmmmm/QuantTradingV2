@@ -1,7 +1,5 @@
 # 论文研究深化：详细开发与测试计划（2026-10-25）
 
-> **2026-10-28 主线移植说明**：正文保留 2026-10-25 规划合同，“拟新增/未实现/未执行”属于制定计划时的描述，代码与文档链接已迁移到当前 main 的规范路径，7.6节CI命令按当前90%门槛单独校正。当前范围见[主线开发记录](paper_research_main_development_20261028.md)，当前提交验收统一见[主线验收回执](paper_research_main_acceptance_20261028.json)（待当前提交检查）。2026-10-27 运行记录属于 `unpublished b82 worktree local evidence`，不作为当前 main 验收。
-
 > 对应[专项 Roadmap](paper_research_roadmap_20261025.md)。日期采用 Asia/Singapore。
 > 本文件规定拟实施工作包及完整流程。下文“拟新增”的文件、API和产物契约尚未实现；命令章节明确区分现有入口和待开发入口。
 > 本次交付是计划文档及文档检查，历史测试回执不作为本次执行结果。
@@ -207,7 +205,7 @@ final_access_policy_id: separate-if-applicable
 ### PR25-11 显式协方差估计接口
 
 - 复用：size_portfolio_targets及原有固定20%对角收缩。
-- 拟新增纯函数模块（建议core/planning/covariance_estimators.py，供运行内核与研究共同使用）和tests/test_covariance_estimators.py；不能让core导入analysis形成反向依赖。
+- 拟新增纯函数模块（建议core/covariance_estimators.py，供运行内核与研究共同使用）和tests/test_covariance_estimators.py；不能让core导入analysis形成反向依赖。
 - 初始三臂：sample、fixed_diag_020、lw_constant_correlation。若加入lw_scaled_identity，另登记候选与预算，并明确其目标不同。
 - 统一输入：截止前共同完整简单收益；样本去均值；输出ddof=1口径、日频矩阵；年化只在声明边界乘365一次。若论文强度计算采用1/T矩，明确转换公式和参考验证。
 - 审计：样本量、centering、ddof、单位、目标、强度、特征值、退化策略及算法版本。
@@ -524,13 +522,13 @@ $calibration.calibration.reason
 
 拟新增统一研究runner、协方差研究命令和多期配置CLI均需先实现、测试并加入[脚本索引](../../scripts/README.md)，本文件不提供可误执行的假命令。
 
-### 7.6 集成与CI（2026-10-28按当前main校正）
+### 7.6 集成与CI
 
 依据[现有CI](../../.github/workflows/tests.yml)：
 
 - 环境/运行锁、Ruff、历史基线、仓库卫生、Roadmap结构；
 - 关键runtime类型检查，前端受影响时执行dashboard Node测试；
-- 全量pytest覆盖core/ops/signal_meta/backtest/live_trading，当前覆盖下限90%；架构分层、质量棘轮、文档链接及四个平台安装/回归同时检查；
+- 全量pytest覆盖core/backtest/live_trading，当前覆盖下限55%；
 - 独立CPU ML研究job使用合成输入，现有超时15分钟；
 - sandbox测试发现/凭证缺失的跳过须按真实边界报告，不作为真实交易所通过证据。
 
@@ -548,8 +546,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Roadmap structure failed' }
 & $py -m mypy core/foundation/domain.py core/foundation/runtime.py live_trading/execution_adapter.py
 if ($LASTEXITCODE -ne 0) { throw 'Runtime type check failed' }
 
-& $py scripts/dev.py check
-# 完整CI门禁以该统一入口为准；旧主机私有portable helper不是仓库入口。
+& $py scripts/run_portable_tests.py -q --cov=core --cov=backtest --cov=live_trading --cov-fail-under=55 --junitxml (Join-Path $runRoot 'integration.xml')
 if ($LASTEXITCODE -ne 0) { throw 'Integration tests or coverage failed' }
 ~~~
 
