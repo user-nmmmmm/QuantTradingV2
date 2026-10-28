@@ -8,6 +8,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- PR25-00/01/02 (paper research programme, batch B1): hashed paper literature registry built from the Excel workbook (L01-L08 presence computed, only L02 and L04 are in the table), offline research baseline capture, and a search-scope / source-closure audit for `ResearchEvidenceRun` records. Research-only tooling; no strategy, admission or live behaviour changes. Plan: `docs/research/paper_research_excel_integration_plan_20261026.md`.
+
 ### Changed
 
 - Record the 2026-10-19 `v3.1.1` annotated tag (tag object `2551bf22`, commit `122489fa`) and the A5 `code-token/v2` registration (observation window [2026-11-19, 2027-05-18), earliest maturity 2027-06-07) in the [infrastructure roadmap](docs/infrastructure_roadmap.md) and the [release baseline](docs/repair_release_baseline.md). The 3.1.1 entry below is unchanged from the tagged commit; private receipts and registration artifacts stay local.

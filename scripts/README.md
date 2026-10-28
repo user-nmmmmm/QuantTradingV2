@@ -74,6 +74,8 @@
 | 脚本 | 输入与产物 |
 | --- | --- |
 | [`run_strategy_p0_p1.py`](run_strategy_p0_p1.py) | 读取策略审查批次的 `frozen_inputs`，执行固定窗口和对照组；参数可限定 `--windows`、`--arms`，结果写入独立研究目录。 |
+| [`build_paper_literature_registry.py`](build_paper_literature_registry.py) | 读取 Excel 论文导航表，生成带哈希的文献登记并核对 L01–L08 是否在表内；`build` 不覆盖已有文件，`check` 核对已提交登记。见[Excel 整合计划](../docs/research/paper_research_excel_integration_plan_20261026.md)。 |
+| [`capture_research_baseline.py`](capture_research_baseline.py) | 离线记录 HEAD、未提交/未跟踪文件、源码身份与解释器/数值依赖，写入新目录的 `current_state.json`、`environment.json`、`baseline_diff.json`；不覆盖已有目录，不运行交易或研究代码。 |
 | [`run_paper_applications.py`](run_paper_applications.py) | 读取 BTC/ETH 日线 manifest，冻结输入并运行既定引擎对照；生成登记、逐任务结果及 P0 信号观察资料。 |
 | [`run_paper_roadmap.py`](run_paper_roadmap.py) | 读取日线 manifest 与 P0 观察，执行论文方法工作包并保留尝试日志；可附加细周期 manifest 和执行观测输入。 |
 | [`run_return_followup.py`](run_return_followup.py) | 使用脚本内固定的日线 manifest 和前序论文对比结果，研究现货目标权重、年度选择和连续账户；`--output` 必填，`--workers` 限定 1–4。 |
