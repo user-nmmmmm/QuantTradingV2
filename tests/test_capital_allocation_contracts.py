@@ -1,5 +1,6 @@
 """Shared capital invariants across planning, submission, fills and recovery."""
 from dataclasses import asdict, replace
+import json
 from types import SimpleNamespace
 
 import pandas as pd
@@ -7,11 +8,13 @@ import pytest
 
 from core.planning.allocation import EntryCandidate, PortfolioSignalAllocator
 from core.broker import Broker
+from core.events import OrderEvent
 from core.foundation.domain import OrderIntent, OrderStatus
 from core.trading.order_store import OrderStore
 from core.trading.portfolio import Portfolio
 from core.trading.position_management import CapitalAllocationPolicy, SmartCapitalPlanner
 from core.risk import RiskManager
+from core.risk.reservation import ensure_opening_reservation
 from core.risk.portfolio_governor import (
     CorrelationClusterPolicy, PortfolioRiskGovernor, open_risk_by_cluster,
 )
@@ -297,6 +300,7 @@ def stored_intent(session, **changes):
 @pytest.mark.parametrize("approval,quantity,expected", [
     ({}, {}, 200.),
     ({"approved_risk_amount": 50.}, {}, 50.),
+    ({"approved_risk_amount": None}, {}, 200.),
     ({}, {"requested_qty": 2.}, 20.),
 ])
 def test_legacy_session_recovery_preserves_approval_and_quantity_authority(approval, quantity, expected):
@@ -373,3 +377,196 @@ def test_rejected_orders_cannot_exhaust_session_after_restart(tmp_path):
     finally:
         state.close()
         store.close()
+
+
+@pytest.mark.parametrize("amount", [0., -1., float("nan"), float("inf"), True, "invalid"])
+@pytest.mark.parametrize("checkpoint", [None, 10., 600.])
+def test_invalid_session_approval_blocks_recovery_without_persisting_nonfinite_risk(
+        tmp_path, amount, checkpoint):
+    session = pd.Timestamp("2024-01-30")
+    intent = asdict(stored_intent(session))
+    intent["approved_risk_amount"] = amount
+    row = {"side": "buy", "requested_qty": 20., "intent": intent,
+           "status": OrderStatus.UNKNOWN.value, "submission_attempted": True}
+    state = StateStore(str(tmp_path / "state.db"))
+    key = f"session_risk:{session}"
+    try:
+        if checkpoint is not None:
+            state.set(key, checkpoint)
+        for _ in range(2):
+            governor = PortfolioRiskGovernor(CorrelationClusterPolicy(max_same_session_entry_risk=.06))
+            governor.bind_state_store(state, SimpleNamespace(list_all=lambda: [row]))
+            for _ in range(2):
+                governor.begin_session(session)
+                decision = governor.evaluate(symbol="B/USDT", planned_risk=100., equity=10000.,
+                                             portfolio=Portfolio(10000.))
+                assert not decision.allowed and decision.scale == decision.allowed_risk == 0.
+                assert decision.reason == "unverifiable_session_risk"
+                assert governor.session_risk_used == float("inf")
+                governor.commit(decision, symbol="B/USDT")
+                json.dumps({"decision": decision.to_dict(), "audit": governor.audit}, allow_nan=False)
+                assert state.get(key) == checkpoint
+        governor.begin_session(session + pd.Timedelta(days=1))
+        assert governor.session_risk_used == 0.
+        assert governor.evaluate(symbol="B/USDT", planned_risk=100., equity=10000.,
+                                 portfolio=Portfolio(10000.)).allowed
+    finally:
+        state.close()
+
+
+@pytest.mark.parametrize("changes", [
+    {"initial_stop": None}, {"initial_stop": 100.},
+    {"requested_qty": None}, {"reference_price": "invalid"},
+])
+def test_unverifiable_legacy_same_session_risk_cannot_recover_zero(changes):
+    session = pd.Timestamp("2024-01-30")
+    intent = asdict(stored_intent(session))
+    intent.pop("approved_risk_amount")
+    intent.update(changes)
+    governor = PortfolioRiskGovernor(CorrelationClusterPolicy(max_same_session_entry_risk=.06))
+    governor.bind_state_store(None, SimpleNamespace(list_all=lambda: [
+        {"side": "buy", "requested_qty": 20., "intent": intent}]))
+    governor.begin_session(session)
+    decision = governor.evaluate(symbol="B/USDT", planned_risk=100., equity=10000.,
+                                 portfolio=Portfolio(10000.))
+    assert not decision.allowed and decision.reason == "unverifiable_session_risk"
+
+
+@pytest.mark.parametrize("status,attempted", [
+    (OrderStatus.REJECTED, True), (OrderStatus.EXPIRED_UNSUBMITTED, False),
+    (OrderStatus.NO_POSITION, False), (OrderStatus.CANCELED, False), (OrderStatus.EXPIRED, False),
+])
+def test_unexposed_invalid_approvals_do_not_block_session_recovery(status, attempted):
+    session = pd.Timestamp("2024-01-30")
+    intent = asdict(stored_intent(session))
+    intent["approved_risk_amount"] = 0.
+    row = {"side": "buy", "requested_qty": 20., "intent": intent,
+           "status": status.value, "submission_attempted": attempted, "filled_qty": 0.}
+    governor = PortfolioRiskGovernor(CorrelationClusterPolicy(max_same_session_entry_risk=.06))
+    governor.bind_state_store(None, SimpleNamespace(list_all=lambda: [row]))
+    governor.begin_session(session)
+    assert governor.session_risk_used == 0.
+    assert governor.evaluate(symbol="B/USDT", planned_risk=100., equity=10000.,
+                             portfolio=Portfolio(10000.)).allowed
+
+
+@pytest.mark.parametrize("cap", ["max_correlated_stop_risk", "max_crypto_beta_stop_risk"])
+@pytest.mark.parametrize("status", [OrderStatus.ACCEPTED, OrderStatus.UNKNOWN, OrderStatus.CANCEL_PENDING])
+def test_missing_pending_approval_rejects_whole_batch_and_retains_reservation(cap, status):
+    policy = CorrelationClusterPolicy(**{cap: .03})
+    p, b, r, s, frame, prices = account(["P/USDT", "A/USDT", "B/USDT"], cluster_policy=policy)
+    pending = stored_intent(frame.index[-1], symbol="P/USDT", requested_qty=2.,
+                            initial_stop=None, approved_risk_amount=None)
+    pending, _ = ensure_opening_reservation(b.event_pipeline, pending, reference_price=100.,
+        occurred_at=frame.index[-1].tz_localize("UTC").to_pydatetime(), source="legacy_recovery")
+    b.event_pipeline.publish(OrderEvent(client_order_id=pending.client_order_id,
+        status=status, requested_qty=2., remaining_qty=2.),
+        occurred_at=frame.index[-1].tz_localize("UTC").to_pydatetime(),
+        idempotency_key=f"pending-{status.value}")
+    governor = PortfolioRiskGovernor(policy)
+    candidates = [replace(entry(symbol, s, frame), audit={}) for symbol in ("A/USDT", "B/USDT")]
+    decisions = PortfolioSignalAllocator(governor).allocate(candidates, portfolio=p, broker=b,
+                                                          risk_manager=r, current_prices=prices)
+    assert len(decisions) == 2 and not any(item.accepted for item in decisions)
+    assert [item["reason"] for item in governor.audit] == ["unverifiable_pending_risk"] * 2
+    assert all(item.audit["correlated_budget"]["reason"] == "unverifiable_pending_risk"
+               for item in candidates)
+    assert b.reservation_projection.pending_notional(prices) == {"P/USDT": 200.}
+    with pytest.raises(ValueError, match="missing_approval"):
+        b.reservation_projection.pending_stop_risk()
+    json.dumps(governor.audit, allow_nan=False)
+
+
+@pytest.mark.parametrize("exception", [ValueError("programming error"), TypeError("bad call")])
+def test_correlated_budget_does_not_swallow_unrelated_projection_errors(exception):
+    def broken_projection():
+        raise exception
+
+    governor = PortfolioRiskGovernor(CorrelationClusterPolicy(max_correlated_stop_risk=.03))
+    with pytest.raises(type(exception), match=str(exception)):
+        TrendBreakoutStrategy._correlated_entry_budget(governor,
+            SimpleNamespace(pending_stop_risk=broken_projection), symbol="A/USDT",
+            planned_risk=100., equity=10000., portfolio=Portfolio(10000.))
+
+
+def test_unverifiable_session_risk_blocks_smart_planning_with_finite_refusal_audit():
+    policy = CorrelationClusterPolicy(max_same_session_entry_risk=.06)
+    p, b, r, s, frame, prices = account(["A/USDT", "B/USDT"], cluster_policy=policy)
+    intent = asdict(stored_intent(frame.index[-1]))
+    intent["approved_risk_amount"] = 0.
+    governor = PortfolioRiskGovernor(policy)
+    governor.bind_state_store(None, SimpleNamespace(list_all=lambda: [
+        {"side": "buy", "requested_qty": 20., "intent": intent}]))
+    allocator = PortfolioSignalAllocator(governor, CapitalAllocationPolicy(enabled=True))
+    decisions = allocator.allocate([entry(symbol, s, frame) for symbol in prices],
+        portfolio=p, broker=b, risk_manager=r, current_prices=prices)
+    assert len(decisions) == 2 and not any(item.accepted for item in decisions)
+    assert all(item.reason == "unverifiable_shared_risk_budget" for item in decisions)
+    assert not b.pending_orders
+    json.dumps({"decisions": [asdict(item) for item in decisions],
+                "capital": allocator.capital_audit}, allow_nan=False)
+
+
+@pytest.mark.parametrize("mode", ["close", "reduce", "hard_stop"])
+def test_unverifiable_recovery_blocks_entries_while_exits_continue(mode, monkeypatch):
+    policy = CorrelationClusterPolicy(max_same_session_entry_risk=.06)
+    p, b, r, s, frame, prices = account(["H/USDT", "A/USDT"], cluster_policy=policy)
+    p.update_position("H/USDT", 2., 100., strategy_id=s.name, stop_price=90.,
+                      approved_risk_amount=20., time=frame.index[0])
+    intent = asdict(stored_intent(frame.index[-1]))
+    intent["approved_risk_amount"] = 0.
+    governor = PortfolioRiskGovernor(policy)
+    governor.bind_state_store(None, SimpleNamespace(list_all=lambda: [
+        {"side": "buy", "requested_qty": 20., "intent": intent}]))
+    decisions = PortfolioSignalAllocator(governor).allocate([entry("A/USDT", s, frame)],
+        portfolio=p, broker=b, risk_manager=r, current_prices=prices)
+    assert not decisions[0].accepted and governor.audit[-1]["reason"] == "unverifiable_session_risk"
+    if mode == "reduce":
+        result = b.submit_intent(stored_intent(frame.index[-1], symbol="H/USDT", action="sell",
+            requested_qty=1., reduce_only=True, approved_risk_amount=None, initial_stop=None))
+    else:
+        s.context["H/USDT"] = {"stop_loss": 90., "entry_bar": 0}
+        if mode == "hard_stop":
+            frame = frame.copy()
+            frame.iloc[-1, frame.columns.get_loc("close")] = 80.
+        else:
+            monkeypatch.setattr(s, "should_exit", lambda *args: {"action": "sell", "reason": "signal"})
+        result = s.process_exit_only("H/USDT", len(frame) - 1, frame, MarketState.TREND_UP, p, b)
+    assert result.accepted
+    assert result.side == "sell" and result.qty == (1. if mode == "reduce" else 2.)
+    if mode == "hard_stop":
+        assert result.exit_reason == "hard_stop"
+
+
+@pytest.mark.parametrize("cap", ["max_correlated_stop_risk", "max_crypto_beta_stop_risk"])
+@pytest.mark.parametrize("smart", [False, True])
+def test_completed_bad_history_does_not_block_verified_stop_only_allocation(cap, smart):
+    policy = CorrelationClusterPolicy(**{cap: .03})
+    p, b, r, s, frame, prices = account(["A/USDT"], cluster_policy=policy)
+    intent = asdict(stored_intent(frame.index[-1], symbol="CLOSED/USDT"))
+    intent["approved_risk_amount"] = 0.
+    row = {"side": "buy", "requested_qty": 20., "intent": intent,
+           "status": OrderStatus.FILLED.value, "filled_qty": 20., "submission_attempted": True}
+    governor = PortfolioRiskGovernor(policy)
+    governor.bind_state_store(None, SimpleNamespace(list_all=lambda: [row]))
+    assert not p.positions and b.reservation_projection.pending_stop_risk() == {}
+    allocator = PortfolioSignalAllocator(governor, CapitalAllocationPolicy(enabled=smart))
+    decisions = allocator.allocate([entry("A/USDT", s, frame)],
+        portfolio=p, broker=b, risk_manager=r, current_prices=prices)
+    assert decisions[0].accepted
+    assert governor.audit[-1]["reason"] == "within_budget"
+    assert governor.session_risk_used == float("inf")
+    assert b.reservation_projection.pending_stop_risk() == {"A/USDT": 200.}
+
+
+def test_unverifiable_history_still_blocks_beta_budget_using_session_fallback():
+    session = pd.Timestamp("2024-01-30")
+    intent = asdict(stored_intent(session))
+    intent["approved_risk_amount"] = 0.
+    governor = PortfolioRiskGovernor(CorrelationClusterPolicy(max_crypto_beta_stop_risk=.03))
+    governor.bind_state_store(None, SimpleNamespace(list_all=lambda: [
+        {"side": "buy", "requested_qty": 20., "intent": intent}]))
+    governor.begin_session(session)
+    decision = governor.evaluate(symbol="A/USDT", planned_risk=100., equity=10000.,
+                                 portfolio=Portfolio(10000.))
+    assert not decision.allowed and decision.reason == "unverifiable_session_risk"

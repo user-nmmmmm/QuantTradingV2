@@ -11,6 +11,8 @@ from core.trading.portfolio import Portfolio
 from core.trading.execution_port import ExecutionPort
 from core.events import Signal
 from core.risk import RiskManager
+from core.risk.portfolio_governor import RiskBudgetDecision
+from core.risk.reservation import MissingApprovedRisk
 from core.planning.allocation import EntryCandidate
 from core.trading.entry_audit import note
 from core.trading.entry_risk import long_entry_reference_price
@@ -842,9 +844,13 @@ class Strategy(ABC):
         pending_options = {}
         policy = getattr(governor, "policy", None)
         risk_caps = ("max_correlated_stop_risk", "max_crypto_beta_stop_risk")
-        if (projection is not None and getattr(policy, "enabled", True)
+        if (projection is not None and policy is not None and getattr(policy, "enabled", True)
                 and any(getattr(policy, cap, None) is not None for cap in risk_caps)):
-            pending_options["pending_stop_risk"] = projection.pending_stop_risk()
+            try:
+                pending_options["pending_stop_risk"] = projection.pending_stop_risk()
+            except MissingApprovedRisk:
+                return RiskBudgetDecision(False, 0.0, "unverifiable_pending_risk",
+                    policy.cluster_for(symbol), planned_risk, 0.0)
         return governor.evaluate(symbol=symbol, planned_risk=planned_risk,
             equity=equity, portfolio=portfolio, **pending_options)
 

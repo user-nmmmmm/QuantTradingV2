@@ -30,7 +30,8 @@ def git(repo: Path, *args: str) -> bytes:
 
 
 def text(repo: Path, *args: str) -> str:
-    return git(repo, *args).decode("utf-8").strip()
+    # Git adds one LF; all preceding whitespace may belong to the path itself.
+    return git(repo, *args).decode("utf-8").removesuffix("\n")
 
 
 def refs(repo: Path) -> list[dict]:
@@ -119,8 +120,8 @@ def write_snapshot(repo: Path, output: Path, receipt: dict) -> Path:
     # A tracked file can still match an ignore pattern. Check both facts.
     if git(repo, "ls-files", "-z", "--", relative):
         raise InventoryError("refusing to overwrite a tracked file")
-    if relative not in text(repo, "check-ignore", "--no-index", "--", relative).splitlines():
-        raise InventoryError("receipt path must be ignored")
+    # Only the exit status is needed; printed paths may be quoted or contain newlines.
+    git(repo, "check-ignore", "--quiet", "--no-index", "--", relative)
     output.parent.mkdir(parents=True, exist_ok=True)
     with output.open("x", encoding="utf-8", newline="\n") as handle:
         json.dump(receipt, handle, ensure_ascii=True, indent=2)

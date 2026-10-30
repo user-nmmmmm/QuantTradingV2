@@ -25,6 +25,11 @@ OPENING_ACTIONS = {"buy", "short"}
 class OpeningRiskRejected(ValueError):
     """A final, atomic admission check rejected a new order."""
 
+
+class MissingApprovedRisk(ValueError):
+    """An occupied reservation has no verifiable approved stop-loss risk."""
+
+
 RELEASING_STATUSES = {
     OrderStatus.CANCELED,
     OrderStatus.REJECTED,
@@ -172,7 +177,7 @@ class RiskReservationProjection:
                 if item.intent_id == exclude_intent_id:
                     continue
                 if item.approved_risk_amount is None:
-                    raise ValueError(f"missing_approval:{item.intent_id}")
+                    raise MissingApprovedRisk(f"missing_approval:{item.intent_id}")
                 qty = float(state.remaining_qty)
                 risk = float(item.approved_risk_amount * state.remaining_qty / item.reserved_qty)
                 if execution_cost is not None:
@@ -278,6 +283,7 @@ def ensure_opening_reservation(
 
 
 __all__ = [
+    "MissingApprovedRisk",
     "RiskReservationProjection",
     "ReservationState",
     "ensure_opening_reservation",

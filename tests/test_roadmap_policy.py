@@ -1,11 +1,12 @@
 """Section-5 regressions for production floors and auditable policy provenance."""
 from copy import deepcopy
 from datetime import timedelta
+import json
 
 import pytest
 
 from ops.admission_gates import audit_paper_run, evaluate_phase6, review_admission
-from scripts.verify_roadmap_policy import (POLICIES, trace_key, validate_registry,
+from scripts.verify_roadmap_policy import (ARCHIVE, POLICIES, trace_key, validate_registry,
                                           verify_input_identity)
 from tests.test_phase6_operational_readiness import START, passing_bundle
 
@@ -139,6 +140,44 @@ def test_evidence_digest_detects_changed_inputs(tmp_path):
     (tmp_path / "sample.py").write_text("def test_contract():\n    assert False\n", encoding="utf-8")
     with pytest.raises(ValueError, match="changed"):
         verify_input_identity(tmp_path, report["evidence_inputs_sha256"])
+
+
+def test_consolidated_policy_sources_retain_original_frozen_paths():
+    report = validate_registry()
+    originals = {"docs/strategy_development_roadmap.md", "docs/backtest_optimization_roadmap.md",
+                 "docs/backtest_metrics_detailed_development_plan.md", "docs/live_trading_remediation_plan.md"}
+    sources = [source for row in report["rules"] for source in row["sources"]]
+    assert originals <= {source["source_path"] for source in sources}
+    for source in sources:
+        if source["source_path"] in originals:
+            assert source["evidence_path"] == f"{ARCHIVE}/{source['source_path']}"
+
+
+def test_display_copy_changes_cannot_replace_frozen_policy_evidence(tmp_path):
+    policy = deepcopy(POLICIES[0])
+    policy.update(code=["sample.py"], tests=["sample.py::test_contract"])
+    (tmp_path / "sample.py").write_text("def test_contract():\n    assert True\n", encoding="utf-8")
+    originals = {"docs/strategy_development_roadmap.md": "S1-3",
+                 "docs/backtest_optimization_roadmap.md": "D5"}
+    moved = {}
+    for name, old_id in originals.items():
+        frozen = tmp_path / ARCHIVE / name
+        frozen.parent.mkdir(parents=True, exist_ok=True)
+        frozen.write_text(f"{old_id}: frozen original policy\n", encoding="utf-8")
+        display_name = name.replace("docs/", "docs/archive/2026-10-doc-consolidation/", 1)
+        display = tmp_path / display_name
+        display.parent.mkdir(parents=True, exist_ok=True)
+        display.write_text(f"{old_id}: current display copy\n", encoding="utf-8")
+        moved[name] = display_name
+    (tmp_path / "docs/doc_index.json").write_text(json.dumps({"moved": moved}), encoding="utf-8")
+    before = validate_registry(tmp_path, [policy])
+    for display_name in moved.values():
+        (tmp_path / display_name).write_text("Current display no longer contains historical IDs.\n", encoding="utf-8")
+    after = validate_registry(tmp_path, [policy])
+    assert after == before
+    assert {source["evidence_path"] for source in after["rules"][0]["sources"]} == {
+        f"{ARCHIVE}/{name}" for name in originals}
+    assert not set(moved.values()) & set(after["evidence_inputs_sha256"])
 
 
 def test_current_registry_covers_all_nine_rules_with_real_sources_and_tests():

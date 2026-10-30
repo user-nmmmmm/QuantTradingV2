@@ -1,13 +1,15 @@
 # AUD-08：v3.1.1 修复发布基线与所有者 A5 步骤
 
-这是发布准备与工程证据索引。`pyproject.toml` 已为 `3.1.1`，
-CHANGELOG 将 #99–#113 的修复、重评、采用及依赖更新归入 `2026-10-17` 准备条目。
+这是已完成的 `v3.1.1` 发布与工程证据索引。`pyproject.toml` 版本为 `3.1.1`，
+维护中的 CHANGELOG 将 #99–#113 的修复、重评、采用及依赖更新归入实际发布日期 `2026-10-19`。
+[标签内的 CHANGELOG](https://github.com/user-nmmmmm/QuantTradingV2/blob/122489fab5d3f5b5d206ec77cd0c5dbc160e292a/CHANGELOG.md)
+保留 `2026-10-17` 的历史准备文本，不移动标签或改写该快照。
 所有者已于 2026-10-19 在最终提交 `122489fab5d3f5b5d206ec77cd0c5dbc160e292a`（#114 合并）上创建并推送
 带注解标签 `v3.1.1`（tag object `2551bf22cd72ef4308262a4f925ecaa88951cc79`），并完成 A5 正式登记（第 5 节）。
 工程测试、版本标签、身份绑定和 A5 正式登记分别记录。
 
 **本次只更新公开文档，记录已发生的标签与登记；D1 全部保留，不删除分支或 worktree。**
-登记之后 main 已前进（#117 改动了 8 个冻结范围文件），不再等同于登记身份，见第 5 节。
+登记之后 main 继续前进；#117 的 8 个冻结范围文件变化及 #120 合并后的维护基点见第 5 节。
 最低 Python 现为 3.11.5，实际环境须按[依赖说明](dependency_management.md)安装更新。
 2026-10-16 批准的[正式数据采用及研究上限](data_review/20261016_adoption.md)已随
 [#109](https://github.com/user-nmmmmm/QuantTradingV2/pull/109) 合并到
@@ -16,16 +18,17 @@ CHANGELOG 将 #99–#113 的修复、重评、采用及依赖更新归入 `2026-
 独立采用回执绑定数据提交 `3c00f84d5351ee9ea7e597eb17c7b93e3b2464ba`，
 旧 review/未批准草案作为历史保留；main 的采用门禁已验证数据、回执和研究窗口。
 `data_inputs.py verify` 通过只证明登记的文件身份一致；旧比较记录不能自动升级为新证据。
-当前准备不启动观察时钟，不修改既有登记，也不改变策略准入状态。
+本次文档维护不启动新的观察时钟，不修改既有登记，也不改变策略准入状态；已完成的 A5 登记见第 5 节。
 
 ## 1. 修复基线与反例回归
 
 原 AUD-08 修复索引的核对基点为 [9b20fcfa](https://github.com/user-nmmmmm/QuantTradingV2/commit/9b20fcfa6df1dbc3c08f8b8395f5122ffd339cc3)，
 即 [#106](https://github.com/user-nmmmmm/QuantTradingV2/pull/106) 的合并提交；下表保留该批修复的来源。
-当前发版收尾基于 #113 合并后的 `f161d9539a3edd5c5e0390ab36cde69e9abd663d`，它仍不是本次文档更新合并后的最终发布 SHA。
+2026-10-17 的发版准备基于 #113 合并后的 `f161d9539a3edd5c5e0390ab36cde69e9abd663d`；
+实际发布最终采用 #114 合并提交 `122489fab5d3f5b5d206ec77cd0c5dbc160e292a`，见第 5 节。
 旧带注解标签 `v3.1.0` 的 tag object 为 `268f51fb56535e926e4ed0066a0d238c907fd02e`，
 仍指向 `ec4092131a18dd20a7b5605a50fffc99168fff75`；不得把它改指向修复后的代码。
-按[发布约定](releasing.md)，本轮缺陷修复使用 PATCH `v3.1.1`。
+按[发布约定](releasing.md)，该轮缺陷修复已使用 PATCH `v3.1.1`；后续候选必须使用新的版本。
 
 下表只列本仓库公开实现及测试，实际运行结果以选定提交的 Actions 为准。
 
@@ -44,7 +47,7 @@ CHANGELOG 将 #99–#113 的修复、重评、采用及依赖更新归入 `2026-
 9b20fcfa 的主线运行：[tests](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38703618818)、
 [offline](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38703619048)、
 [CodeQL](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38703618983)。
-当前 #113 合并基点 `f161d9539a3edd5c5e0390ab36cde69e9abd663d` 的
+历史 #113 合并基点 `f161d9539a3edd5c5e0390ab36cde69e9abd663d` 的
 [tests](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/39030639436)
 为 4735 passed、15 skipped、111 subtests passed、90.73% 覆盖率，四组安装各 454 passed、ML 292 passed、前端 46 passed；
 [offline](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/39030639413)
@@ -53,7 +56,7 @@ CHANGELOG 将 #99–#113 的修复、重评、采用及依赖更新归入 `2026-
 [devcontainer](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/39030639367) 同一 SHA 成功，
 [pip 依赖图更新](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/39030644223)也已成功。
 带采集时间的 Dependabot 重扫回执保留本地，不用 CI 成功代替告警状态核对。
-这些历史/基点运行不代替本次收尾 PR 及最终合并提交的检查。
+这些历史/基点运行不代替后续候选及其最终合并提交的检查。
 正式选定提交应有同一 SHA 的 tests、offline、CodeQL 和 devcontainer 成功记录。
 本次只改文档，不修改已有的 `pyproject.toml` 版本；devcontainer 的路径过滤不会自动触发。
 没有同一 SHA 的容器记录时，在 Actions 选择目标分支手动运行 devcontainer，并核对运行的 head SHA。
@@ -80,8 +83,10 @@ CHANGELOG 将 #99–#113 的修复、重评、采用及依赖更新归入 `2026-
 
 ## 3. 所有者操作：发布、绑定、再登记
 
-以下 PowerShell 步骤分阶段执行。任何命令非零、身份不符或前置证据未满足都应停止。
-旧 ADR 0032 中的 `v3.1.0` 是当时的发布计划；本轮应使用新的 `v3.1.1`，不移动旧标签。
+**历史操作记录：第 3.1–3.3 节是 `v3.1.1` 发布准备时的步骤，已于 2026-10-19 完成，结果见第 5 节。**
+以下保留当时的 PowerShell 模板、`v3.1.1` 变量及前置检查，供追溯，不是再次创建该标签或重跑 A5 的待办。
+旧 ADR 0032 中的 `v3.1.0` 也是当时的发布计划。后续候选按第 3.4 节准备新的版本、绑定和登记。
+任何命令非零、身份不符或前置证据未满足都应停止。
 
 ### 3.1 合并发版收尾，选定最终提交
 
@@ -91,7 +96,7 @@ CHANGELOG 将 #99–#113 的修复、重评、采用及依赖更新归入 `2026-
    不能在已打标签的检出上运行后继续沿用旧绑定。
 2. 发版收尾或任何后续候选变更合并后，重新选定待发布的 main SHA，核对同一提交的完整 CI。
    如果 `v3.1.1` 已经推送而候选又改变，应准备下一个版本，不能移动标签或复用旧绑定。
-   CHANGELOG 当前使用 2026-10-17 准备日期；实际发版日期若不同，先更新日期，再重新固定提交并运行 CI。
+   当时 CHANGELOG 使用 2026-10-17 准备日期；实际发版为 2026-10-19，维护条目现已校正，标签内的准备快照保留原样。
 3. 在完整、干净的 Git 检出中执行。公开数据的技术采用回执见上面的采用记录；
    真实父批次、完整审计包及 A5 私密登记资料从本地保存位置取得，继续保留本地。
 
@@ -238,6 +243,15 @@ if ($parentAfter -ne $parentBefore -or $acceptance.parent_protocol_sha256 -ne $p
 失败重试时：锁竞争/发布前失败可在原因消除后重试；已有正式目录时先验证完整回执，
 不能删除已登记目录再通过重跑改变时钟。
 
+### 3.4 后续候选：新的发布与登记
+
+`v3.1.1` 的标签和登记已完成。若所有者决定将后续 main 纳入新的观察候选，须按[发布约定](releasing.md)
+选择新版本，写明实际发布日期，固定最终 main SHA，并核对同一 SHA 的 CI。
+使用新版本对应的标签、新绑定及全新的登记输出目录；重新核对配置、父协议、数据采用和冻结范围身份。
+第 3.1–3.3 节中的旧版本、SHA、目录和日期不能直接复用；新窗口及成熟日从新的实际回执读取。
+不得移动 `v3.1.1`、修改旧绑定、覆盖或删除既有登记目录，也不得通过重跑沿用或改变已登记时钟。
+工程测试通过不自动批准候选、开始登记或授予交易准入。
+
 ## 4. AUD-07 外部补证单列
 
 详细操作见[所有者治理清单](repository_governance.md)，不因本发布准备或 CI 成功关闭：
@@ -269,5 +283,9 @@ if ($parentAfter -ne $parentBefore -or $acceptance.parent_protocol_sha256 -ne $p
 `core/trading/entry_risk.py`、`core/trading/execution_port.py`、`core/trading/position_management.py`、`strategies/base.py`。
 对该登记的绑定运行 `identity_report.py --verify-binding --head fd3eaf22 --fail-on-change` 报告了这 8 个文件的身份变化，
 行为未验证。按协议，针对旧身份冻结的候选在把这些改动视为同一候选之前必须重新登记；
-当前 main 因此不等同于已登记的 `v3.1.1` 候选。是否为 #117 准备新版本并再次登记由所有者决定，
-不能移动 `v3.1.1`，也不能删除已登记目录重跑。
+上述 #117 检查仅覆盖当时的提交，不替代后续 main 的身份核对。2026-10-30 维护核对采用
+[#120](https://github.com/user-nmmmmm/QuantTradingV2/pull/120) 合并提交
+[`2d9710cc0c663bb8ccbef45620bfc5e8953d8d46`](https://github.com/user-nmmmmm/QuantTradingV2/commit/2d9710cc0c663bb8ccbef45620bfc5e8953d8d46)，
+同一 SHA 的公开 CI 记录见[基础设施路线图第 10 节](infrastructure_roadmap.md#10-2026-10-15公开github复核)。
+该维护基点不等同于已登记的 `v3.1.1` 候选。是否准备新版本并再次登记由所有者决定，
+按第 3.4 节处理；不能移动 `v3.1.1`，也不能删除已登记目录重跑。

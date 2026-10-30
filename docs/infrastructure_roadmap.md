@@ -1,8 +1,8 @@
 # 基础设施路线图（2026-10 起）
 
-> 核对日期：2026-10-17，当前实现基点为 GitHub main 的 `f161d9539a3edd5c5e0390ab36cde69e9abd663d`（#113）。[公开代码与CI复核](#10-2026-10-15公开github复核)保留原始核对与后续修复证据。#98 的公开工程 roadmap 已随 #101 合并，#98 已关闭。本文维护公开工程顺序与退出条件；第2节保留历史交付，第5节是当前队列。完整审计包、治理和正式登记资料保持本地，本轮不改写[统一Roadmap](unified_roadmap.md)。
+> 维护核对日期：2026-10-30，当前实现基点为 GitHub main 的 [`2d9710cc0c663bb8ccbef45620bfc5e8953d8d46`](https://github.com/user-nmmmmm/QuantTradingV2/commit/2d9710cc0c663bb8ccbef45620bfc5e8953d8d46)（[#120](https://github.com/user-nmmmmm/QuantTradingV2/pull/120)，2026-10-28 合并）。[公开代码与CI复核](#10-2026-10-15公开github复核)保留原始核对与后续修复证据。#98 的公开工程 roadmap 已随 #101 合并，#98 已关闭。本文维护公开工程顺序与退出条件；第2节保留历史交付，第5节是当前队列。完整审计包、治理和正式登记资料保持本地，本轮不改写[统一Roadmap](unified_roadmap.md)。
 
-**当前状态：AUD-01–06 工程修复、AUD-07 工具/渠道指引、AUD-08 发布准备和真实数据重评/批准采用已随 #99–#109 合并；#110 完成前一轮发版文档收尾，#111 的选择器快照与历史归档校验修复、#112/#113 的依赖更新也已合并。#113 合并提交的 tests、offline、CodeQL、devcontainer 均成功。当前直接依赖 16 个、运行锁 50 个，最低 Python 为 3.11.5；实际环境须安装新版本。D1 按全部保留方案，不安排分支或 worktree 清理。所有者已于 2026-10-19 在 `122489fa`（#114 合并）上创建并推送带注解标签 `v3.1.1`，并完成 A5 正式登记（观察窗 [2026-11-19, 2027-05-18)，最早成熟日 2027-06-07，详见[发布基线第 5 节](repair_release_baseline.md#5-v311-标签与-a5-登记工程摘要)）。登记之后 #117 改动了 8 个冻结范围文件，当前 main 不再等同于已登记身份，是否重新登记由所有者决定。AUD-07 外部补证单列。**
+**当前状态：AUD-01–06 工程修复、AUD-07 工具/渠道指引、AUD-08 发布准备和真实数据重评/批准采用已随 #99–#109 合并；#110 完成前一轮发版文档收尾，#111 的选择器快照与历史归档校验修复、#112/#113 的依赖更新也已合并。#113 的 tests、offline、CodeQL、devcontainer 成功记录保留为历史；当前 #120 合并基点的精确 SHA 检查见第 10 节。最低 Python 为 3.11.5；实际依赖版本与安装范围见[依赖说明](dependency_management.md)。D1 按全部保留方案，不安排分支或 worktree 清理。所有者已于 2026-10-19 在 `122489fa`（#114 合并）上创建并推送带注解标签 `v3.1.1`，并完成 A5 正式登记（观察窗 [2026-11-19, 2027-05-18)，最早成熟日 2027-06-07，详见[发布基线第 5 节](repair_release_baseline.md#5-v311-标签与-a5-登记工程摘要)）。登记之后 #117 改动了 8 个冻结范围文件，#119/#120 又合入研究工程；当前 main 不再等同于已登记身份，是否准备新版本并重新登记由所有者决定。PR25 工程状态及仍待外部证据的边界见[主线记录](research/paper_research_main_development_20261028.md)，不在本页批量关闭全局任务。AUD-07 外部补证单列。**
 
 ## 1. 目标与原则
 
@@ -70,7 +70,7 @@
 ### G0 前向观察窗与源码身份（已决：顺延，见 [ADR 0008](adr/0008-defer-forward-observation-window.md)）
 文档记载的前向观察窗为 **[2026-10-21, 2027-04-19)**（见[统一 Roadmap](unified_roadmap.md) 第 6 节），绑定的是 `followup-successor-03` 登记的源码清单（`code_hash = 1ed2cf91…`，395 个文件的字节哈希；协议尚未打开任何样本）。2026-10-12 的实测显示它已不对应 `main`（626 个文件中 536 个不同，`config/params.yaml` 的哈希也不再等于冻结的 `config_hash`：2026-10-04 的 `ca78e9c` 新增了默认关闭的 `capital:` 配置块）。此后的结构整理又改动了更多文件。
 
-**结论：观察窗顺延。** 旧协议与回执保留为历史记录，不改写；结构整理先于新身份登记进行（已完成）；**下一步是登记新身份**：先说明 `capital:` 配置变更并另写协议，再用 A4 的绑定记录登记，新窗口和成熟日从登记时间重新计算。登记之后，冻结范围重新受约束：观察期内改动走重新登记流程。因此**登记之前**应把还想做的、会碰冻结范围（`core/`、`backtest/`、`strategies/`、`router/`、`composition/`、`live_trading/`、`signal_meta/`、`ops/`、`cli/`、`research/ml_selection/`、`config/`）的整理都做完。
+**2026-10-12 的历史结论：观察窗顺延。** 旧协议与回执保留为历史记录，不改写。其后 `v3.1.1` 已于 2026-10-19 完成新身份登记（见[发布基线第 5 节](repair_release_baseline.md#5-v311-标签与-a5-登记工程摘要)）。当时结构整理先于新身份登记进行，登记步骤为：先说明 `capital:` 配置变更并另写协议，再用 A4 的绑定记录登记，新窗口和成熟日从登记时间重新计算。登记之后，冻结范围重新受约束：观察期内改动走重新登记流程。因此**登记之前**应把还想做的、会碰冻结范围（`core/`、`backtest/`、`strategies/`、`router/`、`composition/`、`live_trading/`、`signal_meta/`、`ops/`、`cli/`、`research/ml_selection/`、`config/`）的整理都做完。
 
 另：已登记的纸面观察实验（`reports/paper_forward_observation_20261003`）按设计校验源码哈希，B1/B2 搬迁之后**不能再 `--resume`**，需要登记新协议才能追加会话（它的采集已结束，历史证据保留不动）。
 
@@ -135,6 +135,9 @@
 | D4–D6 | 已完成 | CodeQL 首次运行没有未处理的告警（#85 之后的 `main`），仍建议有人定期看一遍；dev container 已由 CI 验证（#88）（ADR 0021、0023） |
 
 ## 5. 2026-10-17开发队列
+
+本节以 2026-10-17 队列为历史起点，保留逐项后续状态；不代表当前实现仍停留在 #113。
+当前维护基点为 #120 合并提交 `2d9710cc`，公开检查见第 10 节；PR25 执行状态由[主线记录](research/paper_research_main_development_20261028.md)维护。
 
 以下 AUD 编号仅为本轮工程修复包，不改写9月 FIX/SYS 历史验收，不新设 R 阶段。状态区分已合并、本 PR 待合并及待开发；日期是建议投入顺序，实际人员由项目方指派。公开来源与复核边界见[第10节](#10-2026-10-15公开github复核)。
 
@@ -274,7 +277,7 @@ M1 之后的功能轨道（特征管线 → 回测两层化 → 选币统一 →
 
 后续公开修复进度：
 
-| 工作包 | 当前 main / 本 PR 的证据与边界 |
+| 工作包 | 历史修复及后续证据边界（当前基点另列于本节末） |
 |---|---|
 | AUD-01 | [#99](https://github.com/user-nmmmmm/QuantTradingV2/pull/99) 已合并为 [ef44a7d0](https://github.com/user-nmmmmm/QuantTradingV2/commit/ef44a7d0786f1eace0ecb0933482c59ec3e17102)。共享进程锁、完整暂存与原子发布，覆盖竞争、中断和重试；历史协议不改写 |
 | AUD-02 首批 | [#100](https://github.com/user-nmmmmm/QuantTradingV2/pull/100) 已合并为 [f91e6bc9](https://github.com/user-nmmmmm/QuantTradingV2/commit/f91e6bc91ba4b32748d03608844c6d5d0e17de73)。其 head fa0ba271 的 [tests](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38675877558)、[offline](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38675877579)、[CodeQL](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38675877574) 均成功；完整套件 4292 passed、15 skipped、111 subtests，覆盖率 90.58% |
@@ -285,7 +288,7 @@ M1 之后的功能轨道（特征管线 → 回测两层化 → 选币统一 →
 | AUD-06–08 后续 | [#105](https://github.com/user-nmmmmm/QuantTradingV2/pull/105) 文档、[#106](https://github.com/user-nmmmmm/QuantTradingV2/pull/106) 治理工具、[#107](https://github.com/user-nmmmmm/QuantTradingV2/pull/107) 发布准备均已合并；外部补证及实际发布/A5 分别记录 |
 | 真实数据重评 | [#108](https://github.com/user-nmmmmm/QuantTradingV2/pull/108) 已合并到 4750dcf9；其 fe19b305 的 [完整 tests](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38715621802) 为 4639 passed、15 skipped、111 subtests、90.71%，四组安装各 358 项。该 review 和未批准草案保留原历史身份，后续正式采用另记 |
 | 批准数据采用 | [#109](https://github.com/user-nmmmmm/QuantTradingV2/pull/109) 已合并为 [321875d1](https://github.com/user-nmmmmm/QuantTradingV2/commit/321875d1eb4cbf10104c627ca370276137b1e22e)。[采用记录](data_review/20261016_adoption.md)及独立[技术回执](data_review/20261016_adoption_receipt.json)绑定数据提交 3c00f84d；30 份前缀、MATIC 83+1 和研究边界已由同一合并 SHA 的 CI 验证 |
-| 前次发布文档收尾 | [#110](https://github.com/user-nmmmmm/QuantTradingV2/pull/110) 已合并；本轮把后续修复纳入 2026-10-17 准备条目，仍未发布标签或执行 A5 |
+| 前次发布文档收尾 | [#110](https://github.com/user-nmmmmm/QuantTradingV2/pull/110) 已合并；2026-10-17 的准备条目当时尚未发布标签或执行 A5。实际标签与登记已于 2026-10-19 完成，见[发布基线第 5 节](repair_release_baseline.md#5-v311-标签与-a5-登记工程摘要) |
 | 选择器与归档完整性 | [#111](https://github.com/user-nmmmmm/QuantTradingV2/pull/111) 已合并；推断、回执和快照使用同一份已验证字节，拒绝非便携/大小写冲突成员路径，并独立固定历史归档身份（[ADR 0042](adr/0042-captured-selector-bytes-and-retained-archive-identities.md)）。工程交付不等于独立第三方审查凭证，外部补证继续单列 |
 | 依赖闭包与兼容性 | [#112](https://github.com/user-nmmmmm/QuantTradingV2/pull/112)、[#113](https://github.com/user-nmmmmm/QuantTradingV2/pull/113) 已合并；移除未使用的 Streamlit 依赖树，运行依赖直接固定为 16 个、锁文件 50 个；Requests 2.33.1、Soup Sieve 3.0.3、Multidict 6.9.1、IDNA 3.15。Python 下限 3.11.5，实际安装与测试范围见[依赖说明](dependency_management.md) |
 
@@ -295,14 +298,30 @@ M1 之后的功能轨道（特征管线 → 回测两层化 → 选币统一 →
 - [offline](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38865046618)：44 passed、6 subtests passed。
 - [CodeQL](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38865046845) 与 [devcontainer](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/38865046579) 成功。
 
-2026-10-17 当前 main 基点 `f161d9539a3edd5c5e0390ab36cde69e9abd663d`（#113 于 19:57 SGT 合并）的公开检查全部成功：
+2026-10-17 的历史 main 基点 `f161d9539a3edd5c5e0390ab36cde69e9abd663d`（#113 于 19:57 SGT 合并）的公开检查全部成功：
 
 - [tests](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/39030639436)：4735 passed、15 skipped、111 subtests passed，覆盖率 90.73%；四组 Ubuntu/Windows × Python 3.11/3.13 安装回归各 454 passed，ML 292 passed，前端 46 passed；数据采用/研究窗口门禁通过。
 - [offline](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/39030639413)：44 passed、6 subtests passed，合成报告与回放通过。
 - [CodeQL](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/39030639352) 与 [devcontainer](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/39030639367) 同一 SHA 成功；[pip 依赖图更新](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/39030644223)也已成功。告警明细及带采集时间的重扫回执仅留本地，CI 和依赖图任务本身不证明不存在漏洞。
 
-这些运行证明 #113 合并后的基点，不代替本次文档收尾 PR 或其最终合并 SHA 的检查。
+这些运行证明 #113 合并后的历史基点，不代替后续 main 或待发布候选的精确提交检查。
 文档收尾不触发 devcontainer 的路径过滤时，在目标分支手动运行该工作流并核对 head SHA。
 标签、身份绑定和 A5 已按[发布步骤](repair_release_baseline.md)完成，摘要见[第 5 节](repair_release_baseline.md#5-v311-标签与-a5-登记工程摘要)；登记产物仅留本地，不进入 PR。
 
 关闭 AUD 工作包须提供修复 commit、对应反例的正确结果、同一 commit 的 CI 和受影响证据的处置。工程 CI、候选登记、策略研究结论分别记录。
+
+### 2026-10-30 维护核对：#120 合并基点
+
+当前实现基点为 [#120](https://github.com/user-nmmmmm/QuantTradingV2/pull/120) 于 2026-10-28 合并的
+[`2d9710cc0c663bb8ccbef45620bfc5e8953d8d46`](https://github.com/user-nmmmmm/QuantTradingV2/commit/2d9710cc0c663bb8ccbef45620bfc5e8953d8d46)。
+2026-10-30 读取该 SHA 的公开检查，以下 9 项均为 completed/success：
+
+| 同一 SHA 的检查 | 公开运行 |
+|---|---|
+| tests：quality、ml-research、Ubuntu/Windows × Python 3.11/3.13 四组 install-smoke（共 6 项） | [tests](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/40642640561) |
+| offline：synthetic-smoke-and-regression（1 项） | [offline](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/40642640551) |
+| CodeQL：Python、JavaScript/TypeScript（2 项） | [CodeQL](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/40642640535) |
+
+本次读取没有该 SHA 的 devcontainer 运行；上面的 #113 容器记录仍只是历史证据。
+#120 的工程交付与研究限制见[主线记录](research/paper_research_main_development_20261028.md)，
+CI 成功不证明当前 main 与 `v3.1.1` 登记身份相同，也不替代实际前向证据或所有者的新候选登记。

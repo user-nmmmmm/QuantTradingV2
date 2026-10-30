@@ -22,12 +22,12 @@
 ### Changed
 
 - Refresh pinned certificate, asynchronous transport and image dependencies; regenerate the Linux/Python 3.11 runtime lock and extend real transport/report compatibility checks.
-- Record the 2026-10-19 `v3.1.1` annotated tag (tag object `2551bf22`, commit `122489fa`) and the A5 `code-token/v2` registration (observation window [2026-11-19, 2027-05-18), earliest maturity 2027-06-07) in the [infrastructure roadmap](docs/infrastructure_roadmap.md) and the [release baseline](docs/repair_release_baseline.md). The 3.1.1 entry below is unchanged from the tagged commit; private receipts and registration artifacts stay local.
+- Record the 2026-10-19 `v3.1.1` annotated tag (tag object `2551bf22`, commit `122489fa`) and the A5 `code-token/v2` registration (observation window [2026-11-19, 2027-05-18), earliest maturity 2027-06-07) in the [infrastructure roadmap](docs/infrastructure_roadmap.md) and the [release baseline](docs/repair_release_baseline.md). The maintained 3.1.1 entry below records the actual release date; the tagged commit retains its historical 2026-10-17 preparation text. Private receipts and registration artifacts stay local.
 - Note that #117 changed eight frozen-scope files after the registration, so current `main` is not the registered identity: new observation candidates need a new version and re-registration, and `v3.1.1` is never moved.
 
-## [3.1.1] - 2026-10-17
+## [3.1.1] - 2026-10-19
 
-Patch release preparation for the fixes in #99–#106, the release baseline in #107, the v2 data review and approved adoption in #108/#109, the earlier documentation closeout in #110, and the selector/archive integrity and dependency updates in #111–#113. The [repair baseline and owner runbook](docs/repair_release_baseline.md) links regressions, historical-evidence treatment and the release/tag/binding sequence. After this closeout merges, select the final main commit and verify its complete CI before any separately authorized release action. No v3.1.1 tag or new release binding is created here; A5 remains deferred and AUD-07 external evidence remains open.
+Patch release for the fixes in #99–#106, the release baseline in #107, the v2 data review and approved adoption in #108/#109, the earlier documentation closeout in #110, and the selector/archive integrity and dependency updates in #111–#113. The owner created and pushed annotated tag `v3.1.1` at `122489fab5d3f5b5d206ec77cd0c5dbc160e292a` (#114) and completed A5 registration on 2026-10-19. The [repair baseline and owner runbook](docs/repair_release_baseline.md) records the completed operations and the separate requirements for future candidates. AUD-07 external evidence remains open.
 
 ### Added
 
@@ -57,7 +57,7 @@ Patch release preparation for the fixes in #99–#106, the release baseline in #
 
 - New registration requires a fresh `code-token/v2` binding to the final release commit. The adopted loader boundary, #111 selector implementation and #112/#113 dependency/package metadata change frozen identity. Existing tags, v1 bindings, historical CSVs, review drafts and protocol records retain their original identities; old bindings cannot cover these later changes.
 - The adopted prefixes match the captured public responses under v2 comparison. Source evidence was observed on 2026-10-15; replay does not establish historical availability. Two download records, 28 `unverified` origins and all `point_in_time: unknown` statuses remain unchanged. Technical adoption is not strategy validation or admission to trade.
-- This closeout prepares the 2026-10-17 release entry without creating a tag or starting A5. If publication occurs on a later date, update this entry before selecting and validating the final release commit. Full audits, governance and registration materials remain local.
+- Historical preparation: the [tagged CHANGELOG snapshot](https://github.com/user-nmmmmm/QuantTradingV2/blob/122489fab5d3f5b5d206ec77cd0c5dbc160e292a/CHANGELOG.md) retains the 2026-10-17 preparation date and the then-pending tag/A5 steps. This maintained entry records their completion on 2026-10-19; the existing tag and its snapshot remain unchanged. Full audits, governance and registration materials remain local.
 
 ## [3.1.0] - 2026-10-14
 

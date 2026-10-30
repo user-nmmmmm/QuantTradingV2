@@ -20,6 +20,10 @@ from core.foundation.reproducibility import sha256_file
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_BUNDLE = ROOT / "config" / "ml_selector_current.json"
+_WINDOWS_RESERVED_NAMES = frozenset(
+    {"con", "prn", "aux", "nul", "conin$", "conout$"}
+    | {f"{prefix}{number}" for prefix in ("com", "lpt") for number in "123456789¹²³"}
+)
 
 
 @dataclass(frozen=True)
@@ -34,12 +38,20 @@ class BundleSnapshot:
         return hashlib.sha256(self.manifest_bytes).hexdigest()
 
 
+def _portable_member_component(component: str) -> bool:
+    """Apply the same Windows filename rules on every snapshot-building OS."""
+    return not (component.endswith((".", " "))
+                or component.partition(".")[0].rstrip(" ").casefold() in _WINDOWS_RESERVED_NAMES
+                or any(ord(character) < 32 or character in '<>:"|?*' for character in component))
+
+
 def _member_path(value: Any) -> str:
     if (not isinstance(value, str) or not value or "\\" in value
             or PureWindowsPath(value).drive or PurePosixPath(value).is_absolute()
             or not PurePosixPath(value).parts
             or ".." in PurePosixPath(value).parts or PurePosixPath(value).as_posix() != value
-            or PurePosixPath(value).parts[0].casefold() == "manifest.json"):
+            or PurePosixPath(value).parts[0].casefold() == "manifest.json"
+            or not all(_portable_member_component(part) for part in PurePosixPath(value).parts)):
         raise ValueError("Frozen selector members require portable relative paths")
     return value
 

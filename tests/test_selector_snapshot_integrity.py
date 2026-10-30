@@ -117,10 +117,32 @@ def test_nonportable_member_paths_fail_before_output(bundle, relative):
     assert not output.exists()
 
 
-def test_nested_relative_paths_remain_self_contained_and_existing_output_is_preserved(bundle):
+@pytest.mark.parametrize("relative", [
+    "CON.json", "nul", "weights/aUx.JSON", "PrN/model.json", "COM1.json", "weights/lpt9.json",
+    "COM¹.json", "LPT²/model.json", "conin$", "weights/CONOUT$.json", "NUL .json",
+    "weights./model.json", "weights /model.json", "weights/model.json.", "weights/model.json ",
+    "weights/model:stream.json", 'weights/model".json', "weights/model?.json", "weights/model*.json",
+    "weights/model<.json", "weights/model>.json", "weights/model|.json", "weights/model\x00.json",
+    "weights/model\x1f.json",
+])
+def test_windows_nonportable_components_are_rejected_before_artifact_access(bundle, relative):
     path, package = bundle
-    for role, record in package["files"].items():
-        relative = f"weights/{role}.json"
+    package["files"]["model"]["path"] = relative
+    path.write_text(json.dumps(package), encoding="utf-8")
+    output = path.parent.parent / "snapshot"
+    with pytest.raises(ValueError, match="portable relative paths"):
+        coin_selector.snapshot_bundle({"bundle_path": str(path), "bundle_sha256": digest(path.read_bytes())}, output)
+    assert not output.exists()
+
+
+@pytest.mark.parametrize("members", [
+    ("weights/model.json", "weights/policy.json"),
+    ("CONsole/COM10.json", " models/LPT0.json"),
+    ("weights/auxiliary.json", "weights/policy .json"),
+])
+def test_nested_relative_paths_remain_self_contained_and_existing_output_is_preserved(bundle, members):
+    path, package = bundle
+    for record, relative in zip(package["files"].values(), members):
         target = path.parent / relative
         target.parent.mkdir(exist_ok=True)
         target.write_bytes((path.parent / record["path"]).read_bytes())
