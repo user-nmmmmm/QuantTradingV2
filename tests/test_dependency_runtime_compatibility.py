@@ -111,10 +111,14 @@ def test_http_clients_reject_untrusted_tls_and_accept_explicit_local_ca(tmp_path
     ca_path, cert_path, key_path = _localhost_tls_material(tmp_path)
 
     class Handler(BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
         def do_GET(self):
+            body = b"verified-local-response"
             self.send_response(200)
+            self.send_header("Content-Length", str(len(body)))
             self.end_headers()
-            self.wfile.write(b"verified-local-response")
+            self.wfile.write(body)
 
         def log_message(self, *args):
             pass
@@ -122,6 +126,7 @@ def test_http_clients_reject_untrusted_tls_and_accept_explicit_local_ca(tmp_path
     server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     context.minimum_version = ssl.TLSVersion.TLSv1_2
+    context.set_alpn_protocols(["http/1.1"])
     context.load_cert_chain(certfile=cert_path, keyfile=key_path)
     server.socket = context.wrap_socket(server.socket, server_side=True)
     worker = Thread(target=server.serve_forever, daemon=True)
