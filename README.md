@@ -399,7 +399,8 @@ python -m pip install -e . --no-deps
 | 库 | 版本 | 用途 |
 | --- | --- | --- |
 | `ccxt` | 4.5.35 | 交易所连接（数据 + 实盘下单） |
-| `aiohttp` | 3.14.3 | 公共行情 WebSocket 客户端 |
+| `certifi` | 2026.10.19 | HTTP 客户端的 TLS 证书信任包 |
+| `aiohttp` | 3.14.4 | 公共行情 WebSocket 客户端 |
 | `cryptography` | 50.0.2 | CCXT 私钥加载与签名 |
 | `idna` | 3.15 | HTTP 客户端的国际化域名转换 |
 | `pandas` | 2.3.3 | 数据处理 |
@@ -408,7 +409,7 @@ python -m pip install -e . --no-deps
 | `multidict` | 6.9.1 | 异步 HTTP 客户端的多值请求头与查询参数 |
 | `plotly` | 6.5.2 | 交互式图表 |
 | `openpyxl` | 3.1.5 | Excel 工作簿报告 |
-| `Pillow` | 12.3.0 | 图像与报告输出 |
+| `Pillow` | 13.0.0 | 图像与报告输出 |
 | `PyYAML` | 6.0.3 | `config/params.yaml` 解析 |
 | `requests` | 2.33.1 | HTTP 调用（如 Telegram 告警） |
 | `urllib3` | 2.8.0 | Requests 的 HTTP 传输与流式响应处理 |

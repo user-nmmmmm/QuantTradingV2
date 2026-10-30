@@ -40,9 +40,15 @@ python scripts/regenerate_lock.py --check
 
 ## 运行依赖边界
 
-行情客户端、签名和图像输出使用的 `aiohttp`、`cryptography`、`idna`、`multidict`、`Pillow`、`requests`、`soupsieve` 和 `urllib3`
+行情客户端、证书信任、签名和图像输出使用的 `aiohttp`、`certifi`、`cryptography`、`idna`、`multidict`、`Pillow`、`requests`、`soupsieve` 和 `urllib3`
 在直接依赖中明确固定，普通可编辑安装与运行锁使用同一组已测试版本。`Pillow` 的导入名为 `PIL`，
 环境检查同时验证分发版本和正确的模块名。
+
+当前固定 aiohttp 3.14.4、certifi 2026.10.19 和 Pillow 13.0.0。证书包也作为直接依赖，
+使普通可编辑安装与运行锁安装遵守同一下限。aiohttp 的传递依赖 yarl 同步为 1.25.1；
+其余运行锁版本保留。该锁由 Linux/Python 3.11 的现有生成器产生，并经过规范形式与摘要核验。
+Pillow 13 要求 Python 3.11 或更高，仍在本项目的 Python 3.11.5+ 支持范围内。
+升级验证包括真实本地 HTTP/WebSocket、证书包内容以及 PNG、Excel 和 PDF 报告。
 
 域名转换和多值请求头依赖也在直接依赖中固定，避免普通可编辑安装沿用旧环境中仍满足上游宽泛版本范围的包。
 Soup Sieve 固定为未撤回的 `3.0.3`，使用它的解析器改进需要 Python 至少为 3.11.5；项目声明与环境检查同步执行此下限。
