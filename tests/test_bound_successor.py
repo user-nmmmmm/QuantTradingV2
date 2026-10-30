@@ -456,6 +456,7 @@ def test_noncooperating_writer_after_final_check_is_never_overwritten(world, pau
     else:
         output.symlink_to(target, target_is_directory=True)
     identity = output.lstat()
+    link_target = os.readlink(output) if kind in {"symlink", "dangling_symlink"} else None
     resume.set()
     assert result.get(timeout=30) == "FileExistsError"
     process.join(10)
@@ -466,7 +467,7 @@ def test_noncooperating_writer_after_final_check_is_never_overwritten(world, pau
     elif kind == "file":
         assert output.read_bytes() == b"other owner"
     else:
-        assert output.is_symlink() and output.readlink() == target
+        assert output.is_symlink() and os.readlink(output) == link_target
         if kind == "symlink":
             assert (target / "marker").read_bytes() == b"other owner"
     assert parent.read_bytes() == before and not parent.with_suffix(".json.opened").exists()

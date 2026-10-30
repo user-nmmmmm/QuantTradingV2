@@ -221,13 +221,23 @@ jobs:
           skipped = sum("skip_reason" in item for item in dependencies or [])
           vulnerabilities = sum(len(item.get("vulns", [])) for item in dependencies or [])
           clean = complete and not skipped and not vulnerabilities and result.returncode == 0
-          (output / "summary.json").write_text(json.dumps({
+          failure = result.stderr.lower()
+          failure_class = (
+              "findings" if vulnerabilities else
+              "configuration" if any(value in failure for value in ("unrecognized arguments", "usage:", "no module named")) else
+              "advisory_service_unavailable" if any(value in failure for value in ("proxy", "connect", "network", "timed out")) else
+              "incomplete_inventory" if skipped else "none" if clean else "scanner_error"
+          )
+          summary = {
               "completed_at_utc": datetime.now(timezone.utc).isoformat(),
               "completed": complete and not skipped, "clean": clean,
               "packages": len(dependencies or []), "skipped": skipped,
               "vulnerabilities": vulnerabilities, "scanner_returncode": result.returncode,
-              "private_result_sha256": hashlib.sha256(raw).hexdigest()
-          }, indent=2))
+              "private_result_sha256": hashlib.sha256(raw).hexdigest(),
+              "failure_class": failure_class
+          }
+          (output / "summary.json").write_text(json.dumps(summary, indent=2))
+          print(json.dumps(summary, sort_keys=True))
           # Advisory details remain in runner temporary storage; public receipts contain counts only.
           if not clean:
               raise SystemExit("Dependency audit was incomplete or reported findings; see the redacted receipt.")
