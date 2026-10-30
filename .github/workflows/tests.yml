@@ -209,6 +209,13 @@ jobs:
           import subprocess
           import sys
           output = Path("outputs/dependency-audit")
+          from packaging.utils import canonicalize_name
+          from packaging.version import Version
+          expected = {
+              canonicalize_name(name): Version(version)
+              for line in (output / "resolved-requirements.txt").read_text().splitlines()
+              for name, version in [line.split("==", 1)]
+          }
           private = Path(os.environ["RUNNER_TEMP"]) / "dependency-audit-result.json"
           result = subprocess.run([sys.executable, "-m", "pip_audit", "--strict",
               "--no-deps", "--disable-pip", "--format", "json", "--output", str(private),
@@ -217,7 +224,11 @@ jobs:
           raw = private.read_bytes() if private.exists() else b""
           report = json.loads(raw) if raw else {}
           dependencies = report.get("dependencies")
-          complete = isinstance(dependencies, list) and bool(dependencies)
+          actual = {
+              canonicalize_name(item["name"]): Version(item["version"])
+              for item in dependencies or [] if "name" in item and "version" in item
+          }
+          complete = isinstance(dependencies, list) and bool(dependencies) and actual == expected
           skipped = sum("skip_reason" in item for item in dependencies or [])
           vulnerabilities = sum(len(item.get("vulns", [])) for item in dependencies or [])
           clean = complete and not skipped and not vulnerabilities and result.returncode == 0
@@ -231,7 +242,8 @@ jobs:
           summary = {
               "completed_at_utc": datetime.now(timezone.utc).isoformat(),
               "completed": complete and not skipped, "clean": clean,
-              "packages": len(dependencies or []), "skipped": skipped,
+              "packages": len(dependencies or []), "expected_packages": len(expected),
+              "inventory_complete": actual == expected, "skipped": skipped,
               "vulnerabilities": vulnerabilities, "scanner_returncode": result.returncode,
               "private_result_sha256": hashlib.sha256(raw).hexdigest(),
               "failure_class": failure_class

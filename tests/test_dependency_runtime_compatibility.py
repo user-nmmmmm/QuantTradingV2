@@ -29,6 +29,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 @pytest.mark.parametrize("distribution,minimum", [
     ("aiohttp", "3.14.4"), ("certifi", "2026.10.19"),
+    ("curl_cffi", "0.15.0"), ("yfinance", "1.2.1"),
     ("cryptography", "50.0.2"), ("Pillow", "13.0.0"),
     ("soupsieve", "3.0.3"), ("urllib3", "2.8.0"), ("requests", "2.33.1"),
     ("idna", "3.15"), ("multidict", "6.9.1"),
@@ -97,7 +98,16 @@ def _localhost_tls_material(tmp_path):
     return ca_path, cert_path, key_path
 
 
-def test_requests_rejects_untrusted_tls_and_accepts_explicit_local_ca(tmp_path):
+@pytest.mark.parametrize("client", ["requests", "curl_cffi"])
+def test_http_clients_reject_untrusted_tls_and_accept_explicit_local_ca(tmp_path, monkeypatch, client):
+    if client == "curl_cffi":
+        from curl_cffi import requests as transport
+
+        options = {"impersonate": "chrome", "trust_env": False, "proxies": {"all": ""}}
+    else:
+        transport, options = requests, {}
+    for name in ("REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE"):
+        monkeypatch.delenv(name, raising=False)
     ca_path, cert_path, key_path = _localhost_tls_material(tmp_path)
 
     class Handler(BaseHTTPRequestHandler):
@@ -117,10 +127,10 @@ def test_requests_rejects_untrusted_tls_and_accepts_explicit_local_ca(tmp_path):
     worker = Thread(target=server.serve_forever, daemon=True)
     worker.start()
     try:
-        with requests.Session() as session:
+        with transport.Session(**options) as session:
             session.trust_env = False
             address = f"https://127.0.0.1:{server.server_port}/"
-            with pytest.raises(requests.exceptions.SSLError):
+            with pytest.raises(transport.exceptions.SSLError):
                 session.get(address, timeout=2)
             assert session.get(address, verify=str(ca_path), timeout=2).text == "verified-local-response"
     finally:
@@ -128,6 +138,104 @@ def test_requests_rejects_untrusted_tls_and_accepts_explicit_local_ca(tmp_path):
         server.server_close()
         worker.join(timeout=2)
     assert not worker.is_alive()
+
+
+def test_curl_preserves_normal_redirects_and_rejects_private_targets_in_safe_mode(monkeypatch):
+    from curl_cffi import requests as curl_requests
+
+    monkeypatch.setenv("NO_PROXY", "*")
+    monkeypatch.setenv("no_proxy", "*")
+    observed = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            observed.append(self.path)
+            if self.path in {"/redirect", "/private"}:
+                self.send_response(302)
+                self.send_header("Location", "/result" if self.path == "/redirect" else "http://10.0.0.1/")
+                self.end_headers()
+            else:
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b"redirect-complete")
+
+        def log_message(self, *args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    worker = Thread(target=server.serve_forever, daemon=True)
+    worker.start()
+    address = f"http://127.0.0.1:{server.server_port}"
+    try:
+        with curl_requests.Session(impersonate="chrome", trust_env=False, proxies={"all": ""}) as session:
+            response = session.get(address + "/redirect", timeout=2)
+            assert response.status_code == 200 and response.content == b"redirect-complete"
+            assert response.redirect_count == 1
+            with pytest.raises(curl_requests.exceptions.RequestException, match="SSRF"):
+                session.get(address + "/private", allow_redirects="safe", timeout=2)
+            assert observed == ["/redirect", "/result", "/private"]
+    finally:
+        server.shutdown()
+        server.server_close()
+        worker.join(timeout=2)
+    assert not worker.is_alive()
+
+
+def test_yahoo_requires_a_native_curl_session(monkeypatch):
+    from curl_cffi import requests as curl_requests
+    from yfinance.data import YfData
+    from yfinance.exceptions import YFDataException
+
+    monkeypatch.setattr(type(YfData), "_instances", {})
+    with curl_requests.Session(impersonate="chrome") as session:
+        data = YfData(session=session)
+        with requests.Session() as unsupported:
+            with pytest.raises(YFDataException, match="curl_cffi"):
+                YfData(session=unsupported)
+        assert data._session is session
+
+
+@pytest.mark.parametrize("proxy", [None, "http://127.0.0.1:9876"])
+def test_yahoo_download_normalizes_history_through_the_real_session_and_download_api(monkeypatch, proxy):
+    from curl_cffi import requests as curl_requests
+    import pandas as pd
+    import yfinance as yf
+    from yfinance.config import YfConfig
+    from yfinance.data import YfData
+
+    from core.market.data_fetcher import DataFetcher
+
+    monkeypatch.setattr(type(YfData), "_instances", {})
+    monkeypatch.setattr(YfConfig.network, "proxy", None)
+    history = pd.DataFrame({
+        "Open": [100., 101.], "High": [103., 104.], "Low": [99., 100.],
+        "Close": [102., 103.], "Volume": [10., 11.],
+    }, index=pd.date_range("2026-10-01", periods=2, tz="UTC", name="Date"))
+    observed, sessions = [], []
+
+    def fixture_history(ticker, **kwargs):
+        session = ticker._data._session
+        sessions.extend((session, ticker.session))
+        assert isinstance(session, curl_requests.Session)
+        assert session.impersonate == "chrome"
+        assert session.verify is not False
+        assert session.proxies == ({} if proxy is None else {"http": proxy, "https": proxy})
+        observed.append((ticker.ticker, kwargs["start"], kwargs["end"], kwargs["timeout"]))
+        return history.copy()
+
+    monkeypatch.setattr(yf.Ticker, "history", fixture_history)
+    fetcher = DataFetcher(proxy_url=proxy, request_timeout_ms=2500)
+    try:
+        result = fetcher.fetch_yahoo("BTC-USD", "2026-10-01", "2026-10-03")
+        expected = history.rename(columns=str.lower).tz_localize(None)
+        pd.testing.assert_frame_equal(result.sort_index(axis=1), expected.sort_index(axis=1),
+                                      check_freq=False, check_names=False)
+        assert observed == [("BTC-USD", "2026-10-01", "2026-10-03", 2.5)]
+        assert result.attrs["provider"] == "yahoo" and result.attrs["symbol"] == "BTC-USD"
+    finally:
+        fetcher.close()
+        for session in sessions:
+            session.close()
 
 
 @pytest.mark.parametrize("ca_variable", [None, "REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE"])
