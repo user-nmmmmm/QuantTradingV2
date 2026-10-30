@@ -414,7 +414,8 @@ python -m pip install -e . --no-deps
 | `requests` | 2.33.1 | HTTP 调用（如 Telegram 告警） |
 | `urllib3` | 2.8.0 | Requests 的 HTTP 传输与流式响应处理 |
 | `soupsieve` | 3.0.3 | 数据提供者 HTML 解析所需的 CSS 选择器依赖 |
-| `yfinance` | 1.1.0 | Yahoo Finance 数据源 |
+| `yfinance` | 1.2.1 | Yahoo Finance 数据源 |
+| `curl_cffi` | 0.15.0 | Yahoo Finance HTTP 传输 |
 
 ### 4.2 运行回测
 

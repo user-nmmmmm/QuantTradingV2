@@ -113,7 +113,7 @@ class DataFetcher:
         配置代理环境变量。
 
         说明：
-        - yfinance 基于 requests，会读取 HTTP_PROXY/HTTPS_PROXY
+        - yfinance 基于 curl_cffi，支持 HTTP_PROXY/HTTPS_PROXY
         - ccxt 也可通过 proxies 参数单独传入；这里两者都覆盖
         """
         if not self.proxy_url:
@@ -188,18 +188,15 @@ class DataFetcher:
                 "timeout": self.request_timeout_ms / 1000,
             }
             if self.proxy_url:
-                try:
-                    import requests
+                from curl_cffi import requests as curl_requests
 
-                    session = requests.Session()
-                    session.proxies.update(
-                        {"http": self.proxy_url, "https": self.proxy_url}
-                    )
-                    download_kwargs["session"] = session
-                except Exception:
-                    logger.warning("Failed to construct proxy session for yfinance")
-
-            df = yf.download(symbol, **download_kwargs)
+                with curl_requests.Session(
+                    impersonate="chrome",
+                    proxies={"http": self.proxy_url, "https": self.proxy_url},
+                ) as session:
+                    df = yf.download(symbol, session=session, **download_kwargs)
+            else:
+                df = yf.download(symbol, **download_kwargs)
 
             if df.empty:
                 logger.warning(f"No data returned for {symbol}")

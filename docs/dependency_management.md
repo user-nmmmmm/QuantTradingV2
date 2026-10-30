@@ -44,7 +44,8 @@ python scripts/regenerate_lock.py --check
 在直接依赖中明确固定，普通可编辑安装与运行锁使用同一组已测试版本。`Pillow` 的导入名为 `PIL`，
 环境检查同时验证分发版本和正确的模块名。
 
-当前固定 aiohttp 3.14.4、certifi 2026.10.19 和 Pillow 13.0.0。证书包也作为直接依赖，
+当前固定 aiohttp 3.14.4、certifi 2026.10.19 和 Pillow 13.0.0。Yahoo Finance 客户端使用
+yfinance 1.2.1 与 curl_cffi 0.15.0 的兼容组合，并直接固定传输库。证书包也作为直接依赖，
 使普通可编辑安装与运行锁安装遵守同一下限。aiohttp 的传递依赖 yarl 同步为 1.25.1；
 其余运行锁版本保留。该锁由 Linux/Python 3.11 的现有生成器产生，并经过规范形式与摘要核验。
 Pillow 13 要求 Python 3.11 或更高，仍在本项目的 Python 3.11.5+ 支持范围内。
@@ -67,3 +68,15 @@ GitPython、Tornado 或 PyArrow。未来接入需要这些库的新功能时，�
 ## Dependabot
 
 只对 GitHub Actions 启用：每月一次，小版本与补丁合并成一个分组 PR，主版本升级单独成 PR 并单独评审。pip 的版本更新不启用，因为 Dependabot 不能运行再生成脚本，每个 PR 都会让 `regenerate_lock.py --check` 失败；原因与取舍见 [ADR 0021](adr/0021-locked-ci-and-dependabot-policy.md)。仓库的安全警报保持开启，收到后按上面的"升级依赖"流程处理。
+
+## CI 依赖审计
+
+`tests.yml` 的独立 `dependency-audit` 作业在 Linux/Python 3.11 的新环境中同时安装运行锁、
+开发和可选 ML 依赖，检查依赖一致性，再用精确固定的 pip-audit 2.9.0 审计实际安装闭包。
+审计器的共享依赖也受运行锁约束。清单、源码 SHA、平台、采集时间和仅含计数的结果摘要作为回执保留；
+具体公告内容只留在 runner 临时目录，不复制到公开日志或工件。PyPI 公告服务没有固定数据库版本，
+回执记录的是本轮查询时间，不能把它当作永久无漏洞保证。
+
+安装失败、数据库不可用、跳过包或发现公告都会使作业失败；另以一个无法连接服务的受控探针确认
+审计器不会把查询失败报告为成功。当前没有忽略列表，任何未来例外都需独立说明公告、清单、原因和到期时间。
+该审计覆盖上述 Linux/Python 3.11 安装闭包，Windows/Python 3.13 的安装与行为回归另由矩阵记录。
