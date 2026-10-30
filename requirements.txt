@@ -14,4 +14,5 @@ PyYAML==6.0.3
 requests==2.33.1
 soupsieve==3.0.3
 urllib3==2.8.0
-yfinance==1.1.0
+yfinance==1.2.1
+curl_cffi==0.15.0
