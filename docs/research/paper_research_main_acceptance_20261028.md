@@ -1,6 +1,6 @@
 # PR25 主线验收与交付（2026-10-28）
 
-本轮将 PR25 隔离研究工程移植到 main `b47f66cc`，新增可信本地成本发布、原策略全 bar 签名捕获和安全 typed CLI/worker。当前工程专项已经完成；**同一提交的远端 CI 尚待取得，本文件不宣称已全绿**。最终结果以交付 PR 的实际 Checks 和交付回执为准。
+本轮将 PR25 隔离研究工程移植到 main `b47f66cc`，新增可信本地成本发布、原策略全 bar 签名捕获和安全 typed CLI/worker。当前工程专项已经完成；**交付 PR #120 最终提交及其合并提交的远端 CI 已全部通过**（2026-10-31 回读记录，见下节）。独立复核、研究评价和外部证据不由 CI 通过替代。
 
 [机器回执](paper_research_main_acceptance_20261028.json) · [开发与兼容说明](paper_research_main_development_20261028.md) · [原始开发计划](paper_research_development_plan_20261025.md)
 
@@ -15,6 +15,17 @@
 首轮分支 CI（`a90f9aa`）中 8 项任务通过，quality 记录 5287 passed / 11 failed / 15 skipped，覆盖率 90.95%。后续修复脚本登记/导入、报告合同、严格类型模块登记、校准设计错误顺序和跨进程代码指纹。该失败记录保留在机器回执；修复后的远端结论仍以实际最终 Checks 为准。
 
 留出集的执行绑定使用 `python-executable-fields/v1`，避免 `marshal` 的进程内引用状态影响代码身份。源码/默认值/全局状态及嵌套代码仍受核验；旧绑定可读取，消费时拒绝自动升级，新方案须明确新版本登记。
+
+## 远端 CI 结果（2026-10-31 回读）
+
+以下数字取自 GitHub check-runs 与 quality 作业日志，写入[机器回执](paper_research_main_acceptance_20261028.json)的 `final_remote_ci`：
+
+| 提交 | 触发 | 全部 check runs | quality（Linux, Python 3.11） | 运行 |
+| --- | --- | --- | --- | --- |
+| `8ce579ce`（#120 最终 head） | pull_request | 成功，0 失败 | 5404 passed / 0 failed / 15 skipped，覆盖率 90.97%（门槛 90%） | [tests](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/40640792859) |
+| `2d9710cc`（#120 合并提交） | push | 成功，0 失败 | 5404 passed / 0 failed / 15 skipped，覆盖率 90.97% | [tests](https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/40642640561) |
+
+check runs 包括 quality、ml-research、四个 install-smoke（Ubuntu/Windows × 3.11/3.13）、synthetic-smoke-and-regression 和 CodeQL（python、javascript-typescript）。首轮 `a90f9aa` 的 11 项失败记录继续保留在 `remote_ci_attempts`。各工作包的 reviewer 仍为 `pending_current_commit_review`。
 
 ## 未被工程通过替代的条件
 
