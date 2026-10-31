@@ -6030,8 +6030,8 @@
         "original_policy_decision_intent_capture_and_store_v2_binding",
         "typed_data_manifest_to_actual_bounded_worker_transport"
       ],
-      "scope_status": "pending_current_commit_checks",
-      "engineering": "pending_current_commit_checks",
+      "scope_status": "remote_ci_passed_independent_review_pending",
+      "engineering": "remote_ci_passed_independent_review_pending",
       "research": "not_evaluated_for_current_main",
       "external_evidence": "pending",
       "evidence": "docs/research/paper_research_main_acceptance_20261028.json",
@@ -6044,7 +6044,14 @@
       "conditional_PR25_15": "not_triggered",
       "actual_candidate_freeze": "no_candidate_promoted",
       "actual_maturity_adjudication": "pending",
-      "remote_ci": "pending_current_commit_checks"
+      "remote_ci": "pass",
+      "remote_ci_evidence": {
+        "pr_final_head": "8ce579ce94349c129ed4342f898cb699d7a93c7d",
+        "merge_commit": "2d9710cc0c663bb8ccbef45620bfc5e8953d8d46",
+        "tests_run": "https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/40642640561",
+        "tests_passed": 5404,
+        "coverage_percent": 90.97
+      }
     }
   ]
 }

@@ -4,8 +4,8 @@
   "source_base": "b47f66cc4a3391de75f638da4a25d5e6fd75f41d",
   "branch": "codex/pr25-completion-20261028",
   "implementation": "scoped_engineering_implemented",
-  "ci_gate": "pending_pr120_followup_remote_checks",
-  "remote_ci_claimed_pass": false,
+  "ci_gate": "passed_pr120_final_head_and_merge_commit",
+  "remote_ci_claimed_pass": true,
   "global_task_status_changed": false,
   "live_authorization": false,
   "source_rule": "Previous unpublished b82 worktree receipts remain local historical evidence. This file records main integration; final CI status is the actual same-head GitHub checks, linked in the pull request and delivery receipt.",
@@ -590,7 +590,7 @@
       }
     },
     "current_ci_coverage_requirement_percent": 90,
-    "current_ci_gate": "pending_new_merged_head_checks"
+    "current_ci_gate": "passed_merge_commit_2d9710cc"
   },
   "pr120_followup": {
     "review_comment": 4397184538,
@@ -614,6 +614,73 @@
       "preflight_log": "outputs/pr120_fixed_static_preflight.log",
       "main_contract_qa": "outputs/pr120_b1_merge_contract_qa.json"
     },
-    "current_remote_result": "Pending final followup head; earlier green runs are historical only"
+    "current_remote_result": "Final head 8ce579ce and merge commit 2d9710cc passed all check runs; see final_remote_ci"
+  },
+  "final_remote_ci": {
+    "recorded_on": "2026-10-31",
+    "source": "GitHub check-runs and quality job logs for the listed commits; read back, not inferred",
+    "pr": 120,
+    "pr_final_head": {
+      "sha": "8ce579ce94349c129ed4342f898cb699d7a93c7d",
+      "event": "pull_request",
+      "tests_run": "https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/40640792859",
+      "codeql_run": "https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/40640792842",
+      "automation_run": "https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/40640792870",
+      "jobs": [
+        "quality",
+        "ml-research",
+        "install-smoke ubuntu/windows x Python 3.11/3.13 (4 jobs)",
+        "synthetic-smoke-and-regression",
+        "CodeQL analyze (python, javascript-typescript)"
+      ],
+      "all_check_runs_conclusion": "success",
+      "failed_check_runs": 0,
+      "quality": {
+        "job": "quality (pytest + coverage, Linux Python 3.11.17)",
+        "tests_passed": 5404,
+        "tests_failed": 0,
+        "tests_skipped": 15,
+        "subtests_passed": 111,
+        "coverage_percent": 90.97,
+        "coverage_requirement_percent": 90
+      }
+    },
+    "merge_commit": {
+      "sha": "2d9710cc0c663bb8ccbef45620bfc5e8953d8d46",
+      "event": "push",
+      "merged_at": "2026-10-28T06:14:16Z",
+      "tests_run": "https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/40642640561",
+      "codeql_run": "https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/40642640535",
+      "automation_run": "https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/40642640551",
+      "all_check_runs_conclusion": "success",
+      "failed_check_runs": 0,
+      "quality": {
+        "job": "quality (pytest + coverage, Linux Python 3.11.17)",
+        "tests_passed": 5404,
+        "tests_failed": 0,
+        "tests_skipped": 15,
+        "subtests_passed": 111,
+        "coverage_percent": 90.97,
+        "coverage_requirement_percent": 90
+      }
+    },
+    "later_main_reference": {
+      "sha": "d887bdbd78e530bdc085c711532d311436669870",
+      "note": "main after #121 (dependency closure audit); unrelated to PR25 scope, recorded only as the current base",
+      "tests_run": "https://github.com/user-nmmmmm/QuantTradingV2/actions/runs/41198653604",
+      "all_check_runs_conclusion": "success",
+      "failed_check_runs": 0,
+      "quality": {
+        "tests_passed": 5417,
+        "tests_failed": 0,
+        "tests_skipped": 15,
+        "coverage_percent": 91.05
+      }
+    },
+    "interpretation": "Remote CI for the PR120 final head and its merge commit passed. This closes the remote-CI gate only; independent review, research evaluation and external evidence remain as recorded."
+  },
+  "independent_review": {
+    "status": "pending",
+    "note": "Per-task reviewer fields remain pending_current_commit_review; passing CI does not substitute review."
   }
 }
