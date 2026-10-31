@@ -155,3 +155,138 @@ jobs:
         run: |
           python -m pip install pytest==9.1.1
           python -m pytest -q tests/test_source_identity.py tests/test_release_check.py tests/test_data_input_integrity.py tests/test_data_adoption_review.py tests/test_data_adoption.py tests/test_aud05_runtime_semantics.py tests/test_nonpositive_equity_metrics.py tests/test_markdown_links.py tests/test_documentation_navigation.py tests/test_architecture_inventory.py tests/test_repository_governance.py tests/test_selector_snapshot_integrity.py tests/test_external_archive_integrity.py tests/test_dependency_runtime_compatibility.py tests/test_p2_01_10.py::TestP201ToP210::test_legacy_entrypoints_are_absent_and_canonical_name_documented
+
+  dependency-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Resolve the installed runtime, development and ML package closure
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import platform
+          import subprocess
+          import sys
+          import venv
+          from datetime import datetime, timezone
+          target = Path(os.environ["RUNNER_TEMP"]) / "dependency-audit-target"
+          venv.EnvBuilder(with_pip=True).create(target)
+          interpreter = target / "bin/python"
+          subprocess.run([str(interpreter), "-m", "pip", "install",
+              "-r", "requirements.lock.txt", "-r", "requirements-dev.txt",
+              "-r", "requirements-ml.txt"], check=True)
+          subprocess.run([str(interpreter), "-m", "pip", "check"], check=True)
+          frozen = subprocess.check_output(
+              [str(interpreter), "-m", "pip", "freeze", "--exclude-editable"], text=True)
+          output = Path("outputs/dependency-audit")
+          output.mkdir(parents=True, exist_ok=True)
+          (output / "resolved-requirements.txt").write_text(frozen)
+          (output / "metadata.json").write_text(json.dumps({
+              "source_sha": os.environ["GITHUB_SHA"],
+              "platform": platform.platform(), "python": sys.version,
+              "profiles": ["runtime-lock", "development", "ml"],
+              "scanner": "pip-audit==2.9.0",
+              "recorded_at_utc": datetime.now(timezone.utc).isoformat(),
+              "advisory_service": "PyPI JSON API queried during this run; no fixed database revision",
+              "inventory": "isolated installed closure; pip/setuptools/wheel excluded by pip freeze"
+          }, indent=2))
+          PY
+      - name: Audit the resolved package inventory
+        run: |
+          python -m pip install pip-audit==2.9.0 -c requirements.lock.txt
+          python - <<'PY'
+          from datetime import datetime, timezone
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import subprocess
+          import sys
+          output = Path("outputs/dependency-audit")
+          from packaging.utils import canonicalize_name
+          from packaging.version import Version
+          expected = {
+              canonicalize_name(name): Version(version)
+              for line in (output / "resolved-requirements.txt").read_text().splitlines()
+              for name, version in [line.split("==", 1)]
+          }
+          private = Path(os.environ["RUNNER_TEMP"]) / "dependency-audit-result.json"
+          result = subprocess.run([sys.executable, "-m", "pip_audit", "--strict",
+              "--no-deps", "--disable-pip", "--format", "json", "--output", str(private),
+              "--cache-dir", str(Path(os.environ["RUNNER_TEMP"]) / "dependency-audit-cache"),
+              "-r", str(output / "resolved-requirements.txt")], capture_output=True, text=True)
+          raw = private.read_bytes() if private.exists() else b""
+          report = json.loads(raw) if raw else {}
+          dependencies = report.get("dependencies")
+          actual = {
+              canonicalize_name(item["name"]): Version(item["version"])
+              for item in dependencies or [] if "name" in item and "version" in item
+          }
+          complete = isinstance(dependencies, list) and bool(dependencies) and actual == expected
+          skipped = sum("skip_reason" in item for item in dependencies or [])
+          vulnerabilities = sum(len(item.get("vulns", [])) for item in dependencies or [])
+          clean = complete and not skipped and not vulnerabilities and result.returncode == 0
+          failure = result.stderr.lower()
+          failure_class = (
+              "findings" if vulnerabilities else
+              "configuration" if any(value in failure for value in ("unrecognized arguments", "usage:", "no module named")) else
+              "advisory_service_unavailable" if any(value in failure for value in ("proxy", "connect", "network", "timed out")) else
+              "incomplete_inventory" if skipped else "none" if clean else "scanner_error"
+          )
+          summary = {
+              "completed_at_utc": datetime.now(timezone.utc).isoformat(),
+              "completed": complete and not skipped, "clean": clean,
+              "packages": len(dependencies or []), "expected_packages": len(expected),
+              "inventory_complete": actual == expected, "skipped": skipped,
+              "vulnerabilities": vulnerabilities, "scanner_returncode": result.returncode,
+              "private_result_sha256": hashlib.sha256(raw).hexdigest(),
+              "failure_class": failure_class
+          }
+          (output / "summary.json").write_text(json.dumps(summary, indent=2))
+          print(json.dumps(summary, sort_keys=True))
+          # Advisory details remain in runner temporary storage; public receipts contain counts only.
+          if not clean:
+              raise SystemExit("Dependency audit was incomplete or reported findings; see the redacted receipt.")
+          PY
+      - name: Confirm unavailable advisory data cannot report a clean result
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import subprocess
+          import sys
+          output = Path("outputs/dependency-audit")
+          probe = output / "unavailable-probe.txt"
+          probe.write_text("certifi==2026.10.19\n")
+          env = dict(os.environ)
+          for name in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy"):
+              env[name] = "http://127.0.0.1:9"
+          env["NO_PROXY"] = env["no_proxy"] = ""
+          result = subprocess.run([sys.executable, "-m", "pip_audit", "--strict",
+              "--no-deps", "--disable-pip", "--timeout", "1", "--cache-dir",
+              str(Path(os.environ["RUNNER_TEMP"]) / "unavailable-audit-cache"),
+              "-r", str(probe)], env=env, text=True, capture_output=True, timeout=40)
+          if result.returncode == 0:
+              raise RuntimeError("Unavailable advisory service incorrectly reported success")
+          failure = result.stderr.lower()
+          if not any(word in failure for word in ("proxy", "connect", "network", "timed out")):
+              raise RuntimeError("Audit probe failed for an unexpected reason: " + result.stderr)
+          (output / "unavailable-probe.json").write_text(json.dumps({
+              "returncode": result.returncode, "reported_success": False,
+              "failure_class": "advisory_service_unavailable"
+          }, indent=2))
+          PY
+      - name: Preserve the dependency audit receipt
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: dependency-audit-evidence
+          path: outputs/dependency-audit/
+          retention-days: 30

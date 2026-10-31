@@ -10,6 +10,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import importlib
 import importlib.metadata
 import io
+import re
+import ssl
 from pathlib import Path
 import sys
 from threading import Thread
@@ -26,12 +28,266 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 @pytest.mark.parametrize("distribution,minimum", [
-    ("aiohttp", "3.14.3"), ("cryptography", "50.0.2"), ("Pillow", "12.3.0"),
+    ("aiohttp", "3.14.4"), ("certifi", "2026.10.19"),
+    ("curl_cffi", "0.15.0"), ("yfinance", "1.2.1"),
+    ("cryptography", "50.0.2"), ("Pillow", "13.0.0"),
     ("soupsieve", "3.0.3"), ("urllib3", "2.8.0"), ("requests", "2.33.1"),
     ("idna", "3.15"), ("multidict", "6.9.1"),
 ])
 def test_installed_client_and_report_versions_meet_the_runtime_floor(distribution, minimum):
     assert Version(importlib.metadata.version(distribution)) >= Version(minimum)
+
+
+def test_requests_uses_the_installed_certificate_bundle():
+    import certifi
+
+    bundle = Path(certifi.where())
+    assert Path(requests.certs.where()).resolve() == bundle.resolve()
+    certificates = re.findall(
+        rb"-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----", bundle.read_bytes(), re.S)
+    assert certificates
+    fingerprints = {
+        hashlib.sha256(ssl.PEM_cert_to_DER_cert(block.decode("ascii"))).hexdigest()
+        for block in certificates
+    }
+    assert "86a1ecba089c4a8d3bbe2734c612ba341d813e043cf9e8a862cd5c57a36bbe6b" not in fingerprints
+    with requests.Session() as session:
+        assert session.verify is True
+
+
+def _localhost_tls_material(tmp_path):
+    from datetime import datetime, timedelta, timezone
+    from ipaddress import ip_address
+
+    from cryptography import x509
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
+
+    now = datetime.now(timezone.utc)
+    ca_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    ca_name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "Local test CA")])
+    ca = (x509.CertificateBuilder().subject_name(ca_name).issuer_name(ca_name)
+          .public_key(ca_key.public_key()).serial_number(x509.random_serial_number())
+          .not_valid_before(now - timedelta(minutes=5)).not_valid_after(now + timedelta(days=1))
+          .add_extension(x509.BasicConstraints(ca=True, path_length=0), critical=True)
+          .add_extension(x509.KeyUsage(False, False, False, False, False, True, True, False, False),
+                         critical=True)
+          .add_extension(x509.SubjectKeyIdentifier.from_public_key(ca_key.public_key()), critical=False)
+          .sign(ca_key, hashes.SHA256()))
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    leaf = (x509.CertificateBuilder()
+            .subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "localhost")]))
+            .issuer_name(ca_name).public_key(key.public_key())
+            .serial_number(x509.random_serial_number())
+            .not_valid_before(now - timedelta(minutes=5)).not_valid_after(now + timedelta(days=1))
+            .add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
+            .add_extension(x509.SubjectAlternativeName([x509.IPAddress(ip_address("127.0.0.1"))]),
+                           critical=False)
+            .add_extension(x509.ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH]), critical=False)
+            .add_extension(x509.AuthorityKeyIdentifier.from_issuer_public_key(ca_key.public_key()),
+                           critical=False)
+            .add_extension(x509.KeyUsage(True, False, True, False, False, False, False, False, False),
+                           critical=True)
+            .sign(ca_key, hashes.SHA256()))
+    ca_path, cert_path, key_path = (tmp_path / name for name in ("ca.pem", "server.pem", "key.pem"))
+    ca_path.write_bytes(ca.public_bytes(serialization.Encoding.PEM))
+    cert_path.write_bytes(leaf.public_bytes(serialization.Encoding.PEM))
+    key_path.write_bytes(key.private_bytes(serialization.Encoding.PEM,
+        serialization.PrivateFormat.PKCS8, serialization.NoEncryption()))
+    return ca_path, cert_path, key_path
+
+
+@pytest.mark.parametrize("client", ["requests", "curl_cffi"])
+def test_http_clients_reject_untrusted_tls_and_accept_explicit_local_ca(tmp_path, monkeypatch, client):
+    if client == "curl_cffi":
+        from curl_cffi import requests as transport
+
+        options = {"impersonate": "chrome", "trust_env": False, "proxies": {"all": ""}}
+    else:
+        transport, options = requests, {}
+    for name in ("REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE"):
+        monkeypatch.delenv(name, raising=False)
+    ca_path, cert_path, key_path = _localhost_tls_material(tmp_path)
+
+    class Handler(BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
+        def do_GET(self):
+            body = b"verified-local-response"
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
+    context.set_alpn_protocols(["http/1.1"])
+    context.load_cert_chain(certfile=cert_path, keyfile=key_path)
+    server.socket = context.wrap_socket(server.socket, server_side=True)
+    worker = Thread(target=server.serve_forever, daemon=True)
+    worker.start()
+    try:
+        with transport.Session(**options) as session:
+            session.trust_env = False
+            address = f"https://127.0.0.1:{server.server_port}/"
+            with pytest.raises(transport.exceptions.SSLError):
+                session.get(address, timeout=2)
+            assert session.get(address, verify=str(ca_path), timeout=2).text == "verified-local-response"
+    finally:
+        server.shutdown()
+        server.server_close()
+        worker.join(timeout=2)
+    assert not worker.is_alive()
+
+
+def test_curl_preserves_normal_redirects_and_rejects_private_targets_in_safe_mode(monkeypatch):
+    from curl_cffi import requests as curl_requests
+
+    monkeypatch.setenv("NO_PROXY", "*")
+    monkeypatch.setenv("no_proxy", "*")
+    observed = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            observed.append(self.path)
+            if self.path in {"/redirect", "/private"}:
+                self.send_response(302)
+                self.send_header("Location", "/result" if self.path == "/redirect" else "http://10.0.0.1/")
+                self.end_headers()
+            else:
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b"redirect-complete")
+
+        def log_message(self, *args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    worker = Thread(target=server.serve_forever, daemon=True)
+    worker.start()
+    address = f"http://127.0.0.1:{server.server_port}"
+    try:
+        with curl_requests.Session(impersonate="chrome", trust_env=False, proxies={"all": ""}) as session:
+            response = session.get(address + "/redirect", timeout=2)
+            assert response.status_code == 200 and response.content == b"redirect-complete"
+            assert response.redirect_count == 1
+            with pytest.raises(curl_requests.exceptions.RequestException, match="SSRF"):
+                session.get(address + "/private", allow_redirects="safe", timeout=2)
+            assert observed == ["/redirect", "/result", "/private"]
+    finally:
+        server.shutdown()
+        server.server_close()
+        worker.join(timeout=2)
+    assert not worker.is_alive()
+
+
+def test_yahoo_requires_a_native_curl_session(monkeypatch):
+    from curl_cffi import requests as curl_requests
+    from yfinance.data import YfData
+    from yfinance.exceptions import YFDataException
+
+    monkeypatch.setattr(type(YfData), "_instances", {})
+    with curl_requests.Session(impersonate="chrome") as session:
+        data = YfData(session=session)
+        with requests.Session() as unsupported:
+            with pytest.raises(YFDataException, match="curl_cffi"):
+                YfData(session=unsupported)
+        assert data._session is session
+
+
+@pytest.mark.parametrize("proxy", [None, "http://127.0.0.1:9876"])
+def test_yahoo_download_normalizes_history_through_the_real_session_and_download_api(monkeypatch, proxy):
+    from curl_cffi import requests as curl_requests
+    import pandas as pd
+    import yfinance as yf
+    from yfinance.config import YfConfig
+    from yfinance.data import YfData
+
+    from core.market.data_fetcher import DataFetcher
+
+    monkeypatch.setattr(type(YfData), "_instances", {})
+    monkeypatch.setattr(YfConfig.network, "proxy", None)
+    history = pd.DataFrame({
+        "Open": [100., 101.], "High": [103., 104.], "Low": [99., 100.],
+        "Close": [102., 103.], "Volume": [10., 11.],
+    }, index=pd.date_range("2026-10-01", periods=2, tz="UTC", name="Date"))
+    observed, sessions = [], []
+
+    def fixture_history(ticker, **kwargs):
+        session = ticker._data._session
+        sessions.extend((session, ticker.session))
+        assert isinstance(session, curl_requests.Session)
+        assert session.impersonate == "chrome"
+        assert session.verify is not False
+        assert session.proxies == ({} if proxy is None else {"http": proxy, "https": proxy})
+        observed.append((ticker.ticker, kwargs["start"], kwargs["end"], kwargs["timeout"]))
+        return history.copy()
+
+    monkeypatch.setattr(yf.Ticker, "history", fixture_history)
+    fetcher = DataFetcher(proxy_url=proxy, request_timeout_ms=2500)
+    try:
+        result = fetcher.fetch_yahoo("BTC-USD", "2026-10-01", "2026-10-03")
+        expected = history.rename(columns=str.lower).tz_localize(None)
+        pd.testing.assert_frame_equal(result.sort_index(axis=1), expected.sort_index(axis=1),
+                                      check_freq=False, check_names=False)
+        assert observed == [("BTC-USD", "2026-10-01", "2026-10-03", 2.5)]
+        assert result.attrs["provider"] == "yahoo" and result.attrs["symbol"] == "BTC-USD"
+    finally:
+        fetcher.close()
+        for session in sessions:
+            session.close()
+
+
+@pytest.mark.parametrize("ca_variable", [None, "REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE"])
+def test_public_archive_preserves_explicit_certificate_trust(tmp_path, monkeypatch, ca_variable):
+    from scripts import collect_factor_evidence as collector
+
+    ca_path, cert_path, key_path = _localhost_tls_material(tmp_path)
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"verified-public-source")
+
+        def log_message(self, *args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
+    context.load_cert_chain(certfile=cert_path, keyfile=key_path)
+    server.socket = context.wrap_socket(server.socket, server_side=True)
+    worker = Thread(target=server.serve_forever, daemon=True)
+    worker.start()
+    address = f"https://127.0.0.1:{server.server_port}/"
+    monkeypatch.setattr(collector, "BASE", address)
+    monkeypatch.setenv("NO_PROXY", "127.0.0.1")
+    monkeypatch.setenv("no_proxy", "127.0.0.1")
+    for name in ("REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE"):
+        monkeypatch.delenv(name, raising=False)
+    if ca_variable is not None:
+        monkeypatch.setenv(ca_variable, str(ca_path))
+    try:
+        with requests.Session() as session:
+            archive = collector.PublicArchive(tmp_path / "archive", session=session, timeout=2)
+            raw, metadata = archive.fetch("tls-source", address)
+            if ca_variable is None:
+                assert raw == b"" and metadata["error_type"] == "SSLError"
+                assert metadata["status"] is None
+            else:
+                assert raw == b"verified-public-source"
+                assert metadata["status"] == 200 and metadata["error_type"] is None
+    finally:
+        server.shutdown()
+        server.server_close()
+        worker.join(timeout=2)
+    assert not worker.is_alive()
 
 
 def test_editable_install_metadata_and_lock_preserve_the_supported_dependency_boundary():

@@ -21,6 +21,7 @@
 
 ### Changed
 
+- Refresh pinned certificate, asynchronous transport, market-data and image dependencies; regenerate the Linux/Python 3.11 runtime lock and extend real transport/report compatibility checks.
 - Record the 2026-10-19 `v3.1.1` annotated tag (tag object `2551bf22`, commit `122489fa`) and the A5 `code-token/v2` registration (observation window [2026-11-19, 2027-05-18), earliest maturity 2027-06-07) in the [infrastructure roadmap](docs/infrastructure_roadmap.md) and the [release baseline](docs/repair_release_baseline.md). The 3.1.1 entry below is unchanged from the tagged commit; private receipts and registration artifacts stay local.
 - Note that #117 changed eight frozen-scope files after the registration, so current `main` is not the registered identity: new observation candidates need a new version and re-registration, and `v3.1.1` is never moved.
 
