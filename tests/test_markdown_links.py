@@ -123,3 +123,48 @@ def test_indented_list_continuations_cannot_hide_reference_links(tree):
     (tree / "docs/reference.md").write_text("- item\n    [guide][manual]\n\n[manual]: missing.md\n", encoding="utf-8")
     broken = [entry for entry in links.find_broken(links.tracked_files()) if entry["source"] == "docs/reference.md"]
     assert [(entry["line"], entry["target"]) for entry in broken] == [(2, "docs/missing.md")]
+
+
+@pytest.mark.parametrize("opening", ["```python`invalid", "   ````info``", "```python\\`invalid", "``` info ```"])
+def test_backticks_in_backtick_fence_info_cannot_hide_broken_links(tree, opening):
+    (tree / "docs/reference.md").write_text(f"{opening}\n[guide](missing.md)\n", encoding="utf-8")
+    broken = [entry for entry in links.find_broken(links.tracked_files()) if entry["source"] == "docs/reference.md"]
+    assert [(entry["line"], entry["target"]) for entry in broken] == [(2, "docs/missing.md")]
+
+
+@pytest.mark.parametrize("opening, closing", [("```python", "```"), ("~~~python`allowed", "~~~"), ("````md", "`````")])
+def test_valid_fence_info_still_masks_links(tree, opening, closing):
+    text = f"{opening}\n[hidden](missing.md)\n{closing}\n[visible](b.md)\n"
+    (tree / "docs/reference.md").write_text(text, encoding="utf-8")
+    assert not [entry for entry in links.find_broken(links.tracked_files()) if entry["source"] == "docs/reference.md"]
+
+
+@pytest.mark.parametrize("title", [
+    '"first\nsecond"', "'first\nsecond'", "(first\nsecond)",
+    '"first \\"quoted\\"\nsecond"', "'first \\'quoted\\'\nsecond'", "(first \\(bracketed\\)\nsecond)",
+])
+@pytest.mark.parametrize("template", [
+    "[guide](missing.md {title})\n",
+    "[guide][manual]\n\n[manual]: missing.md {title}\n",
+    "[guide][manual]\n\n[manual]: missing.md\n  {title}\n",
+])
+def test_multiline_titles_preserve_destination_checks(tree, title, template):
+    (tree / "docs/reference.md").write_text(template.format(title=title), encoding="utf-8")
+    broken = [entry for entry in links.find_broken(links.tracked_files()) if entry["source"] == "docs/reference.md"]
+    assert [(entry["line"], entry["target"]) for entry in broken] == [(1, "docs/missing.md")]
+
+
+@pytest.mark.parametrize("text", [
+    '[guide](b.md "first\n[title text](missing.md)\nlast")\n',
+    '[guide][manual]\n\n[manual]: b.md "first\n[title text](missing.md)\nlast"\n',
+    '[guide](missing.md "first\n\nlast")\n',
+    "[guide](missing.md 'first\n \t\nlast')\n",
+    "[guide](missing.md (first\n\nlast))\n",
+    '[guide][manual]\n\n[manual]: missing.md "first\n\nlast"\n',
+    "[guide][manual]\n\n[manual]: missing.md 'first\n \t\nlast'\n",
+    "[guide][manual]\n\n[manual]: missing.md (first\n\nlast)\n",
+    '[guide](missing.md "unterminated\nsecond)\n',
+])
+def test_titles_do_not_create_links_from_title_text_or_invalid_syntax(tree, text):
+    (tree / "docs/reference.md").write_text(text, encoding="utf-8")
+    assert not [entry for entry in links.find_broken(links.tracked_files()) if entry["source"] == "docs/reference.md"]

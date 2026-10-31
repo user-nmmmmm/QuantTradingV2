@@ -2,12 +2,15 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import errno
 import hashlib
 import json
 import multiprocessing
+import os
 from pathlib import Path
 import shutil
 import subprocess
+from types import SimpleNamespace
 
 import pytest
 
@@ -238,7 +241,7 @@ def test_interrupted_build_is_unpublished_and_retryable(world, monkeypatch, phas
         else:
             def fail_publish(path, target):
                 raise failure("interrupted publication")
-            patch.setattr(Path, "rename", fail_publish)
+            patch.setattr(module, "_publish_registration", fail_publish)
         with pytest.raises(failure, match="interrupted"):
             register_bound_successor(**world)
     assert parent.read_bytes() == before
@@ -291,6 +294,32 @@ def registration_process(world, ready, resume, result):
 
     module._utc_now = lambda: datetime(2099, 1, 1, 12, tzinfo=timezone.utc)
     module.shutil.copyfile = paused_copy
+    try:
+        register_bound_successor(**world)
+        result.put("registered")
+    except BaseException as exc:
+        result.put(type(exc).__name__)
+
+
+def publication_process(world, ready, resume, result):
+    """Pause after the final existence observation, before the native publication."""
+    original = os.path.lexists
+    observations = 0
+
+    def paused_lexists(path):
+        nonlocal observations
+        exists = original(path)
+        if Path(path) == world["output"]:
+            observations += 1
+            if observations == 2:
+                assert not exists
+                ready.set()
+                if not resume.wait(30):
+                    raise TimeoutError("publication test was not resumed")
+        return exists
+
+    module._utc_now = lambda: datetime(2099, 1, 1, 12, tzinfo=timezone.utc)
+    module.os.path.lexists = paused_lexists
     try:
         register_bound_successor(**world)
         result.put("registered")
@@ -401,3 +430,81 @@ def test_concurrent_different_parents_cannot_replace_an_existing_registration(wo
     assert process.exitcode == 0
     assert {path.name: path.read_bytes() for path in output.iterdir()} == before
     assert_complete_registration(output)
+
+
+@pytest.mark.parametrize("kind", ["directory", "file", "symlink", "dangling_symlink"])
+def test_noncooperating_writer_after_final_check_is_never_overwritten(world, paused_process, kind):
+    output = world["output"]
+    target = output.parent / "other-owner"
+    if kind in {"symlink", "dangling_symlink"}:
+        if kind == "symlink":
+            target.mkdir()
+            (target / "marker").write_bytes(b"other owner")
+        try:
+            output.symlink_to(target, target_is_directory=True)
+        except OSError as exc:
+            pytest.skip(f"symlink creation unavailable: {exc}")
+        output.unlink()
+    parent = world["historical_batch"] / "prospective_protocol.json"
+    before = parent.read_bytes()
+    process, resume, result = paused_process(publication_process, world)
+    assert not os.path.lexists(output)
+    if kind == "directory":
+        output.mkdir()
+    elif kind == "file":
+        output.write_bytes(b"other owner")
+    else:
+        output.symlink_to(target, target_is_directory=True)
+    identity = output.lstat()
+    link_target = os.readlink(output) if kind in {"symlink", "dangling_symlink"} else None
+    resume.set()
+    assert result.get(timeout=30) == "FileExistsError"
+    process.join(10)
+    assert process.exitcode == 0
+    assert output.lstat() == identity
+    if kind == "directory":
+        assert list(output.iterdir()) == []
+    elif kind == "file":
+        assert output.read_bytes() == b"other owner"
+    else:
+        assert output.is_symlink() and os.readlink(output) == link_target
+        if kind == "symlink":
+            assert (target / "marker").read_bytes() == b"other owner"
+    assert parent.read_bytes() == before and not parent.with_suffix(".json.opened").exists()
+    assert not list(output.parent.glob(".out.registration-*"))
+
+
+@pytest.mark.parametrize("unsupported", ["platform", "libc", "filesystem"])
+def test_publication_without_native_no_replace_support_fails_closed(world, monkeypatch, unsupported):
+    # Substitute the platform probe, not sys.platform itself: pathlib must keep its host flavor.
+    monkeypatch.setattr(module, "sys", SimpleNamespace(platform="freebsd" if unsupported == "platform" else "linux"))
+    if unsupported == "libc":
+        monkeypatch.setattr(module.ctypes, "CDLL", lambda *args, **kwargs: SimpleNamespace())
+    elif unsupported == "filesystem":
+        def unsupported_rename(*args):
+            module.ctypes.set_errno(errno.EOPNOTSUPP)
+            return -1
+        monkeypatch.setattr(module.ctypes, "CDLL", lambda *args, **kwargs: SimpleNamespace(renameat2=unsupported_rename))
+    parent = world["historical_batch"] / "prospective_protocol.json"
+    before = parent.read_bytes()
+    with pytest.raises(OSError) as error:
+        register_bound_successor(**world)
+    assert error.value.errno in {errno.ENOTSUP, errno.EOPNOTSUPP}
+    assert parent.read_bytes() == before and not parent.with_suffix(".json.opened").exists()
+    assert not os.path.lexists(world["output"])
+    assert not list(world["output"].parent.glob(".out.registration-*"))
+
+
+def test_native_linux_publication_preserves_unrelated_os_errors(world, monkeypatch):
+    def denied_rename(*args):
+        module.ctypes.set_errno(errno.EACCES)
+        return -1
+
+    monkeypatch.setattr(module, "sys", SimpleNamespace(platform="linux"))
+    monkeypatch.setattr(module.ctypes, "CDLL", lambda *args, **kwargs: SimpleNamespace(renameat2=denied_rename))
+    with pytest.raises(PermissionError) as error:
+        register_bound_successor(**world)
+    assert error.value.errno == errno.EACCES
+    assert error.value.filename2 == str(world["output"])
+    assert not os.path.lexists(world["output"])
+    assert not list(world["output"].parent.glob(".out.registration-*"))

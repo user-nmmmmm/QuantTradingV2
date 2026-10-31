@@ -36,10 +36,14 @@ SKIP_SOURCES = ("docs/archive/2026-08", "docs/archive/2026-09")
 GENERATED_TARGETS = ("reports/", "outputs/", "data/", "tmp/")
 LABEL = r"(?:\\.|[^\[\]\\])*"
 DESTINATION = r"(?:\\.|[^\s<>\\()]|\((?:\\.|[^\\()\n])*\))+"
+# Titles may span lines, but a blank line ends the surrounding Markdown block.
+TITLE = (r'(?:"(?:\\.|[^"\\\n]|\n(?![ \t]*\n)|\\(?=\n))*"'
+         r"|'(?:\\.|[^'\\\n]|\n(?![ \t]*\n)|\\(?=\n))*'"
+         r'|\((?:\\.|[^()\\\n]|\n(?![ \t]*\n)|\\(?=\n))*\))')
 LINK = re.compile(r"(?<!\\)\[" + LABEL + r"\]\([ \t\n]*(<[^<>\n]*>|" + DESTINATION
-                  + r")?[ \t\n]*(?:\"[^\"\n]*\"|'[^'\n]*'|\([^\n)]*\))?[ \t\n]*\)")
+                  + r")?[ \t\n]*(?:" + TITLE + r")?[ \t\n]*\)")
 DEFINITION = re.compile(r"^ {0,3}\[(" + LABEL + r")\]:[ \t]*(?:\n[ \t]*)?(<[^<>\n]*>|(?:\\.|[^\s<>])+)"
-                        r"[ \t]*(?:\"[^\"\n]*\"|'[^'\n]*'|\([^\n)]*\))?[ \t]*(?:\n|$)", re.MULTILINE)
+                        + r"(?:[ \t]*(?:\n[ \t]*)?(?:" + TITLE + r"))?[ \t]*(?:\n|$)", re.MULTILINE)
 REFERENCE = re.compile(r"(?<!\\)\[(" + LABEL + r")\](?:[ \t]*\[(" + LABEL + r")\])?")
 FENCE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
 CODE = re.compile(r"(?<![\\`])(`+)(?!`)(.*?)(?<!`)\1(?!`)", re.DOTALL)
@@ -64,7 +68,7 @@ def _prose(text: str) -> str:
             if marker and marker[1][0] == fence[0] and len(marker[1]) >= len(fence) and not marker[2].strip():
                 fence = None
             lines.append(_mask(line))
-        elif marker:
+        elif marker and (marker[1][0] != "`" or "`" not in marker[2]):
             fence = marker[1]
             lines.append(_mask(line))
         else:

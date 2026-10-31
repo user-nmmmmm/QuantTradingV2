@@ -14,7 +14,7 @@ from scripts import repository_governance as governance
 def run(repo, *args, data=None):
     result = subprocess.run(["git", "-C", str(repo), *args], input=data, capture_output=True,
                             env=dict(os.environ, GIT_CONFIG_NOSYSTEM="1", GIT_OPTIONAL_LOCKS="0"), check=True)
-    return result.stdout.decode("utf-8").strip()
+    return result.stdout.decode("utf-8").removesuffix("\n")
 
 
 @pytest.fixture
@@ -72,6 +72,48 @@ def test_dirty_and_clean_worktrees_are_distinguished_without_listing_private_fil
     assert result["worktrees"][0]["status"] == "dirty"
     assert "private-untracked" not in json.dumps(result)
     assert "private payload" not in json.dumps(result)
+
+
+@pytest.mark.parametrize("value", [" /tmp/repository ", "/tmp/repository\t", "/tmp/repository\n",
+                                 "/tmp/repository\r\n", "/tmp/repository\u00a0", "main", ""])
+def test_text_removes_only_the_git_protocol_newline(monkeypatch, value):
+    monkeypatch.setattr(governance, "git", lambda *args: (value + "\n").encode("utf-8"))
+    assert governance.text(Path("."), "rev-parse", "--show-toplevel") == value
+
+
+@pytest.mark.parametrize("suffix", [
+    "\u00a0",
+    pytest.param(" ", marks=pytest.mark.skipif(os.name == "nt", reason="Windows trims trailing spaces")),
+    pytest.param("\n", marks=pytest.mark.skipif(os.name == "nt", reason="Windows forbids newline paths")),
+])
+def test_repository_whitespace_survives_inventory_and_receipt(repo, suffix):
+    root = repo.with_name(repo.name + suffix)
+    repo.rename(root)
+    result = governance.snapshot(root, "main")
+    assert Path(result["repository"]) == root.resolve()
+    assert Path(result["worktrees"][0]["path"]).resolve() == root.resolve()
+    assert result["worktrees"][0]["status"] == "clean"
+    output = governance.write_snapshot(root, Path("outputs/review.json"), result)
+    assert output == root.resolve() / "outputs/review.json"
+    assert json.loads(output.read_text(encoding="utf-8"))["repository"] == str(root.resolve())
+
+
+@pytest.mark.parametrize("suffix", [
+    "\u00a0",
+    pytest.param(" ", marks=pytest.mark.skipif(os.name == "nt", reason="Windows trims trailing spaces")),
+    pytest.param("\n", marks=pytest.mark.skipif(os.name == "nt", reason="Windows forbids newline paths")),
+])
+def test_linked_worktree_whitespace_survives_status_validation(repo, tmp_path, suffix):
+    attached = tmp_path / ("attached worktree" + suffix)
+    run(repo, "worktree", "add", "-b", "whitespace-topic", str(attached))
+    commit(repo)
+    result = governance.snapshot(repo, "main")
+    item = next(item for item in result["worktrees"] if item["branch"] == "refs/heads/whitespace-topic")
+    assert Path(item["path"]).resolve() == attached.resolve()
+    assert item["status"] == "clean"
+    branch = next(item for item in result["branches"] if item["ref"] == "refs/heads/whitespace-topic")
+    assert [Path(path).resolve() for path in branch["worktrees"]] == [attached.resolve()]
+    assert branch["review"] == "review_worktree"
 
 
 def test_checked_out_locked_branch_and_detached_worktree_require_individual_review(repo, tmp_path):
@@ -199,6 +241,16 @@ def test_cli_writes_a_new_ignored_local_receipt_without_mutating_git(repo, capsy
     before = output.read_bytes()
     assert governance.main(["--repo", str(repo), "--base", "main", "--output", "outputs/d1.json"]) == 1
     assert output.read_bytes() == before
+
+
+@pytest.mark.parametrize("name", [
+    "review\u00a0.json", 'review "quoted".json' if os.name != "nt" else "review quoted.json",
+    pytest.param("review\npath.json", marks=pytest.mark.skipif(os.name == "nt", reason="Windows forbids newline paths")),
+])
+def test_ignored_receipt_paths_do_not_depend_on_git_quoting_or_lines(repo, name):
+    output = governance.write_snapshot(repo, Path("outputs") / name, {"preserved": True})
+    assert output.name == name
+    assert json.loads(output.read_text(encoding="utf-8")) == {"preserved": True}
 
 
 @pytest.mark.parametrize("output", ["docs/d1.json", "outputs/../../outside.json", "outputs/../public.json"])

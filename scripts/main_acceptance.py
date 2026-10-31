@@ -8,11 +8,13 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timezone
 import hashlib
+import io
 import json
 import os
 from pathlib import Path, PurePosixPath
 import subprocess
 import sys
+import tomllib
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -137,6 +139,30 @@ def verify_bundle(path: Path) -> dict:
     return {"passed": True, "members_verified": len(expected), "zip_sha256": sha(path.read_bytes()), "bytes": path.stat().st_size}
 
 
+def source_python_environment(source_zip: bytes) -> str:
+    """Read the selected source's requirement, independent of the packager checkout.
+
+    Historical source without pyproject.toml or project.requires-python retains the
+    legacy Python 3.11+ replay guidance. Present but malformed metadata is an error.
+    Existing frozen bundles and their verification contract are unchanged.
+    """
+    legacy = "Python 3.11+ environment (legacy source has no requires-python metadata)"
+    with zipfile.ZipFile(io.BytesIO(source_zip)) as source:
+        try:
+            metadata = source.read("pyproject.toml")
+        except KeyError:
+            return legacy
+    project = tomllib.loads(metadata.decode("utf-8")).get("project", {})
+    if not isinstance(project, dict):
+        raise ValueError("Selected source pyproject.toml has an invalid project table")
+    if "requires-python" not in project:
+        return legacy
+    requirement = project["requires-python"]
+    if not isinstance(requirement, str) or not requirement.strip():
+        raise ValueError("Selected source requires-python must be a nonempty string")
+    return f"Python environment satisfying `{requirement}` (source.zip pyproject.toml)"
+
+
 def package(output: Path, destination: Path) -> int:
     acceptance = json.loads((output / "acceptance.json").read_text(encoding="utf-8"))
     commit = acceptance["commit"]
@@ -180,7 +206,8 @@ def package(output: Path, destination: Path) -> int:
         f"Commit: {commit}\nLocal checks passed: {acceptance['local_passed']}\n\n"
         "1. Verify the outer ZIP hash against its separate index, then run:\n"
         "   python tools/main_acceptance.py verify PATH_TO_OUTER_ZIP\n"
-        "2. Extract source.zip into source/. Install its requirements-dev.txt in an isolated Python 3.11+ environment.\n"
+        "2. Extract source.zip into source/. Install its requirements-dev.txt in an isolated "
+        f"{source_python_environment(members['source.zip'])}.\n"
         "3. From source/, run the paired experiment against the bundled inputs:\n"
         "   python scripts/run_p0_recovery_backtest.py --source-manifest ../inputs/run_manifest.json "
         "--output ../reproduced --verify-reference ../evidence/current_1\n"

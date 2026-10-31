@@ -27,7 +27,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from math import isfinite
-from typing import Any, Dict, Mapping, Optional, Tuple
+from typing import Any, Dict, Iterable, Mapping, Optional, Tuple
 
 from core.foundation.domain import OrderStatus
 from core.trading.entry_risk import resolve_approved_risk
@@ -225,6 +225,7 @@ class PortfolioRiskGovernor:
         self.policy = policy or CorrelationClusterPolicy(enabled=False)
         self._session: Any = None
         self._session_risk = 0.0
+        self._session_risk_unverifiable = False
         self.audit: list[Dict[str, Any]] = []
         self._state_store = None
         self._order_store = None
@@ -235,42 +236,59 @@ class PortfolioRiskGovernor:
 
     @property
     def session_risk_used(self) -> float:
-        """Already accepted risk, including durable same-session reservations."""
-        return self._session_risk
+        """Recovered risk, or unavailable capacity when recovery is unverifiable.
+
+        Infinity is only a read-only capacity signal for planning. Persisted
+        counters and audit amounts remain the finite verified amount.
+        """
+        return float("inf") if self._session_risk_unverifiable else self._session_risk
 
     def begin_session(self, session: Any) -> None:
         if session != self._session:
             self._session = session
             self._session_risk = 0.0
+            self._session_risk_unverifiable = False
             if self._state_store is not None:
                 self._session_risk = float(self._state_store.get(f"session_risk:{session}", 0.0))
             if self._order_store is not None and session is not None:
-                import pandas as pd
-                from core.market.timeframes import timeframe_delta
-                reserved = 0.0
-                for row in self._order_store.list_all():
-                    intent = row.get("intent") or {}
-                    if row["side"] not in {"buy", "short"} or intent.get("reduce_only"):
-                        continue
-                    if (row.get("status") in {OrderStatus.REJECTED.value,
-                            OrderStatus.EXPIRED_UNSUBMITTED.value, OrderStatus.NO_POSITION.value}
-                            and not row.get("filled_qty")):
-                        continue
-                    if (row.get("status") in {OrderStatus.CANCELED.value, OrderStatus.EXPIRED.value}
-                            and not row.get("submission_attempted") and not row.get("filled_qty")):
-                        continue
-                    try:
-                        bar = pd.Timestamp(intent["bar_time"]) - timeframe_delta(intent["timeframe"])
-                        expected = pd.Timestamp(session)
-                        if bar.tzinfo:
-                            bar = bar.tz_convert("UTC").tz_localize(None)
-                        if expected.tzinfo:
-                            expected = expected.tz_convert("UTC").tz_localize(None)
-                        if bar == expected:
-                            reserved += resolve_approved_risk({"requested_qty": row.get("requested_qty"), **intent})[0]
-                    except (KeyError, ValueError, TypeError):
-                        continue
+                reserved = self._recover_session_risk(session, self._order_store.list_all())
                 self._session_risk = max(self._session_risk, reserved)
+
+    def _recover_session_risk(self, session: Any, rows: Iterable[Mapping[str, Any]]) -> float:
+        import pandas as pd
+        from core.market.timeframes import timeframe_delta
+
+        reserved = 0.0
+        for row in rows:
+            intent = row.get("intent") or {}
+            if row["side"] not in {"buy", "short"} or intent.get("reduce_only"):
+                continue
+            if (row.get("status") in {OrderStatus.REJECTED.value,
+                    OrderStatus.EXPIRED_UNSUBMITTED.value, OrderStatus.NO_POSITION.value}
+                    and not row.get("filled_qty")):
+                continue
+            if (row.get("status") in {OrderStatus.CANCELED.value, OrderStatus.EXPIRED.value}
+                    and not row.get("submission_attempted") and not row.get("filled_qty")):
+                continue
+            try:
+                bar = pd.Timestamp(intent["bar_time"]) - timeframe_delta(intent["timeframe"])
+                expected = pd.Timestamp(session)
+                if bar.tzinfo:
+                    bar = bar.tz_convert("UTC").tz_localize(None)
+                if expected.tzinfo:
+                    expected = expected.tz_convert("UTC").tz_localize(None)
+            except (KeyError, ValueError, TypeError):
+                continue
+            if bar != expected:
+                continue
+            try:
+                reserved += resolve_approved_risk({"requested_qty": row.get("requested_qty"), **intent})[0]
+            except ValueError:
+                # A present invalid approval cannot become zero risk or fall
+                # back to legacy price/quantity reconstruction. Keep verified
+                # amounts finite and block budgets that need this session's total.
+                self._session_risk_unverifiable = True
+        return reserved
 
     def evaluate(
         self, *, symbol: str, planned_risk: float, equity: float,
@@ -282,6 +300,11 @@ class PortfolioRiskGovernor:
             return RiskBudgetDecision(
                 True, 1.0, "no_risk_cap", cluster, planned_risk, planned_risk
             )
+        uses_session_risk = (self.policy.max_same_session_entry_risk is not None
+            or (self.policy.max_crypto_beta_stop_risk is not None and pending_stop_risk is None))
+        if self._session_risk_unverifiable and uses_session_risk:
+            return RiskBudgetDecision(
+                False, 0.0, "unverifiable_session_risk", cluster, planned_risk, 0.0)
         pending: Dict[str, float] = {}
         try:
             for pending_symbol, value in (pending_stop_risk or {}).items():

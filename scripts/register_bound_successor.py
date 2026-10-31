@@ -17,13 +17,16 @@ This command writes only into a new ``--output`` directory. It does not create o
 from __future__ import annotations
 
 import argparse
+import ctypes
 from datetime import datetime, timezone
+import errno
 import hashlib
 import json
 import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, List
 
@@ -111,6 +114,30 @@ def register_bound_successor(*, repo_root, tag: str, historical_batch, config_ch
                                          config_change=config_change, output=output)
 
 
+def _publish_registration(staged: Path, output: Path) -> None:
+    """Atomically publish a complete directory, refusing every existing destination entry.
+
+    Windows rename already refuses replacement. Linux needs renameat2's RENAME_NOREPLACE;
+    ordinary POSIX rename can replace an empty directory after an existence check. Missing
+    native support (including unsupported filesystems) fails closed without a rename fallback.
+    """
+    if sys.platform == "win32":
+        staged.rename(output)
+        return
+    if not sys.platform.startswith("linux"):
+        raise OSError(errno.ENOTSUP, "Atomic no-replace registration publication is unsupported", str(output))
+    try:
+        renameat2 = ctypes.CDLL(None, use_errno=True).renameat2
+    except AttributeError as exc:
+        raise OSError(errno.ENOTSUP, "Atomic no-replace registration publication requires renameat2", str(output)) from exc
+    renameat2.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_uint]
+    renameat2.restype = ctypes.c_int
+    # AT_FDCWD = -100; RENAME_NOREPLACE = 1. Both paths share the same parent filesystem.
+    if renameat2(-100, os.fsencode(staged), -100, os.fsencode(output), 1):
+        error = ctypes.get_errno()
+        raise OSError(error, os.strerror(error), str(staged), None, str(output))
+
+
 def _register_bound_successor(*, repo_root, tag, historical_batch, config_change, output) -> Dict[str, Any]:
     root, historical, output = Path(repo_root), Path(historical_batch), Path(output)
     output = output.parent.resolve() / output.name
@@ -167,7 +194,7 @@ def _register_bound_successor(*, repo_root, tag, historical_batch, config_change
         with exclusive_path_lock(output):
             if os.path.lexists(output):
                 raise FileExistsError(f"Registration output already exists: {output}")
-            staged.rename(output)
+            _publish_registration(staged, output)
         return receipt
 
 
