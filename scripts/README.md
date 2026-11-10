@@ -60,7 +60,7 @@
 | [`benchmark_backtest.py`](benchmark_backtest.py)、[`benchmark_kline_modes.py`](benchmark_kline_modes.py) | 离线引擎性能与 K 线模式成对基准。 |
 | [`diagnose_strategy_health.py`](diagnose_strategy_health.py)、[`run_health_recovery_experiment.py`](run_health_recovery_experiment.py) | 策略健康诊断与固定候选对照。 |
 | [`prepare_revalidation_data.py`](prepare_revalidation_data.py)、[`run_revalidation60.py`](run_revalidation60.py) | 冻结并复验预先声明的 60 标的样本。 |
-| [`run_health_policy_study.py`](run_health_policy_study.py)、[`run_time_exit_rebuy_study.py`](run_time_exit_rebuy_study.py)、[`run_live_window_study.py`](run_live_window_study.py)、[`run_health_power_study.py`](run_health_power_study.py) | 策略整改阶段 B 的预注册研究（SR1-HEALTH-006、SR-EXIT-001、SR-DATA-001、SR1-HEALTH-007），协议与结果在 `docs/research/`。 |
+| [`run_health_policy_study.py`](run_health_policy_study.py)、[`run_time_exit_rebuy_study.py`](run_time_exit_rebuy_study.py)、[`run_live_window_study.py`](run_live_window_study.py)、[`run_health_power_study.py`](run_health_power_study.py)、[`run_entry_delay_study.py`](run_entry_delay_study.py) | 策略整改阶段 B 的预注册研究（SR1-HEALTH-006、SR-EXIT-001、SR-DATA-001、SR1-HEALTH-007、SR-ALPHA-004），协议与结果在 `docs/research/`。 |
 | [`run_p0_attribution_experiment.py`](run_p0_attribution_experiment.py)、[`run_p0_recovery_backtest.py`](run_p0_recovery_backtest.py)、[`run_p0_recovery_validation.py`](run_p0_recovery_validation.py) | P0 归因及恢复政策的固定实验。 |
 | [`run_deep_recovery_backtest.py`](run_deep_recovery_backtest.py)、[`run_expanded_universe_backtest.py`](run_expanded_universe_backtest.py)、[`run_strategy_remediation.py`](run_strategy_remediation.py) | 预声明恢复、扩展标的池和策略修复对照。 |
 | [`run_strategy_branch_example.py`](run_strategy_branch_example.py) | 通过离线 Broker 演示 S2/S3 分支。 |
