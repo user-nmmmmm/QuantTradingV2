@@ -142,3 +142,74 @@ def test_simulated_broker_book_is_counted_too():
     adapter = RecordedExecutionAdapter(broker, opening_guard=MagicMock(return_value=False))
     with pytest.raises(AccountEntryBlocked):
         adapter.submit_order(SYMBOL, "sell", 1.0, price=100.0, timestamp=START)
+
+
+# ---- A3: live history preflight ------------------------------------------
+
+from copy import deepcopy  # noqa: E402
+
+from config.config import config  # noqa: E402
+from composition.factory import build_state_machine, build_strategy_registry  # noqa: E402
+from live_trading.history_preflight import (  # noqa: E402
+    InsufficientLiveHistory, check_live_history,
+)
+from strategies.trend_portfolio_v3 import TrendPortfolioV3Strategy  # noqa: E402
+
+
+class _Sections:
+    def __init__(self, sections):
+        self.sections = sections
+
+    def get(self, section, key=None):
+        value = self.sections.get(section)
+        return value if key is None else (value or {}).get(key)
+
+    def require(self, section, key=None):
+        value = self.sections[section]
+        return value if key is None else value[key]
+
+
+def _routed_to(name: str) -> _Sections:
+    sections = deepcopy(config._config)
+    sections["routing"] = {"TREND_UP": name, "TREND_DOWN": "Cash",
+                           "SIDEWAYS": "Cash", "VOLATILE": "Cash"}
+    return _Sections(sections)
+
+
+def test_default_routes_fit_the_default_live_window():
+    registry = build_strategy_registry()
+    needs = check_live_history(100, registry, config.require("routing"),
+                               build_state_machine(config))
+    assert set(needs) == {"MarketStateMachine", "TrendBreakout"}
+    assert max(needs.values()) <= 100
+
+
+def test_v3_route_with_100_bars_is_refused_with_the_reason():
+    strategy = TrendPortfolioV3Strategy()
+    assert strategy.required_history == 121
+    with pytest.raises(InsufficientLiveHistory, match="TrendPortfolioV3 needs 121"):
+        check_live_history(100, {strategy.name: strategy}, {"TREND_UP": strategy.name},
+                           build_state_machine(config))
+    check_live_history(121, {strategy.name: strategy}, {"TREND_UP": strategy.name},
+                       build_state_machine(config))
+
+
+def test_state_machine_need_is_checked_even_when_everything_routes_to_cash():
+    machine = build_state_machine(config)
+    with pytest.raises(InsufficientLiveHistory, match="MarketStateMachine"):
+        check_live_history(machine.required_history - 1, {}, {"TREND_UP": "Cash"}, machine)
+
+
+def test_live_engine_refuses_to_start_when_v3_is_routed_on_100_bars(tmp_path):
+    from core.risk import RiskManager
+    from live_trading.engine import LiveTradingEngine
+
+    strategy = TrendPortfolioV3Strategy()
+    broker = MagicMock()
+    broker.exchange_id, broker.account_id, broker.market_type = "binance", "spot", "spot"
+    broker.portfolio = Portfolio()
+    with pytest.raises(InsufficientLiveHistory, match="TrendPortfolioV3 needs 121"):
+        LiveTradingEngine(["A"], {strategy.name: strategy}, broker, RiskManager(),
+                          _routed_to(strategy.name), data_fetcher=MagicMock(),
+                          lookback_days=30, state_file=str(tmp_path / "status.json"),
+                          close_grace_seconds=0)

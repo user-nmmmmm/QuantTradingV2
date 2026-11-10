@@ -270,6 +270,17 @@ class DonchianTrendStrategy(Strategy):
             and self.score_policy.enabled
         )
 
+    @property
+    def required_history(self) -> int:
+        # Donchian levels are shifted by one bar; ATR needs a prior close;
+        # the Wilder-smoothed ADX used by scoring is NaN for 2n-1 bars.
+        needed = [max(self.entry_window, self.exit_window) + 1]
+        if self._uses_atr():
+            needed.append(self.stop_policy.atr_period + 1)
+        if self.score_policy.enabled:
+            needed.append(2 * self._adx_period)
+        return max(needed)
+
     def _ensure_atr(self, df: pd.DataFrame) -> None:
         if not self._uses_atr():
             return
@@ -353,14 +364,18 @@ class DonchianTrendStrategy(Strategy):
         self.score_policy = policy
 
     @property
+    def _adx_period(self) -> int:
+        return 14
+
+    @property
     def _adx_column(self) -> str:
-        return "ADX_14"
+        return f"ADX_{self._adx_period}"
 
     def _ensure_score_inputs(self, df: pd.DataFrame) -> None:
         if not self.score_policy.enabled:
             return
         if self._adx_column not in df.columns:
-            df[self._adx_column] = Indicators.ADX(df, 14)
+            df[self._adx_column] = Indicators.ADX(df, self._adx_period)
 
     def _score_signal(
         self, df: pd.DataFrame, i: int, *, channel_level: Any, side: str,

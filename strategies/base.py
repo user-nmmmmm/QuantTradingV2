@@ -191,6 +191,16 @@ class Strategy(ABC):
         while len(ordered) > 2048:
             seen.discard(ordered.popleft())
 
+    @property
+    def required_history(self) -> int:
+        """Closed bars a frame must hold before this strategy's last-bar inputs exist.
+
+        A3 (F-03): the live engine refuses to start when it would fetch fewer
+        bars than any routed strategy needs, instead of silently never
+        entering. Subclasses with longer look-backs override this.
+        """
+        return 1
+
     def raw_entry_signal(self, symbol: str, i: int, df: pd.DataFrame):
         """Observe intrinsic entry conditions without touching trading state.
 

@@ -47,6 +47,7 @@ from ops.strategy_registration import register_health_policies
 from core.trading.state_store_v2 import StateStore, default_state_db_path
 from core.trading.sqlite_backup import SQLiteSnapshotManager
 from live_trading.execution_adapter import RecordedExecutionAdapter
+from live_trading.history_preflight import check_live_history
 from live_trading.recovery import Recovery, account_new_risk_gate, balance_sync_succeeded
 from live_trading.state_export import StateExport
 from live_trading.tick_orchestrator import TickOrchestrator
@@ -229,6 +230,10 @@ class LiveTradingEngine:
             max_workers=(market_data_workers if market_data_workers is not None
                          else 4 if type(self.fetcher) is DataFetcher else 1),
         )
+        # A3 (F-03): never start a loop whose window cannot serve its routes.
+        self.history_requirements = check_live_history(
+            self.market_data_adapter.lookback, self.router.strategies,
+            self.router.regime_map, self.state_machine)
         # Reviewed opt-in: the established loop remains the default. Controls
         # are fault-tested separately and create no read workers when disabled.
         self.runtime_controls = RuntimeControls(runtime_policy,

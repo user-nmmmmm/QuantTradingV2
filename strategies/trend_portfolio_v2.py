@@ -157,6 +157,11 @@ class TrendPortfolioV2Strategy(TrendBreakoutStrategy):
                    self.stop_policy.atr_period - 1,
                    self.volatility_window if self.volatility_sizing else 0)
 
+    @property
+    def required_history(self) -> int:
+        # Signals exist only once ``i >= _required_history``: one more bar.
+        return max(super().required_history, self._required_history + 1)
+
     def _uses_atr(self) -> bool:
         return True  # SIDEWAYS breakout strength needs ATR in every exit arm.
 
