@@ -105,6 +105,7 @@ class TestBacktestEngineEquivalenceBaseline(unittest.TestCase):
         # adds declared successor-candidate keys. The v4 fixture still runs
         # under its own frozen configuration, so its artifacts are unchanged.
         self.assertEqual(current_config["data"].pop("live_min_lookback_bars"), 201)  # C2, live only
+        self.assertEqual(current_config.pop("trend_breakout"), {"use_obv": False})  # C1, changes behaviour
         self.assertEqual(current_config, frozen)
         previous_bundle = json.loads(previous.read_text(encoding="utf-8"))
         for name in ("seed", "symbols", "bars_per_symbol", "warmup_period", "data_summary", "data_sha256"):

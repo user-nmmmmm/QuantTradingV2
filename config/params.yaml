@@ -95,6 +95,13 @@ routing:
   SIDEWAYS: "Cash"              # RangeMeanReversion paused pending redesign (T-4.6)
   VOLATILE: "Cash"              # VolatilityReversion remains isolated research-only (T-4.7)
 
+# 3a. TrendBreakout entry switches
+# C1 (SR-ALPHA-004): OBV confirmation was the only entry gate whose removal beat the
+# baseline in both train60 and validation20 (small validation margin). Successor
+# candidate only: see docs/research/candidate_successor_c1_c2_20261110.md.
+trend_breakout:
+  use_obv: false
+
 # 3b. Router Parameters
 router:
   cooldown_bars: 2              # Issue2 fix: reduced from 3 → faster re-entry after state switch

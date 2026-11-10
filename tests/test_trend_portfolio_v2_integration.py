@@ -296,7 +296,8 @@ def test_factory_injects_same_health_and_retains_all_other_stop_safeguards():
     assert strategy.health_state_key != baseline.health_state_key
     assert strategy.score_policy == baseline.score_policy
     assert (strategy.entry_window, strategy.exit_window) == (30, 15)
-    assert strategy.use_obv == baseline.use_obv is True
+    # C1 switches OBV off for TrendBreakout only; V2 keeps its own research default.
+    assert strategy.use_obv is True and baseline.use_obv is False
     assert baseline.stop_policy == original_stop_policy
     assert asdict(strategy.stop_policy) == asdict(replace(
         original_stop_policy, initial_stop_mode="atr", use_atr_initial_stop=True,

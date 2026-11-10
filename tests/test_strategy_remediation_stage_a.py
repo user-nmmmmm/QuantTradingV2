@@ -346,3 +346,29 @@ def test_missing_or_invalid_floor_keeps_old_default_or_fails_closed():
     sections["data"]["live_min_lookback_bars"] = True
     with pytest.raises(ValueError, match="live_min_lookback_bars"):
         live_min_lookback(_Sections(sections))
+
+
+# ---- C1: configured OBV entry confirmation --------------------------------
+
+
+def test_default_configuration_turns_obv_confirmation_off():
+    assert config.require("trend_breakout") == {"use_obv": False}
+    assert build_strategy_registry(config)["TrendBreakout"].use_obv is False
+    assert build_strategy_registry()["TrendBreakout"].use_obv is True  # unconfigured constructor default
+
+
+def test_obv_switch_can_be_restored_and_ablation_still_wins():
+    sections = deepcopy(config._config)
+    sections["trend_breakout"] = {"use_obv": True}
+    assert build_strategy_registry(_Sections(sections))["TrendBreakout"].use_obv is True
+    sections["research"] = {**(sections.get("research") or {}), "experiment_id": "fixture",
+                            "strategy_ablation": "no_obv_confirmation"}
+    assert build_strategy_registry(_Sections(sections))["TrendBreakout"].use_obv is False
+
+
+@pytest.mark.parametrize("section", [{"use_obv": "no"}, {"use_obv": False, "entry_window": 10}, ["use_obv"]])
+def test_invalid_trend_breakout_section_fails_closed(section):
+    sections = deepcopy(config._config)
+    sections["trend_breakout"] = section
+    with pytest.raises(ValueError, match="trend_breakout"):
+        build_strategy_registry(_Sections(sections))

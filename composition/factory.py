@@ -190,14 +190,32 @@ def build_strategy_registry(
             configure_score = getattr(strategy, "configure_score_policy", None)
             if callable(configure_score):
                 configure_score(build_candidate_score_policy(configuration))
-        ablation = (configuration.get('research') or {}).get('strategy_ablation')
-        if ablation not in (None, 'no_obv_confirmation', 'no_regime_restrictions', 'no_health'):
-            raise ValueError('Unknown strategy ablation')
-        if ablation == 'no_obv_confirmation':
-            registry['TrendBreakout'].use_obv = False  # type: ignore[attr-defined]  # only TrendBreakout has the ablation switch
-        elif ablation == 'no_regime_restrictions':
-            registry['TrendBreakout'].allowed_states = set(MarketState)
+        _apply_trend_breakout_switches(registry, configuration)
     return registry
+
+
+def _apply_trend_breakout_switches(registry: Dict[str, Strategy], configuration: Configuration) -> None:
+    """Configured TrendBreakout entry switches, then any registered research ablation.
+
+    C1 (docs/research/candidate_successor_c1_c2_20261110.md): ``trend_breakout.use_obv``
+    sets OBV entry confirmation explicitly. The research ablation runs after it,
+    so ``no_obv_confirmation`` still turns OBV off whatever the default says.
+    """
+    section = configuration.get('trend_breakout')
+    if section is not None:
+        if not isinstance(section, Mapping) or set(section) - {'use_obv'}:
+            raise ValueError('trend_breakout only accepts use_obv')
+        if 'use_obv' in section:
+            if type(section['use_obv']) is not bool:
+                raise ValueError('trend_breakout.use_obv must be boolean')
+            registry['TrendBreakout'].use_obv = section['use_obv']  # type: ignore[attr-defined]  # Donchian switch
+    ablation = (configuration.get('research') or {}).get('strategy_ablation')
+    if ablation not in (None, 'no_obv_confirmation', 'no_regime_restrictions', 'no_health'):
+        raise ValueError('Unknown strategy ablation')
+    if ablation == 'no_obv_confirmation':
+        registry['TrendBreakout'].use_obv = False  # type: ignore[attr-defined]  # only TrendBreakout has the ablation switch
+    elif ablation == 'no_regime_restrictions':
+        registry['TrendBreakout'].allowed_states = set(MarketState)
 
 
 def build_candidate_score_policy(
