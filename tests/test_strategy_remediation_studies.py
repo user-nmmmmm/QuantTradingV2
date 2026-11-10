@@ -137,3 +137,39 @@ def test_power_verdict_rules():
     assert power_verdict(weak)["conclusion"] == "h3_is_stage_C1_health_candidate"
     weak[2]["mean_multiplier"] = 0.35
     assert power_verdict(weak)["conclusion"] == "discrimination_weak_no_health_change_in_stage_C"
+
+
+# ---- SR-ALPHA-004 (B3) -----------------------------------------------------
+
+
+def test_each_entry_arm_changes_exactly_one_dimension():
+    from config.config import config
+    from scripts.run_entry_delay_study import ARMS, arm_parameters
+    base = config._config
+    assert arm_parameters(base, "b0_baseline")["state"] == base["state"]
+    assert arm_parameters(base, "stab2")["state"]["stability_period"] == 2
+    assert arm_parameters(base, "stab2")["router"] == base["router"]
+    assert arm_parameters(base, "cool0")["router"]["cooldown_bars"] == 0
+    assert arm_parameters(base, "obv_off")["research"]["strategy_ablation"] == "no_obv_confirmation"
+    assert base["state"]["stability_period"] == 5 and base["router"]["cooldown_bars"] == 2
+    assert set(ARMS) == {"b0_baseline", "obv_off", "stab2", "stab3", "stab10", "cool0", "cool1"}
+
+
+def test_entry_decision_needs_both_windows_and_picks_one_dimension():
+    from scripts.run_entry_delay_study import ARMS, decide
+
+    def row(ret, dd=10.0, top5=100.0):
+        return {"return_pct": ret, "max_drawdown_pct": dd, "net_closed_pnl_without_top_5": top5,
+                "accounting_ok": True}
+    rows = {w: {arm: row(10.0) for arm in ARMS} for w in ("train60", "validation20")}
+    assert decide(rows)["conclusion"] == "retain_current_entry_gates"
+    for w in rows:
+        rows[w]["cool1"] = row(14.0, top5=120.0)
+        rows[w]["obv_off"] = row(12.0, top5=110.0)
+        rows[w]["stab10"] = row(30.0, top5=500.0)  # control only, never selected
+    rows["train60"]["stab2"] = row(40.0, top5=900.0)  # fails validation below
+    result = decide(rows)
+    assert result["dimension_candidates"] == {"cooldown": "cool1", "obv": "obv_off"}
+    assert result["stage_c1_arm"] == "cool1" and result["stage_c1_dimension"] == "cooldown"
+    assert result["control_passed"] == {"stab10": True}
+    assert result["verdicts"]["stab2"]["passed"] is False

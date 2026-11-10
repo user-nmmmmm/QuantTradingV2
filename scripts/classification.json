@@ -107,6 +107,7 @@
     "run_expanded_universe_backtest.py": "research",
     "run_frozen_replay.py": "supported",
     "run_health_recovery_experiment.py": "research",
+    "run_entry_delay_study.py": "research",
     "run_health_policy_study.py": "research",
     "run_health_power_study.py": "research",
     "run_live_window_study.py": "research",
