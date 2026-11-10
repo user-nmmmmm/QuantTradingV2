@@ -25,7 +25,7 @@ from pathlib import Path
 import shutil
 import subprocess
 from tempfile import TemporaryDirectory
-from typing import Any, Dict, List
+from typing import Any, Callable, Dict, List, Optional
 
 import yaml
 
@@ -36,6 +36,7 @@ from scripts.release_check import verify_tag
 
 ROOT = Path(__file__).resolve().parents[1]
 STATEMENT_SCHEMA = "config-change-statement/v1"
+STATEMENT_SCHEMA_V2 = "config-change-statement/v2"
 CONFIG_FILE = "config/params.yaml"
 
 
@@ -55,6 +56,12 @@ def config_hash_at(root: Path, commit: str) -> tuple[str, bytes]:
     """Hash of ``config/params.yaml`` at a commit with line endings normalized, so every checkout agrees."""
     data = _git(root, "cat-file", "blob", f"{commit}:{CONFIG_FILE}").replace(b"\r\n", b"\n")
     return _sha(data), data
+
+
+def _tagged_blob(root: Path, commit: str, path: str) -> Optional[bytes]:
+    """A file as committed at ``commit``, or ``None`` when that tree does not hold it."""
+    done = subprocess.run(["git", "cat-file", "blob", f"{commit}:{path}"], cwd=root, capture_output=True)
+    return done.stdout if done.returncode == 0 else None
 
 
 def structural_diff(old: Any, new: Any, path: str = "") -> List[tuple]:
@@ -81,8 +88,13 @@ def _lookup(config: Dict[str, Any], dotted: str) -> Any:
 
 
 def check_config_change(statement: Dict[str, Any], *, parent_config: bytes, new_config: bytes,
-                        parent_config_hash: str, new_config_hash: str) -> None:
+                        parent_config_hash: str, new_config_hash: str,
+                        read_tagged: Optional[Callable[[str], Optional[bytes]]] = None) -> None:
     """The statement is evidence only if the files agree with it; it never widens what a registration may change."""
+    if statement.get("schema") == STATEMENT_SCHEMA_V2:
+        return check_config_change_v2(statement, parent_config=parent_config, new_config=new_config,
+                                      parent_config_hash=parent_config_hash, new_config_hash=new_config_hash,
+                                      read_tagged=read_tagged)
     if statement.get("schema") != STATEMENT_SCHEMA:
         raise ValueError("unsupported configuration change statement")
     if not str(statement.get("reason") or "").strip():
@@ -102,6 +114,87 @@ def check_config_change(statement: Dict[str, Any], *, parent_config: bytes, new_
         block = _lookup(new, path)
         if not isinstance(block, dict) or block.get("enabled") is not False:
             raise ValueError(f"added block {path} must be disabled by default (enabled: false)")
+
+
+REGISTRY_FILE = "docs/research/current_strategy_experiment_registry.jsonl"
+JUSTIFICATIONS = {"disabled_by_default", "equivalent", "behavior_change"}
+
+
+def _common_statement_checks(statement: Dict[str, Any], parent_config_hash: str, new_config_hash: str) -> None:
+    if not str(statement.get("reason") or "").strip():
+        raise ValueError("the configuration change statement must give a reason")
+    if statement.get("parent_config_sha256") != parent_config_hash:
+        raise ValueError("the statement does not name the parent's frozen configuration")
+    if statement.get("new_config_sha256") != new_config_hash:
+        raise ValueError("the statement does not name the tagged configuration")
+
+
+def check_config_change_v2(statement: Dict[str, Any], *, parent_config: bytes, new_config: bytes,
+                           parent_config_hash: str, new_config_hash: str,
+                           read_tagged: Optional[Callable[[str], Optional[bytes]]]) -> None:
+    """v2: every structural change is listed once and carries a machine-checked justification.
+
+    ``disabled_by_default`` is the v1 rule for an added block. ``equivalent`` covers a
+    removed or changed key whose old value now lives, unchanged, at ``equals`` in the
+    new configuration. ``behavior_change`` must cite a completed registered experiment
+    and its results note, both read from the tagged tree, so a behaviour change is
+    declared as such and can never pass as a disabled addition.
+    """
+    _common_statement_checks(statement, parent_config_hash, new_config_hash)
+    changes = statement.get("changes")
+    if not isinstance(changes, list) or not changes or any(not isinstance(c, dict) for c in changes):
+        raise ValueError("the statement must list its configuration changes")
+    old, new = yaml.safe_load(parent_config), yaml.safe_load(new_config)
+    declared = sorted((str(c.get("kind")), str(c.get("path"))) for c in changes)
+    actual = sorted(structural_diff(old, new))
+    if declared != actual:
+        raise ValueError(f"the configuration differs from the statement: {actual}")
+    for change in changes:
+        _check_justification(change, old, new, read_tagged)
+
+
+def _check_justification(change: Dict[str, Any], old: Any, new: Any,
+                         read_tagged: Optional[Callable[[str], Optional[bytes]]]) -> None:
+    kind, path, why = change["kind"], change["path"], change.get("justification")
+    if why not in JUSTIFICATIONS:
+        raise ValueError(f"{path}: justification must be one of {sorted(JUSTIFICATIONS)}")
+    if why == "disabled_by_default":
+        block = _lookup(new, path) if kind == "added" else None
+        if not isinstance(block, dict) or block.get("enabled") is not False:
+            raise ValueError(f"added block {path} must be disabled by default (enabled: false)")
+    elif why == "equivalent":
+        target = change.get("equals")
+        if kind == "added" or not isinstance(target, str):
+            raise ValueError(f"{path}: an equivalent change must name the key that replaces it")
+        try:
+            same = _lookup(old, path) == _lookup(new, target)
+        except (KeyError, TypeError):
+            same = False
+        if not same:
+            raise ValueError(f"{path}: old value is not preserved at {target}")
+    else:
+        _check_evidence(path, change.get("evidence"), read_tagged)
+
+
+def _check_evidence(path: str, evidence: Any,
+                    read_tagged: Optional[Callable[[str], Optional[bytes]]]) -> None:
+    if read_tagged is None:
+        raise ValueError("behaviour changes need the tagged tree to verify their evidence")
+    if not isinstance(evidence, dict) or not evidence.get("experiment_id") or not evidence.get("results"):
+        raise ValueError(f"{path}: a behaviour change must cite experiment_id and results")
+    registry = read_tagged(REGISTRY_FILE)
+    rows = [json.loads(line) for line in (registry or b"").decode("utf-8").splitlines() if line.strip()]
+    row = next((r for r in rows if r.get("experiment_id") == evidence["experiment_id"]), None)
+    if row is None or not str(row.get("status", "")).startswith("completed"):
+        raise ValueError(f"{path}: {evidence['experiment_id']} is not a completed registered experiment")
+    if read_tagged(str(evidence["results"])) is None:
+        raise ValueError(f"{path}: results note {evidence['results']} is not in the tagged tree")
+
+
+def behavior_changes(statement: Dict[str, Any]) -> List[str]:
+    """Paths a statement declares as behaviour changes (none for v1)."""
+    return sorted(str(c["path"]) for c in statement.get("changes", [])
+                  if isinstance(c, dict) and c.get("justification") == "behavior_change")
 
 
 def register_bound_successor(*, repo_root, tag: str, historical_batch, config_change, output) -> Dict[str, Any]:
@@ -140,7 +233,8 @@ def _register_bound_successor(*, repo_root, tag, historical_batch, config_change
     new_hash, new_config = config_hash_at(root, commit)
     statement_bytes = statement_path.read_bytes()
     check_config_change(json.loads(statement_bytes), parent_config=parent_config, new_config=new_config,
-                        parent_config_hash=old["config_hash"], new_config_hash=new_hash)
+                        parent_config_hash=old["config_hash"], new_config_hash=new_hash,
+                        read_tagged=lambda path: _tagged_blob(root, commit, path))
 
     identity = binding["receipt"]["identity_sha256"]
     point = _utc_now()
@@ -190,6 +284,8 @@ def _stage_registration(output, *, registry, old_bytes, old, statement_bytes, bi
         "identity_binding_sha256": _hash(output / "identity_binding.json"),
         "config_hash": new_hash, "config_hash_basis": "sha256 of config/params.yaml at the tagged commit, LF-normalized",
         "config_change_sha256": _sha(statement_bytes),
+        "config_change_schema": json.loads(statement_bytes)["schema"],
+        "behavior_changes": behavior_changes(json.loads(statement_bytes)),
         "parent_protocol_sha256": _sha(old_bytes), "parent_code_hash": old["code_hash"],
         "parent_config_hash": old["config_hash"], "protocol_hash": protocol["protocol_hash"],
         "historical_research_result": "fail", "historical_results_reused_for_admission": False,
@@ -208,7 +304,7 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--tag", required=True, help="annotated release tag to bind (e.g. v3.1.0)")
     parser.add_argument("--historical-batch", type=Path, required=True)
-    parser.add_argument("--config-change", type=Path, required=True, help="config-change-statement/v1 JSON")
+    parser.add_argument("--config-change", type=Path, required=True, help="config-change-statement/v1 or /v2 JSON")
     parser.add_argument("--output", type=Path, required=True, help="new directory; never overwritten")
     args = parser.parse_args(argv)
     receipt = register_bound_successor(repo_root=ROOT, tag=args.tag, historical_batch=args.historical_batch,
