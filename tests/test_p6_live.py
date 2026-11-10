@@ -202,7 +202,7 @@ class TestLiveTrading(unittest.TestCase):
         mock_fetcher.fetch_ccxt.assert_called_with(
             "BTC/USDT",
             timeframe="1d",
-            limit=100,
+            limit=201,  # C2: data.live_min_lookback_bars
             exchange_id="binance",
         )
 
