@@ -111,6 +111,7 @@
     "run_health_policy_study.py": "research",
     "run_health_power_study.py": "research",
     "run_live_window_study.py": "research",
+    "run_successor_comparison.py": "research",
     "run_time_exit_rebuy_study.py": "research",
     "run_ml_selection_next.py": "research",
     "run_offline_recovery_drill.py": "supported",
