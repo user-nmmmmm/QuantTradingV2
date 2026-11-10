@@ -66,7 +66,8 @@ class RecordedExecutionAdapter:
                 return self.broker.submit_intent(intent)
         if self.opening_guard is not None and not self._is_proven_reduction(
                 getattr(intent, "symbol", None), getattr(intent, "action", None),
-                getattr(intent, "requested_qty", None), getattr(intent, "reduce_only", False)):
+                getattr(intent, "requested_qty", None), getattr(intent, "reduce_only", False),
+                exclude_order_id=getattr(intent, "client_order_id", None)):
             if self.opening_guard() is not True:
                 reject = getattr(type(self.broker), "record_local_rejection", None)
                 if callable(reject):
@@ -93,8 +94,15 @@ class RecordedExecutionAdapter:
                     raise AccountEntryBlocked("independent account facts block new risk")
         return self.broker.submit_order(*args, **kwargs)
 
-    def _is_proven_reduction(self, symbol, action, quantity, reduce_only):
-        """Check signed inventory and size, not a blanket buy/sell exemption."""
+    def _is_proven_reduction(self, symbol, action, quantity, reduce_only, *,
+                             exclude_order_id=None):
+        """Check signed inventory and size, not a blanket buy/sell exemption.
+
+        A1 (F-05): the size test is cumulative. Reductions already working at
+        the venue for the same symbol and side consume inventory, so two
+        in-flight sells that together exceed the position cannot both pass as
+        "reductions" and the second one is sent through the opening guard.
+        """
         if action not in {"buy", "sell", "short", "cover"}:
             return False
         if action in {"buy", "short"} and reduce_only is not True:
@@ -105,10 +113,49 @@ class RecordedExecutionAdapter:
             qty = float(quantity)
             held = float(self.portfolio.get_position(symbol)["qty"])
             signed = qty if action in {"buy", "cover"} else -qty
+            outstanding = self._outstanding_reduction(symbol, action, exclude_order_id)
             return (math.isfinite(qty) and math.isfinite(held) and qty > 0
-                    and qty <= abs(held) + 1e-12 and signed * held < 0)
+                    and math.isfinite(outstanding)
+                    and qty + outstanding <= abs(held) + 1e-12 and signed * held < 0)
         except (KeyError, TypeError, ValueError, OverflowError):
             return False
+
+    def _outstanding_reduction(self, symbol, action, exclude_order_id=None) -> float:
+        """Remaining quantity of non-terminal same-side orders for ``symbol``.
+
+        Reads the durable live order ledger when the broker has one, otherwise
+        the in-memory book of a simulated broker. A broker that exposes
+        neither reports nothing outstanding (the previous behaviour).
+
+        Resting stop orders are excluded: they are the venue-resident
+        protective stops, which the protective-order reconciler cancels or
+        resizes when the position changes. Counting them would block every
+        strategy exit while a protective stop rests.
+        """
+        broker = self.broker
+        if broker is None:
+            return 0.0
+        store = getattr(broker, "order_store", None)
+        if store is not None and callable(getattr(store, "list_non_terminal", None)):
+            rows = [(row.get("symbol"), row.get("side"), row.get("client_order_id"),
+                     row.get("remaining_qty"), row.get("order_type"))
+                    for row in store.list_non_terminal()]
+        else:
+            orders = list(getattr(broker, "pending_orders", None) or []) + list(
+                getattr(broker, "active_orders", None) or [])
+            rows = [(getattr(order, "symbol", None), getattr(order, "side", None),
+                     getattr(order, "id", None), getattr(order, "remaining_qty", None),
+                     getattr(order, "order_type", None)) for order in orders]
+        total = 0.0
+        for row_symbol, side, order_id, remaining, order_type in rows:
+            if row_symbol != symbol or side != action:
+                continue
+            if str(getattr(order_type, "value", order_type) or "").lower() == "stop":
+                continue
+            if exclude_order_id is not None and order_id == exclude_order_id:
+                continue
+            total += max(float(remaining or 0.0), 0.0)
+        return total
 
     def replay(
         self,

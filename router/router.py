@@ -9,6 +9,8 @@ from core.trading.state import MarketState
 from strategies.base import Strategy
 from core.planning.allocation import EntryCandidate, PortfolioSignalAllocator
 from core.trading.entry_audit import note
+from core.foundation.domain import OrderStatus
+from core.trading.order_lifecycle import order_fact, terminal_fact
 from core.market.timeframes import observed_bars_after, as_utc_timestamp
 
 
@@ -35,6 +37,11 @@ class Router:
         self.cooldowns: Dict[str, int] = {}
         self._cooldown_started_at: Dict[str, Any] = {}
         self._cooldown_progress: Dict[str, tuple[Any, int]] = {}
+        # A1 (F-05): one working MaxHoldingPeriod exit per symbol. The id is
+        # held until the venue reports a terminal fact for that order, so an
+        # unfilled or partially filled time exit is never resubmitted on top
+        # of itself bar after bar.
+        self._time_exit_orders: Dict[str, str] = {}
         self.log_buffer: list = []
         self._log_header_written = False
         self.max_holding_days = (
@@ -87,9 +94,13 @@ class Router:
             strategy._consume_execution_trades(symbol, i, portfolio, broker)
 
         qty = float(portfolio.get_position(symbol)["qty"])
+        if qty == 0:
+            self._time_exit_orders.pop(symbol, None)
         if qty != 0:
             if self._max_holding_expired(symbol, current_time, portfolio):
-                self._submit_time_exit(symbol, i, df, qty, broker)
+                if not self._time_exit_working(symbol, broker):
+                    self._latch_time_exit(
+                        symbol, self._submit_time_exit(symbol, i, df, qty, broker))
                 self._log_routing(current_time, symbol, state.name,
                                   "MaxHoldingPeriod", qty,
                                   route_event="time_exit", strategy_changed=False)
@@ -185,7 +196,8 @@ class Router:
                 "started_at": {symbol: pd.Timestamp(value).isoformat()
                                for symbol, value in self._cooldown_started_at.items()},
                 "progress": {symbol: [pd.Timestamp(value[0]).isoformat(), value[1]]
-                             for symbol, value in self._cooldown_progress.items()}}
+                             for symbol, value in self._cooldown_progress.items()},
+                "time_exits": dict(self._time_exit_orders)}
 
     def restore_checkpoint(self, row: dict) -> None:
         if row.get("schema") != "router-runtime/v1":
@@ -195,8 +207,12 @@ class Router:
         started = {symbol: pd.Timestamp(value) for symbol, value in row["started_at"].items()}
         progress = {symbol: (pd.Timestamp(value[0]), int(value[1]))
                     for symbol, value in row["progress"].items()}
+        # Checkpoints written before A1 carry no time-exit latches.
+        time_exits = {str(symbol): str(order_id)
+                      for symbol, order_id in (row.get("time_exits") or {}).items()}
         self.symbol_states, self.cooldowns = states, cooldowns
         self._cooldown_started_at, self._cooldown_progress = started, progress
+        self._time_exit_orders = time_exits
 
     @staticmethod
     def _opening_strategy_name(symbol: str, portfolio: Portfolio) -> Optional[str]:
@@ -213,6 +229,31 @@ class Router:
         if not entries:
             return False
         return pd.Timestamp(current_time) - min(entries) >= pd.Timedelta(days=self.max_holding_days)
+
+    def _time_exit_working(self, symbol: str, broker: ExecutionPort) -> bool:
+        """Whether an earlier time exit for ``symbol`` may still execute.
+
+        Only a terminal fact releases the latch. An absent or unreadable order
+        is treated as still working, the rule strategies use for their own
+        exits: missing facts never authorize a second close.
+        """
+        order_id = self._time_exit_orders.get(symbol)
+        if order_id is None:
+            return False
+        if terminal_fact(order_fact(broker, order_id)):
+            del self._time_exit_orders[symbol]
+            return False
+        return True
+
+    def _latch_time_exit(self, symbol: str, submission: Any) -> None:
+        status = getattr(submission, "status", None)
+        working = getattr(submission, "accepted", False) is True or status in {
+            OrderStatus.UNKNOWN, OrderStatus.SUBMITTING, OrderStatus.CANCEL_PENDING,
+        }
+        order_id = (getattr(submission, "client_order_id", None)
+                    or getattr(submission, "id", None))
+        if working and order_id:
+            self._time_exit_orders[symbol] = str(order_id)
 
     @staticmethod
     def _submit_time_exit(symbol: str, i: int, df: pd.DataFrame, qty: float,
