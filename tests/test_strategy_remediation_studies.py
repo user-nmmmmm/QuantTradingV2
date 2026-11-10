@@ -5,6 +5,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from scripts.run_health_power_study import cooldown_day_count, simulate
+from scripts.run_health_power_study import verdict as power_verdict
 from scripts.run_live_window_study import aggregate, compare_symbol
 from scripts.run_live_window_study import verdict as window_verdict
 from scripts.run_time_exit_rebuy_study import rebuy_pairs, summarize, verdict
@@ -94,3 +96,35 @@ def test_window_verdict_picks_the_smallest_passing_window():
     failing = {"A": {"100": row(10_000, 70, 300, 9)}}
     assert window_verdict(aggregate(failing, [100]))["conclusion"] == \
         "rolling_window_insufficient_seed_from_full_history"
+
+
+# ---- SR1-HEALTH-007 (B5) ---------------------------------------------------
+
+
+def test_cooldown_days_are_counted_from_transitions():
+    transitions = pd.DataFrame([
+        {"at": "2020-01-10T00:00:00+00:00", "to": "cooldown"},
+        {"at": "2020-02-09T00:00:00+00:00", "to": "probation"},
+        {"at": "2020-03-01T00:00:00+00:00", "to": "cooldown"},
+    ])
+    assert cooldown_day_count(transitions, pd.Timestamp("2020-01-01"), pd.Timestamp("2020-03-11")) == 40
+
+
+def test_simulation_separates_a_losing_from_a_winning_stream():
+    inputs = {"r": [-1.0, -1.0, -1.0, 3.0], "symbols": ["A", "B", "C", "D"], "p": 0.2}
+    losing = simulate("current", -0.3, inputs, paths=20, years=2)
+    winning = simulate("current", 0.3, inputs, paths=20, years=2)
+    assert losing["first_year_trigger_rate"] > 0.5
+    assert losing["mean_multiplier"] < winning["mean_multiplier"] <= 1.0
+    assert 0.0 <= losing["cooldown_share"] <= 1.0
+
+
+def test_power_verdict_rules():
+    def row(arm, mu, m, f=0.0):
+        return {"arm": arm, "mu": mu, "mean_multiplier": m, "first_year_trigger_rate": f}
+    good = [row("current", 0.2, 0.7, 0.2), row("current", -0.3, 0.2), row("h3", 0.2, 0.8), row("h3", -0.3, 0.2)]
+    assert power_verdict(good)["conclusion"] == "current_discrimination_adequate"
+    weak = [row("current", 0.2, 0.3, 0.6), row("current", -0.3, 0.2), row("h3", 0.2, 0.45), row("h3", -0.3, 0.25)]
+    assert power_verdict(weak)["conclusion"] == "h3_is_stage_C1_health_candidate"
+    weak[2]["mean_multiplier"] = 0.35
+    assert power_verdict(weak)["conclusion"] == "discrimination_weak_no_health_change_in_stage_C"
