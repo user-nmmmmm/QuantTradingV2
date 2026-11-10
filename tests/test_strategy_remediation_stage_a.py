@@ -213,3 +213,59 @@ def test_live_engine_refuses_to_start_when_v3_is_routed_on_100_bars(tmp_path):
                           _routed_to(strategy.name), data_fetcher=MagicMock(),
                           lookback_days=30, state_file=str(tmp_path / "status.json"),
                           close_grace_seconds=0)
+
+
+# ---- A4: health persistence only on change -------------------------------
+
+from strategies.trend_breakout import TrendBreakoutStrategy  # noqa: E402
+
+
+class _CountingStore:
+    def __init__(self):
+        self.rows, self.writes = {}, []
+
+    def get(self, key):
+        return deepcopy(self.rows.get(key))
+
+    def set(self, key, value):
+        self.writes.append(key)
+        self.rows[key] = deepcopy(value)
+
+
+def _health_writes(store, strategy):
+    return [key for key in store.writes if key == strategy.health_state_key]
+
+
+def test_unchanged_health_is_not_rewritten_on_every_check():
+    store = _CountingStore()
+    strategy = TrendBreakoutStrategy()
+    strategy.bind_state_store(store)
+    for day in range(5):
+        assert strategy.check_health(START + pd.Timedelta(days=day))
+    assert len(_health_writes(store, strategy)) == 1  # first check records the baseline
+
+
+def test_health_transition_is_written_and_survives_restart():
+    store = _CountingStore()
+    strategy = TrendBreakoutStrategy()
+    strategy.bind_state_store(store)
+    strategy.check_health(START)
+    strategy.health.manual_lock("fixture", at=START)
+    strategy.check_health(START + pd.Timedelta(days=1))
+    strategy.check_health(START + pd.Timedelta(days=2))
+    assert len(_health_writes(store, strategy)) == 2
+    restored = TrendBreakoutStrategy()
+    restored.bind_state_store(store)
+    assert restored.health.status is strategy.health.status
+    assert not restored.check_health(START + pd.Timedelta(days=3))
+
+
+def test_closed_trade_is_always_persisted():
+    store = _CountingStore()
+    strategy = TrendBreakoutStrategy()
+    strategy.bind_state_store(store)
+    strategy.check_health(START)
+    strategy.on_trade_closed(SYMBOL, -5.0, {"close_event_id": "c1", "exit_reason": "signal",
+                                            "timestamp": START, "initial_risk": 10.0}, 1)
+    assert len(_health_writes(store, strategy)) == 2
+    assert store.rows[strategy.health_state_key]["cohorts"]

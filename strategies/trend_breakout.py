@@ -90,6 +90,7 @@ class DonchianTrendStrategy(Strategy):
         self, policy: Optional[StrategyHealthPolicy] = None,
     ) -> None:
         self._health_state_store = None
+        self._persisted_health: Optional[Dict[str, Any]] = None
         self.health = StrategyHealthMachine(self.name, policy or StrategyHealthPolicy())
         self.health_stats = self._new_health_stats()
         self._reset_setup_counters()
@@ -156,6 +157,7 @@ class DonchianTrendStrategy(Strategy):
     def bind_state_store(self, state_store) -> None:
         super().bind_state_store(state_store)
         self._health_state_store = state_store
+        self._persisted_health = None  # a new store has seen nothing yet
         loaded = state_store.get(self.health_state_key)
         if isinstance(loaded, dict):
             self.health.load(loaded)
@@ -168,8 +170,20 @@ class DonchianTrendStrategy(Strategy):
             self._refresh_health_stats()
 
     def _persist_health(self) -> None:
-        if self._health_state_store is not None:
-            self.health.persist(self._health_state_store, self.health_state_key)
+        """Write the health checkpoint only when it differs from the last write.
+
+        A4 (F-08): ``check_health`` runs before every entry decision, so an
+        unconditional write meant one durable store write per symbol per bar.
+        A pending cohort-key migration is always written so its archive lands.
+        """
+        if self._health_state_store is None:
+            return
+        payload = self.health.to_dict()
+        pending_migration = getattr(self.health, "_pending_cohort_checkpoint", None) is not None
+        if not pending_migration and payload == getattr(self, "_persisted_health", None):
+            return
+        self.health.persist(self._health_state_store, self.health_state_key)
+        self._persisted_health = payload
 
     def reset_runtime_state(self) -> None:
         super().reset_runtime_state()
