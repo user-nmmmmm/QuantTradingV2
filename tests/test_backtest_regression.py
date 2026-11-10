@@ -101,6 +101,10 @@ class TestBacktestEngineEquivalenceBaseline(unittest.TestCase):
         # copy always equalled, so the resolved configuration is unchanged.
         self.assertEqual(frozen["candidate_scoring"].pop("adx_threshold"),
                          current_config["state"]["adx_threshold"])
+        # Strategy remediation stage C (docs/research/candidate_successor_c1_c2_20261110.md)
+        # adds declared successor-candidate keys. The v4 fixture still runs
+        # under its own frozen configuration, so its artifacts are unchanged.
+        self.assertEqual(current_config["data"].pop("live_min_lookback_bars"), 201)  # C2, live only
         self.assertEqual(current_config, frozen)
         previous_bundle = json.loads(previous.read_text(encoding="utf-8"))
         for name in ("seed", "symbols", "bars_per_symbol", "warmup_period", "data_summary", "data_sha256"):

@@ -279,6 +279,9 @@ data:
   alignment_mode: union         # union routes only symbols with a real bar; intersection requires all symbols
   timeframe: 1d
   timezone: UTC
+  # C2 (SR-DATA-001): live rolling window floor in raw bars. 200 closed bars reproduce
+  # backtest states and entry candidates; +1 for the unfinished candle.
+  live_min_lookback_bars: 201
 
 # 4b. Auditable benchmark definitions (Phase 2)
 benchmark:

@@ -168,8 +168,9 @@ class _Sections:
         return value if key is None else value[key]
 
 
-def _routed_to(name: str) -> _Sections:
+def _routed_to(name: str, live_floor: int = 100) -> _Sections:
     sections = deepcopy(config._config)
+    sections["data"]["live_min_lookback_bars"] = live_floor
     sections["routing"] = {"TREND_UP": name, "TREND_DOWN": "Cash",
                            "SIDEWAYS": "Cash", "VOLATILE": "Cash"}
     return _Sections(sections)
@@ -306,3 +307,42 @@ def test_conflicting_scoring_adx_copy_fails_closed():
         build_candidate_score_policy(_Sections(sections))
     sections["candidate_scoring"]["adx_threshold"] = sections["state"]["adx_threshold"]
     assert build_candidate_score_policy(_Sections(sections)).adx_threshold == 25
+
+
+# ---- C2: configured live window floor ------------------------------------
+
+
+def _engine(tmp_path, configuration, strategies=None):
+    from core.risk import RiskManager
+    from live_trading.engine import LiveTradingEngine
+
+    broker = MagicMock()
+    broker.exchange_id, broker.account_id, broker.market_type = "binance", "spot", "spot"
+    broker.portfolio = Portfolio()
+    return LiveTradingEngine(["A"], strategies or {}, broker, RiskManager(), configuration,
+                             data_fetcher=MagicMock(), lookback_days=30,
+                             state_file=str(tmp_path / "status.json"), close_grace_seconds=0)
+
+
+def test_default_live_window_is_the_sr_data_001_length(tmp_path):
+    from live_trading.history_preflight import live_min_lookback
+
+    assert live_min_lookback(config) == config.require("data", "live_min_lookback_bars") == 201
+    assert _engine(tmp_path, config).market_data_adapter.lookback == 201
+
+
+def test_v3_route_starts_on_the_default_window(tmp_path):
+    strategy = TrendPortfolioV3Strategy()
+    engine = _engine(tmp_path, _routed_to(strategy.name, live_floor=201), {strategy.name: strategy})
+    assert engine.history_requirements[strategy.name] == 121
+
+
+def test_missing_or_invalid_floor_keeps_old_default_or_fails_closed():
+    from live_trading.history_preflight import LEGACY_MIN_LOOKBACK, live_min_lookback
+
+    sections = deepcopy(config._config)
+    del sections["data"]["live_min_lookback_bars"]
+    assert live_min_lookback(_Sections(sections)) == LEGACY_MIN_LOOKBACK == 100
+    sections["data"]["live_min_lookback_bars"] = True
+    with pytest.raises(ValueError, match="live_min_lookback_bars"):
+        live_min_lookback(_Sections(sections))

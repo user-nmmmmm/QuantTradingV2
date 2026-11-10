@@ -47,7 +47,7 @@ from ops.strategy_registration import register_health_policies
 from core.trading.state_store_v2 import StateStore, default_state_db_path
 from core.trading.sqlite_backup import SQLiteSnapshotManager
 from live_trading.execution_adapter import RecordedExecutionAdapter
-from live_trading.history_preflight import check_router_history
+from live_trading.history_preflight import check_router_history, live_min_lookback
 from live_trading.recovery import Recovery, account_new_risk_gate, balance_sync_succeeded
 from live_trading.state_export import StateExport
 from live_trading.tick_orchestrator import TickOrchestrator
@@ -221,7 +221,7 @@ class LiveTradingEngine:
             symbols,
             self.fetcher,
             timeframe=timeframe,
-            lookback=max(lookback_days, 100),
+            lookback=max(lookback_days, live_min_lookback(configuration)),
             close_grace_seconds=close_grace_seconds,
             exchange_id=getattr(broker, "exchange_id", None),
             market_type=str(getattr(broker, "market_type", "spot")),
