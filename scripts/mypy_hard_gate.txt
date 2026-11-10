@@ -115,6 +115,7 @@ core/trading/state_store_v2.py
 core/trading/valuation.py
 live_trading/catchup.py
 live_trading/execution_adapter.py
+live_trading/history_preflight.py
 live_trading/protection_schedule.py
 live_trading/recovery.py
 live_trading/risk_actions.py

@@ -58,6 +58,18 @@ class MarketStateMachine:
         self.atr_period = atr_period
         self.atr_pct_threshold = atr_pct_threshold
 
+    @property
+    def required_history(self) -> int:
+        """Bars before every raw-state input exists and one state can confirm.
+
+        This is the definitional minimum (slow MA, Wilder ADX warm-up, then a
+        full stability run). The stability filter and ADX smoothing are path
+        dependent, so a window this short can still disagree with full-history
+        states on some bars; the length that removes that drift is a research
+        question (strategy remediation B2), not a guarantee made here.
+        """
+        return max(self.ma_slow, 2 * self.adx_period, self.atr_period + 1) + self.stability_period
+
     def get_states(self, df: pd.DataFrame) -> pd.Series:
         states = self.calculate_states(df)
         df["market_state"] = states

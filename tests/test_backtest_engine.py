@@ -83,15 +83,12 @@ class TestBacktestEngine(unittest.TestCase):
             index=[pd.Timestamp("2024-01-01")],
         )
 
-        strategy.on_bar(
-            "TEST",
-            0,
-            df,
-            MarketState.SIDEWAYS,
-            portfolio,
-            broker,
-            risk_manager,
-            {"TEST": 100.0},
+        candidate = strategy.build_entry_candidate(
+            "TEST", 0, df, MarketState.SIDEWAYS, portfolio,
+        )
+        strategy.submit_entry_candidate(
+            candidate, portfolio=portfolio, broker=broker,
+            risk_manager=risk_manager, current_prices={"TEST": 100.0},
         )
 
         self.assertEqual(risk_manager.check_entry_risk.call_args.kwargs["current_volume"], 0.0)

@@ -90,6 +90,7 @@ class DonchianTrendStrategy(Strategy):
         self, policy: Optional[StrategyHealthPolicy] = None,
     ) -> None:
         self._health_state_store = None
+        self._persisted_health: Optional[Dict[str, Any]] = None
         self.health = StrategyHealthMachine(self.name, policy or StrategyHealthPolicy())
         self.health_stats = self._new_health_stats()
         self._reset_setup_counters()
@@ -156,6 +157,7 @@ class DonchianTrendStrategy(Strategy):
     def bind_state_store(self, state_store) -> None:
         super().bind_state_store(state_store)
         self._health_state_store = state_store
+        self._persisted_health = None  # a new store has seen nothing yet
         loaded = state_store.get(self.health_state_key)
         if isinstance(loaded, dict):
             self.health.load(loaded)
@@ -168,8 +170,20 @@ class DonchianTrendStrategy(Strategy):
             self._refresh_health_stats()
 
     def _persist_health(self) -> None:
-        if self._health_state_store is not None:
-            self.health.persist(self._health_state_store, self.health_state_key)
+        """Write the health checkpoint only when it differs from the last write.
+
+        A4 (F-08): ``check_health`` runs before every entry decision, so an
+        unconditional write meant one durable store write per symbol per bar.
+        A pending cohort-key migration is always written so its archive lands.
+        """
+        if self._health_state_store is None:
+            return
+        payload = self.health.to_dict()
+        pending_migration = getattr(self.health, "_pending_cohort_checkpoint", None) is not None
+        if not pending_migration and payload == getattr(self, "_persisted_health", None):
+            return
+        self.health.persist(self._health_state_store, self.health_state_key)
+        self._persisted_health = payload
 
     def reset_runtime_state(self) -> None:
         super().reset_runtime_state()
@@ -245,7 +259,7 @@ class DonchianTrendStrategy(Strategy):
     #
     # Only facts from the completed signal bar are used: the ATR and Donchian
     # level at bar ``i``. The stop that is *in force* during bar ``i`` is always
-    # the one computed at bar ``i-1`` - ``Strategy.on_bar`` checks
+    # the one computed at bar ``i-1`` - ``Strategy.process_exit_only`` checks
     # ``hard_stop_exit`` before ``should_exit``, so a trail update can never
     # reach back and change the level that was already tested this bar.
     #
@@ -269,6 +283,17 @@ class DonchianTrendStrategy(Strategy):
             or getattr(self, "score_policy", None) is not None
             and self.score_policy.enabled
         )
+
+    @property
+    def required_history(self) -> int:
+        # Donchian levels are shifted by one bar; ATR needs a prior close;
+        # the Wilder-smoothed ADX used by scoring is NaN for 2n-1 bars.
+        needed = [max(self.entry_window, self.exit_window) + 1]
+        if self._uses_atr():
+            needed.append(self.stop_policy.atr_period + 1)
+        if self.score_policy.enabled:
+            needed.append(2 * self._adx_period)
+        return max(needed)
 
     def _ensure_atr(self, df: pd.DataFrame) -> None:
         if not self._uses_atr():
@@ -353,14 +378,18 @@ class DonchianTrendStrategy(Strategy):
         self.score_policy = policy
 
     @property
+    def _adx_period(self) -> int:
+        return int(self.score_policy.adx_period)
+
+    @property
     def _adx_column(self) -> str:
-        return "ADX_14"
+        return f"ADX_{self._adx_period}"
 
     def _ensure_score_inputs(self, df: pd.DataFrame) -> None:
         if not self.score_policy.enabled:
             return
         if self._adx_column not in df.columns:
-            df[self._adx_column] = Indicators.ADX(df, 14)
+            df[self._adx_column] = Indicators.ADX(df, self._adx_period)
 
     def _score_signal(
         self, df: pd.DataFrame, i: int, *, channel_level: Any, side: str,

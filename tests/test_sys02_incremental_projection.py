@@ -313,7 +313,7 @@ def test_restored_cursor_rejects_replaced_or_truncated_stream(tmp_path):
     store.close()
 
 
-@pytest.mark.parametrize("path", ["on_bar_entry", "candidate_entry", "on_bar_exit", "submit_exit"])
+@pytest.mark.parametrize("path", ["candidate_entry", "submit_exit"])
 def test_real_strategy_submission_preserves_originating_signal_identity(path):
     class SignalProbe(Strategy):
         def __init__(self):
@@ -333,9 +333,7 @@ def test_real_strategy_submission_preserves_originating_signal_identity(path):
     frame["volume"] = 10000
     if "exit" in path:
         portfolio.update_position("A", 2, 100, strategy_id="SignalProbe", order_id="opening", stop_price=90)
-    if path.startswith("on_bar"):
-        strategy.on_bar("A", 3, frame, state, portfolio, broker, risk, {"A": 100})
-    elif path == "candidate_entry":
+    if path == "candidate_entry":
         candidate = strategy.build_entry_candidate("A", 3, frame, state, portfolio)
         strategy.submit_entry_candidate(candidate, portfolio=portfolio, broker=broker,
                                         risk_manager=risk, current_prices={"A": 100})

@@ -21,17 +21,21 @@ from core.trading.protective_orders import authoritative_position_ids
 """
 Strategy（策略基类）模块
 
-本模块定义策略插件的统一接口与“标准执行流程”（on_bar），用于在回测与实盘引擎中复用同一套调用方式。
+本模块定义策略插件的统一接口与生产执行路径，回测与实盘引擎共用同一套调用方式。
 
 核心接口：
 - should_enter：在第 i 根 bar 收盘时判断是否产生入场信号
 - should_exit：在第 i 根 bar 收盘时判断是否产生出场信号
-- on_bar：通用编排（先出场、再入场），并与 Broker/RiskManager/Portfolio 协作完成下单与风控
+- process_exit_only：评估既有持仓并提交平仓（Router 的持仓管理阶段调用）
+- build_entry_candidate / submit_entry_candidate：两阶段入场（候选 → 组合分配后定仓提交）
+
+单一路径（A2，F-04）：旧的单标的 on_bar 编排只被测试调用，并已与生产入场路径分叉
+（缺参考价、相关性预算），因此删除；测试改走 Router 使用的同一路径。
 
 重要约定（时间与执行）：
 - 策略在 bar i 依据 df.iloc[:i]（含 i）产生信号，并通过 broker.submit_order(...) 提交订单
 - Broker 在下一根 bar（i+1）开盘/触发条件下撮合成交（回测模型：Next-Bar Execution）
-- 为避免“刚成交就立即又在同一根 bar 触发止损/出场”的抖动，on_bar 对新开仓做了 1 bar 的 exit 冷却
+- 为避免“刚成交就立即又在同一根 bar 触发止损/出场”的抖动，process_exit_only 对新开仓做了 1 bar 的 exit 冷却
 
 上下文（context）：
 - 每个策略按 symbol 维护一个 context（字典），用于保存止损价、入场价、追踪止损等跨 bar 状态
@@ -186,6 +190,16 @@ class Strategy(ABC):
         seen.add(value)
         while len(ordered) > 2048:
             seen.discard(ordered.popleft())
+
+    @property
+    def required_history(self) -> int:
+        """Closed bars a frame must hold before this strategy's last-bar inputs exist.
+
+        A3 (F-03): the live engine refuses to start when it would fetch fewer
+        bars than any routed strategy needs, instead of silently never
+        entering. Subclasses with longer look-backs override this.
+        """
+        return 1
 
     def raw_entry_signal(self, symbol: str, i: int, df: pd.DataFrame):
         """Observe intrinsic entry conditions without touching trading state.
@@ -453,207 +467,6 @@ class Strategy(ABC):
         """
         pass
 
-    def on_bar(
-        self,
-        symbol: str,
-        i: int,
-        df: pd.DataFrame,
-        state: MarketState,
-        portfolio: Portfolio,
-        broker: ExecutionPort,
-        risk_manager: RiskManager,
-        current_prices: Optional[Dict[str, float]] = None,
-    ):
-        """
-        标准执行流程（每根 bar 调用一次）。
-
-        执行顺序：
-        1) 若当前持仓非 0：优先检查 should_exit 并提交平仓订单
-        2) 若当前无持仓：在 allowed_states 内检查 should_enter，并通过 RiskManager 计算仓位后提交开仓订单
-
-        关键细节：
-        - exit 冷却：为避免“下根 bar 开盘成交后，同一根 bar 又触发 exit”的不合理抖动，
-          新入场的仓位会跳过 1 次 exit 检查（just_entered）
-        - 定仓逻辑：
-          - 若 entry_signal 提供 stop_loss：按 risk_per_trade 做风险定仓
-          - 否则：退化为按固定资金占比定仓（默认 10%）
-        """
-        self._consume_execution_trades(symbol, i, portfolio, broker)
-        current_pos = portfolio.get_position(symbol)
-        qty = current_pos["qty"]
-
-        # 1. Check Exit if we have a position
-        # Skip exit check on the bar immediately after entry to avoid same-bar entry-exit churn:
-        # Entry order is submitted at bar N, fills at bar N+1 open, then on_bar runs at bar N+1.
-        # We must not check exit at bar N+1 for a freshly opened position.
-        ctx_pre = self.get_context(symbol)
-        just_entered = self._just_entered(i, df, ctx_pre)
-
-        if qty != 0 and not ctx_pre.get("exit_pending"):
-            exit_signal = self.hard_stop_exit(symbol, i, df, portfolio)
-            if exit_signal is None and not just_entered:
-                exit_signal = self.should_exit(symbol, i, df, state, portfolio)
-            if exit_signal:
-                action = exit_signal["action"]  # 'sell' or 'cover'
-                reason = exit_signal.get("reason", "signal")
-
-                # Execute Exit
-                # Calculate qty to close (all)
-                close_qty = abs(qty)
-                current_price = df["close"].iat[i]
-
-                # Extract optional order parameters
-                order_type = exit_signal.get("order_type", "market")
-                order_price = exit_signal.get("price", current_price)
-
-                # If action matches position direction (sell for long, cover for short)
-                if (qty > 0 and action == "sell") or (qty < 0 and action == "cover"):
-                    timestamp = df.index[i]
-                    decision_event = self._publish_signal(
-                        broker,
-                        symbol=symbol,
-                        timestamp=timestamp,
-                        action=action,
-                        signal_kind="exit",
-                        price=order_price,
-                        reason=reason,
-                    )
-                    exit_position_ids = authoritative_position_ids(portfolio, symbol)
-                    submission = broker.submit_order(
-                        symbol,
-                        action,
-                        close_qty,
-                        price=order_price,
-                        order_type=order_type,
-                        timestamp=timestamp,
-                        strategy_id=self.name,
-                        exit_reason=reason,
-                        **self._signal_links(decision_event),
-                    )
-
-                    self._track_exit(symbol, submission, portfolio, position_ids=exit_position_ids)
-
-        # 2. Check Entry if we don't have a position (or if strategy allows pyramiding, but let's assume 1 pos for now)
-        if (qty == 0 and symbol in getattr(self, "eligible_symbols", {symbol})
-                and not any(self.get_context(symbol).get(key) for key in ("entry_pending", "exit_pending"))):
-            if state in self.allowed_states:
-                entry_signal = self.should_enter(symbol, i, df, state, portfolio)
-                if entry_signal:
-                    action = entry_signal["action"]  # 'buy' or 'short'
-                    stop_loss = entry_signal.get("stop_loss", 0.0)
-                    current_price = df["close"].iat[i]
-
-                    # Extract optional order parameters
-                    order_type = entry_signal.get("order_type", "market")
-                    order_price = entry_signal.get("price", current_price)
-
-                    # Calculate Position Size
-                    # Use current_prices if available, else fallback to just this symbol
-                    price_map = (
-                        current_prices if current_prices else {symbol: current_price}
-                    )
-                    equity = portfolio.get_equity(price_map)
-
-                    size = self.initial_entry_quantity(
-                        signal=entry_signal, equity=equity, current_price=current_price,
-                        stop_loss=stop_loss, risk_manager=risk_manager,
-                    )
-                    # SR1-3: PROBATION re-enters at reduced size. Applied here,
-                    # before the caps and the entry gate, so the clamp, the
-                    # reservation and the order all see the same number.
-                    size *= self.health_risk_multiplier()
-                    size *= self.entry_risk_multiplier(state)
-
-                    if size > 0:
-                        # Liquidity is enforced by the execution venue against the
-                        # actual fill bar. The signal bar is only an estimate and
-                        # must not drive a second, inconsistent volume limit.
-                        current_volume = 0.0
-                        pending_provider = getattr(broker, "pending_open_notional", None)
-                        pending_open_notional = (
-                            pending_provider(price_map)
-                            if callable(pending_provider) else {}
-                        )
-                        if not isinstance(pending_open_notional, dict):
-                            pending_open_notional = {}
-                        # Clamp to the risk caps rather than dropping the trade.
-                        # Risk-based sizing makes notional inversely proportional
-                        # to stop distance, so a tight stop can exceed the
-                        # concentration cap and would otherwise be rejected
-                        # outright — silencing the lowest-risk signals.
-                        clamp = getattr(risk_manager, "clamp_entry_qty", None)
-                        if callable(clamp):
-                            size = clamp(
-                                portfolio,
-                                symbol,
-                                size,
-                                current_price,
-                                current_volume=current_volume,
-                                current_prices=price_map,
-                                pending_open_notional=pending_open_notional,
-                                action=action,
-                                health_multiplier=self.health_risk_multiplier(),
-                            )
-                        budget = getattr(risk_manager, "drawdown_budget", None)
-                        if budget is not None:
-                            size = budget.clamp(symbol, size, current_price, stop_loss)
-                            minimum = risk_manager.minimum_entry_notional(equity, self.health_risk_multiplier(), live=budget.live)
-                            if size * current_price + 1e-9 < minimum:
-                                size = 0.0
-                    if size > 0:
-                        # Pre-trade Risk Check (final gate; clamp already applied)
-                        if risk_manager.check_entry_risk(
-                            portfolio,
-                            symbol,
-                            size,
-                            current_price,
-                            current_volume=current_volume,
-                            current_prices=price_map,
-                            pending_open_notional=pending_open_notional,
-                            action=action,
-                        ):
-                            decision_event = self._publish_signal(
-                                broker,
-                                symbol=symbol,
-                                timestamp=df.index[i],
-                                action=action,
-                                signal_kind="entry",
-                                price=order_price,
-                                reason="signal",
-                            )
-                            submission = broker.submit_order(
-                                symbol,
-                                action,
-                                size,
-                                price=order_price,
-                                order_type=order_type,
-                                timestamp=df.index[i],
-                                strategy_id=self.name,
-                                exit_reason="signal",
-                                sequence=0,
-                                **self._signal_links(decision_event),
-                                # Persisted onto the opened lot as initial_risk
-                                # = |entry - stop| * qty (T-1.9).
-                                stop_loss=stop_loss,
-                                approved_risk_amount=(
-                                    size * abs(current_price - stop_loss)
-                                    if stop_loss > 0 else None
-                                ),
-                            )
-                            if not submission.accepted:
-                                return submission
-
-                            # Initialize Context only after explicit acceptance
-                            self.context[symbol] = {
-                                "entry_pending": True,
-                                "stop_loss": stop_loss,
-                                "entry_price": current_price,  # Approx
-                                "trailing_stop": -np.inf
-                                if action == "buy"
-                                else np.inf,  # Init trail
-                                "entry_bar": i,  # Track bar to prevent same-bar exit
-                                "entry_timestamp": df.index[i].isoformat() if isinstance(df.index, pd.DatetimeIndex) else None,
-                            }
     def process_exit_only(
         self, symbol: str, i: int, df: pd.DataFrame, state: MarketState,
         portfolio: Portfolio, broker: ExecutionPort,

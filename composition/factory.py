@@ -203,11 +203,26 @@ def build_strategy_registry(
 def build_candidate_score_policy(
     configuration: Configuration,
 ) -> CandidateScorePolicy:
-    """SR3-1 ranking weights, resolved at the composition boundary."""
+    """SR3-1 ranking weights, resolved at the composition boundary.
+
+    A5 (F-09): the trend-strength term uses the state machine's ADX period
+    and threshold. ``candidate_scoring`` may still name either key for older
+    configs, but only with the same value; a second, different ADX definition
+    fails closed instead of drifting silently.
+    """
     section = configuration.get("candidate_scoring")
-    return CandidateScorePolicy.from_mapping(
-        section if isinstance(section, dict) else None
-    )
+    mapping = dict(section) if isinstance(section, dict) else {}
+    state = configuration.get("state")
+    if isinstance(state, dict):
+        for key in ("adx_period", "adx_threshold"):
+            if key not in state:
+                continue
+            if key in mapping and float(mapping[key]) != float(state[key]):
+                raise ValueError(
+                    f"candidate_scoring.{key}={mapping[key]} conflicts with "
+                    f"state.{key}={state[key]}; scoring reads the state value")
+            mapping[key] = state[key]
+    return CandidateScorePolicy.from_mapping(mapping or None)
 
 
 def build_correlation_cluster_policy(

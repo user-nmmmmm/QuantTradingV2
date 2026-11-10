@@ -151,7 +151,7 @@ signal_meta_layer:
 # are applied by portfolio_risk below.
 candidate_scoring:
   enabled: true
-  adx_threshold: 25
+  # ADX period/threshold come from `state` (one ADX definition, A5).
   liquidity_reference_notional: 10000000
   component_cap: 5.0
   weights:
