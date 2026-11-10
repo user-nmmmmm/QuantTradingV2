@@ -35,6 +35,15 @@ def test_rebuy_is_paired_within_k_days_and_measured():
     assert rebuy_pairs(trades, 1) == []
 
 
+def test_price_gap_uses_pre_cost_prices_so_slippage_is_not_counted_twice():
+    sold = _trade("2020-01-01", "sell", "MaxHoldingPeriod", "MaxHoldingPeriod", 99.0, 1.0, cost=1.0)
+    bought = _trade("2020-01-02", "buy", "signal", "TrendBreakout", 101.0, 1.0, cost=1.0)
+    sold["theoretical_price"] = bought["theoretical_price"] = 100.0  # same market, adverse fills
+    (pair,) = rebuy_pairs(_trades(sold, bought), 3)
+    assert pair["price_gap"] == 0.0
+    assert pair["impact"] == pair["round_trip_cost"] == 2.0
+
+
 def test_only_first_buy_of_the_same_symbol_after_the_exit_counts():
     trades = _trades(
         _trade("2020-01-01", "buy", "signal", "TrendBreakout", 90.0),

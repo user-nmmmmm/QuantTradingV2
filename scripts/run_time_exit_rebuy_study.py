@@ -42,6 +42,16 @@ def modeled_cost(value: Any) -> float:
     return float(costs.get("modeled_total") or 0.0)
 
 
+def reference_price(trade: Any) -> float:
+    """Pre-cost price of a fill (``theoretical_price``), falling back to the fill price."""
+    value = trade.get("theoretical_price") if hasattr(trade, "get") else None
+    try:
+        price = float(value)
+    except (TypeError, ValueError):
+        price = float("nan")
+    return price if price == price and price > 0 else float(trade["fill_price"])
+
+
 def rebuy_pairs(trades: pd.DataFrame, k: int) -> List[Dict[str, Any]]:
     """Pair each time-exit sell with the first strategy buy of that symbol within ``k`` days."""
     if trades.empty:
@@ -59,7 +69,10 @@ def rebuy_pairs(trades: pd.DataFrame, k: int) -> List[Dict[str, Any]]:
             continue
         bought = window.sort_values("fill_time").iloc[0]
         cost = modeled_cost(sold.get("costs")) + modeled_cost(bought.get("costs"))
-        gap = (float(bought["fill_price"]) - float(sold["fill_price"])) * float(bought["qty"])
+        # Fill prices already embed slippage and impact, which ``cost`` also
+        # carries; take the gap on pre-cost reference prices so execution
+        # costs are counted once (amendment in the results note).
+        gap = (reference_price(bought) - reference_price(sold)) * float(bought["qty"])
         pairs.append({"symbol": sold["symbol"], "exit_fill_time": str(sold["fill_time"]),
                       "rebuy_fill_time": str(bought["fill_time"]),
                       "days": (bought["fill_time"] - sold["fill_time"]).days,
