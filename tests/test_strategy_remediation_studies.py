@@ -173,3 +173,31 @@ def test_entry_decision_needs_both_windows_and_picks_one_dimension():
     assert result["stage_c1_arm"] == "cool1" and result["stage_c1_dimension"] == "cooldown"
     assert result["control_passed"] == {"stab10": True}
     assert result["verdicts"]["stab2"]["passed"] is False
+
+
+# ---- SR5-SUCC-001 (D2) -----------------------------------------------------
+
+
+def test_successor_comparison_isolates_c1():
+    from config.config import config
+    from scripts.run_successor_comparison import arm_parameters
+    parent, successor = arm_parameters(config._config, "parent"), arm_parameters(config._config, "successor")
+    assert parent["trend_breakout"] == {"use_obv": True}
+    assert successor["trend_breakout"] == config._config["trend_breakout"] == {"use_obv": False}
+    assert {k: v for k, v in parent.items() if k not in ("trend_breakout", "research")} == \
+        {k: v for k, v in successor.items() if k not in ("trend_breakout", "research")}
+
+
+def test_successor_verdict_rejects_unless_both_costs_hold():
+    from scripts.run_successor_comparison import judge
+
+    def row(ret, dd=10.0, top5=100.0):
+        return {"return_pct": ret, "max_drawdown_pct": dd, "net_closed_pnl_without_top_5": top5, "accounting_ok": True}
+    rows = {"parent@1": row(5), "successor@1": row(6), "parent@2": row(3), "successor@2": row(3)}
+    result = judge(rows)
+    assert result["conclusion"] == "not_rejected_retrospective"
+    assert result["admission"] == "paused_revalidation"
+    rows["successor@2"] = row(4, top5=90.0)
+    assert judge(rows)["conclusion"] == "reject_successor"
+    rows["successor@2"] = row(30, dd=14.0)  # drawdown above max(12.5, 13)
+    assert judge(rows)["checks"]["2"]["drawdown_within_cap"] is False
