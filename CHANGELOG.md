@@ -17,10 +17,14 @@
 
 ### Fixed
 
+- Strategy remediation stage A (batch 1, [roadmap](docs/strategy_remediation_roadmap_20261110.md)): a MaxHoldingPeriod exit is submitted once and held until the venue reports a terminal fact; the live execution adapter counts working same-side orders (not resting protective stops) before treating a sell or cover as a reduction, so a second in-flight exit can no longer oversell without passing the account guard.
+- The live engine refuses to start when its rolling window is shorter than the state machine or any routed strategy needs (TrendPortfolioV2/V3 need 121 bars; the window was 100), naming who needs how many bars.
+
 - Preserve lifecycle entry guards through temporal revisions and cutoff views. Unknown or omitted previously known guards fail closed, so strict ML selection cannot enter a blocked or scheduled-exit candle. Plain OHLCV records retain their existing identity.
 
 ### Changed
 
+- Strategy remediation stage A: remove the test-only `Strategy.on_bar` path (tests use the production candidate/exit path); persist strategy health only when its checkpoint changes; candidate scoring reads ADX period and threshold from `state` (a differing `candidate_scoring` copy fails closed). The fixed engine baseline regression is unchanged. Frozen-scope identity changes; this is not a new candidate and no re-registration is made.
 - Refresh pinned certificate, asynchronous transport, market-data and image dependencies; regenerate the Linux/Python 3.11 runtime lock and extend real transport/report compatibility checks.
 - Record the 2026-10-19 `v3.1.1` annotated tag (tag object `2551bf22`, commit `122489fa`) and the A5 `code-token/v2` registration (observation window [2026-11-19, 2027-05-18), earliest maturity 2027-06-07) in the [infrastructure roadmap](docs/infrastructure_roadmap.md) and the [release baseline](docs/repair_release_baseline.md). The 3.1.1 entry below is unchanged from the tagged commit; private receipts and registration artifacts stay local.
 - Note that #117 changed eight frozen-scope files after the registration, so current `main` is not the registered identity: new observation candidates need a new version and re-registration, and `v3.1.1` is never moved.
