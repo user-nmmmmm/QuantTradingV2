@@ -59,7 +59,7 @@ flowchart TD
 3. **候选先汇总，再分配。** [PortfolioSignalAllocator](../../core/planning/allocation.py) 按 `(-score, strategy_name, symbol)` 排序后逐项提交。完全同分批次记录 `tie_break_alphabetical`，不能把确定性的名称排序解读为策略优势。
 4. **接受订单后等待实际成交。** 策略不直接修改组合数量、现金或已实现盈亏；这些事实由执行层写入。
 
-`Strategy.on_bar(...)` 保留单标的“先退出、再入场”的兼容流程。当前 Router 主路径使用拆开的持仓管理与候选方法，没有 `Router.route()` 接口。组合级排序和相关风险批次预算应通过主路径完成。
+只有一条执行路径：Router 先调用 `process_exit_only(...)` 管理既有持仓，再用 `build_entry_candidate(...)` / `submit_entry_candidate(...)` 走组合级排序与相关风险批次预算。旧的单标的 `Strategy.on_bar(...)` 只被测试调用且已与主路径分叉（缺参考价与相关性预算），已在策略整改 A2 中删除；没有 `Router.route()` 接口。
 
 **V3 有独立接线：** 注入 `PortfolioTargetController` 后，共享内核继续管理原策略的退出，但不再走普通入场候选分配，而由控制器推进组合目标。完整接线见第 9 节。
 
@@ -270,7 +270,7 @@ OBV 确认仅在存在 OBV 数据时生效：策略可从 `volume` 自动计算 
 
 每个标的的 `trade_state` 记录 `consecutive_losses` 和 `cooldown_until`。权威完整平仓回调中，连续 3 笔已实现亏损后设 `cooldown_until = bar_index + 24` 并重置连亏计数，`i <= cooldown_until` 不开新仓；非负盈亏重置连亏。
 
-当前类继承基类执行编排，**没有重写 `on_bar`，也不在提交退出时估算盈亏**。文件顶部关于重写 `on_bar` 的旧说明不代表当前实现。默认注册此类，但 SIDEWAYS 实际路由为 Cash，治理状态为 `paused_redesign`。
+当前类继承基类执行编排，**不在提交退出时估算盈亏**。默认注册此类，但 SIDEWAYS 实际路由为 Cash，治理状态为 `paused_redesign`。
 
 ## 7. VolatilityReversion
 

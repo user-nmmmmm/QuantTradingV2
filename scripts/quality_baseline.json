@@ -86,7 +86,6 @@
       "signal_meta/signal_meta_layer.py::_build_signal_meta_layer": 127,
       "signal_meta/temporal_financing.py::financing_cost": 149,
       "signal_meta/temporal_labels.py::VersionedOutcomeTracker._evaluate": 116,
-      "strategies/base.py::Strategy.on_bar": 201,
       "strategies/base.py::Strategy.submit_entry_candidate": 124
     },
     "mypy": {

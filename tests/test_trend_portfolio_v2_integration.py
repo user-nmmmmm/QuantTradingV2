@@ -73,10 +73,6 @@ def _controlled_setup(monkeypatch, strategy):
 def _submit(path, strategy, state, portfolio, broker, risk, *, symbol=SYMBOL,
             governor=None):
     frame = _frame()
-    if path == "on_bar":
-        strategy.on_bar(symbol, 0, frame, state, portfolio, broker, risk,
-                        current_prices={symbol: 100.0})
-        return broker.pending_orders[-1] if broker.pending_orders else None
     candidate = strategy.build_entry_candidate(symbol, 0, frame, state, portfolio)
     if candidate is None:
         return None
@@ -86,7 +82,7 @@ def _submit(path, strategy, state, portfolio, broker, risk, *, symbol=SYMBOL,
     )
 
 
-@pytest.mark.parametrize("path", ["on_bar", "candidate"])
+@pytest.mark.parametrize("path", ["candidate"])
 @pytest.mark.parametrize("state,market_multiplier", REGIMES)
 @pytest.mark.parametrize("health_multiplier", [1.0, 0.25])
 def test_actual_pending_orders_multiply_regime_and_health_separately(
@@ -124,7 +120,7 @@ def test_actual_pending_orders_multiply_regime_and_health_separately(
     )
 
 
-@pytest.mark.parametrize("path", ["on_bar", "candidate"])
+@pytest.mark.parametrize("path", ["candidate"])
 def test_baseline_default_multiplier_preserves_order_size(monkeypatch, path):
     strategy = TrendBreakoutStrategy()
     _controlled_setup(monkeypatch, strategy)
@@ -137,7 +133,7 @@ def test_baseline_default_multiplier_preserves_order_size(monkeypatch, path):
     assert broker.pending_orders[0].qty == pytest.approx(20.0)
 
 
-@pytest.mark.parametrize("path", ["on_bar", "candidate"])
+@pytest.mark.parametrize("path", ["candidate"])
 def test_existing_notional_cap_applies_after_market_scaling(monkeypatch, path):
     strategy = TrendPortfolioV2Strategy()
     _controlled_setup(monkeypatch, strategy)
@@ -153,7 +149,7 @@ def test_existing_notional_cap_applies_after_market_scaling(monkeypatch, path):
     assert result.intent.approved_risk_amount == pytest.approx(50.0)
 
 
-@pytest.mark.parametrize("path", ["on_bar", "candidate"])
+@pytest.mark.parametrize("path", ["candidate"])
 def test_existing_portfolio_breaker_still_blocks_v2(monkeypatch, path):
     strategy = TrendPortfolioV2Strategy()
     _controlled_setup(monkeypatch, strategy)
@@ -191,7 +187,7 @@ def test_shared_session_governor_scales_then_exhausts_v2_budget(monkeypatch):
     assert len(broker.pending_orders) == 1
 
 
-@pytest.mark.parametrize("path", ["on_bar", "candidate"])
+@pytest.mark.parametrize("path", ["candidate"])
 def test_inherited_health_lock_blocks_v2_raw_setups(monkeypatch, path):
     strategy = TrendPortfolioV2Strategy()
     _controlled_setup(monkeypatch, strategy)
@@ -315,7 +311,7 @@ def test_research_opt_in_does_not_admit_v2_for_live_routing():
         assert_live_admission(configuration, ["TrendPortfolioV2"])
 
 
-@pytest.mark.parametrize("path", ["on_bar", "candidate"])
+@pytest.mark.parametrize("path", ["candidate"])
 def test_small_sideways_probation_order_still_obeys_shared_minimum(monkeypatch, path):
     strategy = TrendPortfolioV2Strategy()
     _controlled_setup(monkeypatch, strategy)

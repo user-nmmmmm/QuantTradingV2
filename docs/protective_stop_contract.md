@@ -19,7 +19,7 @@
 所有止损参数只使用**信号 bar（已完成 bar）**上的 ATR、Donchian 极值和 high/low。
 不使用未来 bar，也不使用入场成交后才知道的价格来做原始仓位排序。
 
-在 bar `i` 生效的止损，永远是在 bar `i-1` 计算出来的：`Strategy.on_bar` 先执行
+在 bar `i` 生效的止损，永远是在 bar `i-1` 计算出来的：`Strategy.process_exit_only` 先执行
 `hard_stop_exit`，再执行 `should_exit`（追踪止损在这里上移），因此当根 bar 的
 trail 更新不可能回过头改变本 bar 已经检验过的止损位。
 

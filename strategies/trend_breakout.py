@@ -245,7 +245,7 @@ class DonchianTrendStrategy(Strategy):
     #
     # Only facts from the completed signal bar are used: the ATR and Donchian
     # level at bar ``i``. The stop that is *in force* during bar ``i`` is always
-    # the one computed at bar ``i-1`` - ``Strategy.on_bar`` checks
+    # the one computed at bar ``i-1`` - ``Strategy.process_exit_only`` checks
     # ``hard_stop_exit`` before ``should_exit``, so a trail update can never
     # reach back and change the level that was already tested this bar.
     #

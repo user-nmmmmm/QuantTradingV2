@@ -299,7 +299,7 @@ data_fetcher/data → market_data(适配器) → runtime.EventProcessor
                                                   │
                                           router.Router
                                                   │
-                                     strategies.Strategy.on_bar
+                                     strategies.Strategy（process_exit_only / build_entry_candidate → submit_entry_candidate）
                                             │            │
                                      risk.RiskManager   execution_port(Broker / LiveBroker)
                                             │                    │
