@@ -95,7 +95,13 @@ class TestBacktestEngineEquivalenceBaseline(unittest.TestCase):
         current_config = yaml.safe_load((Path(__file__).resolve().parents[1] / "config" / "params.yaml").read_text(encoding="utf-8"))
         capital_policy = current_config["allocation"].pop("capital")
         self.assertIs(capital_policy["enabled"], False)
-        self.assertEqual(current_config, yaml.safe_load(frozen_config.read_text(encoding="utf-8")))
+        frozen = yaml.safe_load(frozen_config.read_text(encoding="utf-8"))
+        # Strategy remediation A5 removed the scoring copy of the ADX
+        # threshold; scoring now reads state.adx_threshold, which the frozen
+        # copy always equalled, so the resolved configuration is unchanged.
+        self.assertEqual(frozen["candidate_scoring"].pop("adx_threshold"),
+                         current_config["state"]["adx_threshold"])
+        self.assertEqual(current_config, frozen)
         previous_bundle = json.loads(previous.read_text(encoding="utf-8"))
         for name in ("seed", "symbols", "bars_per_symbol", "warmup_period", "data_summary", "data_sha256"):
             self.assertEqual(bundle["metadata"][name], previous_bundle["metadata"][name])

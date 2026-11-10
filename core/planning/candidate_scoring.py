@@ -49,6 +49,10 @@ class CandidateScorePolicy:
         "liquidity": 0.2,
     })
     adx_threshold: float = 25.0
+    #: ADX look-back of the trend-strength term. Composition copies this and
+    #: ``adx_threshold`` from the ``state`` section so scoring and the market
+    #: state machine read one ADX definition (A5, F-09).
+    adx_period: int = 14
     #: Traded notional that scores 1.0 on the liquidity term.
     liquidity_reference_notional: float = 10_000_000.0
     #: Clip every component into [-cap, cap] so one extreme reading cannot

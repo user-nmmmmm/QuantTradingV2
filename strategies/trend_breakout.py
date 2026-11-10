@@ -379,7 +379,7 @@ class DonchianTrendStrategy(Strategy):
 
     @property
     def _adx_period(self) -> int:
-        return 14
+        return int(self.score_policy.adx_period)
 
     @property
     def _adx_column(self) -> str:

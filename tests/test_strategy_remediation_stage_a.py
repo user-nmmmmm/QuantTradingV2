@@ -269,3 +269,35 @@ def test_closed_trade_is_always_persisted():
                                             "timestamp": START, "initial_risk": 10.0}, 1)
     assert len(_health_writes(store, strategy)) == 2
     assert store.rows[strategy.health_state_key]["cohorts"]
+
+
+# ---- A5: one ADX definition for state and scoring ------------------------
+
+from composition.factory import build_candidate_score_policy  # noqa: E402
+
+
+def test_scoring_reads_adx_period_and_threshold_from_state():
+    policy = build_candidate_score_policy(config)
+    assert policy.adx_period == config.require("state", "adx_period")
+    assert policy.adx_threshold == config.require("state", "adx_threshold")
+    assert "adx_threshold" not in config.require("candidate_scoring")
+
+
+def test_changing_state_adx_moves_the_scoring_column_with_it():
+    sections = deepcopy(config._config)
+    sections["state"]["adx_period"] = 21
+    sections["state"]["adx_threshold"] = 30
+    policy = build_candidate_score_policy(_Sections(sections))
+    strategy = TrendBreakoutStrategy()
+    strategy.configure_score_policy(policy)
+    assert (policy.adx_threshold, strategy._adx_column) == (30, "ADX_21")
+    assert strategy.required_history == 42
+
+
+def test_conflicting_scoring_adx_copy_fails_closed():
+    sections = deepcopy(config._config)
+    sections["candidate_scoring"]["adx_threshold"] = 20
+    with pytest.raises(ValueError, match="conflicts with state.adx_threshold"):
+        build_candidate_score_policy(_Sections(sections))
+    sections["candidate_scoring"]["adx_threshold"] = sections["state"]["adx_threshold"]
+    assert build_candidate_score_policy(_Sections(sections)).adx_threshold == 25
