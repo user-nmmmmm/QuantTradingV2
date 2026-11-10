@@ -15,6 +15,24 @@ from typing import Any, Dict, Iterable, Mapping
 
 #: Raw rows a fetched snapshot may spend on the still-forming candle.
 UNFINISHED_CANDLE_SLOTS = 1
+#: Window floor when the configuration names none (the pre-C2 value).
+LEGACY_MIN_LOOKBACK = 100
+
+
+def live_min_lookback(configuration: Any) -> int:
+    """Smallest raw live window, from ``data.live_min_lookback_bars`` (C2).
+
+    SR-DATA-001 found 200 closed bars reproduce full-history states and
+    entry candidates while 100 do not; 201 raw rows leave room for the
+    unfinished candle. Configurations without the key keep the old floor.
+    """
+    data = configuration.get("data") if configuration is not None else None
+    value = data.get("live_min_lookback_bars") if isinstance(data, Mapping) else None
+    if value is None:
+        return LEGACY_MIN_LOOKBACK
+    if isinstance(value, bool) or not isinstance(value, int) or value < 2:
+        raise ValueError("data.live_min_lookback_bars must be an integer of at least 2")
+    return value
 
 
 class InsufficientLiveHistory(ValueError):
