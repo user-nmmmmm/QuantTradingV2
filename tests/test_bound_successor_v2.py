@@ -18,9 +18,13 @@ DRAFT = ROOT / "docs/research/config_change_c1_c2_20261110.json"
 PARENT = b"state:\n  adx_threshold: 25\nscoring:\n  adx_threshold: 25\n  weight: 1\n"
 NEW = (b"state:\n  adx_threshold: 25\nscoring:\n  weight: 1\nentry:\n  use_obv: false\n"
        b"extra:\n  enabled: false\n")
-REGISTRY = (json.dumps({"experiment_id": "X-1", "status": "completed_stage_C1_candidate"}) + "\n"
-            + json.dumps({"experiment_id": "X-2", "status": "registered"}) + "\n").encode()
-FILES = {"docs/research/current_strategy_experiment_registry.jsonl": REGISTRY, "docs/r.md": b"# result\n"}
+REGISTRY = (json.dumps({"experiment_id": "X-1", "status": "completed_stage_C1_candidate",
+                        "results": "docs/r.md"}) + "\n"
+            + json.dumps({"experiment_id": "X-2", "status": "registered"}) + "\n"
+            + json.dumps({"experiment_id": "X-3", "status": "completed_retain_current",
+                          "results": "docs/missing.md"}) + "\n").encode()
+FILES = {"docs/research/current_strategy_experiment_registry.jsonl": REGISTRY, "docs/r.md": b"# result\n",
+         "CHANGELOG.md": b"# Changelog\n"}
 
 
 def sha(data: bytes) -> str:
@@ -71,7 +75,8 @@ def test_a_behaviour_change_cannot_pass_as_a_disabled_addition():
 @pytest.mark.parametrize("evidence,message", [
     ({"experiment_id": "X-2", "results": "docs/r.md"}, "not a completed"),
     ({"experiment_id": "X-9", "results": "docs/r.md"}, "not a completed"),
-    ({"experiment_id": "X-1", "results": "docs/missing.md"}, "not in the tagged tree"),
+    ({"experiment_id": "X-1", "results": "CHANGELOG.md"}, "registered results note"),  # exists, unrelated
+    ({"experiment_id": "X-3", "results": "docs/missing.md"}, "not in the tagged tree"),
     ({"experiment_id": "X-1"}, "must cite"),
 ])
 def test_behaviour_change_evidence_is_read_from_the_tagged_tree(evidence, message):

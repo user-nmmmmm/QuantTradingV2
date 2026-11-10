@@ -187,6 +187,9 @@ def _check_evidence(path: str, evidence: Any,
     row = next((r for r in rows if r.get("experiment_id") == evidence["experiment_id"]), None)
     if row is None or not str(row.get("status", "")).startswith("completed"):
         raise ValueError(f"{path}: {evidence['experiment_id']} is not a completed registered experiment")
+    if row.get("results") != evidence["results"]:
+        raise ValueError(f"{path}: results must be {evidence['experiment_id']}'s registered results note "
+                         f"({row.get('results')!r}), not {evidence['results']!r}")
     if read_tagged(str(evidence["results"])) is None:
         raise ValueError(f"{path}: results note {evidence['results']} is not in the tagged tree")
 
