@@ -180,7 +180,7 @@ def test_default_routes_fit_the_default_live_window():
     needs = check_live_history(100, registry, config.require("routing"),
                                build_state_machine(config))
     assert set(needs) == {"MarketStateMachine", "TrendBreakout"}
-    assert max(needs.values()) <= 100
+    assert max(needs.values()) <= 99  # one raw slot is the unfinished candle
 
 
 def test_v3_route_with_100_bars_is_refused_with_the_reason():
@@ -189,14 +189,24 @@ def test_v3_route_with_100_bars_is_refused_with_the_reason():
     with pytest.raises(InsufficientLiveHistory, match="TrendPortfolioV3 needs 121"):
         check_live_history(100, {strategy.name: strategy}, {"TREND_UP": strategy.name},
                            build_state_machine(config))
-    check_live_history(121, {strategy.name: strategy}, {"TREND_UP": strategy.name},
+    check_live_history(122, {strategy.name: strategy}, {"TREND_UP": strategy.name},
                        build_state_machine(config))
+
+
+def test_recommended_window_reserves_the_unfinished_candle():
+    # The adapter trims to ``lookback`` raw rows before the forming candle is
+    # dropped, so 121 raw rows can leave only 120 closed bars for V3.
+    strategy = TrendPortfolioV3Strategy()
+    with pytest.raises(InsufficientLiveHistory, match="at least 122"):
+        check_live_history(121, {strategy.name: strategy}, {"TREND_UP": strategy.name},
+                           build_state_machine(config))
 
 
 def test_state_machine_need_is_checked_even_when_everything_routes_to_cash():
     machine = build_state_machine(config)
     with pytest.raises(InsufficientLiveHistory, match="MarketStateMachine"):
-        check_live_history(machine.required_history - 1, {}, {"TREND_UP": "Cash"}, machine)
+        check_live_history(machine.required_history, {}, {"TREND_UP": "Cash"}, machine)
+    check_live_history(machine.required_history + 1, {}, {"TREND_UP": "Cash"}, machine)
 
 
 def test_live_engine_refuses_to_start_when_v3_is_routed_on_100_bars(tmp_path):

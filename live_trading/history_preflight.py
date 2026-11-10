@@ -13,6 +13,10 @@ from __future__ import annotations
 from typing import Any, Dict, Iterable, Mapping
 
 
+#: Raw rows a fetched snapshot may spend on the still-forming candle.
+UNFINISHED_CANDLE_SLOTS = 1
+
+
 class InsufficientLiveHistory(ValueError):
     """The configured live window cannot serve a routed strategy or the state machine."""
 
@@ -39,14 +43,21 @@ def check_live_history(
     lookback: int, strategies: Mapping[str, Any], regime_map: Mapping[str, str],
     state_machine: Any,
 ) -> Dict[str, int]:
-    """Raise :class:`InsufficientLiveHistory` unless ``lookback`` covers every need."""
+    """Raise :class:`InsufficientLiveHistory` unless ``lookback`` covers every need.
+
+    ``lookback`` is the adapter's raw window. The adapter trims to that many
+    rows *before* the unfinished candle is dropped, so one slot is reserved
+    for it: only ``lookback - 1`` closed bars are guaranteed to reach routing.
+    """
     needs = history_requirements(strategies, regime_map, state_machine)
-    short = {name: bars for name, bars in needs.items() if bars > lookback}
+    closed = lookback - UNFINISHED_CANDLE_SLOTS
+    short = {name: bars for name, bars in needs.items() if bars > closed}
     if short:
         detail = ", ".join(f"{name} needs {bars}" for name, bars in sorted(short.items()))
         raise InsufficientLiveHistory(
-            f"live market data keeps {lookback} closed bars but {detail}; "
-            f"raise lookback_days to at least {max(short.values())}"
+            f"live market data keeps {lookback} bars ({closed} closed after the "
+            f"unfinished candle) but {detail}; raise lookback_days to at least "
+            f"{max(short.values()) + UNFINISHED_CANDLE_SLOTS}"
         )
     return needs
 
