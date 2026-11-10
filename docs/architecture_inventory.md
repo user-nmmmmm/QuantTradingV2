@@ -43,7 +43,7 @@ flowchart TB
 | `router` | 1 | 平铺 1 |
 | `composition` | 1 | 平铺 1 |
 | `backtest` | 24 | 平铺 12；`reporting` 12 |
-| `live_trading` | 9 | 平铺 9 |
+| `live_trading` | 10 | 平铺 10 |
 | `analysis` | 32 | 平铺 32 |
 | `research` | 30 | 平铺 1；`audit` 2, `ml_selection` 27 |
 | `dashboard` | 14 | 平铺 14 |

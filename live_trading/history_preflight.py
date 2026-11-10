@@ -49,3 +49,8 @@ def check_live_history(
             f"raise lookback_days to at least {max(short.values())}"
         )
     return needs
+
+
+def check_router_history(lookback: int, router: Any, state_machine: Any) -> Dict[str, int]:
+    """Engine entry point: check the window against a built router's routes."""
+    return check_live_history(lookback, router.strategies, router.regime_map, state_machine)

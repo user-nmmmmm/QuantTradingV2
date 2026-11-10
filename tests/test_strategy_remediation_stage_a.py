@@ -7,16 +7,24 @@ preflight, A4 health persistence frequency, A5 single source for ADX inputs.
 
 from __future__ import annotations
 
+from copy import deepcopy
 from unittest.mock import MagicMock
 
 import pandas as pd
 import pytest
 
+from composition.factory import (
+    build_candidate_score_policy, build_state_machine, build_strategy_registry,
+)
+from config.config import config
 from core.broker import Broker
 from core.trading.portfolio import Portfolio
 from core.trading.state import MarketState
 from live_trading.execution_adapter import AccountEntryBlocked, RecordedExecutionAdapter
+from live_trading.history_preflight import InsufficientLiveHistory, check_live_history
 from router.router import Router
+from strategies.trend_breakout import TrendBreakoutStrategy
+from strategies.trend_portfolio_v3 import TrendPortfolioV3Strategy
 
 SYMBOL = "A-USDT"
 START = pd.Timestamp("2024-01-01", tz="UTC")
@@ -146,15 +154,6 @@ def test_simulated_broker_book_is_counted_too():
 
 # ---- A3: live history preflight ------------------------------------------
 
-from copy import deepcopy  # noqa: E402
-
-from config.config import config  # noqa: E402
-from composition.factory import build_state_machine, build_strategy_registry  # noqa: E402
-from live_trading.history_preflight import (  # noqa: E402
-    InsufficientLiveHistory, check_live_history,
-)
-from strategies.trend_portfolio_v3 import TrendPortfolioV3Strategy  # noqa: E402
-
 
 class _Sections:
     def __init__(self, sections):
@@ -217,8 +216,6 @@ def test_live_engine_refuses_to_start_when_v3_is_routed_on_100_bars(tmp_path):
 
 # ---- A4: health persistence only on change -------------------------------
 
-from strategies.trend_breakout import TrendBreakoutStrategy  # noqa: E402
-
 
 class _CountingStore:
     def __init__(self):
@@ -272,8 +269,6 @@ def test_closed_trade_is_always_persisted():
 
 
 # ---- A5: one ADX definition for state and scoring ------------------------
-
-from composition.factory import build_candidate_score_policy  # noqa: E402
 
 
 def test_scoring_reads_adx_period_and_threshold_from_state():
