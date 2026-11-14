@@ -21,6 +21,7 @@
 
 ### Fixed
 
+- The public-market TLS diagnostic states its TLS 1.2 floor instead of inheriting the interpreter default (CodeQL alert 20; no behaviour change on supported Python versions). The 19 dashboard path-injection alerts were reviewed and are false positives; the reasoning is recorded in [docs/quality.md](docs/quality.md).
 - Strategy remediation stage A (batch 1, [roadmap](docs/strategy_remediation_roadmap_20261110.md)): a MaxHoldingPeriod exit is submitted once and held until the venue reports a terminal fact; the live execution adapter counts working same-side orders (not resting protective stops) before treating a sell or cover as a reduction, so a second in-flight exit can no longer oversell without passing the account guard.
 - The live engine refuses to start when its rolling window is shorter than the state machine or any routed strategy needs (TrendPortfolioV2/V3 need 121 bars; the window was 100), naming who needs how many bars.
 
