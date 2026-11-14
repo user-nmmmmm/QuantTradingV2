@@ -5,6 +5,7 @@ Each test fold uses only labels matured strictly before its embargoed cutoff.
 """
 from __future__ import annotations
 
+from typing import Any
 from collections import Counter
 from copy import deepcopy
 
@@ -185,7 +186,7 @@ def _build_signal_meta_layer(payload, policy=None):
             active_fold = index
         for horizon in sorted(horizons):
             if index is None:
-                score = {"estimate_bps": None, "lower_bound_bps": None, "upper_bound_bps": None,
+                score: dict[str, Any] = {"estimate_bps": None, "lower_bound_bps": None, "upper_bound_bps": None,
                     "stderr_bps": None, "effective_samples": 0.0, "effective_blocks": 0.0, "weight_mass": 0.0,
                     "raw_count": 0, "status": "abstain", "reason": "training_window", "would_allow": None,
                     "prior": {}, "axes": {}, "max_label_available_at": None}

@@ -101,7 +101,7 @@ class TradeReconstruction:
             working["symbol"] = None
         for symbol, group in working.groupby("symbol", dropna=False, sort=False):
             reasons = []
-            owners_by_order = {}
+            owners_by_order: dict[Any, Any] = {}
             for row in group.to_dict("records"):
                 try:
                     details = _lot_close_records(row.get("lot_closes"))

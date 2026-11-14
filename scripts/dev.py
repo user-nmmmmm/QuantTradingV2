@@ -48,7 +48,7 @@ def _pytest(extra: Sequence[str] = (), *, parallel: bool = True, fast: bool = Fa
         cmd += ["-m", "not slow"]
     if coverage:
         cmd += ["--durations=20", "--cov=core", "--cov=ops", "--cov=signal_meta", "--cov=backtest",
-                "--cov=live_trading", "--cov-fail-under=90"]
+                "--cov=live_trading", "--cov=cli", "--cov-fail-under=90"]
     return cmd + list(extra)
 
 

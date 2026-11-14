@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
 import math
-from typing import TYPE_CHECKING, Any, Mapping
+from typing import Any, Mapping, TYPE_CHECKING
 
 from signal_meta.signal_observation_types import canonical, fingerprint
 from core.market.timeframes import as_utc_timestamp, timeframe_delta
@@ -183,7 +183,7 @@ class EVLedger:
         relative_mass = math.fsum(row[0] for row in relative_values)
         mass = absolute_scale * relative_mass
         relative_mass2 = math.fsum(row[0] ** 2 for row in relative_values)
-        groups = defaultdict(float)
+        groups: defaultdict[Any, float] = defaultdict(float)
         for weight, _, block, _, _ in relative_values:
             groups[block] += weight
         group_mass2 = math.fsum(weight ** 2 for weight in groups.values())
@@ -200,7 +200,7 @@ class EVLedger:
                                   for weight, result, _, _, _ in relative_values) / variance_denom
                         if variance_denom > 0 else 0.0)
             individual_se = math.sqrt(max(0.0, variance) / effective_n)
-            residuals = defaultdict(float)
+            residuals: defaultdict[Any, float] = defaultdict(float)
             for weight, result, block, _, _ in relative_values:
                 residuals[block] += weight * (result - mean)
             cluster_variance = (block_count / (block_count - 1)

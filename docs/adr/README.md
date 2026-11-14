@@ -51,3 +51,4 @@
 | [0040](0040-repository-governance-evidence.md) | AUD-07：私密披露入口、只读分支/worktree 清单和所有者外部补证步骤 | 已采纳 |
 | [0041](0041-approved-data-adoption-and-research-window.md) | AUD-03：正式采用回执绑定数据提交，保留下载原件并独立执行研究截止日 | 已采纳 |
 | [0042](0042-captured-selector-bytes-and-retained-archive-identities.md) | 推理与快照使用同一份已校验字节；历史交付身份独立固定 | 已采纳 |
+| [0043](0043-cli-in-coverage-scope.md) | `cli` 包纳入覆盖率口径，门槛保持 90%（C5 后续） | 已采纳 |

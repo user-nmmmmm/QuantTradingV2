@@ -85,7 +85,7 @@ def test_full_tests_always_enforce_the_same_coverage_gate(monkeypatch, has_xdist
     monkeypatch.setattr(dev.importlib.util, "find_spec", lambda name: object() if has_xdist else None)
     command, = commands("test")
     assert {"--cov=core", "--cov=ops", "--cov=signal_meta", "--cov=backtest",
-            "--cov=live_trading", "--cov-fail-under=90", "--durations=20"} <= set(command)
+            "--cov=live_trading", "--cov=cli", "--cov-fail-under=90", "--durations=20"} <= set(command)
     assert ("-n" in command) == has_xdist  # execution mode may change, the coverage requirement may not
     assert not any(arg.startswith("--cov") for arg in commands("fast")[0])
 

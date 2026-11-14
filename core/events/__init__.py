@@ -199,7 +199,7 @@ class TradingEventPipeline:
             raise ValueError("retention_limit must be positive")
         self.retention_limit = int(retention_limit)
         self._subscribers: Dict[str, List[Handler]] = {}
-        self._events = deque(maxlen=self.retention_limit)
+        self._events: deque[Any] = deque(maxlen=self.retention_limit)
         self._by_id: Dict[UUID, EventEnvelope] = {}
 
         self._transaction_lock = RLock()
