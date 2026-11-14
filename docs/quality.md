@@ -11,7 +11,7 @@
 | **mypy 硬门槛清单** | `scripts/mypy_hard_gate.txt`：已零错误的模块，`quality_ratchet.py check` 对其中任何发现直接失败，不看基线（[ADR 0022](adr/0022-mypy-hard-gate-list.md)） | 209 个受检文件中的 151 个 | 2026-11-15 收进 4 个新清零模块；清单只增不减，未提高任何棘轮基线 |
 | **函数长度棘轮** | `quality_ratchet.py check` 的第三个工具：每个 ≥ 100 行的函数按"文件::函数"记录行数；只许变短，新出现的 ≥ 100 行函数直接失败（[ADR 0026](adr/0026-engine-function-limits-and-typed-run-state.md)） | 13 个包（`core ops signal_meta backtest live_trading strategies router composition cli config analysis research dashboard`） | 现有 86 个长函数记入基线，引擎与命令行里为 0 |
 | 导入方向 | `lint-imports`（分层契约 + `core` 不依赖其他包），详见 [架构边界说明](architecture_review.md) | 全部项目包 | 无已知例外；新增例外需要设计决定 |
-| 覆盖率 | `pytest --cov=core --cov=ops --cov=signal_meta --cov=backtest --cov=live_trading --cov=cli --cov-fail-under=90` | 六个包（2026-11-15 起含 `cli`，[ADR 0043](adr/0043-cli-in-coverage-scope.md)） | 行覆盖实测 90.97%（Windows 本地，2026-11-15；原五个包口径 91.15%）；门槛 55% → 85% → 90%（C5，[ADR 0024](adr/0024-coverage-90-and-branch-coverage-evaluation.md)）。分支覆盖实测 79.8%，暂不设门槛 |
+| 覆盖率 | `pytest --cov=core --cov=ops --cov=signal_meta --cov=backtest --cov=live_trading --cov=cli --cov-fail-under=90` | 六个包（2026-11-15 起含 `cli`，[ADR 0043](adr/0043-cli-in-coverage-scope.md)） | 行覆盖实测 90.97%（Windows 本地，2026-11-15；原五个包口径 91.15%），Linux CI 90.88%（#130）；门槛 55% → 85% → 90%（C5，[ADR 0024](adr/0024-coverage-90-and-branch-coverage-evaluation.md)）。分支覆盖实测 79.8%，暂不设门槛 |
 | 前端与隔离策略 | `dev.py frontend`；pytest 收集钩子 | 所有 `tests/dashboard_*.test.mjs`；实际收集的 quarantine 用例 | 前端失败必须阻塞；最多 10 个隔离用例，期限为 UTC 当天至 30 天内（含边界），收集错误直接失败（[ADR 0037](adr/0037-monotonic-quality-gates.md)） |
 
 棘轮按"文件 + 规则"计数（忽略行号），所以无关修改不会打扰它。基线在 `scripts/quality_baseline.json`，规则配置在 `pyproject.toml` 的 `[tool.quality_ratchet]`。mypy 固定按 `linux` / `3.11` 分析，开发机和 CI 的计数一致。
