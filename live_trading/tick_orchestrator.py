@@ -329,7 +329,7 @@ class TickOrchestrator:
                 return
 
         strategy_failures = []
-        batches: Dict[Any, Dict[str, list]] = {}
+        batches: Dict[Any, Dict[str, Any]] = {}
         for symbol in sorted(host.symbols):
             frame = closed_map.get(symbol)
             if frame is None or frame.empty:

@@ -5,7 +5,7 @@ import os
 import sqlite3
 from dataclasses import dataclass
 from threading import RLock
-from typing import Iterable, Optional, Tuple
+from typing import Any, Iterable, Optional, Tuple
 from uuid import UUID
 
 from core.events import EventCodec, EventEnvelope
@@ -138,7 +138,7 @@ class SQLiteEventStore:
         if after_sequence < 0:
             raise ValueError("after_sequence cannot be negative")
         clauses = ["sequence > ?"]
-        values = [after_sequence]
+        values: list[Any] = [after_sequence]
         if through_sequence is not None:
             if through_sequence < after_sequence:
                 return ()

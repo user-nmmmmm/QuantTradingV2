@@ -179,7 +179,7 @@ class TemporalOHLCV:
         self._claims = {}
         self._latest = {}
         self.snapshot_ids = []
-        self.audit = {"mode": self.policy.mode, "knowledge": self.policy.knowledge,
+        self.audit: dict[str, Any] = {"mode": self.policy.mode, "knowledge": self.policy.knowledge,
             "unknown_policy": self.policy.unknown, "historical_availability": "unknown",
             "point_in_time_certified": False, "revision_rows": 0, "unknown_rows": 0,
             "excluded_unknown": 0, "excluded_unavailable": 0,
