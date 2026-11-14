@@ -166,7 +166,7 @@ def constrain_target_weights(
     """
     gross_cap = _number(max_gross_weight, "max_gross_weight")
     symbol_cap = _number(max_symbol_weight, "max_symbol_weight")
-    normalized = {}
+    normalized: dict[Any, Any] = {}
     for symbol in weights:
         if not isinstance(symbol, str) or not symbol:
             raise ValueError("nonempty symbols are required")

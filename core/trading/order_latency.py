@@ -4,6 +4,7 @@ Telemetry failures must not change exchange results, exceptions or call counts.
 """
 from __future__ import annotations
 
+from typing import Any
 from collections import deque
 from contextlib import closing
 from datetime import datetime, timezone
@@ -84,7 +85,7 @@ class OrderLatencyRecorder:
             raise ValueError("max_records must be a positive integer")
         if not math.isfinite(lock_timeout_seconds) or not 0 <= lock_timeout_seconds <= 1:
             raise ValueError("lock timeout must be finite and between 0 and 1 seconds")
-        self.records = deque(maxlen=max_records)
+        self.records: deque[Any] = deque(maxlen=max_records)
         self.clock = clock
         self.total_records = 0
         self.persistence_path = None if persistence_path in (None, ":memory:") else str(persistence_path)
@@ -227,7 +228,7 @@ class OrderLatencyRecorder:
     def summary(self):
         with self._lock:
             rows = [dict(row) for row in self.records]
-            groups = {}
+            groups: dict[Any, Any] = {}
             for row in rows:
                 groups.setdefault(row.get("operation", "unknown"), []).append(row)
             result = {}

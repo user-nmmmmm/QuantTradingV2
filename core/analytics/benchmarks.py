@@ -121,11 +121,11 @@ def dynamic_equal_weight_rebalanced(
         dtype = numpy_dtype if numpy_dtype.kind == "f" else float
         prices_matrix = closes.to_numpy(dtype=dtype, na_value=np.nan)
     weight_values = np.zeros(closes.shape, dtype=float)
-    turnover_values = np.zeros(len(index), dtype=float)
-    cost_values = np.zeros(len(index), dtype=float)
-    equity_values = np.full(len(index), float(initial_capital), dtype=float)
+    turnover_values: np.ndarray = np.zeros(len(index), dtype=float)
+    cost_values: np.ndarray = np.zeros(len(index), dtype=float)
+    equity_values: np.ndarray = np.full(len(index), float(initial_capital), dtype=float)
 
-    previous_weights = np.zeros(len(closes.columns), dtype=float)
+    previous_weights: np.ndarray = np.zeros(len(closes.columns), dtype=float)
     current_equity = float(initial_capital)
     previous_prices = None
     for position, prices in enumerate(prices_matrix):
@@ -139,7 +139,7 @@ def dynamic_equal_weight_rebalanced(
         with np.errstate(divide="ignore", invalid="ignore", over="ignore"):
             if previous_prices is not None:
                 common = valid & ~np.isnan(previous_prices) & (previous_prices > 0)
-                asset_returns = np.zeros(len(closes.columns), dtype=float)
+                asset_returns: np.ndarray = np.zeros(len(closes.columns), dtype=float)
                 asset_returns[common] = prices[common] / previous_prices[common] - 1.0
                 growth = 1.0 + float(np.nansum(previous_weights * asset_returns))
                 current_equity *= growth

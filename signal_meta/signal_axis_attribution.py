@@ -12,7 +12,7 @@ from collections import Counter
 from copy import deepcopy
 import math
 from numbers import Real
-from typing import Mapping
+from typing import Any, Mapping
 
 import pandas as pd
 
@@ -114,8 +114,8 @@ def fit_axis_weights(records, axes, policy, *, cutoff, previous=None,
     uniform = dict.fromkeys(axes, 1.0 / len(axes))
     previous_weights = (_weights(previous, axes, floor=floor, cap=cap)
                         if previous is not None else uniform.copy())
-    snapshots = {}
-    skipped = Counter()
+    snapshots: dict[Any, Any] = {}
+    skipped: Counter[Any] = Counter()
     duplicates = 0
     for row in records:
         if not isinstance(row, Mapping):

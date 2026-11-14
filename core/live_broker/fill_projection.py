@@ -1,6 +1,7 @@
 """Replay fill ownership independently of exchange-synchronized cash balances."""
 from __future__ import annotations
 
+from typing import Any
 import hashlib
 import math
 from dataclasses import asdict
@@ -24,6 +25,8 @@ class _StableIds(LotIdAllocator):
 
 
 def _legacy_replay_fill_projection(store, quote_currency):
+    books: dict[Any, Any]
+    events: list[Any]
     books, events, issues = {}, [], []
     ids = _StableIds()
     records = {row["client_order_id"]: row for row in store.list_with_fills()}
@@ -179,7 +182,7 @@ class IncrementalFillProjection:
             self.state["fill_cursor"], self.state["order_cursor"])
         if not fills and order_cursor == self.state["order_cursor"]:
             return self.books, self.events, self.issues
-        new_events = []
+        new_events: list[Any] = []
         try:
             order_issues = dict(self.state["order_issues"])
             for order_id, row in orders.items():

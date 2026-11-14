@@ -7,6 +7,7 @@
 """
 from __future__ import annotations
 
+from typing import Any
 from copy import deepcopy
 import json
 import math
@@ -111,7 +112,7 @@ class TemporalFinancing:
         self.ingest(records)
 
     def _accept(self, records):
-        staged = {}
+        staged: dict[Any, Any] = {}
         identities = dict(self._event_identities)
         for raw in records:
             record = _record(raw)
@@ -163,6 +164,8 @@ class TemporalFinancing:
         """选择截止时刻可见的最新版本，保留 tombstone 供成本/标签失效判断。"""
         if knowledge not in {"local", "published"}:
             raise ValueError("invalid financing knowledge policy")
+        selected: dict[Any, Any]
+        ranks: dict[Any, Any]
         cutoff, selected, ranks = utc(at), {}, {}
         for record in self._records:
             if record["available_at"] is None or utc(record["available_at"]) > cutoff or utc(record["event_time"]) > cutoff:

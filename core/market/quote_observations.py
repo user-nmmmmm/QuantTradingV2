@@ -6,6 +6,7 @@ the local receipt clock must never stand in for exchange occurrence time.
 """
 from __future__ import annotations
 
+from typing import Any
 from contextlib import closing
 from datetime import datetime, timezone
 import json
@@ -201,6 +202,7 @@ def anonymous_public_auth(request):
 
 def quote_error_details(exc):
     """Whitelisted classifications only: exception messages can contain secrets."""
+    codes: list[Any]
     chain, codes, seen = [], [], set()
     while exc is not None and id(exc) not in seen:
         seen.add(id(exc))

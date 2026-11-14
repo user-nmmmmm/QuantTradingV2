@@ -59,7 +59,7 @@ def build_portfolio_target_controller(configuration: Configuration, strategies, 
 
     cost_policy = CostAwareAllocationPolicy.from_mapping(settings.get("cost_aware"))
     clusters = build_correlation_cluster_policy(configuration)
-    frozen = {"week": None, "weights": {}, "sizing": None}
+    frozen: dict[str, Any] = {"week": None, "weights": {}, "sizing": None}
 
     def targets(*, event, as_of, held_symbols, existing_weights):
         point = pd.Timestamp(as_of)

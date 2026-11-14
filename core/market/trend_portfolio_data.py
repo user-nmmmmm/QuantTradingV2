@@ -18,7 +18,7 @@ from pathlib import Path
 import re
 import threading
 import time
-from typing import Callable, Mapping
+from typing import Any, Callable, Mapping
 from urllib.parse import urlencode
 import xml.etree.ElementTree as ET
 import zipfile
@@ -229,6 +229,7 @@ def parse_daily_archive(body: bytes, filename: str, as_of) -> tuple[pd.DataFrame
         if members[0].file_size > 10_000_000:
             raise ValueError("Daily-kline archive expands beyond limit")
         text = archive.read(members[0]).decode("utf-8-sig")
+    rows: dict[Any, Any]
     rows, issues, excluded, duplicates = {}, [], [], set()
     for line, values in enumerate(csv.reader(io.StringIO(text)), 1):
         if not values or (line == 1 and values[0].lower() in {"open_time", "open time"}):
@@ -323,6 +324,8 @@ def article_text(node) -> str:
 
 
 def list_articles(get: Callable, catalog: int, page_size=50) -> tuple[list[dict], list[dict]]:
+    articles: list[Any]
+    seen: set[Any]
     articles, sources, seen = [], [], set()
     for page in range(1, 1001):
         url = CMS + "list/query?" + urlencode({"type": 1, "catalogId": catalog,
@@ -363,7 +366,7 @@ def extract_article_facts(article: Mapping, source: Mapping) -> dict:
     paragraphs = [re.sub(r"\s+", " ", line).strip() for line in text.splitlines() if line.strip()]
     published = article.get("publishDate") or article.get("releaseDate")
     available = pd.Timestamp(int(published), unit="ms", tz="UTC").isoformat() if published else None
-    result = {"title": title, "article_code": article.get("code"), "events": [],
+    result: dict[str, Any] = {"title": title, "article_code": article.get("code"), "events": [],
               "classifications": [], "unresolved": [], "text": text}
     if not available:
         result["unresolved"].append("missing_publication_time")
@@ -468,6 +471,8 @@ def extract_article_facts(article: Mapping, source: Mapping) -> dict:
 
 
 def build_market_metadata(symbol: str, frame: pd.DataFrame, facts: list[dict]) -> dict:
+    events: list[Any]
+    classes: list[Any]
     events, classes = [], []
     for fact in facts:
         events.extend(item for item in fact.get("events", []) if item["symbol"] == symbol)

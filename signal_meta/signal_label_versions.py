@@ -5,6 +5,7 @@ publication claim. Legacy retrospective observations remain a separate protocol.
 """
 from __future__ import annotations
 
+from typing import Any
 from copy import deepcopy
 from dataclasses import replace
 import math
@@ -102,7 +103,7 @@ class OutcomeRevisionBook:
         self._latest = outcomes
         self._candidate_contexts = {identifier: {"symbol": candidate["symbol"],
             "as_of": candidate["context"]["available_at"]} for identifier, candidate in candidates.items()}
-        self._rows = {}
+        self._rows: dict[Any, Any] = {}
         strict = payload.get("temporal_scope", {}).get("decision_mode") == "strict"
         if not self.versioned:
             if strict or payload.get("outcome_revisions"):
@@ -118,10 +119,10 @@ class OutcomeRevisionBook:
         if not isinstance(rows, list):
             raise ValueError("versioned labels require an explicit revision list")
         identities = set()
-        source_claims = {}
-        financing_claims = {}
-        source_heads = {}
-        candidate_claims = {}
+        source_claims: dict[Any, Any] = {}
+        financing_claims: dict[Any, Any] = {}
+        source_heads: dict[Any, Any] = {}
+        candidate_claims: dict[Any, Any] = {}
         for raw in rows:
             row = deepcopy(raw)
             cid, horizon = row["candidate_id"], row["horizon_bars"]

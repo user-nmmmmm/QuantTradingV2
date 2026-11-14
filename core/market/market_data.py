@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor
 from threading import RLock
 from time import perf_counter
-from typing import Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -223,7 +223,7 @@ class HistoricalMarketDataAdapter:
             (symbol, frame, frame.index, frame.index.equals(timeline), frame._ixs)
             for symbol, frame in self.data_map.items()
         ]
-        column_cache = {}
+        column_cache: dict[Any, Any] = {}
         if start_at is not None:
             point = pd.Timestamp(start_at)
             if point.tzinfo is not None:
@@ -365,9 +365,9 @@ class LiveMarketDataAdapter:
         self.temporal_policy = _temporal_policy(temporal_policy)
         self._temporal_enabled = temporal_policy is not None
         self._temporal_clock = clock or (lambda: datetime.now(timezone.utc))
-        self._temporal_histories = {}
+        self._temporal_histories: dict[Any, Any] = {}
         self.temporal_audit = {"policy": self.temporal_policy.mode, "symbols": {}}
-        self.temporal_identity = {}
+        self.temporal_identity: dict[Any, Any] = {}
         self.data_map: Dict[str, pd.DataFrame] = {}
         self._watermarks: Dict[str, pd.Timestamp] = {}
         self._last_fetched_latest: Dict[str, pd.Timestamp] = {}
