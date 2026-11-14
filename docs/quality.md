@@ -7,11 +7,11 @@
 | 层 | 检查 | 范围 | 当前状态 |
 |---|---|---|---|
 | 硬门槛 | `ruff check .`（只含 `E9,F63,F7,F82` 语法/未定义名级错误）、`mypy` 三个契约文件 | 全仓库 / `core/foundation/domain.py`、`core/foundation/runtime.py`、`live_trading/execution_adapter.py` | 0 违规，必须保持 |
-| **棘轮** | `scripts/quality_ratchet.py check`：ruff 的 `F,E4,E7,E9,B`（不含 `B905`）与 mypy（`core ops signal_meta backtest live_trading strategies router composition`） | 全仓库 / 上述八个包 | 当前存量基线：ruff 588 项、mypy 300 项（最初 621 / 869）；**只许减少，不许增加** |
-| **mypy 硬门槛清单** | `scripts/mypy_hard_gate.txt`：已零错误的模块，`quality_ratchet.py check` 对其中任何发现直接失败，不看基线（[ADR 0022](adr/0022-mypy-hard-gate-list.md)） | 202 个受检文件中的 139 个 | AUD-03 新哈希模块已收进；清单只增不减，未提高任何棘轮基线 |
+| **棘轮** | `scripts/quality_ratchet.py check`：ruff 的 `F,E4,E7,E9,B`（不含 `B905`）与 mypy（`core ops signal_meta backtest live_trading strategies router composition`） | 全仓库 / 上述八个包 | 当前存量基线：ruff 585 项、mypy 223 项（最初 621 / 869）；**只许减少，不许增加** |
+| **mypy 硬门槛清单** | `scripts/mypy_hard_gate.txt`：已零错误的模块，`quality_ratchet.py check` 对其中任何发现直接失败，不看基线（[ADR 0022](adr/0022-mypy-hard-gate-list.md)） | 209 个受检文件中的 151 个 | 2026-11-15 收进 4 个新清零模块；清单只增不减，未提高任何棘轮基线 |
 | **函数长度棘轮** | `quality_ratchet.py check` 的第三个工具：每个 ≥ 100 行的函数按"文件::函数"记录行数；只许变短，新出现的 ≥ 100 行函数直接失败（[ADR 0026](adr/0026-engine-function-limits-and-typed-run-state.md)） | 13 个包（`core ops signal_meta backtest live_trading strategies router composition cli config analysis research dashboard`） | 现有 86 个长函数记入基线，引擎与命令行里为 0 |
 | 导入方向 | `lint-imports`（分层契约 + `core` 不依赖其他包），详见 [架构边界说明](architecture_review.md) | 全部项目包 | 无已知例外；新增例外需要设计决定 |
-| 覆盖率 | `pytest --cov=core --cov=ops --cov=signal_meta --cov=backtest --cov=live_trading --cov-fail-under=90` | 五个包 | 行覆盖实测约 90.5%（Windows 本地，2026-10-14）；门槛 55% → 85% → 90%（C5，[ADR 0024](adr/0024-coverage-90-and-branch-coverage-evaluation.md)）。分支覆盖实测 79.8%，暂不设门槛 |
+| 覆盖率 | `pytest --cov=core --cov=ops --cov=signal_meta --cov=backtest --cov=live_trading --cov=cli --cov-fail-under=90` | 六个包（2026-11-15 起含 `cli`，[ADR 0043](adr/0043-cli-in-coverage-scope.md)） | 行覆盖实测 90.97%（Windows 本地，2026-11-15；原五个包口径 91.15%）；门槛 55% → 85% → 90%（C5，[ADR 0024](adr/0024-coverage-90-and-branch-coverage-evaluation.md)）。分支覆盖实测 79.8%，暂不设门槛 |
 | 前端与隔离策略 | `dev.py frontend`；pytest 收集钩子 | 所有 `tests/dashboard_*.test.mjs`；实际收集的 quarantine 用例 | 前端失败必须阻塞；最多 10 个隔离用例，期限为 UTC 当天至 30 天内（含边界），收集错误直接失败（[ADR 0037](adr/0037-monotonic-quality-gates.md)） |
 
 棘轮按"文件 + 规则"计数（忽略行号），所以无关修改不会打扰它。基线在 `scripts/quality_baseline.json`，规则配置在 `pyproject.toml` 的 `[tool.quality_ratchet]`。mypy 固定按 `linux` / `3.11` 分析，开发机和 CI 的计数一致。
@@ -43,6 +43,7 @@ python scripts/quality_ratchet.py update           # 修掉存量问题后，把
 | 2026-10-11 | 621 | 869 | 3 | 棘轮引入 |
 | 2026-10-14 | 588 | 313 | 129 | C2、B4、C3、B7 之后 |
 | 2026-10-14 | 588 | 301 | 138 | B6 第一片（熔断器状态迁移，-1）之后；此前 C3 收尾：11 处纯注解（`var-annotated`、默认值为 `None` 的参数）；其余 302 项多是靠运行时开关保证的 `None` 等，需要改写逻辑才能让 mypy 满意，留待各模块重构时处理 |
+| 2026-11-15 | 585 | 223 | 151 | 61 处 `var-annotated` 补上显式注解（容器元素类型写作 `Any`，与 mypy 此前的推断相同，不改变运行行为），连带消除 12 项依赖这些变量的发现；另有 8 处位于已超过 100 行的函数内，补注解要多写一行、会被函数长度棘轮拒绝，留待这些函数拆分时处理。剩余 223 项都需要改写逻辑 |
 
 下一次回看：2027-01。基线一个季度没有下降要写明原因或计划。
 
@@ -61,12 +62,13 @@ python scripts/quality_ratchet.py update           # 修掉存量问题后，把
 ### 覆盖率
 
 - 门槛是**行覆盖**（`--cov-fail-under` 在不带 `--cov-branch` 时只看语句）。提升门槛的 PR 补的是有行为含义的测试（失败即关闭的入口、订单状态归一、SQLite 恢复守卫、补帧冷却等），不是为了凑行数。
-- 看哪里最缺：`python -m pytest -q --cov=core --cov=ops --cov=signal_meta --cov=backtest --cov=live_trading --cov-report=term-missing`；本地与 CI 可能相差零点几个百分点（符号链接测试、Windows 专有分支）。
+- 看哪里最缺：`python -m pytest -q --cov=core --cov=ops --cov=signal_meta --cov=backtest --cov=live_trading --cov=cli --cov-report=term-missing`；本地与 CI 可能相差零点几个百分点（符号链接测试、Windows 专有分支）。
 - 分支覆盖：`--cov-branch` 会把分支并入同一个百分比，`--cov-fail-under` 无法对两者分别设门槛。2026-10-14 实测行 90.30%（补测试前）、分支 79.84%、合并口径 87.44%。结论：不启用分支门槛，每季度本地跑一次 `--cov-branch` 记录数字（见下），分支覆盖低的模块作为补测试的线索。
 
 | 日期 | 行覆盖 | 分支覆盖 | 合并口径 | 备注 |
 |---|---|---|---|---|
 | 2026-10-14 | 89.54%（补测试前）→ 约 90.5%（补测试后） | 78.94% → 79.84% | 86.64% → 87.44% | Windows 本地，4132 个测试 |
+| 2026-11-15 | 90.97%（六个包，含 `cli` 84.69%）；原五个包口径 91.15% | 未测 | 未测 | Windows 本地，5448 passed；另有 10 个依赖版本测试因本机环境落后于锁文件而失败，与覆盖率口径无关 |
 
 ### 偶发失败（不稳定测试）
 

@@ -127,8 +127,8 @@
 | B6 | **已完成**（#95、#96） | 第一片（`RiskManager` 的 `CircuitBreaker`，13 个属性）已合并（#93，ADR 0027）。ADR 0027 记录了方法（先录金样本测试 → 机械搬动 → 文档）和各片的顺序（`Broker` 的 `Matching`/`Liquidation` 已在第二片完成，ADR 0028；`LiveBroker` 的 `AccountSync` 已在第三片完成，ADR 0029；`LiveTradingEngine` 的 `Recovery`/`StateExport` 已在第四片完成，ADR 0030；`TickOrchestrator` 独占的 8 个记账属性已在第五片完成，ADR 0031）。留在宿主上的是被多个写入者共享的引擎级状态（`_operational_state`、`_healthy`、`data_map`、`_snapshot` ……）和 `Broker` 的 `orders_by_id`/`opening_orders`/`execution_audit` 等，它们的归属是下一个层次的设计问题，记为“观察期内不动” |
 | C1 | 已完成 | 约定在 CONTRIBUTING，季度记录在 `docs/quality.md`；下次回看 2027-01 |
 | C2、C4 | C2交付保留；C4机器约束已合并 #103 | AUD-04：真实收集最多 10 项，UTC 当天至 30 天内有效；类/模块/参数标记与子目录计入，选择过滤不能隐藏超限，xdist 控制端收到明确失败原因 |
-| C3 | 已完成，持续项 | 硬门槛清单 139/202：AUD-03 新增零错误哈希模块并用 `promote --write` 收进；当前 mypy 300 项存量基线未提高。其余模块随重构清零扩围（ADR 0022）；函数长度棘轮继续禁止新增长函数或已有函数增长 |
-| C5 | 已完成 | 门槛 90%；#113 合并提交的 Linux CI 实测 90.73%（4735 passed、15 skipped、111 subtests）。#85 的历史 CI 为 90.51%；若以后低于 90%，补测试而不是降门槛（ADR 0024） |
+| C3 | 已完成，持续项 | 硬门槛清单 151/209（2026-11-15：补 61 处显式注解，mypy 基线 297 → 223，ruff 588 → 585，新收进 4 个模块）；此前 139/202：AUD-03 新增零错误哈希模块并用 `promote --write` 收进。其余模块随重构清零扩围（ADR 0022）；函数长度棘轮继续禁止新增长函数或已有函数增长 |
+| C5 | 已完成 | 门槛 90%；#113 合并提交的 Linux CI 实测 90.73%（4735 passed、15 skipped、111 subtests）。#85 的历史 CI 为 90.51%；若以后低于 90%，补测试而不是降门槛（ADR 0024）。2026-11-15：`cli` 纳入口径，门槛不变，本地实测 90.97%（原口径 91.15%），Linux CI 待首次运行确认（ADR 0043） |
 | D1 | **全部保留，清理不排期** | #106/#108 的只读工具与回归保留；实际清单及保留记录仅留本地，不删除分支或 worktree，也不把旧数量当成当前清理依据 |
 | D2 | **重评与批准采用已合并 #108/#109** | [正式采用记录](data_review/20261016_adoption.md)：30 份采用前缀 match，实际数据提交和研究策略已由 main 门禁核对；2 份下载记录、28 份 unverified、全部 point_in_time unknown 保留 |
 | D3 | 已完成 | 锁文件在 Linux/Windows × 3.11/3.13 都有现成轮子（仅 `multitasking` 为纯 Python 源码包）；#85 的 CI 上已验证通过（ADR 0021） |
