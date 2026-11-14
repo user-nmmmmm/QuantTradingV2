@@ -286,8 +286,8 @@ def archive_jobs(get: Callable, symbol: str, start, end) -> tuple[list[str], lis
     jobs = list(months.values())
     # Daily listing starts at the earliest missing month after the first known
     # archive. It does not issue thousands of synthetic pre-listing requests.
-    first_observed = min((utc(re.search(r"-1d-(\d{4}-\d{2})\.zip$", key).group(1) + "-01")
-                          for key in monthly if re.search(r"-1d-(\d{4}-\d{2})\.zip$", key)), default=start)
+    first_observed = min((utc(found.group(1) + "-01") for key in monthly
+                          if (found := re.search(r"-1d-(\d{4}-\d{2})\.zip$", key))), default=start)
     daily_start = max(start, first_observed)
     missing_months = [period.strftime("%Y-%m") for period in pd.date_range(
         daily_start.replace(day=1), end - pd.Timedelta(microseconds=1), freq="MS")

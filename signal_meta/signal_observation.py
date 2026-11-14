@@ -44,7 +44,7 @@ GATES = {
 
 def strategy_identity(strategy):
     """Version source + declared scalar/policy parameters, excluding runtime state."""
-    params = {}
+    params: dict[str, Any] = {}
     for name, value in vars(strategy).items():
         if name.startswith("_") or name in {"raw_setup_count", "suppressed_setup_count",
                                             "observed_close_events", "last_raw_setup_at",

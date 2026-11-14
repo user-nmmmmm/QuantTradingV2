@@ -2,7 +2,7 @@ from core.foundation.redaction import safe_url
 import os
 import time
 from datetime import datetime
-from typing import Optional, Union
+from typing import Any, Optional, Union
 from zoneinfo import ZoneInfo
 
 import numpy as np
@@ -17,7 +17,7 @@ from core.market.temporal_data import TemporalOHLCV, compatibility_audit, tempor
 # （index 为时间戳，列名为 open/high/low/close/volume，均为小写）
 
 logger = get_logger(__name__)
-_UNSET = object()
+_UNSET: Any = object()
 
 
 class IncompleteDataError(ValueError):
