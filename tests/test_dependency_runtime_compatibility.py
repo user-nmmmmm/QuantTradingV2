@@ -31,7 +31,7 @@ ROOT = Path(__file__).resolve().parents[1]
     ("aiohttp", "3.14.4"), ("certifi", "2026.10.19"),
     ("curl_cffi", "0.15.0"), ("yfinance", "1.2.1"),
     ("cryptography", "50.0.2"), ("Pillow", "13.0.0"),
-    ("soupsieve", "3.0.3"), ("urllib3", "2.8.0"), ("requests", "2.33.1"),
+    ("soupsieve", "4.0.1"), ("urllib3", "2.8.0"), ("requests", "2.33.1"),
     ("idna", "3.15"), ("multidict", "6.9.1"),
 ])
 def test_installed_client_and_report_versions_meet_the_runtime_floor(distribution, minimum):
