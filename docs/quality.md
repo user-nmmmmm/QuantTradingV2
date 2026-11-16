@@ -92,6 +92,21 @@ python -m pip install pre-commit && pre-commit install
 
 `.pre-commit-config.yaml` 只用本地工具：硬门槛 ruff、棘轮、Markdown 断链、仓库卫生检查。
 
+## CodeQL 告警处置（2026-11-15）
+
+CodeQL 在 2026-10-13 的首次运行留下 20 条 `high` 告警，此前没有人看过；本节是逐条核查的结论。CodeQL 不是必需检查，告警不会拦合并，所以要靠人定期看 GitHub 的 Security 页面。
+
+| 告警 | 位置 | 结论 | 依据 |
+|---|---|---|---|
+| #1–#19 `py/path-injection` | `dashboard/visual_data.py`（12）、`dashboard/market_analysis.py`（5）、`dashboard/research_analytics.py`（2） | **误报**，不改代码 | 请求里能影响路径的只有回测 `id` 和行情 `symbol`。`id` 必须整体匹配 `^[A-Za-z0-9._-]+$` 且不是 `.`、`..`，再要求目录不是符号链接、解析后的父目录等于报告根目录；`symbol` 必须整体匹配 `^[A-Z0-9]+/USDT$`，再把 `/` 换成 `_`。两者都只能成为根目录下的**一个**路径段。根目录来自启动参数，不来自请求。CodeQL 不把预编译正则的 `fullmatch` 识别为净化步骤，所以沿数据流把每个文件操作都报了一遍 |
+| #20 `py/insecure-protocol` | `scripts/diagnose_public_market.py` | **已处理** | `ssl.create_default_context()` 在项目支持的 Python（≥ 3.11.5）上默认下限已是 TLS 1.2，实际没有风险；现在由 `verified_tls_context()` 显式写出下限并有测试，不再依赖解释器默认值 |
+
+核查时在 Windows 上实测了这些输入，全部被拒绝或落在根目录内：`..`、`...`、`....`、`run/..`、`..\\secret`、`C:`、`run:x`、`CON`、`NUL`、`../USDT`、`A.B/USDT`、`BTC/USDT/..`。已有的回归测试覆盖了其中的遍历用例（`tests/test_dashboard_analysis.py`、`test_dashboard_web.py`、`test_dashboard_market_analysis.py`、`test_dashboard_research_analytics.py`、`test_dashboard_lab.py`）。
+
+已知但不处理的一点：Windows 会忽略文件名末尾的句点，所以 `id=run1.` 会读到 `run1` 的报告。它仍在报告根目录内，读到的是同一份本来就可读的报告，不构成越权。
+
+#1–#19 已于 2026-11-15 经仓库所有者确认，在 GitHub 上标记为"误报"并附理由；这个标记可以撤销（重新打开告警）。#20 在修复合并、CodeQL 重新扫描后才会关闭。以后新增读文件的 dashboard 接口，沿用 `_report_run` / `_symbol_path` 这两个入口，不要自己拼路径。
+
 ## 存量问题的复核结论（C2，2026-10-14）
 
 棘轮扫描曾列出几类值得人工看一眼的模式。逐个读过调用点之后的结论如下；**没有发现需要改变交易行为的缺陷**。
