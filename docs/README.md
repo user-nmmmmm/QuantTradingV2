@@ -33,6 +33,7 @@
 
 以下按近期主题提供入口。带日期的实施记录说明对应批次的工作和证据，文件日期较新并不自动替代已批准契约或更新项目放行状态。
 
+- [2026-11-16 回测研究总纲与 R1–R6 协议草案](research/backtest_research_program_20261116.md)：零模型基线、滚动样本外、参数稳健性、成本与容量、行情与集中度、回撤与尾部六份研究协议；仅为设计，未冻结、无脚本、无结果，阈值待所有者确认，不读 final20。
 - [2026-10-28 PR25 主线移植与三项补充接口](research/paper_research_main_development_20261028.md)：保留当前架构、数据 adoption 与质量门槛，移植原专项工程并补充成本发布收据、原策略自动捕获和类型化 worker 输入；[当前验收](research/paper_research_main_acceptance_20261028.json)待当前提交检查，真实证据、条件支线和资金准入分别记录。
 
 - [2026-10-25 论文研究深化 Roadmap](research/paper_research_roadmap_20261025.md)、[详细开发与测试计划](research/paper_research_development_plan_20261025.md)、[Excel 文献整合计划](research/paper_research_excel_integration_plan_20261026.md)：基于八篇候选论文与 Excel 文献表的 23 项专项工作包规划快照；B1 已有工程交付，后续执行范围和验收见 [2026-10-28 主线记录](research/paper_research_main_development_20261028.md)，全局任务状态仍由原权威登记维护。
