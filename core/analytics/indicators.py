@@ -167,7 +167,7 @@ class Indicators:
         return adx
 
     @staticmethod
-    def BBANDS(series: pd.Series, n: int = 20, k: int = 2) -> tuple[pd.Series, pd.Series, pd.Series]:
+    def BBANDS(series: pd.Series, n: int = 20, k: float = 2) -> tuple[pd.Series, pd.Series, pd.Series]:
         """
         布林带 (Bollinger Bands)
         Returns: (upper, middle, lower)

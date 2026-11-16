@@ -6,6 +6,7 @@ Every outer test fold freezes both this book and the attribution weights.
 """
 from __future__ import annotations
 
+from typing import Any
 from collections import Counter, defaultdict
 from copy import deepcopy
 import math
@@ -200,6 +201,7 @@ def _build(payload, policy):
     result["protocol"]["anchor"] = iso(anchor)
     first = anchor + pd.Timedelta(days=ev.train_days+ev.embargo_days)
     length = pd.Timedelta(days=ev.test_days)
+    previous_weights: dict[Any, Any]
     active, previous_weights = None, {}
     fold, ledger, models, weights = None, None, {}, {}
     for candidate in ordered:

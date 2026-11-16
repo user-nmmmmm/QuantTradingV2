@@ -1,11 +1,18 @@
 """No-network diagnostics and anonymous same-spot-service routing contracts."""
+import ssl
 from threading import Event
 
 import pytest
 import requests
 
 from core.market.quote_observations import _PublicBookFetcher, anonymous_public_auth, quote_error_details
-from scripts.diagnose_public_market import bounded_probe, diagnose, proxy_presence, safe_error
+from scripts.diagnose_public_market import bounded_probe, diagnose, proxy_presence, safe_error, verified_tls_context
+
+
+def test_tls_diagnostic_context_verifies_certificates_and_refuses_protocols_older_than_tls_1_2():
+    context = verified_tls_context()
+    assert context.minimum_version == ssl.TLSVersion.TLSv1_2
+    assert context.verify_mode == ssl.CERT_REQUIRED and context.check_hostname
 
 
 def test_anonymous_spot_client_honors_env_without_netrc_or_unrelated_metadata(monkeypatch):

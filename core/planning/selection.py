@@ -11,7 +11,7 @@ from decimal import Decimal, ROUND_FLOOR
 import hashlib
 import json
 import math
-from typing import Iterable, Mapping
+from typing import Any, Iterable, Mapping
 
 import pandas as pd
 
@@ -133,7 +133,7 @@ def select_targets(*, facts: Iterable[MembershipFact],
         seen.add(identity)
         if available <= point:
             visible_facts.setdefault(symbol, []).append((fact.action, effective, available))
-    latest = {}
+    latest: dict[Any, Any] = {}
     seen = set()
     for item in observations:
         symbol = normalize_symbol(item.symbol)

@@ -6,6 +6,7 @@ retrospective 保留最终数据回放兼容行为；strict 按决策时刻和�
 """
 from __future__ import annotations
 
+from typing import Any
 from dataclasses import asdict, dataclass, replace
 from copy import deepcopy
 from datetime import datetime, timezone
@@ -178,7 +179,7 @@ class TemporalOHLCV:
         self._claims = {}
         self._latest = {}
         self.snapshot_ids = []
-        self.audit = {"mode": self.policy.mode, "knowledge": self.policy.knowledge,
+        self.audit: dict[str, Any] = {"mode": self.policy.mode, "knowledge": self.policy.knowledge,
             "unknown_policy": self.policy.unknown, "historical_availability": "unknown",
             "point_in_time_certified": False, "revision_rows": 0, "unknown_rows": 0,
             "excluded_unknown": 0, "excluded_unavailable": 0,
@@ -266,7 +267,7 @@ class TemporalOHLCV:
         return bool(frame.attrs.get("temporal_records"))
 
     def _verify_frame_versions(self, frame):
-        known = {}
+        known: dict[Any, Any] = {}
         for record in self.records:
             if record.get("record_type") == "tombstone":
                 continue
@@ -394,6 +395,8 @@ class TemporalOHLCV:
         """
         cutoff = _utc(at)
         allowed = None if allowed_times is None else {_utc(value).isoformat() for value in allowed_times}
+        chosen: dict[Any, Any]
+        rank_by_id: dict[Any, Any]
         chosen, rank_by_id = {}, {}
         lifecycle_by_id: dict[str, set[str]] = {}
         unknown_ids = set()

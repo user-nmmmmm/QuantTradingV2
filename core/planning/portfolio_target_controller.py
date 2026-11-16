@@ -5,6 +5,7 @@ budgets. The controller never treats a proposal or a missing order as a fill.
 """
 from __future__ import annotations
 
+from typing import Any
 from dataclasses import asdict, replace
 import hashlib
 import json
@@ -83,8 +84,8 @@ class PortfolioTargetController:
         if self.cost_aware_policy.enabled:
             self.policy_identity = _digest({"native_policy_identity": self.policy_identity,
                                             "cost_aware_policy": asdict(self.cost_aware_policy)})
-        self.audit = []
-        self._orders = {}
+        self.audit: list[Any] = []
+        self._orders: dict[Any, Any] = {}
         self._prepared = None
         self._state = {"version": 1, "policy_identity": self.policy_identity,
                        "account": None, "week": None, "target_id": None,
@@ -108,7 +109,7 @@ class PortfolioTargetController:
 
     @staticmethod
     def _filled_notionals(broker):
-        totals = {}
+        totals: dict[Any, Any] = {}
         for trade in getattr(broker, "trades", ()):
             order_id = trade.get("order_id")
             totals[order_id] = totals.get(order_id, 0.)+float(trade["qty"])*float(trade["fill_price"])
@@ -266,7 +267,7 @@ class PortfolioTargetController:
         # confirmed. Protective/reducing orders are never canceled here.
         broker.cancel_opening_orders(set(self._state["targets"]), timestamp=as_of)
         weights = snapshot.get("target_weights", {})
-        mandatory_weights = {}
+        mandatory_weights: dict[Any, Any] = {}
         if self.cost_aware_policy.enabled:
             sizing = snapshot.get("sizing") or snapshot
             audit = sizing.get("cost_aware_audit")
@@ -534,7 +535,7 @@ class PortfolioTargetController:
             detail["remaining_original_approved_risk"] = risk_left
             if quantity <= 0:
                 detail["reasons"].append("original_target_capacity_or_approval_exhausted")
-            risk_audit = {}
+            risk_audit: dict[Any, Any] = {}
             with capture(risk_audit):
                 quantity = risk_manager.clamp_entry_qty(portfolio, symbol, quantity, price,
                     current_prices=dict(current_prices), pending_open_notional=pending_notional,

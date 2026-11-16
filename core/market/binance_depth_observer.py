@@ -6,6 +6,7 @@ machine. A kline repair cannot establish order-book sequence continuity.
 """
 from __future__ import annotations
 
+from typing import Any
 import asyncio
 from contextlib import suppress
 from datetime import datetime, timezone
@@ -279,7 +280,7 @@ async def observe_depth(*, symbols, duration_seconds, journal, quote_store, run_
                 if time.monotonic() >= deadline:
                     break
                 book = SequencedDepthBook(symbol, export_levels=export_levels)
-                queue = asyncio.Queue(maxsize=2000)
+                queue: asyncio.Queue[Any] = asyncio.Queue(maxsize=2000)
                 producer = None
                 epoch = uuid4().hex
                 try:

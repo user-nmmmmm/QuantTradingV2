@@ -16,6 +16,7 @@ backtest/reporting/render/pdf.py
 backtest/reporting/render/text.py
 backtest/reporting/risk_metrics.py
 backtest/reporting/serialization.py
+backtest/reporting/signal_adaptive.py
 backtest/reporting/signal_meta_layer.py
 backtest/reporting/signal_observation.py
 backtest/signal_meta_replay.py
@@ -24,6 +25,7 @@ core/__init__.py
 core/analytics/__init__.py
 core/analytics/accounting_check.py
 core/analytics/backtest_audit.py
+core/analytics/benchmarks.py
 core/analytics/diagnostics.py
 core/analytics/indicators.py
 core/analytics/metric_result.py
@@ -58,11 +60,13 @@ core/foundation/runtime.py
 core/foundation/runtime_identity.py
 core/foundation/source_bytes.py
 core/live_broker/account_sync.py
+core/live_broker/fill_projection.py
 core/live_broker/retry.py
 core/live_broker/safe.py
 core/live_broker/submission.py
 core/market/__init__.py
 core/market/data.py
+core/market/data_fetcher.py
 core/market/data_versions.py
 core/market/derivatives_data.py
 core/market/market_data_errors.py
@@ -71,7 +75,9 @@ core/market/membership.py
 core/market/public_data_clients.py
 core/market/quote_borrow.py
 core/market/request_budget.py
+core/market/temporal_data.py
 core/market/timeframes.py
+core/market/trend_portfolio_data.py
 core/market/universe.py
 core/market/websocket_market.py
 core/metrics/__init__.py
@@ -120,7 +126,9 @@ live_trading/protection_schedule.py
 live_trading/recovery.py
 live_trading/risk_actions.py
 live_trading/state_export.py
+live_trading/tick_orchestrator.py
 ops/__init__.py
+ops/admission_gates.py
 ops/health.py
 ops/incident_journal.py
 ops/operations/__init__.py
@@ -142,8 +150,10 @@ signal_meta/paper_labels.py
 signal_meta/selection_context.py
 signal_meta/signal_actuals.py
 signal_meta/signal_adaptive_types.py
+signal_meta/signal_label_versions.py
 signal_meta/signal_observation_types.py
 signal_meta/temporal_labels.py
 strategies/__init__.py
+strategies/mean_reversion.py
 strategies/statistical_arbitrage.py
 strategies/trend_breakout.py

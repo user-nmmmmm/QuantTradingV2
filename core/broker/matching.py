@@ -301,7 +301,7 @@ class Matching:
         next_active_orders: List[Order] = []
         # Several orders can compete for the same candle. Extract its scalar
         # prices once instead of repeating pandas label lookups per order.
-        candle_prices = {}
+        candle_prices: dict[Any, Any] = {}
         for symbol, bar in current_bar.items():
             mark = bar.get("mark_price", bar.get("close", bar.get("open")))
             if mark is not None and pd.notna(mark):

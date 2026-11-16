@@ -104,7 +104,7 @@ def reconcile_account_snapshots(
             issues.append(f"{label}.identity:unsupported_account_mode")
         for section in ("positions", "orders", "fills", "cashflows"):
             data[section] = indexed(data.get(section), f"{label}.{section}")
-        filled_by_order = {}
+        filled_by_order: dict[Any, Any] = {}
         total_fees = 0.0
         fees_known = True
         for record_id, fill in data["fills"].items():

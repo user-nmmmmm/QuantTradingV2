@@ -117,7 +117,7 @@ def _comparison_diagnostics(payload, p1_payload):
             compatible = reference is not None and all(
                 row.get(field) == reference.get(field) for field in
                 ("strategy", "direction", "symbol", "available_at"))
-            values["p1"] = _number(reference.get("estimate_bps")) if compatible else None
+            values["p1"] = _number(reference.get("estimate_bps")) if reference is not None and compatible else None
         samples.append((actual, values))
     names = ["prior", "uniform", "adaptive"] + (["p1"] if p1_payload is not None else [])
     comparisons = []

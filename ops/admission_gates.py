@@ -197,8 +197,8 @@ def evaluate_shadow(
     shadow_signals: Sequence[Mapping[str, Any]],
 ) -> dict[str, Any]:
     """Verify signal identity, bar time, action, strategy, and rule version."""
-    expected = {layer: [] for layer in RECONCILIATION_LAYERS}
-    actual = {layer: [] for layer in RECONCILIATION_LAYERS}
+    expected: dict[Any, list[Any]] = {layer: [] for layer in RECONCILIATION_LAYERS}
+    actual: dict[Any, list[Any]] = {layer: [] for layer in RECONCILIATION_LAYERS}
     expected["signals"] = list(backtest_signals)
     actual["signals"] = list(shadow_signals)
     report = reconcile_lifecycle(expected, actual)
@@ -333,7 +333,7 @@ def calibrate_execution_model(
     if any(value < 0 for value in limits.values()):
         raise ValueError("calibration tolerances cannot be negative")
     issues: list[str] = []
-    errors = {
+    errors: dict[str, Any] = {
         "slippage_mae_bps": [],
         "spread_mae_bps": [],
         "latency_mae_ms": [],

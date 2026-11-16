@@ -3,7 +3,7 @@ from dataclasses import replace, asdict
 from collections import deque
 from copy import deepcopy
 from core.trading.lots import CloseEvent
-from typing import Set, Dict, Any, Optional
+from typing import Any, Dict, Optional, Set
 import pandas as pd
 import numpy as np
 from core.trading.state import MarketState
@@ -54,7 +54,7 @@ class Strategy(ABC):
         # Entry admission and existing-position regime exits are independent.
         self.exit_on_disallowed_state = True
         self.exit_allowed_states = None
-        self.exit_lifecycle_audit = []
+        self.exit_lifecycle_audit: list[Any] = []
 
         # State tracking for the strategy per symbol
         # symbol -> { 'entry_price': float, 'stop_loss': float, 'trailing_stop': float }
@@ -68,13 +68,13 @@ class Strategy(ABC):
         # CloseEvent ids already delivered to on_trade_closed (T-1.5): guards
         # against double-counting if the same event is ever observed twice.
         self._consumed_close_event_ids: Set[str] = set()
-        self._position_close_accumulator = {}
-        self._completed_position_ids = set()
-        self._recent_close_ids = deque()
-        self._recent_position_ids = deque()
+        self._position_close_accumulator: dict[Any, Any] = {}
+        self._completed_position_ids: set[Any] = set()
+        self._recent_close_ids: deque[Any] = deque()
+        self._recent_position_ids: deque[Any] = deque()
         self._close_event_cursor = 0
         self._close_event_checkpoint_id = None
-        self._pending_close_events = {}
+        self._pending_close_events: dict[Any, Any] = {}
         self._close_state_store = None
 
     def get_context(self, symbol: str) -> Dict[str, Any]:
