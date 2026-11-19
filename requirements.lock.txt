@@ -47,7 +47,7 @@ PyYAML==6.0.3
 requests==2.33.1
 rich==15.0.0
 six==1.17.0
-soupsieve==3.0.3
+soupsieve==4.0.1
 typing_extensions==4.15.0
 tzdata==2025.3
 urllib3==2.8.0
