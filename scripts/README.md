@@ -67,6 +67,7 @@
 | [`collect_trend_portfolio_v3_data.py`](collect_trend_portfolio_v3_data.py)、[`run_trend_portfolio_v2.py`](run_trend_portfolio_v2.py)、[`run_trend_portfolio_v3.py`](run_trend_portfolio_v3.py) | 收集 V3 官方历史资料并运行 V2/V3 固定比较。 |
 | [`render_capital_growth.py`](render_capital_growth.py) | 从已完成的资本对照结果渲染图表。 |
 | [`benchmark_live_latency.py`](benchmark_live_latency.py) | 在明确的合成 I/O 延迟下成对比较旧版/当前实盘适配器；输入基线源码路径，输出本地基准报告，不测真实交易所延迟。 |
+| [`run_reality_gap_experiments.py`](run_reality_gap_experiments.py) | 运行 7 大实盘现实断层对照回测实验（E1–E7 + E4b），结果输出到 `outputs/reality_gap_experiments/`，报告见 [reality_gap](../docs/research/reality_gap/issues_report.md)。 |
 
 ## 论文方法与收益复核（离线）
 
