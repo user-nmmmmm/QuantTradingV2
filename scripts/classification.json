@@ -124,6 +124,7 @@
     "run_phase4_analysis.py": "supported",
     "run_phase5_analysis.py": "supported",
     "run_portable_tests.py": "supported",
+    "run_reality_gap_experiments.py": "research",
     "run_research_automation.py": "supported",
     "run_return_followup.py": "research",
     "run_return_followup_engine.py": "research",

@@ -16,7 +16,6 @@ import logging
 import math
 import random
 import subprocess
-import sys
 import time
 from collections import Counter
 from contextlib import contextmanager
@@ -27,20 +26,15 @@ from typing import Any, Dict, List, Mapping, Optional, Tuple
 import numpy as np
 import pandas as pd
 
+from backtest.delayed_execution import replay_delayed_decisions
+from backtest.engine import BacktestEngine
+from backtest.reporting import ReportGenerator
+from config.config import config
+from core.metrics import monte_carlo_trade_sequence
+from core.universe import PointInTimeUniverse
+from main import _load_local_ohlcv
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
-
-# Suppress verbose INFO logs during batch runs; preserve warnings/errors in audit.
-logging.disable(logging.WARNING)
-
-from backtest.delayed_execution import replay_delayed_decisions  # noqa: E402
-from backtest.engine import BacktestEngine  # noqa: E402
-from backtest.reporting import ReportGenerator  # noqa: E402
-from config.config import config  # noqa: E402
-from core.metrics import monte_carlo_trade_sequence  # noqa: E402
-from core.universe import PointInTimeUniverse  # noqa: E402
-from main import _load_local_ohlcv  # noqa: E402
 
 DATA_DIR = REPO_ROOT / "data" / "binance" / "1d"
 UNIVERSE_CSV = REPO_ROOT / "config" / "universe_binance_spot_1d.csv"
@@ -410,6 +404,7 @@ def run_delayed_execution_diagnostic(
 
 
 def main() -> None:
+    logging.disable(logging.WARNING)
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     started_at = datetime.now(timezone.utc).isoformat()
     t_all = time.perf_counter()
