@@ -2,24 +2,26 @@
 
 Split out of core/risk.py (A4) — see docs/architecture_review.md.
 
-This is a mixin, not a standalone collaborator object: ``RiskManager``
-combines ``CircuitBreakerMixin``, ``PositionSizingMixin``, and
-``EntryPolicyMixin`` via inheritance so every method still reads/writes the
-same ``self`` attributes it always has. That keeps this split mechanical and
-behavior-identical — a full composition redesign (separate ``PositionSizer``/
-``CircuitBreaker`` objects with their own state) is a bigger change better
-left for a dedicated pass on this money-path-adjacent code, not bundled into
-a file-size cleanup.
+``CircuitBreaker`` is a collaborator that ``RiskManager`` holds (``_circuit_breaker``); it was a mixin
+before B4 (ADR 0018). It reads and writes the breaker state through its ``host`` reference, and every call
+back into the risk manager goes through the host's own methods, so overrides and ``patch.object`` on the
+``RiskManager`` still intercept it. The thirteen state attributes of the breaker are owned by this class since B6
+(ADR 0027); ``RiskManager`` keeps every old name as a ``Delegated`` attribute, so external code, state export and
+recovery are unchanged.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
+from typing import Any, Optional
 import math
 import pandas as pd
 
-from core.logger import get_logger
+from core.foundation.logger import get_logger
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from core.risk import RiskManager
 
 logger = get_logger(__name__)
 
@@ -61,15 +63,31 @@ class RiskControlDecision:
         return not self.allow_new_entries
 
 
-class CircuitBreakerMixin:
+class CircuitBreaker:
     """Daily loss breaker, sticky portfolio drawdown action, and health gating.
 
-    Expects ``self`` to carry the attributes ``RiskManager.__init__`` sets:
-    ``daily_loss_limit``, ``portfolio_drawdown_reduce/block/liquidate/lock``,
-    ``reduced_risk_multiplier``, ``circuit_breaker_triggered``,
-    ``high_water_equity``, ``portfolio_breaker_action``, ``last_drawdown``,
-    ``breaker_audit``, ``health_assessment``.
+    Owns the breaker's durable state (the thirteen attributes set in ``__init__``, B6 / ADR 0027). From the host it
+    only reads configuration that ``RiskManager.__init__`` sets: ``daily_loss_limit``,
+    ``portfolio_drawdown_reduce/block/liquidate/lock``, ``reduced_risk_multiplier``, ``recovery_policy`` and the
+    ``breaker_audit`` list.
     """
+
+    def __init__(self, host: "RiskManager") -> None:
+        self._host = host
+        # The breaker's durable state (B6, ADR 0027). ``RiskManager`` keeps these names as ``Delegated`` attributes.
+        self.blocked_until: Optional[pd.Timestamp] = None
+        self.probation_equity: Optional[float] = None
+        self.recovery_count = 0
+        self.circuit_breaker_triggered = False
+        self.daily_loss_triggered = False
+        self.high_water_equity: Optional[float] = None
+        self.portfolio_breaker_action = BreakerAction.NORMAL
+        self.last_drawdown = 0.0
+        self.breaker_epoch = 0
+        self._breaker_transition_sequence = 0
+        self.current_transition_id: Optional[str] = None
+        self.current_daily_action_id: Optional[str] = None
+        self.health_assessment: Any = None
 
     def set_health_assessment(self, assessment) -> None:
         """Install the latest live health fact used by opening-risk checks."""
@@ -105,12 +123,13 @@ class CircuitBreakerMixin:
 
     @property
     def risk_multiplier(self) -> float:
-        if self._blocks_new_risk():
+        host = self._host
+        if host._blocks_new_risk():
             return 0.0
         if self.probation_equity is not None:
-            return self.recovery_policy.probation_risk_multiplier
+            return host.recovery_policy.probation_risk_multiplier
         if self.portfolio_breaker_action is BreakerAction.REDUCE:
-            return self.reduced_risk_multiplier
+            return host.reduced_risk_multiplier
         return 1.0
 
     def _blocks_new_risk(self) -> bool:
@@ -129,6 +148,7 @@ class CircuitBreakerMixin:
         bar_index: Optional[int] = None,
     ) -> None:
         """Resume a persistent portfolio breaker only after named approval."""
+        host = self._host
         if not approved_by or not approved_by.strip():
             raise ValueError("approved_by is required for manual recovery")
         previous = self.portfolio_breaker_action
@@ -147,7 +167,7 @@ class CircuitBreakerMixin:
             0.0,
             1.0 - float(current_equity) / max(float(self.high_water_equity), 1e-12),
         )
-        self.breaker_audit.append({
+        host.breaker_audit.append({
             "event": "manual_resume",
             "approved_by": approved_by.strip(),
             "equity": float(current_equity),
@@ -178,6 +198,7 @@ class CircuitBreakerMixin:
 
         返回结构化决策；其布尔值为 True 时表示禁止新增风险。
         """
+        host = self._host
         current_equity = float(current_equity)
         if not math.isfinite(current_equity):
             raise ValueError("breaker equity must be finite")
@@ -191,13 +212,13 @@ class CircuitBreakerMixin:
             )
 
         target = BreakerAction.NORMAL
-        if self.last_drawdown >= self.portfolio_drawdown_lock:
+        if self.last_drawdown >= host.portfolio_drawdown_lock:
             target = BreakerAction.LOCKED
-        elif self.last_drawdown >= self.portfolio_drawdown_liquidate:
+        elif self.last_drawdown >= host.portfolio_drawdown_liquidate:
             target = BreakerAction.LIQUIDATE
-        elif self.last_drawdown >= self.portfolio_drawdown_block:
+        elif self.last_drawdown >= host.portfolio_drawdown_block:
             target = BreakerAction.BLOCK_NEW
-        elif self.last_drawdown >= self.portfolio_drawdown_reduce:
+        elif self.last_drawdown >= host.portfolio_drawdown_reduce:
             target = BreakerAction.REDUCE
 
         # Recovery changes only the opening-risk policy. Absolute liquidation
@@ -208,32 +229,32 @@ class CircuitBreakerMixin:
                 raise ValueError("invalid breaker timestamp")
             now = now.tz_localize("UTC") if now.tzinfo is None else now.tz_convert("UTC")
         terminal = self.portfolio_breaker_action in {BreakerAction.LIQUIDATE, BreakerAction.LOCKED}
-        if self.recovery_policy.enabled and not terminal and target not in {
+        if host.recovery_policy.enabled and not terminal and target not in {
             BreakerAction.LIQUIDATE, BreakerAction.LOCKED
         }:
             if self.portfolio_breaker_action is BreakerAction.BLOCK_NEW:
                 # Old snapshots without a deadline start a full cooldown.
                 if self.blocked_until is None and now is not None:
-                    self.blocked_until = (now + pd.Timedelta(days=self.recovery_policy.cooldown_days)).isoformat()
+                    self.blocked_until = (now + pd.Timedelta(days=host.recovery_policy.cooldown_days)).isoformat()
                 if now is not None and now >= pd.Timestamp(self.blocked_until):
                     healthy = self.health_assessment is None or bool(
                         getattr(self.health_assessment, "allows_new_risk", False)
                     )
                     daily_safe = (daily_start_equity > 0 and
-                                  1 - current_equity / daily_start_equity < self.daily_loss_limit)
+                                  1 - current_equity / daily_start_equity < host.daily_loss_limit)
                     if healthy and daily_safe and not self.daily_loss_triggered:
                         self.probation_equity = current_equity
                         self.blocked_until = None
                         self.recovery_count += 1
-                        self._recovery_transition(BreakerAction.REDUCE, "cooldown_expired", now, current_equity, bar_index)
+                        host._recovery_transition(BreakerAction.REDUCE, "cooldown_expired", now, current_equity, bar_index)
             if self.probation_equity is not None:
                 loss = 1 - current_equity / self.probation_equity
-                if loss >= self.recovery_policy.probation_loss_limit:
+                if loss >= host.recovery_policy.probation_loss_limit:
                     target = BreakerAction.BLOCK_NEW
                     self.probation_equity = None
-                elif self.last_drawdown < self.portfolio_drawdown_reduce:
+                elif self.last_drawdown < host.portfolio_drawdown_reduce:
                     self.probation_equity = None
-                    self._recovery_transition(BreakerAction.REDUCE, "probation_recovered", now, current_equity, bar_index)
+                    host._recovery_transition(BreakerAction.REDUCE, "probation_recovered", now, current_equity, bar_index)
                     target = BreakerAction.REDUCE
                 else:
                     # Still underwater: permit bounded new risk rather than
@@ -247,8 +268,8 @@ class CircuitBreakerMixin:
             self.portfolio_breaker_action = target
             if target is BreakerAction.BLOCK_NEW:
                 self.blocked_until = (
-                    (now + pd.Timedelta(days=self.recovery_policy.cooldown_days)).isoformat()
-                    if now is not None and self.recovery_policy.enabled else None
+                    (now + pd.Timedelta(days=host.recovery_policy.cooldown_days)).isoformat()
+                    if now is not None and host.recovery_policy.enabled else None
                 )
             if target in {BreakerAction.BLOCK_NEW, BreakerAction.LIQUIDATE, BreakerAction.LOCKED}:
                 self.probation_equity = None
@@ -258,12 +279,12 @@ class CircuitBreakerMixin:
                 f"{self._breaker_transition_sequence}"
             )
             threshold = {
-                BreakerAction.REDUCE: self.portfolio_drawdown_reduce,
-                BreakerAction.BLOCK_NEW: self.portfolio_drawdown_block,
-                BreakerAction.LIQUIDATE: self.portfolio_drawdown_liquidate,
-                BreakerAction.LOCKED: self.portfolio_drawdown_lock,
+                BreakerAction.REDUCE: host.portfolio_drawdown_reduce,
+                BreakerAction.BLOCK_NEW: host.portfolio_drawdown_block,
+                BreakerAction.LIQUIDATE: host.portfolio_drawdown_liquidate,
+                BreakerAction.LOCKED: host.portfolio_drawdown_lock,
             }[target]
-            self.breaker_audit.append({
+            host.breaker_audit.append({
                 "event": "portfolio_drawdown_action",
                 "from": previous.value,
                 "to": target.value,
@@ -294,7 +315,7 @@ class CircuitBreakerMixin:
         daily_drawdown = 0.0
         if daily_start_equity > 0:
             daily_drawdown = max(0.0, 1.0 - current_equity / daily_start_equity)
-        if daily_drawdown >= self.daily_loss_limit:
+        if daily_drawdown >= host.daily_loss_limit:
             first_daily_trigger = not self.daily_loss_triggered
             self.daily_loss_triggered = True
             self.circuit_breaker_triggered = True
@@ -302,11 +323,11 @@ class CircuitBreakerMixin:
                 self.current_daily_action_id = (
                     f"epoch-{self.breaker_epoch}-daily-{bar_index}"
                 )
-                self.breaker_audit.append({
+                host.breaker_audit.append({
                     "event": "daily_loss_triggered",
                     "occurred_at": occurred_at,
                     "bar_index": bar_index,
-                    "threshold": self.daily_loss_limit,
+                    "threshold": host.daily_loss_limit,
                     "pre_action_equity": current_equity,
                     "post_action_equity": None,
                     "cost": None,
@@ -321,7 +342,7 @@ class CircuitBreakerMixin:
             logger.error(
                 "Daily loss breaker triggered: %.2f%% >= %.2f%%",
                 daily_drawdown * 100,
-                self.daily_loss_limit * 100,
+                host.daily_loss_limit * 100,
             )
 
         action = self.portfolio_breaker_action
@@ -341,7 +362,7 @@ class CircuitBreakerMixin:
                 and _BREAKER_RANK[action] < _BREAKER_RANK[BreakerAction.BLOCK_NEW]
             ),
             force_reduce_fraction=(
-                self.reduced_risk_multiplier
+                host.reduced_risk_multiplier
                 if (action is BreakerAction.REDUCE and self.probation_equity is None
                     and "recovery" not in (self.current_transition_id or "")) else None
             ),
@@ -360,18 +381,19 @@ class CircuitBreakerMixin:
         )
 
     def _recovery_transition(self, action, reason, now, equity, bar_index):
+        host = self._host
         previous = self.portfolio_breaker_action
         self.portfolio_breaker_action = action
         self.circuit_breaker_triggered = self.daily_loss_triggered
         self._breaker_transition_sequence += 1
         self.current_transition_id = f"epoch-{self.breaker_epoch}-recovery-{self._breaker_transition_sequence}"
-        self.breaker_audit.append({
+        host.breaker_audit.append({
             "event": "portfolio_recovery", "from": previous.value, "to": action.value,
             "reason_codes": [reason], "occurred_at": now, "bar_index": bar_index,
             "action_id": self.current_transition_id, "breaker_epoch": self.breaker_epoch,
             "equity": equity, "high_water_equity": self.high_water_equity,
             "drawdown": self.last_drawdown, "rebase_high_water": False,
-            "probation_equity": self.probation_equity, "risk_multiplier": self.risk_multiplier,
+            "probation_equity": self.probation_equity, "risk_multiplier": host.risk_multiplier,
         })
 
     def breaker_checkpoint(self):
@@ -433,9 +455,10 @@ class CircuitBreakerMixin:
         overridden_by: Optional[str] = None,
     ) -> None:
         """Complete the matching transition audit after the broker acts."""
+        host = self._host
         if not action_id:
             return
-        for entry in reversed(self.breaker_audit):
+        for entry in reversed(host.breaker_audit):
             if entry.get("action_id") == action_id:
                 if entry.get("post_action_equity") is not None:
                     return

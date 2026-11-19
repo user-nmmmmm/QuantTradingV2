@@ -15,11 +15,10 @@ import json
 import math
 from pathlib import Path
 import re
-import sys
+
+from core.foundation.content_hash import cache_hash_matches
 
 ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 
 import numpy as np
 import pandas as pd
@@ -34,10 +33,10 @@ from composition.factory import (
     build_candidate_score_policy, build_protective_stop_policy, build_strategy_health_policy,
 )
 from config.config import ConfigLoader, config
-from core.data_fetcher import DataFetcher
+from core.market.data_fetcher import DataFetcher
 from core.metrics import benjamini_hochberg, one_sided_bootstrap_p_value
-from core.reproducibility import canonical_json, save_data_snapshots, sha256_file
-from core.timeframes import timeframe_delta
+from core.foundation.reproducibility import canonical_json, save_data_snapshots, sha256_file
+from core.market.timeframes import timeframe_delta
 from scripts.roadmap_baseline import source_manifest
 
 TASKS = ("monthly-optimize", "quarterly-robust")
@@ -184,7 +183,8 @@ def load_local_inputs(directory, symbols, *, start, end, boundary, timeframe):
         path = _contained_file(data_root, relative)
         content = path.read_bytes()
         actual = hashlib.sha256(content).hexdigest()
-        if actual != entry.get("sha256"):
+        matches = cache_hash_matches(content, entry) if kind == "binance-cache/v2" else actual == entry.get("sha256")
+        if not matches:
             raise ValueError(f"Input hash mismatch for {symbol}")
         frame = pd.read_csv(io.BytesIO(content), index_col="timestamp", float_precision="round_trip")
         actual_times = pd.to_datetime(frame.index, utc=True, errors="raise")
@@ -361,7 +361,7 @@ def run_research_automation(*, task, protocol, data_dir, start, end, symbols, ou
             frames = {symbol: _validate_frame(frame, symbol=symbol, start=left, end=right,
                         boundary=boundary, timeframe=timeframe) for symbol, frame in frames.items()}
             input_identity = {"kind": "synthetic", "seed": 42,
-                              "generator": "core.data_fetcher.DataFetcher.generate_scenario"}
+                              "generator": "core.market.data_fetcher.DataFetcher.generate_scenario"}
         else:
             frames, input_identity = load_local_inputs(data_dir, symbols, start=left, end=right,
                                                        boundary=boundary, timeframe=timeframe)

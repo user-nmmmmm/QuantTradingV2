@@ -2,9 +2,9 @@
 
 > 文档状态：Active v1.0
 > 生效日期：2026-09-01
-> 实现：[`core/candidate_scoring.py`](../core/candidate_scoring.py)、[`core/risk/portfolio_governor.py`](../core/risk/portfolio_governor.py)、[`core/account_cost_contract.py`](../core/account_cost_contract.py)、[`core/allocation.py`](../core/allocation.py)
+> 实现：[`core/planning/candidate_scoring.py`](../core/planning/candidate_scoring.py)、[`core/risk/portfolio_governor.py`](../core/risk/portfolio_governor.py)、[`core/trading/account_cost_contract.py`](../core/trading/account_cost_contract.py)、[`core/planning/allocation.py`](../core/planning/allocation.py)
 > 测试：[`tests/test_sr3_portfolio_risk.py`](../tests/test_sr3_portfolio_risk.py)
-> 上位文档：[`current_strategy_remediation_roadmap.md`](current_strategy_remediation_roadmap.md) SR3
+> 上位文档：[`current_strategy_remediation_roadmap.md`](archive/2026-10-doc-consolidation/current_strategy_remediation_roadmap.md) SR3
 
 ## 1. 候选排序（SR3-1 / STR-P1-03）
 
@@ -80,7 +80,7 @@ combined          合计
 
 这是一个划分（partition），因此三者恒等于 `total_net_pnl`；`reconciles=false`
 会在报告里打出 P0。控制器判定复用
-[`core.strategy_health.classify_exit_controller`](../core/strategy_health.py)，
+[`core.analytics.strategy_health.classify_exit_controller`](../core/analytics/strategy_health.py)，
 与健康 cohort 的口径是同一个，不存在两套定义。
 
 ## 4. 账户模式与成本语义（SR3-4 / STR-P1-05、STR-P1-06）
@@ -102,7 +102,7 @@ symbol 为 `__QUOTE__`。
 ### 4.2 费率必须与账户模式一致
 
 `execution.fee_schedule` 现在必须写明 venue / market_type / source，
-`core.account_cost_contract.validate_account_cost_contract` 在**回测和实盘两个
+`core.trading.account_cost_contract.validate_account_cost_contract` 在**回测和实盘两个
 入口**都会校验：
 
 - fee_schedule 的 market_type 必须与 `account.mode` 兼容；

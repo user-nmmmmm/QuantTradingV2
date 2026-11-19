@@ -6,8 +6,8 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 
-from core.market_data import normalize_market_frame
-from core.timeframes import as_utc_timestamp, closed_bars, timeframe_delta
+from core.market.market_data import normalize_market_frame
+from core.market.timeframes import as_utc_timestamp, closed_bars, timeframe_delta
 
 
 def summarize_market_speed(frame: pd.DataFrame, *, timeframe: str, observed_at: datetime) -> dict:

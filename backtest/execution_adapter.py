@@ -7,7 +7,7 @@ from typing import Any
 from core.broker import Broker
 from core.broker.matching import is_protective_stop
 from core.broker.types import Order
-from core.runtime import MarketDataSlice
+from core.foundation.runtime import MarketDataSlice
 
 
 def _is_not_protective_stop(order: Order) -> bool:

@@ -23,8 +23,8 @@ import pytest
 
 from backtest.engine import BacktestEngine
 from core.broker import Broker
-from core.portfolio import Portfolio
-from core.state import MarketState
+from core.trading.portfolio import Portfolio
+from core.trading.state import MarketState
 from strategies.base import Strategy
 
 SYMBOL = "BTC/USDT"

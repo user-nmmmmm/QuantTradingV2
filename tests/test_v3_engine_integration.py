@@ -40,6 +40,7 @@ def spec(variant="momentum", financing="assumed", suffix="main"):
 
 
 @pytest.mark.parametrize("variant", ["momentum", "breakout"])
+@pytest.mark.slow
 def test_real_runner_weekly_targets_protective_stops_financing_and_valuation_only(tmp_path, variant):
     frames, metadata = synthetic_market()
     before = config._config
@@ -73,6 +74,7 @@ def test_real_runner_weekly_targets_protective_stops_financing_and_valuation_onl
     assert not any(row.get("reason") == "unreconciled_orders" for row in controller["audit"])
 
 
+@pytest.mark.slow
 def test_verified_financing_mode_never_borrows_without_evidence(tmp_path):
     frames, metadata = synthetic_market()
     run = spec(financing="verified_only")
@@ -160,6 +162,7 @@ def test_protective_exit_suppresses_old_target_until_next_monday(tmp_path):
 
 
 @pytest.mark.parametrize("variant", ["momentum", "breakout"])
+@pytest.mark.slow
 def test_real_fill_and_financing_prefix_is_invariant_to_future_data_and_input_order(tmp_path, variant):
     frames, metadata = synthetic_market(length=231)
     historical_frames = {symbol: history.iloc[:224].copy() for symbol, history in frames.items()}

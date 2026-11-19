@@ -13,7 +13,7 @@ from backtest.engine import BacktestEngine
 from config.config import config
 from composition.factory import build_strategy_registry
 from strategies.base import Strategy
-from core.state import MarketState
+from core.trading.state import MarketState
 
 
 class _AlwaysLongStrategy(Strategy):

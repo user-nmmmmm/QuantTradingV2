@@ -4,7 +4,7 @@
 > 本文件维护项目阶段、优先级、依赖和放行标准。
 > 执行入口：[开发计划](development_plan.md) → [开发详情](development_details.md) → [任务登记表](development_task_registry.json)。
 > 历史总入口：[过去的路线图、开发计划与 Codex 邮件](archive/2026-09-roadmap-rebaseline/README.md)。
-> 需求追溯：[旧编号与新任务映射](roadmap_traceability.md)；基线审计：[2026-09-20审计报告](codex_mail_roadmap_audit_20260920.md)。
+> 需求追溯：[旧编号与新任务映射](roadmap_traceability.md)；基线审计：[2026-09-20审计报告](archive/2026-10-doc-consolidation/codex_mail_roadmap_audit_20260920.md)。
 
 ## 1. 本轮目标和当前结论
 
@@ -14,11 +14,11 @@
 
 ### 2026-09-20 实现复核
 
-本轮已完成20个FIX、VER-01及当前源码冻结/三进程复现，补齐增量恢复、跨模式/故障证据及标准指标产物。各SYS工作包保留整体依赖与真实运行边界，R0–R8未全部放行。原始审计及研究fail结论保留。详见[执行与验收记录](r_series_acceptance_20260920.md)及[机器验收索引](../reports/roadmap_v3/acceptance_index.json)。
+本轮已完成20个FIX、VER-01及当前源码冻结/三进程复现，补齐增量恢复、跨模式/故障证据及标准指标产物。各SYS工作包保留整体依赖与真实运行边界，R0–R8未全部放行。原始审计及研究fail结论保留。详见[执行与验收记录](roadmap_acceptance_log.md)及[机器验收索引](../reports/roadmap_v3/acceptance_index.json)。
 
-第5、6节追加实现、当前源码身份及验证见[追加执行记录](section56_acceptance_20260920.md)。九项规则已有机器验收；SYS-12/13已新增隔离工程能力但未整体关闭，SYS-11仍待未见样本，S4候选仍受前置限制。
+第5、6节追加实现、当前源码身份及验证见[追加执行记录](roadmap_acceptance_log.md)。九项规则已有机器验收；SYS-12/13已新增隔离工程能力但未整体关闭，SYS-11仍待未见样本，S4候选仍受前置限制。
 
-今日文档回顾后的追加实施见[后续完成记录](followup_completion_20260920.md)：补齐账户独立来源适配与运行时新增风险门禁、分组回撤/机会成本/独立报价指标输入，以及自动回测和研究编排。新增SYS-19承接自动化方案，当前登记41项（原始40项加1项），24项历史已验收、17项开放。真实账户/数据来源、连续运行、远端CI及未来研究证据按实际状态保留；代码与本地测试完成不等于这些证据已经取得。
+今日文档回顾后的追加实施见[后续完成记录](roadmap_acceptance_log.md)：补齐账户独立来源适配与运行时新增风险门禁、分组回撤/机会成本/独立报价指标输入，以及自动回测和研究编排。新增SYS-19承接自动化方案，当前登记41项（原始40项加1项），24项历史已验收、17项开放。真实账户/数据来源、连续运行、远端CI及未来研究证据按实际状态保留；代码与本地测试完成不等于这些证据已经取得。
 
 ## 2. 统一事实基线
 
@@ -85,7 +85,7 @@ flowchart LR
 
 ## 5. 旧计划冲突的统一口径
 
-2026-09-20 已将下列九项口径接入 [POL-01–09 规则契约](roadmap_policy_contract.md)及[机器验收入口](../scripts/verify_roadmap_policy.py)。本轮同时修复连续运行门槛可被降低、简略 paper 报告误通过及前瞻协议修改后未校验原哈希的问题。逐项结果见[第 5、6 节执行记录](section56_acceptance_20260920.md)；真实运行、研究有效性和工程验收分别记录。
+2026-09-20 已将下列九项口径接入 [POL-01–09 规则契约](roadmap_policy_contract.md)及[机器验收入口](../scripts/verify_roadmap_policy.py)。本轮同时修复连续运行门槛可被降低、简略 paper 报告误通过及前瞻协议修改后未校验原哈希的问题。逐项结果见[第 5、6 节执行记录](roadmap_acceptance_log.md)；真实运行、研究有效性和工程验收分别记录。
 
 | 冲突 | 本轮采用的规则 | 来源 |
 | --- | --- | --- |
@@ -94,7 +94,7 @@ flowchart LR
 | 老健康恢复阈值与9月14日契约不同 | 延用已批准的分级恢复、样本边界与迁移规则；本次文档整合不调阈值、不解除人工锁定 | [9月14日契约](research/strategy_remediation_contract_20260914.md)、[健康契约](strategy_health_contract.md) |
 | 按成交时权益重算风险 vs 原订单批准预算 | 成交后只读不可变`approved_risk_amount`及原止损/参考价；数量精度缩小预算，权益增长或恢复不能扩大旧预算 | [保护止损契约](protective_stop_contract.md) |
 | 理想止损价/立即全额强平 vs 真实跳空和流动性 | 保留真实成交价格、成本、部分成交和共享参与率；目标减仓持续至完成，不伪造流动性 | 9月14日契约，R1/R4 |
-| 指标不可计算显示0/inf vs 可审计状态 | 输出null+状态+原因；明确样本不足与输入错误；兼容旧四态必须版本化 | BM0及[指标详情](backtest_metrics_detailed_development_plan.md) |
+| 指标不可计算显示0/inf vs 可审计状态 | 输出null+状态+原因；明确样本不足与输入错误；兼容旧四态必须版本化 | BM0及[指标详情](archive/2026-10-doc-consolidation/backtest_metrics_detailed_development_plan.md) |
 | 研究audit ledger被当作主交易账本 | 复用现有成交/lot事实，收敛权威投影；不以离线研究模块存在代替交易链路完成 | [账本边界](authoritative_ledger.md) |
 | 基准等权再平衡 vs 冻结买入持有 | 两种政策使用不同benchmark_id；当前冻结研究沿用9月14日BTC/ETH各50%首开盘买入、不再平衡、上市前现金规则，不按结果换基准 | [9月14日契约](research/strategy_remediation_contract_20260914.md)、SYS-03/11 |
 | Phase/T/G/BT编号重名 | 追溯键使用“原文档路径+旧ID”，保留上下文，不能按数字直接合并 | [追溯矩阵](roadmap_traceability.md) |
@@ -113,9 +113,9 @@ flowchart LR
 
 ## 7. 优先级和完成定义
 
-今日后续账户、指标、自动化和灰度准入修复已另行登记 [followup-successor-03](../reports/roadmap_v3/SYS-11/20260920-followup-successor-03/acceptance.json)，源码身份为 `1ed2cf91117b5de1817fe88e5b46aa19cf2acb754a2ba75412c7c2aa63085211`；观察窗仍为 **[2026-10-21, 2027-04-19)**、最早成熟日 **2027-05-09**。此前身份、旧协议和研究fail完整保留。最新工程验证与仍未完成的BX扩展详见[后续完成记录](followup_completion_20260920.md)。
+今日后续账户、指标、自动化和灰度准入修复已另行登记 [followup-successor-03](../reports/roadmap_v3/SYS-11/20260920-followup-successor-03/acceptance.json)，源码身份为 `1ed2cf91117b5de1817fe88e5b46aa19cf2acb754a2ba75412c7c2aa63085211`；观察窗仍为 **[2026-10-21, 2027-04-19)**、最早成熟日 **2027-05-09**。此前身份、旧协议和研究fail完整保留。最新工程验证与仍未完成的BX扩展详见[后续完成记录](roadmap_acceptance_log.md)。
 
-2026-09-20 已将本节落实为[完成定义契约 v1](roadmap_completion_contract.md)、[版本化证据清单](roadmap_completion_manifest.json)和[机器检查入口](../scripts/verify_roadmap_completion.py)。检查覆盖优先级、依赖关闭、七项完成定义、跨文档状态及历史证据摘要；执行与限制见[第 7 节验收记录](section7_acceptance_20260920.md)。本节治理完成不代表剩余系统任务或 R0–R8 已全部验收。
+2026-09-20 已将本节落实为[完成定义契约 v1](roadmap_completion_contract.md)、[版本化证据清单](roadmap_completion_manifest.json)和[机器检查入口](../scripts/verify_roadmap_completion.py)。检查覆盖优先级、依赖关闭、七项完成定义、跨文档状态及历史证据摘要；执行与限制见[第 7 节验收记录](roadmap_acceptance_log.md)。本节治理完成不代表剩余系统任务或 R0–R8 已全部验收。
 
 | 优先级 | 判断依据 | 处理 |
 | --- | --- | --- |

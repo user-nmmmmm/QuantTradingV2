@@ -11,12 +11,12 @@ from typing import Any, Dict, Optional, Sequence
 import numpy as np
 import pandas as pd
 
-from core.candidate_scoring import ScoreBreakdown
-from core.entry_audit import note
-from core.portfolio import Portfolio
-from core.protective_stops import ProtectiveStopPolicy
+from core.planning.candidate_scoring import ScoreBreakdown
+from core.trading.entry_audit import note
+from core.trading.portfolio import Portfolio
+from core.trading.protective_stops import ProtectiveStopPolicy
 from core.risk import RiskManager
-from core.state import MarketState
+from core.trading.state import MarketState
 from strategies.trend_breakout import TrendBreakoutStrategy
 
 
@@ -156,6 +156,11 @@ class TrendPortfolioV2Strategy(TrendBreakoutStrategy):
         return max(*self.horizons, self.entry_window, self.exit_window,
                    self.stop_policy.atr_period - 1,
                    self.volatility_window if self.volatility_sizing else 0)
+
+    @property
+    def required_history(self) -> int:
+        # Signals exist only once ``i >= _required_history``: one more bar.
+        return max(super().required_history, self._required_history + 1)
 
     def _uses_atr(self) -> bool:
         return True  # SIDEWAYS breakout strength needs ATR in every exit arm.

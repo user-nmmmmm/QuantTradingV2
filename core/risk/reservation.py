@@ -8,8 +8,8 @@ from decimal import Decimal
 from threading import RLock
 from typing import Any, Dict, Iterator, Optional, Set, Tuple
 
-from core.domain import OrderIntent, OrderStatus, RiskDecision, RiskReservation
-from core.entry_risk import resolve_approved_risk
+from core.foundation.domain import OrderIntent, OrderStatus, RiskDecision, RiskReservation
+from core.trading.entry_risk import resolve_approved_risk
 from core.events import (
     EventEnvelope,
     FillEvent,

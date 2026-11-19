@@ -8,19 +8,17 @@ import json
 import logging
 from pathlib import Path
 import random
-import sys
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 
 import numpy as np
 import pandas as pd
 from backtest.engine import BacktestEngine
 from backtest.reporting import ReportGenerator
 from config.config import config
-from core.reproducibility import canonical_json, deterministic_result_digest, load_data_snapshots, load_manifest, sha256_file
-from core.strategy_health import StrategyHealthMachine
+from core.foundation.reproducibility import canonical_json, deterministic_result_digest, load_data_snapshots, load_manifest, sha256_file
+from core.analytics.strategy_health import StrategyHealthMachine
 
 
 def save(path, value):

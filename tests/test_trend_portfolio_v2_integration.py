@@ -9,14 +9,14 @@ import pytest
 from composition.factory import build_router, build_strategy_registry
 from config.config import config
 from core.broker import Broker
-from core.portfolio import Portfolio
-from core.protective_stops import ProtectiveStopPolicy
+from core.trading.portfolio import Portfolio
+from core.trading.protective_stops import ProtectiveStopPolicy
 from core.risk import RiskManager
 from core.risk.circuit_breaker import BreakerAction
 from core.risk.portfolio_governor import CorrelationClusterPolicy, PortfolioRiskGovernor
-from core.state import MarketState
-from core.strategy_governance import GovernanceError, assert_live_admission
-from core.strategy_health import HealthStatus, StrategyHealthPolicy
+from core.trading.state import MarketState
+from ops.strategy_governance import GovernanceError, assert_live_admission
+from core.analytics.strategy_health import HealthStatus, StrategyHealthPolicy
 from strategies.trend_breakout import TrendBreakoutStrategy
 from strategies.trend_portfolio_v2 import TrendPortfolioV2Strategy
 
@@ -73,10 +73,6 @@ def _controlled_setup(monkeypatch, strategy):
 def _submit(path, strategy, state, portfolio, broker, risk, *, symbol=SYMBOL,
             governor=None):
     frame = _frame()
-    if path == "on_bar":
-        strategy.on_bar(symbol, 0, frame, state, portfolio, broker, risk,
-                        current_prices={symbol: 100.0})
-        return broker.pending_orders[-1] if broker.pending_orders else None
     candidate = strategy.build_entry_candidate(symbol, 0, frame, state, portfolio)
     if candidate is None:
         return None
@@ -86,7 +82,7 @@ def _submit(path, strategy, state, portfolio, broker, risk, *, symbol=SYMBOL,
     )
 
 
-@pytest.mark.parametrize("path", ["on_bar", "candidate"])
+@pytest.mark.parametrize("path", ["candidate"])
 @pytest.mark.parametrize("state,market_multiplier", REGIMES)
 @pytest.mark.parametrize("health_multiplier", [1.0, 0.25])
 def test_actual_pending_orders_multiply_regime_and_health_separately(
@@ -124,7 +120,7 @@ def test_actual_pending_orders_multiply_regime_and_health_separately(
     )
 
 
-@pytest.mark.parametrize("path", ["on_bar", "candidate"])
+@pytest.mark.parametrize("path", ["candidate"])
 def test_baseline_default_multiplier_preserves_order_size(monkeypatch, path):
     strategy = TrendBreakoutStrategy()
     _controlled_setup(monkeypatch, strategy)
@@ -137,7 +133,7 @@ def test_baseline_default_multiplier_preserves_order_size(monkeypatch, path):
     assert broker.pending_orders[0].qty == pytest.approx(20.0)
 
 
-@pytest.mark.parametrize("path", ["on_bar", "candidate"])
+@pytest.mark.parametrize("path", ["candidate"])
 def test_existing_notional_cap_applies_after_market_scaling(monkeypatch, path):
     strategy = TrendPortfolioV2Strategy()
     _controlled_setup(monkeypatch, strategy)
@@ -153,7 +149,7 @@ def test_existing_notional_cap_applies_after_market_scaling(monkeypatch, path):
     assert result.intent.approved_risk_amount == pytest.approx(50.0)
 
 
-@pytest.mark.parametrize("path", ["on_bar", "candidate"])
+@pytest.mark.parametrize("path", ["candidate"])
 def test_existing_portfolio_breaker_still_blocks_v2(monkeypatch, path):
     strategy = TrendPortfolioV2Strategy()
     _controlled_setup(monkeypatch, strategy)
@@ -191,7 +187,7 @@ def test_shared_session_governor_scales_then_exhausts_v2_budget(monkeypatch):
     assert len(broker.pending_orders) == 1
 
 
-@pytest.mark.parametrize("path", ["on_bar", "candidate"])
+@pytest.mark.parametrize("path", ["candidate"])
 def test_inherited_health_lock_blocks_v2_raw_setups(monkeypatch, path):
     strategy = TrendPortfolioV2Strategy()
     _controlled_setup(monkeypatch, strategy)
@@ -300,7 +296,8 @@ def test_factory_injects_same_health_and_retains_all_other_stop_safeguards():
     assert strategy.health_state_key != baseline.health_state_key
     assert strategy.score_policy == baseline.score_policy
     assert (strategy.entry_window, strategy.exit_window) == (30, 15)
-    assert strategy.use_obv == baseline.use_obv is True
+    # C1 switches OBV off for TrendBreakout only; V2 keeps its own research default.
+    assert strategy.use_obv is True and baseline.use_obv is False
     assert baseline.stop_policy == original_stop_policy
     assert asdict(strategy.stop_policy) == asdict(replace(
         original_stop_policy, initial_stop_mode="atr", use_atr_initial_stop=True,
@@ -315,7 +312,7 @@ def test_research_opt_in_does_not_admit_v2_for_live_routing():
         assert_live_admission(configuration, ["TrendPortfolioV2"])
 
 
-@pytest.mark.parametrize("path", ["on_bar", "candidate"])
+@pytest.mark.parametrize("path", ["candidate"])
 def test_small_sideways_probation_order_still_obeys_shared_minimum(monkeypatch, path):
     strategy = TrendPortfolioV2Strategy()
     _controlled_setup(monkeypatch, strategy)

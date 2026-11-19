@@ -7,13 +7,11 @@ import json
 import logging
 from pathlib import Path
 import shutil
-import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 
 from config.config import config
-from core.reproducibility import code_identity, sha256_file
+from core.foundation.reproducibility import code_identity, sha256_file
 from scripts.run_expanded_universe_backtest import run_arm, save
 
 CANDIDATE = {
@@ -39,7 +37,7 @@ def main():
         "source": str(source), "code": code_identity(ROOT),
         "source_manifest_sha256": sha256_file(source / "download_manifest.json"),
         "code_hashes": {path: sha256_file(ROOT / path) for path in (
-            "core/strategy_health.py", "scripts/run_health_recovery_experiment.py",
+            "core/analytics/strategy_health.py", "scripts/run_health_recovery_experiment.py",
             "scripts/run_expanded_universe_backtest.py", "config/params.yaml")},
         "purpose": "Fixed-candidate engineering comparison; reused history is not independent holdout",
         "criteria": ["default baseline unchanged", "explicit manual locks remain terminal",

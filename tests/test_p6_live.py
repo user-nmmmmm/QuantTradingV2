@@ -6,9 +6,9 @@ import pandas as pd
 from config.config import config
 from core.live_broker import LiveBroker
 from live_trading.engine import LiveTradingEngine
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from core.risk import RiskManager
-from core.state_store_v2 import StateStore
+from core.trading.state_store_v2 import StateStore
 
 
 class TestLiveTrading(unittest.TestCase):
@@ -202,7 +202,7 @@ class TestLiveTrading(unittest.TestCase):
         mock_fetcher.fetch_ccxt.assert_called_with(
             "BTC/USDT",
             timeframe="1d",
-            limit=100,
+            limit=201,  # C2: data.live_min_lookback_bars
             exchange_id="binance",
         )
 

@@ -8,7 +8,7 @@
 > P1 固定分桶、P2 软状态与动态轴权重、P3 独立影子账户均不参与正式下单、风险预算或策略准入。
 > P1/P2/P3 are opt-in, research-only components; learned regimes never actuate the production account.
 
-[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.11.5+](https://img.shields.io/badge/python-3.11.5%2B-blue.svg)](https://www.python.org/downloads/)
 ![Status: Alpha](https://img.shields.io/badge/Status-Alpha-orange.svg)
 [![Tests: pytest](https://img.shields.io/badge/tests-pytest-green.svg)](#11-测试)
 
@@ -25,7 +25,7 @@
 | [5. 命令行参考](#5-命令行参考) | `main.py` / `run_live.py` / `scripts/` / 环境变量 |
 | [6. 配置](#6-配置) | `config/params.yaml` 当前生效值 |
 | [7. 输出与报告](#7-输出与报告) | `reports/` 产物清单 |
-| [8. 指标与诊断](#8-指标与诊断) | `core/metrics/` / `core/diagnostics.py` |
+| [8. 指标与诊断](#8-指标与诊断) | `core/metrics/` / `core/analytics/diagnostics.py` |
 | [9. 策略与路由现状](#9-策略与路由现状) | 已注册策略、治理状态、未接入模型 |
 | [10. 能力边界](#10-能力边界) | 现货/衍生品、多标的并发、实盘准入 |
 | [11. 测试](#11-测试) | 测试、文档索引、常见问题、免责声明 |
@@ -90,19 +90,19 @@ flowchart TB
     end
 
     subgraph BOUND["边界层 Adapters & Ports"]
-        MDA["MarketDataAdapter（core/market_data.py）"]
-        EXP["ExecutionPort（core/execution_port.py）"]
+        MDA["MarketDataAdapter（core/market/market_data.py）"]
+        EXP["ExecutionPort（core/trading/execution_port.py）"]
         EB["ExchangeBoundary（core/exchange/）"]
-        DF["DataFetcher（core/data_fetcher.py）"]
+        DF["DataFetcher（core/market/data_fetcher.py）"]
     end
 
     subgraph KERNEL["共享决策内核 Shared Decision Core"]
-        EP["EventProcessor（core/runtime.py）"]
-        SM["MarketStateMachine（core/state.py）"]
-        RT["Router + PortfolioSignalAllocator（router/, core/allocation.py）"]
+        EP["EventProcessor（core/foundation/runtime.py）"]
+        SM["MarketStateMachine（core/trading/state.py）"]
+        RT["Router + PortfolioSignalAllocator（router/, core/planning/allocation.py）"]
         ST["Strategies（strategies/）"]
         RK["RiskManager + 分级熔断（core/risk/）"]
-        PF["Portfolio / LotBook（core/portfolio.py, lots.py）"]
+        PF["Portfolio / LotBook（core/trading/portfolio.py, lots.py）"]
     end
 
     subgraph EXEC["执行层 Execution"]
@@ -140,7 +140,7 @@ flowchart TB
 
 ### 2.2 共享决策流程与模式适配
 
-`core/runtime.py::EventProcessor` 统一处理已收盘 bar 的持仓管理、候选收集和组合分配。
+`core/foundation/runtime.py::EventProcessor` 统一处理已收盘 bar 的持仓管理、候选收集和组合分配。
 两种模式使用下列适配器，但回测引擎与实盘引擎仍有各自的运行生命周期及风险事实处理，
 不能把下表理解成两条路径已经取得逐事件一致性验收（见
 [R5 阶段](docs/unified_roadmap.md#4-项目阶段与退出条件)与
@@ -285,163 +285,42 @@ flowchart LR
 
 ### 2.6 模块地图
 
-```text
-QuantTradingV1/
-├── main.py                     # 回测入口：参数 → 取数 → 引擎 → 按 profile 生成报告
-├── run_live.py                 # 实盘入口：预检 → 轮询主循环
-├── resolve_live_order.py       # UNKNOWN 实盘订单的人工核实/恢复（写审计账本）
-│
-├── config/
-│   ├── config.py               # 配置加载器（require/get 语义，缺键即报错）
-│   └── params.yaml             # 执行/风控/账户/状态机/路由/Phase4-6 参数的唯一出口
-│
-├── core/                       # 领域内核 + 治理设施（完整清单见 docs/modules/core.md）
-│   ├── ── 运行时与端口 ──
-│   ├── runtime.py                    # EventProcessor：模式无关的单 bar 处理
-│   ├── market_data.py                # Historical / Live 行情适配器
-│   ├── execution_port.py             # 执行端口协议（Protocol）
-│   ├── domain.py                     # 共享数据契约
-│   │
-│   ├── ── 决策与风控 ──
-│   ├── state.py                      # 市场状态机（Regime）
-│   ├── risk/                         # 杠杆/集中度/流动性/日内与回撤分级熔断
-│   │   ├── __init__.py               #   RiskManager 门面
-│   │   ├── circuit_breaker.py        #   日内亏损熔断、回撤分级粘性动作
-│   │   ├── position_sizing.py        #   名义上限与数量夹取
-│   │   ├── entry_policy.py           #   最终准入闸门、风控决策发布
-│   │   ├── reservation.py            #   下单前资金预留，防并发超额
-│   │   ├── portfolio_governor.py     #   相关性簇与组合级风险预算
-│   │   └── persistent_guard.py       #   跨重启持久化风控状态
-│   ├── allocation.py                 # 组合级信号分配、状态切换治理、持有期审计
-│   │
-│   ├── ── 账户与账本 ──
-│   ├── portfolio.py                  # 组合、权益、敞口、保证金快照
-│   ├── accounts.py                   # spot / spot_margin / perpetual 显式账户契约
-│   ├── lots.py                       # FIFO 批次账本（lot_id / position_id / MAE-MFE）
-│   ├── valuation.py                  # 从交易账户事实构建组合估值快照
-│   ├── accounting_check.py           # 逐 bar 会计恒等式核对（Gate G2）
-│   │
-│   ├── ── 执行 ──
-│   ├── broker/                       # 回测撮合：Market/Limit/Stop、分批成交、强平
-│   │   ├── __init__.py               #   Broker 门面
-│   │   ├── types.py                  #   Order / OrderType / TimeInForce
-│   │   ├── matching.py               #   下单、逐 bar 撮合、订单簿记账
-│   │   ├── fill_service.py           #   成本核算、持仓更新、事件发布
-│   │   ├── financing.py              #   永续资金费 / 融券借贷计提
-│   │   ├── liquidation.py            #   强制减仓
-│   │   └── cost_model.py             #   费用/滑点/冲击成本模型
-│   ├── live_broker/                  # CCXT 实盘 broker
-│   │   ├── __init__.py               #   LiveBroker 门面
-│   │   ├── submission.py             #   下单写路径（幂等 clientOrderId）
-│   │   ├── reconciler.py             #   订单状态幂等对账
-│   │   ├── account_sync.py           #   余额/持仓同步
-│   │   ├── safe.py                   #   幂等/限额/白名单包装层
-│   │   └── retry.py                  #   交易所操作的有界重试
-│   ├── exchange/                     # 交易所元数据/精度/衍生品能力的唯一边界
-│   │   ├── __init__.py               #   ExchangeBoundary 门面
-│   │   ├── metadata.py               #   能力探测、市场规格、元数据加载
-│   │   ├── validation.py             #   下单前校验
-│   │   ├── normalization.py          #   数量/价格按步长量化
-│   │   ├── ccxt_mapper.py            #   canonical intent → CCXT 请求
-│   │   └── parsers.py                #   CCXT 回包 → canonical 事实
-│   ├── orders.py / order_store.py    # 订单模型与 SQLite 订单状态机
-│   ├── clock.py                      # 统一时钟抽象
-│   │
-│   ├── ── 数据 ──
-│   ├── data_fetcher.py / data.py     # 取数（synthetic/yahoo/ccxt/local）与质量校验
-│   ├── indicators.py                 # 最小指标集（SMA/ATR/ADX/BBANDS），已验证信号路径
-│   ├── factors/                      # 扩展指标库，opt-in，不自动挂载
-│   │   ├── trend.py / momentum.py / volatility.py
-│   │   └── volume.py / capital_flow.py / support_resistance.py
-│   ├── universe.py                   # Point-in-time 成分与退市规则
-│   ├── timeframes.py                 # 周期口径与年化因子推断
-│   │
-│   ├── ── 观测与治理 ──
-│   ├── metrics/ / metric_result.py   # 绩效、交易质量、归因、稳健性验证
-│   ├── diagnostics.py                # 「结果该不该信」：盈亏集中度、退出归因等
-│   ├── benchmarks.py                 # 固定/动态等权基准（可审计）
-│   ├── events/                       # 规范事件模型、因果 ID、幂等消费与回放
-│   │   ├── __init__.py               #   EventEnvelope / TradingEventPipeline 门面
-│   │   ├── types.py                  #   Market/Signal/Order/Fill 等事件载荷
-│   │   ├── codec.py                  #   严格 JSON 编解码与 canonical_json
-│   │   ├── ids.py                    #   确定性 UUID5 事件/关联/因果 ID
-│   │   └── store.py                  #   SQLite 事件持久化与回放
-│   ├── backtest_audit.py             # 强制事件日志与第二数据源校验
-│   ├── reproducibility.py            # run_manifest：代码/配置/数据指纹
-│   ├── health.py / supervisor.py     # 健康评估与进程守护
-│   ├── alerting.py / telegram_heartbeat.py
-│   ├── operations/                   # 事故记录、只读状态快照、启动前检查的实现
-│   │   ├── incident_journal.py
-│   │   ├── status_snapshot.py
-│   │   └── startup_preflight.py
-│   ├── account_reconciliation.py     # 独立账户事实的只读对账
-│   ├── sqlite_backup.py / sqlite_utils.py / state_store_v2.py
-│   ├── live_safety.py                # 凭据/交易所/标的/账户类型白名单
-│   ├── gray_release.py               # R8 灰度放量限额
-│   ├── r7_acceptance.py              # R7 验收证据校验
-│   ├── admission_gates.py            # Phase 6 影子/纸面/准入门槛（fail-closed CLI）
-│   └── logger.py
-│
-├── strategies/                 # 策略插件
-│   ├── base.py                 # Strategy 基类：统一硬止损、健康度、成交消费
-│   ├── trend_breakout.py       # TrendBreakoutStrategy / TrendBreakdownStrategy
-│   ├── mean_reversion.py       # RangeStrategy
-│   ├── volatility.py           # VolatilityReversionStrategy
-│   └── statistical_arbitrage.py# PairsTradingModel（研究用，未接入路由）
-│
-├── router/router.py            # Regime → Strategy 路由 + 冷却期 + 候选收集
-│
-├── composition/factory.py      # 策略/风控/状态机/路由的唯一装配入口（读 config）
-│
-├── backtest/
-│   ├── engine.py               # 回测主循环（bar 时序、强平、会计核对、基准）
-│   ├── cli.py                  # 回测命令行参数与报告 profile
-│   ├── equity_bookkeeping.py   # 回测权益与敞口采样辅助
-│   ├── execution_adapter.py    # 模拟执行适配器
-│   ├── delayed_execution.py    # 按信号实际可用时间调度延迟市场单
-│   ├── protective_stops.py     # 场内常驻止损的盘中撮合模拟
-│   ├── capacity.py             # 资金容量曲线（Phase 3）
-│   └── reporting/              # 报告层：先算后渲染
-│       ├── __init__.py         #   ReportGenerator 门面
-│       ├── metrics.py          #   指标计算
-│       ├── trades.py           #   FIFO 往返交易重建
-│       └── render/             #   text.py / charts.py / workbook.py / pdf.py
-│
-├── live_trading/
-│   ├── engine.py               # 实盘轮询引擎（tick 生命周期、状态导出）
-│   ├── execution_adapter.py    # 记录式执行适配器
-│   ├── tick_orchestrator.py    # 单次 tick 的阶段编排
-│   ├── catchup.py              # 已收盘 bar 补帧与信号新鲜度判断
-│   ├── protection_schedule.py  # 保护单对账间隔与强制触发
-│   ├── runtime_controls.py     # 账户事实、策略故障与新增风险门控
-│   ├── state_export.py         # live_status.json 导出
-│   └── recovery.py             # 重启恢复
-│
-├── analysis/
-│   ├── optimize.py             # 参数优化（含 --oos）
-│   ├── validation.py           # walk-forward / bootstrap 验证
-│   ├── research_validation.py  # 研究治理：数据分区、holdout 协议、多重检验
-│   ├── research_evidence.py    # 候选登记、尝试历史与证据汇总
-│   ├── paper_validation.py     # 论文统计验证方法与证据完整性检查
-│   └── return_followup.py      # 固定方案的收益改进历史复核
-│
-├── dashboard/                  # 账户监控 CLI + 本地网页研究工作台
-│   ├── web.py                 # 网页服务、同源接口与启动参数
-│   ├── backtest_jobs.py       # 离线回测/滚动研究共用任务槽
-│   └── experiment_store.py    # 实验档案、笔记、标签和策略预设
-├── scripts/                    # 数据抓取、批量矩阵、阶段证据、环境与依赖校验；见 scripts/README.md
-├── research/replay.py          # 事件回放研究脚本
-├── research/audit/ledger.py    # 离线事件账本研究；不接入交易账户路径
-├── research/audit/reconciliation_job.py # 离线日终对账与证据报告
-├── data/binance/<tf>/          # 本地行情缓存（--source local 读取）
-├── outputs/                    # 批量实验与阶段性产物
-├── reports/                    # 回测/实盘运行产物（按时间戳分目录）
-├── docs/                       # 权威文档（见文档索引）
-└── tests/                      # pytest 测试：基线回归、无前视、订单生命周期、各 Gate
-```
+下表路径相对规范检出目录 `QuantTradingV1/`；`python scripts/architecture_inventory.py --check` 核对包与 core 子包覆盖、链接目标及模块文档标题中的路径。完整模块数和分层契约见[自动架构清单](docs/architecture_inventory.md)，职责与接口见[模块导航](docs/modules/README.md)。
 
-`core/incident_journal.py`、`core/status_snapshot.py` 和 `core/startup_preflight.py`
-仍提供旧导入路径；实现位于 `core/operations/`。
+<!-- module-navigation:start -->
+| 位置 | 职责与阅读入口 |
+| --- | --- |
+| [`cli/`](cli/) | 回测命令与运行流水线；根入口 [`main.py`](main.py) |
+| [`config/`](config/) | 参数加载与冻结配置 |
+| [`core/`](core/) | 下列领域子包；根目录仅保留包入口 |
+| [`core/foundation/`](core/foundation/) | 领域类型、EventProcessor、时钟、告警、安全、复现与源码身份 |
+| [`core/market/`](core/market/) | 行情抓取、质量、适配器、时间版本与标的约定 |
+| [`core/trading/`](core/trading/) | 订单、账户、批次、组合、估值、状态机与持久化 |
+| [`core/planning/`](core/planning/) | 选币、打分、分配与目标仓位 |
+| [`core/analytics/`](core/analytics/) | 账务检查、回测审计、基准、诊断、健康与技术指标 |
+| [`core/broker/`](core/broker/) | 回测撮合、费用、融资、强平与成交事件 |
+| [`core/live_broker/`](core/live_broker/) | 实盘提交、账户同步、订单对账与重试 |
+| [`core/exchange/`](core/exchange/) | 交易所 metadata、校验、精度与规范订单映射 |
+| [`core/risk/`](core/risk/) | 下单准入、仓位、资金预留、组合风险与熔断 |
+| [`core/metrics/`](core/metrics/) | 绩效、交易质量、归因与稳健性指标 |
+| [`core/events/`](core/events/) | 规范事件、确定性 ID、序列化、幂等持久化与回放 |
+| [`core/factors/`](core/factors/) | 默认不自动挂载的扩展指标 |
+| [`ops/`](ops/) | 健康、守护、心跳、灰度、验收与准入；[`ops/operations/`](ops/operations/) 保存事故、快照、预检实现 |
+| [`signal_meta/`](signal_meta/) | 时间版本标签、融资证据和默认关闭的 P0/P1/P2/P3 研究 |
+| [`strategies/`](strategies/) | 策略接口、生命周期与策略实现 |
+| [`router/`](router/) | 市场状态到策略的路由及切换治理 |
+| [`composition/`](composition/) | 配置驱动的组件装配 |
+| [`backtest/`](backtest/) | 历史调度、模拟执行、逐 bar 核算和报告 |
+| [`live_trading/`](live_trading/) | 实盘轮询、补帧、恢复与状态导出；根入口 [`run_live.py`](run_live.py)、[`resolve_live_order.py`](resolve_live_order.py) |
+| [`analysis/`](analysis/) | 离线参数搜索、统计诊断、候选和论文研究证据 |
+| [`research/`](research/) | 事件重放、离线账本与机器学习选币研究 |
+| [`dashboard/`](dashboard/) | 本地网页工作台和账户快照监控 |
+| [`scripts/`](scripts/) | 抓取、验收、批量实验与开发检查；用途见[脚本索引](scripts/README.md) |
+<!-- module-navigation:end -->
+
+`ops/incident_journal.py`、`ops/status_snapshot.py` 和 `ops/startup_preflight.py` 仍提供兼容导入；实现位于 `ops/operations/`。旧的 `core.health`、`core.indicators` 等迁移前导入不保留。
+
+行情缓存位于 `data/`，运行产物位于 `outputs/` 和 `reports/`；它们的生成与保留规则见[文件管理](docs/file_retention.md)。
 
 ---
 
@@ -488,7 +367,8 @@ QuantTradingV1/
 
 ```powershell
 python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.\.venv\Scripts\python.exe -m pip install -r requirements.lock.txt -r requirements-dev.txt
+.\.venv\Scripts\python.exe -m pip install -e . --no-deps
 .\.venv\Scripts\Activate.ps1
 ```
 
@@ -497,28 +377,45 @@ Linux / macOS：
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-python -m pip install -r requirements-dev.txt
+python -m pip install -r requirements.lock.txt -r requirements-dev.txt
+python -m pip install -e . --no-deps
 ```
+
+`pip install -e .` 把仓库注册为可编辑安装，之后在任意目录都能 `import core` 等，脚本和测试
+不再需要 `sys.path` 补丁；同时提供 `quant-backtest`、`quant-live`、`quant-resolve-order`、
+`quant-dashboard`、`quant-dev` 命令（前四个分别等价于 `python main.py`、`run_live.py`、`resolve_live_order.py`、
+`python -m dashboard`；`quant-dev` 等价于 `python scripts/dev.py`）。受限于许多模块按检出目录定位 `config/`、`data/`、`reports/`，目前只
+支持可编辑安装，不支持把 wheel 安装到别处。
 
 `requirements-dev.txt` 已包含运行依赖。只运行项目时可改用 `requirements.txt`；需要固定
 传递依赖时使用 `requirements.lock.txt`，具体区别见[依赖管理](docs/dependency_management.md)。
 下文 `python` 均指已激活环境的解释器；PowerShell 无法激活时可直接替换为
 `.\.venv\Scripts\python.exe`。
 
-> CI 与 `mypy` 目标 Python 版本为 **3.11**（`.github/workflows/tests.yml`、`pyproject.toml`），
-> 本地开发环境固定为 3.13.2（`.python-version`）。
+> 最低 Python 版本为 **3.11.5**。完整质量/覆盖率与 ML 作业使用 Python **3.11**，安装/导入/指定运行回归矩阵覆盖 **Ubuntu/Windows × Python 3.11/3.13**。`mypy` 目标为 3.11，`.python-version` 指定本地 3.13.2；矩阵通过不等同于在每个组合运行了完整套件。前端工程检查另需 **Node.js 22**（CI 和开发容器已包含）。
 
 **核心依赖**（`requirements.txt`）：
 
 | 库 | 版本 | 用途 |
 | --- | --- | --- |
 | `ccxt` | 4.5.35 | 交易所连接（数据 + 实盘下单） |
-| `pandas` / `numpy` | 2.3.3 / 2.4.2 | 数据处理与指标计算 |
-| `matplotlib` / `plotly` | 3.10.8 / 6.5.2 | 静态出图 / 交互式图表 |
-| `streamlit` | 1.54.0 | 已声明依赖，但当前代码库中未被任何模块导入使用 |
+| `certifi` | 2026.10.19 | HTTP 客户端的 TLS 证书信任包 |
+| `aiohttp` | 3.14.4 | 公共行情 WebSocket 客户端 |
+| `cryptography` | 50.0.2 | CCXT 私钥加载与签名 |
+| `idna` | 3.15 | HTTP 客户端的国际化域名转换 |
+| `pandas` | 2.3.3 | 数据处理 |
+| `numpy` | 2.4.2 | 数值与指标计算 |
+| `matplotlib` | 3.10.8 | 静态出图 |
+| `multidict` | 6.9.1 | 异步 HTTP 客户端的多值请求头与查询参数 |
+| `plotly` | 6.5.2 | 交互式图表 |
+| `openpyxl` | 3.1.5 | Excel 工作簿报告 |
+| `Pillow` | 13.0.0 | 图像与报告输出 |
 | `PyYAML` | 6.0.3 | `config/params.yaml` 解析 |
-| `requests` | 2.32.5 | HTTP 调用（如 Telegram 告警） |
-| `yfinance` | 1.1.0 | Yahoo Finance 数据源 |
+| `requests` | 2.33.1 | HTTP 调用（如 Telegram 告警） |
+| `urllib3` | 2.8.0 | Requests 的 HTTP 传输与流式响应处理 |
+| `soupsieve` | 4.0.1 | 数据提供者 HTML 解析所需的 CSS 选择器依赖 |
+| `yfinance` | 1.2.1 | Yahoo Finance 数据源 |
+| `curl_cffi` | 0.15.0 | Yahoo Finance HTTP 传输 |
 
 ### 4.2 运行回测
 
@@ -606,7 +503,7 @@ python -m dashboard --status reports/live_status.json --alerts reports/live_aler
 终端监控在状态快照缺失或非法时以退出码 `2` 结束。网页监控则显示不可用状态，
 离线研究仍可使用。启动参数、任务限制和结果口径见
 [`dashboard/README.md`](dashboard/README.md)，接口与前端维护见
-[`dashboard/FRONTEND.md`](dashboard/FRONTEND.md)。
+[`dashboard/README.md`](dashboard/README.md)。
 
 ---
 
@@ -691,17 +588,17 @@ python -m dashboard --status reports/live_status.json --alerts reports/live_aler
 | `check_environment.py` | 环境自检 |
 | `verify_lock.py` | 依赖锁（`requirements.lock.txt`）校验 |
 
-Phase 6 准入证据的 fail-closed 评估由 `python -m core.admission_gates` 提供。
+Phase 6 准入证据的 fail-closed 评估由 `python -m ops.admission_gates` 提供。
 
 ### 5.4 环境变量
 
 | 变量 | 用途 |
 | --- | --- |
-| `EXCHANGE_API_KEY` / `EXCHANGE_SECRET` / `EXCHANGE_PASSWORD` | 交易所 API 凭据（`core/live_safety.py` 只从环境变量读取） |
+| `EXCHANGE_API_KEY` / `EXCHANGE_SECRET` / `EXCHANGE_PASSWORD` | 交易所 API 凭据（`core/foundation/live_safety.py` 只从环境变量读取） |
 | `QUANT_ALLOWED_EXCHANGES` | 允许连接的交易所白名单 |
 | `QUANT_ALLOWED_SYMBOLS` | 允许交易的标的白名单 |
 | `QUANT_ALLOWED_ACCOUNT_TYPES` | 允许的账户/市场类型白名单 |
-| `QUANT_PROXY_URL` | 代理地址，`core/data_fetcher.py` 用于设置 `HTTP_PROXY`/`HTTPS_PROXY` |
+| `QUANT_PROXY_URL` | 代理地址，`core/market/data_fetcher.py` 用于设置 `HTTP_PROXY`/`HTTPS_PROXY` |
 | `QUANT_LOG_LEVEL` | 日志级别 |
 | `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | Telegram 心跳与告警凭据 |
 | `LIVE_ALERT_WEBHOOK_URL` | 实盘告警 Webhook 地址 |
@@ -774,7 +671,7 @@ python main.py --source synthetic --days 365 --seed 42 --report-profile full
 | 复现 | `run_manifest.json` | 代码 / 配置 / 数据 / 执行身份指纹，配合 `--replay-manifest` 校验 |
 
 `research/audit/ledger.py` 的事件账本仅用于离线审计研究；当前回测与实盘交易路径的
-本地组合/批次账本使用 `core/portfolio.py` 和 `core/lots.py`，实盘仍须与交易所账户事实对账。
+本地组合/批次账本使用 `core/trading/portfolio.py` 和 `core/trading/lots.py`，实盘仍须与交易所账户事实对账。
 
 实盘侧产物：`reports/live_status.json`（状态快照）、`reports/live_alerts.jsonl`（告警）、
 `reports/live_orders.db`（订单状态机与审计账本）、`reports/startup_preflight.json`（启动自检）。
@@ -799,7 +696,7 @@ python main.py --source synthetic --days 365 --seed 42 --report-profile full
 年化因子由权益序列的时间间隔自动推断（`infer_periods_per_year`），因此 Sharpe / CAGR 随周期自适应；
 这也是 `scripts/run_backtest_matrix.py` 能横扫多个周期的前提。
 
-### 8.2 可信度诊断（`core/diagnostics.py`）
+### 8.2 可信度诊断（`core/analytics/diagnostics.py`）
 
 `core/metrics/` 回答「表现如何」，`diagnostics.py` 回答一个**更前置**的问题：**这个数字该不该信、
 系统是不是真在做代码声称的事**。例如盈亏集中度（少数几笔幸运交易 vs 真实边缘）、
@@ -831,7 +728,7 @@ python main.py --source synthetic --days 365 --seed 42 --report-profile full
 | `SIDEWAYS` | `Cash` | 区间均值回归重新设计中（T-4.6） |
 | `VOLATILE` | `Cash` | 波动反转仅隔离研究（T-4.7） |
 
-`core/strategy_governance.py` 在真实资金入口要求路由策略的治理状态为 `admitted`。
+`ops/strategy_governance.py` 在真实资金入口要求路由策略的治理状态为 `admitted`。
 当前 `TrendBreakout=paused_revalidation`，因此上述映射不表示真实资金可运行。
 状态切换不由 Router 隐式强平：空仓标的切换到不同策略映射时撤销旧入场订单并冷却；
 已有仓位由开仓策略的退出规则、保护性止损、显式 `MaxHoldingPeriod` 或账户风控管理。
@@ -841,7 +738,7 @@ python main.py --source synthetic --days 365 --seed 42 --report-profile full
 
 所有策略继承 `strategies/base.py` 的 `Strategy` 基类，并在具体退出逻辑之前统一接受
 `Strategy.hard_stop_exit` 硬止损检查。`TrendBreakoutStrategy` / `TrendBreakdownStrategy`
-的健康度状态通过 `_PersistentHealthMixin` 持久化，进程重启后可恢复。
+的健康度状态通过 `DonchianTrendStrategy`（二者共用的基类）持久化，进程重启后可恢复。
 
 **未接入路由的模型**：`strategies/statistical_arbitrage.py` 的 `PairsTradingModel`
 （跨标的配对交易信号）未在 `composition/factory.py` 中注册，不会被 `main.py` 或
@@ -852,15 +749,15 @@ python main.py --source synthetic --days 365 --seed 42 --report-profile full
 ## 10. 能力边界
 
 - **现货 vs 衍生品**：回测路径已用 `account.mode` 打通 `spot / spot_margin / perpetual`
-  三种独立语义及其保证金、融资成本与强平契约。实盘入口仍受 `core/live_safety.py` 的
+  三种独立语义及其保证金、融资成本与强平契约。实盘入口仍受 `core/foundation/live_safety.py` 的
   账户类型白名单、交易所元数据和启动预检约束；**回测支持不等于自动批准真实资金使用**。
 - **多标的并发交易**：实盘与回测引擎均原生**同时**处理多个标的，并非依次轮询触发。
-  仓位按标的独立记录（`core/portfolio.py`），仓位计算基于组合整体权益，风控
+  仓位按标的独立记录（`core/trading/portfolio.py`），仓位计算基于组合整体权益，风控
   （`core/risk/`）在组合层面统一管控总杠杆与单标的集中度（默认 `max_pos_size_pct=30%`）。
   同一时间戳的多个候选信号由 `PortfolioSignalAllocator` 按确定性顺序分配资金。
   详见 [`docs/modules/core.md`](docs/modules/core.md)。
-- **实盘准入**：真实资金准入需要 R7 验收证据（`core/r7_acceptance.py`）与
-  Phase 6 影子/纸面运行证据（`core/admission_gates.py`，fail-closed：证据不存在即视为未通过），
+- **实盘准入**：真实资金准入需要 R7 验收证据（`ops/r7_acceptance.py`）与
+  Phase 6 影子/纸面运行证据（`ops/admission_gates.py`，fail-closed：证据不存在即视为未通过），
   并在 `run_live.py --live` 时通过 `--r8-evidence` / `--rollback-snapshot` 强制校验。
 
 ---
@@ -876,7 +773,7 @@ python -m pytest -q
 指标、执行端口与各阶段 Gate。
 
 网页前端另有 Node.js 原生测试；它们不需要 npm 安装或构建。测试命令及对应模块见
-[`dashboard/FRONTEND.md`](dashboard/FRONTEND.md)。Windows 临时目录受限时可使用
+[`dashboard/README.md`](dashboard/README.md)。Windows 临时目录受限时可使用
 [`scripts/run_portable_tests.py`](scripts/run_portable_tests.py)。
 
 ## 文档索引
@@ -893,18 +790,18 @@ python -m pytest -q
 | [`docs/development_plan.md`](docs/development_plan.md) | 当前开发批次、任务顺序和验收产物 |
 | [`docs/backtest_assumptions.md`](docs/backtest_assumptions.md) | 执行模型、费率/滑点、数据对齐与局限性 |
 | [`docs/authoritative_ledger.md`](docs/authoritative_ledger.md) | 离线研究账本与会计口径；不接管交易账户事实 |
-| [`docs/p0_signal_observation.md`](docs/p0_signal_observation.md) | P0 信号观察契约、门控诊断、有限本金影子回放与验收 |
-| [`docs/p1_signal_meta_layer.md`](docs/p1_signal_meta_layer.md) | P1 条件 EV 账本、支持门槛、冻结滚动验证与复现证据 |
-| [`docs/p23_signal_meta_layer.md`](docs/p23_signal_meta_layer.md) | P2 软状态与动态归因、P3 影子账户、完整验收与论文差异 |
+| [`docs/signal_meta_layer.md`](docs/signal_meta_layer.md) | P0 信号观察契约、门控诊断、有限本金影子回放与验收 |
+| [`docs/signal_meta_layer.md`](docs/signal_meta_layer.md) | P1 条件 EV 账本、支持门槛、冻结滚动验证与复现证据 |
+| [`docs/signal_meta_layer.md`](docs/signal_meta_layer.md) | P2 软状态与动态归因、P3 影子账户、完整验收与论文差异 |
 | [`docs/canonical_trading_events.md`](docs/canonical_trading_events.md) | 规范交易事件模型 |
-| [`docs/g1_live_safety.md`](docs/g1_live_safety.md) / [`docs/g2_order_lifecycle.md`](docs/g2_order_lifecycle.md) | 实盘安全与订单生命周期门槛 |
+| [`docs/live_safety.md`](docs/live_safety.md) | 实盘安全与订单生命周期门槛 |
 | [`docs/deployment.md`](docs/deployment.md) / [`docs/r6_operations.md`](docs/r6_operations.md) / [`docs/r7_sandbox_runbook.md`](docs/r7_sandbox_runbook.md) | 部署、运维与 sandbox 手册 |
 | [`docs/phase6_operations.md`](docs/phase6_operations.md) | Phase 6 影子/纸面/准入运营流程 |
 | [`docs/glossary.md`](docs/glossary.md) | 中英文词汇表与计算口径 |
 
 ## 常见问题（FAQ）
 
-- **CCXT / Yahoo 拉数失败**：`core/data_fetcher.py` 的 `DataFetcher` 会从 `QUANT_PROXY_URL`
+- **CCXT / Yahoo 拉数失败**：`core/market/data_fetcher.py` 的 `DataFetcher` 会从 `QUANT_PROXY_URL`
   读取代理地址并设置 `HTTP_PROXY` / `HTTPS_PROXY`；未设置时不使用代理。若需要代理但仍失败，
   检查 `QUANT_PROXY_URL` 是否正确指向本机代理端口，也可在构造 `DataFetcher(...)` 时用
   `proxy_url=` 显式覆盖。

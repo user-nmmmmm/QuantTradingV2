@@ -8,14 +8,14 @@ import pandas as pd
 import pytest
 
 from composition.factory import build_strategy_registry
-from core.portfolio import Portfolio
-from core.protective_stops import ProtectiveStopPolicy
-from core.selection_v2 import (
+from core.trading.portfolio import Portfolio
+from core.trading.protective_stops import ProtectiveStopPolicy
+from core.planning.selection_v2 import (
     SelectionPolicyV2, completed_history, select_all_qualified, signal_facts,
     size_portfolio_targets,
 )
-from core.state import MarketState
-from core.strategy_health import HealthStatus
+from core.trading.state import MarketState
+from core.analytics.strategy_health import HealthStatus
 from strategies.trend_portfolio_v3 import TrendPortfolioV3Strategy
 
 
@@ -291,7 +291,7 @@ def test_daily_exit_does_not_recompute_entry_liquidity_obv_or_atr(monkeypatch):
     def unexpected(*args, **kwargs):
         raise AssertionError("daily exit must not recompute an entry signal")
     monkeypatch.setattr(strategy, "signal_facts", unexpected)
-    monkeypatch.setattr("core.selection_v2.Indicators.ATR", unexpected)
+    monkeypatch.setattr("core.planning.selection_v2.Indicators.ATR", unexpected)
     result = strategy.should_exit("BTC/USDT", len(history) - 1, history, MarketState.TREND_UP, Portfolio(10000))
     assert result["reason"] == "MomentumReversal"
 

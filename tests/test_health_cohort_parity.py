@@ -8,14 +8,14 @@ import pytest
 
 from backtest.protective_stops import ResidentStopSimulator
 from core.broker import Broker
-from core.domain import OrderStatus
+from core.foundation.domain import OrderStatus
 from core.live_broker.fill_projection import replay_fill_projection
-from core.portfolio import Portfolio
-from core.runtime import MarketDataSlice
-from core.strategy_health import (
+from core.trading.portfolio import Portfolio
+from core.foundation.runtime import MarketDataSlice
+from core.analytics.strategy_health import (
     HealthStatus, StrategyHealthMachine, StrategyHealthPolicy, health_cohort_id,
 )
-from live_trading.tick_orchestrator import TickOrchestratorMixin
+from tests.collaborator_host import TickOrchestratorHost
 from strategies.trend_breakout import TrendBreakoutStrategy
 
 
@@ -90,7 +90,7 @@ class _FilledVenue:
         return SimpleNamespace(accepted=True, status=OrderStatus.FILLED)
 
 
-class _LiveStops(TickOrchestratorMixin):
+class _LiveStops(TickOrchestratorHost):
     def __init__(self, broker, strategy):
         self.broker = broker
         self.strategies = {strategy.name: strategy}

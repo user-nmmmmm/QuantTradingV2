@@ -6,8 +6,8 @@ import pandas as pd
 import pytest
 
 from backtest.reporting.signal_meta_layer import signal_meta_layer_digest
-from core.signal_ev_types import EVPolicy, context_memberships
-from core.signal_meta_layer import build_signal_meta_layer
+from signal_meta.signal_ev_types import EVPolicy, context_memberships
+from signal_meta.signal_meta_layer import build_signal_meta_layer
 
 
 def facts(days=range(20), horizons=(1, 3), timeframe="1d"):

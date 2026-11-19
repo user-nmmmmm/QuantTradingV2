@@ -24,7 +24,7 @@ import ast
 import json
 import math
 from collections import deque
-from typing import Any, Deque, Dict, List, Optional, Tuple
+from typing import Any, Callable, Deque, Dict, List, Optional, Tuple
 
 import pandas as pd
 
@@ -58,11 +58,26 @@ def _lot_close_records(value):
     return value
 
 
-class TradeReconstructionMixin:
+class TradeReconstruction:
+    """Reconstruction and aggregation of closed trades (a collaborator of :class:`ReportGenerator`, ADR 0025).
+
+    It needs no host state. ``extended_trade_analytics`` is the one thing it takes from outside: the callable
+    that computes the trade-level extras for :meth:`_trade_metrics_from_closed`. Used on its own (for example by
+    the ML pipeline, which only reconstructs trades) it stays ``None`` and those extras are unavailable.
+    """
+
+    def __init__(
+        self,
+        extended_trade_analytics: Optional[Callable[[List[Dict[str, Any]]], Dict[str, Any]]] = None,
+    ) -> None:
+        self._extended = extended_trade_analytics
+
     def _extended_trade_analytics(
         self, closed_trades: List[Dict[str, Any]]
     ) -> Dict[str, Any]:
-        raise NotImplementedError
+        if self._extended is None:
+            raise NotImplementedError
+        return self._extended(closed_trades)
 
     def _analyze_trades(self, trades_df: pd.DataFrame) -> Dict[str, Any]:
         """基于 trades.csv 重建往返交易并统计交易级指标（薄封装，见下三个方法）。"""
@@ -86,7 +101,7 @@ class TradeReconstructionMixin:
             working["symbol"] = None
         for symbol, group in working.groupby("symbol", dropna=False, sort=False):
             reasons = []
-            owners_by_order = {}
+            owners_by_order: dict[Any, Any] = {}
             for row in group.to_dict("records"):
                 try:
                     details = _lot_close_records(row.get("lot_closes"))
@@ -222,7 +237,7 @@ class TradeReconstructionMixin:
                 lot_close_ptr = 0
                 lot_close_used = 0.0
 
-                def _next_lot_detail(matched):
+                def _next_lot_detail(matched, lot_closes_list=lot_closes_list):
                     nonlocal lot_close_ptr, lot_close_used
                     if lot_close_ptr >= len(lot_closes_list):
                         return None
@@ -482,7 +497,7 @@ class TradeReconstructionMixin:
     ) -> List[Dict[str, Any]]:
         """Fold FIFO legs into one record per position (flat -> flat).
 
-        Legs are grouped by ``(symbol, position_id)`` - ``core.lots`` mints a
+        Legs are grouped by ``(symbol, position_id)`` - ``core.trading.lots`` mints a
         ``position_id`` when a symbol goes from flat to held and retires it
         when the symbol is flat again, so that grouping *is* the round trip.
         Legs without one (fills recorded before ``lot_closes`` existed) stay
@@ -665,7 +680,6 @@ class TradeReconstructionMixin:
         for s, trades in strat_map.items():
             pnls = [t["net_pnl"] for t in trades]
             s_wins = [p for p in pnls if p > 0]
-            s_losses = [p for p in pnls if p < 0]
             s_wr = len(s_wins) / len(pnls)
             s_pf = calculate_profit_factor(pnls)
             s_total = sum(pnls)

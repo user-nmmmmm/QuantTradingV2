@@ -4,7 +4,7 @@ import unittest
 from datetime import date
 from unittest.mock import MagicMock, patch
 
-from core.live_safety import (
+from core.foundation.live_safety import (
     OrderSafetyGuard,
     SafetyConfigurationError,
     StartupSafetyPolicy,

@@ -2,7 +2,7 @@
 from copy import deepcopy
 
 from config.config import config
-from core.strategy_health import HealthStatus, StrategyHealthMachine, StrategyHealthPolicy
+from core.analytics.strategy_health import HealthStatus, StrategyHealthMachine, StrategyHealthPolicy
 
 
 def test_configured_automatic_failures_recover_after_restart_but_manual_lock_does_not():

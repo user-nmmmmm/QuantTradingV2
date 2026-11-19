@@ -7,8 +7,8 @@ from typing import Any, Dict, Optional
 import pandas as pd
 
 from core.factors import MomentumFactors
-from core.portfolio import Portfolio
-from core.state import MarketState
+from core.trading.portfolio import Portfolio
+from core.trading.state import MarketState
 from strategies.base import Strategy
 
 

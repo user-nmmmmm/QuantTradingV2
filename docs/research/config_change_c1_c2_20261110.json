@@ -1,0 +1,32 @@
+{
+  "schema": "config-change-statement/v2",
+  "reason": "Strategy remediation (docs/strategy_remediation_roadmap_20261110.md) changed config/params.yaml after the A5 v3.1.1 registration froze it. A5 removed the scoring copy of the ADX threshold (scoring now reads state.adx_threshold, which always held the same value). C2 adds the live rolling-window floor (live only; backtests unchanged). C1 adds trend_breakout.use_obv: false, which changes candidate behaviour. Nothing else in the file changed.",
+  "parent_config_sha256": "9ba1f307c73442867f22f965c2b8a7b99f6357cf1ca27ea3db4d131ee3f96084",
+  "new_config_sha256": "a34113165f92bdfab0bd078f89d1f20a6bc72b6b5bc74567b799c284d5bb8df8",
+  "changes": [
+    {
+      "kind": "removed",
+      "path": "candidate_scoring.adx_threshold",
+      "justification": "equivalent",
+      "equals": "state.adx_threshold"
+    },
+    {
+      "kind": "added",
+      "path": "data.live_min_lookback_bars",
+      "justification": "behavior_change",
+      "evidence": {
+        "experiment_id": "SR-DATA-001",
+        "results": "docs/research/live_window_study_20261110_results.md"
+      }
+    },
+    {
+      "kind": "added",
+      "path": "trend_breakout",
+      "justification": "behavior_change",
+      "evidence": {
+        "experiment_id": "SR-ALPHA-004",
+        "results": "docs/research/entry_delay_study_20261110_results.md"
+      }
+    }
+  ]
+}

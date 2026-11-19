@@ -3,7 +3,7 @@ import tempfile
 import pandas as pd
 from datetime import datetime
 from core.broker import BacktestOrderStatus, Broker, OrderType
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from backtest.reporting import ReportGenerator
 
 class TestP2OrderExecution(unittest.TestCase):

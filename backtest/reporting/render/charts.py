@@ -1,7 +1,7 @@
-"""Chart rendering mixin for backtest reports."""
+"""Chart rendering, a collaborator of :class:`ReportGenerator` (ADR 0025)."""
 
 import os
-from typing import Any, Dict, List
+from typing import TYPE_CHECKING, Any, Dict, List
 
 import matplotlib
 import numpy as np
@@ -20,8 +20,11 @@ from backtest.plot_style import (
     save_figure,
     style_axes,
 )
-from core.logger import get_logger
-from core.metrics import infer_periods_per_year, monthly_returns
+from core.foundation.logger import get_logger
+from core.metrics import equity_period_returns, infer_periods_per_year, monthly_returns
+
+if TYPE_CHECKING:
+    from backtest.reporting import ReportGenerator
 
 logger = get_logger(__name__)
 
@@ -35,8 +38,9 @@ def rolling_max_drawdown(equity: pd.Series, window: int) -> pd.Series:
     )
 
 
-class ReportChartsMixin:
-    output_dir: str
+class ReportCharts:
+    def __init__(self, host: "ReportGenerator") -> None:
+        self._host = host
 
     @chart_style()
     def _plot_equity(
@@ -93,7 +97,7 @@ class ReportChartsMixin:
             ax1.legend(loc="lower right", bbox_to_anchor=(1, 1.02), ncol=2)
 
             # Plot 2: Drawdown
-            rolling_max = equity_curve["equity"].cummax()
+            rolling_max = equity_curve["equity"].cummax().where(lambda peak: peak > 0)
             drawdown = (equity_curve["equity"] - rolling_max) / rolling_max
 
             ax2.fill_between(
@@ -106,7 +110,7 @@ class ReportChartsMixin:
             ax2.axhline(0, color=PALETTE["muted"], linewidth=0.7, alpha=0.65)
 
             # Plot 3: Returns for each observed period (daily or intraday).
-            returns = equity_curve["equity"].pct_change().fillna(0)
+            returns = equity_period_returns(equity_curve["equity"]).dropna()
             colors = [PALETTE["positive"] if x >= 0 else PALETTE["negative"] for x in returns]
             ax3.bar(
                 returns.index, returns, color=colors, alpha=0.8, linewidth=0
@@ -170,7 +174,7 @@ class ReportChartsMixin:
             # figure": a figure leaked by an earlier call would otherwise
             # receive the write, producing a wrong or empty image.
             fig.tight_layout(h_pad=2.3)
-            output_path = os.path.join(self.output_dir, "equity.png")
+            output_path = os.path.join(self._host.output_dir, "equity.png")
             save_figure(fig, output_path)
             logger.info("Plot saved to: %s", output_path)
         except Exception as e:
@@ -240,7 +244,7 @@ class ReportChartsMixin:
             colorbar.outline.set_visible(False)
             colorbar.ax.tick_params(length=0)
             fig.tight_layout()
-            output_path = os.path.join(self.output_dir, "monthly_returns_heatmap.png")
+            output_path = os.path.join(self._host.output_dir, "monthly_returns_heatmap.png")
             save_figure(fig, output_path)
             logger.info("Plot saved to: %s", output_path)
         except Exception as e:
@@ -269,7 +273,7 @@ class ReportChartsMixin:
                 return
 
             periods_per_year = infer_periods_per_year(equity.index) or 252.0
-            returns = equity.pct_change().dropna()
+            returns = equity_period_returns(equity)
 
             rolling_mean = returns.rolling(window).mean()
             rolling_std = returns.rolling(window).std()
@@ -309,7 +313,7 @@ class ReportChartsMixin:
             ax2.set_xlabel("日期")
 
             fig.tight_layout(h_pad=2.3)
-            output_path = os.path.join(self.output_dir, "rolling_metrics.png")
+            output_path = os.path.join(self._host.output_dir, "rolling_metrics.png")
             save_figure(fig, output_path)
             logger.info("Plot saved to: %s", output_path)
         except Exception as e:
@@ -359,7 +363,7 @@ class ReportChartsMixin:
             ax.margins(y=0.12)
 
             fig.tight_layout()
-            output_path = os.path.join(self.output_dir, "pnl_distribution.png")
+            output_path = os.path.join(self._host.output_dir, "pnl_distribution.png")
             save_figure(fig, output_path)
             logger.info("Plot saved to: %s", output_path)
         except Exception as e:

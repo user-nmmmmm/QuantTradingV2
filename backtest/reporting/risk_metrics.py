@@ -12,7 +12,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from core.metrics import infer_periods_per_year, monthly_returns
+from core.metrics import equity_period_returns, infer_periods_per_year, monthly_returns
 
 
 METRIC_LABELS = {
@@ -150,8 +150,11 @@ def summarize_exposure(equity_curve: pd.DataFrame) -> dict[str, Any]:
 def calculate_portfolio_risk_metrics(equity: pd.Series) -> dict[str, Any]:
     """Institutional-style return/risk statistics derived from an equity path."""
     clean = pd.Series(equity, copy=True).replace([np.inf, -np.inf], np.nan).dropna()
-    returns = clean.pct_change(fill_method=None).dropna()
+    returns = equity_period_returns(clean).iloc[1:]
     ppy = infer_periods_per_year(clean.index)
+    if returns.isna().any():
+        return {"status": "undefined", "sample_size": int(len(returns)),
+                "reason": "positive prior equity and finite interval returns are required"}
     if len(returns) < 2 or not ppy:
         return {"status": "insufficient", "sample_size": int(len(returns))}
     annual_return = float(returns.mean() * ppy)
@@ -199,8 +202,11 @@ def calculate_active_risk_metrics(
         [pd.Series(equity).rename("strategy"), pd.Series(benchmark).rename("benchmark")],
         axis=1, join="inner",
     ).replace([np.inf, -np.inf], np.nan).dropna()
-    rets = joined.pct_change(fill_method=None).dropna()
+    rets = joined.apply(equity_period_returns).iloc[1:]
     ppy = infer_periods_per_year(joined.index)
+    if rets.isna().any().any():
+        return {"status": "undefined", "sample_size": int(len(rets)),
+                "reason": "positive prior strategy/benchmark equity and finite interval returns are required"}
     if len(rets) < 3 or not ppy:
         return {"status": "insufficient", "sample_size": int(len(rets))}
     active = rets["strategy"] - rets["benchmark"]

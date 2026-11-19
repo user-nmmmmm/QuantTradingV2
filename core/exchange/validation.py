@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, Optional
 
-from core.domain import OrderIntent
+from core.foundation.domain import OrderIntent
 from core.exchange.metadata import (
     ExchangeCapabilities,
     MarketSpecification,

@@ -7,6 +7,7 @@ facts remain unavailable. These retrospective diagnostics never affect orders.
 """
 from __future__ import annotations
 
+from typing import Any
 from collections import Counter
 from collections.abc import Mapping
 import math
@@ -208,7 +209,7 @@ def _independent_execution_diagnostics(
     orders, fills, execution_errors, *, terminal_valuations, independent_quotes,
     as_of, max_quote_age_seconds,
 ):
-    order_instruments = {}
+    order_instruments: dict[Any, Any] = {}
     for order_key, _, _, _, symbol, currency in fills.values():
         order_instruments.setdefault(order_key, set()).add((symbol, currency))
 
@@ -225,7 +226,7 @@ def _independent_execution_diagnostics(
                 "quote_currency": currency, "observations": list(rows)}
 
     def load_facts(values, identity, quote):
-        records = {}
+        records: dict[Any, Any] = {}
         for value in values:
             if not isinstance(value, Mapping):
                 raise ValueError("independent facts must be mappings")

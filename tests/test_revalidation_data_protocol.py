@@ -4,7 +4,7 @@ import json
 import pandas as pd
 import pytest
 
-from core.reproducibility import sha256_file
+from core.foundation.reproducibility import sha256_file
 from scripts import run_revalidation60 as runner
 
 

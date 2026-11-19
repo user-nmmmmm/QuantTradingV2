@@ -14,8 +14,8 @@ from analysis.execution_calibration import (
     deduplicate_request_records, execution_sample_report, join_quotes_to_execution,
     read_fill_provenance,
 )
-from core.order_latency import OrderLatencyRecorder
-from core.quote_observations import (
+from core.trading.order_latency import OrderLatencyRecorder
+from core.market.quote_observations import (
     BackgroundQuoteSampler, QuoteObservationStore, read_quote_observations, utc_now,
 )
 from tests.test_execution_calibration import facts
@@ -54,6 +54,7 @@ def join(events, requests, quotes, proof, context, **kwargs):
         market_context=context, as_of="2020-02-01T00:00:00Z", **kwargs)
 
 
+@pytest.mark.slow
 def test_quote_store_restart_append_only_history_and_whitelist(tmp_path):
     path = tmp_path/"quotes.sqlite3"
     store = QuoteObservationStore(path)

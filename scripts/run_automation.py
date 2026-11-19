@@ -25,8 +25,6 @@ import time
 import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 
 OWNER = "quanttrading-automation/v1"
 TASKS = ("nightly-data", "weekly-matrix", "weekly-smoke", "monthly-universe", "monthly-optimize", "quarterly-robust")
@@ -177,8 +175,8 @@ def seal_run(directory, record):
 def verified_nightly(path, row, *, now=None):
     """Validate archived capture integrity; this does not prove exchange truth."""
     import pandas as pd
-    from core.timeframes import timeframe_delta
-    from core.universe import normalize_symbol
+    from core.market.timeframes import timeframe_delta
+    from core.market.universe import normalize_symbol
     now = now or utcnow()
     if (row.get("task") != "nightly-data" or row.get("status") != "passed"
             or row.get("synthetic") is not False or row.get("production_evidence") is not True):
@@ -330,7 +328,7 @@ def audit_universe(directory, config):
     missing fields are unknown, never silently converted to still-listed.
     """
     import pandas as pd
-    from core.universe import normalize_symbol
+    from core.market.universe import normalize_symbol
     policy = config["universe"]
     universe = (ROOT / policy["file"]).resolve()
     shutil.copyfile(universe, directory / "universe_input.csv")

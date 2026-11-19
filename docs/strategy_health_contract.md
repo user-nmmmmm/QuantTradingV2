@@ -25,9 +25,9 @@
 
 > 文档状态：Active v1.0
 > 生效日期：2026-09-01
-> 实现：[`core/strategy_health.py`](../core/strategy_health.py)、[`strategies/trend_breakout.py`](../strategies/trend_breakout.py)
+> 实现：[`core/analytics/strategy_health.py`](../core/analytics/strategy_health.py)、[`strategies/trend_breakout.py`](../strategies/trend_breakout.py)
 > 测试：[`tests/test_sr1_strategy_health.py`](../tests/test_sr1_strategy_health.py)
-> 上位文档：[`current_strategy_remediation_roadmap.md`](current_strategy_remediation_roadmap.md) SR1
+> 上位文档：[`current_strategy_remediation_roadmap.md`](archive/2026-10-doc-consolidation/current_strategy_remediation_roadmap.md) SR1
 
 ## 1. 本契约解决的问题
 
@@ -146,7 +146,7 @@ strategy_health:
 
 ### 6.1 一致性检查（SR1-4）
 
-`core.diagnostics.strategy_activity_consistency` 在以下条件同时成立时产生 **P0** 诊断：
+`core.analytics.diagnostics.strategy_activity_consistency` 在以下条件同时成立时产生 **P0** 诊断：
 
 - 最长零交易间隔 ≥ 365 天，且
 - 该间隔内确实存在 raw setup（`last_raw_setup_at` 落在窗口内），或存在被健康闸门抑制的 setup。
@@ -201,5 +201,5 @@ recovery_risk_multiplier: 0.10
 每级重置判定样本边界，失败回最低级并冷却；人工锁定不受自动晋级影响。阶段索引随 v2 checkpoint 保存，恢复须使用相同配置。
 
 首次阻断归因与四组固定研究的完整口径、验收、未解决事项见
-[`P0 归因与仓位恢复联合报告`](research/p0_attribution_recovery_20260906.md)。
+[`P0 归因与仓位恢复联合报告`](research/p0_recovery_history.md)。
 特别注意：风险预算乘数不能替代实际名义仓位准入；小风险恢复与当前 1% 权益最小开仓规则的冲突已经被审计定位，尚未更改生产规则。

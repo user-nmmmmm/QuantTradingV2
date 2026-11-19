@@ -3,10 +3,10 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 
 from backtest.engine import BacktestEngine
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from core.risk import BreakerAction, RiskControlDecision, RiskManager
-from core.runtime import EventProcessor, MarketDataSlice
-from core.state import MarketState
+from core.foundation.runtime import EventProcessor, MarketDataSlice
+from core.trading.state import MarketState
 
 
 def _frame(values=(100.0,)):

@@ -4,7 +4,7 @@ import os
 import unittest
 from unittest.mock import patch
 
-from core.logger import SensitiveDataFilter
+from core.foundation.logger import SensitiveDataFilter
 from run_live import build_parser
 
 

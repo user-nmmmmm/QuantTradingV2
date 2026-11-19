@@ -1,0 +1,115 @@
+{
+  "schema": "pr25-execution-publication-implementation/v2",
+  "date_utc": "2026-10-28",
+  "scope": [
+    "PR25-09 local training freeze and actual local model release",
+    "PR25-10 explicit v2 strict/local and prospective consumption"
+  ],
+  "implementation_status": "engineering_fixture_verified_canonical_main_stage",
+  "global_ci_status": "pending_root_canonical_main_port_and_frozen_ci",
+  "external_real_cost_evidence": "pending",
+  "production_approved": false,
+  "real_venue_calibration": false,
+  "files": [
+    "core/planning/execution_cost_provider.py",
+    "analysis/execution_cost_publication.py",
+    "analysis/execution_cost_research.py",
+    "analysis/execution_calibration.py",
+    "tests/test_execution_cost_publication.py"
+  ],
+  "source_sha256": {
+    "core/planning/execution_cost_provider.py": "917271f1081863d101856ff0c2e034161945613eb586f220cbfe7952d9e016cc",
+    "analysis/execution_cost_publication.py": "196a26e0e843ec5cc394502f5c3104a925e23731f10ebff811ab77f2a557365c",
+    "analysis/execution_cost_research.py": "7fc2a1700ef002a3b9b7d8ab509c2a778ed3d9df135dc0d70f8fea048117c657",
+    "analysis/execution_calibration.py": "d778ccf9e30e438e2bd7731af9f90ea0fda8a438ac1b9854e4a16bbce3ef1b79",
+    "tests/test_execution_cost_publication.py": "e34922203eaad01c37f8bc4624b9424b1bf1c41ce4c690e2c3cbcdb6cbc0c7a6"
+  },
+  "maximum_function_lines": {
+    "core/planning/execution_cost_provider.py": 98,
+    "analysis/execution_cost_publication.py": 64,
+    "analysis/execution_cost_research.py": 86,
+    "analysis/execution_calibration.py": 230
+  },
+  "verification": {
+    "counts": {
+      "tests": 169,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "coverage": {
+      "analysis\\execution_cost_publication.py": {
+        "covered_lines": 192,
+        "num_statements": 208,
+        "percent_covered": 92.3076923076923,
+        "percent_covered_display": "92",
+        "missing_lines": 16,
+        "excluded_lines": 0,
+        "percent_statements_covered": 92.3076923076923,
+        "percent_statements_covered_display": "92"
+      },
+      "core\\planning\\execution_cost_provider.py": {
+        "covered_lines": 266,
+        "num_statements": 270,
+        "percent_covered": 98.51851851851852,
+        "percent_covered_display": "99",
+        "missing_lines": 4,
+        "excluded_lines": 0,
+        "percent_statements_covered": 98.51851851851852,
+        "percent_statements_covered_display": "99"
+      }
+    },
+    "junit": "outputs/pr25_execution_stage_20261028.xml",
+    "log": "outputs/pr25_execution_stage_20261028.log",
+    "coverage_json": "outputs/pr25_execution_stage_20261028_coverage.json",
+    "quality_log": "outputs/pr25_execution_stage_quality_20261028.log",
+    "ruff_format": "pass on provider/publication/research/new publication tests; legacy calibration formatting retained",
+    "ruff_select_F_E4_E7_E9_B_ignore_B905": "pass",
+    "mypy_core_provider": "zero findings",
+    "function_length_ratchet": "pass",
+    "prior_original_workspace_receipt_preserved": "D:/QuantTradingV1/outputs/pr25_execution_publication_final.xml",
+    "exact_original_to_stage_artifact_digest": "8b16fbd75a8dc6b2e53092570eef411df370da5d2ef69233e0a66cbc08a5f312",
+    "exact_comparison_scope": "three full v1 frozen models and forecasts plus partial/zero implementation shortfall; same fixture inputs and venv",
+    "runtime_python": "3.13.2 local portable runner; Python3.11 remote CI remains pending root final gate"
+  },
+  "trust_contract": {
+    "configuration": "independently configured authority_id, journal path and >=32-byte secret; never accepted from artifact/prediction/context",
+    "authenticated": "HMAC-SHA256 of every canonical, sequence/chained SQLite receipt; actual host UTC clock chosen inside API",
+    "steps": [
+      "freeze_training: actual local first observation of canonical training/protocol/fit parameters/source payloads/runtime source snapshots",
+      "observe_features: actual local observation of exact instrument/market/numeric inputs, independently referenced by context",
+      "publish: refit frozen training internally using actual current cutoff; release availability sampled after fit; caller cannot supply model or backdate",
+      "strict provider: resolve authenticated release and feature observation, verify at decision, then execute unchanged v1 numerical/domain engine",
+      "strict consumer: resolve authority, reconstruct frozen model and entire prediction, then validate unit/anchor/horizon/support/expiry"
+    ],
+    "supported": [
+      "strict/local after actual publication and feature observation",
+      "prospective/local after actual publication and feature observation",
+      "retrospective v1 defaults unchanged"
+    ],
+    "unsupported": [
+      "v1 under strict/prospective",
+      "v2 without trusted verifier or local feature receipt",
+      "published knowledge without independent external public release evidence",
+      "changed source/dependency/runtime or nonreproducible fit",
+      "future,expired or unsupported domain forecasts"
+    ],
+    "not_authenticated": [
+      "venue truth of caller input bytes",
+      "original historical receipt dates claimed inside imported source data",
+      "external public publication",
+      "host clock attestation or host administrator integrity",
+      "empirical prediction accuracy or executable venue capacity"
+    ]
+  },
+  "boundaries": [
+    "No live order, venue write, model deployment, production parameter change, PR merge or automatic calibration approval.",
+    "HMAC authority/key custody and actual host wall clock are explicit trust roots. Trusted administrators or compromised signing keys can issue authority receipts; external anchoring is not implemented.",
+    "Raw source_payloads and per-sample evidence labels are locally frozen assertions. Even all verified_live_complete_cost labels remain not externally authenticated; real_venue_calibration remains false.",
+    "Future source or numerical-library changes invalidate old artifacts under this adapter; a new actual release is required rather than silently rewriting historical identity.",
+    "Root owns allocator/selector verifier propagation and canonical module migration. The component stage validation is not a claim that unrun main CI passed.",
+    "The original 20261027 acceptance records remain unchanged.",
+    "Original-workspace and canonical-stage test receipts are distinct; this receipt does not claim unified CI or PR checks completed."
+  ],
+  "function_length_policy": "no new function >=100; unchanged legacy join153/sample230 and reduced readiness174 stay within existing153/230/182 baseline; baseline not enlarged"
+}

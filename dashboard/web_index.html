@@ -87,6 +87,9 @@
             <fieldset class="symbol-field"><legend>交易标的 <span id="symbolLimit">最多 4 个</span></legend><div id="researchSymbols" class="symbol-options">正在读取标的…</div></fieldset>
             <div class="field-pair"><label class="field">开始日期<input name="start" id="researchStart" type="date" required></label><label class="field">结束日期<input name="end" id="researchEnd" type="date" required></label></div>
             <label class="field">初始资金 · USDT<input name="capital" id="researchCapital" type="number" min="100" max="1000000000" step="100" value="10000" required></label>
+            <label class="field field-toggle"><span>开启选币器</span><input name="use_selector" id="researchUseSelector" type="checkbox" role="switch" aria-checked="false" aria-describedby="researchSelectorNote"><small id="researchSelectorNote">关闭使用原策略；开启使用当前冻结 ML 选币器。</small></label>
+            <button type="button" id="runOriginalBacktest" class="secondary-button" aria-describedby="originalBacktestNote" disabled>复现原 10 万本金回测</button>
+            <p id="originalBacktestNote" class="data-note">60 币 · 2020-01-01 至 2026-09-18 · 智能资金分配；沿用上方选币器开关</p>
             <details class="advanced-settings"><summary>执行参数 <span>滑点 / 随机种子</span></summary><div class="field-pair"><label class="field">滑点 · bps<input name="slippage_bps" id="researchSlippage" type="number" min="0" max="100" step="0.1" value="5" required></label><label class="field">随机种子<input name="seed" id="researchSeed" type="number" min="0" max="2147483647" step="1" value="42" required></label></div><p>1 bps = 0.01%。手续费及策略参数使用项目配置。</p></details>
             <div class="data-note" id="researchDataNote">正在读取可用数据与运行限制…</div>
             <div id="strategyEditor" class="strategy-editor"></div>

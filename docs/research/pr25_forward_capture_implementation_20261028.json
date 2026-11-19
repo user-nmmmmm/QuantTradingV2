@@ -1,0 +1,90 @@
+{
+  "created_at": "2026-10-28T03:47:39.150898+00:00",
+  "engine_mypy": {
+    "baseline_allows": 1,
+    "new_findings": 0,
+    "union_attr_findings": 1
+  },
+  "engineering": "pass_scoped_implementation",
+  "final_identity_fix": "actual selector policy mode requires exact policy artifact identity independent of optional candidate label",
+  "formal_admission": false,
+  "integrity_boundary": "original trusted local store/host and independent registry checkpoint; not remote attestation or administrator-resistant store replacement",
+  "local_verification_cryptography": "46.0.4",
+  "main_current_source_capture_tests": {
+    "failed": 0,
+    "junit": "outputs/pr25-forward-main-policy-identity-20261028.xml",
+    "passed": 39,
+    "seconds": 54.88,
+    "skipped": 0
+  },
+  "main_engine_integration": {
+    "failed": 0,
+    "junit": "outputs/pr25-forward-main-engine-second-20261028.xml",
+    "passed": 2
+  },
+  "main_engine_peer": {
+    "failed": 0,
+    "junit": "outputs/pr25_engine_capture_independent_peer_20261028.xml",
+    "passed": 3
+  },
+  "main_function_length_ratchet": "pass_without_baseline_expansion",
+  "main_last_broad_run": {
+    "failed": 1,
+    "failure": "source manifest drift while diagnostics.py and forward_evidence.py were edited concurrently; source gate kept fail-closed",
+    "junit": "outputs/pr25-forward-main-final-20261028.xml",
+    "passed": 133
+  },
+  "main_lock_cryptography": "50.0.2",
+  "main_ported_tests": {
+    "failed": 0,
+    "junit": "outputs/pr25-forward-capture-main-first-20261028.xml",
+    "passed": 92
+  },
+  "main_previous_complete_tests": {
+    "failed": 0,
+    "junit": "outputs/pr25-forward-main-source-verified-20261028.xml",
+    "passed": 135,
+    "seconds": 83.14,
+    "skipped": 0
+  },
+  "main_synthetic_artifact": "reports/pr25_forward_capture_20261028/main_6d2300c21281",
+  "main_unified_commit_ci": "pending_root_integration",
+  "original_synthetic_artifact": "reports/pr25_forward_capture_20261028/418fe470806d",
+  "original_worktree_tests": {
+    "failed": 0,
+    "junit": "outputs/pr25-forward-capture-signed-verified-20261028.xml",
+    "passed": 90
+  },
+  "owned_wide_ruff": "pass",
+  "peer": {
+    "failed": 0,
+    "junit": "outputs/pr25_forward_capture_cost_peer_20261028.xml",
+    "passed": 11
+  },
+  "previous_main_synthetic_artifact": "reports/pr25_forward_capture_20261028/main_ce863b612441",
+  "python": "3.13.2",
+  "real_market_data_collection": false,
+  "real_orders": false,
+  "research": "pending_real_forward_inputs",
+  "schema": "pr25-forward-capture-continuation/v1",
+  "scope": "opt-in local original-policy/Broker capture and whole native engine bar observer",
+  "source_sha256": {
+    "backtest/engine.py": "ed390710895fd63e07b48b3c8f8d52087ed03060ff35a1e87b171251cdd78027",
+    "research/ml_selection/forward_account_trajectory.py": "5544931d2c65666fe9e2968214d57a1ede9ac0424554ecb9dd8b28c9af935047",
+    "research/ml_selection/forward_execution_binding.py": "aee989c812fef608a9c4acdfb90d1fbac8bfa1f5b25f0c00468b921729731aab",
+    "research/ml_selection/forward_policy_capture.py": "d72b58e49e61bb44f22b8b0b16f90c34d41c82027c5da2ab4f19e90f5ef6d8e3",
+    "research/ml_selection/support_diagnostics.py": "0135fc47d84ee8d8a1cdf135ab99d1c540273d62e8d629bc76cc3adcee3c2fea",
+    "tests/test_forward_policy_capture.py": "cd536869bad6f51f588f40172c575a81ca72095549eb08e7dc16571609512bea"
+  },
+  "tail_scope": "complete per-bar lifecycle; unobserved final-run tail trading remains unsupported/pending",
+  "unsupported_pending": [
+    "real forward market observations",
+    "initial inventory/pending order state restoration",
+    "margin/short/funding",
+    "automatic interrupted-session restart",
+    "unobserved final-run tail trading",
+    "v1 caller-declared causal metadata",
+    "late/backdated policy clocks"
+  ],
+  "updated_at": "2026-10-28T03:56:26.909095+00:00"
+}

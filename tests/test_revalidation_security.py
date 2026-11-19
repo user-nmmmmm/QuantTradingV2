@@ -5,11 +5,11 @@ from unittest.mock import patch
 
 import pytest
 
-from core.alerting import JsonlAlertSink, WebhookAlertSink, format_telegram_alert
-from core.domain import OrderIntent
+from core.foundation.alerting import JsonlAlertSink, WebhookAlertSink, format_telegram_alert
+from core.foundation.domain import OrderIntent
 from core.events.codec import _decode_value, _encode_value
-from core.logger import SensitiveDataFilter
-from core.redaction import safe_url
+from core.foundation.logger import SensitiveDataFilter
+from core.foundation.redaction import safe_url
 
 
 @pytest.mark.parametrize("tag", ["dataclass", "structured_payload", "enum"])

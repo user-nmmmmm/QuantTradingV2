@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 import pandas as pd
 
-from core.timeframes import as_utc_timestamp, timeframe_delta, observed_bars_after
+from core.market.timeframes import as_utc_timestamp, timeframe_delta, observed_bars_after
 
 
 @dataclass(frozen=True)

@@ -1,0 +1,1841 @@
+{
+  "schema_version": "quanttrading.paper_research_planning/v1",
+  "plan_date": "2026-10-25",
+  "timezone": "Asia/Singapore",
+  "authority": "planning_only",
+  "authoritative_registry": "docs/development_task_registry.json",
+  "project_stage_authority": "docs/unified_roadmap.md",
+  "execution_started": false,
+  "live_authorization": false,
+  "state_rule": "This file describes planned scope only. It never updates or closes authoritative project tasks.",
+  "synchronization_rule": "Review Markdown/JSON mismatches together; do not overwrite global task status.",
+  "source_documents_sha256_policy": "SHA-256 of the file bytes after CRLF to LF normalization",
+  "source_documents": [
+    {
+      "path": "docs/research/paper_research_roadmap_20261025.md",
+      "sha256": "7e25478c6102f626d9b34bdcd476e4a84c61e9fcd0c2a04ed4eee05d88a44357"
+    },
+    {
+      "path": "docs/research/paper_research_development_plan_20261025.md",
+      "sha256": "18781fa494a632dd7ebe1dcbd23d9888d708ef214de5dd484a486b6a317192b2"
+    }
+  ],
+  "first_iteration": {
+    "work_packages": [
+      "PR25-01",
+      "PR25-02"
+    ],
+    "parallel_documentary_work": [
+      "PR25-00"
+    ],
+    "effort_days": {
+      "min": 3.5,
+      "max": 6
+    },
+    "includes_in_total": true,
+    "entry_nodes_are_not_acceptance_readiness": true
+  },
+  "counts": {
+    "total": 23,
+    "core": 22,
+    "optional": 1
+  },
+  "effort_days": {
+    "core": {
+      "min": 55.5,
+      "max": 83.0
+    },
+    "optional": {
+      "min": 7,
+      "max": 10
+    },
+    "external_wait": "not_included"
+  },
+  "tasks": [
+    {
+      "id": "PR25-00",
+      "title": "文献身份与适用范围",
+      "development_card_title": "文献身份与适用范围",
+      "phase": "A",
+      "planning_status": "planned",
+      "optional": false,
+      "depends_on": [],
+      "external_dependencies": [
+        "可读Excel及可核对文献版本；表内编号映射未完成"
+      ],
+      "effort_days": {
+        "min": 0.5,
+        "max": 1.0,
+        "excludes_external_wait": true
+      },
+      "owner_role": "工程与研究验收",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "acceptance_evidence": null,
+      "paper_refs": [
+        "L01",
+        "L02",
+        "L03",
+        "L04",
+        "L05",
+        "L06",
+        "L07",
+        "L08"
+      ],
+      "existing_paths": [],
+      "proposed_paths": [],
+      "existing_test_paths": [],
+      "test_layers": [
+        "T0"
+      ],
+      "development_card_reference": {
+        "path": "docs/research/paper_research_development_plan_20261025.md",
+        "heading": "### PR25-00 文献身份与适用范围"
+      },
+      "planned_work_and_contract": [
+        "输入：已核对原始来源、新Excel可读副本、项目既有论文应用记录。",
+        "工作：保存题名、作者、版本/DOI/URL、表内编号、实际阅读层级、公式/章节、假设、目标与项目迁移差异。",
+        "交付：拟新增文献映射表；旧106篇编号和新Excel编号保持各自来源，缺失字段明确待证据。",
+        "验收：八篇来源可定位；未取得全文的不称完整复现；方法移植所需的关键公式未取得前，不宣称算法等价。",
+        "依赖缺口：Excel未可读时，仅此映射保持待证据。其余已确定来源的开发可继续。"
+      ],
+      "acceptance_criteria": [
+        "交付：拟新增文献映射表；旧106篇编号和新Excel编号保持各自来源，缺失字段明确待证据。",
+        "验收：八篇来源可定位；未取得全文的不称完整复现；方法移植所需的关键公式未取得前，不宣称算法等价。"
+      ],
+      "required_evidence_categories": [
+        "links",
+        "ids",
+        "coverage",
+        "hashes"
+      ],
+      "proposed_existing_task_mapping": [
+        "SYS-01",
+        "SYS-10"
+      ]
+    },
+    {
+      "id": "PR25-01",
+      "title": "现状、环境与固定基线",
+      "development_card_title": "现状、环境与固定基线",
+      "phase": "A",
+      "planning_status": "planned",
+      "optional": false,
+      "depends_on": [],
+      "external_dependencies": [],
+      "effort_days": {
+        "min": 1.0,
+        "max": 2.0,
+        "excludes_external_wait": true
+      },
+      "owner_role": "工程与研究验收",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "acceptance_evidence": null,
+      "paper_refs": [],
+      "existing_paths": [
+        "scripts/check_environment.py",
+        "scripts/verify_lock.py",
+        "scripts/main_acceptance.py",
+        "scripts/run_portable_tests.py"
+      ],
+      "proposed_paths": [],
+      "existing_test_paths": [
+        "tests/test_backtest_regression.py"
+      ],
+      "test_layers": [
+        "T0",
+        "T8"
+      ],
+      "development_card_reference": {
+        "path": "docs/research/paper_research_development_plan_20261025.md",
+        "heading": "### PR25-01 现状、环境与固定基线"
+      },
+      "planned_work_and_contract": [
+        "复用：环境/锁检查、历史基线和既有研究产物。",
+        "工作：记录HEAD、受控差异、未跟踪的实际运行源文件、Python/NumPy/BLAS/求解依赖、平台、配置及数据身份。优先重放一个小型固定账户fixture，不先重跑110次历史矩阵。",
+        "交付：current_state.json、environment.json、baseline_diff.json（均为拟交付产物）。",
+        "验收：实际使用的代码和数据均可定位；当前失败与缺外部输入分开；开发环境与CI Python版本差异明确。",
+        "回归：已有固定账户/组合fixture；只对更改或疑点复验，不改旧历史回执。"
+      ],
+      "acceptance_criteria": [
+        "交付：current_state.json、environment.json、baseline_diff.json（均为拟交付产物）。",
+        "验收：实际使用的代码和数据均可定位；当前失败与缺外部输入分开；开发环境与CI Python版本差异明确。"
+      ],
+      "required_evidence_categories": [
+        "contract",
+        "source_and_input_identity",
+        "positive_and_negative",
+        "reconciliation",
+        "compatibility",
+        "applicable_fault_and_integration",
+        "limitations_and_receipt"
+      ],
+      "proposed_existing_task_mapping": [
+        "SYS-01",
+        "SYS-10"
+      ]
+    },
+    {
+      "id": "PR25-02",
+      "title": "完整登记与源码身份",
+      "development_card_title": "完整登记与源码身份",
+      "phase": "A",
+      "planning_status": "planned",
+      "optional": false,
+      "depends_on": [
+        "PR25-01"
+      ],
+      "external_dependencies": [],
+      "effort_days": {
+        "min": 2.0,
+        "max": 3.0,
+        "excludes_external_wait": true
+      },
+      "owner_role": "工程与研究验收",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "acceptance_evidence": null,
+      "paper_refs": [
+        "L01",
+        "L02",
+        "L03"
+      ],
+      "existing_paths": [
+        "analysis/research_evidence.py",
+        "analysis/research_validation.py"
+      ],
+      "proposed_paths": [
+        {
+          "path": "analysis/search_scope.py",
+          "status": "proposed_not_implemented"
+        },
+        {
+          "path": "tests/test_search_scope.py",
+          "status": "proposed_not_implemented"
+        }
+      ],
+      "existing_test_paths": [
+        "tests/test_unified_research_evidence.py",
+        "tests/test_phase5_research_validation.py"
+      ],
+      "test_layers": [
+        "T0",
+        "T8"
+      ],
+      "development_card_reference": {
+        "path": "docs/research/paper_research_development_plan_20261025.md",
+        "heading": "### PR25-02 完整登记与源码身份"
+      },
+      "planned_work_and_contract": [
+        "复用：[ResearchEvidenceRun](../../analysis/research_evidence.py)与[ExperimentRegistry](../../analysis/research_validation.py)。",
+        "已知缝隙：当前source_identity默认目录不覆盖research/ml_selection及全部ML依赖和测试定义；外传source_hashes只是记录，当前verify_identity不会替调用者核验来源。",
+        "工作：定义每个研究的依赖闭包，纳入实际研究代码、模型、配置、锁、协议、数据及必要测试/编排；本地核验实际字节。planned/started/completed/failed/interrupted/abstained均保留。",
+        "拟新增：analysis/search_scope.py；tests/test_search_scope.py。避免建立独立于现有记录器的第二套尝试日志。",
+        "验收：缺arm、日志截断、模型/配置/依赖改字节、未跟踪源文件改动、失败恢复均可识别。局部完整与历史全局完整分别输出；不补造旧搜索记录。"
+      ],
+      "acceptance_criteria": [
+        "验收：缺arm、日志截断、模型/配置/依赖改字节、未跟踪源文件改动、失败恢复均可识别。局部完整与历史全局完整分别输出；不补造旧搜索记录。"
+      ],
+      "required_evidence_categories": [
+        "contract",
+        "source_and_input_identity",
+        "positive_and_negative",
+        "reconciliation",
+        "compatibility",
+        "applicable_fault_and_integration",
+        "limitations_and_receipt"
+      ],
+      "proposed_existing_task_mapping": [
+        "SYS-01",
+        "SYS-10"
+      ]
+    },
+    {
+      "id": "PR25-03",
+      "title": "时序数据与ML入口对齐",
+      "development_card_title": "时序数据与ML入口对齐",
+      "phase": "B",
+      "planning_status": "planned",
+      "optional": false,
+      "depends_on": [
+        "PR25-02"
+      ],
+      "external_dependencies": [],
+      "effort_days": {
+        "min": 3.0,
+        "max": 5.0,
+        "excludes_external_wait": true
+      },
+      "owner_role": "数据与研究",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "acceptance_evidence": null,
+      "paper_refs": [
+        "L08"
+      ],
+      "existing_paths": [
+        "core/market/temporal_data.py",
+        "core/market/data_versions.py",
+        "research/ml_selection/dataset.py",
+        "research/ml_selection/selector.py",
+        "research/ml_selection/forward_bridge.py"
+      ],
+      "proposed_paths": [],
+      "existing_test_paths": [
+        "tests/test_data_versions.py",
+        "tests/test_temporal_data_integration.py",
+        "tests/test_ml_selection_dataset.py",
+        "tests/test_ml_selection_bridge_audit.py"
+      ],
+      "test_layers": [
+        "T2",
+        "T3",
+        "T6",
+        "T8"
+      ],
+      "development_card_reference": {
+        "path": "docs/research/paper_research_development_plan_20261025.md",
+        "heading": "### PR25-03 时序数据与ML入口对齐"
+      },
+      "planned_work_and_contract": [
+        "复用：TemporalOHLCV.as_of、strategy_decision_cutoff、dataset/selector/forward_bridge。",
+        "工作：增加拟议SelectionTemporalContext和桥接schema v2，贯通实际cutoff、来源版本与可见特征；v1保留回顾性读取。strict输入不再依赖缺省名义收盘时间证明可得。",
+        "前后行为：晚到bar在旧的名义收盘假设下可进入回顾性材料；strict模式只能在真实可得截止后进入。",
+        "测试：晚到/乱序/修订、cutoff前后1ns、local/published差异；更改未来输入不改变旧决策；关闭新能力后旧材料/选择结果兼容。",
+        "交付：时间契约、版本化adapter、跨层一致性报告；不重建已有版本库。"
+      ],
+      "acceptance_criteria": [
+        "测试：晚到/乱序/修订、cutoff前后1ns、local/published差异；更改未来输入不改变旧决策；关闭新能力后旧材料/选择结果兼容。",
+        "交付：时间契约、版本化adapter、跨层一致性报告；不重建已有版本库。"
+      ],
+      "required_evidence_categories": [
+        "contract",
+        "source_and_input_identity",
+        "positive_and_negative",
+        "reconciliation",
+        "compatibility",
+        "applicable_fault_and_integration",
+        "limitations_and_receipt"
+      ],
+      "proposed_existing_task_mapping": [
+        "SYS-04",
+        "SYS-10"
+      ]
+    },
+    {
+      "id": "PR25-04",
+      "title": "成熟标签与细粒度歧义",
+      "development_card_title": "成熟标签与细粒度歧义",
+      "phase": "B",
+      "planning_status": "planned",
+      "optional": false,
+      "depends_on": [
+        "PR25-03"
+      ],
+      "external_dependencies": [
+        "如需消歧，须真实细bar/逐笔及可得时间证据"
+      ],
+      "effort_days": {
+        "min": 2.0,
+        "max": 3.0,
+        "excludes_external_wait": true
+      },
+      "owner_role": "数据与研究",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "acceptance_evidence": null,
+      "paper_refs": [
+        "L08"
+      ],
+      "existing_paths": [
+        "signal_meta/temporal_labels.py",
+        "signal_meta/signal_label_versions.py",
+        "research/ml_selection/dataset.py",
+        "signal_meta/paper_label_execution.py"
+      ],
+      "proposed_paths": [],
+      "existing_test_paths": [
+        "tests/test_temporal_labels.py",
+        "tests/test_temporal_retractions.py",
+        "tests/test_signal_label_versions.py"
+      ],
+      "test_layers": [
+        "T2",
+        "T3",
+        "T6",
+        "T8"
+      ],
+      "development_card_reference": {
+        "path": "docs/research/paper_research_development_plan_20261025.md",
+        "heading": "### PR25-04 成熟标签与细粒度歧义"
+      },
+      "planned_work_and_contract": [
+        "复用：VersionedOutcomeTracker、OutcomeRevisionBook、chronological_split和现有首触解析。",
+        "工作：拟议materialize_training_labels仅物化截止前可用的标签版本；保存revision、成本与资格原因。先选择最新可见修订，再判断资格，撤销/失效后不得回落旧标签。",
+        "细bar：核对来源、完整度、父子OHLC及可得时间。不能解析的同bar双障碍继续单列/排除，不生成有利盘中路径。",
+        "测试：晚到中间bar、费用修订、标签撤销、同日早止损与未成熟标签整组隔离、截止前后的版本选择。",
+        "验收：标签时点和真实账户收益分开；finish不得强制造成熟；旧proxy材料保留独立研究身份。"
+      ],
+      "acceptance_criteria": [
+        "测试：晚到中间bar、费用修订、标签撤销、同日早止损与未成熟标签整组隔离、截止前后的版本选择。",
+        "验收：标签时点和真实账户收益分开；finish不得强制造成熟；旧proxy材料保留独立研究身份。"
+      ],
+      "required_evidence_categories": [
+        "contract",
+        "source_and_input_identity",
+        "positive_and_negative",
+        "reconciliation",
+        "compatibility",
+        "applicable_fault_and_integration",
+        "limitations_and_receipt"
+      ],
+      "proposed_existing_task_mapping": [
+        "SYS-04",
+        "SYS-10"
+      ]
+    },
+    {
+      "id": "PR25-05",
+      "title": "成员区间与历史因子输入",
+      "development_card_title": "成员区间与历史因子输入",
+      "phase": "B",
+      "planning_status": "planned",
+      "optional": false,
+      "depends_on": [
+        "PR25-03"
+      ],
+      "external_dependencies": [
+        "完整成员/退市/重新上市、市值定义及历史可得证据"
+      ],
+      "effort_days": {
+        "min": 3.0,
+        "max": 5.0,
+        "excludes_external_wait": true
+      },
+      "owner_role": "数据与研究",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "acceptance_evidence": null,
+      "paper_refs": [
+        "L06",
+        "L08"
+      ],
+      "existing_paths": [
+        "research/ml_selection/membership.py",
+        "analysis/factor_registry.py",
+        "analysis/historical_factor_inputs.py"
+      ],
+      "proposed_paths": [],
+      "existing_test_paths": [
+        "tests/test_ml_selection_dataset.py",
+        "tests/test_historical_factor_inputs.py",
+        "tests/test_paper_data_audit.py"
+      ],
+      "test_layers": [
+        "T2",
+        "T3",
+        "T6",
+        "T8"
+      ],
+      "development_card_reference": {
+        "path": "docs/research/paper_research_development_plan_20261025.md",
+        "heading": "### PR25-05 成员区间与历史因子输入"
+      },
+      "planned_work_and_contract": [
+        "复用：membership审计、historical_factor_inputs、factor_registry、DataVersionStore。",
+        "已知缝隙：成员审计可处理多段区间，ML dataset目前每symbol最多一段；pipeline先构建材料再审计。",
+        "工作：共享拟议membership_as_of解析器，覆盖重新上市、空档、退市和公告可得时间；审计与构建消费同一资格结果。",
+        "因子：登记市值/供应量定义、历史成分和修订；缺数据保留未知；不将成交额替换市值。",
+        "测试：重上市两区间、重叠/矛盾区间拒绝、晚到公告、局部降级不得标full verified；未来价格/市值/修订不改变过去因子。",
+        "验收：局部代理可开展研究，完整全市场复现须有相应真实输入；采购/补采时间单列。"
+      ],
+      "acceptance_criteria": [
+        "测试：重上市两区间、重叠/矛盾区间拒绝、晚到公告、局部降级不得标full verified；未来价格/市值/修订不改变过去因子。",
+        "验收：局部代理可开展研究，完整全市场复现须有相应真实输入；采购/补采时间单列。"
+      ],
+      "required_evidence_categories": [
+        "contract",
+        "source_and_input_identity",
+        "positive_and_negative",
+        "reconciliation",
+        "compatibility",
+        "applicable_fault_and_integration",
+        "limitations_and_receipt"
+      ],
+      "proposed_existing_task_mapping": [
+        "SYS-04",
+        "SYS-10"
+      ]
+    },
+    {
+      "id": "PR25-06",
+      "title": "搜索族与统计证据接线",
+      "development_card_title": "搜索族与统计证据接线",
+      "phase": "C",
+      "planning_status": "planned",
+      "optional": false,
+      "depends_on": [
+        "PR25-02"
+      ],
+      "external_dependencies": [],
+      "effort_days": {
+        "min": 3.0,
+        "max": 5.0,
+        "excludes_external_wait": true
+      },
+      "owner_role": "研究工程",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "acceptance_evidence": null,
+      "paper_refs": [
+        "L01",
+        "L02",
+        "L03"
+      ],
+      "existing_paths": [
+        "analysis/paper_validation.py",
+        "analysis/research_evidence.py",
+        "analysis/walk_forward.py",
+        "analysis/research_validation.py"
+      ],
+      "proposed_paths": [],
+      "existing_test_paths": [
+        "tests/test_paper_validation.py",
+        "tests/test_unified_research_evidence.py",
+        "tests/test_walk_forward.py",
+        "tests/test_phase5_research_validation.py"
+      ],
+      "test_layers": [
+        "T1",
+        "T2",
+        "T3",
+        "T8"
+      ],
+      "development_card_reference": {
+        "path": "docs/research/paper_research_development_plan_20261025.md",
+        "heading": "### PR25-06 搜索族与统计证据接线"
+      },
+      "planned_work_and_contract": [
+        "复用：cscv_pbo、white_reality_check、deflated_sharpe_evidence、candidate_panel_evidence。",
+        "工作：根据事前候选与attempt日志核对族；同时间、资金、费用和持仓口径建立收益面板。失败arm不可删列、补零或默默缩小样本。",
+        "DSR继续保留历史完整/事前登记等原条件；White与PBO的局部完整声明不能扩大到全项目。",
+        "测试：缺候选、重复ID、异步索引、零方差、失败/中断、截尾声明、同日多资产及重复seed不虚增独立时间。",
+        "验收：统计值连同完整性、样本、限制输出；admission_eligible等原有边界继续有效。"
+      ],
+      "acceptance_criteria": [
+        "测试：缺候选、重复ID、异步索引、零方差、失败/中断、截尾声明、同日多资产及重复seed不虚增独立时间。",
+        "验收：统计值连同完整性、样本、限制输出；admission_eligible等原有边界继续有效。"
+      ],
+      "required_evidence_categories": [
+        "contract",
+        "source_and_input_identity",
+        "positive_and_negative",
+        "reconciliation",
+        "compatibility",
+        "applicable_fault_and_integration",
+        "limitations_and_receipt"
+      ],
+      "proposed_existing_task_mapping": [
+        "SYS-10",
+        "SYS-11"
+      ]
+    },
+    {
+      "id": "PR25-07",
+      "title": "统计手算与零假设校准",
+      "development_card_title": "数学验证、依赖与零假设校准",
+      "phase": "C",
+      "planning_status": "planned",
+      "optional": false,
+      "depends_on": [
+        "PR25-06"
+      ],
+      "external_dependencies": [],
+      "effort_days": {
+        "min": 2.0,
+        "max": 3.0,
+        "excludes_external_wait": true
+      },
+      "owner_role": "研究工程",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "acceptance_evidence": null,
+      "paper_refs": [
+        "L01",
+        "L02",
+        "L03"
+      ],
+      "existing_paths": [
+        "analysis/paper_validation.py",
+        "analysis/research_evidence.py",
+        "analysis/walk_forward.py"
+      ],
+      "proposed_paths": [],
+      "existing_test_paths": [
+        "tests/test_paper_validation.py",
+        "tests/test_unified_research_evidence.py",
+        "tests/test_walk_forward.py"
+      ],
+      "test_layers": [
+        "T1",
+        "T2",
+        "T3",
+        "T8"
+      ],
+      "development_card_reference": {
+        "path": "docs/research/paper_research_development_plan_20261025.md",
+        "heading": "### PR25-07 数学验证、依赖与零假设校准"
+      },
+      "planned_work_and_contract": [
+        "复用：[统计契约](paper_validation_contract_20261003.md)及现有手算fixture。",
+        "数学检查：小矩阵完整CSCV组合、并列规则、无优势White统计量、DSR每期/年化隔离、CPCV路径唯一性和每折独立拟合。",
+        "拟新增离线校准：固定协议的相关噪声/已知信号面板，记录候选数量、AR依赖、块长、假阳性和检出能力。Monte Carlo实验使用固定预算并给出二项/模拟误差区间。",
+        "pytest只验证确定的数学和行为；统计频率校准作为离线报告，不以某个随机运行“必须显著”建立易抖动单测。",
+        "验收：CPCV事件预测路径与账户路径分开，不能用全样本拟合收益冒充折外预测；路径共享历史不能增加独立样本数。"
+      ],
+      "acceptance_criteria": [
+        "验收：CPCV事件预测路径与账户路径分开，不能用全样本拟合收益冒充折外预测；路径共享历史不能增加独立样本数。"
+      ],
+      "required_evidence_categories": [
+        "contract",
+        "source_and_input_identity",
+        "positive_and_negative",
+        "reconciliation",
+        "compatibility",
+        "applicable_fault_and_integration",
+        "limitations_and_receipt"
+      ],
+      "proposed_existing_task_mapping": [
+        "SYS-10",
+        "SYS-11"
+      ]
+    },
+    {
+      "id": "PR25-08",
+      "title": "真实执行证据资格",
+      "development_card_title": "真实执行证据资格",
+      "phase": "D",
+      "planning_status": "planned",
+      "optional": false,
+      "depends_on": [
+        "PR25-02"
+      ],
+      "external_dependencies": [
+        "合格真实报价/请求/成交/费用与时钟证据；fixture不替代"
+      ],
+      "effort_days": {
+        "min": 3.0,
+        "max": 4.0,
+        "excludes_external_wait": true
+      },
+      "owner_role": "执行与数据",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "acceptance_evidence": null,
+      "paper_refs": [
+        "L04"
+      ],
+      "existing_paths": [
+        "analysis/execution_calibration.py",
+        "scripts/audit_execution_readiness.py",
+        "scripts/calibrate_execution.py",
+        "core/broker/cost_model.py"
+      ],
+      "proposed_paths": [],
+      "existing_test_paths": [
+        "tests/test_execution_readiness.py",
+        "tests/test_execution_calibration.py",
+        "tests/test_quote_observations.py",
+        "tests/test_binance_depth_observer.py"
+      ],
+      "test_layers": [
+        "T1",
+        "T2",
+        "T4",
+        "T5",
+        "T7",
+        "T8"
+      ],
+      "development_card_reference": {
+        "path": "docs/research/paper_research_development_plan_20261025.md",
+        "heading": "### PR25-08 真实执行证据资格"
+      },
+      "planned_work_and_contract": [
+        "复用：read_execution_ledger、read_fill_provenance、quote join与readiness报告。",
+        "工作：统一order/parent/child/fill、独立事前报价、请求、时钟、费用、可得时间和市场身份验证；价格证据与完整成本证据分别评级。",
+        "兼容重点：旧的预连接报价入口可能依赖调用者source声明；增加拟议evidence_verification_level，严格报告不能只继承旧real_venue_calibration布尔值。",
+        "测试：模拟/沙盒不能升格，合成累计成交排除，跨日费用成熟、同ID冲突、重复重放、时钟错误、盘口缺序及来源未知。",
+        "验收：真实库只读；缺费用可保留价格诊断；无真实样本时交付fixture工程通过与外部证据待满足。"
+      ],
+      "acceptance_criteria": [
+        "测试：模拟/沙盒不能升格，合成累计成交排除，跨日费用成熟、同ID冲突、重复重放、时钟错误、盘口缺序及来源未知。",
+        "验收：真实库只读；缺费用可保留价格诊断；无真实样本时交付fixture工程通过与外部证据待满足。"
+      ],
+      "required_evidence_categories": [
+        "contract",
+        "source_and_input_identity",
+        "positive_and_negative",
+        "reconciliation",
+        "compatibility",
+        "applicable_fault_and_integration",
+        "limitations_and_receipt"
+      ],
+      "proposed_existing_task_mapping": [
+        "SYS-03",
+        "SYS-05",
+        "SYS-17"
+      ]
+    },
+    {
+      "id": "PR25-09",
+      "title": "成本模型与留后日评价",
+      "development_card_title": "成本模型与留后日评价",
+      "phase": "D",
+      "planning_status": "planned",
+      "optional": false,
+      "depends_on": [
+        "PR25-08"
+      ],
+      "external_dependencies": [
+        "多个独立日、方向和规模支持及后来测试日；精度目标"
+      ],
+      "effort_days": {
+        "min": 5.0,
+        "max": 7.0,
+        "excludes_external_wait": true
+      },
+      "owner_role": "执行与数据",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "acceptance_evidence": null,
+      "paper_refs": [
+        "L04"
+      ],
+      "existing_paths": [
+        "analysis/execution_calibration.py",
+        "scripts/audit_execution_readiness.py",
+        "scripts/calibrate_execution.py",
+        "core/broker/cost_model.py"
+      ],
+      "proposed_paths": [],
+      "existing_test_paths": [
+        "tests/test_execution_readiness.py",
+        "tests/test_execution_calibration.py",
+        "tests/test_quote_observations.py",
+        "tests/test_binance_depth_observer.py"
+      ],
+      "test_layers": [
+        "T1",
+        "T2",
+        "T4",
+        "T5",
+        "T7",
+        "T8"
+      ],
+      "development_card_reference": {
+        "path": "docs/research/paper_research_development_plan_20261025.md",
+        "heading": "### PR25-09 成本模型与留后日评价"
+      },
+      "planned_work_and_contract": [
+        "复用：execution_sample_report及当前按整日划分的诊断；新增冻结模型协议，不随机按fill拆分。",
+        "第一轮：现有常数、按日稳健基线、一个简单正则/条件模型。决策时已知价差、波动、规模/可见深度、方向和市场身份可作输入。",
+        "同parent全部child/fill同组；训练价格/费用事实须在测试边界前成熟；样本外测试日不参与模型、阈值或特征选择。",
+        "输出：模型身份、训练截止、预测时点、有效期、支持域、方向/规模/状态分层、按日等权及名义金额加权误差、低估与区间覆盖。",
+        "测试：未知/域外规模unsupported、过期模型、未来特征拒绝、稀疏分层insufficient、已知偏差受控数据、测试集不可拟合。",
+        "验收：工程覆盖下限与统计精度分别判断；10/5日和每层5笔不自动批准校准/容量。停止规则和延长观察上限在评价前固定。"
+      ],
+      "acceptance_criteria": [
+        "测试：未知/域外规模unsupported、过期模型、未来特征拒绝、稀疏分层insufficient、已知偏差受控数据、测试集不可拟合。",
+        "验收：工程覆盖下限与统计精度分别判断；10/5日和每层5笔不自动批准校准/容量。停止规则和延长观察上限在评价前固定。"
+      ],
+      "required_evidence_categories": [
+        "contract",
+        "source_and_input_identity",
+        "positive_and_negative",
+        "reconciliation",
+        "compatibility",
+        "applicable_fault_and_integration",
+        "limitations_and_receipt"
+      ],
+      "proposed_existing_task_mapping": [
+        "SYS-03",
+        "SYS-05",
+        "SYS-17"
+      ]
+    },
+    {
+      "id": "PR25-10",
+      "title": "短缺成本与账户成本桥",
+      "development_card_title": "实施差额、成本provider与账户桥",
+      "phase": "D",
+      "planning_status": "planned",
+      "optional": false,
+      "depends_on": [
+        "PR25-09"
+      ],
+      "external_dependencies": [
+        "完整费用转换、部分成交残余的终值与账本事实"
+      ],
+      "effort_days": {
+        "min": 4.0,
+        "max": 5.0,
+        "excludes_external_wait": true
+      },
+      "owner_role": "执行与数据",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "acceptance_evidence": null,
+      "paper_refs": [
+        "L04",
+        "L07"
+      ],
+      "existing_paths": [
+        "analysis/execution_calibration.py",
+        "scripts/audit_execution_readiness.py",
+        "scripts/calibrate_execution.py",
+        "core/broker/cost_model.py",
+        "core/planning/cost_aware_allocation.py",
+        "core/planning/selection_v2.py",
+        "core/planning/portfolio_target_controller.py"
+      ],
+      "proposed_paths": [],
+      "existing_test_paths": [
+        "tests/test_execution_readiness.py",
+        "tests/test_execution_calibration.py",
+        "tests/test_quote_observations.py",
+        "tests/test_binance_depth_observer.py",
+        "tests/test_cost_aware_allocation.py",
+        "tests/test_v3_portfolio_execution.py",
+        "tests/test_live_risk_action_lifecycle.py"
+      ],
+      "test_layers": [
+        "T1",
+        "T2",
+        "T4",
+        "T5",
+        "T7",
+        "T8"
+      ],
+      "development_card_reference": {
+        "path": "docs/research/paper_research_development_plan_20261025.md",
+        "heading": "### PR25-10 实施差额、成本provider与账户桥"
+      },
+      "planned_work_and_contract": [
+        "复用：Broker实际成本、Portfolio/lot事实及单期优化器。",
+        "拟新增ExecutionCostProvider：返回model/protocol hash、target/anchor/horizon、bps单位、预测分量、区间、available_at、expiry、支持域和不足原因。",
+        "分离价格shortfall、全意图实施差额、费用、借币/funding及残余库存；部分成交、拒单、撤单和零成交都保留。",
+        "预测成本进入目标函数，实际成本只由Broker/交易事实入账。实盘模型参数不由研究脚本改写。",
+        "求解器首轮保持现有单一非负trading_cost_bps接口：按训练期冻结的聚合方式，把域内预测转换成一个明确的保守标量，并记录信息损失。逐资产/方向向量属于另行登记的接口扩展，不能写成已经接入。真实返佣可为负，账本按事实保留；不能直接塞入当前要求非负的L1惩罚。",
+        "测试：买卖手算、返佣与第三币种费用转换、剩余未成交且缺终值时不足、全部成交无终值仍可计算、费用不重复、标量聚合与非负契约、风险减仓优先、pending预留、provider坏hash/过期/未来时点。",
+        "验收：目标不等于成交；现金、持仓、费用和权益桥在既有精度容差内，域外规模不被描述为可执行容量。"
+      ],
+      "acceptance_criteria": [
+        "测试：买卖手算、返佣与第三币种费用转换、剩余未成交且缺终值时不足、全部成交无终值仍可计算、费用不重复、标量聚合与非负契约、风险减仓优先、pending预留、provider坏hash/过期/未来时点。",
+        "验收：目标不等于成交；现金、持仓、费用和权益桥在既有精度容差内，域外规模不被描述为可执行容量。"
+      ],
+      "required_evidence_categories": [
+        "contract",
+        "source_and_input_identity",
+        "positive_and_negative",
+        "reconciliation",
+        "compatibility",
+        "applicable_fault_and_integration",
+        "limitations_and_receipt"
+      ],
+      "proposed_existing_task_mapping": [
+        "SYS-03",
+        "SYS-05",
+        "SYS-17"
+      ]
+    },
+    {
+      "id": "PR25-11",
+      "title": "显式协方差估计接口",
+      "development_card_title": "显式协方差估计接口",
+      "phase": "E",
+      "planning_status": "planned",
+      "optional": false,
+      "depends_on": [
+        "PR25-02"
+      ],
+      "external_dependencies": [],
+      "effort_days": {
+        "min": 3.0,
+        "max": 5.0,
+        "excludes_external_wait": true
+      },
+      "owner_role": "研究工程",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "acceptance_evidence": null,
+      "paper_refs": [
+        "L05"
+      ],
+      "existing_paths": [
+        "core/planning/selection_v2.py",
+        "core/planning/cost_aware_allocation.py"
+      ],
+      "proposed_paths": [
+        {
+          "path": "core/covariance_estimators.py",
+          "status": "proposed_not_implemented"
+        },
+        {
+          "path": "tests/test_covariance_estimators.py",
+          "status": "proposed_not_implemented"
+        }
+      ],
+      "existing_test_paths": [
+        "tests/test_trend_portfolio_v3.py",
+        "tests/test_cost_aware_allocation.py",
+        "tests/test_v3_portfolio_execution.py"
+      ],
+      "test_layers": [
+        "T1",
+        "T2",
+        "T4",
+        "T5",
+        "T7",
+        "T8"
+      ],
+      "development_card_reference": {
+        "path": "docs/research/paper_research_development_plan_20261025.md",
+        "heading": "### PR25-11 显式协方差估计接口"
+      },
+      "planned_work_and_contract": [
+        "复用：size_portfolio_targets及原有固定20%对角收缩。",
+        "拟新增纯函数模块（建议core/covariance_estimators.py，供运行内核与研究共同使用）和tests/test_covariance_estimators.py；不能让core导入analysis形成反向依赖。",
+        "初始三臂：sample、fixed_diag_020、lw_constant_correlation。若加入lw_scaled_identity，另登记候选与预算，并明确其目标不同。",
+        "统一输入：截止前共同完整简单收益；样本去均值；输出ddof=1口径、日频矩阵；年化只在声明边界乘365一次。若论文强度计算采用1/T矩，明确转换公式和参考验证。",
+        "审计：样本量、centering、ddof、单位、目标、强度、特征值、退化策略及算法版本。",
+        "测试：两资产手算；至少三资产、非均匀相关的独立强度参考fixture；强度0/1端点、对称/半正定、排列等变、单资产/零波动/共线/N>T、未来前缀不变。两资产常相关target=S，明确验证此时输出等价与强度分母为零的退化处理。",
+        "验收：保留现有60日、ddof1、365、20% fixture；默认关闭无结果漂移。增加forecast均值和协方差同一horizon的转换测试：日频输出不能重复年化；当前年度矩阵除365再乘horizon的接线须保持一致。均值线性缩放和协方差乘horizon属于既有近似，记录其自相关/复利限制。"
+      ],
+      "acceptance_criteria": [
+        "测试：两资产手算；至少三资产、非均匀相关的独立强度参考fixture；强度0/1端点、对称/半正定、排列等变、单资产/零波动/共线/N>T、未来前缀不变。两资产常相关target=S，明确验证此时输出等价与强度分母为零的退化处理。",
+        "验收：保留现有60日、ddof1、365、20% fixture；默认关闭无结果漂移。增加forecast均值和协方差同一horizon的转换测试：日频输出不能重复年化；当前年度矩阵除365再乘horizon的接线须保持一致。均值线性缩放和协方差乘horizon属于既有近似，记录其自相关/复利限制。"
+      ],
+      "required_evidence_categories": [
+        "contract",
+        "source_and_input_identity",
+        "positive_and_negative",
+        "reconciliation",
+        "compatibility",
+        "applicable_fault_and_integration",
+        "limitations_and_receipt"
+      ],
+      "proposed_existing_task_mapping": [
+        "SYS-10",
+        "SYS-12",
+        "SYS-13"
+      ]
+    },
+    {
+      "id": "PR25-12",
+      "title": "协方差风险及组合对照",
+      "development_card_title": "协方差风险与组合对照",
+      "phase": "E",
+      "planning_status": "planned",
+      "optional": false,
+      "depends_on": [
+        "PR25-11",
+        "PR25-06"
+      ],
+      "external_dependencies": [
+        "有证据的多资产面板；两资产仅能做常相关退化复验"
+      ],
+      "effort_days": {
+        "min": 2.0,
+        "max": 3.0,
+        "excludes_external_wait": true
+      },
+      "owner_role": "研究工程",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "acceptance_evidence": null,
+      "paper_refs": [
+        "L05"
+      ],
+      "existing_paths": [
+        "core/planning/selection_v2.py",
+        "core/planning/cost_aware_allocation.py",
+        "analysis/paper_validation.py",
+        "analysis/research_evidence.py",
+        "analysis/walk_forward.py"
+      ],
+      "proposed_paths": [],
+      "existing_test_paths": [
+        "tests/test_trend_portfolio_v3.py",
+        "tests/test_cost_aware_allocation.py",
+        "tests/test_v3_portfolio_execution.py",
+        "tests/test_paper_validation.py",
+        "tests/test_unified_research_evidence.py",
+        "tests/test_walk_forward.py"
+      ],
+      "test_layers": [
+        "T1",
+        "T2",
+        "T4",
+        "T5",
+        "T7",
+        "T8"
+      ],
+      "development_card_reference": {
+        "path": "docs/research/paper_research_development_plan_20261025.md",
+        "heading": "### PR25-12 协方差风险与组合对照"
+      },
+      "planned_work_and_contract": [
+        "实验一固定个体波动输入，比较各矩阵的组合风险预测与总敞口。常相关与对角收缩保持对角时，相对逆波动权重不应被声称改变。",
+        "实验二若有需要，再登记将矩阵接入同一成本优化器，观察相对权重、求解和成本结果；不根据实验一赢家扩大网格。",
+        "评价：后来共同期限的组合风险预测误差、目标波动偏差、换手、集中度、成本后收益/回撤；报告真实风险与平均敞口。",
+        "可先用既有BTC/ETH做退化工程复验，此时sample与论文常相关估计应一致；验证收缩强度和分散化结论须用至少三个异质相关资产以及有证据的多资产面板。",
+        "验收：数学/约束正确即可完成工程；未改善或区间过宽时保留原基线。"
+      ],
+      "acceptance_criteria": [
+        "验收：数学/约束正确即可完成工程；未改善或区间过宽时保留原基线。"
+      ],
+      "required_evidence_categories": [
+        "contract",
+        "source_and_input_identity",
+        "positive_and_negative",
+        "reconciliation",
+        "compatibility",
+        "applicable_fault_and_integration",
+        "limitations_and_receipt"
+      ],
+      "proposed_existing_task_mapping": [
+        "SYS-10",
+        "SYS-12",
+        "SYS-13"
+      ]
+    },
+    {
+      "id": "PR25-13",
+      "title": "因子归因与共同风险",
+      "development_card_title": "因子归因与共同风险",
+      "phase": "F",
+      "planning_status": "planned",
+      "optional": false,
+      "depends_on": [
+        "PR25-05",
+        "PR25-07"
+      ],
+      "external_dependencies": [
+        "因子定义及合格成员/市值；局部proxy不得升格"
+      ],
+      "effort_days": {
+        "min": 2.0,
+        "max": 3.0,
+        "excludes_external_wait": true
+      },
+      "owner_role": "研究工程",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "acceptance_evidence": null,
+      "paper_refs": [
+        "L06"
+      ],
+      "existing_paths": [
+        "analysis/factor_registry.py",
+        "analysis/historical_factor_inputs.py",
+        "analysis/paper_study.py"
+      ],
+      "proposed_paths": [],
+      "existing_test_paths": [
+        "tests/test_historical_factor_inputs.py",
+        "tests/test_paper_study.py",
+        "tests/test_data_versions.py"
+      ],
+      "test_layers": [
+        "T2",
+        "T3",
+        "T6",
+        "T8"
+      ],
+      "development_card_reference": {
+        "path": "docs/research/paper_research_development_plan_20261025.md",
+        "heading": "### PR25-13 因子归因与共同风险"
+      },
+      "planned_work_and_contract": [
+        "复用：现有factor_attribution、因子定义/输入；拟新增可传factor IDs和版本的通用归因接口。",
+        "输出：alpha/beta、样本、秩、条件数、残差、HAC/时间块区间及因子/策略费用融资口径。",
+        "测试：满秩确定矩阵y=alpha+X beta手算、共线/常数列、缺失/重复/不同日期拒绝、滞后权重、未来修订不改变过去。",
+        "局部proxy与完整论文因子分开；缺成员/市值不静默重加权，不将市场残差解释为因果alpha。",
+        "验收：能解释原有策略的共同风险与增量不确定性，因子归因不足也完整交付。"
+      ],
+      "acceptance_criteria": [
+        "测试：满秩确定矩阵y=alpha+X beta手算、共线/常数列、缺失/重复/不同日期拒绝、滞后权重、未来修订不改变过去。",
+        "验收：能解释原有策略的共同风险与增量不确定性，因子归因不足也完整交付。"
+      ],
+      "required_evidence_categories": [
+        "contract",
+        "source_and_input_identity",
+        "positive_and_negative",
+        "reconciliation",
+        "compatibility",
+        "applicable_fault_and_integration",
+        "limitations_and_receipt"
+      ],
+      "proposed_existing_task_mapping": [
+        "SYS-10",
+        "SYS-12",
+        "SYS-13"
+      ]
+    },
+    {
+      "id": "PR25-14",
+      "title": "单期成本与调仓消融",
+      "development_card_title": "单期成本与调仓消融",
+      "phase": "F",
+      "planning_status": "planned",
+      "optional": false,
+      "depends_on": [
+        "PR25-10",
+        "PR25-12"
+      ],
+      "external_dependencies": [],
+      "effort_days": {
+        "min": 3.0,
+        "max": 4.0,
+        "excludes_external_wait": true
+      },
+      "owner_role": "研究工程",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "acceptance_evidence": null,
+      "paper_refs": [
+        "L07"
+      ],
+      "existing_paths": [
+        "core/planning/cost_aware_allocation.py",
+        "core/planning/selection_v2.py",
+        "core/planning/portfolio_target_controller.py"
+      ],
+      "proposed_paths": [],
+      "existing_test_paths": [
+        "tests/test_cost_aware_allocation.py",
+        "tests/test_v3_portfolio_execution.py",
+        "tests/test_live_risk_action_lifecycle.py"
+      ],
+      "test_layers": [
+        "T2",
+        "T3",
+        "T6",
+        "T8"
+      ],
+      "development_card_reference": {
+        "path": "docs/research/paper_research_development_plan_20261025.md",
+        "heading": "### PR25-14 单期成本与调仓消融"
+      },
+      "planned_work_and_contract": [
+        "复用：allocate_cost_aware与PortfolioTargetController，硬L1换手约束已在优化内部，避免依据旧文档重复开发。",
+        "第一轮固定forecast、risk、实际成本与候选，单独改变成本预测provider；第二轮才固定provider比较immediate/partial/band。",
+        "将mandatory减险与主动换手分开，检查未完成目标和恢复预留；更高成本导致低仓位的结果不能解释为费用越高收益越好。",
+        "测试：常数provider与旧结果一致、单资产解析解、硬换手下的非比例最优、预算/现金上限、风险退出、不可行和求解超时。",
+        "验收：成本来源、实际费用和风险匹配结果可追溯；盈利更高不是工程通过条件。"
+      ],
+      "acceptance_criteria": [
+        "测试：常数provider与旧结果一致、单资产解析解、硬换手下的非比例最优、预算/现金上限、风险退出、不可行和求解超时。",
+        "验收：成本来源、实际费用和风险匹配结果可追溯；盈利更高不是工程通过条件。"
+      ],
+      "required_evidence_categories": [
+        "contract",
+        "source_and_input_identity",
+        "positive_and_negative",
+        "reconciliation",
+        "compatibility",
+        "applicable_fault_and_integration",
+        "limitations_and_receipt"
+      ],
+      "proposed_existing_task_mapping": [
+        "SYS-10",
+        "SYS-12",
+        "SYS-13"
+      ]
+    },
+    {
+      "id": "PR25-15",
+      "title": "多期配置条件支线",
+      "development_card_title": "多期配置条件支线",
+      "phase": "BX",
+      "planning_status": "planned",
+      "optional": true,
+      "depends_on": [
+        "PR25-14"
+      ],
+      "external_dependencies": [],
+      "effort_days": {
+        "min": 7.0,
+        "max": 10.0,
+        "excludes_external_wait": true
+      },
+      "owner_role": "研究工程",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "acceptance_evidence": null,
+      "paper_refs": [
+        "L07"
+      ],
+      "existing_paths": [
+        "core/planning/cost_aware_allocation.py",
+        "core/planning/selection_v2.py",
+        "core/planning/portfolio_target_controller.py"
+      ],
+      "proposed_paths": [],
+      "existing_test_paths": [
+        "tests/test_cost_aware_allocation.py",
+        "tests/test_v3_portfolio_execution.py",
+        "tests/test_live_risk_action_lifecycle.py"
+      ],
+      "test_layers": [
+        "T1",
+        "T2",
+        "T4",
+        "T5",
+        "T7",
+        "T8"
+      ],
+      "development_card_reference": {
+        "path": "docs/research/paper_research_development_plan_20261025.md",
+        "heading": "### PR25-15 多期配置条件支线"
+      },
+      "planned_work_and_contract": [
+        "启动条件：单期消融已完成且存在可解释的预测衰减/重复换手瓶颈，有合格成本输入和明确预算。",
+        "拟新增allocate_multi_period，消费预测路径、协方差/成本路径、真实当前权重、pending预留及各期risk envelope。",
+        "只执行第一期目标；计划路径不产生成交，不把未来预测当已知事实。H=1须退化到验证过的单期问题。",
+        "测试：单资产手算、H=1、逐期现金/风险约束、零信号、失败/超时、未知订单保留预留、检查点恢复。",
+        "交付：第一目标、规划路径、求解状态、约束残差及模型版本；未满足启动条件保持后续扩展。"
+      ],
+      "acceptance_criteria": [
+        "启动条件：单期消融已完成且存在可解释的预测衰减/重复换手瓶颈，有合格成本输入和明确预算。",
+        "测试：单资产手算、H=1、逐期现金/风险约束、零信号、失败/超时、未知订单保留预留、检查点恢复。",
+        "交付：第一目标、规划路径、求解状态、约束残差及模型版本；未满足启动条件保持后续扩展。"
+      ],
+      "required_evidence_categories": [
+        "contract",
+        "source_and_input_identity",
+        "positive_and_negative",
+        "reconciliation",
+        "compatibility",
+        "applicable_fault_and_integration",
+        "limitations_and_receipt"
+      ],
+      "proposed_existing_task_mapping": [
+        "SYS-13"
+      ]
+    },
+    {
+      "id": "PR25-16",
+      "title": "现有ML与状态层支持诊断",
+      "development_card_title": "现有ML与状态层支持诊断",
+      "phase": "F",
+      "planning_status": "planned",
+      "optional": false,
+      "depends_on": [
+        "PR25-04",
+        "PR25-07"
+      ],
+      "external_dependencies": [],
+      "effort_days": {
+        "min": 2.0,
+        "max": 3.0,
+        "excludes_external_wait": true
+      },
+      "owner_role": "研究工程",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "acceptance_evidence": null,
+      "paper_refs": [
+        "L01",
+        "L02",
+        "L03"
+      ],
+      "existing_paths": [
+        "research/ml_selection/models.py",
+        "research/ml_selection/dataset.py",
+        "research/ml_selection/pipeline.py",
+        "signal_meta/signal_regime_model.py"
+      ],
+      "proposed_paths": [],
+      "existing_test_paths": [
+        "tests/test_ml_selection_diagnostics.py",
+        "tests/test_ml_selection_batch_comparison.py",
+        "tests/test_ml_selection_models.py",
+        "tests/test_signal_regime_model.py"
+      ],
+      "test_layers": [
+        "T2",
+        "T3",
+        "T6",
+        "T8"
+      ],
+      "development_card_reference": {
+        "path": "docs/research/paper_research_development_plan_20261025.md",
+        "heading": "### PR25-16 现有ML与状态层支持诊断"
+      },
+      "planned_work_and_contract": [
+        "复用：episode/funnel diagnostics、batch comparison、event_concentration和probability diagnostics。",
+        "工作：区分无信号、资格不符、模型拒绝、资金竞争、健康暂停、风险拒绝、未成交；按book/日期/状态/时间块报告支持。",
+        "比较：现有规则、Ridge、既有冻结RL与同参与率基线；必要时复用现有固定模型族，不扩大训练/阈值搜索。",
+        "保留现有P1/P2/归因最低支持政策，样本数、ESS、独立日期和事件分别报告；多seed不增加市场样本。",
+        "测试：无真实资金竞争的排名变化不称分配价值；零交易合法但无盈利证据；概率分数/净收益预测/入选概率的语义不同。",
+        "验收：模型有效性的不足可定位；不因支持不足降低门槛或反复调阈值。"
+      ],
+      "acceptance_criteria": [
+        "测试：无真实资金竞争的排名变化不称分配价值；零交易合法但无盈利证据；概率分数/净收益预测/入选概率的语义不同。",
+        "验收：模型有效性的不足可定位；不因支持不足降低门槛或反复调阈值。"
+      ],
+      "required_evidence_categories": [
+        "contract",
+        "source_and_input_identity",
+        "positive_and_negative",
+        "reconciliation",
+        "compatibility",
+        "applicable_fault_and_integration",
+        "limitations_and_receipt"
+      ],
+      "proposed_existing_task_mapping": [
+        "SYS-10",
+        "SYS-12",
+        "SYS-13"
+      ]
+    },
+    {
+      "id": "PR25-17",
+      "title": "前向原引擎账户轨迹核验",
+      "development_card_title": "前向原引擎账户轨迹核验",
+      "phase": "G",
+      "planning_status": "planned",
+      "optional": false,
+      "depends_on": [
+        "PR25-03",
+        "PR25-04",
+        "PR25-10"
+      ],
+      "external_dependencies": [
+        "登记后实际观察、决策身份和原引擎模拟账户轨迹"
+      ],
+      "effort_days": {
+        "min": 4.0,
+        "max": 6.0,
+        "excludes_external_wait": true
+      },
+      "owner_role": "工程与研究验收",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "acceptance_evidence": null,
+      "paper_refs": [
+        "L08"
+      ],
+      "existing_paths": [
+        "research/ml_selection/forward_evidence.py",
+        "research/ml_selection/forward_bridge.py",
+        "scripts/collect_strategy_forward.py",
+        "core/market/temporal_data.py",
+        "core/market/data_versions.py",
+        "research/ml_selection/dataset.py",
+        "research/ml_selection/selector.py"
+      ],
+      "proposed_paths": [],
+      "existing_test_paths": [
+        "tests/test_ml_selection_next_forward.py",
+        "tests/test_ml_selection_bridge_audit.py",
+        "tests/test_strategy_forward_intake.py",
+        "tests/test_data_versions.py",
+        "tests/test_temporal_data_integration.py",
+        "tests/test_ml_selection_dataset.py"
+      ],
+      "test_layers": [
+        "T2",
+        "T6",
+        "T7",
+        "T8",
+        "T9"
+      ],
+      "development_card_reference": {
+        "path": "docs/research/paper_research_development_plan_20261025.md",
+        "heading": "### PR25-17 前向原引擎账户轨迹核验"
+      },
+      "planned_work_and_contract": [
+        "当前缺口：evaluate_forward_store固定保留原引擎成交/权益待证据；shadow决策和proxy标签不能补齐组合收益。",
+        "拟新增ForwardAccountReceipt及load/verify入口，绑定协议、冻结候选、会话、原始接收、决策、intent、order、fill、lot、费用、持仓和equity。",
+        "前向数据必须来自真正登记后接收的收据；后来离线回放须标为“已记录前向输入的模拟账户重放”，单独记录何时生成决策，不能冒充当时实时决策。",
+        "测试：部分成交、资金不足、拒单、零交易、unknown订单、缺会话、坏hash、重启/中断恢复；decision-only和proxy无法提供portfolio_return。",
+        "验收：依据真实轨迹才更新账户pending；保留proxy与账户两个结果，仍不自动进入真实资金准入。"
+      ],
+      "acceptance_criteria": [
+        "测试：部分成交、资金不足、拒单、零交易、unknown订单、缺会话、坏hash、重启/中断恢复；decision-only和proxy无法提供portfolio_return。",
+        "验收：依据真实轨迹才更新账户pending；保留proxy与账户两个结果，仍不自动进入真实资金准入。"
+      ],
+      "required_evidence_categories": [
+        "contract",
+        "source_and_input_identity",
+        "positive_and_negative",
+        "reconciliation",
+        "compatibility",
+        "applicable_fault_and_integration",
+        "limitations_and_receipt"
+      ],
+      "proposed_existing_task_mapping": [
+        "SYS-06",
+        "SYS-11",
+        "SYS-16",
+        "SYS-17"
+      ]
+    },
+    {
+      "id": "PR25-18",
+      "title": "有限研究编排与证据报告",
+      "development_card_title": "有限研究编排与证据报告",
+      "phase": "G",
+      "planning_status": "planned",
+      "optional": false,
+      "depends_on": [
+        "PR25-07",
+        "PR25-10",
+        "PR25-12"
+      ],
+      "external_dependencies": [],
+      "effort_days": {
+        "min": 3.0,
+        "max": 4.0,
+        "excludes_external_wait": true
+      },
+      "owner_role": "工程与研究验收",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "acceptance_evidence": null,
+      "paper_refs": [
+        "L01",
+        "L03"
+      ],
+      "existing_paths": [
+        "scripts/run_paper_roadmap.py",
+        "analysis/research_evidence.py",
+        "analysis/paper_validation.py",
+        "analysis/walk_forward.py"
+      ],
+      "proposed_paths": [
+        {
+          "path": "scripts/run_paper_research_study.py",
+          "status": "proposed_not_implemented"
+        }
+      ],
+      "existing_test_paths": [
+        "tests/test_paper_roadmap_runner.py",
+        "tests/test_paper_application_integration.py",
+        "tests/test_paper_validation.py",
+        "tests/test_unified_research_evidence.py",
+        "tests/test_walk_forward.py"
+      ],
+      "test_layers": [
+        "T2",
+        "T6",
+        "T7",
+        "T8",
+        "T9"
+      ],
+      "development_card_reference": {
+        "path": "docs/research/paper_research_development_plan_20261025.md",
+        "heading": "### PR25-18 有限研究编排与证据报告"
+      },
+      "planned_work_and_contract": [
+        "复用：既有paper runner、研究证据与报告；新增统一协议reader/报告器，必要时拟新增scripts/run_paper_research_study.py。",
+        "每次运行前枚举完整job表、预算、输入与身份；试跑仅用于性能/资源，不查看最终效果后改网格。",
+        "限时、限内存、限并发、可恢复；失败/中断与输出不完整单列，不能重启成全新成功记录。",
+        "报告含coverage、统计、成本、风险、资金桥、局限与候选全表；各层原始状态保留。",
+        "测试：预算超限、重复候选、旧目录覆盖、源码漂移、缺结果、失败候选、恢复去重、非法JSON/NaN。",
+        "验收：计划job数=完成+失败+中断+尚待运行；无结果被静默丢弃；不自动打开最终样本。"
+      ],
+      "acceptance_criteria": [
+        "测试：预算超限、重复候选、旧目录覆盖、源码漂移、缺结果、失败候选、恢复去重、非法JSON/NaN。",
+        "验收：计划job数=完成+失败+中断+尚待运行；无结果被静默丢弃；不自动打开最终样本。"
+      ],
+      "required_evidence_categories": [
+        "contract",
+        "source_and_input_identity",
+        "positive_and_negative",
+        "reconciliation",
+        "compatibility",
+        "applicable_fault_and_integration",
+        "limitations_and_receipt"
+      ],
+      "proposed_existing_task_mapping": [
+        "SYS-06",
+        "SYS-11",
+        "SYS-16",
+        "SYS-17"
+      ]
+    },
+    {
+      "id": "PR25-19",
+      "title": "集成、迁移及故障验收",
+      "development_card_title": "集成、迁移及故障验收",
+      "phase": "G",
+      "planning_status": "planned",
+      "optional": false,
+      "depends_on": [
+        "PR25-13",
+        "PR25-14",
+        "PR25-16",
+        "PR25-17",
+        "PR25-18",
+        "PR25-22"
+      ],
+      "external_dependencies": [],
+      "effort_days": {
+        "min": 3.0,
+        "max": 4.0,
+        "excludes_external_wait": true
+      },
+      "owner_role": "工程与研究验收",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "acceptance_evidence": null,
+      "paper_refs": [],
+      "existing_paths": [
+        "scripts/run_paper_roadmap.py",
+        "analysis/research_evidence.py",
+        "research/ml_selection/forward_evidence.py",
+        "research/ml_selection/forward_bridge.py",
+        "scripts/collect_strategy_forward.py",
+        "core/planning/cost_aware_allocation.py",
+        "core/planning/selection_v2.py",
+        "core/planning/portfolio_target_controller.py"
+      ],
+      "proposed_paths": [],
+      "existing_test_paths": [
+        "tests/test_paper_roadmap_runner.py",
+        "tests/test_paper_application_integration.py",
+        "tests/test_ml_selection_next_forward.py",
+        "tests/test_ml_selection_bridge_audit.py",
+        "tests/test_strategy_forward_intake.py",
+        "tests/test_cost_aware_allocation.py",
+        "tests/test_v3_portfolio_execution.py",
+        "tests/test_live_risk_action_lifecycle.py"
+      ],
+      "test_layers": [
+        "T2",
+        "T6",
+        "T7",
+        "T8",
+        "T9"
+      ],
+      "development_card_reference": {
+        "path": "docs/research/paper_research_development_plan_20261025.md",
+        "heading": "### PR25-19 集成、迁移及故障验收"
+      },
+      "planned_work_and_contract": [
+        "集成链：可见数据→特征→成熟标签→候选→收益面板/协方差/成本→目标→风险→真实模拟成交→账户→报告。",
+        "重点：三种时间模式隔离、v1/v2报告读取、默认关闭、pending/unknown恢复、共享参与率、成本只记一次、最终样本消费身份。",
+        "运行定向回归、必要完整CI、受影响固定账户差异；正式干净源码验收再按main_acceptance流程。",
+        "验收：无未解释账户差异和关键错误，失败/不足没有被上层改为pass；局部工程通过与研究/外部待证据分开。",
+        "状态同步：实际关闭范围写入权威计划/详情/登记与版本化完成证据；不把本计划23个工作包当成23个已验收项目任务。"
+      ],
+      "acceptance_criteria": [
+        "验收：无未解释账户差异和关键错误，失败/不足没有被上层改为pass；局部工程通过与研究/外部待证据分开。"
+      ],
+      "required_evidence_categories": [
+        "contract",
+        "source_and_input_identity",
+        "positive_and_negative",
+        "reconciliation",
+        "compatibility",
+        "applicable_fault_and_integration",
+        "limitations_and_receipt"
+      ],
+      "proposed_existing_task_mapping": [
+        "SYS-06",
+        "SYS-11",
+        "SYS-16",
+        "SYS-17"
+      ]
+    },
+    {
+      "id": "PR25-20",
+      "title": "新候选冻结与前向协议",
+      "development_card_title": "新候选冻结与前向协议",
+      "phase": "H",
+      "planning_status": "planned",
+      "optional": false,
+      "depends_on": [
+        "PR25-19"
+      ],
+      "external_dependencies": [
+        "候选自身前置和实际冻结协议；保留旧身份"
+      ],
+      "effort_days": {
+        "min": 1.0,
+        "max": 2.0,
+        "excludes_external_wait": true
+      },
+      "owner_role": "工程与研究验收",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "acceptance_evidence": null,
+      "paper_refs": [
+        "L01",
+        "L02",
+        "L03",
+        "L08"
+      ],
+      "existing_paths": [
+        "analysis/research_validation.py",
+        "research/ml_selection/forward_evidence.py",
+        "research/ml_selection/forward_bridge.py",
+        "scripts/collect_strategy_forward.py"
+      ],
+      "proposed_paths": [],
+      "existing_test_paths": [
+        "tests/test_phase5_research_validation.py",
+        "tests/test_research_automation.py",
+        "tests/test_walk_forward.py",
+        "tests/test_ml_selection_next_forward.py",
+        "tests/test_ml_selection_bridge_audit.py",
+        "tests/test_strategy_forward_intake.py"
+      ],
+      "test_layers": [
+        "T2",
+        "T6",
+        "T7",
+        "T8",
+        "T9"
+      ],
+      "development_card_reference": {
+        "path": "docs/research/paper_research_development_plan_20261025.md",
+        "heading": "### PR25-20 新候选冻结与前向协议"
+      },
+      "planned_work_and_contract": [
+        "从本研究中仅按事前规则选定有限候选；无支持则交付负结果并停止，不强制产生新候选。",
+        "冻结源码、模型、配置、数据规则、基准、风险/成本、日期、访问政策和停止条件；按旧协议变更规则创建后继身份。",
+        "读取当前真实观测判断状态，不以今天日期推断成熟，不继承旧候选经过的天数。",
+        "测试：原协议不能篡改、未到期拒绝、身份漂移阻断、观察缺口/重复/时钟错误、后继身份和来源可追溯。",
+        "验收：协议工具工程与未来证据分别记录；不修改旧候选最终窗口。"
+      ],
+      "acceptance_criteria": [
+        "测试：原协议不能篡改、未到期拒绝、身份漂移阻断、观察缺口/重复/时钟错误、后继身份和来源可追溯。",
+        "验收：协议工具工程与未来证据分别记录；不修改旧候选最终窗口。"
+      ],
+      "required_evidence_categories": [
+        "contract",
+        "source_and_input_identity",
+        "positive_and_negative",
+        "reconciliation",
+        "compatibility",
+        "applicable_fault_and_integration",
+        "limitations_and_receipt"
+      ],
+      "proposed_existing_task_mapping": [
+        "SYS-11",
+        "SYS-16",
+        "SYS-17"
+      ]
+    },
+    {
+      "id": "PR25-21",
+      "title": "到期裁决与任务交接",
+      "development_card_title": "到期裁决与交接",
+      "phase": "H",
+      "planning_status": "planned",
+      "optional": false,
+      "depends_on": [
+        "PR25-20"
+      ],
+      "external_dependencies": [
+        "协议实际到期、标签/费用成熟、受控最终访问及账户证据"
+      ],
+      "effort_days": {
+        "min": 1.0,
+        "max": 2.0,
+        "excludes_external_wait": true
+      },
+      "owner_role": "工程与研究验收",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "acceptance_evidence": null,
+      "paper_refs": [
+        "L01",
+        "L02",
+        "L03"
+      ],
+      "existing_paths": [
+        "analysis/research_validation.py",
+        "research/ml_selection/forward_evidence.py",
+        "research/ml_selection/forward_bridge.py",
+        "scripts/collect_strategy_forward.py",
+        "analysis/paper_validation.py",
+        "analysis/research_evidence.py",
+        "analysis/walk_forward.py"
+      ],
+      "proposed_paths": [],
+      "existing_test_paths": [
+        "tests/test_phase5_research_validation.py",
+        "tests/test_research_automation.py",
+        "tests/test_walk_forward.py",
+        "tests/test_ml_selection_next_forward.py",
+        "tests/test_ml_selection_bridge_audit.py",
+        "tests/test_strategy_forward_intake.py",
+        "tests/test_paper_validation.py",
+        "tests/test_unified_research_evidence.py"
+      ],
+      "test_layers": [
+        "T2",
+        "T6",
+        "T7",
+        "T8",
+        "T9"
+      ],
+      "development_card_reference": {
+        "path": "docs/research/paper_research_development_plan_20261025.md",
+        "heading": "### PR25-21 到期裁决与交接"
+      },
+      "planned_work_and_contract": [
+        "前置：相应协议实际到期、标签/费用成熟、访问规则满足及所有必要账户证据齐全。",
+        "工作：一次受控评价，按预登记主指标/阈值和完整族范围给supported/not_supported/insufficient；交付全部失败与不足。",
+        "未到期时仅检查覆盖、完整性和采集健康，不查看禁止访问的绩效以改变模型。",
+        "外部等待时间单独记录；最终结果不理想不自动延长样本直到显著。",
+        "交付：候选结论、局限、是否保留研究分支和下一负责人。真实准入仍走既有独立流程。"
+      ],
+      "acceptance_criteria": [
+        "前置：相应协议实际到期、标签/费用成熟、访问规则满足及所有必要账户证据齐全。",
+        "交付：候选结论、局限、是否保留研究分支和下一负责人。真实准入仍走既有独立流程。"
+      ],
+      "required_evidence_categories": [
+        "contract",
+        "source_and_input_identity",
+        "positive_and_negative",
+        "reconciliation",
+        "compatibility",
+        "applicable_fault_and_integration",
+        "limitations_and_receipt"
+      ],
+      "proposed_existing_task_mapping": [
+        "SYS-11",
+        "SYS-16",
+        "SYS-17"
+      ]
+    },
+    {
+      "id": "PR25-22",
+      "title": "最终样本实际访问与单次消费",
+      "development_card_title": "最终样本实际访问与单次消费",
+      "phase": "C",
+      "planning_status": "planned",
+      "optional": false,
+      "depends_on": [
+        "PR25-02"
+      ],
+      "external_dependencies": [],
+      "effort_days": {
+        "min": 3.0,
+        "max": 4.0,
+        "excludes_external_wait": true
+      },
+      "owner_role": "研究工程",
+      "assignee": null,
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "acceptance_evidence": null,
+      "paper_refs": [
+        "L01",
+        "L03",
+        "L08"
+      ],
+      "existing_paths": [
+        "analysis/research_validation.py"
+      ],
+      "proposed_paths": [
+        {
+          "path": "tests/test_holdout_lifecycle.py",
+          "status": "proposed_not_implemented"
+        }
+      ],
+      "existing_test_paths": [
+        "tests/test_phase5_research_validation.py",
+        "tests/test_research_automation.py",
+        "tests/test_walk_forward.py"
+      ],
+      "test_layers": [
+        "T1",
+        "T2",
+        "T3",
+        "T8"
+      ],
+      "development_card_reference": {
+        "path": "docs/research/paper_research_development_plan_20261025.md",
+        "heading": "### PR25-22 最终样本实际访问与单次消费"
+      },
+      "planned_work_and_contract": [
+        "复用：HoldoutProtocol与HoldoutVault；当前文本purpose和单文件状态不足以独自约束并发/实际数据读取。",
+        "拟改：把身份校验和单次消费绑定实际评估入口，采用原子状态转换及确定的恢复身份；两个进程只有一个取得首次评价资格。",
+        "状态设计：registered→frozen→evaluating→completed/failed_consumed；崩溃后仅恢复同一固定evaluation_id，不恢复为可重新选参。",
+        "测试：并发打开、写入中断、重复调用、模型/数据hash漂移、未知用途、warmup与计分边界、测试标签变化不能改变训练选参。",
+        "本任务只用合成协议，不消费现有真实最终窗口。文件标志无法阻止人手动读取所有文件，应明确实际保护边界。",
+        "验收：完整访问日志、失败消费事实和恢复链可审计，旧已看历史仍为retrospective。"
+      ],
+      "acceptance_criteria": [
+        "测试：并发打开、写入中断、重复调用、模型/数据hash漂移、未知用途、warmup与计分边界、测试标签变化不能改变训练选参。",
+        "验收：完整访问日志、失败消费事实和恢复链可审计，旧已看历史仍为retrospective。"
+      ],
+      "required_evidence_categories": [
+        "contract",
+        "source_and_input_identity",
+        "positive_and_negative",
+        "reconciliation",
+        "compatibility",
+        "applicable_fault_and_integration",
+        "limitations_and_receipt"
+      ],
+      "proposed_existing_task_mapping": [
+        "SYS-10",
+        "SYS-11"
+      ]
+    }
+  ]
+}

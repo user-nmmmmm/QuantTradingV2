@@ -20,7 +20,7 @@ def main():
     sys.path.insert(0, str(args.source_root.resolve()))
     import numpy as np
     import pandas as pd
-    from core.reproducibility import canonical_json, sha256_file
+    from core.foundation.reproducibility import canonical_json, sha256_file
     from scripts.run_revalidation60 import load_inputs, run_one, save
 
     logging.disable(logging.CRITICAL)

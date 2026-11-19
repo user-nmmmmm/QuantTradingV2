@@ -1,15 +1,11 @@
 
 import unittest
 import logging
-import sys
-import os
 
-# Add project root to path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.risk import RiskManager
-from core.portfolio import Portfolio
-from core.accounts import AccountMode
+from core.trading.portfolio import Portfolio
+from core.trading.accounts import AccountMode
 
 # Configure logging to capture output
 logging.basicConfig(level=logging.INFO)

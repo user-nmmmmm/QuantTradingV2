@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
-from core.domain import OrderErrorCode, OrderIntent, OrderStatus
+from core.foundation.domain import OrderErrorCode, OrderIntent, OrderStatus
 from core.exchange import (
     CCXTRequestMapper,
     CanonicalPosition,
@@ -23,7 +23,7 @@ from core.exchange import (
     PositionParser,
 )
 from core.live_broker import LiveBroker
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 
 
 NOW = datetime(2026, 8, 8, 12, 0, tzinfo=timezone.utc)

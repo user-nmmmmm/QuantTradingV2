@@ -46,14 +46,13 @@ def save(path: Path, value) -> None:
 
 
 def worker(output: Path) -> None:
-    sys.path.insert(0, str(ROOT))
     import pandas as pd
     from backtest.engine import BacktestEngine
     from backtest.reporting import ReportGenerator
     from backtest.reporting.serialization import metrics_document
     from config.config import config
     from core.broker import Broker
-    from core.portfolio import Portfolio
+    from core.trading.portfolio import Portfolio
     from tests.engine_baseline_harness import build_synthetic_data_map, DEFAULT_WARMUP_PERIOD, data_digest
 
     def clean(value):

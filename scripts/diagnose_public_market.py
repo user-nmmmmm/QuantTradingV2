@@ -14,13 +14,11 @@ from pathlib import Path
 from queue import Queue, Empty
 import socket
 import ssl
-import sys
 from threading import Thread
 import time
 from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 
 OFFICIAL_HOSTS = ("api.binance.com", "data-api.binance.vision")
 OFFICIAL_DOCS = [
@@ -87,13 +85,20 @@ def trace_ccxt_initialization(fetcher):
         "private_endpoints": any(row["path"].startswith("/sapi/") for row in routes)}
 
 
+def verified_tls_context():
+    """Certificate-verifying client context that states its TLS floor instead of inheriting the interpreter's."""
+    context = ssl.create_default_context()
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
+    return context
+
+
 def diagnose(*, host="api.binance.com", timeout_seconds=3., network=True):
     if host not in OFFICIAL_HOSTS or not 0 < timeout_seconds <= 10:
         raise ValueError("an allowlisted official Binance spot host and timeout <= 10 seconds are required")
     import ccxt
     import requests
-    from core.quote_observations import _PublicBookFetcher, anonymous_public_auth
-    from core.request_budget import request_scope
+    from core.market.quote_observations import _PublicBookFetcher, anonymous_public_auth
+    from core.market.request_budget import request_scope
     url = f"https://{host}/api/v3/ping"
     client = _PublicBookFetcher("binance", "spot", "live", timeout_seconds)
     # Explicit selection of Binance's documented market-data service, never
@@ -139,7 +144,7 @@ def diagnose(*, host="api.binance.com", timeout_seconds=3., network=True):
         with socket.socket(row[0], row[1], row[2]) as raw:
             raw.settimeout(timeout_seconds)
             raw.connect(row[4])
-            with ssl.create_default_context().wrap_socket(raw, server_hostname=host) as secure:
+            with verified_tls_context().wrap_socket(raw, server_hostname=host) as secure:
                 return {"tls_version": secure.version(), "certificate_verified": True,
                         "route": "direct_tls_diagnostic_no_http"}
     layers["tls"] = bounded_probe(tls, timeout_seconds) if layers["tcp_443"]["status"] == "ok" else {

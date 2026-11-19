@@ -3,9 +3,9 @@ import unittest
 import pandas as pd
 
 from core.broker import BacktestOrderStatus, Broker
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from core.risk import RiskManager
-from core.state import MarketState
+from core.trading.state import MarketState
 from router.router import Router
 from strategies.base import Strategy
 

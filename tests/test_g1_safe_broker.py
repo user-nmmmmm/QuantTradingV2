@@ -2,10 +2,10 @@ import os
 import unittest
 from unittest.mock import MagicMock, patch
 
-from core.live_safety import OrderSafetyGuard, StartupSafetyPolicy
-from core.portfolio import Portfolio
+from core.foundation.live_safety import OrderSafetyGuard, StartupSafetyPolicy
+from core.trading.portfolio import Portfolio
 from core.live_broker.safe import SafeLiveBroker
-from core.order_store import OrderStore
+from core.trading.order_store import OrderStore
 
 
 class TestSafeLiveBroker(unittest.TestCase):

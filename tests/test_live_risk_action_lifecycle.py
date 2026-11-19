@@ -8,7 +8,7 @@ from config.config import config
 from core.risk import RiskManager
 from core.risk.actions import RiskActionPlan
 from core.risk.circuit_breaker import BreakerAction, RiskControlDecision
-from core.state_store_v2 import StateStore
+from core.trading.state_store_v2 import StateStore
 from live_trading.engine import LiveTradingEngine
 from tests.test_revalidation_execution import Harness, NOW, SYMBOL, broker, enter
 from tests.test_strategy_remediation import live_budget_engine

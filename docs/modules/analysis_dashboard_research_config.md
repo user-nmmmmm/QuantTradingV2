@@ -46,10 +46,10 @@ CLI 支持 `--symbols`、`--days`、`--start`、`--end`、`--source {synthetic,y
 | [`paper_data_audit.py`](../../analysis/paper_data_audit.py) | 审计显式 manifest、OHLCV 及标的生命周期，输出数据问题与身份 | 只读审计，不自动补齐缺口。 |
 | [`paper_study.py`](../../analysis/paper_study.py) | 校验并冻结论文实验输入、参数和任务登记，提供固定对照及覆盖诊断 | 历史资料仍是回顾性研究。 |
 | [`paper_portfolio.py`](../../analysis/paper_portfolio.py) | 按 `PaperSpec` 生成目标，通过既有 Broker 重放资金、成交和成本 | 现金出资、只做多现货；OHLCV 流动性仍是 bar 级模型。 |
-| [`paper_labels.py`](../../analysis/paper_labels.py) | 将 P0 候选转换为三重障碍标签及成本情景 | 同一 bar 同穿止盈止损时保守按止损优先定价，标记歧义并排除训练。 |
-| [`paper_label_execution.py`](../../analysis/paper_label_execution.py) | 用细周期事实细化标签；将标签与观测现金流对照 | 新证据保留真实可用时间，不能回填为历史已知。 |
+| [`paper_labels.py`](../../signal_meta/paper_labels.py) | 将 P0 候选转换为三重障碍标签及成本情景 | 同一 bar 同穿止盈止损时保守按止损优先定价，标记歧义并排除训练。 |
+| [`paper_label_execution.py`](../../signal_meta/paper_label_execution.py) | 用细周期事实细化标签；将标签与观测现金流对照 | 新证据保留真实可用时间，不能回填为历史已知。 |
 | [`paper_label_signals.py`](../../analysis/paper_label_signals.py) | 生成固定期限成本标签与按时间推进的常量 EV 目标 | 只使用决策前已可用的标签，是研究基线，不是生产 P1/P2 模型。 |
-| [`label_account_reconciliation.py`](../../analysis/label_account_reconciliation.py) | 候选→开仓订单→权威 FIFO 平仓分摊→权益桥接 | 缺标签仍可保留现金流归属；成本未完整或库存未平时，不生成完整候选净收益比较。 |
+| [`label_account_reconciliation.py`](../../signal_meta/label_account_reconciliation.py) | 候选→开仓订单→权威 FIFO 平仓分摊→权益桥接 | 缺标签仍可保留现金流归属；成本未完整或库存未平时，不生成完整候选净收益比较。 |
 | [`return_followup.py`](../../analysis/return_followup.py) | 生成多周期目标、年度选择日志与配对收益差诊断 | 调用方以连续 Broker 账户执行目标并承担切换成本；不拼接不同账户收益。 |
 | [`paper_risk.py`](../../analysis/paper_risk.py) | 经验尾部风险、联合压力情景与库存清算路径 | 压力情景及模型成本不等于已观测真实成交。 |
 | [`factor_registry.py`](../../analysis/factor_registry.py)、[`historical_factor_inputs.py`](../../analysis/historical_factor_inputs.py) | 冻结因子定义、来源和历史输入，构造有明确口径的代理变量 | 代理变量不能冒称完整论文因子，事后收集不认证历史时点可得性。 |
@@ -63,7 +63,7 @@ CLI 支持 `--symbols`、`--days`、`--start`、`--end`、`--source {synthetic,y
 
 [`execution_calibration.py`](../../analysis/execution_calibration.py) 离线关联规范事件、请求回执、独立报价及成交来源，并审计日期覆盖与成交分层。它区分决策、提交、确认、成交和报价时钟；公开报价不能代替订单或成交证据，ACK 延迟也不能当成撮合延迟。使用入口见[脚本索引中的执行证据](../../scripts/README.md#公开资料执行证据与后续观察)。
 
-[`market_speed.py`](../../analysis/market_speed.py) 统计已收盘 bar 的价格变化速度，与网络请求耗时分别报告。深度采集由 `core/binance_depth_observer.py` 提供日志与同步校验；可见盘口容量仅为诊断，不代表下单到达时仍可成交。
+[`market_speed.py`](../../analysis/market_speed.py) 统计已收盘 bar 的价格变化速度，与网络请求耗时分别报告。深度采集由 `core/market/binance_depth_observer.py` 提供日志与同步校验；可见盘口容量仅为诊断，不代表下单到达时仍可成交。
 
 既有策略审查、趋势组合和 S2 诊断分别位于 `strategy_review*.py`、`trend_portfolio*_validation.py`、`selection_research.py`。复现这些专项应先阅读其原始协议和冻结输入，不用新批次结论改写历史验收。
 

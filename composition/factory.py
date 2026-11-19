@@ -6,12 +6,12 @@ from typing import Any, Dict, Mapping, Optional, Protocol
 from dataclasses import asdict
 
 from core.risk import RiskManager
-from core.candidate_scoring import CandidateScorePolicy
-from core.position_management import CapitalAllocationPolicy
+from core.planning.candidate_scoring import CandidateScorePolicy
+from core.trading.position_management import CapitalAllocationPolicy
 from core.risk.portfolio_governor import CorrelationClusterPolicy, PortfolioRiskGovernor
-from core.protective_stops import ProtectiveStopPolicy
-from core.strategy_health import StrategyHealthPolicy
-from core.state import MarketState, MarketStateMachine
+from core.trading.protective_stops import ProtectiveStopPolicy
+from core.analytics.strategy_health import StrategyHealthPolicy
+from core.trading.state import MarketState, MarketStateMachine
 from router.router import Router
 from strategies.base import Strategy
 from strategies.mean_reversion import RangeStrategy
@@ -52,14 +52,14 @@ def build_portfolio_target_controller(configuration: Configuration, strategies, 
     metadata = settings.get("metadata")
     if not isinstance(metadata, Mapping) or not metadata:
         raise ValueError("portfolio_targets requires explicit point-in-time membership metadata")
-    from core.cost_aware_allocation import CostAwareAllocationPolicy
-    from core.portfolio_target_controller import PortfolioTargetController
-    from core.selection_v2 import select_all_qualified, size_portfolio_targets
+    from core.planning.cost_aware_allocation import CostAwareAllocationPolicy
+    from core.planning.portfolio_target_controller import PortfolioTargetController
+    from core.planning.selection_v2 import select_all_qualified, size_portfolio_targets
     import pandas as pd
 
     cost_policy = CostAwareAllocationPolicy.from_mapping(settings.get("cost_aware"))
     clusters = build_correlation_cluster_policy(configuration)
-    frozen = {"week": None, "weights": {}, "sizing": None}
+    frozen: dict[str, Any] = {"week": None, "weights": {}, "sizing": None}
 
     def targets(*, event, as_of, held_symbols, existing_weights):
         point = pd.Timestamp(as_of)
@@ -190,24 +190,57 @@ def build_strategy_registry(
             configure_score = getattr(strategy, "configure_score_policy", None)
             if callable(configure_score):
                 configure_score(build_candidate_score_policy(configuration))
-        ablation = (configuration.get('research') or {}).get('strategy_ablation')
-        if ablation not in (None, 'no_obv_confirmation', 'no_regime_restrictions', 'no_health'):
-            raise ValueError('Unknown strategy ablation')
-        if ablation == 'no_obv_confirmation':
-            registry['TrendBreakout'].use_obv = False
-        elif ablation == 'no_regime_restrictions':
-            registry['TrendBreakout'].allowed_states = set(MarketState)
+        _apply_trend_breakout_switches(registry, configuration)
     return registry
+
+
+def _apply_trend_breakout_switches(registry: Dict[str, Strategy], configuration: Configuration) -> None:
+    """Configured TrendBreakout entry switches, then any registered research ablation.
+
+    C1 (docs/research/candidate_successor_c1_c2_20261110.md): ``trend_breakout.use_obv``
+    sets OBV entry confirmation explicitly. The research ablation runs after it,
+    so ``no_obv_confirmation`` still turns OBV off whatever the default says.
+    """
+    section = configuration.get('trend_breakout')
+    if section is not None:
+        if not isinstance(section, Mapping) or set(section) - {'use_obv'}:
+            raise ValueError('trend_breakout only accepts use_obv')
+        if 'use_obv' in section:
+            if type(section['use_obv']) is not bool:
+                raise ValueError('trend_breakout.use_obv must be boolean')
+            registry['TrendBreakout'].use_obv = section['use_obv']  # type: ignore[attr-defined]  # Donchian switch
+    ablation = (configuration.get('research') or {}).get('strategy_ablation')
+    if ablation not in (None, 'no_obv_confirmation', 'no_regime_restrictions', 'no_health'):
+        raise ValueError('Unknown strategy ablation')
+    if ablation == 'no_obv_confirmation':
+        registry['TrendBreakout'].use_obv = False  # type: ignore[attr-defined]  # only TrendBreakout has the ablation switch
+    elif ablation == 'no_regime_restrictions':
+        registry['TrendBreakout'].allowed_states = set(MarketState)
 
 
 def build_candidate_score_policy(
     configuration: Configuration,
 ) -> CandidateScorePolicy:
-    """SR3-1 ranking weights, resolved at the composition boundary."""
+    """SR3-1 ranking weights, resolved at the composition boundary.
+
+    A5 (F-09): the trend-strength term uses the state machine's ADX period
+    and threshold. ``candidate_scoring`` may still name either key for older
+    configs, but only with the same value; a second, different ADX definition
+    fails closed instead of drifting silently.
+    """
     section = configuration.get("candidate_scoring")
-    return CandidateScorePolicy.from_mapping(
-        section if isinstance(section, dict) else None
-    )
+    mapping = dict(section) if isinstance(section, dict) else {}
+    state = configuration.get("state")
+    if isinstance(state, dict):
+        for key in ("adx_period", "adx_threshold"):
+            if key not in state:
+                continue
+            if key in mapping and float(mapping[key]) != float(state[key]):
+                raise ValueError(
+                    f"candidate_scoring.{key}={mapping[key]} conflicts with "
+                    f"state.{key}={state[key]}; scoring reads the state value")
+            mapping[key] = state[key]
+    return CandidateScorePolicy.from_mapping(mapping or None)
 
 
 def build_correlation_cluster_policy(

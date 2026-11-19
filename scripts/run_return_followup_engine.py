@@ -13,17 +13,15 @@ import math
 from pathlib import Path
 import platform
 import shutil
-import sys
 import time
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 
 import numpy as np
 import pandas as pd
 
 from analysis.paper_study import WINDOWS, arm_parameters, freeze_registration, load_verified_inputs, write_json
-from core.reproducibility import sha256_file, sha256_frame
+from core.foundation.reproducibility import sha256_file, sha256_frame
 from scripts.run_paper_applications import run_job
 from strategies.trend_portfolio_v2 import TrendPortfolioV2Strategy
 
@@ -54,7 +52,7 @@ def source_identity():
                      and "__pycache__" not in p.parts)
     paths.extend(ROOT / name for name in (
         "analysis/__init__.py", "analysis/paper_study.py", "analysis/paper_data_audit.py",
-        "analysis/paper_labels.py", "analysis/paper_validation.py", "analysis/research_validation.py",
+        "signal_meta/paper_labels.py", "analysis/paper_validation.py", "analysis/research_validation.py",
         "scripts/run_paper_applications.py", "scripts/run_revalidation60.py",
         "scripts/run_return_followup_engine.py", "pyproject.toml", "requirements.lock.txt") if (ROOT / name).is_file())
     return {p.relative_to(ROOT).as_posix(): sha256_file(p) for p in sorted(set(paths))}

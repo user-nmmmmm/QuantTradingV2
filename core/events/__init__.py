@@ -25,7 +25,7 @@ from threading import RLock
 from typing import Any, Callable, Dict, List, Optional, Protocol, Tuple, Type, Union
 from uuid import UUID, uuid4, uuid5
 
-from core.domain import OrderIntent, RiskDecision, RiskReservation
+from core.foundation.domain import OrderIntent, RiskDecision, RiskReservation
 from core.events.codec import _decode_value, _encode_value
 from core.events.ids import (
     EVENT_NAMESPACE,
@@ -199,7 +199,7 @@ class TradingEventPipeline:
             raise ValueError("retention_limit must be positive")
         self.retention_limit = int(retention_limit)
         self._subscribers: Dict[str, List[Handler]] = {}
-        self._events = deque(maxlen=self.retention_limit)
+        self._events: deque[Any] = deque(maxlen=self.retention_limit)
         self._by_id: Dict[UUID, EventEnvelope] = {}
 
         self._transaction_lock = RLock()

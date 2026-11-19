@@ -49,9 +49,12 @@ class HoldoutProtocol:
 
     def __post_init__(self) -> None:
         values = [
-            pd.Timestamp(self.train_start), pd.Timestamp(self.train_end),
-            pd.Timestamp(self.validation_start), pd.Timestamp(self.validation_end),
-            pd.Timestamp(self.holdout_start), pd.Timestamp(self.holdout_end),
+            pd.Timestamp(self.train_start),
+            pd.Timestamp(self.train_end),
+            pd.Timestamp(self.validation_start),
+            pd.Timestamp(self.validation_end),
+            pd.Timestamp(self.holdout_start),
+            pd.Timestamp(self.holdout_end),
         ]
         if not (values[0] <= values[1] < values[2] <= values[3] < values[4] <= values[5]):
             raise ValueError("partitions must be chronological, disjoint, and non-empty")
@@ -101,6 +104,17 @@ class HoldoutVault:
         self.path.write_text(_canonical(payload) + "\n", encoding="utf-8")
         return payload
 
+    def controlled_access(self):
+        """Explicit v2 actual-read gate; legacy purpose-only v1 is not upgraded.
+
+        The separate SQLite path preserves historical JSON byte identities.
+        Call register/freeze/evaluate on this gate; only its evaluate method
+        performs controlled final-data reading and atomic single consumption.
+        """
+        from analysis.controlled_holdout import AtomicHoldoutVault
+
+        return AtomicHoldoutVault(self.path.with_name(self.path.name + ".access.sqlite3"))
+
     def open_final(self, *, protocol_hash: str, purpose: str) -> dict[str, Any]:
         if any(word in purpose.lower() for word in ("tun", "optim", "select", "train")):
             raise PermissionError("holdout cannot be opened for training, selection, or tuning")
@@ -145,17 +159,19 @@ def walk_forward_splits(
         test_end = test_start + test_size
         if test_end > n_observations:
             break
-        splits.append({
-            "train_start": train_start,
-            "train_end": train_end,
-            "validation_start": validation_start,
-            "validation_end": validation_end,
-            "purge_start": validation_end,
-            "purge_end": test_start,
-            "test_start": test_start,
-            "test_end": test_end,
-            "embargo_end": min(n_observations, test_end + embargo_size),
-        })
+        splits.append(
+            {
+                "train_start": train_start,
+                "train_end": train_end,
+                "validation_start": validation_start,
+                "validation_end": validation_end,
+                "purge_start": validation_end,
+                "purge_end": test_start,
+                "test_start": test_start,
+                "test_end": test_end,
+                "embargo_end": min(n_observations, test_end + embargo_size),
+            }
+        )
         origin += step
     return splits
 
@@ -212,8 +228,10 @@ def parameter_plateau(
     immediate = {
         (x_values[i], y_values[j])
         for i, j in (
-            (best_x - 1, best_y), (best_x + 1, best_y),
-            (best_x, best_y - 1), (best_x, best_y + 1),
+            (best_x - 1, best_y),
+            (best_x + 1, best_y),
+            (best_x, best_y - 1),
+            (best_x, best_y + 1),
         )
         if 0 <= i < len(x_values) and 0 <= j < len(y_values)
     }
@@ -254,7 +272,9 @@ def factor_ablation(
     return {"window_count": int(baseline.size), "factors": factors}
 
 
-def concentration_stress(pnls: Iterable[float], removals: Sequence[int] = (1, 3, 5, 10)) -> dict[str, Any]:
+def concentration_stress(
+    pnls: Iterable[float], removals: Sequence[int] = (1, 3, 5, 10)
+) -> dict[str, Any]:
     values = np.asarray([float(value) for value in pnls if np.isfinite(value)], dtype=float)
     if values.size == 0:
         return {"status": "insufficient", "sample_size": 0, "scenarios": []}
@@ -263,17 +283,27 @@ def concentration_stress(pnls: Iterable[float], removals: Sequence[int] = (1, 3,
     for count in removals:
         removed = max(0, min(int(count), len(values)))
         remaining = descending[removed:]
-        scenarios.append({
-            "removed_top_winners": int(count),
-            "effective_removed": removed,
-            "remaining_net_pnl": float(remaining.sum()),
-            "positive": bool(remaining.sum() > 0),
-        })
-    return {"status": "ok", "sample_size": int(values.size), "baseline_net_pnl": float(values.sum()), "scenarios": scenarios}
+        scenarios.append(
+            {
+                "removed_top_winners": int(count),
+                "effective_removed": removed,
+                "remaining_net_pnl": float(remaining.sum()),
+                "positive": bool(remaining.sum() > 0),
+            }
+        )
+    return {
+        "status": "ok",
+        "sample_size": int(values.size),
+        "baseline_net_pnl": float(values.sum()),
+        "scenarios": scenarios,
+    }
 
 
 def deflated_sharpe_ratio(
-    returns: Iterable[float], *, trials: int, periods_per_year: float = 1.0,
+    returns: Iterable[float],
+    *,
+    trials: int,
+    periods_per_year: float = 1.0,
     trial_sharpe_std: float | None = None,
 ) -> dict[str, Any]:
     """Legacy single-series diagnostic; a full candidate panel is preferred.
@@ -283,8 +313,12 @@ def deflated_sharpe_ratio(
     """
     values = np.asarray(list(returns), dtype=float)
     if not np.all(np.isfinite(values)):
-        return {"status": "invalid_input", "sample_size": int(len(values)),
-                "probability": None, "reason": "non-finite return input"}
+        return {
+            "status": "invalid_input",
+            "sample_size": int(len(values)),
+            "probability": None,
+            "reason": "non-finite return input",
+        }
     if len(values) < 3 or trials < 1:
         return {"status": "insufficient", "sample_size": int(len(values)), "probability": None}
     std = float(values.std(ddof=1))
@@ -297,16 +331,25 @@ def deflated_sharpe_ratio(
     observed = float(values.mean() / std)
     euler_gamma = 0.5772156649015329
     normal = NormalDist()
-    if trial_sharpe_std is not None and (not math.isfinite(trial_sharpe_std) or trial_sharpe_std < 0):
+    if trial_sharpe_std is not None and (
+        not math.isfinite(trial_sharpe_std) or trial_sharpe_std < 0
+    ):
         raise ValueError("trial_sharpe_std must be finite and nonnegative in per-period units")
     if trials > 1 and trial_sharpe_std is None:
-        return {"status": "insufficient", "sample_size": len(values), "trials": trials,
-                "probability": None, "diagnostic_probability": None,
-                "observed_period_sharpe": observed,
-                "observed_sharpe": observed * math.sqrt(periods_per_year),
-                "expected_max_period_sharpe": None, "expected_max_sharpe": None,
-                "reason": "cross-trial Sharpe dispersion unavailable; use deflated_sharpe_evidence with the full panel",
-                "admission_eligible": False, "formula_version": "dsr-single-series/v3"}
+        return {
+            "status": "insufficient",
+            "sample_size": len(values),
+            "trials": trials,
+            "probability": None,
+            "diagnostic_probability": None,
+            "observed_period_sharpe": observed,
+            "observed_sharpe": observed * math.sqrt(periods_per_year),
+            "expected_max_period_sharpe": None,
+            "expected_max_sharpe": None,
+            "reason": "cross-trial Sharpe dispersion unavailable; use deflated_sharpe_evidence with the full panel",
+            "admission_eligible": False,
+            "formula_version": "dsr-single-series/v3",
+        }
     if trials == 1:
         expected_max = 0.0
     else:
@@ -314,9 +357,9 @@ def deflated_sharpe_ratio(
         z2 = normal.inv_cdf(1 - 1 / (trials * math.e))
         expected_max = trial_sharpe_std * ((1 - euler_gamma) * z1 + euler_gamma * z2)
     centered = values - values.mean()
-    skew = float(np.mean(centered ** 3) / (np.std(values) ** 3))
-    kurtosis = float(np.mean(centered ** 4) / (np.var(values) ** 2))
-    denominator = math.sqrt(max(1e-12, 1 - skew * observed + ((kurtosis - 1) / 4) * observed ** 2))
+    skew = float(np.mean(centered**3) / (np.std(values) ** 3))
+    kurtosis = float(np.mean(centered**4) / (np.var(values) ** 2))
+    denominator = math.sqrt(max(1e-12, 1 - skew * observed + ((kurtosis - 1) / 4) * observed**2))
     statistic = (observed - expected_max) * math.sqrt(len(values) - 1) / denominator
     return {
         "status": "diagnostic",
@@ -329,8 +372,10 @@ def deflated_sharpe_ratio(
         "expected_max_sharpe": expected_max * math.sqrt(periods_per_year),
         "observed_period_sharpe": observed,
         "expected_max_period_sharpe": expected_max,
-        "probability": None, "diagnostic_probability": float(normal.cdf(statistic)),
-        "trial_sharpe_std": trial_sharpe_std, "admission_eligible": False,
+        "probability": None,
+        "diagnostic_probability": float(normal.cdf(statistic)),
+        "trial_sharpe_std": trial_sharpe_std,
+        "admission_eligible": False,
         "reason": "single-series API cannot verify complete preregistered search history",
     }
 
@@ -344,12 +389,25 @@ class ExperimentRegistry:
     def records(self) -> list[dict[str, Any]]:
         if not self.path.exists():
             return []
-        return [json.loads(line) for line in self.path.read_text(encoding="utf-8").splitlines() if line]
+        return [
+            json.loads(line) for line in self.path.read_text(encoding="utf-8").splitlines() if line
+        ]
 
-    def register(self, *, hypothesis: str, parameters: Mapping[str, Any], data_scope: Mapping[str, Any], metrics: Mapping[str, Any]) -> dict[str, Any]:
+    def register(
+        self,
+        *,
+        hypothesis: str,
+        parameters: Mapping[str, Any],
+        data_scope: Mapping[str, Any],
+        metrics: Mapping[str, Any],
+    ) -> dict[str, Any]:
         if not hypothesis.strip():
             raise ValueError("hypothesis is required")
-        identity = {"hypothesis": hypothesis, "parameters": dict(parameters), "data_scope": dict(data_scope)}
+        identity = {
+            "hypothesis": hypothesis,
+            "parameters": dict(parameters),
+            "data_scope": dict(data_scope),
+        }
         experiment_id = _sha256(identity)[:16]
         existing = self.records()
         for record in existing:
@@ -378,14 +436,7 @@ class AdmissionThresholds:
     concentration_removals: tuple[int, ...] = (5, 10)
 
 
-def evaluate_holdout_admission(
-    *,
-    trades: Sequence[Mapping[str, Any]],
-    equity: pd.Series,
-    benchmark: pd.Series,
-    thresholds: AdmissionThresholds = AdmissionThresholds(),
-) -> dict[str, Any]:
-    """Evaluate the Phase 5 G12-G15 gates without changing any parameters."""
+def _admission_trade_inputs(trades):
     invalid_trades = []
     valid_trades = []
     pnls = []
@@ -399,17 +450,56 @@ def evaluate_holdout_admission(
             continue
         pnls.append(pnl)
         valid_trades.append(trade)
-    ordered_trades = sorted(valid_trades, key=lambda trade: str(trade.get("exit_time", "")))
-    exit_times = [trade.get("exit_time") for trade in ordered_trades]
-    pf = calculate_profit_factor([float(trade["net_pnl"]) for trade in ordered_trades],
-        minimum_samples=thresholds.minimum_trades, confidence=0.95,
-        timestamps=exit_times if all(time is not None for time in exit_times) else None)
-    overlap = pd.concat([pd.Series(equity, name="strategy"), pd.Series(benchmark, name="benchmark")], axis=1).dropna()
+    return invalid_trades, valid_trades, pnls
+
+
+def _admission_profit_factors(valid_trades, ordered_trades, thresholds):
+    by_strategy = {}
+    for name in sorted({str(trade.get("strategy", "UNKNOWN")) for trade in valid_trades}):
+        group = [trade for trade in ordered_trades if str(trade.get("strategy", "UNKNOWN")) == name]
+        group_times = [trade.get("exit_time") for trade in group]
+        by_strategy[name] = calculate_profit_factor(
+            [float(trade["net_pnl"]) for trade in group],
+            minimum_samples=thresholds.minimum_trades,
+            confidence=0.95,
+            timestamps=group_times if all(time is not None for time in group_times) else None,
+        )
+    return by_strategy
+
+
+def _admission_returns(equity, benchmark):
+    overlap = pd.concat(
+        [pd.Series(equity, name="strategy"), pd.Series(benchmark, name="benchmark")], axis=1
+    ).dropna()
     strategy_return = benchmark_return = excess_return = None
     if len(overlap) >= 2 and overlap.iloc[0].ne(0).all():
         strategy_return = float(overlap["strategy"].iloc[-1] / overlap["strategy"].iloc[0] - 1)
         benchmark_return = float(overlap["benchmark"].iloc[-1] / overlap["benchmark"].iloc[0] - 1)
         excess_return = strategy_return - benchmark_return
+    return strategy_return, benchmark_return, excess_return
+
+
+_DEFAULT_ADMISSION_THRESHOLDS = AdmissionThresholds()
+
+
+def evaluate_holdout_admission(
+    *,
+    trades: Sequence[Mapping[str, Any]],
+    equity: pd.Series,
+    benchmark: pd.Series,
+    thresholds: AdmissionThresholds = _DEFAULT_ADMISSION_THRESHOLDS,
+) -> dict[str, Any]:
+    """Evaluate the Phase 5 G12-G15 gates without changing any parameters."""
+    invalid_trades, valid_trades, pnls = _admission_trade_inputs(trades)
+    ordered_trades = sorted(valid_trades, key=lambda trade: str(trade.get("exit_time", "")))
+    exit_times = [trade.get("exit_time") for trade in ordered_trades]
+    pf = calculate_profit_factor(
+        [float(trade["net_pnl"]) for trade in ordered_trades],
+        minimum_samples=thresholds.minimum_trades,
+        confidence=0.95,
+        timestamps=exit_times if all(time is not None for time in exit_times) else None,
+    )
+    strategy_return, benchmark_return, excess_return = _admission_returns(equity, benchmark)
     drawdown = calculate_drawdown(equity)
     concentration = concentration_stress(pnls, thresholds.concentration_removals)
     costs = calculate_cost_sensitivity(
@@ -421,7 +511,9 @@ def evaluate_holdout_admission(
         (row["commission_multiplier"], row["slippage_multiplier"]): row["net_pnl"]
         for row in costs.get("grid", [])
     }
-    stressed_net = cost_lookup.get((thresholds.required_cost_multiplier, thresholds.required_cost_multiplier))
+    stressed_net = cost_lookup.get(
+        (thresholds.required_cost_multiplier, thresholds.required_cost_multiplier)
+    )
     concentration_pass = bool(concentration.get("scenarios")) and all(
         row["positive"] for row in concentration.get("scenarios", [])
     )
@@ -434,34 +526,50 @@ def evaluate_holdout_admission(
             and excess_return > 0
         ),
         "G13_pf_significance": bool(
-            not invalid_trades and pf["status"] == "ok" and pf.get("evidence_eligible", False)
+            not invalid_trades
+            and pf["status"] == "ok"
+            and pf.get("evidence_eligible", False)
             and pf["sample_size"] >= thresholds.minimum_trades
-            and pf["value"] is not None and pf["value"] > thresholds.minimum_pf
-            and pf["lower"] is not None and pf["lower"] > thresholds.minimum_pf_ci_lower
+            and pf["value"] is not None
+            and pf["value"] > thresholds.minimum_pf
+            and pf["lower"] is not None
+            and pf["lower"] > thresholds.minimum_pf_ci_lower
         ),
         "G14_not_concentrated": concentration_pass,
         "G15_cost_stress": bool(stressed_net is not None and stressed_net > 0),
-        "drawdown_limit": bool(drawdown["max_pct"] is not None and abs(drawdown["max_pct"]) <= thresholds.maximum_drawdown),
+        "drawdown_limit": bool(
+            drawdown["max_pct"] is not None
+            and abs(drawdown["max_pct"]) <= thresholds.maximum_drawdown
+        ),
     }
-    by_strategy = {}
-    for name in sorted({str(trade.get("strategy", "UNKNOWN")) for trade in valid_trades}):
-        group = [trade for trade in ordered_trades if str(trade.get("strategy", "UNKNOWN")) == name]
-        group_times = [trade.get("exit_time") for trade in group]
-        by_strategy[name] = calculate_profit_factor([float(trade["net_pnl"]) for trade in group],
-            minimum_samples=thresholds.minimum_trades, confidence=0.95,
-            timestamps=group_times if all(time is not None for time in group_times) else None)
+    by_strategy = _admission_profit_factors(valid_trades, ordered_trades, thresholds)
     return {
         "decision": "admit" if all(gates.values()) else "reject",
         "gates": gates,
-        "input_integrity": {"status": "invalid_input" if invalid_trades else "ok",
-                            "invalid_trades": invalid_trades, "valid_sample_size": len(valid_trades)},
-        "returns": {"strategy": strategy_return, "benchmark": benchmark_return, "excess": excess_return},
+        "input_integrity": {
+            "status": "invalid_input" if invalid_trades else "ok",
+            "invalid_trades": invalid_trades,
+            "valid_sample_size": len(valid_trades),
+        },
+        "returns": {
+            "strategy": strategy_return,
+            "benchmark": benchmark_return,
+            "excess": excess_return,
+        },
         "profit_factor": pf,
         "gate_details": {
             "G13_pf_significance": {
-                "status": ("invalid_input" if invalid_trades else "pass" if gates["G13_pf_significance"] else
-                           "insufficient_data" if pf["status"] != "ok" or not pf.get("evidence_eligible") else "fail"),
-                "metric_status": pf["status"], "sample_size": pf["sample_size"],
+                "status": (
+                    "invalid_input"
+                    if invalid_trades
+                    else "pass"
+                    if gates["G13_pf_significance"]
+                    else "insufficient_data"
+                    if pf["status"] != "ok" or not pf.get("evidence_eligible")
+                    else "fail"
+                ),
+                "metric_status": pf["status"],
+                "sample_size": pf["sample_size"],
                 "minimum_samples": thresholds.minimum_trades,
                 "formula_version": "pf-admission-cohort-block/v3",
             },

@@ -18,8 +18,8 @@ import pytest
 from backtest.protective_stops import CONSERVATIVE_BAR_PATH, ResidentStopSimulator
 from core.broker import Broker
 from core.broker.matching import is_protective_stop
-from core.portfolio import Portfolio
-from core.runtime import MarketDataSlice
+from core.trading.portfolio import Portfolio
+from core.foundation.runtime import MarketDataSlice
 
 SYMBOL = "BTC/USDT"
 

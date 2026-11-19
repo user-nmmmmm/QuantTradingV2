@@ -82,8 +82,8 @@ The live engine snapshots its state database hourly and keeps 24 snapshots by
 default. Both values are constructor options. Manual operations are:
 
 ~~~powershell
-python -m core.sqlite_backup backup reports/live_status_state.db --retention 24
-python -m core.sqlite_backup restore reports/live_status_state.db.snapshots/live_status_state.db.TIMESTAMP.sqlite3 reports/live_status_state.db
+python -m core.trading.sqlite_backup backup reports/live_status_state.db --retention 24
+python -m core.trading.sqlite_backup restore reports/live_status_state.db.snapshots/live_status_state.db.TIMESTAMP.sqlite3 reports/live_status_state.db
 ~~~
 
 Stop the live engine before manual rollback. Backup and restore use SQLite's
@@ -98,7 +98,7 @@ snapshot is rejected. Never copy an identity from an unrelated account merely
 to make restore proceed.
 
 ~~~powershell
-python -m core.sqlite_backup restore SNAPSHOT.sqlite3 TARGET.db --identity-file approved_runtime_identity.json
+python -m core.trading.sqlite_backup restore SNAPSHOT.sqlite3 TARGET.db --identity-file approved_runtime_identity.json
 ~~~
 
 For corrupt targets, restore first preserves the original bytes as
@@ -145,7 +145,7 @@ The live periodic recovery status declares `scope=order_recovery`. Its `ok`
 field describes unresolved orders only; `account_reconciliation=unverified`
 explicitly records the missing independent opening-capital, cash-flow and
 valuation inputs. It must not be presented as a full account reconciliation.
-`core.account_reconciliation.reconcile_account_snapshots` compares independently
+`core.trading.account_reconciliation.reconcile_account_snapshots` compares independently
 normalized spot/spot-margin snapshots, validates duplicate fills, quantity and
 fee conservation, timestamped marks, cash free/locked/total and both equity
 bridges. It creates no second ledger and infers no deposit from a cash mismatch.
@@ -166,7 +166,7 @@ Two independent channels, both driven by the same bot credentials:
 
 1. **Real-time critical alerts.** Set `TELEGRAM_BOT_TOKEN` and
    `TELEGRAM_CHAT_ID` in the environment before starting the live engine.
-   `build_default_alert_sink()` (`core/alerting.py`) picks them up
+   `build_default_alert_sink()` (`core/foundation/alerting.py`) picks them up
    automatically and adds a `TelegramAlertSink` alongside the existing
    logging/JSONL/webhook sinks — halts, circuit-breaker trips, and
    reconciliation discrepancies are pushed the moment they happen, subject
@@ -180,7 +180,7 @@ Two independent channels, both driven by the same bot credentials:
    $env:TELEGRAM_BOT_TOKEN = "<bot token from @BotFather>"
    $env:TELEGRAM_CHAT_ID = "<chat id — message the bot once, then check
      https://api.telegram.org/bot<token>/getUpdates for the numeric id>"
-   python -m core.telegram_heartbeat --status reports/live_status.json --alerts reports/live_alerts.jsonl
+   python -m ops.telegram_heartbeat --status reports/live_status.json --alerts reports/live_alerts.jsonl
    ~~~
 
    Schedule this on a timer (every 1-4 hours is typical for a sandbox soak

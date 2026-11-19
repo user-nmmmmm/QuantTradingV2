@@ -9,10 +9,8 @@ import json
 import logging
 from pathlib import Path
 import random
-import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 import numpy as np
 import pandas as pd
 from analysis.research_validation import walk_forward_splits
@@ -21,12 +19,12 @@ from backtest.reporting import ReportGenerator
 from backtest.reporting.serialization import write_metrics_json
 from backtest.reporting.operating_periods import requested_period_curve, split_execution_records
 from config.config import config
-from core.data import DataHandler
-from core.benchmarks import btc_eth_first_open_buy_hold
-from core.lots import CloseEvent
+from core.market.data import DataHandler
+from core.analytics.benchmarks import btc_eth_first_open_buy_hold
+from core.trading.lots import CloseEvent
 from core.metrics import calculate_equity_metrics
-from core.strategy_health import classify_exit_controller
-from core.reproducibility import canonical_json, deterministic_result_digest, sha256_file, sha256_frame
+from core.analytics.strategy_health import classify_exit_controller
+from core.foundation.reproducibility import canonical_json, deterministic_result_digest, sha256_file, sha256_frame
 from scripts.prepare_revalidation_data import SYMBOLS, START, END
 
 
@@ -81,7 +79,7 @@ def source_hashes():
     paths = []
     for folder in ("core", "backtest", "strategies", "router", "composition", "config", "analysis", "live_trading", "scripts"):
         paths.extend(p for p in (ROOT / folder).rglob("*") if p.suffix in {".py", ".yaml", ".json"} and "__pycache__" not in p.parts)
-    paths.extend(ROOT / p for p in ("main.py", "run_live.py", "pyproject.toml", "requirements.lock.txt") if (ROOT / p).exists())
+    paths.extend(ROOT / p for p in ("main.py", "cli/run.py", "cli/data.py", "cli/replay.py", "run_live.py", "pyproject.toml", "requirements.lock.txt") if (ROOT / p).exists())
     return {p.relative_to(ROOT).as_posix(): sha256_file(p) for p in sorted(paths)}
 
 
@@ -280,7 +278,7 @@ def write_research_outputs(root, frames, summaries):
         save(root / f"{name}_cohort_concentration.json", cohorts)
         base = cohorts["scenarios"]["0"]
         enough = cohorts["sample_status"] == "sufficient_for_estimation"
-        def assessed(value):
+        def assessed(value, enough=enough):
             return "insufficient" if not enough else ("pass" if value else "fail")
         row = lookup[name]
         bench = benchmark(pd.Timestamp(row["start"]), pd.Timestamp(row["end"]))

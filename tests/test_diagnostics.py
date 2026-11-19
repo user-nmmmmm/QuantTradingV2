@@ -1,4 +1,4 @@
-"""core/diagnostics.py — result-trustworthiness metrics.
+"""core/analytics/diagnostics.py — result-trustworthiness metrics.
 
 Each test pins the defect the metric exists to expose, so a regression that
 re-hides one of them fails here rather than silently passing as "profitable".
@@ -8,7 +8,7 @@ from tests.synthetic_health_policy import synthetic_health_policy
 
 import pandas as pd
 
-from core.diagnostics import (
+from core.analytics.diagnostics import (
     INERT_EXIT_RATIO_THRESHOLD,
     build_diagnostics,
     calculate_calendar_returns,

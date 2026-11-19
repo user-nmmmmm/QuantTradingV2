@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 
 from core.broker import Broker
-from core.domain import OrderIntent, OrderStatus
+from core.foundation.domain import OrderIntent, OrderStatus
 from core.events import (
     EVENT_SCHEMA_VERSION,
     EventCodec,
@@ -20,8 +20,8 @@ from core.events import (
     event_id_for,
 )
 from core.live_broker import LiveBroker
-from core.order_store import OrderStore
-from core.portfolio import Portfolio
+from core.trading.order_store import OrderStore
+from core.trading.portfolio import Portfolio
 from core.live_broker.safe import SafeLiveBroker
 
 

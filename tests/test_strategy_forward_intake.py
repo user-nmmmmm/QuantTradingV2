@@ -79,7 +79,7 @@ def test_closed_forward_candles_have_receipt_time_and_resume_does_not_refetch(ca
     first = collect(batch, source_root=root, client=client)
     assert first["status"] == "complete" and first["requests"] == 2
     assert all(c["received"] == 1 for c in first["coverage"].values())
-    from core.data_versions import DataVersionStore
+    from core.market.data_versions import DataVersionStore
     store = DataVersionStore(batch / "intake_snapshots")
     records = store.read_snapshot(first["record_snapshot"])["records"]
     assert all(r["available_at"] > r["event_time"] for r in records)

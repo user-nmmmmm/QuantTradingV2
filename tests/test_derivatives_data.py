@@ -6,13 +6,13 @@ from unittest.mock import patch
 import pandas as pd
 import pytest
 
-from core.accounts import AccountMode
+from core.trading.accounts import AccountMode
 from core.broker import Broker
-from core.derivatives_data import (
+from core.market.derivatives_data import (
     DerivativesBundle, LinearContractSpec, load_derivatives_bundle,
     merge_derivative_features, replay_funding_settlements, validate_settlements,
 )
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 
 
 def spec(**kwargs):
@@ -184,9 +184,9 @@ def test_observation_clock_and_contract_identity_are_checked(tmp_path):
 
 
 def test_main_passes_market_type_and_explicit_symbol_to_fetcher(tmp_path):
-    from main import get_data
+    from cli.data import get_data
     contract, actual, obs = write_inputs(tmp_path)
-    with patch("main.DataFetcher") as fetcher:
+    with patch("cli.data.DataFetcher") as fetcher:
         fetcher.return_value.fetch_ccxt.return_value = bars(["2024-01-01T10:00Z"])
         result = get_data("BTC/USDT:USDT", "2024-01-01", "2024-01-02", source="ccxt",
                           market_type="perpetual", derivatives_contract_file=contract,

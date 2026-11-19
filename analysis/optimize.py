@@ -1,4 +1,3 @@
-import sys
 import os
 import argparse
 import itertools
@@ -16,10 +15,8 @@ try:
 except ImportError:  # Optional CLI presentation dependency.
     tabulate = None
 
-# Add project root to path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.data_fetcher import DataFetcher
+from core.market.data_fetcher import DataFetcher
 from backtest.engine import BacktestEngine
 from backtest.reporting import ReportGenerator
 from strategies.trend_breakout import TrendBreakoutStrategy, TrendBreakdownStrategy

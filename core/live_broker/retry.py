@@ -5,8 +5,8 @@ from __future__ import annotations
 import time
 from typing import Any, Callable, TypeVar
 
-from core.logger import get_logger
-from core.orders import classify_order_exception, is_ambiguous_error
+from core.foundation.logger import get_logger
+from core.trading.orders import classify_order_exception, is_ambiguous_error
 
 
 logger = get_logger(__name__)

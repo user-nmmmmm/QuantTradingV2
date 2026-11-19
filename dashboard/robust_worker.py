@@ -46,10 +46,10 @@ def run_research(identifier: str, parameters: dict[str, Any], output: Path,
     from analysis.walk_forward import WalkForwardConfig, candidate_warmup, run_walk_forward
     from composition.factory import build_strategy_registry
     from config.config import ConfigLoader, config
-    from core.data_fetcher import DataFetcher
+    from core.market.data_fetcher import DataFetcher
     from dashboard.market_analysis import validate_data_selection
     from dashboard.robust_research import window_geometry
-    from main import _load_local_ohlcv
+    from cli.data import _load_local_ohlcv
 
     np.random.seed(parameters["seed"])
     random.seed(parameters["seed"])

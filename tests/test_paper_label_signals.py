@@ -1,7 +1,7 @@
 import pandas as pd
 
 from analysis.paper_label_signals import chronological_label_targets, fixed_horizon_cost_labels
-from analysis.paper_labels import LabelCosts
+from signal_meta.paper_labels import LabelCosts
 
 
 def test_labels_available_at_decision_or_later_cannot_train_current_prediction():

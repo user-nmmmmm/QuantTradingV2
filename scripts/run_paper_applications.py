@@ -8,16 +8,14 @@ from dataclasses import asdict
 import json
 import logging
 from pathlib import Path
-import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 
 import numpy as np
 import pandas as pd
 
 from analysis.paper_data_audit import audit_frame
-from analysis.paper_labels import BarrierConfig, LabelCosts, label_candidates
+from signal_meta.paper_labels import BarrierConfig, LabelCosts, label_candidates
 from analysis.paper_study import (
     ARMS, WINDOWS, arm_parameters, chronological_label_baseline, coverage_report,
     equity_returns, factor_attribution, factor_proxies, fixed_benchmark,
@@ -32,7 +30,7 @@ from backtest.engine import BacktestEngine
 from backtest.reporting import ReportGenerator
 from config.config import config
 from core.metrics.execution import calculate_execution_quality
-from core.reproducibility import deterministic_result_digest, sha256_file, sha256_frame
+from core.foundation.reproducibility import deterministic_result_digest, sha256_file, sha256_frame
 from scripts.run_revalidation60 import source_hashes
 
 

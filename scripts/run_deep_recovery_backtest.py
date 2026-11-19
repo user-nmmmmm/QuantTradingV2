@@ -4,15 +4,13 @@ import argparse
 import json
 import logging
 from pathlib import Path
-import sys
 import traceback
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 import numpy as np
 import pandas as pd
-from core.reproducibility import canonical_json, sha256_frame
-from core.data import DataHandler
+from core.foundation.reproducibility import canonical_json, sha256_frame
+from core.market.data import DataHandler
 from scripts.run_revalidation60 import (
     load_inputs, protocol, run_one, save, concentration, source_hashes, write_research_outputs,
 )

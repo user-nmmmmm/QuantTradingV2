@@ -2,11 +2,9 @@
 
 Split out of live_trading/engine.py (A4) — see docs/architecture_review.md.
 
-This is a mixin, not a standalone collaborator object: ``LiveTradingEngine``
-combines ``RecoveryMixin``, ``TickOrchestratorMixin``, and
-``StateExportMixin`` via inheritance so every method still reads/writes the
-same ``self`` attributes it always has. That keeps the split mechanical and
-behavior-identical.
+``Recovery`` is a collaborator held by ``LiveTradingEngine`` (``_recovery``, B4, ADR 0018): it reads and writes
+the shared state through its ``host`` reference and calls back into the engine's own methods, so overrides
+and ``patch.object`` on the engine still intercept it.
 """
 from __future__ import annotations
 
@@ -16,8 +14,12 @@ import json
 import math
 import os
 from pathlib import Path
-from typing import Dict
+from typing import Any, Dict, Optional
 from uuid import uuid4
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from live_trading.engine import LiveTradingEngine
 
 
 def supports_account_reconciliation(broker) -> bool:
@@ -74,22 +76,40 @@ def account_new_risk_gate(broker, now, *, persistence_failed=False) -> dict:
     return {"required": True, "allows_new_risk": True, "reason": "independent_account_facts_current"}
 
 
-class RecoveryMixin:
+class Recovery:
     """Non-terminal order recovery and periodic reconciliation.
 
-    Expects ``self`` to carry ``broker``, ``_unresolved_unknown_cache``,
-    ``_last_reconciliation_at``, ``reconciliation_interval_seconds``,
-    ``_reconciliation_status``, ``_last_order_sync_at``, and ``_alert``
+    Needs from the host: ``broker``, ``reconciliation_interval_seconds``, and ``_alert``
     (from ``LiveTradingEngine`` itself).
+
+    It owns the reconciliation state (B6, ADR 0030); ``LiveTradingEngine`` keeps every name as a ``Delegated``
+    attribute. ``_account_reconciliation_persistence_failed`` is bound by the first account reconciliation and is
+    deliberately not set in ``__init__``: callers probe it with ``getattr(host, …, False)``.
     """
 
+    _account_reconciliation_persistence_failed: bool
+
+    def __init__(self, host: "LiveTradingEngine") -> None:
+        self._host = host
+        self._unresolved_unknown_cache: Optional[bool] = None
+        self._last_reconciliation_at: Optional[datetime] = None
+        self._last_order_sync_at: Optional[datetime] = None
+        self._reconciliation_status: Dict[str, Any] = {
+            "last_run_at": None,
+            "checked_count": 0,
+            "discrepancy_count": 0,
+            "ok": None,
+        }
+
     def _recover_orders(self) -> Dict:
-        recover = getattr(self.broker, "recover_open_orders", None)
+        host = self._host
+        recover = getattr(host.broker, "recover_open_orders", None)
         return recover() if callable(recover) else {}
 
     def _has_unresolved_unknown(self, *, refresh: bool = False) -> bool:
+        host = self._host
         if refresh or self._unresolved_unknown_cache is None:
-            checker = getattr(self.broker, "has_unresolved_unknown", None)
+            checker = getattr(host.broker, "has_unresolved_unknown", None)
             self._unresolved_unknown_cache = (
                 bool(checker()) if callable(checker) else False
             )
@@ -98,21 +118,22 @@ class RecoveryMixin:
     def _run_reconciliation_if_due(
         self, now: datetime, *, force: bool = False,
     ) -> Dict:
+        host = self._host
         due = (
             force
             or self._last_reconciliation_at is None
             or (now - self._last_reconciliation_at).total_seconds()
-            >= self.reconciliation_interval_seconds
+            >= host.reconciliation_interval_seconds
         )
         if not due:
-            gate = account_new_risk_gate(self.broker, now,
+            gate = account_new_risk_gate(host.broker, now,
                 persistence_failed=getattr(self, "_account_reconciliation_persistence_failed", False))
             self._reconciliation_status["account_entry_gate"] = gate
             self._reconciliation_status["allows_new_risk"] = (
                 self._reconciliation_status.get("ok") is True and gate["allows_new_risk"])
             return dict(self._reconciliation_status)
 
-        recovered = dict(self._recover_orders() or {})
+        recovered = dict(host._recover_orders() or {})
         unresolved = [
             client_order_id
             for client_order_id, result in recovered.items()
@@ -120,9 +141,9 @@ class RecoveryMixin:
             == "unknown"
         ]
         account_report = None
-        if supports_account_reconciliation(self.broker):
+        if supports_account_reconciliation(host.broker):
             try:
-                account_report = self.broker.reconcile_full_account(checked_at=now)
+                account_report = host.broker.reconcile_full_account(checked_at=now)
                 if not isinstance(account_report, dict):
                     raise TypeError("account reconciliation must return a report")
             except Exception as exc:
@@ -133,16 +154,16 @@ class RecoveryMixin:
                     "issues": ["account_reconciliation_failed:" + type(exc).__name__],
                     "differences": [], "equity_bridges": {},
                 }
-            self.broker.account_reconciliation_report = deepcopy(account_report)
+            host.broker.account_reconciliation_report = deepcopy(account_report)
             try:
-                self._persist_account_reconciliation(account_report, now)
+                host._persist_account_reconciliation(account_report, now)
                 self._account_reconciliation_persistence_failed = False
             except Exception as exc:
                 self._account_reconciliation_persistence_failed = True
-                self._alert("error", "account_reconciliation_persistence_failed", {
+                host._alert("error", "account_reconciliation_persistence_failed", {
                     "error": type(exc).__name__,
                 })
-        gate = account_new_risk_gate(self.broker, now,
+        gate = account_new_risk_gate(host.broker, now,
             persistence_failed=getattr(self, "_account_reconciliation_persistence_failed", False))
         self._last_reconciliation_at = now
         self._reconciliation_status = {
@@ -160,10 +181,10 @@ class RecoveryMixin:
                 "reason": "independent_opening_capital_cashflow_and_valuation_inputs_required",
             },
         }
-        if not self._has_unresolved_unknown(refresh=True):
+        if not host._has_unresolved_unknown(refresh=True):
             self._last_order_sync_at = now
         if unresolved:
-            self._alert("error", "reconcile_discrepancy", {
+            host._alert("error", "reconcile_discrepancy", {
                 "discrepancy_count": len(unresolved),
                 "client_order_ids": unresolved,
             })
@@ -176,8 +197,9 @@ class RecoveryMixin:
         does not claim a complete EOD export or backfill missed calendar days.
         Continuous-run acceptance still has to inspect source coverage/time.
         """
+        host = self._host
         day = now.astimezone(timezone.utc).date().isoformat()
-        folder = Path(self.state_file).resolve().parent / "account_reconciliation"
+        folder = Path(host.state_file).resolve().parent / "account_reconciliation"
         folder.mkdir(parents=True, exist_ok=True)
         target = folder / (day + ".json")
         temporary = folder / ("." + target.name + "." + uuid4().hex + ".tmp")
@@ -189,7 +211,7 @@ class RecoveryMixin:
             os.replace(temporary, target)
         finally:
             temporary.unlink(missing_ok=True)
-        state_store = getattr(self, "state_store", None)
+        state_store = getattr(host, "state_store", None)
         if state_store is not None:
             state_store.set_many({"account_reconciliation:last": report,
                                   "account_reconciliation:" + day: report})

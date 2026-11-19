@@ -10,7 +10,7 @@ import pandas as pd
 import pytest
 
 from analysis.strategy_review import freeze_prospective
-from core.reproducibility import save_data_snapshots, sha256_file
+from core.foundation.reproducibility import save_data_snapshots, sha256_file
 from scripts import run_research_automation as worker
 
 

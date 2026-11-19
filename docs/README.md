@@ -8,15 +8,17 @@
 
 | 阅读目的 | 首选文档 | 补充参考 |
 | --- | --- | --- |
-| 首次安装、回测或打开网页 | [项目 README](../README.md)、[本地研究工作台](../dashboard/README.md) | [依赖与环境](dependency_management.md)、[前端维护](../dashboard/FRONTEND.md) |
+| 首次安装、回测或打开网页 | [项目 README](../README.md)、[本地研究工作台](../dashboard/README.md) | [依赖与环境](dependency_management.md)、[前端维护](../dashboard/README.md) |
 | 理解代码职责和调用关系 | [代码模块说明](modules/README.md) | [架构边界审查](architecture_review.md)、[词汇表](glossary.md) |
+| 阅读 PR25 主线移植与研究合同 | [2026-10-28 主线开发记录](research/paper_research_main_development_20261028.md) | [专项 Roadmap](research/paper_research_roadmap_20261025.md)、[详细开发与测试计划](research/paper_research_development_plan_20261025.md)、[专项登记](research/paper_research_task_registry_20261025.json) |
+| 实施论文研究深化的研究计划 | [论文研究深化 Roadmap](research/paper_research_roadmap_20261025.md) | [详细开发与测试计划](research/paper_research_development_plan_20261025.md)、[Excel 文献整合计划](research/paper_research_excel_integration_plan_20261026.md)、[机器可读任务计划](research/paper_research_task_registry_20261025.json) |
 | 查看阶段、依赖与放行条件 | [统一 Roadmap v3](unified_roadmap.md) | [统一开发计划](development_plan.md)、[结构化任务登记](development_task_registry.json) |
-| 实施任务、核对交付和验收 | [开发详情](development_details.md) | [2026-09-20 后续实施记录](followup_completion_20260920.md) |
-| 核对回测假设和指标公式 | [当前回测行为](backtest_assumptions.md) | [指标公式与专项标准](backtest_metrics_detailed_development_plan.md) |
+| 实施任务、核对交付和验收 | [开发详情](development_details.md) | [2026-09-20 后续实施记录](roadmap_acceptance_log.md) |
+| 核对回测假设和指标公式 | [当前回测行为](backtest_assumptions.md) | [指标公式与专项标准](archive/2026-10-doc-consolidation/backtest_metrics_detailed_development_plan.md) |
 | 查找研究、采集和验证入口 | [脚本索引](../scripts/README.md) | 下方[最新行为变更](#最新行为变更)中的专项契约与实施记录 |
-| 部署、排障和周期性运行 | [部署与运维](deployment.md)、[账户事实操作说明](account_fact_operations.md) | [自动化回测操作方案](automated_backtest_plan.md) |
+| 部署、排障和周期性运行 | [部署与运维](deployment.md)、[账户事实操作说明](account_fact_operations.md) | [自动化回测操作方案](archive/2026-10-doc-consolidation/automated_backtest_plan.md) |
 | 整理工程结构与生成物 | [工程结构优化路线图](engineering_structure_roadmap.md) | [文件保留与生成物规则](file_retention.md) |
-| 追溯旧任务和历史结果 | [历史需求与邮件追溯](roadmap_traceability.md)、[固定历史基线](baselines/batch0_fixed_baseline.md) | [2026-09-20 审计](codex_mail_roadmap_audit_20260920.md)、[原文与邮件归档](archive/2026-09-roadmap-rebaseline/README.md) |
+| 追溯旧任务和历史结果 | [历史需求与邮件追溯](roadmap_traceability.md)、[固定历史基线](baselines/batch0_fixed_baseline.md) | [2026-09-20 审计](archive/2026-10-doc-consolidation/codex_mail_roadmap_audit_20260920.md)、[原文与邮件归档](archive/2026-09-roadmap-rebaseline/README.md) |
 
 ## 权威顺序
 
@@ -31,30 +33,44 @@
 
 以下按近期主题提供入口。带日期的实施记录说明对应批次的工作和证据，文件日期较新并不自动替代已批准契约或更新项目放行状态。
 
-- [2026-10-04 剩余论文任务](research/paper_remaining_tasks_20261004.md)：执行成本与盘口证据、历史因子输入、前瞻采集和严格标签的实现与缺口；[收益改进复核](research/paper_return_followup_20261004.md)记录固定方案的历史比较，保留主引擎与独立现货账户的口径差异。
-- [论文统计验证契约](research/paper_validation_contract_20261003.md)：PBO、purged/embargo 切分、White Reality Check 与 DSR 的输入、计算和证据不足行为；应用入口见[论文应用清单](research/paper_application_list_20261003.md)和[工程完成记录](research/paper_engineering_completion_20261003.md)。
-- [论文路线图实施](research/paper_roadmap_implementation_20261003.md)、[续办记录](research/paper_continuation_20261003.md)：因果标签、数据版本、融资与账户关联的实施边界及产物索引。
-- [架构与性能路线图](architecture_performance_roadmap_20261002.md)、[验证记录](architecture_performance_validation_20261002.md)、[后续实施](architecture_performance_followup_20261002.md)：行情客户端、请求预算、有限并发、补帧、保护调度与状态导出的工程演进。
-- [网页工作台](../dashboard/README.md)：账户监控、离线回测、实验档案、数据质量与 Walk-forward；模块、API 和验证命令见[前端工程说明](../dashboard/FRONTEND.md)。
+- [2026-10-28 PR25 主线移植与三项补充接口](research/paper_research_main_development_20261028.md)：保留当前架构、数据 adoption 与质量门槛，移植原专项工程并补充成本发布收据、原策略自动捕获和类型化 worker 输入；[当前验收](research/paper_research_main_acceptance_20261028.json)待当前提交检查，真实证据、条件支线和资金准入分别记录。
 
-- [TrendPortfolioV3 全市场日线研究](trend_portfolio_v3.md)：历史归档及因果成员证据、所有达标资产周调仓、动量/突破两版、两种融资口径、真实组合撮合与固定88次比较；默认关闭，保留V2对照。
+- [2026-10-25 论文研究深化 Roadmap](research/paper_research_roadmap_20261025.md)、[详细开发与测试计划](research/paper_research_development_plan_20261025.md)、[Excel 文献整合计划](research/paper_research_excel_integration_plan_20261026.md)：基于八篇候选论文与 Excel 文献表的 23 项专项工作包规划快照；B1 已有工程交付，后续执行范围和验收见 [2026-10-28 主线记录](research/paper_research_main_development_20261028.md)，全局任务状态仍由原权威登记维护。
+- [机器学习选币:现状与历史记录](ml_selection.md)：操作说明、工程整改、回测开关与下一阶段 Roadmap 见 [ml_selection.md](ml_selection.md)；V1 复核、本轮执行、冻结回测、诊断与稳健性解读见 [ml_selection_history.md](ml_selection_history.md)；[学习清单](ml_selection_learning_checklist_20261005.md)。均为研究/工程记录，`formal_admission=false` 保持不变。
+- [2026-10-04 剩余论文任务](research/paper_remaining_tasks_20261004.md)：执行成本与盘口证据、历史因子输入、前瞻采集和严格标签的实现与缺口；[收益改进复核](research/paper_applications.md)记录固定方案的历史比较，保留主引擎与独立现货账户的口径差异。
+- [论文统计验证契约](research/paper_validation_contract_20261003.md)：PBO、purged/embargo 切分、White Reality Check 与 DSR 的输入、计算和证据不足行为；应用入口见[论文应用清单](research/paper_applications.md)和[工程完成记录](research/paper_applications.md)。
+- [论文应用](research/paper_applications.md)：32 篇清单、路线图、十项实现、工程收口、续办与收益复核的时间线合集；[剩余任务](research/paper_remaining_tasks_20261004.md)与[统计验证契约](research/paper_validation_contract_20261003.md)保持独立。
+- [架构与性能](architecture_performance.md)：AP01–AP13 的路线图、验证记录与后续实施；[回测性能优化记录](backtest_performance.md)。
+- [2026-10-15公开main复核](infrastructure_roadmap.md#10-2026-10-15公开github复核)：公开代码与CI依据，以及AUD修复队列。
+- [基础设施路线图](infrastructure_roadmap.md)：2026-10 起的身份与发布、结构搬迁、质量债务、仓库/数据/环境四条轨道，先决问题（前向观察窗的身份约束）、依赖与进入 V4 功能开发的条件。
+- [发布约定](releasing.md)：语义化版本、`CHANGELOG.md`、带注解的发布标签，以及标签与行为身份回执的绑定记录（ADR 0009、0010）。
+- [架构决策记录（ADR）](adr/README.md)：已采纳的结构、工具链与研究完整性决定及其取舍。
+- [质量门槛与棘轮](quality.md)：硬门槛、ruff/mypy 棘轮基线、覆盖率门槛、测试并行/超时/标记与本地钩子。
+- [数据身份](data_identity.md)：下载缓存清单与冻结研究输入清单的分工、来源核验状态、哈希口径，以及新增或替换数据文件的流程（ADR 0020）。
+- [架构清单（自动生成）](architecture_inventory.md)：分层顺序与各包模块数，由 `scripts/architecture_inventory.py` 从代码生成并在 CI 核对；`架构图/` 的交付图是早期快照，路径变化见 `架构图/path_moves.json`。
+- [源码身份、文档移动与断链检查](identity.md)：行为身份（忽略注释与排版）、冻结范围、PR 影响报告、`doc_index.json` 与 Markdown 断链检查。
+- [V4 架构设计(草案)](v4_architecture_design.md)：分层包结构、统一特征管线、选币协议、策略插件接口、两层回测与实施路线；[文档整理审计](doc_consolidation_audit_20261010.md)记录了本轮文档合并。尚未登记进统一 Roadmap。
+- [网页工作台](../dashboard/README.md)：账户监控、离线回测、实验档案、数据质量与 Walk-forward；模块、API 和验证命令见[前端工程说明](../dashboard/README.md)。
 
-- [TrendPortfolioV2 研究策略](trend_portfolio_v2.md)：20/60/120 趋势分数、状态风险倍率、波动率目标仓位、ATR 退出及双交易所五组固定对照；工程验证和策略准入分开记录。
+- [TrendPortfolio V2/V3 研究策略](trend_portfolio.md)：趋势分数、状态风险倍率、波动率目标、全市场周调仓与固定对照；工程验证和策略准入分开记录。
 
-- [Roadmap 第7节验收记录](section7_acceptance_20260920.md)：优先级和依赖阻断、七项完成定义、24项历史本地验收的显式证据适配，以及完整证据检查与CI结构检查的区别；[完成定义契约](roadmap_completion_contract.md)。
+- [Roadmap 验收记录](roadmap_acceptance_log.md)：R 系列、第 5/6 节、第 7 节、后续完成记录与 M-01–M-20 能力矩阵；机器验收入口见脚本索引。
 
-- [Roadmap 第5、6节执行记录](section56_acceptance_20260920.md)：九规则验证入口、连续观察与前瞻协议校验、S2/S3隔离能力、新候选登记及未完成边界；[选币契约](s2_selection_contract.md)、[仓位能力契约](s3_position_capabilities.md)。
-
-- [`p1_signal_meta_layer.md`](p1_signal_meta_layer.md)：2026-09-18 P1 条件 EV、时间衰减、收缩、有效样本与冻结滚动研究；默认关闭，不影响正式账户或准入。
-- [`p23_signal_meta_layer.md`](p23_signal_meta_layer.md)：P2 因果软状态与动态轴归因、P3 三组有限资本影子账户；默认关闭，包含复现及论文实现差异。
-
-- [`p0_signal_observation.md`](p0_signal_observation.md)：2026-09-18 P0 原始候选、因果标签、实际成交关联与 Ghost 诊断；默认关闭，不改变策略准入。
+- [信号元层 P0–P3](signal_meta_layer.md)：P0 候选观察、P1 条件 EV、P2/P3 因果软状态与影子账户；默认关闭，不影响正式账户或准入。
 
 - [`baselines/main_20260906/README.md`](baselines/main_20260906/README.md)：合并提交 `8a89116` 的主分支 CI、本地覆盖率、三次固定历史回测与本地证据归档索引。
 
-- [`strategy_health_lock_investigation.md`](strategy_health_lock_investigation.md)：人工锁定根因、旧止损残留修复与更新回测；后续仓位模块草案见 [`position_management_plan.md`](position_management_plan.md)。
+- [`strategy_health_lock_investigation.md`](strategy_health_lock_investigation.md)：人工锁定根因、旧止损残留修复与更新回测；后续仓位模块草案见 [`position_management_plan.md`](archive/2026-10-doc-consolidation/position_management_plan.md)。
 
 - [`p0_drawdown_recovery.md`](p0_drawdown_recovery.md)：2026-09-05 组合 BLOCK_NEW 冷静期恢复契约、重启兼容性与两组历史 A/B 回测；不代表策略重新准入或实盘放行。
+
+## 文档维护约定
+
+- 一个主题一个文件；同主题的新内容追加带日期的小节，不另建 `*_YYYYMMDD.md` 副本（历史记录除外）。
+- 移动、合并或归档已跟踪的文档：在 `doc_index.json` 追加一条（旧路径 → 新路径），不要改写历史条目；断链检查和 Roadmap 验证器按它解析移动。
+- 自动生成的文档（`architecture_inventory.md`）只改生成脚本，不手工编辑；`python scripts/dev.py check` 会核对它是最新的。
+- 冻结的历史证据（`archive/2026-08*`、`archive/2026-09*` 等，见[文件保留与生成物规则](file_retention.md)）不改写。
+- 新增文档要先 `git add`，断链检查只看已被跟踪的文件。文档数量不设硬上限，但新增前先看有没有可以追加的现有文件；每个季度回看一次 `doc_index.json` 与本页入口是否仍然指向存在的文件。
 
 ## 历史资料
 

@@ -4,7 +4,7 @@ from datetime import timedelta
 
 import pytest
 
-from core.admission_gates import audit_paper_run, evaluate_phase6, review_admission
+from ops.admission_gates import audit_paper_run, evaluate_phase6, review_admission
 from scripts.verify_roadmap_policy import (POLICIES, trace_key, validate_registry,
                                           verify_input_identity)
 from tests.test_phase6_operational_readiness import START, passing_bundle

@@ -39,10 +39,14 @@ docs/baselines/generated/
 
 # New market data downloaded by scripts/fetch_binance_data.py.
 # The existing tracked 1d snapshot is retained for local backtest reproducibility.
-data/binance/
+data/binance/*
+!data/binance/1d/
+data/binance/1d/*
+# Version only the frozen identity and the owner-approved research-window metadata.
+!data/binance/1d/_frozen_inputs.json
+!data/binance/1d/_research_policy.json
 
 # Python caches and generated artifacts
-**pycache**/
 *.py[cod]
 outputs/
 reports/*.db
@@ -56,3 +60,8 @@ reports/*/
 dummy_output/
 .codex_patch_probe
 .claude/settings.local.json
+
+# Packaging artifacts
+*.egg-info/
+build/
+dist/

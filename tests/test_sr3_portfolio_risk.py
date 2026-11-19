@@ -1,6 +1,6 @@
 """SR3 tests: ranking, correlated risk budgets and account cost semantics.
 
-Covers docs/current_strategy_remediation_roadmap.md §13.3 for the parts SR3
+Covers docs/archive/2026-10-doc-consolidation/current_strategy_remediation_roadmap.md §13.3 for the parts SR3
 implements: candidate ranking that is not a disguised alphabetical order,
 correlation-cluster exposure and risk caps, spot-margin quote borrow, and the
 account-mode / fee-schedule contract.
@@ -13,7 +13,7 @@ from types import SimpleNamespace
 
 import pandas as pd
 
-from core.account_cost_contract import (
+from core.trading.account_cost_contract import (
     AccountCostContractError,
     canonical_runtime_account_mode,
     default_runtime_market_type,
@@ -21,10 +21,10 @@ from core.account_cost_contract import (
     validate_runtime_account_cost_contract,
 )
 from core.broker import Broker
-from core.candidate_scoring import CandidateScorePolicy, score_breakout_candidate
+from core.planning.candidate_scoring import CandidateScorePolicy, score_breakout_candidate
 from core.metrics.attribution import calculate_attribution
-from core.allocation import EntryCandidate, PortfolioSignalAllocator
-from core.portfolio import Portfolio
+from core.planning.allocation import EntryCandidate, PortfolioSignalAllocator
+from core.trading.portfolio import Portfolio
 from core.risk.portfolio_governor import (
     CorrelationClusterPolicy,
     PortfolioRiskGovernor,
@@ -121,7 +121,7 @@ class TestAllocationOrdering(unittest.TestCase):
         submitted: list = []
         strategy = _StubStrategy("TrendBreakout", submitted)
         allocator = PortfolioSignalAllocator()
-        with self.assertLogs("core.allocation", level="WARNING") as captured:
+        with self.assertLogs("core.planning.allocation", level="WARNING") as captured:
             decisions = allocator.allocate(
                 [
                     _candidate(strategy, "ETH/USDT", 0.0),

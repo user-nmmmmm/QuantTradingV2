@@ -1,14 +1,15 @@
-"""Text report writer mixin."""
+"""Text report writer, a collaborator of :class:`ReportGenerator` (ADR 0025)."""
 
 import os
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
+
+if TYPE_CHECKING:
+    from backtest.reporting import ReportGenerator
 
 
-class ReportWritersMixin:
-    output_dir: str
-    METRIC_NAMES: Dict[str, str]
-    _format_primary_metrics: Any
-    _format_metric_value: Any
+class ReportWriters:
+    def __init__(self, host: "ReportGenerator") -> None:
+        self._host = host
 
     def _save_report_text(
         self,
@@ -25,7 +26,7 @@ class ReportWritersMixin:
         """
         analysis = analysis or {}
 
-        path = os.path.join(self.output_dir, "report.txt")
+        path = os.path.join(self._host.output_dir, "report.txt")
         with open(path, "w", encoding="utf-8") as f:
             f.write("Backtest Results (回测结果)\n")
             f.write("==========================\n\n")
@@ -38,17 +39,17 @@ class ReportWritersMixin:
 
             f.write("Core Metrics (核心指标摘要):\n")
             f.write("-----------------\n")
-            f.write(self._format_primary_metrics(metrics))
+            f.write(self._host._format_primary_metrics(metrics))
             f.write("\n\n")
 
-            self._write_lifecycle_section(
+            self._host._write_lifecycle_section(
                 f,
                 metrics.get("BacktestLifecycle"),
                 metrics.get("FullCapitalPeriodMetrics"),
                 metrics.get("ActiveStrategyPeriodMetrics"),
             )
-            self._write_strategy_health_section(f, metrics.get("StrategyHealth"))
-            self._write_protective_stop_section(f, metrics.get("ProtectiveStops"))
+            self._host._write_strategy_health_section(f, metrics.get("StrategyHealth"))
+            self._host._write_protective_stop_section(f, metrics.get("ProtectiveStops"))
 
             f.write("Full Metrics (完整指标明细):\n")
             f.write("-----------------\n")
@@ -57,18 +58,18 @@ class ReportWritersMixin:
                 # section below; dumping it here would bury the scalar metrics.
                 if k == "Diagnostics":
                     continue
-                display_key = self.METRIC_NAMES.get(k, k)
-                f.write(f"{display_key:<45}: {self._format_metric_value(v)}\n")
+                display_key = self._host.METRIC_NAMES.get(k, k)
+                f.write(f"{display_key:<45}: {self._host._format_metric_value(v)}\n")
             f.write("\n")
 
-            self._write_exposure_section(f, analysis.get("exposure"))
-            self._write_signal_funnel_section(f, analysis.get("signal_funnel"))
-            self._write_drawdown_events_section(f, analysis.get("drawdown_events"))
-            self._write_trade_quality_section(f, analysis.get("trade_quality"))
-            self._write_attribution_section(f, analysis.get("attribution"))
-            self._write_control_attribution(f, analysis.get("attribution"))
-            self._write_benchmark_section(f, analysis.get("benchmark_comparison"))
-            self._write_diagnostics_section(f, metrics.get("Diagnostics"))
+            self._host._write_exposure_section(f, analysis.get("exposure"))
+            self._host._write_signal_funnel_section(f, analysis.get("signal_funnel"))
+            self._host._write_drawdown_events_section(f, analysis.get("drawdown_events"))
+            self._host._write_trade_quality_section(f, analysis.get("trade_quality"))
+            self._host._write_attribution_section(f, analysis.get("attribution"))
+            self._host._write_control_attribution(f, analysis.get("attribution"))
+            self._host._write_benchmark_section(f, analysis.get("benchmark_comparison"))
+            self._host._write_diagnostics_section(f, metrics.get("Diagnostics"))
 
             f.write("File Descriptions (文件说明):\n")
             f.write("===========================\n")
@@ -133,9 +134,9 @@ class ReportWritersMixin:
         ):
             f.write(f"{key}: {lifecycle.get(key)}\n")
         f.write("\nFull Capital-Period Metrics (完整资金期):\n")
-        f.write(self._format_primary_metrics(full_metrics))
+        f.write(self._host._format_primary_metrics(full_metrics))
         f.write("\n\nActive Strategy-Period Metrics (策略活跃期):\n")
-        f.write(self._format_primary_metrics(active_metrics))
+        f.write(self._host._format_primary_metrics(active_metrics))
         f.write("\n\n")
 
     @staticmethod
@@ -349,11 +350,11 @@ class ReportWritersMixin:
             )
         duration = quality.get("holding_duration_hours") or {}
         f.write(f"Sample Size (样本数)              : {quality['sample_size']}\n")
-        f.write(f"Win Rate (胜率)                   : {self._format_metric_value(quality['win_rate'])}\n")
-        f.write(f"Expectancy (期望值)               : {self._format_metric_value(quality['expectancy'])}\n")
+        f.write(f"Win Rate (胜率)                   : {self._host._format_metric_value(quality['win_rate'])}\n")
+        f.write(f"Expectancy (期望值)               : {self._host._format_metric_value(quality['expectancy'])}\n")
         f.write(
             f"Profit Factor (盈亏比)            : "
-            f"{self._format_metric_value(quality['profit_factor'])} "
+            f"{self._host._format_metric_value(quality['profit_factor'])} "
             f"[{quality['profit_factor_status']}]\n"
         )
         if duration.get("status") == "ok":
@@ -366,14 +367,14 @@ class ReportWritersMixin:
             f.write(
                 f"  {symbol:<15} trades={stats['sample_size']:<6} "
                 f"win_rate={stats['win_rate']:.2%} net_pnl={stats['net_pnl']:.4f} "
-                f"profit_factor={self._format_metric_value(stats['profit_factor'])}\n"
+                f"profit_factor={self._host._format_metric_value(stats['profit_factor'])}\n"
             )
         f.write("\nBy Strategy (按策略):\n")
         for strategy, stats in (quality.get("by_strategy") or {}).items():
             f.write(
                 f"  {strategy:<15} trades={stats['sample_size']:<6} "
                 f"win_rate={stats['win_rate']:.2%} net_pnl={stats['net_pnl']:.4f} "
-                f"profit_factor={self._format_metric_value(stats['profit_factor'])}\n"
+                f"profit_factor={self._host._format_metric_value(stats['profit_factor'])}\n"
             )
         f.write("\n")
 
@@ -442,7 +443,7 @@ class ReportWritersMixin:
 
     @staticmethod
     def _write_diagnostics_section(f, diagnostics: Optional[Dict[str, Any]]) -> None:
-        """结果可信度诊断（core.diagnostics）。
+        """结果可信度诊断（core.analytics.diagnostics）。
 
         与上面的绩效分节不同，本节回答的是「这个业绩数字能不能信」以及
         「系统的实际行为是否和代码描述一致」，因此即使收益为正也可能给出警告。

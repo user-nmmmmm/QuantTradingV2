@@ -1,0 +1,86 @@
+{
+  "schema": "frozen-scope/v1",
+  "description": "Declared source, runtime configuration, packaging and dependency inputs for a frozen research/trading candidate. Non-cosmetic changes alter source identity; the report does not prove runtime equivalence. Editing this file changes the scope identity.",
+  "directories": [
+    {
+      "prefix": "core/",
+      "suffixes": [
+        ".py"
+      ]
+    },
+    {
+      "prefix": "backtest/",
+      "suffixes": [
+        ".py"
+      ]
+    },
+    {
+      "prefix": "strategies/",
+      "suffixes": [
+        ".py"
+      ]
+    },
+    {
+      "prefix": "router/",
+      "suffixes": [
+        ".py"
+      ]
+    },
+    {
+      "prefix": "composition/",
+      "suffixes": [
+        ".py"
+      ]
+    },
+    {
+      "prefix": "live_trading/",
+      "suffixes": [
+        ".py"
+      ]
+    },
+    {
+      "prefix": "research/ml_selection/",
+      "suffixes": [
+        ".py"
+      ]
+    },
+    {
+      "prefix": "ops/",
+      "suffixes": [
+        ".py"
+      ]
+    },
+    {
+      "prefix": "signal_meta/",
+      "suffixes": [
+        ".py"
+      ]
+    },
+    {
+      "prefix": "cli/",
+      "suffixes": [
+        ".py"
+      ]
+    },
+    {
+      "prefix": "config/",
+      "suffixes": [
+        ".py",
+        ".yaml",
+        ".yml",
+        ".json",
+        ".csv"
+      ]
+    }
+  ],
+  "files": [
+    "main.py",
+    "run_live.py",
+    "resolve_live_order.py",
+    "pyproject.toml",
+    "requirements.txt",
+    "requirements.lock.txt",
+    "requirements.lock.sha256",
+    "requirements-ml.txt"
+  ]
+}

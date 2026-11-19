@@ -17,17 +17,17 @@ from backtest.signal_ghost import replay_ghosts
 from composition.factory import build_strategy_registry, build_state_machine, build_risk_manager
 from config.config import config
 from core.broker import Broker
-from core.portfolio import Portfolio
-from core.runtime import MarketDataSlice
-from core.market_data import HistoricalMarketDataAdapter
-from core.reproducibility import deterministic_result_digest
-from core.signal_actuals import reconcile_actuals
-from core.signal_observation import SignalObserver
-from core.signal_observation_types import (
+from core.trading.portfolio import Portfolio
+from core.foundation.runtime import MarketDataSlice
+from core.market.market_data import HistoricalMarketDataAdapter
+from core.foundation.reproducibility import deterministic_result_digest
+from signal_meta.signal_actuals import reconcile_actuals
+from signal_meta.signal_observation import SignalObserver
+from signal_meta.signal_observation_types import (
     ContextSnapshot, ObservationPolicy, SignalCandidateEvent, canonical, close_time, iso,
 )
-from core.signal_outcomes import ForwardOutcomeTracker, ObservationCosts
-from core.state import MarketState
+from signal_meta.signal_outcomes import ForwardOutcomeTracker, ObservationCosts
+from core.trading.state import MarketState
 from router.router import Router
 from strategies.base import Strategy
 from tests.engine_baseline_harness import build_synthetic_data_map
@@ -255,6 +255,7 @@ def test_actual_partial_closes_link_order_and_exclude_valuation_transfer():
 
 
 @pytest.mark.parametrize("random_slip", [False, True])
+@pytest.mark.slow
 def test_observation_never_changes_official_fills_equity_health_or_risk(random_slip, tmp_path):
     data = build_synthetic_data_map()
     def run(enabled):
@@ -398,8 +399,8 @@ def test_ghost_margin_breach_is_unknown_not_an_insolvent_profit_label():
 
 
 def test_manifest_replay_preserves_input_symbol_order_and_research_facts(tmp_path, capsys):
-    from main import replay_manifest
-    from core.reproducibility import save_data_snapshots, sha256_file, write_manifest
+    from cli.replay import replay_manifest
+    from core.foundation.reproducibility import save_data_snapshots, sha256_file, write_manifest
     from pathlib import Path
     data = build_synthetic_data_map(symbols=("Z", "A"), bars=100)
     engine = BacktestEngine(initial_capital=10000,

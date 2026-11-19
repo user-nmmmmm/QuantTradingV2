@@ -6,19 +6,17 @@ from datetime import datetime, timezone
 import hashlib
 import json
 from pathlib import Path
-import sys
 import time
 from urllib.parse import urlencode
 
 import requests
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 from analysis.historical_factor_inputs import (
     DEFAULT_ASSETS, METRICS, coinmetrics_records, freeze_factor_inputs, build_factor_proxies, lifecycle_evidence_records, public_metric_groups,
 )
 from analysis.factor_registry import historical_input_proxy_definitions, freeze_factor_registry
-from core.data_versions import DataVersionStore
+from core.market.data_versions import DataVersionStore
 
 BASE = "https://community-api.coinmetrics.io/v4/"
 DOCS = {

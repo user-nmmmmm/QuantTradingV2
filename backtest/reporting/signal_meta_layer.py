@@ -7,7 +7,7 @@ import math
 from pathlib import Path
 
 from backtest.reporting.signal_observation import _write_csv
-from core.reproducibility import canonical_json, sha256_bytes
+from core.foundation.reproducibility import canonical_json, sha256_bytes
 
 
 INTERPRETATION = "diagnostic_only_correlated_candidates_no_causal_gate_uplift_no_live_admission"
@@ -110,7 +110,7 @@ def signal_meta_diagnostics(payload):
     for key, rows in sorted(buckets.items(), key=lambda item: tuple(str(v) for v in item[0])):
         eligible, conditional, paired = [], [], []
         matured, flagged, invalid, censored, unresolved = 0, 0, 0, 0, 0
-        label_statuses = Counter()
+        label_statuses: Counter = Counter()
         for row in rows:
             label_status = str(row.get("label_status") or "missing_evaluation")
             label_statuses[label_status] += 1

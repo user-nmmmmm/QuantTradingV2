@@ -13,7 +13,7 @@ import json
 from pathlib import Path
 
 import pandas as pd
-from core.universe import normalize_symbol
+from core.market.universe import normalize_symbol
 
 
 LISTING_OVERRIDES = {"SUI/USDT": pd.Timestamp("2023-05-03")}

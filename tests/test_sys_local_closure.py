@@ -15,21 +15,21 @@ from backtest.execution_adapter import SimulatedExecutionAdapter
 from composition.factory import build_strategy_registry
 from config.config import config
 from core.broker import Broker
-from core.domain import OrderIntent, OrderStatus
+from core.foundation.domain import OrderIntent, OrderStatus
 from core.events import EventCodec, Signal, TradingEventPipeline
 from core.live_broker import LiveBroker
-from core.market_data import HistoricalMarketDataAdapter, LiveMarketDataAdapter
-from core.order_store import OrderStore
-from core.portfolio import Portfolio
-from core.reproducibility import canonical_json, deterministic_result_digest
+from core.market.market_data import HistoricalMarketDataAdapter, LiveMarketDataAdapter
+from core.trading.order_store import OrderStore
+from core.trading.portfolio import Portfolio
+from core.foundation.reproducibility import canonical_json, deterministic_result_digest
 from core.risk import RiskManager
-from core.runtime import EventProcessor
-from core.runtime_identity import RuntimeIdentity
-from core.sqlite_backup import SQLiteSnapshotManager, restore_snapshot
-from core.sqlite_utils import DatabaseIntegrityError
-from core.state import MarketState
-from core.state_store_v2 import StateStore
-from core.strategy_health import HealthStatus
+from core.foundation.runtime import EventProcessor
+from core.foundation.runtime_identity import RuntimeIdentity
+from core.trading.sqlite_backup import SQLiteSnapshotManager, restore_snapshot
+from core.trading.sqlite_utils import DatabaseIntegrityError
+from core.trading.state import MarketState
+from core.trading.state_store_v2 import StateStore
+from core.analytics.strategy_health import HealthStatus
 from live_trading.execution_adapter import RecordedExecutionAdapter
 from router.router import Router
 from tests.engine_baseline_harness import build_synthetic_data_map
@@ -81,7 +81,7 @@ def test_failed_restore_replace_leaves_live_target_and_other_temp_unchanged(tmp_
     state.close()
     other = tmp_path / ".state.db.other.restore"
     other.write_text("another recovery owns this")
-    with patch("core.sqlite_backup.os.replace", side_effect=OSError("disk full")):
+    with patch("core.trading.sqlite_backup.os.replace", side_effect=OSError("disk full")):
         with pytest.raises(OSError, match="disk full"):
             restore_snapshot(str(snapshot), str(path))
     state = StateStore(str(path))
@@ -224,6 +224,10 @@ def test_actual_router_and_execution_adapters_produce_same_canonical_intent(tmp_
             broker.close()
     assert rows[0]["intents"] and rows[0]["intents"] == rows[1]["intents"]
     assert canonical_json(rows[0]["signals"]) == canonical_json(rows[1]["signals"])
+    for row in rows:
+        # Ordinary production audits must not automatically opt into the full
+        # research sequence just because they have an observation identity.
+        assert all("gate_facts" not in item and "decision_id" not in item for item in row["entry_audit"])
     replay = RecordedExecutionAdapter(portfolio=Portfolio(10000))
     for _ in range(100):
         replay.replay([EventCodec.decode(document) for document in encoded])
@@ -242,6 +246,68 @@ def test_actual_router_and_execution_adapters_produce_same_canonical_intent(tmp_
             "entry_audit.submission_status": "simulator CREATED is queued; venue ACCEPTED acknowledges the request",
         },
     })
+
+
+@pytest.mark.parametrize("trace_gate_facts", [False, True])
+def test_full_gate_trace_requires_explicit_runtime_research_option(trace_gate_facts):
+    frame = prices(2).tz_localize("UTC")
+    portfolio = Portfolio(10000)
+    broker = Broker(portfolio, commission_rate=0, slippage=0)
+    execution = SimulatedExecutionAdapter(broker)
+    strategy = DailyRaw()
+    router = Router({strategy.name: strategy}, {state.name: strategy.name for state in MarketState})
+    machine = MagicMock()
+    machine.get_state.return_value = MarketState.TREND_UP
+    processor = EventProcessor(portfolio=portfolio, execution=execution, risk_manager=RiskManager(),
+        state_machine=machine, router=router, allocator=router.allocator,
+        entry_audit_enabled=True, trace_gate_facts=trace_gate_facts)
+    event = next(HistoricalMarketDataAdapter({"BTC/USDT": frame}, timeframe="1d").stream())
+    processor.process(event, execute_market_event=False)
+    assert processor.entry_audit
+    row = processor.entry_audit[0]
+    assert row["reason"] == "order_accepted" and row["order_id"]
+    if trace_gate_facts:
+        assert row["decision_id"] == row["observation_id"]
+        assert row["trace_gate_facts"] is True
+        assert row["cash_fraction"] == 1.
+        assert row["original_signal"] == {"action": "buy", "stop_loss": 95.}
+        assert row["gate_facts"][-1]["reason"] == "order_accepted"
+        assert row["gate_facts"][-1]["submission_status"] == str(OrderStatus.CREATED)
+    else:
+        assert "decision_id" not in row and "gate_facts" not in row
+        assert "trace_gate_facts" not in row and "original_signal" not in row
+
+
+@pytest.mark.parametrize("research_options,expected_trace", [
+    ({"entry_audit": True}, True),
+    ({"entry_audit": True, "trace_gate_facts": False}, False),
+    ({"entry_audit": False, "trace_gate_facts": True}, True),
+])
+def test_original_engine_research_trace_preserves_filled_candidate_identity(research_options, expected_trace):
+    from research.ml_selection.environment import FullEngineEnvironment
+    from tests.test_ml_selection_environment import OneUnitHold, market, parameters
+
+    configured = parameters()
+    configured["research"] = research_options
+    environment = FullEngineEnvironment(market(), parameters=configured,
+        engine_options={"initial_capital": 1000., "slippage": 0., "warmup_period": 0,
+                        "terminal_policy": "forced_liquidation"},
+        strategies={"OneUnitHold": OneUnitHold()})
+    episode = environment.run_episode()
+    assert episode.summary["accounting_ok"]
+    opening = next(trade for trade in episode.result["trades"] if trade["side"] == "buy")
+    row = next(item for item in episode.engine.event_processor.entry_audit
+               if item.get("order_id") == opening["order_id"])
+    assert episode.engine.event_processor.trace_gate_facts is expected_trace
+    if expected_trace:
+        assert row["decision_id"] == row["observation_id"]
+        assert row["original_strategy_signal"] is True
+        assert row["signal"] == row["original_signal"]
+        assert row["gate_facts"] and row["cash_fraction"] == 1.
+        assert row["actual_position_ids"] and row["actual_lot_ids"]
+    else:
+        assert "decision_id" not in row and "gate_facts" not in row
+        assert row["actual_position_ids"] and row["actual_lot_ids"]
 
 
 @pytest.mark.parametrize("legacy_time", ["2020-01-01T00:00:00", "2020-01-01T00:00:00+00:00", "2020-01-01T00:00:00Z"])
@@ -433,7 +499,7 @@ def test_resident_management_targets_match_live_through_flat_and_new_epoch(live_
 @pytest.mark.parametrize("mode", ["spot", "spot_margin"])
 @pytest.mark.parametrize("fault", ["none", "missing_order", "duplicate_fill", "fee_delta", "deposit", "missing_price", "stale_price", "extra_position", "extra_business_field"])
 def test_full_account_snapshot_injection_matrix(tmp_path, record_property, mode, fault):
-    from core.account_reconciliation import reconcile_account_snapshots
+    from core.trading.account_reconciliation import reconcile_account_snapshots
     now = datetime(2026, 9, 20, tzinfo=timezone.utc)
     margin = mode == "spot_margin"
     expected = {
@@ -536,7 +602,7 @@ def test_canonical_default_tif_only_reaches_venue_for_resting_limit(kind):
 
 
 def test_nonfinite_account_failure_report_is_strict_json_serializable():
-    from core.account_reconciliation import reconcile_account_snapshots
+    from core.trading.account_reconciliation import reconcile_account_snapshots
     now = datetime(2026, 9, 20, tzinfo=timezone.utc)
     report = reconcile_account_snapshots({"equity": 100, "extra": [1]},
         {"equity": float("nan"), "extra": [float("inf")]}, checked_at=now)

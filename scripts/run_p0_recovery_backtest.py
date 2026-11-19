@@ -12,10 +12,8 @@ import json
 import logging
 from pathlib import Path
 import random
-import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 
 import numpy as np
 import pandas as pd
@@ -24,7 +22,7 @@ from backtest.engine import BacktestEngine
 from backtest.reporting import ReportGenerator
 from backtest.reporting.serialization import write_metrics_json
 from config.config import config
-from core.reproducibility import (
+from core.foundation.reproducibility import (
     canonical_json, code_identity, deterministic_result_digest,
     load_data_snapshots, load_manifest, runtime_identity, sha256_file,
 )

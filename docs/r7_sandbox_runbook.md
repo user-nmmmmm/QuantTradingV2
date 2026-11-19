@@ -85,7 +85,7 @@ Get-Content reports/live_alerts.jsonl -Tail 20 -Wait
 每个 `risk_halt`、`tick_unhealthy`、`circuit_breaker_triggered` 或 `circuit_breaker_restored` 都必须登记。事件键是告警行中的 `<timestamp>|<event>`：
 
 ~~~powershell
-python -m core.incident_journal --event-key "2026-08-08T12:00:00+00:00|risk_halt" --outcome explained --explanation "Stale-market-data drill; no orders submitted; health recovered" --operator "operator-name"
+python -m ops.incident_journal --event-key "2026-08-08T12:00:00+00:00|risk_halt" --outcome explained --explanation "Stale-market-data drill; no orders submitted; health recovered" --operator "operator-name"
 ~~~
 
 ## 5. 每日对账
@@ -118,7 +118,7 @@ $LASTEXITCODE
 
 ## 7. 中期检查与正式退出验收
 
-14–28 个连续自然日仅可安排中期检查，不能作为 R7 / SYS-17 正式退出门槛。旧工具 `core.r7_acceptance` 默认检查 14 日、逐日研究账本对账、告警解释及 G11–G16 关闭记录；它不验证两种市场状态，也不替代完整账户来源及候选身份验收。准备 `reports/r7_p0_p1_closures.json` 时，只有真实关闭后才能填写：
+14–28 个连续自然日仅可安排中期检查，不能作为 R7 / SYS-17 正式退出门槛。旧工具 `ops.r7_acceptance` 默认检查 14 日、逐日研究账本对账、告警解释及 G11–G16 关闭记录；它不验证两种市场状态，也不替代完整账户来源及候选身份验收。准备 `reports/r7_p0_p1_closures.json` 时，只有真实关闭后才能填写：
 
 ~~~json
 {"G11": "closed", "G12": "closed", "G13": "closed", "G14": "closed", "G15": "closed", "G16": "closed"}
@@ -127,17 +127,17 @@ $LASTEXITCODE
 已有真实记录后运行中期诊断，日期必须替换为实际发生的观察区间：
 
 ~~~powershell
-python -m core.r7_acceptance --start "<实际开始日期YYYY-MM-DD>" --end "<实际结束日期YYYY-MM-DD>" --account-id sandbox-ops-01 --minimum-days 14
+python -m ops.r7_acceptance --start "<实际开始日期YYYY-MM-DD>" --end "<实际结束日期YYYY-MM-DD>" --account-id sandbox-ops-01 --minimum-days 14
 $LASTEXITCODE
 Get-Content reports/r7_acceptance.json
 ~~~
 
 退出码 `0` 和 `ok: true` 只证明旧工具上述有限检查通过，不代表 G24、SYS-17 或实盘准入完整通过。增加该命令的 `--minimum-days` 也不会使它自动具有市场状态、六层逐笔对账或冻结身份校验能力。
 
-正式门槛实现位于 [core/admission_gates.py](../core/admission_gates.py)：`audit_paper_run` 与 `review_admission` 强制至少 56 个连续自然日及两种市场状态，较长的冻结要求继续生效。`evaluate_phase6(bundle)` 会按依赖顺序计算 shadow、paper、六层对账、执行校准、监控和人工裁决，并继续评价小额运行及扩容。实际完整证据包准备好后，命令接口为：
+正式门槛实现位于 [ops/admission_gates.py](../ops/admission_gates.py)：`audit_paper_run` 与 `review_admission` 强制至少 56 个连续自然日及两种市场状态，较长的冻结要求继续生效。`evaluate_phase6(bundle)` 会按依赖顺序计算 shadow、paper、六层对账、执行校准、监控和人工裁决，并继续评价小额运行及扩容。实际完整证据包准备好后，命令接口为：
 
 ~~~powershell
-python -m core.admission_gates --input "<实际Phase6证据包路径.json>" --output reports/phase6/phase6_review.json
+python -m ops.admission_gates --input "<实际Phase6证据包路径.json>" --output reports/phase6/phase6_review.json
 ~~~
 
 输入使用 `paper_observations`、`minimum_paper_days`、`minimum_market_regimes`、`paper_required_start/end`、`expected_lifecycle/actual_lifecycle`、`execution_observations`、`monitoring_snapshots`、`alert_delivery_verified`、`holdout_report` 及 `admission_approval` 等真实证据字段。不得填入合成记录或人为声明已通过来填补缺口。完整输出中的 `admission_passed` / `tasks.T-6.6` 与包含小额运行和扩容的总 `passed` 分开阅读；命令只在所有阶段均通过时返回 `0`，否则返回 `2`。该工具的计算通过也不能自行认证输入来源，更不能替代绑定精确候选、账户、范围和有效期的独立复核及人工授权。

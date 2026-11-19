@@ -3,7 +3,7 @@
 
 设计要点
 --------
-- 复用 ``core.data_fetcher.DataFetcher``（统一归一化 / 去重 / 时区口径）。
+- 复用 ``core.market.data_fetcher.DataFetcher``（统一归一化 / 去重 / 时区口径）。
 - 按周期将每块限制为最多约 9000 根，避免 ``fetch_ccxt`` 单次 10000 根安全上限，
   因此 ``1h`` / ``5m`` 这类高频周期跨多年也能完整下载。
 - 增量更新：本地已有缓存时，只补下最后一根 K 线之后的数据。
@@ -44,19 +44,17 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
 
-from core.data_fetcher import DataFetcher, timeframe_delta  # noqa: E402
-from core.logger import get_logger  # noqa: E402
-from core.universe import normalize_symbol  # noqa: E402
+from core.market.data_fetcher import DataFetcher, timeframe_delta  # noqa: E402
+from core.foundation.content_hash import LF_HASH_POLICY, cache_hash_matches, sha256_lf_bytes  # noqa: E402
+from core.foundation.logger import get_logger  # noqa: E402
+from core.market.universe import normalize_symbol  # noqa: E402
 
 logger = get_logger("fetch_binance_data")
 
@@ -219,7 +217,7 @@ def main(argv=None) -> int:
                    and old_record.get("symbol") == normalize_symbol(symbol)
                    and old_record.get("file") == csv_path.name
                    and old_record.get("coverage", {}).get("status") == "complete"
-                   and csv_path.exists() and old_record.get("sha256") == sha256_file(csv_path))
+                   and csv_path.exists() and cache_hash_matches(csv_path.read_bytes(), old_record))
         existing = load_existing(csv_path) if trusted and not args.no_incremental else None
         if csv_path.exists() and not trusted:
             logger.warning("Unverified legacy cache excluded from incremental merge: %s", csv_path)
@@ -259,7 +257,7 @@ def main(argv=None) -> int:
             if not archived.exists():
                 archived.write_bytes(csv_path.read_bytes())
             legacy_copy = str(archived.relative_to(out_dir))
-        merged.to_csv(csv_path)
+        merged.to_csv(csv_path, lineterminator="\n")
         manifest["symbols"][symbol] = {
             "provider": args.exchange, "timeframe": args.timeframe, "market_type": "spot",
             "symbol": normalize_symbol(symbol), "original_symbol": symbol,
@@ -269,7 +267,7 @@ def main(argv=None) -> int:
             "rows": int(len(merged)),
             "first": merged.index.min().isoformat(),
             "last": merged.index.max().isoformat(),
-            "sha256": sha256_file(csv_path),
+            "sha256": sha256_lf_bytes(csv_path.read_bytes()), "hash_policy": LF_HASH_POLICY,
         }
         logger.info("  写入 %s（%d 行，%s .. %s）", csv_path.name, len(merged),
                     merged.index.min().date(), merged.index.max().date())

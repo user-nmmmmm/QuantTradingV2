@@ -15,6 +15,7 @@ from core.metrics.performance import (
     SECONDS_PER_YEAR,
     METRICS_FORMULA_VERSION,
     infer_periods_per_year,
+    equity_period_returns,
     monthly_returns,
     calculate_sharpe,
     calculate_drawdown,
@@ -47,7 +48,7 @@ from core.metrics.validation import (
 __all__ = [
     "Metrics",
     "SECONDS_PER_YEAR", "METRICS_FORMULA_VERSION",
-    "infer_periods_per_year", "monthly_returns", "calculate_sharpe",
+    "infer_periods_per_year", "equity_period_returns", "monthly_returns", "calculate_sharpe",
     "calculate_drawdown", "calculate_drawdown_events", "calculate_equity_metrics",
     "calculate_exposure", "calculate_profit_factor", "calculate_trade_quality",
     "calculate_r_multiple_stats", "calculate_signal_funnel", "calculate_cost_sensitivity",
@@ -67,6 +68,7 @@ class Metrics:
     """
 
     infer_periods_per_year = staticmethod(infer_periods_per_year)
+    equity_period_returns = staticmethod(equity_period_returns)
     monthly_returns = staticmethod(monthly_returns)
     calculate_sharpe = staticmethod(calculate_sharpe)
     calculate_drawdown = staticmethod(calculate_drawdown)

@@ -8,17 +8,18 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 
 from backtest.signal_ghost import clone_research_broker
-from core.orders import TERMINAL_STATUSES
-from core.reproducibility import canonical_json, sha256_bytes
-from core.runtime import MarketDataSlice
-from core.signal_adaptive_types import MetaReplayPolicy
-from core.signal_meta_layer import EXCLUDED_GATES
-from core.signal_observation_types import finite, fingerprint, iso
-from core.timeframes import as_utc_timestamp, timeframe_delta
+from core.trading.orders import TERMINAL_STATUSES
+from core.foundation.reproducibility import canonical_json, sha256_bytes
+from core.foundation.runtime import MarketDataSlice
+from signal_meta.signal_adaptive_types import MetaReplayPolicy
+from signal_meta.signal_meta_layer import EXCLUDED_GATES
+from signal_meta.signal_observation_types import finite, fingerprint, iso
+from core.market.timeframes import as_utc_timestamp, timeframe_delta
 
 
 ARMS = ("baseline", "gate", "sizing")
@@ -26,7 +27,7 @@ ARMS = ("baseline", "gate", "sizing")
 
 @dataclass
 class _Account:
-    broker: object
+    broker: Any
     active: dict = field(default_factory=dict)
     audit_cursor: int = 0
     trade_cursor: int = 0
@@ -38,12 +39,18 @@ class _Account:
 
 def _identity(policy):
     root = Path(__file__).resolve().parents[1]
-    names = ("backtest/signal_meta_replay.py", "backtest/signal_ghost.py",
-             "core/signal_adaptive_types.py", "core/broker/__init__.py",
-             "core/broker/matching.py", "core/broker/fill_service.py",
-             "core/broker/financing.py", "core/portfolio.py")
+    # key -> file. The keys keep the names they had before the B1/B2 package moves, so the fingerprint
+    # structure is unchanged; only where the file lives moved.
+    files = {"backtest/signal_meta_replay.py": "backtest/signal_meta_replay.py",
+             "backtest/signal_ghost.py": "backtest/signal_ghost.py",
+             "core/signal_adaptive_types.py": "signal_meta/signal_adaptive_types.py",
+             "core/broker/__init__.py": "core/broker/__init__.py",
+             "core/broker/matching.py": "core/broker/matching.py",
+             "core/broker/fill_service.py": "core/broker/fill_service.py",
+             "core/broker/financing.py": "core/broker/financing.py",
+             "core/portfolio.py": "core/trading/portfolio.py"}
     return fingerprint({"policy": policy.to_dict(), "sources": {
-        name: (root/name).read_text(encoding="utf-8") for name in names}})
+        key: (root/path).read_text(encoding="utf-8") for key, path in files.items()}})
 
 
 def _validate_inputs(p0, p2, policy, timeframe):

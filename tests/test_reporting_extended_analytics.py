@@ -7,7 +7,7 @@ import jsonschema
 import pandas as pd
 
 from backtest.reporting import ReportGenerator
-from core.metric_result import MetricResult
+from core.analytics.metric_result import MetricResult
 
 
 def _equity_curve():

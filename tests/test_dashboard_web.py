@@ -96,7 +96,7 @@ class DashboardWebTests(unittest.TestCase):
             urlopen(Request(self.base + "/api/status", data=b"{}", method="POST"))
         self.assertEqual(raised.exception.code, 405)
         with self.assertRaises(HTTPError) as raised:
-            urlopen(self.base + "/../core/status_snapshot.py")
+            urlopen(self.base + "/../ops/status_snapshot.py")
         self.assertEqual(raised.exception.code, 404)
 
     def test_historical_candles_are_bounded_and_source_labelled(self) -> None:

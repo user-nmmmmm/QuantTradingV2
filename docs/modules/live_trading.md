@@ -1,15 +1,15 @@
 # live_trading/ 模块说明
 
-`live_trading/` 负责实盘/沙盒的轮询调度、订单恢复、账户与保护单对账、健康监控、告警和状态导出。状态识别、仓位管理与新开仓候选收集复用 `core/runtime.py` 的 `EventProcessor`；实盘还要在下单前核对独立账户事实与最新风险限制。
+`live_trading/` 负责实盘/沙盒的轮询调度、订单恢复、账户与保护单对账、健康监控、告警和状态导出。状态识别、仓位管理与新开仓候选收集复用 `core/foundation/runtime.py` 的 `EventProcessor`；实盘还要在下单前核对独立账户事实与最新风险限制。
 
 ## `live_trading/engine.py` — LiveTradingEngine
 
-`LiveTradingEngine` 组装依赖并运行轮询主循环。具体实现分布在 `engine.py` 及三个 mixin：
+`LiveTradingEngine` 组装依赖并运行轮询主循环。具体实现分布在 `engine.py` 及四个协作类（持有 `host` 引用，ADR 0018）：
 
-- `LiveMarketDataAdapter`（行情，来自 `core/market_data.py`）
+- `LiveMarketDataAdapter`（行情，来自 `core/market/market_data.py`）
 - `RecordedExecutionAdapter`（执行，包装一个 `LiveBroker`）
 - `RiskManager`、路由器、候选分配器及共享的 `EventProcessor`
-- `TickOrchestratorMixin`（`tick_orchestrator.py`）、`RecoveryMixin`（`recovery.py`）、`StateExportMixin`（`state_export.py`）
+- `TickOrchestrator`（`tick_orchestrator.py`）、`PortfolioRiskActions`（`risk_actions.py`）、`Recovery`（`recovery.py`）、`StateExport`（`state_export.py`）
 
 **关键方法**：
 
@@ -70,7 +70,7 @@
 
 `_reconcile_protective_orders()` 以真实净持仓及其 `position_ids` 为依据：保护数量扣除在途非止损退出单已经占用的数量，包括状态未确定的退出单；保护价沿收紧方向调整。持仓身份用于防止旧仓位的保护单或退出动作误作用于后来重新建立的仓位。
 
-替换保护单前，撤单必须确认进入 `CANCELED`、`FILLED` 或 `EXPIRED` 终态，并重新同步余额。订单记录无法读取、持仓身份不可验证或取消结果不确定时，系统会降级并告警；不能确认保护时可请求退出，但退出仍受账户事实、撤单结果及持仓归属约束。请求退出不代表已经平仓。详细约定见 [`protective_stop_contract.md`](../protective_stop_contract.md) 和 [`g2_order_lifecycle.md`](../g2_order_lifecycle.md)。
+替换保护单前，撤单必须确认进入 `CANCELED`、`FILLED` 或 `EXPIRED` 终态，并重新同步余额。订单记录无法读取、持仓身份不可验证或取消结果不确定时，系统会降级并告警；不能确认保护时可请求退出，但退出仍受账户事实、撤单结果及持仓归属约束。请求退出不代表已经平仓。详细约定见 [`protective_stop_contract.md`](../protective_stop_contract.md) 和 [`g2_order_lifecycle.md`](../live_safety.md)。
 
 ## `live_trading/execution_adapter.py` — RecordedExecutionAdapter
 

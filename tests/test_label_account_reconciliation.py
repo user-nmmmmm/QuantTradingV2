@@ -1,6 +1,6 @@
 import pytest
 
-from analysis.label_account_reconciliation import reconcile_candidate_account, reconcile_observation_account
+from signal_meta.label_account_reconciliation import reconcile_candidate_account, reconcile_observation_account
 
 
 def facts():

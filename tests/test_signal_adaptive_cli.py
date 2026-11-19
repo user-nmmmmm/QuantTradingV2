@@ -10,16 +10,17 @@ from unittest.mock import MagicMock
 import numpy as np
 import pytest
 
-import main as entrypoint
+import cli.replay as replay_module
+import cli.run as entrypoint
 from backtest.engine import BacktestEngine
 from backtest.reporting.signal_meta_layer import signal_meta_layer_digest
 from backtest.reporting.signal_observation import signal_observation_digest
 from config.config import config
-from core.reproducibility import (
+from core.foundation.reproducibility import (
     deterministic_result_digest, save_data_snapshots, sha256_file, write_manifest,
 )
-from core.signal_adaptive_types import AdaptiveEVPolicy, MetaReplayPolicy
-from core.signal_ev_types import EVPolicy
+from signal_meta.signal_adaptive_types import AdaptiveEVPolicy, MetaReplayPolicy
+from signal_meta.signal_ev_types import EVPolicy
 
 from tests.engine_baseline_harness import build_synthetic_data_map
 
@@ -87,6 +88,7 @@ def test_p3_horizon_must_be_preregistered_without_extending_p0():
 
 
 @pytest.mark.parametrize("random_slip", [False, True])
+@pytest.mark.slow
 def test_research_replays_leave_official_p0_p1_outputs_and_random_sequence_unchanged(runs, random_slip):
     _, results = runs
     _, off = results[random_slip, False]
@@ -191,7 +193,7 @@ def test_p1_manifest_replays_unchanged_even_if_new_config_enables_p2_p3(runs, tm
         constructed.append(kwargs)
         return actual_engine(**kwargs)
 
-    monkeypatch.setattr(entrypoint, "BacktestEngine", capture)
+    monkeypatch.setattr(replay_module, "BacktestEngine", capture)   # replay_manifest builds the engine in cli.replay
     assert entrypoint.replay_manifest(str(path)) == 0
     assert constructed[0]["signal_adaptive"]["enabled"] is False
     assert constructed[0]["signal_meta_replay"]["enabled"] is False

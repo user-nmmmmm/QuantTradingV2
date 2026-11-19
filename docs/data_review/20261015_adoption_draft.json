@@ -1,0 +1,745 @@
+{
+  "A5_executed": false,
+  "adopted": false,
+  "applied_commit": null,
+  "approved_at": null,
+  "approved_by": null,
+  "comparison_policy": "binance-daily-comparison/v2",
+  "decisions_required": {
+    "MATIC_policy": null,
+    "experiment_horizon": null,
+    "tail_policy": null
+  },
+  "files": {
+    "AAVE_USDT.csv": {
+      "point_in_time": "unknown",
+      "proposal": {
+        "action": "trim_final_bar",
+        "candidate": {
+          "first": "2020-10-15",
+          "last": "2026-08-26",
+          "rows": 2142,
+          "sha256": "5e6375df406b465a92d8318ae462da3d052f056e92454a75e540f53522380797"
+        },
+        "owner_decision": null,
+        "removed_boundary_rows": 1,
+        "removed_rows": 1,
+        "removed_unmatched_rows": 0
+      },
+      "provenance_status": "unverified",
+      "source": {
+        "first": "2020-10-15",
+        "last": "2026-08-27",
+        "rows": 2143,
+        "sha256": "743efaa565f6dd755f79ed6f522604e743b20181cc014132dea706b73b3b3ea4"
+      },
+      "symbol": "AAVE/USDT"
+    },
+    "ADA_USDT.csv": {
+      "point_in_time": "unknown",
+      "proposal": {
+        "action": "trim_final_bar",
+        "candidate": {
+          "first": "2018-04-17",
+          "last": "2026-08-26",
+          "rows": 3054,
+          "sha256": "7806f184283acf7f7f60b5fc106f50f43eb8699430cd977ebd449179f1120571"
+        },
+        "owner_decision": null,
+        "removed_boundary_rows": 1,
+        "removed_rows": 1,
+        "removed_unmatched_rows": 0
+      },
+      "provenance_status": "unverified",
+      "source": {
+        "first": "2018-04-17",
+        "last": "2026-08-27",
+        "rows": 3055,
+        "sha256": "95b70e975a3ad88f688c50b5daf2799976081124c7ea778160874c37c91898cb"
+      },
+      "symbol": "ADA/USDT"
+    },
+    "APT_USDT.csv": {
+      "point_in_time": "unknown",
+      "proposal": {
+        "action": "trim_final_bar",
+        "candidate": {
+          "first": "2022-10-19",
+          "last": "2026-08-26",
+          "rows": 1408,
+          "sha256": "4508348f014b5363b2e2ef9e3946b121d43668207cea209b776ea6141a8922d1"
+        },
+        "owner_decision": null,
+        "removed_boundary_rows": 1,
+        "removed_rows": 1,
+        "removed_unmatched_rows": 0
+      },
+      "provenance_status": "unverified",
+      "source": {
+        "first": "2022-10-19",
+        "last": "2026-08-27",
+        "rows": 1409,
+        "sha256": "35104a240e5ef5e8fad212612cf4e1ea352aaa3b23236f1e8eebd4cbbd5126ec"
+      },
+      "symbol": "APT/USDT"
+    },
+    "ARB_USDT.csv": {
+      "point_in_time": "unknown",
+      "proposal": {
+        "action": "trim_final_bar",
+        "candidate": {
+          "first": "2023-03-23",
+          "last": "2026-08-26",
+          "rows": 1253,
+          "sha256": "0406d67a4f26c3d208b1292cfa8c912b17c9dd80c38f27afafa322ff8c3517a5"
+        },
+        "owner_decision": null,
+        "removed_boundary_rows": 1,
+        "removed_rows": 1,
+        "removed_unmatched_rows": 0
+      },
+      "provenance_status": "unverified",
+      "source": {
+        "first": "2023-03-23",
+        "last": "2026-08-27",
+        "rows": 1254,
+        "sha256": "14b4cb7178dcb5719afbd24c6cd3d280edd868cdc5fdb260e9a8bc4be6344c8c"
+      },
+      "symbol": "ARB/USDT"
+    },
+    "ATOM_USDT.csv": {
+      "point_in_time": "unknown",
+      "proposal": {
+        "action": "trim_final_bar",
+        "candidate": {
+          "first": "2019-04-29",
+          "last": "2026-08-26",
+          "rows": 2677,
+          "sha256": "be60e7702d1b81d9bc32320bee2b3dac0c99d5cae709aa04970b467d66f1139b"
+        },
+        "owner_decision": null,
+        "removed_boundary_rows": 1,
+        "removed_rows": 1,
+        "removed_unmatched_rows": 0
+      },
+      "provenance_status": "unverified",
+      "source": {
+        "first": "2019-04-29",
+        "last": "2026-08-27",
+        "rows": 2678,
+        "sha256": "9ee7d74a8d923dc00cba793f59abc42c9f226fd47754875a09b2284847c8cd58"
+      },
+      "symbol": "ATOM/USDT"
+    },
+    "AVAX_USDT.csv": {
+      "point_in_time": "unknown",
+      "proposal": {
+        "action": "trim_final_bar",
+        "candidate": {
+          "first": "2020-09-22",
+          "last": "2026-08-26",
+          "rows": 2165,
+          "sha256": "6658348a6be4c287aadb9a3a8a5282ba68a5cf5ca9b3cd2929dabbc515aba574"
+        },
+        "owner_decision": null,
+        "removed_boundary_rows": 1,
+        "removed_rows": 1,
+        "removed_unmatched_rows": 0
+      },
+      "provenance_status": "unverified",
+      "source": {
+        "first": "2020-09-22",
+        "last": "2026-08-27",
+        "rows": 2166,
+        "sha256": "6f9447182f4a7b8c1c0144f5fa5573210650cf3e6ea758e5ed335e29bcd8dd5c"
+      },
+      "symbol": "AVAX/USDT"
+    },
+    "BCH_USDT.csv": {
+      "point_in_time": "unknown",
+      "proposal": {
+        "action": "trim_final_bar",
+        "candidate": {
+          "first": "2019-11-28",
+          "last": "2026-08-26",
+          "rows": 2464,
+          "sha256": "265a5171d65129a9b5eba039734c2f5a4deeba9934da27e32d3daf7b08f974f2"
+        },
+        "owner_decision": null,
+        "removed_boundary_rows": 1,
+        "removed_rows": 1,
+        "removed_unmatched_rows": 0
+      },
+      "provenance_status": "unverified",
+      "source": {
+        "first": "2019-11-28",
+        "last": "2026-08-27",
+        "rows": 2465,
+        "sha256": "763a3f90519863fe22cb48d2f079aa0fcbad3cfe60267e87bb69cdb24e2c5e57"
+      },
+      "symbol": "BCH/USDT"
+    },
+    "BNB_USDT.csv": {
+      "point_in_time": "unknown",
+      "proposal": {
+        "action": "trim_final_bar",
+        "candidate": {
+          "first": "2017-11-06",
+          "last": "2026-08-26",
+          "rows": 3216,
+          "sha256": "c7bf781b12b431124f7d2b9cdb253ebbb87bbdd65c337aa4de8f4fc12eb6d12e"
+        },
+        "owner_decision": null,
+        "removed_boundary_rows": 1,
+        "removed_rows": 1,
+        "removed_unmatched_rows": 0
+      },
+      "provenance_status": "unverified",
+      "source": {
+        "first": "2017-11-06",
+        "last": "2026-08-27",
+        "rows": 3217,
+        "sha256": "b4f89ae24122c1361c49b9758bf16746eccb39c303b50a0261036ad6213e4435"
+      },
+      "symbol": "BNB/USDT"
+    },
+    "BTC_USDT.csv": {
+      "point_in_time": "unknown",
+      "proposal": {
+        "action": "retain_bytes",
+        "candidate": {
+          "first": "2020-01-01",
+          "last": "2026-09-19",
+          "rows": 2454,
+          "sha256": "c7041dfa4f4c791e18597b645392a8a0a0bab41e035c13ab125174b4898310db"
+        },
+        "owner_decision": null,
+        "removed_boundary_rows": 0,
+        "removed_rows": 0,
+        "removed_unmatched_rows": 0
+      },
+      "provenance_status": "download_manifest",
+      "source": {
+        "first": "2020-01-01",
+        "last": "2026-09-19",
+        "rows": 2454,
+        "sha256": "c7041dfa4f4c791e18597b645392a8a0a0bab41e035c13ab125174b4898310db"
+      },
+      "symbol": "BTC/USDT"
+    },
+    "DOGE_USDT.csv": {
+      "point_in_time": "unknown",
+      "proposal": {
+        "action": "trim_final_bar",
+        "candidate": {
+          "first": "2019-07-05",
+          "last": "2026-08-26",
+          "rows": 2610,
+          "sha256": "8e6258f1535b8239ad669dbfc7c1e0ae8cc0d44036b65f0d57ad711b534b0a9b"
+        },
+        "owner_decision": null,
+        "removed_boundary_rows": 1,
+        "removed_rows": 1,
+        "removed_unmatched_rows": 0
+      },
+      "provenance_status": "unverified",
+      "source": {
+        "first": "2019-07-05",
+        "last": "2026-08-27",
+        "rows": 2611,
+        "sha256": "98456fa7e12e63e3a15ac1ec89a8394582f33d6880f745c3d13ebeedea531c20"
+      },
+      "symbol": "DOGE/USDT"
+    },
+    "DOT_USDT.csv": {
+      "point_in_time": "unknown",
+      "proposal": {
+        "action": "trim_final_bar",
+        "candidate": {
+          "first": "2020-08-18",
+          "last": "2026-08-26",
+          "rows": 2200,
+          "sha256": "362c3302a4efc6e0c79607b947c6fbb02ed7d6ba0798c002c8aa933c13be6bf6"
+        },
+        "owner_decision": null,
+        "removed_boundary_rows": 1,
+        "removed_rows": 1,
+        "removed_unmatched_rows": 0
+      },
+      "provenance_status": "unverified",
+      "source": {
+        "first": "2020-08-18",
+        "last": "2026-08-27",
+        "rows": 2201,
+        "sha256": "68f02ad62439773be0938305da59c2629cd561c3c3f7eda6fa1396aa1ddf9072"
+      },
+      "symbol": "DOT/USDT"
+    },
+    "ETC_USDT.csv": {
+      "point_in_time": "unknown",
+      "proposal": {
+        "action": "trim_final_bar",
+        "candidate": {
+          "first": "2018-06-12",
+          "last": "2026-08-26",
+          "rows": 2998,
+          "sha256": "29ac9fb58170f1a8eb44cb9e0cd2869e4f9df9448986cbbbfda90e85c79b7aaa"
+        },
+        "owner_decision": null,
+        "removed_boundary_rows": 1,
+        "removed_rows": 1,
+        "removed_unmatched_rows": 0
+      },
+      "provenance_status": "unverified",
+      "source": {
+        "first": "2018-06-12",
+        "last": "2026-08-27",
+        "rows": 2999,
+        "sha256": "c7f17828df6b8e6e914a6a6c1db5165a234c9dc9b2e24abcad1cee5b9f0de8ae"
+      },
+      "symbol": "ETC/USDT"
+    },
+    "ETH_USDT.csv": {
+      "point_in_time": "unknown",
+      "proposal": {
+        "action": "retain_bytes",
+        "candidate": {
+          "first": "2020-01-01",
+          "last": "2026-09-19",
+          "rows": 2454,
+          "sha256": "ebafb9256d94dc82d7a53e7d1e3e59bdac159d75d61b41ad7af344ebada00c77"
+        },
+        "owner_decision": null,
+        "removed_boundary_rows": 0,
+        "removed_rows": 0,
+        "removed_unmatched_rows": 0
+      },
+      "provenance_status": "download_manifest",
+      "source": {
+        "first": "2020-01-01",
+        "last": "2026-09-19",
+        "rows": 2454,
+        "sha256": "ebafb9256d94dc82d7a53e7d1e3e59bdac159d75d61b41ad7af344ebada00c77"
+      },
+      "symbol": "ETH/USDT"
+    },
+    "FIL_USDT.csv": {
+      "point_in_time": "unknown",
+      "proposal": {
+        "action": "trim_final_bar",
+        "candidate": {
+          "first": "2020-10-15",
+          "last": "2026-08-26",
+          "rows": 2142,
+          "sha256": "2422ff123d09e9d70a617fa0e92c64760b4374433ef1049196478137ee3b361d"
+        },
+        "owner_decision": null,
+        "removed_boundary_rows": 1,
+        "removed_rows": 1,
+        "removed_unmatched_rows": 0
+      },
+      "provenance_status": "unverified",
+      "source": {
+        "first": "2020-10-15",
+        "last": "2026-08-27",
+        "rows": 2143,
+        "sha256": "a870b247a1aa7b13c29e53392b1228ed5332ed72ca900fa487908ac34a14d80f"
+      },
+      "symbol": "FIL/USDT"
+    },
+    "ICP_USDT.csv": {
+      "point_in_time": "unknown",
+      "proposal": {
+        "action": "trim_final_bar",
+        "candidate": {
+          "first": "2021-05-11",
+          "last": "2026-08-26",
+          "rows": 1934,
+          "sha256": "7cf06eb02acaba622045c85fe60dc9c9b9432f53bc33d177ba47bc90427f0b60"
+        },
+        "owner_decision": null,
+        "removed_boundary_rows": 1,
+        "removed_rows": 1,
+        "removed_unmatched_rows": 0
+      },
+      "provenance_status": "unverified",
+      "source": {
+        "first": "2021-05-11",
+        "last": "2026-08-27",
+        "rows": 1935,
+        "sha256": "4b6730419a3b8e8aec8fd40aba9c45ac9bd518f94d78c7fd2865e709907b6d0f"
+      },
+      "symbol": "ICP/USDT"
+    },
+    "INJ_USDT.csv": {
+      "point_in_time": "unknown",
+      "proposal": {
+        "action": "trim_final_bar",
+        "candidate": {
+          "first": "2020-10-21",
+          "last": "2026-08-26",
+          "rows": 2136,
+          "sha256": "9ca42e2f9d3646bdb0bef81d6ef42df2967294e2c4ec0649185eab88417e3dc3"
+        },
+        "owner_decision": null,
+        "removed_boundary_rows": 1,
+        "removed_rows": 1,
+        "removed_unmatched_rows": 0
+      },
+      "provenance_status": "unverified",
+      "source": {
+        "first": "2020-10-21",
+        "last": "2026-08-27",
+        "rows": 2137,
+        "sha256": "19be8a446cb22fc238363a5680f5e20f3bc87514a3d2cf595f5d28c7d7ec5b65"
+      },
+      "symbol": "INJ/USDT"
+    },
+    "LDO_USDT.csv": {
+      "point_in_time": "unknown",
+      "proposal": {
+        "action": "trim_final_bar",
+        "candidate": {
+          "first": "2022-05-09",
+          "last": "2026-08-26",
+          "rows": 1571,
+          "sha256": "126bd943823bf82dd1a320fc312694555ca1633b2a5de7d29decd891be1cb489"
+        },
+        "owner_decision": null,
+        "removed_boundary_rows": 1,
+        "removed_rows": 1,
+        "removed_unmatched_rows": 0
+      },
+      "provenance_status": "unverified",
+      "source": {
+        "first": "2022-05-09",
+        "last": "2026-08-27",
+        "rows": 1572,
+        "sha256": "1eceb88e1f41b0732eee61643c8871ca4dd80dd88efa62ba00930f834532e0b9"
+      },
+      "symbol": "LDO/USDT"
+    },
+    "LINK_USDT.csv": {
+      "point_in_time": "unknown",
+      "proposal": {
+        "action": "trim_final_bar",
+        "candidate": {
+          "first": "2019-01-16",
+          "last": "2026-08-26",
+          "rows": 2780,
+          "sha256": "301805a26815832bd0bc95002ea71b1d54529438aad12cb40e2aa7c392785cba"
+        },
+        "owner_decision": null,
+        "removed_boundary_rows": 1,
+        "removed_rows": 1,
+        "removed_unmatched_rows": 0
+      },
+      "provenance_status": "unverified",
+      "source": {
+        "first": "2019-01-16",
+        "last": "2026-08-27",
+        "rows": 2781,
+        "sha256": "26ab18b0ab7a84c0c9d456d2f255cdea8f6b45c89e2e3f84c185a1e0d07aa9c0"
+      },
+      "symbol": "LINK/USDT"
+    },
+    "LTC_USDT.csv": {
+      "point_in_time": "unknown",
+      "proposal": {
+        "action": "trim_final_bar",
+        "candidate": {
+          "first": "2017-12-13",
+          "last": "2026-08-26",
+          "rows": 3179,
+          "sha256": "62b78d431d08c02d4e3d1ff1fbc27c1d8095b6ebe38e8fa2cff6ef8215db78f5"
+        },
+        "owner_decision": null,
+        "removed_boundary_rows": 1,
+        "removed_rows": 1,
+        "removed_unmatched_rows": 0
+      },
+      "provenance_status": "unverified",
+      "source": {
+        "first": "2017-12-13",
+        "last": "2026-08-27",
+        "rows": 3180,
+        "sha256": "9c9d5b6f12c6252a557ca340254da5ab51c390ae53437c4043d2d05e4d7fa1e5"
+      },
+      "symbol": "LTC/USDT"
+    },
+    "MATIC_USDT.csv": {
+      "point_in_time": "unknown",
+      "proposal": {
+        "action": "trim_unmatched_and_delisting_day",
+        "candidate": {
+          "first": "2019-04-26",
+          "last": "2024-09-09",
+          "rows": 1964,
+          "sha256": "c1358bf78c64fd8f478057142c0c5f8c454f5d2ed8451e2e0ee7a4f832c2c8b4"
+        },
+        "owner_decision": null,
+        "removed_boundary_rows": 1,
+        "removed_rows": 84,
+        "removed_unmatched_rows": 83
+      },
+      "provenance_status": "unverified",
+      "source": {
+        "first": "2019-04-26",
+        "last": "2025-03-24",
+        "rows": 2048,
+        "sha256": "73136663796a3f9bfe9189f9df3de589b42e6a461ddc793bd15e791b61413f4d"
+      },
+      "symbol": "MATIC/USDT"
+    },
+    "NEAR_USDT.csv": {
+      "point_in_time": "unknown",
+      "proposal": {
+        "action": "trim_final_bar",
+        "candidate": {
+          "first": "2020-10-14",
+          "last": "2026-08-26",
+          "rows": 2143,
+          "sha256": "1af73b2f5cb5fadea029847e5965300363d02d5b1797413b7563fbd46cd1e808"
+        },
+        "owner_decision": null,
+        "removed_boundary_rows": 1,
+        "removed_rows": 1,
+        "removed_unmatched_rows": 0
+      },
+      "provenance_status": "unverified",
+      "source": {
+        "first": "2020-10-14",
+        "last": "2026-08-27",
+        "rows": 2144,
+        "sha256": "b0d81f0fb6e9c22a44f17c817ce71bd7a39a56914d2829c836863dc1c2e62339"
+      },
+      "symbol": "NEAR/USDT"
+    },
+    "OP_USDT.csv": {
+      "point_in_time": "unknown",
+      "proposal": {
+        "action": "trim_final_bar",
+        "candidate": {
+          "first": "2022-06-01",
+          "last": "2026-08-26",
+          "rows": 1548,
+          "sha256": "a49f0def7e68ad2c8fc8bea4e69f7de901080f49e75d16cbfebaaec56b06437a"
+        },
+        "owner_decision": null,
+        "removed_boundary_rows": 1,
+        "removed_rows": 1,
+        "removed_unmatched_rows": 0
+      },
+      "provenance_status": "unverified",
+      "source": {
+        "first": "2022-06-01",
+        "last": "2026-08-27",
+        "rows": 1549,
+        "sha256": "ef37fdfc7f0c14755439bfdcea5b4df4984f46257f3cbabdb3eb82b0db9883c0"
+      },
+      "symbol": "OP/USDT"
+    },
+    "SEI_USDT.csv": {
+      "point_in_time": "unknown",
+      "proposal": {
+        "action": "trim_final_bar",
+        "candidate": {
+          "first": "2023-08-15",
+          "last": "2026-08-26",
+          "rows": 1108,
+          "sha256": "5002d2145922359e57334d22538e36b323b8c9cb6af07bc716f9a510f9a605cc"
+        },
+        "owner_decision": null,
+        "removed_boundary_rows": 1,
+        "removed_rows": 1,
+        "removed_unmatched_rows": 0
+      },
+      "provenance_status": "unverified",
+      "source": {
+        "first": "2023-08-15",
+        "last": "2026-08-27",
+        "rows": 1109,
+        "sha256": "97d3093e7cbcc1852aef6f63797e20030ee1761dbb584959a4ab212be98bad73"
+      },
+      "symbol": "SEI/USDT"
+    },
+    "SOL_USDT.csv": {
+      "point_in_time": "unknown",
+      "proposal": {
+        "action": "trim_final_bar",
+        "candidate": {
+          "first": "2020-08-11",
+          "last": "2026-08-26",
+          "rows": 2207,
+          "sha256": "a2fa57d707e62d4d0228d68be5f81dcaf19a9f0bb8b050dd2784c8020b59745c"
+        },
+        "owner_decision": null,
+        "removed_boundary_rows": 1,
+        "removed_rows": 1,
+        "removed_unmatched_rows": 0
+      },
+      "provenance_status": "unverified",
+      "source": {
+        "first": "2020-08-11",
+        "last": "2026-08-27",
+        "rows": 2208,
+        "sha256": "55e5b7f5009600428787ace4cd943a049ecc2485b83159810d2c426d6b82b7ae"
+      },
+      "symbol": "SOL/USDT"
+    },
+    "SUI_USDT.csv": {
+      "point_in_time": "unknown",
+      "proposal": {
+        "action": "trim_final_bar",
+        "candidate": {
+          "first": "2023-05-03",
+          "last": "2026-08-26",
+          "rows": 1212,
+          "sha256": "f80b28ca2fe04813fc11eabfe5e3313d2a83cabf7d368a9b2ad707c3503bde64"
+        },
+        "owner_decision": null,
+        "removed_boundary_rows": 1,
+        "removed_rows": 1,
+        "removed_unmatched_rows": 0
+      },
+      "provenance_status": "unverified",
+      "source": {
+        "first": "2023-05-03",
+        "last": "2026-08-27",
+        "rows": 1213,
+        "sha256": "bd8f2b17e46d01e43f5314f63294a6baac331d3faabf7001df08279ad017fb68"
+      },
+      "symbol": "SUI/USDT"
+    },
+    "TIA_USDT.csv": {
+      "point_in_time": "unknown",
+      "proposal": {
+        "action": "trim_final_bar",
+        "candidate": {
+          "first": "2023-10-31",
+          "last": "2026-08-26",
+          "rows": 1031,
+          "sha256": "9a043debad5466be65909aeb4f8f08d10677ac1e2be8e72126223b73f5c9192e"
+        },
+        "owner_decision": null,
+        "removed_boundary_rows": 1,
+        "removed_rows": 1,
+        "removed_unmatched_rows": 0
+      },
+      "provenance_status": "unverified",
+      "source": {
+        "first": "2023-10-31",
+        "last": "2026-08-27",
+        "rows": 1032,
+        "sha256": "f9dc441d3638c0a96565837eefe6bcbbf8638b69f051a6d2e011c8c05ea7496a"
+      },
+      "symbol": "TIA/USDT"
+    },
+    "TRX_USDT.csv": {
+      "point_in_time": "unknown",
+      "proposal": {
+        "action": "trim_final_bar",
+        "candidate": {
+          "first": "2018-06-11",
+          "last": "2026-08-26",
+          "rows": 2999,
+          "sha256": "bba3ed60fa71b2ee651e8259feb15119cb8c0314c03bf202294e7200f4d74ec7"
+        },
+        "owner_decision": null,
+        "removed_boundary_rows": 1,
+        "removed_rows": 1,
+        "removed_unmatched_rows": 0
+      },
+      "provenance_status": "unverified",
+      "source": {
+        "first": "2018-06-11",
+        "last": "2026-08-27",
+        "rows": 3000,
+        "sha256": "3a469cf5daca4fa3846dcde99266a9053b54cbd2723b567fbb00f200d2c36c41"
+      },
+      "symbol": "TRX/USDT"
+    },
+    "UNI_USDT.csv": {
+      "point_in_time": "unknown",
+      "proposal": {
+        "action": "trim_final_bar",
+        "candidate": {
+          "first": "2020-09-17",
+          "last": "2026-08-26",
+          "rows": 2170,
+          "sha256": "3b950354cd90f3cea7c040ff84be1940559e82de3f920e6f498ab01b6b651caa"
+        },
+        "owner_decision": null,
+        "removed_boundary_rows": 1,
+        "removed_rows": 1,
+        "removed_unmatched_rows": 0
+      },
+      "provenance_status": "unverified",
+      "source": {
+        "first": "2020-09-17",
+        "last": "2026-08-27",
+        "rows": 2171,
+        "sha256": "b7e2a8e7de12e8ac9f1cc326b1b6466b75856b2339783f629f87e40ee65c0b10"
+      },
+      "symbol": "UNI/USDT"
+    },
+    "XLM_USDT.csv": {
+      "point_in_time": "unknown",
+      "proposal": {
+        "action": "trim_final_bar",
+        "candidate": {
+          "first": "2018-05-31",
+          "last": "2026-08-26",
+          "rows": 3010,
+          "sha256": "b6ed628fca013d658fbed475a69634347e0c35d4263ae2a74f38ba840537be7b"
+        },
+        "owner_decision": null,
+        "removed_boundary_rows": 1,
+        "removed_rows": 1,
+        "removed_unmatched_rows": 0
+      },
+      "provenance_status": "unverified",
+      "source": {
+        "first": "2018-05-31",
+        "last": "2026-08-27",
+        "rows": 3011,
+        "sha256": "a8aee8c30bd462c33cbe11fc65d257f25a1f6076be391695b733152989bde6aa"
+      },
+      "symbol": "XLM/USDT"
+    },
+    "XRP_USDT.csv": {
+      "point_in_time": "unknown",
+      "proposal": {
+        "action": "trim_final_bar",
+        "candidate": {
+          "first": "2018-05-04",
+          "last": "2026-08-26",
+          "rows": 3037,
+          "sha256": "6aa0f7a18ec6aed13d94d28214e7d5aac2733cbe30b1486240acc232029c01db"
+        },
+        "owner_decision": null,
+        "removed_boundary_rows": 1,
+        "removed_rows": 1,
+        "removed_unmatched_rows": 0
+      },
+      "provenance_status": "unverified",
+      "source": {
+        "first": "2018-05-04",
+        "last": "2026-08-27",
+        "rows": 3038,
+        "sha256": "501c0a65e784237affba24d5e9ae5e8120b67a19dbe992b4daacbb2ea7b8ccce"
+      },
+      "symbol": "XRP/USDT"
+    }
+  },
+  "input_manifest_sha256": "092f3b9bbae34060cd4e2022d43de5ba0ed133667398ae5774e94cfc0d2995df",
+  "limitations": [
+    "Corroboration is current agreement, not original provenance or historical availability.",
+    "Candidates are proposed byte prefixes; no existing CSV or receipt is replaced.",
+    "Keep per-symbol coverage explicit; do not forward-fill delisted symbols or silently extend the study horizon."
+  ],
+  "review_sha256": "ff6e79d071d177df35ec78f4dbb074ce274909559011e9e65118492f687e7cf7",
+  "schema": "data-adoption-draft/v1",
+  "source_commit": "322cc0cc9f04bbc600f1c2381d6415fd06a811d9",
+  "status": "draft_pending_owner"
+}

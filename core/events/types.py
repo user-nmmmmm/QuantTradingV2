@@ -1,7 +1,7 @@
 """Immutable event payload types: StructuredPayload, OrderEvent, FillEvent, etc.
 
 Split out of core/events.py (A4) — see docs/architecture_review.md.
-Depends only on core.domain; no codec or ID-generation logic lives here.
+Depends only on core.foundation.domain; no codec or ID-generation logic lives here.
 """
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from types import MappingProxyType
 from typing import Any, Dict, Optional, Type
 from uuid import UUID
 
-from core.domain import (
+from core.foundation.domain import (
     OrderIntent,
     OrderStatus,
     PortfolioSnapshot,

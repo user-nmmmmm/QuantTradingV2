@@ -2,7 +2,7 @@ from copy import deepcopy
 
 from config.config import config
 from scripts.run_trend_portfolio_v3 import effective_config, source_hashes, suite_specs
-from core.market_data import HistoricalMarketDataAdapter
+from core.market.market_data import HistoricalMarketDataAdapter
 import pandas as pd
 
 
@@ -31,7 +31,7 @@ def test_source_identity_includes_actual_routing_and_factor_dependencies():
     files = source_hashes()
     assert "router/router.py" in files
     assert "core/factors/volume.py" in files
-    assert "core/selection_v2.py" in files
+    assert "core/planning/selection_v2.py" in files
 
 
 def test_window_stream_skips_events_but_preserves_exact_history_and_positions():

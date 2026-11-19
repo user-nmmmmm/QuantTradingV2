@@ -1,13 +1,13 @@
 from typing import Dict, Any, Optional
 import pandas as pd
 import numpy as np
-from core.state import MarketState
-from core.portfolio import Portfolio
-from core.indicators import Indicators
+from core.trading.state import MarketState
+from core.trading.portfolio import Portfolio
+from core.analytics.indicators import Indicators
 from core.factors import MomentumFactors
 from strategies.base import Strategy
-from core.entry_audit import note
-from core.timeframes import observed_bars_after, as_utc_timestamp
+from core.trading.entry_audit import note
+from core.market.timeframes import observed_bars_after, as_utc_timestamp
 
 """
 震荡均值回归策略（Range Mean Reversion）模块
@@ -22,7 +22,7 @@ from core.timeframes import observed_bars_after, as_utc_timestamp
 - 额外维护 trade_state：连续亏损计数与冷却期（连亏达到阈值后暂停一段 bars）
 
 说明：
-- 本策略覆盖 on_bar，用于在平仓后估算一次交易盈亏，从而更新 trade_state
+- trade_state 由权威完整平仓回调（on_trade_closed）更新，不在提交退出时估算盈亏
 """
 
 class RangeStrategy(Strategy):

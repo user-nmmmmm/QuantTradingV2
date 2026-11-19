@@ -4,9 +4,9 @@ from unittest.mock import MagicMock
 from analysis.optimize import build_optimization_strategies
 from config.config import config
 from core.broker import Broker
-from core.domain import OrderStatus
-from core.lots import CloseEvent
-from core.portfolio import Portfolio
+from core.foundation.domain import OrderStatus
+from core.trading.lots import CloseEvent
+from core.trading.portfolio import Portfolio
 from strategies.trend_breakout import TrendBreakoutStrategy
 
 

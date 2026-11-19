@@ -12,7 +12,7 @@ import pytest
 from backtest.reporting import ReportGenerator
 from core.broker import Broker
 from core.metrics import calculate_r_multiple_stats
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 
 
 def _bar(ts, o, h, l, c, v=1000.0):

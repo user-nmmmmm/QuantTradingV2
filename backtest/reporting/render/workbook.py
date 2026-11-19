@@ -24,7 +24,7 @@ from backtest.reporting.risk_metrics import (
     calculate_active_risk_metrics,
     calculate_portfolio_risk_metrics,
 )
-from core.metrics import monthly_returns
+from core.metrics import equity_period_returns, monthly_returns
 
 
 def _letter(index: int) -> str:
@@ -198,9 +198,9 @@ def write_workbook_report(
         equity["benchmark"] = aligned.to_numpy()
     else:
         equity["benchmark"] = np.nan
-    peak = equity["equity"].cummax().replace(0, np.nan)
+    peak = equity["equity"].cummax().where(lambda peak: peak > 0)
     equity["drawdown"] = (equity["equity"] - peak) / peak
-    equity["period_return"] = equity["equity"].pct_change(fill_method=None)
+    equity["period_return"] = equity_period_returns(equity["equity"])
     equity["date_label"] = pd.to_datetime(equity["timestamp"]).dt.strftime("%Y-%m-%d")
     equity["chart_strategy"] = equity["equity"]
     equity["chart_benchmark"] = equity["benchmark"]

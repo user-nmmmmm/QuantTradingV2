@@ -1,0 +1,18 @@
+{
+  "core/alerting.py": "core/foundation/alerting.py",
+  "core/allocation.py": "core/planning/allocation.py",
+  "core/admission_gates.py": "ops/admission_gates.py",
+  "core/backtest_audit.py": "core/analytics/backtest_audit.py",
+  "core/data_fetcher.py": "core/market/data_fetcher.py",
+  "core/diagnostics.py": "core/analytics/diagnostics.py",
+  "core/execution_port.py": "core/trading/execution_port.py",
+  "core/health.py": "ops/health.py",
+  "core/lots.py": "core/trading/lots.py",
+  "core/market_data.py": "core/market/market_data.py",
+  "core/order_store.py": "core/trading/order_store.py",
+  "core/portfolio.py": "core/trading/portfolio.py",
+  "core/r7_acceptance.py": "ops/r7_acceptance.py",
+  "core/reproducibility.py": "core/foundation/reproducibility.py",
+  "core/runtime.py": "core/foundation/runtime.py",
+  "core/state.py": "core/trading/state.py"
+}

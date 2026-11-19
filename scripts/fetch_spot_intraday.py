@@ -13,16 +13,14 @@ import hashlib
 import json
 import math
 from pathlib import Path
-import sys
 import time
 
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 
-from core.quote_observations import _PublicBookFetcher, quote_error_details, utc_now
-from core.request_budget import request_scope
+from core.market.quote_observations import _PublicBookFetcher, quote_error_details, utc_now
+from core.market.request_budget import request_scope
 
 SYMBOLS = ("BTCUSDT", "ETHUSDT")
 HOUR_MS = 3_600_000
@@ -54,7 +52,7 @@ def retry_after_seconds(value, now=None):
     except (ValueError, TypeError):
         stamp = parsedate_to_datetime(str(value))
         if stamp.tzinfo is None:
-            raise ValueError("Retry-After date must be aware")
+            raise ValueError("Retry-After date must be aware") from None   # float() failing only means "not a number of seconds"
         seconds = (stamp-(now or utc_now())).total_seconds()
     if not math.isfinite(seconds):
         raise ValueError("invalid Retry-After")
@@ -126,7 +124,7 @@ def download_intraday(output, *, start="2020-01-01T00:00:00Z", end_exclusive="20
         "short_candle_policy": "retain original venue close time and flag; never fill missing hours",
         "public_read_only": True, "credentials_used": False, "orders_submitted": 0}
     source_hashes = {str(p.relative_to(ROOT)): sha256(p.read_bytes()) for p in
-        (Path(__file__).resolve(), ROOT/"core/quote_observations.py")}
+        (Path(__file__).resolve(), ROOT/"core/market/quote_observations.py")}
     registration = output/"registration.json"
     if resume:
         prior = json.loads(registration.read_text(encoding="utf-8"))

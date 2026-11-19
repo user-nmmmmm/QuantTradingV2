@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, Mapping, Optional
 
-from core.domain import OrderIntent
+from core.foundation.domain import OrderIntent
 from core.exchange.metadata import ExchangeCapabilities
 
 

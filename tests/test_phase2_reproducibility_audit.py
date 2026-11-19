@@ -6,28 +6,28 @@ from datetime import datetime, timezone
 import pandas as pd
 
 from backtest.engine import BacktestEngine
-from core.backtest_audit import (
+from core.analytics.backtest_audit import (
     cross_verify_top_trades,
     validate_audit_coverage,
     write_event_log,
 )
-from core.benchmarks import (
+from core.analytics.benchmarks import (
     dynamic_equal_weight_rebalanced,
     fixed_equal_weight_buy_hold,
 )
 from core.broker import Broker
-from core.data import DataHandler
+from core.market.data import DataHandler
 from core.events import Signal
-from core.market_data import HistoricalMarketDataAdapter
-from core.portfolio import Portfolio
-from core.reproducibility import (
+from core.market.market_data import HistoricalMarketDataAdapter
+from core.trading.portfolio import Portfolio
+from core.foundation.reproducibility import (
     data_identity,
     deterministic_result_digest,
     load_data_snapshots,
     save_data_snapshots,
     sha256_frame,
 )
-from core.universe import PointInTimeUniverse, UniverseMembership
+from core.market.universe import PointInTimeUniverse, UniverseMembership
 
 
 def _frame(index, closes):

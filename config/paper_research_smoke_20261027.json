@@ -1,0 +1,22 @@
+{
+  "accepted_scope": ["PR25-18", "PR25-19"],
+  "evaluation_kind": "retrospective",
+  "information_policy": {"mode": "retrospective", "knowledge": "local", "unknown": "exclude"},
+  "paper_refs": ["L01", "L02", "L08"],
+  "candidate_ids": ["broker_fixture_a"],
+  "benchmark_ids": ["broker_fixture_b"],
+  "search_scope": "current_local_family",
+  "historical_global_search_complete": false,
+  "primary_metric": "deterministic_account_bridge_and_repeatability",
+  "economic_or_precision_target": {"threshold": 1e-8, "units": "quote_currency_or_asset_quantity", "rationale": "Exact synthetic arithmetic and matching repeatable account facts in two independent bounded worker processes; no return hypothesis."},
+  "training_selection_rule": "No fitting or candidate selection; run both declared original Broker fixtures.",
+  "evaluation_windows": [{"id": "synthetic_account", "role": "engineering_fixture", "start": "2024-01-01T00:00:00Z", "end": "2024-01-04T00:00:00Z"}],
+  "cost_policy_id": "synthetic_taker_fee_10bps_no_slippage_v1",
+  "risk_policy_id": "synthetic_cash_only_no_leverage_v1",
+  "resampling": {"method": "not_applicable", "reason": "Deterministic engineering account reconciliation and subprocess resource validation."},
+  "attempt_budget": 2,
+  "resource_budget": {"wall_time_seconds": 300, "memory_mb": 512, "max_workers": 1},
+  "stop_rules": ["No new arm or changed input after registration", "Stop on source/data/config drift or account mismatch", "Retain failed, interrupted and unstarted jobs", "Do not read final samples, train models or place real orders"],
+  "final_access_policy_id": null,
+  "live_authorization": false
+}

@@ -1,7 +1,7 @@
 import unittest
 import pandas as pd
 import numpy as np
-from core.state import MarketStateMachine, MarketState
+from core.trading.state import MarketStateMachine, MarketState
 
 class TestMarketStateMachine(unittest.TestCase):
     def setUp(self):

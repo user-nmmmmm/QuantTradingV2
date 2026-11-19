@@ -6,8 +6,8 @@ import math
 import pandas as pd
 import pytest
 
-from core.signal_ev_ledger import EVLedger
-from core.signal_ev_types import EVPolicy
+from signal_meta.signal_ev_ledger import EVLedger
+from signal_meta.signal_ev_types import EVPolicy
 
 
 def candidate(number=0, *, day=0, symbol="BTC/USDT", strategy="Trend",

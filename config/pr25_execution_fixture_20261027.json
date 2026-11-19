@@ -1,0 +1,478 @@
+{
+  "schema": "execution-cost-fixture-config/v1",
+  "samples": [
+    {
+      "sample_id": "s0-buy",
+      "parent_order_id": "p0-buy",
+      "client_order_id": "c0-buy",
+      "symbol": "BTC/USDT",
+      "side": "buy",
+      "market_identity": "fixture:spot:simulation:USDT",
+      "decision_at": "2024-01-01T01:00:00+00:00",
+      "features_available_at": "2024-01-01T01:00:00+00:00",
+      "target_available_at": "2024-01-01T01:01:00+00:00",
+      "execution_cost_bps": 5.0,
+      "requested_notional": 100.0,
+      "features": {
+        "spread_bps": 1.0,
+        "volatility": 0.01,
+        "requested_notional": 100.0
+      },
+      "evidence_verification_level": "simulation_fixture"
+    },
+    {
+      "sample_id": "s0-sell",
+      "parent_order_id": "p0-sell",
+      "client_order_id": "c0-sell",
+      "symbol": "BTC/USDT",
+      "side": "sell",
+      "market_identity": "fixture:spot:simulation:USDT",
+      "decision_at": "2024-01-01T01:00:00+00:00",
+      "features_available_at": "2024-01-01T01:00:00+00:00",
+      "target_available_at": "2024-01-01T01:01:00+00:00",
+      "execution_cost_bps": 6.0,
+      "requested_notional": 100.0,
+      "features": {
+        "spread_bps": 1.0,
+        "volatility": 0.01,
+        "requested_notional": 100.0
+      },
+      "evidence_verification_level": "simulation_fixture"
+    },
+    {
+      "sample_id": "s1-buy",
+      "parent_order_id": "p1-buy",
+      "client_order_id": "c1-buy",
+      "symbol": "BTC/USDT",
+      "side": "buy",
+      "market_identity": "fixture:spot:simulation:USDT",
+      "decision_at": "2024-01-02T01:00:00+00:00",
+      "features_available_at": "2024-01-02T01:00:00+00:00",
+      "target_available_at": "2024-01-02T01:01:00+00:00",
+      "execution_cost_bps": 8.0,
+      "requested_notional": 200.0,
+      "features": {
+        "spread_bps": 2.0,
+        "volatility": 0.01,
+        "requested_notional": 200.0
+      },
+      "evidence_verification_level": "simulation_fixture"
+    },
+    {
+      "sample_id": "s1-sell",
+      "parent_order_id": "p1-sell",
+      "client_order_id": "c1-sell",
+      "symbol": "BTC/USDT",
+      "side": "sell",
+      "market_identity": "fixture:spot:simulation:USDT",
+      "decision_at": "2024-01-02T01:00:00+00:00",
+      "features_available_at": "2024-01-02T01:00:00+00:00",
+      "target_available_at": "2024-01-02T01:01:00+00:00",
+      "execution_cost_bps": 9.0,
+      "requested_notional": 200.0,
+      "features": {
+        "spread_bps": 2.0,
+        "volatility": 0.01,
+        "requested_notional": 200.0
+      },
+      "evidence_verification_level": "simulation_fixture"
+    },
+    {
+      "sample_id": "s2-buy",
+      "parent_order_id": "p2-buy",
+      "client_order_id": "c2-buy",
+      "symbol": "BTC/USDT",
+      "side": "buy",
+      "market_identity": "fixture:spot:simulation:USDT",
+      "decision_at": "2024-01-03T01:00:00+00:00",
+      "features_available_at": "2024-01-03T01:00:00+00:00",
+      "target_available_at": "2024-01-03T01:01:00+00:00",
+      "execution_cost_bps": 11.0,
+      "requested_notional": 300.0,
+      "features": {
+        "spread_bps": 3.0,
+        "volatility": 0.01,
+        "requested_notional": 300.0
+      },
+      "evidence_verification_level": "simulation_fixture"
+    },
+    {
+      "sample_id": "s2-sell",
+      "parent_order_id": "p2-sell",
+      "client_order_id": "c2-sell",
+      "symbol": "BTC/USDT",
+      "side": "sell",
+      "market_identity": "fixture:spot:simulation:USDT",
+      "decision_at": "2024-01-03T01:00:00+00:00",
+      "features_available_at": "2024-01-03T01:00:00+00:00",
+      "target_available_at": "2024-01-03T01:01:00+00:00",
+      "execution_cost_bps": 12.0,
+      "requested_notional": 300.0,
+      "features": {
+        "spread_bps": 3.0,
+        "volatility": 0.01,
+        "requested_notional": 300.0
+      },
+      "evidence_verification_level": "simulation_fixture"
+    },
+    {
+      "sample_id": "s3-buy",
+      "parent_order_id": "p3-buy",
+      "client_order_id": "c3-buy",
+      "symbol": "BTC/USDT",
+      "side": "buy",
+      "market_identity": "fixture:spot:simulation:USDT",
+      "decision_at": "2024-01-04T01:00:00+00:00",
+      "features_available_at": "2024-01-04T01:00:00+00:00",
+      "target_available_at": "2024-01-04T01:01:00+00:00",
+      "execution_cost_bps": 5.0,
+      "requested_notional": 100.0,
+      "features": {
+        "spread_bps": 1.0,
+        "volatility": 0.01,
+        "requested_notional": 100.0
+      },
+      "evidence_verification_level": "simulation_fixture"
+    },
+    {
+      "sample_id": "s3-sell",
+      "parent_order_id": "p3-sell",
+      "client_order_id": "c3-sell",
+      "symbol": "BTC/USDT",
+      "side": "sell",
+      "market_identity": "fixture:spot:simulation:USDT",
+      "decision_at": "2024-01-04T01:00:00+00:00",
+      "features_available_at": "2024-01-04T01:00:00+00:00",
+      "target_available_at": "2024-01-04T01:01:00+00:00",
+      "execution_cost_bps": 6.0,
+      "requested_notional": 100.0,
+      "features": {
+        "spread_bps": 1.0,
+        "volatility": 0.01,
+        "requested_notional": 100.0
+      },
+      "evidence_verification_level": "simulation_fixture"
+    },
+    {
+      "sample_id": "s4-buy",
+      "parent_order_id": "p4-buy",
+      "client_order_id": "c4-buy",
+      "symbol": "BTC/USDT",
+      "side": "buy",
+      "market_identity": "fixture:spot:simulation:USDT",
+      "decision_at": "2024-01-05T01:00:00+00:00",
+      "features_available_at": "2024-01-05T01:00:00+00:00",
+      "target_available_at": "2024-01-05T01:01:00+00:00",
+      "execution_cost_bps": 8.0,
+      "requested_notional": 200.0,
+      "features": {
+        "spread_bps": 2.0,
+        "volatility": 0.01,
+        "requested_notional": 200.0
+      },
+      "evidence_verification_level": "simulation_fixture"
+    },
+    {
+      "sample_id": "s4-sell",
+      "parent_order_id": "p4-sell",
+      "client_order_id": "c4-sell",
+      "symbol": "BTC/USDT",
+      "side": "sell",
+      "market_identity": "fixture:spot:simulation:USDT",
+      "decision_at": "2024-01-05T01:00:00+00:00",
+      "features_available_at": "2024-01-05T01:00:00+00:00",
+      "target_available_at": "2024-01-05T01:01:00+00:00",
+      "execution_cost_bps": 9.0,
+      "requested_notional": 200.0,
+      "features": {
+        "spread_bps": 2.0,
+        "volatility": 0.01,
+        "requested_notional": 200.0
+      },
+      "evidence_verification_level": "simulation_fixture"
+    },
+    {
+      "sample_id": "s5-buy",
+      "parent_order_id": "p5-buy",
+      "client_order_id": "c5-buy",
+      "symbol": "BTC/USDT",
+      "side": "buy",
+      "market_identity": "fixture:spot:simulation:USDT",
+      "decision_at": "2024-01-06T01:00:00+00:00",
+      "features_available_at": "2024-01-06T01:00:00+00:00",
+      "target_available_at": "2024-01-06T01:01:00+00:00",
+      "execution_cost_bps": 11.0,
+      "requested_notional": 300.0,
+      "features": {
+        "spread_bps": 3.0,
+        "volatility": 0.01,
+        "requested_notional": 300.0
+      },
+      "evidence_verification_level": "simulation_fixture"
+    },
+    {
+      "sample_id": "s5-sell",
+      "parent_order_id": "p5-sell",
+      "client_order_id": "c5-sell",
+      "symbol": "BTC/USDT",
+      "side": "sell",
+      "market_identity": "fixture:spot:simulation:USDT",
+      "decision_at": "2024-01-06T01:00:00+00:00",
+      "features_available_at": "2024-01-06T01:00:00+00:00",
+      "target_available_at": "2024-01-06T01:01:00+00:00",
+      "execution_cost_bps": 12.0,
+      "requested_notional": 300.0,
+      "features": {
+        "spread_bps": 3.0,
+        "volatility": 0.01,
+        "requested_notional": 300.0
+      },
+      "evidence_verification_level": "simulation_fixture"
+    },
+    {
+      "sample_id": "s6-buy",
+      "parent_order_id": "p6-buy",
+      "client_order_id": "c6-buy",
+      "symbol": "BTC/USDT",
+      "side": "buy",
+      "market_identity": "fixture:spot:simulation:USDT",
+      "decision_at": "2024-01-07T01:00:00+00:00",
+      "features_available_at": "2024-01-07T01:00:00+00:00",
+      "target_available_at": "2024-01-07T01:01:00+00:00",
+      "execution_cost_bps": 5.0,
+      "requested_notional": 100.0,
+      "features": {
+        "spread_bps": 1.0,
+        "volatility": 0.01,
+        "requested_notional": 100.0
+      },
+      "evidence_verification_level": "simulation_fixture"
+    },
+    {
+      "sample_id": "s6-sell",
+      "parent_order_id": "p6-sell",
+      "client_order_id": "c6-sell",
+      "symbol": "BTC/USDT",
+      "side": "sell",
+      "market_identity": "fixture:spot:simulation:USDT",
+      "decision_at": "2024-01-07T01:00:00+00:00",
+      "features_available_at": "2024-01-07T01:00:00+00:00",
+      "target_available_at": "2024-01-07T01:01:00+00:00",
+      "execution_cost_bps": 6.0,
+      "requested_notional": 100.0,
+      "features": {
+        "spread_bps": 1.0,
+        "volatility": 0.01,
+        "requested_notional": 100.0
+      },
+      "evidence_verification_level": "simulation_fixture"
+    },
+    {
+      "sample_id": "s7-buy",
+      "parent_order_id": "p7-buy",
+      "client_order_id": "c7-buy",
+      "symbol": "BTC/USDT",
+      "side": "buy",
+      "market_identity": "fixture:spot:simulation:USDT",
+      "decision_at": "2024-01-08T01:00:00+00:00",
+      "features_available_at": "2024-01-08T01:00:00+00:00",
+      "target_available_at": "2024-01-08T01:01:00+00:00",
+      "execution_cost_bps": 8.0,
+      "requested_notional": 200.0,
+      "features": {
+        "spread_bps": 2.0,
+        "volatility": 0.01,
+        "requested_notional": 200.0
+      },
+      "evidence_verification_level": "simulation_fixture"
+    },
+    {
+      "sample_id": "s7-sell",
+      "parent_order_id": "p7-sell",
+      "client_order_id": "c7-sell",
+      "symbol": "BTC/USDT",
+      "side": "sell",
+      "market_identity": "fixture:spot:simulation:USDT",
+      "decision_at": "2024-01-08T01:00:00+00:00",
+      "features_available_at": "2024-01-08T01:00:00+00:00",
+      "target_available_at": "2024-01-08T01:01:00+00:00",
+      "execution_cost_bps": 9.0,
+      "requested_notional": 200.0,
+      "features": {
+        "spread_bps": 2.0,
+        "volatility": 0.01,
+        "requested_notional": 200.0
+      },
+      "evidence_verification_level": "simulation_fixture"
+    },
+    {
+      "sample_id": "s8-buy",
+      "parent_order_id": "p8-buy",
+      "client_order_id": "c8-buy",
+      "symbol": "BTC/USDT",
+      "side": "buy",
+      "market_identity": "fixture:spot:simulation:USDT",
+      "decision_at": "2024-01-09T01:00:00+00:00",
+      "features_available_at": "2024-01-09T01:00:00+00:00",
+      "target_available_at": "2024-01-09T01:01:00+00:00",
+      "execution_cost_bps": 11.0,
+      "requested_notional": 300.0,
+      "features": {
+        "spread_bps": 3.0,
+        "volatility": 0.01,
+        "requested_notional": 300.0
+      },
+      "evidence_verification_level": "simulation_fixture"
+    },
+    {
+      "sample_id": "s8-sell",
+      "parent_order_id": "p8-sell",
+      "client_order_id": "c8-sell",
+      "symbol": "BTC/USDT",
+      "side": "sell",
+      "market_identity": "fixture:spot:simulation:USDT",
+      "decision_at": "2024-01-09T01:00:00+00:00",
+      "features_available_at": "2024-01-09T01:00:00+00:00",
+      "target_available_at": "2024-01-09T01:01:00+00:00",
+      "execution_cost_bps": 12.0,
+      "requested_notional": 300.0,
+      "features": {
+        "spread_bps": 3.0,
+        "volatility": 0.01,
+        "requested_notional": 300.0
+      },
+      "evidence_verification_level": "simulation_fixture"
+    },
+    {
+      "sample_id": "s9-buy",
+      "parent_order_id": "p9-buy",
+      "client_order_id": "c9-buy",
+      "symbol": "BTC/USDT",
+      "side": "buy",
+      "market_identity": "fixture:spot:simulation:USDT",
+      "decision_at": "2024-01-10T01:00:00+00:00",
+      "features_available_at": "2024-01-10T01:00:00+00:00",
+      "target_available_at": "2024-01-10T01:01:00+00:00",
+      "execution_cost_bps": 5.0,
+      "requested_notional": 100.0,
+      "features": {
+        "spread_bps": 1.0,
+        "volatility": 0.01,
+        "requested_notional": 100.0
+      },
+      "evidence_verification_level": "simulation_fixture"
+    },
+    {
+      "sample_id": "s9-sell",
+      "parent_order_id": "p9-sell",
+      "client_order_id": "c9-sell",
+      "symbol": "BTC/USDT",
+      "side": "sell",
+      "market_identity": "fixture:spot:simulation:USDT",
+      "decision_at": "2024-01-10T01:00:00+00:00",
+      "features_available_at": "2024-01-10T01:00:00+00:00",
+      "target_available_at": "2024-01-10T01:01:00+00:00",
+      "execution_cost_bps": 6.0,
+      "requested_notional": 100.0,
+      "features": {
+        "spread_bps": 1.0,
+        "volatility": 0.01,
+        "requested_notional": 100.0
+      },
+      "evidence_verification_level": "simulation_fixture"
+    },
+    {
+      "sample_id": "s10-buy",
+      "parent_order_id": "p10-buy",
+      "client_order_id": "c10-buy",
+      "symbol": "BTC/USDT",
+      "side": "buy",
+      "market_identity": "fixture:spot:simulation:USDT",
+      "decision_at": "2024-01-11T01:00:00+00:00",
+      "features_available_at": "2024-01-11T01:00:00+00:00",
+      "target_available_at": "2024-01-11T01:01:00+00:00",
+      "execution_cost_bps": 8.0,
+      "requested_notional": 200.0,
+      "features": {
+        "spread_bps": 2.0,
+        "volatility": 0.01,
+        "requested_notional": 200.0
+      },
+      "evidence_verification_level": "simulation_fixture"
+    },
+    {
+      "sample_id": "s10-sell",
+      "parent_order_id": "p10-sell",
+      "client_order_id": "c10-sell",
+      "symbol": "BTC/USDT",
+      "side": "sell",
+      "market_identity": "fixture:spot:simulation:USDT",
+      "decision_at": "2024-01-11T01:00:00+00:00",
+      "features_available_at": "2024-01-11T01:00:00+00:00",
+      "target_available_at": "2024-01-11T01:01:00+00:00",
+      "execution_cost_bps": 9.0,
+      "requested_notional": 200.0,
+      "features": {
+        "spread_bps": 2.0,
+        "volatility": 0.01,
+        "requested_notional": 200.0
+      },
+      "evidence_verification_level": "simulation_fixture"
+    },
+    {
+      "sample_id": "s11-buy",
+      "parent_order_id": "p11-buy",
+      "client_order_id": "c11-buy",
+      "symbol": "BTC/USDT",
+      "side": "buy",
+      "market_identity": "fixture:spot:simulation:USDT",
+      "decision_at": "2024-01-12T01:00:00+00:00",
+      "features_available_at": "2024-01-12T01:00:00+00:00",
+      "target_available_at": "2024-01-12T01:01:00+00:00",
+      "execution_cost_bps": 11.0,
+      "requested_notional": 300.0,
+      "features": {
+        "spread_bps": 3.0,
+        "volatility": 0.01,
+        "requested_notional": 300.0
+      },
+      "evidence_verification_level": "simulation_fixture"
+    },
+    {
+      "sample_id": "s11-sell",
+      "parent_order_id": "p11-sell",
+      "client_order_id": "c11-sell",
+      "symbol": "BTC/USDT",
+      "side": "sell",
+      "market_identity": "fixture:spot:simulation:USDT",
+      "decision_at": "2024-01-12T01:00:00+00:00",
+      "features_available_at": "2024-01-12T01:00:00+00:00",
+      "target_available_at": "2024-01-12T01:01:00+00:00",
+      "execution_cost_bps": 12.0,
+      "requested_notional": 300.0,
+      "features": {
+        "spread_bps": 3.0,
+        "volatility": 0.01,
+        "requested_notional": 300.0
+      },
+      "evidence_verification_level": "simulation_fixture"
+    }
+  ],
+  "methods": [
+    "constant",
+    "daily_robust",
+    "ridge"
+  ],
+  "constant_bps": 20.0,
+  "test_start": "2024-01-09T00:00:00Z",
+  "expires_at": "2024-01-20T00:00:00Z",
+  "as_of": "2024-01-20T00:00:00Z",
+  "ridge_alpha": 0.01,
+  "primary_metric": "equal_day_mae_bps",
+  "economic_claim": "none: synthetic precision fixture",
+  "training_days": 8,
+  "test_days": 4,
+  "candidate_budget": 3,
+  "target_truth": "2 + 3 * spread_bps + sell_indicator; no market data",
+  "selection_rule": "report every arm; no real candidate promotion, tuning or grid expansion"
+}

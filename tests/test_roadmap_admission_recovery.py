@@ -13,13 +13,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from core.admission_gates import audit_paper_run, evaluate_phase6, reconcile_lifecycle, review_admission
+from ops.admission_gates import audit_paper_run, evaluate_phase6, reconcile_lifecycle, review_admission
 from core.events import EventCodec, OrderEvent, TradingEventPipeline
 from core.events.codec import _decode_value
 from core.events.store import SQLiteEventStore
 from core.risk import RiskManager
-from core.state_store_v2 import StateStore
-from core.strategy_health import HealthStatus, StrategyHealthMachine, StrategyHealthPolicy
+from core.trading.state_store_v2 import StateStore
+from core.analytics.strategy_health import HealthStatus, StrategyHealthMachine, StrategyHealthPolicy
 from research.audit.ledger import CashEvent, MarkPriceEvent
 from tests.test_phase6_operational_readiness import lifecycle, passing_bundle
 from tests.test_r7_fault_injection import CircuitBreakerRecoveryFaultInjectionTests, NOW
@@ -244,9 +244,10 @@ def test_failed_export_preserves_target_and_other_sessions_temporary_file(tmp_pa
     store.close()
 
 
+@pytest.mark.slow
 def test_multiple_processes_export_complete_snapshots(tmp_path):
     script = (
-        "import sys; from core.state_store_v2 import StateStore; from core.risk import RiskManager; "
+        "import sys; from core.trading.state_store_v2 import StateStore; from core.risk import RiskManager; "
         "from tests.test_roadmap_admission_recovery import live_engine; "
         "store=StateStore(':memory:'); engine=live_engine(store,RiskManager()); "
         "engine.state_file=sys.argv[1]; "

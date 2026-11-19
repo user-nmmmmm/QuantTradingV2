@@ -12,11 +12,9 @@ import json
 import logging
 from pathlib import Path
 import random
-import sys
 import time
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 
 import numpy as np
 import pandas as pd
@@ -25,9 +23,9 @@ from backtest.engine import BacktestEngine
 from backtest.reporting import ReportGenerator
 from backtest.reporting.serialization import write_metrics_json
 from config.config import config
-from core.data import DataHandler
-from core.entry_audit import reconcile
-from core.reproducibility import canonical_json, code_identity, deterministic_result_digest, sha256_file
+from core.market.data import DataHandler
+from core.trading.entry_audit import reconcile
+from core.foundation.reproducibility import canonical_json, code_identity, deterministic_result_digest, sha256_file
 from scripts.fetch_binance_data import DEFAULT_SYMBOLS
 
 EXTRA_BASES = "NEO EOS IOTA DASH ZEC XMR XTZ ALGO VET THETA FTM RUNE EGLD SAND MANA AXS GALA ENJ CHZ CRV SNX COMP MKR SUSHI YFI KAVA ZIL BAT 1INCH DYDX".split()

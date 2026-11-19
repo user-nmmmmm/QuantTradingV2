@@ -21,7 +21,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Optional
 
-from core.domain import OrderIntent
+from core.foundation.domain import OrderIntent
 from core.exchange.metadata import (
     DERIVATIVE_MARKET_TYPES,
     ExchangeBoundaryError,

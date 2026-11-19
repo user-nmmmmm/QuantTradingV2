@@ -76,6 +76,10 @@ def build_backtest_parser(default_initial_capital: float) -> argparse.ArgumentPa
     )
     parser.add_argument("--smart-allocation", action="store_true",
                         help="Plan same-bar multi-coin capital using score, volatility and correlation.")
+    parser.add_argument("--coin-selector", choices=["off", "on"], default="off",
+                        help="Enable the frozen ML coin selector for this backtest (default: off).")
+    parser.add_argument("--selector-bundle", default=None,
+                        help="Frozen selector package JSON; requires --coin-selector on.")
     parser.add_argument("--max-positions", type=int, default=None,
                         help="Maximum held plus pending coin positions (requires --smart-allocation).")
     parser.add_argument("--cash-reserve-pct", type=float, default=None,

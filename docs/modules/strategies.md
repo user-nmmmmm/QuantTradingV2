@@ -2,14 +2,14 @@
 
 本文按 **2026-10-01 当前工作区代码及 `config/params.yaml`** 整理，说明策略接口、实际交易规则、运行接线和扩展方法。工作区中尚未提交的 V2/V3 实现也包含在内；项目阶段、研究结论和准入证据仍以[统一 Roadmap](../unified_roadmap.md)及对应契约为准。
 
-策略模块提供可插拔的信号生成器，以及共用的退出、定仓和成交回调流程。回测与实盘复用这些策略类，调度、撮合、账户核算和恢复分别由外围模块负责。策略注册和政策注入集中在[组合工厂](../../composition/factory.py)，真实资金准入由[策略治理模块](../../core/strategy_governance.py)另行检查。
+策略模块提供可插拔的信号生成器，以及共用的退出、定仓和成交回调流程。回测与实盘复用这些策略类，调度、撮合、账户核算和恢复分别由外围模块负责。策略注册和政策注入集中在[组合工厂](../../composition/factory.py)，真实资金准入由[策略治理模块](../../ops/strategy_governance.py)另行检查。
 
 ## 1. 文件与策略清单
 
 | 文件 | 主要对象 | 职责 |
 | --- | --- | --- |
 | [`base.py`](../../strategies/base.py) | `Strategy` | 统一接口、上下文、入场候选、订单提交、硬止损及平仓事件消费 |
-| [`trend_breakout.py`](../../strategies/trend_breakout.py) | `TrendBreakoutStrategy`、`TrendBreakdownStrategy` | Donchian 多头突破与空头破位；复用健康、保护止损和候选评分 mixin |
+| [`trend_breakout.py`](../../strategies/trend_breakout.py) | `DonchianTrendStrategy`（共用基类）、`TrendBreakoutStrategy`、`TrendBreakdownStrategy` | Donchian 多头突破与空头破位；基类提供健康生命周期、保护止损和候选评分 |
 | [`mean_reversion.py`](../../strategies/mean_reversion.py) | `RangeStrategy` | 布林带、RSI、ATR 过滤及逐标的连亏冷却 |
 | [`volatility.py`](../../strategies/volatility.py) | `VolatilityReversionStrategy` | 价格扩张后的均值回归与随机指标确认 |
 | [`trend_portfolio_v2.py`](../../strategies/trend_portfolio_v2.py) | `TrendPortfolioV2Strategy` | 多周期趋势符号分数、状态风险倍率、波动率定仓及 ATR 退出 |
@@ -36,7 +36,7 @@
 
 ## 2. 运行流程与模块边界
 
-普通策略通过[共享运行内核](../../core/runtime.py)和[Router](../../router/router.py)进入下列流程：
+普通策略通过[共享运行内核](../../core/foundation/runtime.py)和[Router](../../router/router.py)进入下列流程：
 
 ```mermaid
 flowchart TD
@@ -56,10 +56,10 @@ flowchart TD
 
 1. **持仓管理优先。** Router 从 `Portfolio.lot_books` 查找原开仓策略，由它继续管理退出；不会因当前映射变成 `Cash` 就隐式执行 `StateSwitch` 平仓。最大持仓期限是独立退出控制，当前配置为 365 天。
 2. **空仓才收集候选。** 路由策略名称发生变化时，撤销旧入场意图并设置冷却。当前 `cooldown_bars=2`，条件是 `i <= cooldown_until`；仅状态变化但仍映射到同一个策略名称时，不触发这种切换冷却。
-3. **候选先汇总，再分配。** [PortfolioSignalAllocator](../../core/allocation.py) 按 `(-score, strategy_name, symbol)` 排序后逐项提交。完全同分批次记录 `tie_break_alphabetical`，不能把确定性的名称排序解读为策略优势。
+3. **候选先汇总，再分配。** [PortfolioSignalAllocator](../../core/planning/allocation.py) 按 `(-score, strategy_name, symbol)` 排序后逐项提交。完全同分批次记录 `tie_break_alphabetical`，不能把确定性的名称排序解读为策略优势。
 4. **接受订单后等待实际成交。** 策略不直接修改组合数量、现金或已实现盈亏；这些事实由执行层写入。
 
-`Strategy.on_bar(...)` 保留单标的“先退出、再入场”的兼容流程。当前 Router 主路径使用拆开的持仓管理与候选方法，没有 `Router.route()` 接口。组合级排序和相关风险批次预算应通过主路径完成。
+只有一条执行路径：Router 先调用 `process_exit_only(...)` 管理既有持仓，再用 `build_entry_candidate(...)` / `submit_entry_candidate(...)` 走组合级排序与相关风险批次预算。旧的单标的 `Strategy.on_bar(...)` 只被测试调用且已与主路径分叉（缺参考价与相关性预算），已在策略整改 A2 中删除；没有 `Router.route()` 接口。
 
 **V3 有独立接线：** 注入 `PortfolioTargetController` 后，共享内核继续管理原策略的退出，但不再走普通入场候选分配，而由控制器推进组合目标。完整接线见第 9 节。
 
@@ -180,7 +180,7 @@ def should_exit(self, symbol, i, df, state, portfolio):
 
 ### 4.2 Donchian 候选评分
 
-多头突破和空头破位复用[候选评分模块](../../core/candidate_scoring.py)，默认权重为：
+多头突破和空头破位复用[候选评分模块](../../core/planning/candidate_scoring.py)，默认权重为：
 
 | 分项 | 计算依据 | 权重 |
 | --- | --- | --- |
@@ -195,7 +195,7 @@ V2 用趋势符号分数替代这组评分，V3 用连续动量替代。配置 `
 
 ### 4.3 初始止损、硬止损与移动止损
 
-[保护止损函数](../../core/protective_stops.py)支持三种初始模式：
+[保护止损函数](../../core/trading/protective_stops.py)支持三种初始模式：
 
 | 模式 | 多头 | 空头 |
 | --- | --- | --- |
@@ -209,7 +209,7 @@ V2 用趋势符号分数替代这组评分，V3 用连续动量替代。配置 `
 
 移动止损在本根硬止损检查后更新，只约束后续 bar。Chandelier 多头采用 `max(旧止损, 初始止损, 持仓最高价 - k × ATR)`，空头取镜像的 `min`，不会放松保护。保本腿默认关闭。
 
-基类硬止损是收盘决策流程中的检测与订单提交；[常驻保护单](../../core/protective_orders.py)及[回测盘中保护模拟](../../backtest/protective_stops.py)另有成交路径。当前 `protective_orders.enabled=true`、`backtest_resident=true`；盘中回测使用登记的保守路径，不将所有止损视为下一开盘成交。完整行为见[保护止损契约](../protective_stop_contract.md)。
+基类硬止损是收盘决策流程中的检测与订单提交；[常驻保护单](../../core/trading/protective_orders.py)及[回测盘中保护模拟](../../backtest/protective_stops.py)另有成交路径。当前 `protective_orders.enabled=true`、`backtest_resident=true`；盘中回测使用登记的保守路径，不将所有止损视为下一开盘成交。完整行为见[保护止损契约](../protective_stop_contract.md)。
 
 ## 5. TrendBreakout / TrendBreakdown
 
@@ -229,7 +229,7 @@ OBV 确认仅在存在 OBV 数据时生效：策略可从 `volume` 自动计算 
 
 ### 5.1 健康生命周期
 
-两个 Donchian 策略及继承它们的 V2/V3 共用 `_PersistentHealthMixin` 与[StrategyHealthMachine](../../core/strategy_health.py)，健康状态按策略名称分别管理。
+两个 Donchian 策略及继承它们的 V2/V3 共用基类 `DonchianTrendStrategy`（含健康生命周期）与[StrategyHealthMachine](../../core/analytics/strategy_health.py)，健康状态按策略名称分别管理。
 
 观察单位是退出 **cohort**，由原开仓策略、UTC 平仓日、退出控制方及适用的风险动作身份组合。策略自身保护止损的不同订单 ID 不拆成多个独立健康样本；同一观察组内合并权威净盈亏与初始风险，计算 R。当前计入健康触发的控制方为 `strategy` 和 `router`；账户风险与系统收尾退出仍保留归因报告。
 
@@ -270,7 +270,7 @@ OBV 确认仅在存在 OBV 数据时生效：策略可从 `volume` 自动计算 
 
 每个标的的 `trade_state` 记录 `consecutive_losses` 和 `cooldown_until`。权威完整平仓回调中，连续 3 笔已实现亏损后设 `cooldown_until = bar_index + 24` 并重置连亏计数，`i <= cooldown_until` 不开新仓；非负盈亏重置连亏。
 
-当前类继承基类执行编排，**没有重写 `on_bar`，也不在提交退出时估算盈亏**。文件顶部关于重写 `on_bar` 的旧说明不代表当前实现。默认注册此类，但 SIDEWAYS 实际路由为 Cash，治理状态为 `paused_redesign`。
+当前类继承基类执行编排，**不在提交退出时估算盈亏**。默认注册此类，但 SIDEWAYS 实际路由为 Cash，治理状态为 `paused_redesign`。
 
 ## 7. VolatilityReversion
 
@@ -292,7 +292,7 @@ OBV 确认仅在存在 OBV 数据时生效：策略可从 `volume` 自动计算 
 
 该文件中用于保护距离的 `risk=rolling_mean(high-low, 20)`，止损为 `close ± 1.5 × risk`。虽然参数名为 `stop_atr`，**这里没有使用包含隔夜跳空的标准 ATR 指标**。`use_stochastic=false` 取消随机指标确认；入场仍要求均值、标准差及风险尺度有效且为正。
 
-此策略共用基类硬止损，没有 Donchian 健康 mixin。默认 VOLATILE 路由为 Cash，治理状态为 `isolated_research`。
+此策略共用基类硬止损，不继承 `DonchianTrendStrategy`，没有 Donchian 的健康生命周期。默认 VOLATILE 路由为 Cash，治理状态为 `isolated_research`。
 
 ## 8. TrendPortfolioV2
 
@@ -333,11 +333,11 @@ risk_weight   = 0.01 × close / (close - stop_loss)
 
 默认 `exit_mode="atr"`，初始纯 `2.0 ATR` 止损、`2.5 ATR` 追踪，趋势分数变负或 close 跌破此前 60 bar 最低价时退出。`baseline` 恢复父类的短周期通道退出；`hybrid` 使用结构与 ATR 的较紧初始止损。工厂注入的止损距离和保本等其他政策仍保留。
 
-V2 只在新入场时提议波动率目标数量，不定期再平衡持仓，也不保证实际组合年化波动率等于 10%。它有独立健康身份 `TrendPortfolioV2`。完整研究定义、固定对照和产物见[V2 专项文档](../trend_portfolio_v2.md)。
+V2 只在新入场时提议波动率目标数量，不定期再平衡持仓，也不保证实际组合年化波动率等于 10%。它有独立健康身份 `TrendPortfolioV2`。完整研究定义、固定对照和产物见[V2 专项文档](../trend_portfolio.md)。
 
 ## 9. TrendPortfolioV3
 
-源码：[trend_portfolio_v3.py](../../strategies/trend_portfolio_v3.py)，继承 V2，并通过[selection_v2](../../core/selection_v2.py)和[PortfolioTargetController](../../core/portfolio_target_controller.py)形成全市场周目标研究。
+源码：[trend_portfolio_v3.py](../../strategies/trend_portfolio_v3.py)，继承 V2，并通过[selection_v2](../../core/planning/selection_v2.py)和[PortfolioTargetController](../../core/planning/portfolio_target_controller.py)形成全市场周目标研究。
 
 ### 9.1 连续动量与两种入场版本
 
@@ -373,7 +373,7 @@ S = 0.50 × (close[i] / close[i-60] - 1)
 
 止损、账户风险或已知退市退出会取消旧目标的继续买入资格，不能从未到期的本周目标立即补回刚平掉的仓位。融资研究使用明确的 `assumed` 或 `verified_only` 口径，不用目标权重制造负现金。
 
-V3 默认初始 `2 ATR`、追踪 `2.5 ATR`，连续动量转负或跌破此前 60 日低点时退出；退出指标也按完成且可得的历史计算。365 天最大持仓控制仍独立存在。V3 runner 的完整数据契约、融资口径与固定研究比较见[V3 专项文档](../trend_portfolio_v3.md)。当前默认主程序及实盘入口没有自动接入该控制器。
+V3 默认初始 `2 ATR`、追踪 `2.5 ATR`，连续动量转负或跌破此前 60 日低点时退出；退出指标也按完成且可得的历史计算。365 天最大持仓控制仍独立存在。V3 runner 的完整数据契约、融资口径与固定研究比较见[V3 专项文档](../trend_portfolio.md)。当前默认主程序及实盘入口没有自动接入该控制器。
 
 ## 10. PairsTradingModel 配对研究
 
@@ -447,7 +447,7 @@ python scripts/run_trend_portfolio_v2.py --help
 python scripts/run_trend_portfolio_v3.py --help
 ```
 
-`--observe-signals` 通过被动接口收集原始候选，默认配置关闭该观察功能。P1 条件 EV、P2 软状态/轴归因与 P3 影子账户也属于默认关闭的统计研究，不直接改变正式下单、风险预算或策略准入。具体观察和研究产物见[P0 文档](../p0_signal_observation.md)、[P1 文档](../p1_signal_meta_layer.md)及[P2/P3 文档](../p23_signal_meta_layer.md)。
+`--observe-signals` 通过被动接口收集原始候选，默认配置关闭该观察功能。P1 条件 EV、P2 软状态/轴归因与 P3 影子账户也属于默认关闭的统计研究，不直接改变正式下单、风险预算或策略准入。具体观察和研究产物见[P0 文档](../signal_meta_layer.md)、[P1 文档](../signal_meta_layer.md)及[P2/P3 文档](../signal_meta_layer.md)。
 
 ## 12. 新策略扩展与验证
 

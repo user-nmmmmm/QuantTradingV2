@@ -5,16 +5,14 @@ import json
 import logging
 import os
 from pathlib import Path
-import sys
 import time
 from urllib.parse import urlparse
 from uuid import uuid4
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 
-from core.order_latency import OrderLatencyRecorder
-from core.request_budget import install_exchange_budget, request_scope
+from core.trading.order_latency import OrderLatencyRecorder
+from core.market.request_budget import install_exchange_budget, request_scope
 
 
 def sandbox_exchange(venue):

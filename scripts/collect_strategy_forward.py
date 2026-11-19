@@ -12,17 +12,15 @@ from datetime import datetime, timezone
 import json
 import math
 from pathlib import Path
-import sys
 from uuid import uuid4
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 
 import pandas as pd
 
 from analysis.strategy_review import validate_prospective
-from core.data_versions import DataVersionStore
-from core.reproducibility import sha256_file
+from core.market.data_versions import DataVersionStore
+from core.foundation.reproducibility import sha256_file
 from scripts.roadmap_baseline import verify_source
 
 

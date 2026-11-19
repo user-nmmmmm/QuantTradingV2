@@ -8,12 +8,12 @@ import pandas as pd
 import pytest
 
 from core.broker import Broker
-from core.domain import OrderStatus
+from core.foundation.domain import OrderStatus
 from core.exchange.metadata import MarketSpecification
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from core.risk.portfolio_governor import CorrelationClusterPolicy
-from core.state_store_v2 import StateStore
-from core.target_position import (
+from core.trading.state_store_v2 import StateStore
+from core.planning.target_position import (
     FrozenTarget, PositionIdentity, TrancheFact, VolatilityPolicy,
     constrain_target_weights, freeze_target, next_tranche, volatility_target_weight,
 )

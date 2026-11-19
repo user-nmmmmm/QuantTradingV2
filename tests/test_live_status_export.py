@@ -3,18 +3,15 @@ from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 import json
 import os
-import sys
 import tempfile
 import pandas as pd
 
-# Add project root
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config.config import config
 from live_trading.engine import LiveTradingEngine
-from core.domain import PortfolioSnapshot
-from core.order_latency import OrderLatencyRecorder
-from core.portfolio import Portfolio
+from core.foundation.domain import PortfolioSnapshot
+from core.trading.order_latency import OrderLatencyRecorder
+from core.trading.portfolio import Portfolio
 from core.risk import RiskManager
 
 

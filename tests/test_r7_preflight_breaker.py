@@ -3,8 +3,8 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from core.live_safety import StartupSafetyPolicy
-from core.startup_preflight import build_startup_report
+from core.foundation.live_safety import StartupSafetyPolicy
+from ops.startup_preflight import build_startup_report
 
 
 class RestoredBreakerPreflightTests(unittest.TestCase):

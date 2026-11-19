@@ -4,10 +4,10 @@ import unittest
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
-from core.domain import OrderErrorCode, OrderStatus
+from core.foundation.domain import OrderErrorCode, OrderStatus
 from core.live_broker import LiveBroker
-from core.order_store import OrderStore
-from core.portfolio import Portfolio
+from core.trading.order_store import OrderStore
+from core.trading.portfolio import Portfolio
 
 
 class AuthenticationError(Exception):

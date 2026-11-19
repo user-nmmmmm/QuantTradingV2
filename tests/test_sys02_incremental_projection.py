@@ -6,15 +6,15 @@ from unittest.mock import patch
 import pandas as pd
 import pytest
 
-from core.domain import FillRecord, OrderIntent
+from core.foundation.domain import FillRecord, OrderIntent
 from core.broker import Broker
 from core.live_broker.fill_projection import replay_fill_projection, _legacy_replay_fill_projection
-from core.live_broker.reconciler import OrderReconcilerMixin
-from core.lots import CloseEvent
-from core.order_store import OrderStore
-from core.portfolio import Portfolio
-from core.state_store_v2 import StateStore
-from core.state import MarketState
+from core.live_broker.reconciler import OrderReconciler
+from core.trading.lots import CloseEvent
+from core.trading.order_store import OrderStore
+from core.trading.portfolio import Portfolio
+from core.trading.state_store_v2 import StateStore
+from core.trading.state import MarketState
 from core.risk import RiskManager
 from strategies.base import Strategy
 from strategies.mean_reversion import RangeStrategy
@@ -204,7 +204,7 @@ def test_venue_missing_fee_is_distinct_from_explicit_zero_fee(tmp_path, fee_cost
         trade["fee"] = {"cost": fee_cost, "currency": "USDT"}
     reconciler = SimpleNamespace(order_store=store, trades=[], _as_float=lambda value: float(value or 0),
                                  _iso=str, _publish_fill_event=lambda *args: None)
-    OrderReconcilerMixin._persist_fills(reconciler, command.client_order_id, "venue", {"trades": [trade]}, 2, 100)
+    OrderReconciler(reconciler)._persist_fills(command.client_order_id, "venue", {"trades": [trade]}, 2, 100)
     store.update(command.client_order_id, filled_qty=2)
     books, events, issues = replay_fill_projection(store, "USDT")
     if fee_cost == 0:
@@ -313,7 +313,7 @@ def test_restored_cursor_rejects_replaced_or_truncated_stream(tmp_path):
     store.close()
 
 
-@pytest.mark.parametrize("path", ["on_bar_entry", "candidate_entry", "on_bar_exit", "submit_exit"])
+@pytest.mark.parametrize("path", ["candidate_entry", "submit_exit"])
 def test_real_strategy_submission_preserves_originating_signal_identity(path):
     class SignalProbe(Strategy):
         def __init__(self):
@@ -333,9 +333,7 @@ def test_real_strategy_submission_preserves_originating_signal_identity(path):
     frame["volume"] = 10000
     if "exit" in path:
         portfolio.update_position("A", 2, 100, strategy_id="SignalProbe", order_id="opening", stop_price=90)
-    if path.startswith("on_bar"):
-        strategy.on_bar("A", 3, frame, state, portfolio, broker, risk, {"A": 100})
-    elif path == "candidate_entry":
+    if path == "candidate_entry":
         candidate = strategy.build_entry_candidate("A", 3, frame, state, portfolio)
         strategy.submit_entry_candidate(candidate, portfolio=portfolio, broker=broker,
                                         risk_manager=risk, current_prices={"A": 100})

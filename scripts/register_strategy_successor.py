@@ -7,11 +7,8 @@ import hashlib
 import json
 from pathlib import Path
 import shutil
-import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 
 from analysis.strategy_review import freeze_prospective, validate_prospective
 from scripts.roadmap_baseline import source_manifest, verify_source

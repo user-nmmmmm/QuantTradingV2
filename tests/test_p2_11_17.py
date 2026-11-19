@@ -11,12 +11,12 @@ import pandas as pd
 
 from config.config import config
 from core.events import TradingEventPipeline
-from core.health import DataHealthMonitor
-from core.market_data import HistoricalMarketDataAdapter
-from core.portfolio import Portfolio
+from ops.health import DataHealthMonitor
+from core.market.market_data import HistoricalMarketDataAdapter
+from core.trading.portfolio import Portfolio
 from core.risk import RiskManager
-from core.runtime import EventProcessor, MarketDataSlice
-from core.state import MarketState
+from core.foundation.runtime import EventProcessor, MarketDataSlice
+from core.trading.state import MarketState
 from live_trading.engine import LiveTradingEngine
 from router.router import Router
 
@@ -32,7 +32,7 @@ class TestP211ToP217(unittest.TestCase):
         now = (index[-1] + pd.Timedelta(hours=1)).tz_localize("UTC").to_pydatetime()
         monitor = DataHealthMonitor()
         with patch(
-            "core.health.pd.to_datetime",
+            "ops.health.pd.to_datetime",
             side_effect=AssertionError("normalized index must not be reparsed"),
         ):
             assessment = monitor.assess(

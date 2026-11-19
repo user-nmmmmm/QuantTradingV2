@@ -1,0 +1,10 @@
+# Default owner for everything. Narrow these entries as more maintainers join.
+*                      @user-nmmmmm
+
+# Money-path and frozen-evidence areas: always request review.
+/core/                 @user-nmmmmm
+/live_trading/         @user-nmmmmm
+/backtest/             @user-nmmmmm
+/config/               @user-nmmmmm
+/docs/file_retention_manifest.json  @user-nmmmmm
+/.github/              @user-nmmmmm

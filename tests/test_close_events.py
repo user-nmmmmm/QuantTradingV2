@@ -12,7 +12,7 @@ import pandas as pd
 import pytest
 
 from core.broker import Broker
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from strategies.mean_reversion import RangeStrategy
 
 

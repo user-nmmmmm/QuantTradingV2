@@ -1,37 +1,292 @@
 name: tests
 
 on:
+  workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, "codex/pr25-completion-*"]
   pull_request:
 
 jobs:
   quality:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
-      - name: Install dependencies
-        run: python -m pip install -r requirements-dev.txt
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - name: Install dependencies (runtime versions come from the lock)
+        run: python -m pip install -r requirements.lock.txt -r requirements-dev.txt
+      - name: Install the project (editable)
+        run: python -m pip install -e . --no-deps
       - name: Verify environment and lock integrity
-        run: |
-          python scripts/check_environment.py
-          python scripts/verify_lock.py
+        run: python scripts/dev.py env
+      - name: Verify frozen research inputs
+        run: python scripts/dev.py data
+      - name: Verify unsigned data adoption review
+        run: python scripts/dev.py data-review
+      - name: Verify approved data adoption and research window
+        run: python scripts/dev.py data-adoption
+      - name: Architecture inventory matches the code
+        run: python scripts/dev.py arch
       - name: Lint
-        run: python -m ruff check .
-      - name: Verify protected historical archive
-        run: python scripts/verify_baseline_archive.py
-      - name: Check tracked files and frozen artifacts
-        run: python scripts/check_repository_hygiene.py
-      - name: Verify roadmap completion structure
-        run: python scripts/verify_roadmap_completion.py --structure-only
+        run: python scripts/dev.py lint
+      - name: Quality ratchet (no new ruff/mypy findings; hard-gated mypy modules stay clean)
+        run: python scripts/dev.py ratchet
+      - name: Check import direction (layers)
+        run: python scripts/dev.py imports
+      - name: Dashboard frontend tests
+        run: python scripts/dev.py frontend
       - name: Type check critical runtime contracts
-        run: python -m mypy core/domain.py core/runtime.py live_trading/execution_adapter.py
+        run: python scripts/dev.py types
+      - name: Check tracked files and frozen artifacts
+        run: python scripts/dev.py hygiene
+      - name: Verify protected historical archive
+        run: python scripts/dev.py archive
+      - name: Check Markdown links
+        run: python scripts/dev.py links
+      - name: Report frozen-scope identity impact (informational)
+        if: github.event_name == 'pull_request'
+        run: >-
+          python scripts/identity_report.py
+          --base "origin/${{ github.base_ref }}" --head HEAD
+          --summary-file "$GITHUB_STEP_SUMMARY"
+      - name: Verify roadmap completion structure
+        run: python scripts/dev.py roadmap
       - name: Tests and coverage gate
-        run: python -m pytest -q --cov=core --cov=backtest --cov=live_trading --cov-fail-under=55
+        # Budget: the suite runs in about 3 minutes with -n 4 (docs/quality.md, "耗时预算"); 8 minutes is the
+        # point where something has regressed badly enough to stop the job.
+        timeout-minutes: 8
+        run: >-
+          python scripts/dev.py test --
+          --junitxml=outputs/current-ci/full-tests.xml
+          --cov-report=term
+          --cov-report=json:outputs/current-ci/runtime-coverage.json
       - name: Sandbox suite is discoverable
-        run: python -m pytest -q tests/test_exchange_sandbox_e2e.py
+        run: python scripts/dev.py sandbox
+      - name: Preserve exact checkout identity
+        if: always()
+        run: |
+          mkdir -p outputs/current-ci
+          git rev-parse HEAD > outputs/current-ci/checkout-sha.txt
+          git rev-parse 'HEAD^{tree}' > outputs/current-ci/checkout-tree.txt
+      - name: Preserve full regression and coverage receipts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: current-source-quality-evidence
+          path: outputs/current-ci/
+          retention-days: 30
+
+  ml-research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install CPU research dependencies
+        run: python -m pip install -r requirements-dev.txt -r requirements-ml.txt
+      - name: Install the project (editable)
+        run: python -m pip install -e . --no-deps
+      - name: Verify ML research on synthetic inputs
+        run: >-
+          python -m pytest -q
+          tests/test_ml_selection_dataset.py
+          tests/test_ml_selection_models.py
+          tests/test_ml_selection_environment.py
+          tests/test_ml_selection_integrity.py
+          tests/test_ml_selection_pipeline.py
+          tests/test_ml_selection_next_supervised.py
+          tests/test_ml_selection_next_rl.py
+          tests/test_ml_selection_next_round.py
+          tests/test_ml_selection_next_forward.py
+          tests/test_ml_selection_diagnostics.py
+          tests/test_ml_selection_batch_comparison.py
+          tests/test_ml_selection_bridge_audit.py
+          tests/test_ml_selection_stress_failures.py
+          tests/test_coin_selector_cli.py
+          --junitxml=outputs/ml-research-tests.xml
+      - name: Preserve ML test receipt
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ml-research-tests
+          path: outputs/ml-research-tests.xml
+          retention-days: 30
+
+  install-smoke:
+    # Proves a clean clone installs and imports without sys.path tricks, on the
+    # platforms contributors actually use. Not a required check yet.
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install (editable, resolves pins from requirements.txt)
+        run: python -m pip install -e .
+      - name: Import the packages from outside the checkout
+        working-directory: ${{ runner.temp }}
+        run: >-
+          python -c "import core, backtest, live_trading, strategies, router, composition,
+          analysis, research, config, dashboard, scripts, main, run_live, resolve_live_order;
+          print('imports ok')"
+      - name: Console entry points start
+        working-directory: ${{ runner.temp }}
+        run: |
+          quant-backtest --help
+          quant-live --help
+      - name: Identity, data, runtime and documentation regressions across Python versions and platforms
+        run: |
+          python -m pip install pytest==9.1.1
+          python -m pytest -q tests/test_source_identity.py tests/test_release_check.py tests/test_data_input_integrity.py tests/test_data_adoption_review.py tests/test_data_adoption.py tests/test_aud05_runtime_semantics.py tests/test_nonpositive_equity_metrics.py tests/test_markdown_links.py tests/test_documentation_navigation.py tests/test_architecture_inventory.py tests/test_repository_governance.py tests/test_selector_snapshot_integrity.py tests/test_external_archive_integrity.py tests/test_dependency_runtime_compatibility.py tests/test_p2_01_10.py::TestP201ToP210::test_legacy_entrypoints_are_absent_and_canonical_name_documented
+
+  dependency-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Resolve the installed runtime, development and ML package closure
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import platform
+          import subprocess
+          import sys
+          import venv
+          from datetime import datetime, timezone
+          target = Path(os.environ["RUNNER_TEMP"]) / "dependency-audit-target"
+          venv.EnvBuilder(with_pip=True).create(target)
+          interpreter = target / "bin/python"
+          subprocess.run([str(interpreter), "-m", "pip", "install",
+              "-r", "requirements.lock.txt", "-r", "requirements-dev.txt",
+              "-r", "requirements-ml.txt"], check=True)
+          subprocess.run([str(interpreter), "-m", "pip", "check"], check=True)
+          frozen = subprocess.check_output(
+              [str(interpreter), "-m", "pip", "freeze", "--exclude-editable"], text=True)
+          output = Path("outputs/dependency-audit")
+          output.mkdir(parents=True, exist_ok=True)
+          (output / "resolved-requirements.txt").write_text(frozen)
+          (output / "metadata.json").write_text(json.dumps({
+              "source_sha": os.environ["GITHUB_SHA"],
+              "platform": platform.platform(), "python": sys.version,
+              "profiles": ["runtime-lock", "development", "ml"],
+              "scanner": "pip-audit==2.9.0",
+              "recorded_at_utc": datetime.now(timezone.utc).isoformat(),
+              "advisory_service": "PyPI JSON API queried during this run; no fixed database revision",
+              "inventory": "isolated installed closure; pip/setuptools/wheel excluded by pip freeze"
+          }, indent=2))
+          PY
+      - name: Audit the resolved package inventory
+        run: |
+          python -m pip install pip-audit==2.9.0 -c requirements.lock.txt
+          python - <<'PY'
+          from datetime import datetime, timezone
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import subprocess
+          import sys
+          output = Path("outputs/dependency-audit")
+          from packaging.utils import canonicalize_name
+          from packaging.version import Version
+          expected = {
+              canonicalize_name(name): Version(version)
+              for line in (output / "resolved-requirements.txt").read_text().splitlines()
+              for name, version in [line.split("==", 1)]
+          }
+          private = Path(os.environ["RUNNER_TEMP"]) / "dependency-audit-result.json"
+          result = subprocess.run([sys.executable, "-m", "pip_audit", "--strict",
+              "--no-deps", "--disable-pip", "--format", "json", "--output", str(private),
+              "--cache-dir", str(Path(os.environ["RUNNER_TEMP"]) / "dependency-audit-cache"),
+              "-r", str(output / "resolved-requirements.txt")], capture_output=True, text=True)
+          raw = private.read_bytes() if private.exists() else b""
+          report = json.loads(raw) if raw else {}
+          dependencies = report.get("dependencies")
+          actual = {
+              canonicalize_name(item["name"]): Version(item["version"])
+              for item in dependencies or [] if "name" in item and "version" in item
+          }
+          complete = isinstance(dependencies, list) and bool(dependencies) and actual == expected
+          skipped = sum("skip_reason" in item for item in dependencies or [])
+          vulnerabilities = sum(len(item.get("vulns", [])) for item in dependencies or [])
+          clean = complete and not skipped and not vulnerabilities and result.returncode == 0
+          failure = result.stderr.lower()
+          failure_class = (
+              "findings" if vulnerabilities else
+              "configuration" if any(value in failure for value in ("unrecognized arguments", "usage:", "no module named")) else
+              "advisory_service_unavailable" if any(value in failure for value in ("proxy", "connect", "network", "timed out")) else
+              "incomplete_inventory" if skipped else "none" if clean else "scanner_error"
+          )
+          summary = {
+              "completed_at_utc": datetime.now(timezone.utc).isoformat(),
+              "completed": complete and not skipped, "clean": clean,
+              "packages": len(dependencies or []), "expected_packages": len(expected),
+              "inventory_complete": actual == expected, "skipped": skipped,
+              "vulnerabilities": vulnerabilities, "scanner_returncode": result.returncode,
+              "private_result_sha256": hashlib.sha256(raw).hexdigest(),
+              "failure_class": failure_class
+          }
+          (output / "summary.json").write_text(json.dumps(summary, indent=2))
+          print(json.dumps(summary, sort_keys=True))
+          # Advisory details remain in runner temporary storage; public receipts contain counts only.
+          if not clean:
+              raise SystemExit("Dependency audit was incomplete or reported findings; see the redacted receipt.")
+          PY
+      - name: Confirm unavailable advisory data cannot report a clean result
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import subprocess
+          import sys
+          output = Path("outputs/dependency-audit")
+          probe = output / "unavailable-probe.txt"
+          probe.write_text("certifi==2026.10.19\n")
+          env = dict(os.environ)
+          for name in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy"):
+              env[name] = "http://127.0.0.1:9"
+          env["NO_PROXY"] = env["no_proxy"] = ""
+          result = subprocess.run([sys.executable, "-m", "pip_audit", "--strict",
+              "--no-deps", "--disable-pip", "--timeout", "1", "--cache-dir",
+              str(Path(os.environ["RUNNER_TEMP"]) / "unavailable-audit-cache"),
+              "-r", str(probe)], env=env, text=True, capture_output=True, timeout=40)
+          if result.returncode == 0:
+              raise RuntimeError("Unavailable advisory service incorrectly reported success")
+          failure = result.stderr.lower()
+          if not any(word in failure for word in ("proxy", "connect", "network", "timed out")):
+              raise RuntimeError("Audit probe failed for an unexpected reason: " + result.stderr)
+          (output / "unavailable-probe.json").write_text(json.dumps({
+              "returncode": result.returncode, "reported_success": False,
+              "failure_class": "advisory_service_unavailable"
+          }, indent=2))
+          PY
+      - name: Preserve the dependency audit receipt
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: dependency-audit-evidence
+          path: outputs/dependency-audit/
+          retention-days: 30

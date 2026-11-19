@@ -33,7 +33,6 @@ Sharpe / CAGR 会随周期自适应；引擎的 ``timeframe`` 只作为口径与
 from __future__ import annotations
 
 import argparse
-import hashlib
 import csv
 import json
 import re
@@ -44,11 +43,11 @@ from pathlib import Path
 
 import pandas as pd
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
+from core.foundation.content_hash import cache_hash_matches
 
-from core.timeframes import timeframe_delta  # noqa: E402
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
+from core.market.timeframes import timeframe_delta  # noqa: E402
 
 PY = sys.executable
 
@@ -112,7 +111,7 @@ def verify_cache(symbols: list[str], timeframe: str, *, generated_after: datetim
         path = (directory / record["file"]).resolve()
         if not path.is_relative_to(directory.resolve()) or not path.is_file():
             raise ValueError(f"Invalid cache file: {symbol}")
-        if hashlib.sha256(path.read_bytes()).hexdigest() != record.get("sha256"):
+        if not cache_hash_matches(path.read_bytes(), record):
             raise ValueError(f"Cache hash mismatch: {symbol}")
         if start is not None:
             required_start = pd.to_datetime(start, utc=True)

@@ -9,8 +9,8 @@ from uuid import uuid4
 
 import pytest
 
-from core.data_versions import DataVersionStore
-from core.quote_observations import QuoteObservationStore, read_quote_observations
+from core.market.data_versions import DataVersionStore
+from core.market.quote_observations import QuoteObservationStore, read_quote_observations
 from scripts import start_paper_observation as module
 
 
@@ -228,7 +228,7 @@ def test_only_one_session_writer_can_enter_and_old_lock_is_preserved(tmp_path, s
 
 def test_real_collection_entrypoint_works_with_an_injected_public_fetcher(tmp_path, source_root, monkeypatch):
     from scripts import collect_execution_quotes
-    from core.quote_observations import BackgroundQuoteSampler, utc_now
+    from core.market.quote_observations import BackgroundQuoteSampler, utc_now
     calls = []
     def fetch(symbol):
         calls.append(symbol)

@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 
 from analysis.strategy_review_diagnostics import write_review_diagnostics
-from core.state import MarketState, MarketStateMachine
+from core.trading.state import MarketState, MarketStateMachine
 
 
 def _frame(count=30):

@@ -9,18 +9,16 @@ import argparse
 from datetime import datetime, timezone
 from pathlib import Path
 import random
-import sys
 
 import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 
 from backtest.engine import BacktestEngine
 from backtest.reporting.signal_observation import write_signal_observation_report
-from core.data import DataHandler
-from core.reproducibility import (
+from core.market.data import DataHandler
+from core.foundation.reproducibility import (
     artifact_hashes, build_run_manifest, canonical_json, data_identity,
     deterministic_result_digest, runtime_identity, save_data_snapshots, write_manifest,
 )

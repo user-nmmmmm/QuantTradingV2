@@ -1,38 +1,36 @@
 import argparse
 import os
-import sys
 import hashlib
 import json
 from pathlib import Path
 
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from composition.factory import build_risk_manager, build_strategy_registry
 from config.config import config
-from core.portfolio import Portfolio
-from core.order_store import OrderStore
-from core.state_store_v2 import StateStore
-from core.runtime_identity import RuntimeIdentity
-from core.logger import configure_logging, get_logger
-from core.live_safety import (
+from core.trading.portfolio import Portfolio
+from core.trading.order_store import OrderStore
+from core.trading.state_store_v2 import StateStore
+from core.foundation.runtime_identity import RuntimeIdentity
+from core.foundation.logger import configure_logging, get_logger
+from core.foundation.live_safety import (
     SafetyConfigurationError,
     StartupSafetyPolicy,
     credentials_from_environment,
     verify_live_permissions,
 )
 from core.risk.persistent_guard import PersistentOrderSafetyGuard
-from core.gray_release import (
+from ops.gray_release import (
     AdmissionBoundOrderGuard, GrayReleasePolicy, read_pinned_admission_evidence, write_release_record,
 )
-from core.account_cost_contract import (
+from core.trading.account_cost_contract import (
     AccountCostContractError,
     default_runtime_market_type,
     validate_runtime_account_cost_contract,
 )
-from core.startup_preflight import build_startup_report, write_startup_report
-from core.account_source import PinnedAccountExport
+from ops.startup_preflight import build_startup_report, write_startup_report
+from core.trading.account_source import PinnedAccountExport
 from live_trading.recovery import account_new_risk_gate
-from core.strategy_governance import (
+from ops.strategy_governance import (
     GovernanceError,
     assert_live_admission,
     routed_strategy_names,
@@ -227,8 +225,8 @@ def main() -> int:
     safety_guard = PersistentOrderSafetyGuard(policy, str(identity.directory / "safety.db"), identity=identity)
     if gray_policy is not None:
         safety_guard = AdmissionBoundOrderGuard(safety_guard, gray_policy, current_release_identity)
-    from core.alerting import build_default_alert_sink
-    from core.logger import get_logger
+    from core.foundation.alerting import build_default_alert_sink
+    from core.foundation.logger import get_logger
     broker = SafeLiveBroker(
         portfolio=portfolio,
         exchange_id=args.exchange,

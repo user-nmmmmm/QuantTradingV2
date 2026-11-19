@@ -5,11 +5,9 @@ import argparse
 from datetime import datetime, timezone
 import hashlib
 from pathlib import Path
-import sys
 import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 import pandas as pd
 from scripts.run_strategy_review import save, digest
 from scripts.summarize_strategy_review_families import run as summarize_families

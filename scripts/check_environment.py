@@ -12,12 +12,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--strict-lock", action="store_true")
     args = parser.parse_args()
-    errors = [] if sys.version_info >= (3, 11) else ["Python 3.11+ is required"]
+    errors = [] if sys.version_info >= (3, 11, 5) else ["Python 3.11.5+ is required"]
     required = pins(ROOT / ("requirements.lock.txt" if args.strict_lock else "requirements.txt"))
     for distribution, expected in required:
         try:
             if not args.strict_lock:
-                importlib.import_module({"PyYAML": "yaml"}.get(distribution, distribution.replace("-", "_")))
+                importlib.import_module({"PyYAML": "yaml", "Pillow": "PIL"}.get(distribution, distribution.replace("-", "_")))
             actual = importlib.metadata.version(distribution)
         except (ImportError, importlib.metadata.PackageNotFoundError) as exc:
             errors.append(f"{distribution} unavailable: {type(exc).__name__}")

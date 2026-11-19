@@ -4,13 +4,13 @@ import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
 
-from core.alerting import (
+from core.foundation.alerting import (
     TelegramAlertSink,
     build_default_alert_sink,
     format_telegram_alert,
     send_telegram_message,
 )
-from core.telegram_heartbeat import build_heartbeat_message, send_heartbeat
+from ops.telegram_heartbeat import build_heartbeat_message, send_heartbeat
 
 
 class TestTelegramAlertSink(unittest.TestCase):
@@ -20,7 +20,7 @@ class TestTelegramAlertSink(unittest.TestCase):
         with self.assertRaises(ValueError):
             TelegramAlertSink("token", "")
 
-    @patch("core.alerting.urllib.request.urlopen")
+    @patch("core.foundation.alerting.urllib.request.urlopen")
     def test_notify_posts_to_bot_api_with_chat_id_and_text(self, urlopen_mock):
         urlopen_mock.return_value.__enter__.return_value.read.return_value = b"{}"
         sink = TelegramAlertSink("TOKEN123", "chat-42")
@@ -42,7 +42,7 @@ class TestTelegramAlertSink(unittest.TestCase):
         self.assertIn("circuit_breaker_triggered", text)
         self.assertIn("equity: 900.0", text)
 
-    @patch("core.alerting.urllib.request.urlopen")
+    @patch("core.foundation.alerting.urllib.request.urlopen")
     def test_build_default_alert_sink_adds_telegram_when_env_vars_set(self, urlopen_mock):
         urlopen_mock.return_value.__enter__.return_value.read.return_value = b"{}"
         with tempfile.TemporaryDirectory() as directory:
@@ -90,7 +90,7 @@ class TestTelegramHeartbeat(unittest.TestCase):
         self.assertIn("BTC/USDT", message)
         self.assertIn("HEALTH_RECOVERED".replace("_", "_"), message.upper())
 
-    @patch("core.telegram_heartbeat.send_telegram_message")
+    @patch("ops.telegram_heartbeat.send_telegram_message")
     def test_send_heartbeat_loads_status_and_posts(self, send_mock):
         with tempfile.TemporaryDirectory() as directory:
             status_path = os.path.join(directory, "live_status.json")

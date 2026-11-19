@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 
 from analysis.execution_calibration import execution_sample_report
-from core.order_latency import OrderLatencyRecorder, record_order_call
+from core.trading.order_latency import OrderLatencyRecorder, record_order_call
 
 
 def facts(days=20):

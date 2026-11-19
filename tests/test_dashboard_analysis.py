@@ -108,8 +108,9 @@ class DashboardAnalysisTests(unittest.TestCase):
                    "2025-12-31,300\ninvalid,10\n2026-01-02,NaN\n2026-01-03,-5\n"
                    "2026-01-04,120,extra\n2026-01-05,110\n")
         result = load_backtest(self.reports, self.run.name)
-        self.assertEqual(result["invalid_rows"], 6)
-        self.assertEqual(result["metrics"]["observations"], 2)
+        self.assertEqual(result["invalid_rows"], 5)
+        self.assertEqual(result["metrics"]["observations"], 3)
+        self.assertEqual([point["equity"] for point in result["points"]], [100, -5, 110])
         self.assertAlmostEqual(result["metrics"]["total_return"], .1)
 
     def test_trade_pages_preserve_text_nulls_and_report_malformed_rows(self) -> None:
@@ -215,12 +216,12 @@ class DashboardAnalysisTests(unittest.TestCase):
         self.write("dashboard_job.json", json.dumps({"status": "succeeded", "secret": "excluded",
                    "parameters": {**parameters, "api_key": "excluded"}}))
         report = load_backtest(self.reports, self.run.name)
-        self.assertEqual(report["parameters"], parameters)
+        self.assertEqual(report["parameters"], {**parameters, "use_selector": False})
         listed = list_backtests(self.reports)[0]
         self.assertEqual(listed["source"], "synthetic")
-        self.assertEqual(listed["parameters"], parameters)
+        self.assertEqual(listed["parameters"], {**parameters, "use_selector": False})
         report["parameters"]["symbols"].append("BNB/USDT")
-        self.assertEqual(load_backtest(self.reports, self.run.name)["parameters"], parameters)
+        self.assertEqual(load_backtest(self.reports, self.run.name)["parameters"], {**parameters, "use_selector": False})
         parameters["source"] = "local"
         self.write("dashboard_job.json", json.dumps({"status": "succeeded", "parameters": parameters}))
         self.assertEqual(load_backtest(self.reports, self.run.name)["parameters"]["source"], "local")

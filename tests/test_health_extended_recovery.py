@@ -1,7 +1,7 @@
 """Opt-in recovery must never silently unlock an explicit manual lock."""
 import pytest
 
-from core.strategy_health import StrategyHealthMachine, StrategyHealthPolicy, HealthStatus
+from core.analytics.strategy_health import StrategyHealthMachine, StrategyHealthPolicy, HealthStatus
 
 
 def machine(**kwargs):

@@ -16,8 +16,8 @@ from typing import Mapping
 
 import pandas as pd
 
-from core.timeframes import as_utc_timestamp, timeframe_delta
-from core.universe import normalize_symbol
+from core.market.timeframes import as_utc_timestamp, timeframe_delta
+from core.market.universe import normalize_symbol
 
 
 def _time(value):

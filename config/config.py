@@ -8,7 +8,7 @@ from typing import Any, Dict, Optional, Tuple
 
 import yaml
 
-from core.logger import get_logger
+from core.foundation.logger import get_logger
 
 
 logger = get_logger(__name__)
@@ -98,7 +98,7 @@ class ConfigLoader:
         finite(loaded)
         self._migrate_legacy_phase4(loaded)
         self._validate_required(loaded)
-        from core.position_management import CapitalAllocationPolicy
+        from core.trading.position_management import CapitalAllocationPolicy
         try:
             CapitalAllocationPolicy.from_mapping(loaded["allocation"].get("capital"))
         except (TypeError, ValueError) as exc:

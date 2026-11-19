@@ -1,24 +1,88 @@
 # 依赖与 Python 环境
 
-现有 CI 工作流使用 Python 3.11；根目录 `.python-version` 指定 3.13.2。这两个入口尚未统一，因此修改依赖或解释测试结果时应记录实际 Python 版本，不把单一环境的通过结果外推到另一版本。
+完整质量/覆盖率及 ML 作业使用 Python 3.11；安装、导入、入口命令和指定运行回归覆盖 Ubuntu/Windows × Python 3.11/3.13。根目录 `.python-version` 指定本地 3.13.2，`pyproject.toml` 的 Python 下限为 3.11.5，mypy 目标仍为 3.11。矩阵不是每个组合的完整套件结果，记录测试时应写明实际版本和任务范围。前端检查另需 Node.js 22，CI 与开发容器已安装。
 
 | 文件 | 当前作用 |
 | --- | --- |
 | `requirements.txt` | 精确固定直接运行依赖。 |
 | `requirements.lock.txt` | 固定运行环境的直接及传递依赖版本；用于需要严格复现的安装。 |
-| `requirements-dev.txt` | 引用 `requirements.txt`，再固定测试、覆盖率、静态检查工具；现有 CI 从此文件安装，并未直接从运行锁文件安装。 |
+| `requirements-ml.txt` | 可选 CPU 机器学习研究依赖，与 `pyproject.toml` 的 `ml` extra 一致；不表示研究获准交易。 |
+| `requirements-dev.txt` | 引用 `requirements.txt`，再固定测试、覆盖率、静态检查工具；CI 与它一起安装运行锁（见下）。 |
 | `requirements.lock.sha256` | 检查运行锁文件是否被无声改写。 |
+| `scripts/regenerate_lock.py` | 锁文件的**唯一**生成方式（不要手工编辑）；`--check` 离线核对规范形式、摘要和直接依赖。 |
 
 安装与核验：
 
 ```powershell
-# 可复现的运行环境
-python -m pip install -r requirements.lock.txt
-python scripts/check_environment.py --strict-lock
-
-# 开发/CI 工具；当前 CI 走这一入口
-python -m pip install -r requirements-dev.txt
+# 可复现的运行环境 + 开发工具；CI、dev.py setup 和 dev container 走同一条命令（ADR 0021）
+python -m pip install -r requirements.lock.txt -r requirements-dev.txt
+python -m pip install -e . --no-deps   # 注册项目本身；依赖仍由上面的 requirements 文件固定
+python scripts/check_environment.py --strict-lock   # 环境逐项等于运行锁
 python scripts/verify_lock.py
+python scripts/regenerate_lock.py --check
 ```
 
-`verify_lock.py` 核验精确版本和已提交的 SHA-256；`check_environment.py --strict-lock` 将当前环境与运行锁比较。开发工具的安装路径可能解析出与运行锁不同的传递版本，所以不能仅凭 `requirements-dev.txt` 安装成功宣称环境已按运行锁复现。更新运行依赖时，应在同一变更中更新锁文件和校验值，并在目标 Python 版本上验证安装、测试与报告生成。需要平台标记时将其直接记录在锁文件中。
+`pyproject.toml` 的 `[project]` 通过 `dynamic` 读取 `requirements.txt` 作为运行依赖，`ml` 额外依赖与
+`requirements-ml.txt` 一致；版本固定仍只在这些文件和锁文件中维护，修改时需同步两处。
+
+`verify_lock.py` 核验精确版本和已提交的 SHA-256；`regenerate_lock.py --check` 核验锁文件是规范形式、并覆盖 `requirements.txt` 的每个直接依赖且版本一致；`check_environment.py --strict-lock` 将当前环境与运行锁逐项比较。CI 把运行锁和开发依赖放在同一次 `pip install` 里解析，再运行这三项，所以环境漂移会让 CI 失败。
+
+## 升级依赖
+
+升级依赖永远是单独的 PR：
+
+1. 修改 `requirements.txt`（及对应的 `requirements-dev.txt` / `requirements-ml.txt`）里的版本。
+2. 在 Linux、Python 3.11.5 或更高的 3.11 补丁版本（与 CI 同系列）上运行 `python scripts/regenerate_lock.py`（需要联网）；它会重写锁文件和摘要。不要手工编辑锁文件。
+3. 阅读锁文件的差异：传递依赖的变化也在其中。在目标 Python 版本上验证安装、测试与报告生成。
+4. 提交时写入 `CHANGELOG.md`（如有用户可见影响）。锁文件在冻结范围内，PR 的身份影响报告会显示这一变化。
+
+没有在 Linux 上再生成时，Windows 独有的依赖（例如 `colorama`）可能出现或消失，这只影响该平台，pip 仍会把它作为依赖安装。
+
+## 运行依赖边界
+
+行情客户端、证书信任、签名和图像输出使用的 `aiohttp`、`certifi`、`cryptography`、`idna`、`multidict`、`Pillow`、`requests`、`soupsieve` 和 `urllib3`
+在直接依赖中明确固定，普通可编辑安装与运行锁使用同一组已测试版本。`Pillow` 的导入名为 `PIL`，
+环境检查同时验证分发版本和正确的模块名。
+
+当前固定 aiohttp 3.14.4、certifi 2026.10.19 和 Pillow 13.0.0。Yahoo Finance 客户端使用
+yfinance 1.2.1 与 curl_cffi 0.15.0 的兼容组合，并直接固定传输库。证书包也作为直接依赖，
+使普通可编辑安装与运行锁安装遵守同一下限。aiohttp 的传递依赖 yarl 同步为 1.25.1；
+其余运行锁版本保留。该锁由 Linux/Python 3.11 的现有生成器产生，并经过规范形式与摘要核验。
+Pillow 13 要求 Python 3.11 或更高，仍在本项目的 Python 3.11.5+ 支持范围内。
+升级验证包括真实本地 HTTP/WebSocket、证书包内容以及 PNG、Excel 和 PDF 报告。
+
+域名转换和多值请求头依赖也在直接依赖中固定，避免普通可编辑安装沿用旧环境中仍满足上游宽泛版本范围的包。
+Soup Sieve 固定为 `4.0.1`，3.0 起的解析器改进需要 Python 至少为 3.11.5；项目声明与环境检查同步执行此下限。
+`3.0.3` 受 GHSA-mmhr-3c5m-f64f（CVE-2026-126190）影响：后代组合器在深层嵌套文档上的匹配时间呈多项式增长，4.0 起修复，
+4.0.1 另补了 `:has()` 与子组合器的同类缓存。4.0 不再把 HTML `template` 的内容当作文档的一部分，也不再把 `iframe` 的内容当作独立文档；
+本仓库自身没有调用 CSS 选择器，它只经 Beautiful Soup（要求 `soupsieve>=1.6.1`）由 yfinance 间接引入。
+这次升级以原锁文件为约束，在 Linux/Python 3.11 目标上解析，再由再生成脚本的规范输出函数写出锁文件和摘要，只改动 `soupsieve` 一行；
+解析是在 Windows 上用 uv 的跨平台模式完成的（本机 pip 的再生成因网络停滞未能完成），Linux/Python 3.11 上的实际安装、`pip check` 和严格锁核对由 CI 验证。
+不加约束的再生成会同时抬高二十多个无关的传递依赖，那需要单独的 PR 与验证。
+上游已撤回的 `3.0`/`3.0.1` 分发未正确表达这个要求，不应为了保留旧 Python 补丁版本而选择它们。升级须同时核对 `Requires-Python` 和撤回状态。
+安装矩阵同时核对国际化域名、`idna2008` codec、原生/纯 Python 请求头容器以及 CSS 选择器的正常行为。
+
+项目的命令行仪表盘使用 `dashboard.__main__`，Web 仪表盘使用 `dashboard.web` 的标准库 HTTP 服务；
+报告使用 Matplotlib 的 `Agg` 后端。未被这些入口使用的 Streamlit 依赖已移除，运行锁不再为它保留
+GitPython、Tornado 或 PyArrow。未来接入需要这些库的新功能时，须重新声明依赖并验证对应入口。
+在旧环境执行安装不会自动卸载不再需要的包；需要精确核对新依赖闭包时，应建立新的虚拟环境，旧环境和历史证据继续保留。
+报表回归使用的 `jsonschema` 在开发依赖中显式声明，运行时安装无需为测试加载这条依赖链。
+
+本次版本范围覆盖 Linux/Windows 的 Python 3.11/3.13 矩阵。Cryptography 50 的上游二进制包不再覆盖
+32 位 Windows 或 Intel macOS；这些平台的源构建与 OpenSSL 维护须单独验证，不能由本仓库矩阵推断。
+
+## Dependabot
+
+只对 GitHub Actions 启用：每月一次，小版本与补丁合并成一个分组 PR，主版本升级单独成 PR 并单独评审。pip 的版本更新不启用，因为 Dependabot 不能运行再生成脚本，每个 PR 都会让 `regenerate_lock.py --check` 失败；原因与取舍见 [ADR 0021](adr/0021-locked-ci-and-dependabot-policy.md)。仓库的安全警报保持开启，收到后按上面的"升级依赖"流程处理。
+
+## CI 依赖审计
+
+`tests.yml` 的独立 `dependency-audit` 作业在 Linux/Python 3.11 的新环境中同时安装运行锁、
+开发和可选 ML 依赖，检查依赖一致性，再用精确固定的 pip-audit 2.9.0 审计实际安装闭包。
+审计器的共享依赖也受运行锁约束。清单、源码 SHA、平台、采集时间和仅含计数的结果摘要作为回执保留；
+具体公告内容只留在 runner 临时目录，不复制到公开日志或工件。PyPI 公告服务没有固定数据库版本，
+回执记录的是本轮查询时间，不能把它当作永久无漏洞保证。
+
+安装失败、数据库不可用、跳过包或发现公告都会使作业失败；另以一个无法连接服务的受控探针确认
+审计器不会把查询失败报告为成功。当前没有忽略列表，任何未来例外都需独立说明公告、清单、原因和到期时间。
+该审计覆盖上述 Linux/Python 3.11 安装闭包，Windows/Python 3.13 的安装与行为回归另由矩阵记录。

@@ -11,14 +11,12 @@ from datetime import datetime, timezone
 import json
 from pathlib import Path
 import re
-import sys
 from urllib.parse import urlencode
 
 import pandas as pd
 import requests
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 from scripts.collect_strategy_review_public import SYMBOLS, digest, immutable_write, json_bytes
 
 

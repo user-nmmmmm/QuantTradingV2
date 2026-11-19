@@ -1,0 +1,46 @@
+{
+  "schema": "frozen-coin-selector/v1",
+  "timeframe": "1d",
+  "candidate": {
+    "frozen_at": "2026-10-04T20:21:33.205951+00:00",
+    "model_id": "9db8c77c77e58997798c005b016f34a07bfb85a3fb7d77eacdce8f25bb8b851f",
+    "parent_model_id": "1e7f2d876452069b06dc2dc0702dfcc430c35c643d1b44688ccb98c7773cdb90",
+    "primary_model": "lightgbm",
+    "selected_candidate": "rl",
+    "selected_using": "validation_actual_equity_reward_with_preregistered_gates",
+    "test_used_for_selection": false,
+    "validation_qualification_passed": true,
+    "validation_reward": 0.0535797875094609
+  },
+  "files": {
+    "model": {
+      "path": "ml_selector_frozen/lightgbm.json",
+      "sha256": "9660116662042e67b341f92bf522597d71c7c1faf35166cd578f746ef9585153",
+      "model_id": "1e7f2d876452069b06dc2dc0702dfcc430c35c643d1b44688ccb98c7773cdb90"
+    },
+    "policy": {
+      "path": "ml_selector_frozen/policy_best.json",
+      "sha256": "e4bf55b2db96c81a1ba5c1529f261f16204481f59a4aa286f385757e5067f11f",
+      "model_id": "9db8c77c77e58997798c005b016f34a07bfb85a3fb7d77eacdce8f25bb8b851f"
+    }
+  },
+  "dataset": {
+    "commission_rate": 0.001,
+    "horizon_bars": 20,
+    "min_history": 61,
+    "min_quote_volume": 5000000.0,
+    "slippage_bps": 5.0,
+    "stop_atr_multiple": 2.0
+  },
+  "selection": {
+    "min_expected_return": 0.0,
+    "score_cap": 5.0,
+    "score_scale": 100.0
+  },
+  "source_protocol_id": "b79dc942e38c70c40c00fa6f8bedcdeb63511cb05051899d972cd9f6896d6eb6",
+  "source_protocol_sha256": "f063ebdba26e72cad0d37a7707bea97f43b9d502bdd9829ee5f5b0526e1a0052",
+  "training_end_exclusive": "2023-01-01",
+  "validation_end_exclusive": "2024-07-01",
+  "evaluation_kind": "retrospective_research_only",
+  "production_enabled": false
+}

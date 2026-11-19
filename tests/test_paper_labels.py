@@ -4,7 +4,7 @@ from copy import deepcopy
 import pandas as pd
 import pytest
 
-from analysis.paper_labels import BarrierConfig, LabelCosts, label_candidates, triple_barrier_label
+from signal_meta.paper_labels import BarrierConfig, LabelCosts, label_candidates, triple_barrier_label
 
 
 def bars(count=5):
@@ -155,7 +155,7 @@ def test_unknown_explicit_timestamp_does_not_become_a_nominal_known_timestamp():
 
 @pytest.mark.parametrize("late_bar", [1, 2])
 def test_fine_refinement_retains_late_coarse_dependencies(late_bar):
-    from analysis.paper_label_execution import refine_barrier_labels
+    from signal_meta.paper_label_execution import refine_barrier_labels
 
     frame = bars()
     frame.iloc[3] = [100, 103, 98, 100, 1000]

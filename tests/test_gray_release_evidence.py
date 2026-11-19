@@ -10,13 +10,13 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from core.gray_release import (
+from ops.gray_release import (
     AdmissionBoundOrderGuard, GrayReleasePolicy, canonical_bundle_sha256,
     read_pinned_admission_evidence,
 )
-from core.live_safety import SafetyConfigurationError, StartupSafetyPolicy
-from core.runtime_identity import RuntimeIdentity
-from core.state_store_v2 import StateStore
+from core.foundation.live_safety import SafetyConfigurationError, StartupSafetyPolicy
+from core.foundation.runtime_identity import RuntimeIdentity
+from core.trading.state_store_v2 import StateStore
 from tests.test_phase6_operational_readiness import passing_bundle
 
 

@@ -33,8 +33,12 @@ function message(text, error = false) {
   el("researchMessage").textContent = text;
   el("researchMessage").classList.toggle("error", error);
 }
+function updateSelectorNote() {
+  el("researchUseSelector").setAttribute("aria-checked", String(el("researchUseSelector").checked === true));
+}
 function updateButton() {
   el("runBacktest").disabled = submitting || !options?.enabled || jobs.some(active);
+  el("runOriginalBacktest").disabled = el("runBacktest").disabled;
   el("runBacktest").textContent = submitting ? "正在提交…" : jobs.some(active) ? "回测正在后台运行…" : "运行本地回测 ↗";
 }
 function symbols() {
@@ -76,7 +80,9 @@ async function loadOptions(preserve = false) {
         if (defaults[suffix.toLowerCase()] !== undefined) el(`research${suffix}`).value = defaults[suffix.toLowerCase()];
       });
       el("researchSlippage").value = defaults.slippage_bps ?? 5;
+      el("researchUseSelector").checked = defaults.use_selector === true;
     }
+    updateSelectorNote();
     symbols();
     message(options.enabled ? "配置保存于每次任务，可在实验记录中追溯。" : "此服务禁用了网页回测。请使用默认启动命令启用。", !options.enabled);
   } catch (error) {
@@ -92,8 +98,8 @@ function renderJobs() {
     const params = job.parameters || {};
     return {
       job,
-      title: `${(params.symbols || []).join(" + ") || job.id} · ${params.source === "synthetic" ? "合成情景" : "历史行情"}`,
-      detail: `${params.start || "—"} → ${params.end || "—"} · ${formatNumber(job.elapsed_seconds || 0)} 秒`,
+      title: params.preset === "original_100k" ? "原 10 万本金回测 · 60 币 · 智能资金分配" : `${(params.symbols || []).join(" + ") || job.id} · ${params.source === "synthetic" ? "合成情景" : "历史行情"}`,
+      detail: `${params.start || "—"} → ${params.end || "—"} · ${formatNumber(job.elapsed_seconds || 0)} 秒${!job.kind || job.kind === "backtest" ? ` · 选币器${params.use_selector === true ? "开启" : "关闭"}` : ""}`,
       action: active(job) ? "cancel" : job.status === "succeeded" && job.run_id && (!job.kind || job.kind === "backtest") ? "report" : "",
     };
   });
@@ -194,12 +200,23 @@ async function submit(event) {
   const parameters = {
     source: el("researchSource").value, symbols: selected, start, end,
     capital: Number(el("researchCapital").value), slippage_bps: Number(el("researchSlippage").value), seed: Number(el("researchSeed").value),
+    use_selector: el("researchUseSelector").checked === true,
     strategy: getStrategy(),
   };
+  await createBacktest(parameters);
+}
+
+async function submitOriginal(event) {
+  event.preventDefault();
+  await createBacktest({ preset: "original_100k", use_selector: el("researchUseSelector").checked === true });
+}
+
+async function createBacktest(parameters) {
+  if (submitting || jobs.some(active) || !options?.enabled) return;
   submitting = true; updateButton(); message("正在创建本地实验…");
   try {
-    if (parameters.source === "local") {
-      const query = new URLSearchParams({ symbols: selected.join(","), start, end });
+    if (parameters.source === "local" && !parameters.preset) {
+      const query = new URLSearchParams({ symbols: parameters.symbols.join(","), start: parameters.start, end: parameters.end });
       const quality = await requestJSON(`/api/data-quality?${query}`, { key: "backtest-preflight" });
       if (!quality.selection?.valid) throw new Error((quality.selection?.errors || ["所选数据质量检查未通过"]).join("；"));
     }
@@ -220,7 +237,7 @@ function renderAnalysis(report) {
   tradePage = 1;
   el("exportAnalysis").disabled = false;
   const source = report.parameters?.source === "synthetic" ? "合成数据 · 非真实市场" : report.parameters?.source === "local" ? "本地历史行情" : "历史报告 · 来源以原报告为准";
-  el("analysisContext").textContent = `${source} · ${report.id} · ${report.metrics.observations ?? report.points?.length ?? 0} 个权益点`;
+  el("analysisContext").textContent = `${source}${report.parameters?.preset === "original_100k" ? " · 原 10 万本金 · 智能资金分配" : ""} · ${report.id} · 选币器${report.parameters?.use_selector === true ? "开启" : "关闭"} · ${report.metrics.observations ?? report.points?.length ?? 0} 个权益点`;
   const metrics = report.metrics || {};
   const stats = [
     ["年化收益 · CAGR", formatPercent(metrics.annualized_return)],
@@ -294,7 +311,9 @@ async function loadTrades() {
 async function initializeResearch() {
   await initStrategy();
   el("backtestForm").addEventListener("submit", submit);
+  el("runOriginalBacktest").addEventListener("click", submitOriginal);
   el("researchSource").addEventListener("change", symbols);
+  el("researchUseSelector").addEventListener("change", updateSelectorNote);
   el("refreshJobs").addEventListener("click", async () => { await loadOptions(Boolean(options)); await refreshJobs(); });
   el("previousTrades").addEventListener("click", () => { if (tradePage > 1) { tradePage--; loadTrades(); } });
   el("nextTrades").addEventListener("click", () => { if (tradePage < tradePages) { tradePage++; loadTrades(); } });
@@ -315,11 +334,20 @@ async function initializeResearch() {
   document.addEventListener("dashboard:refresh", () => { if (document.documentElement.dataset.view === "backtest") { refreshJobs(); loadTrades(); } });
   document.addEventListener("dashboard:clone-experiment", async ({ detail }) => {
     await loadOptions(true);
+    if (detail.preset === "original_100k") {
+      el("researchUseSelector").checked = detail.use_selector === true;
+      updateSelectorNote();
+      message("已复制原 10 万本金预设及选币器状态。点击“复现原 10 万本金回测”使用相同注册输入运行。");
+      el("backtestForm").scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
     if (!["local", "synthetic"].includes(detail.source) || ["symbols", "start", "end", "capital", "seed", "slippage_bps"].some((key) => detail[key] === undefined || detail[key] === null)) { message("此历史报告未保存完整运行参数，无法直接复制。", true); return; }
     el("researchSource").value = detail.source; symbols();
     el("researchSymbols").querySelectorAll("input").forEach((input) => { input.checked = detail.symbols?.includes(input.value) || false; });
     for (const suffix of ["Start", "End", "Capital", "Seed"]) if (detail[suffix.toLowerCase()] !== undefined) el(`research${suffix}`).value = detail[suffix.toLowerCase()];
     if (detail.slippage_bps !== undefined) el("researchSlippage").value = detail.slippage_bps;
+    el("researchUseSelector").checked = detail.use_selector === true;
+    updateSelectorNote();
     await applyStrategy(detail.strategy);
     message("已复制实验参数。新实验使用当前基础配置及所选参数，独立保存快照；这不是旧配置的严格回放。请检查后运行。");
     el("backtestForm").scrollIntoView({ behavior: "smooth", block: "start" });

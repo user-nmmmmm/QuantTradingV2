@@ -9,10 +9,8 @@ from io import BytesIO
 import json
 import logging
 from pathlib import Path
-import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 
 import numpy as np
 import pandas as pd
@@ -21,8 +19,8 @@ from analysis.paper_portfolio import PaperSpec, run_paper_replay
 from analysis.paper_study import WINDOWS, load_verified_inputs, write_json
 from analysis.research_evidence import candidate_panel_evidence
 from analysis.return_followup import followup_specs, trend_targets, annual_selection_targets, paired_excess_diagnostic
-from core.data_versions import DataVersionStore
-from core.reproducibility import sha256_file
+from core.market.data_versions import DataVersionStore
+from core.foundation.reproducibility import sha256_file
 from scripts.run_paper_roadmap import save_run
 
 

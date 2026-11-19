@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 
 from backtest.reporting import ReportGenerator
+import pytest
 
 
 def _long_equity_curve(periods: int = 120, seed: int = 7) -> pd.DataFrame:
@@ -45,6 +46,7 @@ def _closed_trade_producing_trades():
 
 
 class TestReportingCharts(unittest.TestCase):
+    @pytest.mark.slow
     def test_charts_produced_with_sufficient_data(self):
         with tempfile.TemporaryDirectory() as directory:
             generator = ReportGenerator(directory)

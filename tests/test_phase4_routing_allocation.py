@@ -5,13 +5,13 @@ from dataclasses import dataclass
 import pandas as pd
 
 from config.config import config
-from core.allocation import (
+from core.planning.allocation import (
     EntryCandidate,
     PortfolioSignalAllocator,
     joint_entry_exit_attribution,
     state_duration_and_transition_matrix,
 )
-from core.state import MarketState
+from core.trading.state import MarketState
 from composition.factory import build_router, build_strategy_registry
 
 

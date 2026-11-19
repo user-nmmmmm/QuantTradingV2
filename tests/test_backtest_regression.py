@@ -2,6 +2,7 @@ import json
 import hashlib
 import tempfile
 import unittest
+from copy import deepcopy
 from pathlib import Path
 from tests.baseline_harness import ARTIFACTS, load_bundle, materialize
 from tests.engine_baseline_harness import (
@@ -94,7 +95,18 @@ class TestBacktestEngineEquivalenceBaseline(unittest.TestCase):
         current_config = yaml.safe_load((Path(__file__).resolve().parents[1] / "config" / "params.yaml").read_text(encoding="utf-8"))
         capital_policy = current_config["allocation"].pop("capital")
         self.assertIs(capital_policy["enabled"], False)
-        self.assertEqual(current_config, yaml.safe_load(frozen_config.read_text(encoding="utf-8")))
+        frozen = yaml.safe_load(frozen_config.read_text(encoding="utf-8"))
+        # Strategy remediation A5 removed the scoring copy of the ADX
+        # threshold; scoring now reads state.adx_threshold, which the frozen
+        # copy always equalled, so the resolved configuration is unchanged.
+        self.assertEqual(frozen["candidate_scoring"].pop("adx_threshold"),
+                         current_config["state"]["adx_threshold"])
+        # Strategy remediation stage C (docs/research/candidate_successor_c1_c2_20261110.md)
+        # adds declared successor-candidate keys. The v4 fixture still runs
+        # under its own frozen configuration, so its artifacts are unchanged.
+        self.assertEqual(current_config["data"].pop("live_min_lookback_bars"), 201)  # C2, live only
+        self.assertEqual(current_config.pop("trend_breakout"), {"use_obv": False})  # C1, changes behaviour
+        self.assertEqual(current_config, frozen)
         previous_bundle = json.loads(previous.read_text(encoding="utf-8"))
         for name in ("seed", "symbols", "bars_per_symbol", "warmup_period", "data_summary", "data_sha256"):
             self.assertEqual(bundle["metadata"][name], previous_bundle["metadata"][name])
@@ -136,7 +148,15 @@ class TestBacktestEngineEquivalenceBaseline(unittest.TestCase):
         # the fixture and the CI runner, and pinning 17 significant digits
         # turns that into a failure unrelated to behavior. Counts, timestamps,
         # statuses, key sets and container shapes still compare exactly.
-        problems = compare_artifacts(artifacts, bundle["artifacts"])
+        # Formula 2.1 changes insolvency semantics. The immutable v4 run has
+        # strictly positive equity, so every artifact must remain unchanged
+        # except the declared formula version. Pin both versions explicitly:
+        # do not accept arbitrary future version bumps or regenerate v4.
+        self.assertTrue(all(row["equity"] > 0 for row in bundle["artifacts"]["equity_curve"]))
+        self.assertEqual(bundle["artifacts"]["metrics"]["MetricsFormulaVersion"], "2.0")
+        expected = deepcopy(bundle["artifacts"])
+        expected["metrics"]["MetricsFormulaVersion"] = "2.1"
+        problems = compare_artifacts(artifacts, expected)
         self.assertEqual(
             problems, [],
             "Engine output diverged from the recorded baseline:\n"

@@ -107,7 +107,7 @@
 - `outputs/health_diagnosis/after_fix_isolated_breaker/`：修复后组合恢复隔离 A/B。
 - `scripts/diagnose_strategy_health.py`：只观察、不改变交易决策的诊断重放。
 
-下一步是 [`position_management_plan.md`](position_management_plan.md) 中的 PM1：
+下一步是 [`position_management_plan.md`](archive/2026-10-doc-consolidation/position_management_plan.md) 中的 PM1：
 以仓位 ID 管理保护、退出和清理，再推进试运行裁决证据持久化及 shadow 评估。
 本轮没有实现完整 PositionManager，也没有扩大健康门控自动恢复权限。
 

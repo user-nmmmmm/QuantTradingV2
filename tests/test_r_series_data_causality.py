@@ -9,10 +9,10 @@ import pandas as pd
 import pytest
 
 from analysis.walk_forward import WalkForwardConfig, _concat_unique, _run_window, candidate_warmup, run_walk_forward
-from core.data_fetcher import DataFetcher, IncompleteDataError, timeframe_delta
+from core.market.data_fetcher import DataFetcher, IncompleteDataError, timeframe_delta
 from core.factors.support_resistance import SupportResistanceFactors
 from core.factors.volume import VolumeFactors
-from core.universe import PointInTimeUniverse, UniverseMembership, normalize_symbol
+from core.market.universe import PointInTimeUniverse, UniverseMembership, normalize_symbol
 from scripts import fetch_binance_data as download
 from scripts import run_backtest_matrix as matrix
 from scripts.run_expanded_universe_backtest import fetch_symbol
@@ -170,7 +170,7 @@ def candle_pages(index):
 
 
 def test_ordinary_cli_rejects_truncated_ccxt_download_without_source_fallback():
-    import main
+    import cli.data as main
     index = pd.date_range("2024-01-01", periods=10000, freq="min", tz="UTC")
     with patch("ccxt.binance") as constructor, patch.object(DataFetcher, "_fallback_to_yahoo_crypto") as fallback:
         constructor.return_value.fetch_ohlcv.side_effect = candle_pages(index)

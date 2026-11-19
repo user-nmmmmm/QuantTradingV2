@@ -17,17 +17,16 @@ from threading import Lock
 from time import perf_counter, sleep
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 
 import numpy as np
 import pandas as pd
 
-from core.market_data import HistoricalMarketDataAdapter, LiveMarketDataAdapter
+from core.market.market_data import HistoricalMarketDataAdapter, LiveMarketDataAdapter
 from composition.factory import build_router, build_state_machine, build_strategy_registry, build_risk_manager
 from config.config import config
 from core.broker import Broker
-from core.portfolio import Portfolio
-from core.runtime import EventProcessor
+from core.trading.portfolio import Portfolio
+from core.foundation.runtime import EventProcessor
 
 
 class SyntheticFetcher:

@@ -1,6 +1,6 @@
 import pandas as pd
 
-from analysis.paper_labels import BarrierConfig
+from signal_meta.paper_labels import BarrierConfig
 from scripts.review_barrier_first_touch import review
 from tests.test_paper_label_execution import inputs
 
@@ -41,7 +41,7 @@ def test_shortened_exchange_bar_cannot_establish_a_complete_path():
 
 
 def test_cascade_keeps_already_resolved_rows_when_next_feed_is_empty():
-    from analysis.paper_labels import LabelCosts
+    from signal_meta.paper_labels import LabelCosts
     from scripts.review_barrier_cascade import cascade
     daily, hourly, candidate = inputs()
     now = "2026-10-03T09:00:00+00:00"

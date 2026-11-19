@@ -8,15 +8,15 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 
 from config.config import config
-from core.domain import OrderStatus
-from core.health import (
+from core.foundation.domain import OrderStatus
+from ops.health import (
     DataHealthMonitor,
     DataHealthPolicy,
     HealthAssessment,
     HealthReason,
 )
 from core.live_broker import LiveBroker
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 from core.risk import RiskManager
 from live_trading.engine import LiveTradingEngine
 

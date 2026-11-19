@@ -1,4 +1,4 @@
-"""SR2 protective-stop tests (docs/current_strategy_remediation_roadmap.md §13.2).
+"""SR2 protective-stop tests (docs/archive/2026-10-doc-consolidation/current_strategy_remediation_roadmap.md §13.2).
 
 Covers the hand-computed stop fixtures, the no-lookahead contract, the
 Chandelier monotonicity property, and the post-fill risk recheck that turns a
@@ -12,16 +12,16 @@ import unittest
 
 import pandas as pd
 
-from core.indicators import Indicators
-from core.protective_stops import (
+from core.analytics.indicators import Indicators
+from core.trading.protective_stops import (
     EntryRiskPolicy,
     ProtectiveStopPolicy,
     evaluate_fill_risk,
     plan_initial_stop,
     update_trailing_stop,
 )
-from core.portfolio import Portfolio
-from core.state import MarketState
+from core.trading.portfolio import Portfolio
+from core.trading.state import MarketState
 from strategies.trend_breakout import TrendBreakoutStrategy
 
 

@@ -16,23 +16,24 @@
   过滤缩量假突破（价格突破但背后无资金推动）
 """
 
+from abc import abstractmethod
 from typing import Dict, Any, Optional
 import pandas as pd
-from core.state import MarketState
-from core.entry_audit import note
-from core.portfolio import Portfolio
+from core.trading.state import MarketState
+from core.trading.entry_audit import note
+from core.trading.portfolio import Portfolio
 from core.factors import VolumeFactors
-from core.candidate_scoring import (
+from core.planning.candidate_scoring import (
     CandidateScorePolicy,
     score_breakout_candidate,
 )
-from core.indicators import Indicators
-from core.protective_stops import (
+from core.analytics.indicators import Indicators
+from core.trading.protective_stops import (
     ProtectiveStopPolicy,
     plan_initial_stop,
     update_trailing_stop,
 )
-from core.strategy_health import (
+from core.analytics.strategy_health import (
     HealthStatus,
     StrategyHealthMachine,
     StrategyHealthPolicy,
@@ -50,14 +51,20 @@ def _bar_time(df: pd.DataFrame, i: int) -> Any:
 
 
 
-class _PersistentHealthMixin:
-    """Durable alpha-health lifecycle shared by the Donchian strategies.
+class DonchianTrendStrategy(Strategy):
+    """Base of the Donchian strategies (``TrendBreakoutStrategy``, ``TrendBreakdownStrategy`` and what builds on them).
+
+    It holds what they share, in three groups: the durable alpha-health lifecycle (this docstring), the hybrid
+    protective stop and the candidate scoring (the commented sections below). These were three private mixins
+    before ADR 0025; the behavior and the method order are unchanged.
+
+    Durable alpha-health lifecycle.
 
     SR1-1: the old ``is_alive`` boolean was a permanent kill switch - once a
     run of cross-symbol losses flipped it, no later profit ever turned it back
     on, and the strategy silently stopped trading for years while the report
     still said ``completed``. It is replaced by
-    :class:`core.strategy_health.StrategyHealthMachine`, whose only terminal
+    :class:`core.analytics.strategy_health.StrategyHealthMachine`, whose only terminal
     state is an explicit, audited ``MANUAL_LOCK``.
 
     SR1-2: observations are exit **cohorts**, not per-symbol closes, so one
@@ -67,10 +74,23 @@ class _PersistentHealthMixin:
     callers/reports; the machine is the authority.
     """
 
+    # The Donchian strategies set these in __init__; the logic below reads them.
+    entry_window: int
+    exit_window: int
+    use_obv: bool
+
+    @abstractmethod
+    def _raw_entry_signal(
+        self, symbol: str, i: int, df: pd.DataFrame, portfolio: Any,
+    ) -> Optional[Dict[str, Any]]:
+        """The setup itself, with no health gate. ``raw_entry_signal`` passes ``None`` for the portfolio:
+        neither Donchian implementation reads it."""
+
     def _initialize_health_state(
         self, policy: Optional[StrategyHealthPolicy] = None,
     ) -> None:
         self._health_state_store = None
+        self._persisted_health: Optional[Dict[str, Any]] = None
         self.health = StrategyHealthMachine(self.name, policy or StrategyHealthPolicy())
         self.health_stats = self._new_health_stats()
         self._reset_setup_counters()
@@ -137,6 +157,7 @@ class _PersistentHealthMixin:
     def bind_state_store(self, state_store) -> None:
         super().bind_state_store(state_store)
         self._health_state_store = state_store
+        self._persisted_health = None  # a new store has seen nothing yet
         loaded = state_store.get(self.health_state_key)
         if isinstance(loaded, dict):
             self.health.load(loaded)
@@ -149,8 +170,20 @@ class _PersistentHealthMixin:
             self._refresh_health_stats()
 
     def _persist_health(self) -> None:
-        if self._health_state_store is not None:
-            self.health.persist(self._health_state_store, self.health_state_key)
+        """Write the health checkpoint only when it differs from the last write.
+
+        A4 (F-08): ``check_health`` runs before every entry decision, so an
+        unconditional write meant one durable store write per symbol per bar.
+        A pending cohort-key migration is always written so its archive lands.
+        """
+        if self._health_state_store is None:
+            return
+        payload = self.health.to_dict()
+        pending_migration = getattr(self.health, "_pending_cohort_checkpoint", None) is not None
+        if not pending_migration and payload == getattr(self, "_persisted_health", None):
+            return
+        self.health.persist(self._health_state_store, self.health_state_key)
+        self._persisted_health = payload
 
     def reset_runtime_state(self) -> None:
         super().reset_runtime_state()
@@ -221,15 +254,15 @@ class _PersistentHealthMixin:
         return allowed
 
 
-class _ProtectiveStopMixin:
-    """Hybrid initial stop + Chandelier trailing stop (SR2-1/2/3).
-
-    Only facts from the completed signal bar are used: the ATR and Donchian
-    level at bar ``i``. The stop that is *in force* during bar ``i`` is always
-    the one computed at bar ``i-1`` - ``Strategy.on_bar`` checks
-    ``hard_stop_exit`` before ``should_exit``, so a trail update can never
-    reach back and change the level that was already tested this bar.
-    """
+    # ---- Protective stop
+    # Hybrid initial stop + Chandelier trailing stop (SR2-1/2/3).
+    #
+    # Only facts from the completed signal bar are used: the ATR and Donchian
+    # level at bar ``i``. The stop that is *in force* during bar ``i`` is always
+    # the one computed at bar ``i-1`` - ``Strategy.process_exit_only`` checks
+    # ``hard_stop_exit`` before ``should_exit``, so a trail update can never
+    # reach back and change the level that was already tested this bar.
+    #
 
     stop_policy: ProtectiveStopPolicy = ProtectiveStopPolicy()
 
@@ -250,6 +283,17 @@ class _ProtectiveStopMixin:
             or getattr(self, "score_policy", None) is not None
             and self.score_policy.enabled
         )
+
+    @property
+    def required_history(self) -> int:
+        # Donchian levels are shifted by one bar; ATR needs a prior close;
+        # the Wilder-smoothed ADX used by scoring is NaN for 2n-1 bars.
+        needed = [max(self.entry_window, self.exit_window) + 1]
+        if self._uses_atr():
+            needed.append(self.stop_policy.atr_period + 1)
+        if self.score_policy.enabled:
+            needed.append(2 * self._adx_period)
+        return max(needed)
 
     def _ensure_atr(self, df: pd.DataFrame) -> None:
         if not self._uses_atr():
@@ -321,12 +365,12 @@ class _ProtectiveStopMixin:
         return new_stop
 
 
-class _CandidateScoringMixin:
-    """Attach an economically meaningful score to every signal (SR3-1).
-
-    Without this the allocator ranks a batch of equal zeros and the surviving
-    order is alphabetical (STR-P1-03). All inputs come from the signal bar.
-    """
+    # ---- Candidate scoring
+    # Attach an economically meaningful score to every signal (SR3-1).
+    #
+    # Without this the allocator ranks a batch of equal zeros and the surviving
+    # order is alphabetical (STR-P1-03). All inputs come from the signal bar.
+    #
 
     score_policy: CandidateScorePolicy = CandidateScorePolicy()
 
@@ -334,14 +378,18 @@ class _CandidateScoringMixin:
         self.score_policy = policy
 
     @property
+    def _adx_period(self) -> int:
+        return int(self.score_policy.adx_period)
+
+    @property
     def _adx_column(self) -> str:
-        return "ADX_14"
+        return f"ADX_{self._adx_period}"
 
     def _ensure_score_inputs(self, df: pd.DataFrame) -> None:
         if not self.score_policy.enabled:
             return
         if self._adx_column not in df.columns:
-            df[self._adx_column] = Indicators.ADX(df, 14)
+            df[self._adx_column] = Indicators.ADX(df, self._adx_period)
 
     def _score_signal(
         self, df: pd.DataFrame, i: int, *, channel_level: Any, side: str,
@@ -376,9 +424,7 @@ class _CandidateScoringMixin:
         )
 
 
-class TrendBreakoutStrategy(
-    _PersistentHealthMixin, _ProtectiveStopMixin, _CandidateScoringMixin, Strategy,
-):
+class TrendBreakoutStrategy(DonchianTrendStrategy):
     """
     P3: Production Implementation of Trend Breakout Alpha.
 
@@ -578,9 +624,7 @@ class TrendBreakoutStrategy(
         return None
 
 
-class TrendBreakdownStrategy(
-    _PersistentHealthMixin, _ProtectiveStopMixin, _CandidateScoringMixin, Strategy,
-):
+class TrendBreakdownStrategy(DonchianTrendStrategy):
     """
     Mirrored Donchian breakdown strategy for short-side trend participation.
     """

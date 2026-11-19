@@ -8,7 +8,7 @@ from dataclasses import replace
 from decimal import Decimal, ROUND_DOWN
 from typing import Optional
 
-from core.domain import OrderIntent
+from core.foundation.domain import OrderIntent
 from core.exchange.metadata import MarketSpecification, OrderValidationError, _decimal
 
 

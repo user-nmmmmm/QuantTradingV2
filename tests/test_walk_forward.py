@@ -24,7 +24,7 @@ from analysis.walk_forward import (
     run_walk_forward,
 )
 from core.metrics import one_sided_bootstrap_p_value
-from core.state import MarketState
+from core.trading.state import MarketState
 from strategies.base import Strategy
 
 SYMBOL = "BTC/USDT"

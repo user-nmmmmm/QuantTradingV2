@@ -5,15 +5,15 @@ from unittest.mock import patch
 
 import pytest
 
-from core.domain import OrderStatus
-from core.domain import FillRecord
+from core.foundation.domain import OrderStatus
+from core.foundation.domain import FillRecord
 from core.live_broker.safe import SafeLiveBroker
-from core.live_safety import StartupSafetyPolicy
-from core.order_store import OrderStore
-from core.portfolio import Portfolio
-from core.protective_orders import ProtectiveState
+from core.foundation.live_safety import StartupSafetyPolicy
+from core.trading.order_store import OrderStore
+from core.trading.portfolio import Portfolio
+from core.trading.protective_orders import ProtectiveState
 from core.risk.persistent_guard import PersistentOrderSafetyGuard
-from live_trading.tick_orchestrator import TickOrchestratorMixin
+from tests.collaborator_host import TickOrchestratorHost
 
 NOW = datetime(2026, 6, 30, tzinfo=timezone.utc)
 SYMBOL = "BTC/USDT"
@@ -76,7 +76,7 @@ class OfflineBinance:
         return {"total": {"USDT": self.cash, "BTC": self.qty}}
 
 
-class Harness(TickOrchestratorMixin):
+class Harness(TickOrchestratorHost):
     def __init__(self, broker):
         self.broker = broker
         self.strategies = {"TrendBreakout": SimpleNamespace(context={SYMBOL: {"stop_loss": 90}})}

@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 
 from analysis.research_validation import evaluate_holdout_admission
-from backtest.reporting.trades import TradeReconstructionMixin
+from backtest.reporting.trades import TradeReconstruction
 from backtest.reporting import ReportGenerator
 
 
@@ -27,7 +27,7 @@ def test_bad_archive_retains_raw_rows_and_never_becomes_normal_sample(field, val
     rows[0][field] = value
     frame = pd.DataFrame(rows)
     before = frame.copy(deep=True)
-    adapter = TradeReconstructionMixin()
+    adapter = TradeReconstruction()
     legs = adapter._reconstruct_closed_trades(frame)
     trips = adapter._aggregate_round_trips(legs)
     assert len(trips) == 1 and trips[0]["status"] == "invalid_input"
@@ -41,7 +41,7 @@ def test_bad_archive_retains_raw_rows_and_never_becomes_normal_sample(field, val
 def test_mixed_archive_keeps_bad_symbol_visible_to_research_admission():
     rows = records("A") + records("B")
     rows[0].pop("strategy")
-    adapter = TradeReconstructionMixin()
+    adapter = TradeReconstruction()
     trips = adapter._aggregate_round_trips(adapter._reconstruct_closed_trades(pd.DataFrame(rows)))
     assert len(trips) == 2
     assert trips[1]["net_pnl"] == 18
@@ -52,7 +52,7 @@ def test_mixed_archive_keeps_bad_symbol_visible_to_research_admission():
 
 
 def test_legacy_strategy_alias_and_primary_exact_order_ownership_are_preserved():
-    adapter = TradeReconstructionMixin()
+    adapter = TradeReconstruction()
     rows = records()
     ordinary = adapter._reconstruct_closed_trades(pd.DataFrame(rows))
     assert ordinary[0]["strategy"] == "ArchiveOwner" and ordinary[0]["net_pnl"] == 18

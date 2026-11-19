@@ -157,7 +157,8 @@ function historyCard(item) {
   const heading = element("div", "history-item-heading"), copy = element("div");
   copy.append(element("h3", "", item.name || item.run_id || item.id));
   const p = item.parameters || {};
-  copy.append(element("p", "", `${p.source === "synthetic" ? "合成数据" : p.source === "local" ? "本地历史行情" : "历史报告"} · ${(p.symbols || []).join(" / ") || "标的未记录"} · ${p.start || "—"} → ${p.end || "—"}`));
+  copy.append(element("p", "", `${p.preset === "original_100k" ? "原 10 万本金 · 60 币 · 智能资金分配" : `${p.source === "synthetic" ? "合成数据" : p.source === "local" ? "本地历史行情" : "历史报告"} · ${(p.symbols || []).join(" / ") || "标的未记录"}`} · ${p.start || "—"} → ${p.end || "—"}`));
+  if (!item.kind || item.kind === "backtest") copy.append(element("p", "", `选币器${p.use_selector === true ? "开启 · 当前冻结 ML 选币器" : "关闭 · 原策略"}`));
   heading.append(copy, element("span", `job-status ${item.status}`, statusLabels[item.status] || item.status)); root.append(heading);
   if (item.error) root.append(element("p", "error", item.error));
   if (item.notes) root.append(element("p", "", item.notes));

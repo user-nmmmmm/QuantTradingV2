@@ -6,10 +6,10 @@ import math
 import pandas as pd
 import pytest
 
-from core.signal_adaptive import build_adaptive_signal_meta
-from core.signal_adaptive_types import AdaptiveEVPolicy, MetaReplayPolicy
-from core.signal_ev_types import EVPolicy
-from core.signal_observation_types import fingerprint
+from signal_meta.signal_adaptive import build_adaptive_signal_meta
+from signal_meta.signal_adaptive_types import AdaptiveEVPolicy, MetaReplayPolicy
+from signal_meta.signal_ev_types import EVPolicy
+from signal_meta.signal_observation_types import fingerprint
 from tests.test_signal_meta_layer import facts
 
 

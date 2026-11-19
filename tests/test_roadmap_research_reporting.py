@@ -12,12 +12,12 @@ from analysis.research_validation import deflated_sharpe_ratio, evaluate_holdout
 from backtest.reporting import ReportGenerator
 from backtest.reporting.render.charts import rolling_max_drawdown
 from backtest.reporting.serialization import write_metrics_json
-from core.diagnostics import build_diagnostics, calculate_lifecycle_coverage
+from core.analytics.diagnostics import build_diagnostics, calculate_lifecycle_coverage
 from core.metrics import Metrics, calculate_cost_sensitivity, calculate_signal_funnel
 from scripts.main_acceptance import validate_clean_source
 from scripts.run_phase5_analysis import main as phase5_main, phase5_config
 from scripts.roadmap_baseline import source_manifest, verify_source
-from core.metric_result import MetricResult
+from core.analytics.metric_result import MetricResult
 
 
 @pytest.mark.parametrize("pnls", [[20.] * 28 + [-1.], [20.] * 29, []])
@@ -249,7 +249,7 @@ def test_final_partition_changes_do_not_change_optimizer_ranking(tmp_path, monke
                 "Exit_Window": 5, "Total_Ret%": 1, "Max_DD%": 0, "Sharpe": sign * entry,
                 "Trades": 1, "Win_Rate%": 1, "returns": returns})
             assert len(train_test_split_returns(returns, .7)["train"]) == 7
-        monkeypatch.setattr(optimize, "_evaluate_grid", lambda *args: evaluations)
+        monkeypatch.setattr(optimize, "_evaluate_grid", lambda *args, evaluations=evaluations: evaluations)
         optimize.run_grid_search(["TEST"], "scenario", 10, "2025-01-01", "2025-01-10")
         output = next((tmp_path / "reports").glob("optimization_*.csv"))
         chosen.append(pd.read_csv(output).iloc[0]["Entry_Window"])

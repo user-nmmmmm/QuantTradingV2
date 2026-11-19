@@ -4,10 +4,10 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
-from core.data_fetcher import DataFetcher
-from core.data_versions import DataVersionStore
-from core.market_data import HistoricalMarketDataAdapter, LiveMarketDataAdapter
-from core.temporal_data import TemporalDataError, TemporalOHLCV, freeze_ohlcv
+from core.market.data_fetcher import DataFetcher
+from core.market.data_versions import DataVersionStore
+from core.market.market_data import HistoricalMarketDataAdapter, LiveMarketDataAdapter
+from core.market.temporal_data import TemporalDataError, TemporalOHLCV, freeze_ohlcv
 
 
 def raw(periods=4):
@@ -68,7 +68,7 @@ def test_late_revision_only_changes_future_visible_history_and_recomputed_indica
     versions = pd.concat([frame, amended])
     versions.attrs = frame.attrs.copy()
     versions["future_indicator"] = 12345.
-    monkeypatch.setattr("core.market_data.Indicators.calculate_all",
+    monkeypatch.setattr("core.market.market_data.Indicators.calculate_all",
         lambda visible: visible.__setitem__("causal_mean", visible.close.rolling(2, min_periods=1).mean()))
     adapter = HistoricalMarketDataAdapter({"BTC/USDT": versions}, timeframe="1d", temporal_policy=strict(tmp_path))
     events = list(adapter.stream())
@@ -134,7 +134,7 @@ def test_frozen_identity_detects_changed_ohlcv(tmp_path):
 
 
 def test_main_csv_path_preserves_raw_bytes_and_unknown_history(tmp_path):
-    from main import get_data
+    from cli.data import get_data
     source = tmp_path / "BTC_USDT.csv"
     raw(4).to_csv(source, index_label="timestamp")
     original = source.read_bytes()
@@ -192,7 +192,7 @@ def test_frozen_source_identity_does_not_silently_follow_new_store_head(tmp_path
 
 
 def test_reimport_changed_legacy_csv_appends_version_without_rewriting_original(tmp_path):
-    from main import get_data
+    from cli.data import get_data
     path = tmp_path / "BTC_USDT.csv"
     frame = raw(2)
     frame.to_csv(path)
@@ -211,7 +211,7 @@ def test_reimport_changed_legacy_csv_appends_version_without_rewriting_original(
 def test_p0_skips_unavailable_current_without_error_and_uses_true_cutoff(tmp_path):
     from types import SimpleNamespace
     from tests.test_signal_observation import observer_for
-    from core.portfolio import Portfolio
+    from core.trading.portfolio import Portfolio
     from core.risk import RiskManager
 
     observer = observer_for()
@@ -295,7 +295,7 @@ def test_mandatory_risk_reduction_remains_executable_with_unknown_current():
 def test_strategy_order_price_volume_and_risk_ignore_later_realised_revision(through_runtime, visible_volume, expected_qty):
     from dataclasses import replace
     from types import SimpleNamespace
-    from core.runtime import EventProcessor
+    from core.foundation.runtime import EventProcessor
     from tests.test_v3_portfolio_execution import SYMBOL, event, setup_controller
 
     controller, broker, risk, _ = setup_controller()
@@ -322,7 +322,7 @@ def test_strategy_order_price_volume_and_risk_ignore_later_realised_revision(thr
 def test_runtime_risk_budget_and_daily_baseline_use_visible_marks_but_report_realised_equity():
     from dataclasses import replace
     from types import SimpleNamespace
-    from core.runtime import EventProcessor
+    from core.foundation.runtime import EventProcessor
     from tests.test_v3_portfolio_execution import SYMBOL, event, setup_controller
 
     _, broker, risk, strategy = setup_controller()
@@ -349,7 +349,7 @@ def test_runtime_risk_budget_and_daily_baseline_use_visible_marks_but_report_rea
 def test_runtime_missing_held_mark_blocks_new_risk_without_using_realised_revision():
     from dataclasses import replace
     from types import SimpleNamespace
-    from core.runtime import EventProcessor
+    from core.foundation.runtime import EventProcessor
     from tests.test_v3_portfolio_execution import SYMBOL, event, setup_controller
 
     _, broker, risk, strategy = setup_controller()
@@ -372,9 +372,9 @@ def test_runtime_missing_held_mark_blocks_new_risk_without_using_realised_revisi
 @pytest.mark.parametrize("persistent", [False, True])
 def test_report_csv_replay_restores_identical_strict_versions(tmp_path, persistent):
     from types import SimpleNamespace
-    from main import _temporal_report_payload, _restore_temporal_replay_inputs
-    from core.backtest_audit import write_json_report
-    from core.reproducibility import save_data_snapshots, load_data_snapshots, sha256_file
+    from cli.replay import _temporal_report_payload, _restore_temporal_replay_inputs
+    from core.analytics.backtest_audit import write_json_report
+    from core.foundation.reproducibility import save_data_snapshots, load_data_snapshots, sha256_file
 
     policy = strict(tmp_path) if persistent else {"mode": "strict"}
     frames = {"BTC/USDT": documented()}
@@ -401,9 +401,9 @@ def test_report_csv_replay_restores_identical_strict_versions(tmp_path, persiste
 def test_strict_replay_rejects_missing_or_changed_temporal_evidence(tmp_path):
     import json
     from types import SimpleNamespace
-    from main import _temporal_report_payload, _restore_temporal_replay_inputs
-    from core.backtest_audit import write_json_report
-    from core.reproducibility import sha256_file
+    from cli.replay import _temporal_report_payload, _restore_temporal_replay_inputs
+    from core.analytics.backtest_audit import write_json_report
+    from core.foundation.reproducibility import sha256_file
 
     frame = documented()
     frames = {"BTC/USDT": frame}
@@ -427,7 +427,7 @@ def test_strict_replay_rejects_missing_or_changed_temporal_evidence(tmp_path):
 
 def test_main_full_strict_csv_report_and_replay_preserve_raw_input_identity(tmp_path, monkeypatch):
     import json
-    import main as entrypoint
+    import cli.run as entrypoint
 
     frame = documented(15)
     frame["availability_source"] = "source_publication"

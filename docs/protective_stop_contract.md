@@ -2,9 +2,9 @@
 
 > 文档状态：Active v1.1（2026-09-12 批准风险预算契约）
 > 生效日期：2026-09-01
-> 实现：[`core/protective_stops.py`](../core/protective_stops.py)、[`strategies/trend_breakout.py`](../strategies/trend_breakout.py)、[`backtest/engine.py`](../backtest/engine.py)
+> 实现：[`core/trading/protective_stops.py`](../core/trading/protective_stops.py)、[`strategies/trend_breakout.py`](../strategies/trend_breakout.py)、[`backtest/engine.py`](../backtest/engine.py)
 > 测试：[`tests/test_sr2_protective_stops.py`](../tests/test_sr2_protective_stops.py)
-> 上位文档：[`current_strategy_remediation_roadmap.md`](current_strategy_remediation_roadmap.md) SR2
+> 上位文档：[`current_strategy_remediation_roadmap.md`](archive/2026-10-doc-consolidation/current_strategy_remediation_roadmap.md) SR2
 
 ## 1. 三层退出保护
 
@@ -19,7 +19,7 @@
 所有止损参数只使用**信号 bar（已完成 bar）**上的 ATR、Donchian 极值和 high/low。
 不使用未来 bar，也不使用入场成交后才知道的价格来做原始仓位排序。
 
-在 bar `i` 生效的止损，永远是在 bar `i-1` 计算出来的：`Strategy.on_bar` 先执行
+在 bar `i` 生效的止损，永远是在 bar `i-1` 计算出来的：`Strategy.process_exit_only` 先执行
 `hard_stop_exit`，再执行 `should_exit`（追踪止损在这里上移），因此当根 bar 的
 trail 更新不可能回过头改变本 bar 已经检验过的止损位。
 
@@ -136,7 +136,7 @@ entry_risk:
 
 ## 7. 保护单生命周期（SR2-5）
 
-实现：[`core/protective_orders.py`](../core/protective_orders.py)，
+实现：[`core/trading/protective_orders.py`](../core/trading/protective_orders.py)，
 实盘接入点在 `live_trading/tick_orchestrator.py::_reconcile_protective_orders`。
 
 `ProtectiveOrderManager` 是一个**对事实的纯状态机**：输入当前净持仓、策略希望
@@ -213,7 +213,7 @@ open -> 不利极值 -> 有利极值 -> close
 这个漏记是按策略类型有偏的。回归见
 `tests/test_backtest_stop_pass_and_liquidity.py`。
 
-两遍撮合共用同一份 bar 成交量预算（`MatchingMixin._bar_volume_budget`），止损
+两遍撮合共用同一份 bar 成交量预算（`Matching._bar_volume_budget`），止损
 那一遍不会拿到新的参与率额度。
 
 ### 唯一权威 close

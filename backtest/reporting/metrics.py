@@ -1,11 +1,11 @@
-"""Metric calculation mixin for :class:`ReportGenerator`."""
+"""Metric calculation collaborator for :class:`ReportGenerator` (stateless; ADR 0025)."""
 
 import math
 from typing import Any, Dict, List
 
 import pandas as pd
 
-from core.metric_result import MetricResult
+from core.analytics.metric_result import MetricResult
 from core.metrics import (
     calculate_attribution,
     calculate_cost_sensitivity,
@@ -15,7 +15,7 @@ from core.metrics import (
 )
 
 
-class ReportMetricsMixin:
+class ReportMetrics:
     def _calculate_equity_metrics(self, equity_curve: pd.DataFrame, *, periods_per_year=None) -> Dict[str, Any]:
         """
         根据权益曲线计算绩效指标。
@@ -29,7 +29,7 @@ class ReportMetricsMixin:
     def _headline_metric_results(self, metrics: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Wrap the report's headline scalar metrics as MetricResult entries (M-02).
 
-        core.metric_result.MetricResult defines a typed, JSON-schema-validated
+        core.analytics.metric_result.MetricResult defines a typed, JSON-schema-validated
         contract that distinguishes a real zero from "not computable" — but it
         had zero production callers; core/metrics.py's ten functions each
         return their own ad hoc dict shape instead. Rewriting those functions

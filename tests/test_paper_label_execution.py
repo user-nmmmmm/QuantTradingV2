@@ -1,8 +1,8 @@
 import pandas as pd
 import pytest
 
-from analysis.paper_labels import BarrierConfig, LabelCosts
-from analysis.paper_label_execution import refine_barrier_labels, reconcile_label_cashflows
+from signal_meta.paper_labels import BarrierConfig, LabelCosts
+from signal_meta.paper_label_execution import refine_barrier_labels, reconcile_label_cashflows
 
 
 def inputs():

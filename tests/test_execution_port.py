@@ -1,7 +1,7 @@
 import unittest
 
 from core.broker import BacktestOrderStatus, Broker, Order
-from core.portfolio import Portfolio
+from core.trading.portfolio import Portfolio
 
 
 class TestBacktestExecutionResult(unittest.TestCase):

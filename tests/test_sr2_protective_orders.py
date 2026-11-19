@@ -1,6 +1,6 @@
 """SR2-5 protective-order lifecycle tests.
 
-Covers docs/current_strategy_remediation_roadmap.md §4.4 and §13.2: the
+Covers docs/archive/2026-10-doc-consolidation/current_strategy_remediation_roadmap.md §4.4 and §13.2: the
 protective order must exist only after the entry fills, must equal the net
 position, must ratchet in one direction only, must never survive a flat
 position, and must fail closed on any state the venue cannot confirm.
@@ -14,16 +14,16 @@ import pandas as pd
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
-from core.portfolio import Portfolio
-from core.domain import OrderStatus
-from core.protective_orders import (
+from core.trading.portfolio import Portfolio
+from core.foundation.domain import OrderStatus
+from core.trading.protective_orders import (
     ProtectiveAction,
     ProtectiveOrder,
     ProtectiveOrderManager,
     ProtectiveState,
 )
-from core.protective_stops import EntryRiskPolicy
-from live_trading.tick_orchestrator import TickOrchestratorMixin
+from core.trading.protective_stops import EntryRiskPolicy
+from tests.collaborator_host import TickOrchestratorHost
 
 
 def _order(
@@ -357,7 +357,7 @@ class _StubBroker:
         return SimpleNamespace(accepted=True, status=OrderStatus.CANCELED)
 
 
-class _StubEngine(TickOrchestratorMixin):
+class _StubEngine(TickOrchestratorHost):
     """Just enough of the live engine to exercise the SR2-5 wiring."""
 
     def __init__(self, broker, strategies):
