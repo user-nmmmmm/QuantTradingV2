@@ -82,7 +82,7 @@ flowchart LR
   - **待决策**：是投入研发补齐非相关策略族（如推进 `TrendPortfolioV3`、空头或均值回归重设计），还是只把当前系统定位为纯研究框架？
 
 - [ ] **Q2（P0）｜前 10 笔交易贡献 `111.0%` 净利润（震荡期 Top-3 达 `367.5%`），实盘能否接受“漏掉 3–5 单即全年转亏”的极端尾部依赖？**
-  - **背景与测试方法**：趋势跟踪策略天然呈“低胜率、高赔率、右偏肥尾”分布，但如果利润过度集中在个位数交易，实盘运维抖动（维护、限流、余额不足、`UNKNOWN` 挂起）造成的偶发漏单风险会成倍放大。我们通过 [diagnostics.py](../../../core/diagnostics.py) 的 `calculate_pnl_concentration` 计算 Top-1/3/5/10 剔除敏感性，并结合 2,000 次蒙特卡洛交易顺序重排评估路径回撤尾部。
+  - **背景与测试方法**：趋势跟踪策略天然呈“低胜率、高赔率、右偏肥尾”分布，但如果利润过度集中在个位数交易，实盘运维抖动（维护、限流、余额不足、`UNKNOWN` 挂起）造成的偶发漏单风险会成倍放大。我们通过 [diagnostics.py](../../../core/analytics/diagnostics.py) 的 `calculate_pnl_concentration` 计算 Top-1/3/5/10 剔除敏感性，并结合 2,000 次蒙特卡洛交易顺序重排评估路径回撤尾部。
   - **现状证据**：139 笔往返交易中 Top-1 占 `40.4%`、Top-5 占 `81.0%`、Top-10 占 **`111.0%`**（剔除前 10 笔净亏 `-210.00 USDT`）；`2023–2024` 震荡期 Top-3 占比高达 **`367.5%`**。
   - **待决策**：是否需要把利润分布分散度门槛（例如剔除 Top-5/10 后仍需 PF > 1.0，或控制利润 HHI 上限）设为策略准入硬指标？
 
@@ -173,8 +173,8 @@ flowchart LR
   - **待验证**：是否把 `abs(exchange_server_time - local_utc) <= 1.0s` 设为 `startup_preflight` 强阻断条件，并在运行期持续巡检时钟偏移？
 
 - [ ] **Q17（P0）｜目前所有策略均非 `admitted`（`TrendBreakout` 为 `paused_revalidation`），R7 沙盒连续运行与 R8 灰度均未过关，距离真实资金上线还差哪几道硬门槛？**
-  - **背景与测试方法**：审计 [strategy_governance.py](../../../core/strategy_governance.py) 与 [unified_roadmap.md](../../../docs/unified_roadmap.md)，核对真实资金准入的工程、研究与连续运行门槛。
-  - **现状证据**：41 项登记任务仍有 17 项开放；`core/strategy_governance.py` 强制拒绝非 `admitted` 策略运行 `--live`；R7 连续运行证据与 R8 灰度批准均为零。
+  - **背景与测试方法**：审计 [strategy_governance.py](../../../ops/strategy_governance.py) 与 [unified_roadmap.md](../../../docs/unified_roadmap.md)，核对真实资金准入的工程、研究与连续运行门槛。
+  - **现状证据**：41 项登记任务仍有 17 项开放；`ops/strategy_governance.py` 强制拒绝非 `admitted` 策略运行 `--live`；R7 连续运行证据与 R8 灰度批准均为零。
   - **待决策**：明确下一阶段首要攻坚顺序——是先攻 **研究层**（解决 `Q1/Q5/Q6`：策略 Alpha 补强与风控平滑重构），还是先打通 **工程运维层**（解决 `Q9/Q13/Q16/Q18`：时钟、数据、R7 沙盒与真实成本采集）？
 
 - [ ] **Q18（P1）｜实盘 `UNKNOWN` 订单悬停阻断、重启补帧漏单与单线程保护单竞态，如何量化它们对实盘收益与风险的真实破坏？**

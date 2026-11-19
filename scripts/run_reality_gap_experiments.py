@@ -14,7 +14,6 @@ import hashlib
 import json
 import logging
 import math
-import os
 import random
 import subprocess
 import sys
@@ -35,13 +34,13 @@ if str(REPO_ROOT) not in sys.path:
 # Suppress verbose INFO logs during batch runs; preserve warnings/errors in audit.
 logging.disable(logging.WARNING)
 
-from backtest.delayed_execution import replay_delayed_decisions
-from backtest.engine import BacktestEngine
-from backtest.reporting import ReportGenerator
-from config.config import config
-from core.metrics import monte_carlo_trade_sequence
-from core.universe import PointInTimeUniverse
-from main import _load_local_ohlcv
+from backtest.delayed_execution import replay_delayed_decisions  # noqa: E402
+from backtest.engine import BacktestEngine  # noqa: E402
+from backtest.reporting import ReportGenerator  # noqa: E402
+from config.config import config  # noqa: E402
+from core.metrics import monte_carlo_trade_sequence  # noqa: E402
+from core.universe import PointInTimeUniverse  # noqa: E402
+from main import _load_local_ohlcv  # noqa: E402
 
 DATA_DIR = REPO_ROOT / "data" / "binance" / "1d"
 UNIVERSE_CSV = REPO_ROOT / "config" / "universe_binance_spot_1d.csv"
@@ -391,7 +390,6 @@ def run_delayed_execution_diagnostic(
         buy_drifts = []
         sell_drifts = []
         for f in rep["fills"]:
-            ref = float(f.get("theoretical_price") or 0.0)
             # Match original decision reference price
             dec_match = next((x for x in base_decisions if x["symbol"] == f["symbol"] and x["side"] == f["side"]), None)
             if dec_match and dec_match["reference_price"] > 0:
