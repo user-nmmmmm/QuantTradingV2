@@ -29,7 +29,7 @@
 | 引擎口径 | 次 K 线开盘成交、费率、价差、滑点、冲击与参与率上限均按 [回测假设](../backtest_assumptions.md)。日线数据没有逐 bar 的 `spread_bps` 时使用配置默认值，**日线结论不能外推到日内执行**。 |
 | 登记 | 每个研究运行前，协议文件与脚本的哈希写入 `reports/<研究>/registration.json`（本地、不入库）；每一次尝试，包括失败的，都经 `ResearchEvidenceRun` 记账，并受 [`analysis/search_scope.py`](../../analysis/search_scope.py) 的有限范围合同约束。任一哈希变化，脚本拒绝继续。 |
 | 随机性 | 固定种子，写入协议；种子不得在看过结果后更换。 |
-| 多重检验 | 六个研究共用一份累计尝试数（候选数 × 参数格点 × 窗口方案）。R3 与 R2 对获选候选做 deflated Sharpe 时必须使用**测得的**跨候选夏普离散度，不用单序列近似（见 `deflated_sharpe_ratio` 的说明）。 |
+| 多重检验 | 六个研究共用一份累计尝试数，按**唯一候选**计（每个实际搜索过的配置只计一次，不做乘积）。R3 与 R2 对获选候选做 deflated Sharpe 时必须用 `deflated_sharpe_evidence` 的全面板结果，以其 `probability` 作门槛；单序列的 `deflated_sharpe_ratio` 只给诊断值，不能作门槛。 |
 
 ## 3. 结论分级
 

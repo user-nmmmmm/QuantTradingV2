@@ -2,7 +2,7 @@
 
 > 状态：**草案，未冻结，无结果**。共同约束见[总纲](backtest_research_program_20261116.md)。
 > 依赖：R1（通过的对象）、R4（基准成本）。计划脚本：`scripts/run_backtest_r3_parameter_robustness.py`（本批不含）。
-> 工具：[`parameter_plateau`](../../analysis/research_validation.py)、`deflated_sharpe_ratio`、[`search_scope`](../../analysis/search_scope.py)。
+> 工具：[`parameter_plateau`](../../analysis/research_validation.py)、[`deflated_sharpe_evidence`](../../analysis/paper_validation.py)、[`search_scope`](../../analysis/search_scope.py)。
 
 ## 1. 问题
 
@@ -31,8 +31,10 @@ H0：表现随参数微小移动而显著恶化，或在扣除搜索规模后不
 - 每格：train60 与 validation20 的 `ratio`、夏普、收益、最大回撤、平仓交易数。
 - 高原：`parameter_plateau(scores, tolerance=0.10)`，给出最优点、近优区域面积占比、边界触碰情况。
 - 邻域：最优格的切比雪夫半径 1 邻域（含自身）。
-- 多重检验：对 train60 最优格做 deflated Sharpe，`trials` = 全部格点数 × 累计族内尝试数，
-  `trial_sharpe_std` 用**全部格点的测得夏普离散度**，不使用单序列近似。
+- 多重检验：对 train60 最优格用 `deflated_sharpe_evidence` 做全面板 deflated Sharpe。面板是累计登记中
+  **每个唯一候选各一列**的 train60 收益（本研究的网格格点加上此前研究已搜索过的候选，每个只计一次，不相乘）；
+  `declared_total_trials` = 唯一候选总数，须等于面板列数，并设 `historical_trials_complete` 与
+  `registered_before_results` 为真。不使用单序列的 `deflated_sharpe_ratio`，它的 `probability` 恒为空。
 
 ## 5. 预注册判定规则（草案阈值）
 
@@ -42,7 +44,7 @@ H0：表现随参数微小移动而显著恶化，或在扣除搜索规模后不
 2. **邻域**：最优格的半径 1 邻域里，train60 `ratio` 的中位数 > 0，且 ≥ 最优格 `ratio` 的 50%；
 3. **默认配置**：默认格在近优区域内，或其 train60 `ratio` ≥ 最优格 `ratio` 的 70%；
 4. **确认**：近优区域内的格点在 validation20 的 `ratio` 中位数 > 0，且为正的格点占比 ≥ 50%；
-5. **多重检验**：deflated Sharpe 的概率 ≥ 0.95，否则判"显著性在扣除搜索规模后消失"；
+5. **多重检验**：`deflated_sharpe_evidence` 返回的 `probability` ≥ 0.95，否则判"显著性在扣除搜索规模后消失"；若搜索记录不完整导致 `probability` 为空，本条判"证据不足"，`diagnostic_probability` 只报告、不作门槛；
 6. **成本不翻转**：2× 成本下最优格仍在近优区域内，或移动不超过半径 1；
 7. **样本量**：每个被计入的格点组合层平仓交易数 ≥ 30；不足的格点标记为无效并从高原面积分母中剔除，
    但剔除后有效格点少于 10 个时，整体判"证据不足"。
@@ -51,7 +53,8 @@ S3、S4 预计大量格点无效，预期结论多为"证据不足"，如实记�
 
 ## 6. 多重检验与尝试登记
 
-所有格点的运行（包括 2× 成本的复算和无效格点）进入累计尝试数；`SearchScope` 的有限范围合同须在运行前写明上述网格，
+所有格点的运行（包括 2× 成本的复算和无效格点）都写入实验登记。累计尝试数按**唯一候选**计：每个格点算一个候选，
+只计一次；2× 成本复算是对同一批候选的压力检验，不参与选格，登记但不另计候选；`SearchScope` 的有限范围合同须在运行前写明上述网格，
 运行后若发现需要扩大网格，必须新开协议条目，旧结论的尝试数继续累计。
 
 ## 7. 产物
