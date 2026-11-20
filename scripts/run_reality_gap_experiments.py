@@ -31,8 +31,8 @@ from backtest.engine import BacktestEngine
 from backtest.reporting import ReportGenerator
 from config.config import config
 from core.metrics import monte_carlo_trade_sequence
-from core.universe import PointInTimeUniverse
-from main import _load_local_ohlcv
+from core.market.universe import PointInTimeUniverse
+from cli.data import _load_local_ohlcv
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -42,6 +42,9 @@ OUTPUT_DIR = REPO_ROOT / "outputs" / "reality_gap_experiments"
 DEFAULT_START = "2020-01-01"
 DEFAULT_END = "2026-08-27"
 SEED = 42
+# E7 out-of-sample window and the indicator history loaded ahead of it.
+OOS_START = "2023-08-01"
+OOS_HISTORY_START = "2023-01-01"
 
 
 def _deep_merge(base: dict, overrides: Mapping[str, Any]) -> dict:
@@ -740,7 +743,10 @@ def main() -> None:
     # ------------------------------------------------------------------
     print("\n--- E7: IS vs OOS Parameter Sensitivity & Overfitting Surface ---", flush=True)
     is_data, _ = _load_universe_data("2020-01-01", "2023-06-30")
-    oos_data, _ = _load_universe_data("2023-08-01", "2026-08-27")  # 31-day purge/embargo
+    # OOS evaluation starts 2023-08-01 (31-day purge/embargo after IS). Earlier bars are
+    # loaded only as indicator history (60-bar SMA, state confirmation, engine warmup);
+    # trading_start keeps orders, cashflows and the equity curve inside the OOS window.
+    oos_data, _ = _load_universe_data(OOS_HISTORY_START, "2026-08-27")
     param_grid = [
         (10, 5), (15, 5), (15, 10),
         (20, 5), (20, 10), (20, 15),
@@ -755,7 +761,12 @@ def main() -> None:
             }
         }
         r_is = run_arm(f"E7_IS_{ew}_{xw}", is_data, config_overrides=p_cfg, engine_kwargs={"universe": universe})
-        r_oos = run_arm(f"E7_OOS_{ew}_{xw}", oos_data, config_overrides=p_cfg, engine_kwargs={"universe": universe})
+        r_oos = run_arm(
+            f"E7_OOS_{ew}_{xw}",
+            oos_data,
+            config_overrides=p_cfg,
+            engine_kwargs={"universe": universe, "trading_start": OOS_START},
+        )
         e7_rows.append({
             "entry_window": ew,
             "exit_window": xw,
@@ -779,7 +790,8 @@ def main() -> None:
     best_is = max(e7_rows, key=lambda r: r["is_return"] if r["is_return"] is not None else -1e9)
     report["experiments"]["E7_parameter_is_oos"] = {
         "is_window": ["2020-01-01", "2023-06-30"],
-        "oos_window": ["2023-08-01", "2026-08-27"],
+        "oos_window": [OOS_START, "2026-08-27"],
+        "oos_history_start": OOS_HISTORY_START,
         "purge_days": 31,
         "grid": e7_rows,
         "spearman_is_vs_oos_return": spearman,

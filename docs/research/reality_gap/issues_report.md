@@ -1,6 +1,6 @@
 # QuantTradingV1 当前问题综合诊断报告（Report）
 
-> **报告定位**：本报告以**问题为中心**，综合 42 组控制变量回测实验（[summary.json](../../../outputs/reality_gap_experiments/summary.json)，30 币安日线 `2020-01-01 ~ 2026-08-27`，Git `4e913d0a`，Seed `42`，全部 `accounting_ok=True`）与源码/运维/治理审计，系统回答“**当前量化交易系统与实际交易之间到底存在哪些问题、根因是什么、有多严重、该怎么修**”。
+> **报告定位**：本报告以**问题为中心**，综合 50 次控制变量回测运行（[summary.json](../../../outputs/reality_gap_experiments/summary.json)，30 币安日线 `2020-01-01 ~ 2026-08-27`，Git `4e913d0a`，Seed `42`，全部 `accounting_ok=True`）与源码/运维/治理审计，系统回答“**当前量化交易系统与实际交易之间到底存在哪些问题、根因是什么、有多严重、该怎么修**”。
 > **关联文档**：配套决策清单见 [questions_list.md](./questions_list.md)；完整实验矩阵明细见 [experiments_report.md](./experiments_report.md)。
 
 ---

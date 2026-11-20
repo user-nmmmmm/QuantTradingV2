@@ -1,7 +1,7 @@
 # QuantTradingV1 当前问题清单与测试背景（Questions List）
 
 > **文档定位**：本清单是一份**可独立阅读（Self-Contained）**的量化交易问题诊断与决策文档。前半部分系统交代**系统架构背景、测试环境、实验方法论与核心量化术语**，后半部分按五大领域列出 **18 个待澄清、待决策或待验证的关键问题（`Q1`–`Q18`）**，每条均附机制背景、测试方法、实证数据与关闭条件。
-> **关联文档**：综合缺陷诊断见 [issues_report.md](./issues_report.md)；完整 42 组实验数据明细见 [experiments_report.md](./experiments_report.md)；复现脚本见 [run_reality_gap_experiments.py](../../../scripts/run_reality_gap_experiments.py)。
+> **关联文档**：综合缺陷诊断见 [issues_report.md](./issues_report.md)；完整 50 次回测运行的数据明细见 [experiments_report.md](./experiments_report.md)；复现脚本见 [run_reality_gap_experiments.py](../../../scripts/run_reality_gap_experiments.py)。
 
 ---
 
@@ -41,7 +41,7 @@ flowchart LR
 | **测试数据集** | 本地 30 个币安现货 USDT 日线（`data/binance/1d/*.csv`），主实验统一窗口 **`2020-01-01` ~ `2026-08-27`**（2,431 根日线，覆盖 2020–21 大牛、2022 深熊、2023–24 震荡、2025–26 近期），联合哈希 `ba937985…0daf` |
 | **宇宙与防偏差** | 接入逐时点宇宙 [universe_binance_spot_1d.csv](../../../config/universe_binance_spot_1d.csv)（含退市标的 `MATIC-USDT`，退市日 `2025-03-25`）；严格遵守 Next-Bar 执行，杜绝前视偏差；不触碰前瞻观察窗 `[2026-10-20, 2027-04-18)` |
 | **可复现与隔离** | Git 提交 `4e913d0a`；固定随机种子 `Seed = 42`；实验脚本通过内存深拷贝上下文临时覆写参数，**零修改**磁盘 `config/params.yaml` 与回归基线 |
-| **正确性护栏** | 全部 **42 组回测运行**均开启逐 bar 会计恒等式核对（`AccountingReconciler`，Gate G2），结果 **42/42 全部 `accounting_ok = True`**；所有指标遵循 `{value, status}` 契约（PF 需 ≥30 笔闭合往返交易才标为 `ok`） |
+| **正确性护栏** | 全部 **50 次回测运行**均开启逐 bar 会计恒等式核对（`AccountingReconciler`，Gate G2），结果 全部 `accounting_ok = True`（原始 `summary.json` 未入库，未能复核）；所有指标遵循 `{value, status}` 契约（PF 需 ≥30 笔闭合往返交易才标为 `ok`） |
 
 #### 七大对照实验矩阵（E1–E7 + E4b）与问题映射
 
