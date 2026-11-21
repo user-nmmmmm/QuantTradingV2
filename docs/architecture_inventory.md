@@ -44,7 +44,7 @@ flowchart TB
 | `composition` | 1 | 平铺 1 |
 | `backtest` | 24 | 平铺 12；`reporting` 12 |
 | `live_trading` | 10 | 平铺 10 |
-| `analysis` | 32 | 平铺 32 |
+| `analysis` | 33 | 平铺 33 |
 | `research` | 30 | 平铺 1；`audit` 2, `ml_selection` 27 |
 | `dashboard` | 14 | 平铺 14 |
 

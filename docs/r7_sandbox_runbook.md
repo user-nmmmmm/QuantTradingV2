@@ -80,7 +80,7 @@ Get-Content reports/live_alerts.jsonl -Tail 20 -Wait
 | `MARKET_DATA_*` / `tick_unhealthy` | 保持进程 fail-closed，检查网络、代理、交易对和 testnet K 线时间 | 连续刷新后 health 恢复且时间戳推进 |
 | `ACCOUNT_SYNC_*` | 在 testnet 页面核对余额和持仓，检查 API 权限和连接 | 权威账户同步成功且无差异 |
 | `EXCHANGE_CLOCK_OFFSET` | 本机时钟与交易所相差超过 1.0 秒。进程保持运行，只禁止新增风险，减仓、止损和保护单对账照常；立即同步本机时钟 | 下一次复检通过（失败后每 30 秒重试，通过后每 300 秒复检一次） |
-| `EXCHANGE_CLOCK_UNVERIFIED` | 读不到交易所时间、往返太慢或样本矛盾，偏移无法证明。同样只禁止新增风险；检查网络、代理和 testnet 可用性，再核对本机时钟 | 下一次复检通过 |
+| `EXCHANGE_CLOCK_UNVERIFIED` | 读不到交易所时间（含 2 秒内没等到请求预算或响应，错误类型为 `RequestBudgetExpired` 或超时）、往返太慢或样本矛盾，偏移无法证明。同样只禁止新增风险；检查网络、代理和 testnet 可用性，再核对本机时钟 | 下一次复检通过 |
 | `ORDER_STATE_UNKNOWN` | 禁止手工补单；按 client order id 在 testnet 查单 | 本地订单账本与交易所终态一致 |
 | `circuit_breaker_triggered` | 当日禁止新风险，核对日初权益和当前权益 | 同一交易日重启仍应 halt；只在下一交易日自动清除 |
 | `state_snapshot_failed` | 不影响当前 SQLite 权威状态，但立即检查磁盘空间和 snapshot 目录 | 新快照成功且完整性检查通过 |

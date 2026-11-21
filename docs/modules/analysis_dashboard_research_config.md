@@ -37,6 +37,8 @@ CLI 支持 `--symbols`、`--days`、`--start`、`--end`、`--source {synthetic,y
 
 [`paper_validation.py`](../../analysis/paper_validation.py) 实现 CSCV/PBO、CPCV 事件拆分及预测路径组装、联合块重采样的 White Reality Check、DSR 与依赖敏感性。输入、状态、并列处理及公式见[论文统计验证接口契约](../research/paper_validation_contract_20261003.md)。CPCV 返回事件预测路径，需另行固定交易和成本规则后才能回放成收益；各路径共享历史，不能按路径数扩充独立样本量。
 
+[`concentration.py`](../../analysis/concentration.py) 给出集中度证据所需的数字：去掉盈利最大的 N 笔之后的净盈亏与盈亏比、利润 HHI、去掉盈利最多的一个日历年和一个标的之后的净盈亏。它只报告数字和状态（样本不足时仍给出数值但标记 `insufficient`），不含阈值和通过/未通过的裁决，那属于调用它的冻结协议（回测研究总纲 R5）；结果不进入任何准入判断。
+
 [`research_validation.py`](../../analysis/research_validation.py) 提供窗口、purge/embargo、搜索试验登记、留出集协议和准入证据评价；[`validation.py`](../../analysis/validation.py) 提供训练段选择、最终段评价和邻域稳定性包装。它们本身不负责真实订单提交。
 
 ### 论文方法、标签与连续账户

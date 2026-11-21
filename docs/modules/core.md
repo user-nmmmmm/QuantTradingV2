@@ -277,7 +277,7 @@
 `EODReconciliationJob` 调用 `research/audit/ledger.py` 的 `PortfolioProjection.reconcile`，对比外部交易所现金/持仓，原子性地把 JSON 报告落盘到 `<output_dir>/<日期>_<账户>.json`（临时文件 + `os.replace`）。要求 `checked_at` 带时区。产出被 `r7_acceptance.py` 消费，要求整个 soak 期内每天零偏差。
 
 ### `ops/clock_guard.py` — 交易所时钟偏移门禁
-本机时钟与交易所不一致会让引擎误判 K 线是否收盘，历史回测测不到这一点。`measure_exchange_clock_offset(fetch_server_time_ms, samples=..., max_offset_seconds=...)` 多次读取交易所服务器时间，用“服务器时间落在本地发送与接收之间”给出交易所减本机偏移的上下界并取交集，**只给界、不做估计，也不校正任何时钟**；只有整个区间都在限值内才算通过，超限、无法证明、读不到、样本矛盾都失败关闭，报告里只记异常类型名。`ExchangeClockGuard` 在启动时测一次（5 个样本），运行期按 `ClockOffsetPolicy` 复检（通过后 300 秒、失败后 30 秒，3 个样本；单次检查超过 5 秒预算后不再发起新的读取，避免时间接口不通时拖住 tick）；未通过期间 `health_reason()` 返回 `EXCHANGE_CLOCK_OFFSET` 或 `EXCHANGE_CLOCK_UNVERIFIED`，经引擎的健康评估禁止新增风险，减仓、止损和保护单对账不受影响。限值 1.0 秒是硬门禁，不提供命令行开关。
+本机时钟与交易所不一致会让引擎误判 K 线是否收盘，历史回测测不到这一点。`measure_exchange_clock_offset(fetch_server_time_ms, samples=..., max_offset_seconds=...)` 多次读取交易所服务器时间，用“服务器时间落在本地发送与接收之间”给出交易所减本机偏移的上下界并取交集，**只给界、不做估计，也不校正任何时钟**；只有整个区间都在限值内才算通过，超限、无法证明、读不到、样本矛盾都失败关闭，报告里只记异常类型名。`ExchangeClockGuard` 在启动时测一次（5 个样本），运行期按 `ClockOffsetPolicy` 复检（通过后 300 秒、失败后 30 秒，3 个样本）。每次读取带 2 秒截止时间，覆盖共享请求预算的等待和 HTTP 调用；单次检查超过 5 秒预算后不再发起新的读取，所以一次检查最多占用 tick 约 6 秒，请求预算被占满或时间接口不通时不会拖住后面的账户、订单和保护单对账；未通过期间 `health_reason()` 返回 `EXCHANGE_CLOCK_OFFSET` 或 `EXCHANGE_CLOCK_UNVERIFIED`，经引擎的健康评估禁止新增风险，减仓、止损和保护单对账不受影响。限值 1.0 秒是硬门禁，不提供命令行开关。
 
 ### `ops/operations/startup_preflight.py` — 启动前检查
 `build_startup_report(policy, credentials, engine, clock_offset=...)` 生成不含密钥明文的 JSON"证据"报告（凭据是否存在、sandbox/live 模式、一键停机是否未激活、账户/订单同步基线、健康基线、熔断状态、交易所时钟偏移）。没有传入通过的时钟测量时 `exchange_clock_offset` 检查失败。`write_startup_report(...)` 原子写入（临时文件 + `os.replace` + fsync）。

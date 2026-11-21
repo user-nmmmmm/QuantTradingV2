@@ -219,13 +219,21 @@ class LiveBroker:
     def set_health_assessment(self, assessment) -> None:
         self.health_assessment = assessment
 
-    def exchange_server_time_ms(self) -> int:
-        """Exchange wall clock in epoch milliseconds, read once without retry.
+    def exchange_server_time_ms(self, *, timeout_seconds: float = 2.0) -> int:
+        """Exchange wall clock in epoch milliseconds, read once without retry, within a deadline.
 
         The clock guard times this single request to bound the host clock offset;
-        a retry would hide the round trip it has to measure.
+        a retry would hide the round trip it has to measure. The deadline covers both
+        the wait for the shared request budget and the HTTP call: without a request
+        scope the budget wait has no limit, and this read runs at the start of a tick,
+        ahead of account, order and protective-order reconciliation.
         """
-        return int(self.exchange.fetch_time())
+        if isinstance(timeout_seconds, bool) or not math.isfinite(timeout_seconds) or timeout_seconds <= 0:
+            raise ValueError("timeout_seconds must be finite and positive")
+        from time import monotonic
+        from core.market.request_budget import request_scope
+        with request_scope(deadline=monotonic() + float(timeout_seconds), priority="critical"):
+            return int(self.exchange.fetch_time())
 
     def risk_price_facts(self, symbols, *, max_age_seconds=90.0):
         """Realtime execution-venue marks; a closed signal bar is not a risk mark."""

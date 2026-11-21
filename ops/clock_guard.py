@@ -50,13 +50,16 @@ class ClockOffsetPolicy:
     check_interval_seconds: float = 300.0
     retry_interval_seconds: float = 30.0
     step_tolerance_seconds: float = 0.25
-    # No new request is started once one check has run this long, so an unreachable
-    # time endpoint costs the tick loop about one request timeout, not one per sample.
+    # Deadline the caller applies to one server-time read (request-budget wait plus HTTP).
+    # A read slower than twice the offset limit could never prove the offset anyway.
+    read_timeout_seconds: float = 2.0
+    # No new read is started once one check has run this long. With the read deadline this
+    # bounds the time a check can hold up a tick: at most three reads, about six seconds.
     sample_budget_seconds: float = 5.0
 
     def __post_init__(self) -> None:
         for name in ("max_offset_seconds", "check_interval_seconds", "retry_interval_seconds",
-                     "step_tolerance_seconds", "sample_budget_seconds"):
+                     "step_tolerance_seconds", "sample_budget_seconds", "read_timeout_seconds"):
             value = getattr(self, name)
             if isinstance(value, bool) or not math.isfinite(value) or value <= 0:
                 raise ValueError(f"{name} must be finite and positive")
