@@ -33,6 +33,7 @@
 
 以下按近期主题提供入口。带日期的实施记录说明对应批次的工作和证据，文件日期较新并不自动替代已批准契约或更新项目放行状态。
 
+- [2026-11-21 实盘现实断层整改开发计划](research/reality_gap/development_plan.md)：把[问题清单 Q1–Q18](research/reality_gap/questions_list.md)、[综合诊断](research/reality_gap/issues_report.md)与[实验报告](research/reality_gap/experiments_report.md)整理成 24 个工作包；草案，待所有者确认，不改策略代码与配置。批次 1 已完成：实验脚本修复并在当前 main 重跑（49 次引擎运行），新旧对照与勘误见[实验报告第六节](research/reality_gap/experiments_report.md)；结果是回顾性诊断，不用于选参或准入。
 - [2026-11-16 回测研究总纲与 R1–R6 协议草案](research/backtest_research_program_20261116.md)：零模型基线、滚动样本外、参数稳健性、成本与容量、行情与集中度、回撤与尾部六份研究协议；仅为设计，未冻结、无脚本、无结果，阈值待所有者确认，不读 final20。
 - [2026-10-28 PR25 主线移植与三项补充接口](research/paper_research_main_development_20261028.md)：保留当前架构、数据 adoption 与质量门槛，移植原专项工程并补充成本发布收据、原策略自动捕获和类型化 worker 输入；[当前验收](research/paper_research_main_acceptance_20261028.json)待当前提交检查，真实证据、条件支线和资金准入分别记录。
 
