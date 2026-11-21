@@ -35,6 +35,7 @@ from composition.factory import (
 from core.foundation.alerting import AlertSink, build_default_alert_sink
 from core.foundation.clock import ClockLike, coerce_clock
 from core.market.data_fetcher import DataFetcher
+from ops.clock_guard import ExchangeClockGuard
 from ops.health import DataHealthMonitor, DataHealthPolicy, HealthAssessment, HealthReason
 from core.live_broker import LiveBroker
 from core.foundation.logger import get_logger
@@ -82,6 +83,10 @@ class LiveTradingEngine:
     _last_tick_seconds = Delegated[Optional[float]]("_tick_orchestrator")
     _alerted_health_transitions = Delegated[Set[Any]]("_tick_orchestrator")
     _live_fill_risk_audit = Delegated[List[Dict[str, Any]]]("_tick_orchestrator")
+
+    # Attached by the exchange-connected entry point after construction; None leaves the check off
+    # (replays and tests with an injected clock have no exchange clock to compare with).
+    clock_guard: Optional[ExchangeClockGuard] = None
 
     @cached_property
     def _tick_orchestrator(self) -> TickOrchestrator:
@@ -291,6 +296,9 @@ class LiveTradingEngine:
                 self.market_data_adapter, "regressed_symbols", set()
             ),
         )
+        clock_reason = self.clock_guard.health_reason() if self.clock_guard is not None else None
+        if clock_reason is not None:
+            extra = (*extra, clock_reason)
         projection_issues = getattr(self.broker, "projection_issues", [])
         if isinstance(projection_issues, list) and projection_issues:
             extra = (*extra, HealthReason(
@@ -497,7 +505,17 @@ class LiveTradingEngine:
     def _tick(self) -> bool:
         return self._tick_orchestrator._tick()
 
+    def _refresh_exchange_clock(self) -> None:
+        """Re-measure the exchange clock offset when due.
+
+        A failed check only adds a health reason, which blocks new risk; reductions,
+        stops and protective-order reconciliation run as usual.
+        """
+        if self.clock_guard is not None:
+            self.clock_guard.check_if_due()
+
     def _tick_once(self):
+        self._refresh_exchange_clock()
         return self._tick_orchestrator._tick_once()
 
     def _alert_strategy_health_transitions(self) -> None:

@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from core.foundation.live_safety import StartupSafetyPolicy
+from ops.clock_guard import describe_clock_offset
 
 
 def _check(name: str, passed: bool, detail: str) -> dict[str, Any]:
@@ -21,8 +22,13 @@ def build_startup_report(
     engine: Any,
     *,
     checked_at: datetime | None = None,
+    clock_offset: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Build the startup gate report without copying credential values."""
+    """Build the startup gate report without copying credential values.
+
+    ``clock_offset`` is the report of ``ops.clock_guard``. A missing or failed
+    measurement fails the gate: an unverified host clock is not a healthy one.
+    """
     now = checked_at or datetime.now(timezone.utc)
     assessment = getattr(engine, "health_assessment", None)
     reason_codes = list(getattr(assessment, "reason_codes", []) or [])
@@ -65,6 +71,11 @@ def build_startup_report(
             True,
             "active" if breaker_active else "inactive",
         ),
+        _check(
+            "exchange_clock_offset",
+            bool(clock_offset is not None and clock_offset.get("passed") is True),
+            describe_clock_offset(dict(clock_offset) if clock_offset is not None else None),
+        ),
     ]
     return {
         "schema_version": 1,
@@ -76,6 +87,7 @@ def build_startup_report(
         "symbols": list(policy.symbols),
         "base_currency": policy.base_currency,
         "health_reason_codes": reason_codes,
+        "exchange_clock_offset": dict(clock_offset) if clock_offset is not None else None,
         "checks": checks,
     }
 

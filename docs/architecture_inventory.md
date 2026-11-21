@@ -36,7 +36,7 @@ flowchart TB
 |---|---|---|
 | `cli` | 3 | 平铺 3 |
 | `core` | 112 | `analytics` 7, `broker` 6, `events` 5, `exchange` 5, `factors` 6, `foundation` 13, `live_broker` 6, `market` 18, `metrics` 5, `planning` 9, `risk` 10, `trading` 22 |
-| `ops` | 14 | 平铺 11；`operations` 3 |
+| `ops` | 15 | 平铺 12；`operations` 3 |
 | `signal_meta` | 18 | 平铺 18 |
 | `config` | 1 | 平铺 1 |
 | `strategies` | 7 | 平铺 7 |
