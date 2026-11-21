@@ -20,6 +20,10 @@ manifest recorded the same bytes; every other file is ``unverified``, and every 
   python scripts/data_inputs.py build --check     # exit 1 when the committed manifest is not what `build` would write
   python scripts/data_inputs.py corroborate       # (network) compare every file with Binance's public daily klines and
                                                   # record the result as independent corroboration
+  python scripts/data_inputs.py coverage          # CI / dev.py check: the point-in-time universe agrees with the adopted data,
+                                                  # and every member has bars from the research window start (ADR 0044)
+  python scripts/data_inputs.py coverage --window-start 2017-08-17   # check a different window start
+  python scripts/data_inputs.py coverage --no-window                  # structural checks only; late data starts are reported
 
 Corroboration is weaker than a download record and is kept separate from ``provenance.status``: it says the
 values still agree with what Binance publishes today, not that the file was ever downloaded from there. It is bound
@@ -37,7 +41,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
@@ -48,6 +52,11 @@ ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT / "data" / "binance" / "1d"
 CACHE_MANIFEST = "_manifest.json"
 FROZEN_MANIFEST = "_frozen_inputs.json"
+RESEARCH_POLICY = "_research_policy.json"
+UNIVERSE_CSV = ROOT / "config" / "universe_binance_spot_1d.csv"
+# Owner decision of 2026-11-21 (ADR 0044): research on these thirty inputs starts here. BTC and ETH have no
+# adopted bars before this date although both were listed in 2017.
+RESEARCH_WINDOW_START = "2020-01-01"
 SCHEMA = "frozen-research-inputs/v1"
 KLINES_URL = "https://data-api.binance.vision/api/v3/klines"
 CORROBORATION_STATUSES = {"match", "match_except_final_bar", "mismatch", "unavailable"}
@@ -344,6 +353,76 @@ def verify(data_dir: Path = DATA_DIR, *, tracked: Optional[List[str]] = None, st
     return errors
 
 
+def _day(value: object) -> date:
+    return date.fromisoformat(str(value)[:10])
+
+
+def _finding(symbol: str, kind: str, blocking: bool, detail: str) -> Dict[str, object]:
+    return {"symbol": symbol, "kind": kind, "blocking": blocking, "detail": detail}
+
+
+def universe_coverage(universe_csv: Path = UNIVERSE_CSV, data_dir: Path = DATA_DIR, *,
+                      window_start: Optional[str] = None) -> List[Dict[str, object]]:
+    """Where the point-in-time universe and the adopted data disagree.
+
+    A membership row says when a symbol may be traded; the frozen manifest and the adopted
+    research policy say which bars exist. The engine refuses a membership that ends after
+    its data (the last legal exit bar is missing) and silently clips data outside a
+    membership, so each disagreement either stops a backtest or quietly changes its sample.
+
+    ``head_gap`` (listed before the first bar) is reported but only blocks when
+    ``window_start`` is given and the symbol is a member at that date without bars: the
+    engine accepts a late data start, but a study that begins earlier trades without that
+    symbol.
+    """
+    manifest = json.loads((data_dir / FROZEN_MANIFEST).read_text(encoding="utf-8"))["files"]
+    policy_path = data_dir / RESEARCH_POLICY
+    policy = json.loads(policy_path.read_text(encoding="utf-8")) if policy_path.is_file() else {}
+    common_end = policy.get("common_research_end_inclusive")
+    start = _day(window_start) if window_start else None
+    with universe_csv.open(encoding="utf-8-sig", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+    findings: List[Dict[str, object]] = []
+    seen: Dict[str, str] = {}
+    for row in rows:
+        symbol = str(row.get("symbol") or "").strip()
+        name = symbol.replace("-", "_").replace("/", "_") + ".csv"
+        if name in seen:
+            findings.append(_finding(symbol, "duplicate_membership", True, f"also listed as {seen[name]}"))
+            continue
+        seen[name] = symbol
+        entry = manifest.get(name)
+        if entry is None:
+            findings.append(_finding(symbol, "missing_data", True, f"no registered input named {name}"))
+            continue
+        listed, first = _day(row["listed_at"]), _day(entry["first"])
+        adopted = (policy.get("files", {}).get(name) or {}).get("research_end_inclusive")
+        end = _day(adopted if adopted else entry["last"])
+        if first < listed:
+            findings.append(_finding(symbol, "data_before_listing", True,
+                                     f"first bar {first} is before listed_at {listed}"))
+        elif first > listed:
+            blocks = start is not None and first > max(listed, start)
+            findings.append(_finding(symbol, "head_gap", blocks,
+                                     f"listed_at {listed}, first bar {first} ({(first - listed).days} days without bars)"))
+        delisted = str(row.get("delisted_at") or "").strip()
+        expected = end + timedelta(days=1)
+        if delisted:
+            if _day(delisted) > expected:
+                findings.append(_finding(symbol, "membership_outlives_data", True,
+                                         f"delisted_at {_day(delisted)} but the data ends {end}; expected {expected}"))
+            elif _day(delisted) < expected:
+                findings.append(_finding(symbol, "data_outlives_membership", True,
+                                         f"delisted_at {_day(delisted)} but the data runs to {end}; expected {expected}"))
+        elif common_end and end < _day(common_end):
+            findings.append(_finding(symbol, "membership_outlives_data", True,
+                                     f"no delisted_at but the data ends {end}, before the common end {common_end}"))
+    for name in sorted(set(manifest) - set(seen)):
+        findings.append(_finding(str(manifest[name].get("symbol") or name), "missing_membership", True,
+                                 f"registered input {name} has no universe row"))
+    return sorted(findings, key=lambda item: (not item["blocking"], str(item["symbol"]), str(item["kind"])))
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -354,6 +433,12 @@ def main(argv: Optional[List[str]] = None) -> int:
     build_cmd.add_argument("--check", action="store_true", help="do not write; fail if the file would change")
     corroborate_cmd = sub.add_parser("corroborate", help="(network) compare the files with Binance's public daily klines")
     corroborate_cmd.add_argument("names", nargs="*", help="limit to these file names (default: all registered)")
+    coverage_cmd = sub.add_parser("coverage", help="check the point-in-time universe against the adopted data")
+    coverage_cmd.add_argument("--window-start", metavar="YYYY-MM-DD", default=RESEARCH_WINDOW_START,
+                              help="fail when a symbol is a member at this date but has no bars yet "
+                                   f"(default: the research window start {RESEARCH_WINDOW_START})")
+    coverage_cmd.add_argument("--no-window", action="store_true",
+                              help="structural checks only: report late data starts without failing on them")
     args = parser.parse_args(argv)
 
     try:
@@ -382,6 +467,17 @@ def _run(args) -> int:
                   f"{evidence.count('unavailable')} unavailable, {evidence.count(None)} not checked; "
                   f"{legacy} legacy comparison records not re-evaluated)")
         return 1 if errors else 0
+
+    if args.command == "coverage":
+        window_start = None if args.no_window else args.window_start
+        findings = universe_coverage(window_start=window_start)
+        for item in findings:
+            print(f"{'ERROR' if item['blocking'] else 'note'}: {item['symbol']}: {item['kind']}: {item['detail']}",
+                  file=sys.stderr if item["blocking"] else sys.stdout)
+        blocking = sum(1 for item in findings if item["blocking"])
+        print(f"Universe coverage: {blocking} blocking, {len(findings) - blocking} reported only"
+              + (f" (window start {window_start})" if window_start else " (no window start)"))
+        return 1 if blocking else 0
 
     target = DATA_DIR / FROZEN_MANIFEST
     if args.command == "corroborate":
