@@ -14,7 +14,7 @@
 | [`verify_lock.py`](verify_lock.py) | 校验运行依赖锁文件。 |
 | [`regenerate_lock.py`](regenerate_lock.py) | 在干净虚拟环境里重新解析 `requirements.txt` 并重写锁文件与摘要；`--check` 离线核对锁的规范形式、摘要和直接依赖。 |
 | [`architecture_inventory.py`](architecture_inventory.py) | 从代码生成 `docs/architecture_inventory.md`（分层顺序、包与模块数），`--check` 核对它是最新的，并核对 `架构图/` 交付图引用的源码路径仍可解析。 |
-| [`data_inputs.py`](data_inputs.py) | 冻结研究输入清单；`verify` 核对文件身份并区分旧比较记录，`build` 登记经审阅的输入，`corroborate`（联网）从同一字节快照绑定摘要、校验末根不变量并拒绝未知文件名/响应错误。见 ADR 0036。 |
+| [`data_inputs.py`](data_inputs.py) | 冻结研究输入清单；`verify` 核对文件身份并区分旧比较记录，`build` 登记经审阅的输入，`corroborate`（联网）从同一字节快照绑定摘要、校验末根不变量并拒绝未知文件名/响应错误（见 ADR 0036），`coverage` 核对逐时点宇宙与采用数据是否一致（`dev.py data` 一并运行）。 |
 | [`fetch_binance_data.py`](fetch_binance_data.py) | 下载并增量缓存 Binance 行情；新记录显式使用 LF 规范化摘要，旧 cache 仅兼容换行等价。 |
 | [`run_backtest_matrix.py`](run_backtest_matrix.py) | 运行多标的、多周期、多时间窗的批量回测；共享严格的 cache 摘要策略，保留来源及覆盖检查。 |
 | [`run_portable_tests.py`](run_portable_tests.py) | 在受限 Windows 临时目录中运行 pytest。 |

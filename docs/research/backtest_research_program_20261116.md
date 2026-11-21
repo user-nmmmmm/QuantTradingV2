@@ -21,6 +21,7 @@
 | 项 | 规定 |
 | --- | --- |
 | 数据 | `data/binance/1d` 已跟踪的冻结 CSV，经标准本地研究入口读取，遵守 [ADR 0041](../adr/0041-approved-data-adoption-and-research-window.md)：统一截止 2026-08-26，MATIC 截止 2024-09-09，不拼接 POL。清单见 [ADR 0020](../adr/0020-frozen-research-inputs.md)。**不得与 `reports/strategy_review_20260919/frozen_inputs` 的 60 币快照混用**；若要复用 SR 系列的数字，必须单独声明口径不同。 |
+| 研究起点 | **2020-01-01**（所有者 2026-11-21 决定，[ADR 0044](../adr/0044-thirty-symbol-research-window-start.md)）。BTC、ETH 的已采用数据从这一天开始，更早的区间里只有当时已有数据的山寨币。train60 / validation20 / final20 的边界在冻结时按 2020-01-01 至各标的研究截止日计算，与 60 币口径的 SR 系列边界不同。加载器不拒绝更早的起点，研究脚本须把起点写死并在登记里记录。 |
 | 来源状态 | 其中 28 个文件只固定了字节，来源未核验，点时间可得性为 `unknown`（ADR 0020）。所有结论带这一条限制。 |
 | 分段 | 时间顺序 train60 / validation20 / final20，purge 30 根、embargo 30 根，与 `current_strategy_protocol.json` 一致。**R1–R6 一律禁止读取 final20**；任何 final20 的使用是之后单独的所有者决定，且只经 [`analysis/controlled_holdout.py`](../../analysis/controlled_holdout.py) 的原子保险库，对事先冻结的候选打开一次。 |
 | final20 已被消耗 | SR5-SUCC-001 已在 final20 上评价过一次 C1 后继候选（60 币口径，见 CHANGELOG）。本批的 30 币数据与它时间重叠，所以 final20 的日期范围已**不是干净的样本**；今后若要一个干净的样本外，只能是观察窗 [2026-11-19, 2027-05-18) 之后产生的前瞻数据。R1–R6 因此不依赖 final20。 |
