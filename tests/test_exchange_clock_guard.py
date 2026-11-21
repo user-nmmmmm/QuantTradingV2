@@ -5,6 +5,7 @@ Convention throughout: offset = exchange - local, in seconds. A host that is 31 
 """
 from __future__ import annotations
 
+import inspect
 import json
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
@@ -27,6 +28,7 @@ from ops.clock_guard import (
 )
 from ops.health import HealthAssessment
 from ops.startup_preflight import build_startup_report
+import run_live
 from run_live import protection_only_startup_allowed, refuse_startup_for_clock
 from tests.test_account_runtime_gate import make_engine
 from tests.test_account_source_integration import NOW, account, configure  # noqa: F401
@@ -297,17 +299,30 @@ def test_a_failed_clock_check_is_not_startable_as_protection_only():
 
 def test_refused_startup_writes_evidence_and_returns_exit_code_2(tmp_path):
     path = tmp_path / "preflight" / "startup.json"
-    engine = SimpleNamespace(health_assessment=None,
-                             risk_manager=SimpleNamespace(circuit_breaker_triggered=False))
+    risk_manager = SimpleNamespace(circuit_breaker_triggered=False)   # no engine exists this early
     with patch.dict("os.environ", {"QUANT_KILL_SWITCH": ""}):
         code = refuse_startup_for_clock(_policy(), {"apiKey": "private-key", "secret": "private-secret"},
-                                        engine, Venue(31.0).measure(), str(path))
+                                        risk_manager, Venue(31.0).measure(), str(path))
     written = json.loads(path.read_text(encoding="utf-8"))
     assert code == 2 and written["ok"] is False
     assert written["initialization"] == "skipped_exchange_clock_offset"
     assert written["allows_new_risk"] is False and written["protection_only_startup_allowed"] is False
     assert written["exchange_clock_offset"]["status"] == STATUS_EXCEEDED
     assert "private-key" not in path.read_text(encoding="utf-8")
+    failed = {item["name"] for item in written["checks"] if not item["passed"]}
+    assert failed == {"exchange_clock_offset", "account_sync_baseline", "order_sync_baseline", "health_baseline"}
+
+
+def test_live_entry_measures_the_clock_before_any_signed_request():
+    """With a skewed clock the venue rejects signed requests, so the gate has to run first.
+
+    Live permission verification and engine initialization are the first signed requests.
+    """
+    source = inspect.getsource(run_live.main)
+    measured = source.index("clock_guard.measure(startup=True)")
+    refused = source.index("refuse_startup_for_clock(")
+    assert measured < refused < source.index("gray_policy.validate(") < source.index("engine.initialize()")
+    assert source.count("measure(startup=True)") == 1
 
 
 def _verified_engine(account, tmp_path):  # noqa: F811

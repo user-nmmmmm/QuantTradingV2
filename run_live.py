@@ -1,5 +1,6 @@
 import argparse
 import os
+from types import SimpleNamespace
 import hashlib
 import json
 from pathlib import Path
@@ -129,15 +130,18 @@ def protection_only_startup_allowed(report):
     )
 
 
-def refuse_startup_for_clock(policy, credentials, engine, clock_offset, report_path):
+def refuse_startup_for_clock(policy, credentials, risk_manager, clock_offset, report_path):
     """Write the startup evidence for a failed exchange clock check and return exit code 2.
 
-    The check runs before the engine initializes: a host clock that disagrees with the
-    exchange would misjudge bar closes, and signed requests may be rejected anyway. The
-    account and order baselines are therefore reported as not performed. Protective stops
-    already resident on the venue stay in place while the host clock is repaired.
+    The check runs right after the broker is created, before any signed request (live
+    permission verification, account and order recovery): a host clock that disagrees
+    with the exchange would misjudge bar closes, and the venue may reject signed requests
+    with a timestamp error that hides the cause. No engine exists yet, so the account,
+    order and health baselines are reported as not performed. Protective stops already
+    resident on the venue stay in place while the host clock is repaired.
     """
-    report = build_startup_report(policy, credentials, engine, clock_offset=clock_offset)
+    not_started = SimpleNamespace(risk_manager=risk_manager)
+    report = build_startup_report(policy, credentials, not_started, clock_offset=clock_offset)
     report["initialization"] = "skipped_exchange_clock_offset"
     report["allows_new_risk"] = False
     report["protection_only_startup_allowed"] = False
@@ -261,6 +265,16 @@ def main() -> int:
     )
     if account_source is not None:
         broker.configure_account_source(account_source, environment=identity.environment)
+    # Before the first signed request: with a skewed clock the venue rejects those with a
+    # timestamp error, and startup would abort without naming the clock as the cause.
+    clock_guard = ExchangeClockGuard(broker.exchange_server_time_ms)
+    clock_offset = clock_guard.measure(startup=True)
+    if not clock_offset["passed"]:
+        try:
+            return refuse_startup_for_clock(policy, credentials, risk_manager, clock_offset, args.preflight_report)
+        finally:
+            broker.close()
+            safety_guard.close()
     if args.live:
         try:
             if current_release_identity() != {"source_sha256": gray_policy.source_sha256,
@@ -313,11 +327,8 @@ def main() -> int:
             "execution", "state_export_interval_ticks"
         ),
     )
-    engine.clock_guard = ExchangeClockGuard(broker.exchange_server_time_ms)
+    engine.clock_guard = clock_guard
     try:
-        clock_offset = engine.clock_guard.measure(startup=True)
-        if not clock_offset["passed"]:
-            return refuse_startup_for_clock(policy, credentials, engine, clock_offset, args.preflight_report)
         engine.initialize()
         engine._run_reconciliation_if_due(engine._now(), force=True)
         report = build_startup_report(policy, credentials, engine, clock_offset=clock_offset)
