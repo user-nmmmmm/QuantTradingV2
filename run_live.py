@@ -1,5 +1,6 @@
 import argparse
 import os
+from types import SimpleNamespace
 import hashlib
 import json
 from pathlib import Path
@@ -27,6 +28,7 @@ from core.trading.account_cost_contract import (
     default_runtime_market_type,
     validate_runtime_account_cost_contract,
 )
+from ops.clock_guard import ExchangeClockGuard, describe_clock_offset
 from ops.startup_preflight import build_startup_report, write_startup_report
 from core.trading.account_source import PinnedAccountExport
 from live_trading.recovery import account_new_risk_gate
@@ -126,6 +128,27 @@ def protection_only_startup_allowed(report):
                 if check.get("name") != "health_baseline")
         and bool(report.get("checks"))
     )
+
+
+def refuse_startup_for_clock(policy, credentials, risk_manager, clock_offset, report_path):
+    """Write the startup evidence for a failed exchange clock check and return exit code 2.
+
+    The check runs right after the broker is created, before any signed request (live
+    permission verification, account and order recovery): a host clock that disagrees
+    with the exchange would misjudge bar closes, and the venue may reject signed requests
+    with a timestamp error that hides the cause. No engine exists yet, so the account,
+    order and health baselines are reported as not performed. Protective stops already
+    resident on the venue stay in place while the host clock is repaired.
+    """
+    not_started = SimpleNamespace(risk_manager=risk_manager)
+    report = build_startup_report(policy, credentials, not_started, clock_offset=clock_offset)
+    report["initialization"] = "skipped_exchange_clock_offset"
+    report["allows_new_risk"] = False
+    report["protection_only_startup_allowed"] = False
+    written = write_startup_report(report, report_path)
+    logger.critical("Startup refused by exchange clock check; report=%s %s",
+                    written, describe_clock_offset(clock_offset))
+    return 2
 
 
 def current_release_identity(configuration=config):
@@ -242,6 +265,16 @@ def main() -> int:
     )
     if account_source is not None:
         broker.configure_account_source(account_source, environment=identity.environment)
+    # Before the first signed request: with a skewed clock the venue rejects those with a
+    # timestamp error, and startup would abort without naming the clock as the cause.
+    clock_guard = ExchangeClockGuard(broker.exchange_server_time_ms)
+    clock_offset = clock_guard.measure(startup=True)
+    if not clock_offset["passed"]:
+        try:
+            return refuse_startup_for_clock(policy, credentials, risk_manager, clock_offset, args.preflight_report)
+        finally:
+            broker.close()
+            safety_guard.close()
     if args.live:
         try:
             if current_release_identity() != {"source_sha256": gray_policy.source_sha256,
@@ -294,10 +327,11 @@ def main() -> int:
             "execution", "state_export_interval_ticks"
         ),
     )
+    engine.clock_guard = clock_guard
     try:
         engine.initialize()
         engine._run_reconciliation_if_due(engine._now(), force=True)
-        report = build_startup_report(policy, credentials, engine)
+        report = build_startup_report(policy, credentials, engine, clock_offset=clock_offset)
         report["account_reconciliation"] = engine._reconciliation_status.get("account_reconciliation")
         report["account_entry_gate"] = account_new_risk_gate(broker, engine._now(),
             persistence_failed=getattr(engine, "_account_reconciliation_persistence_failed", False))

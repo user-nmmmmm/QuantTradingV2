@@ -34,6 +34,7 @@ class RestoredBreakerPreflightTests(unittest.TestCase):
                 {"apiKey": "set", "secret": "set"},
                 engine,
                 checked_at=now,
+                clock_offset={"status": "ok", "passed": True, "max_offset_seconds": 1.0},
             )
 
         breaker = next(

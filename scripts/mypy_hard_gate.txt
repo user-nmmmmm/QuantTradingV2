@@ -129,6 +129,7 @@ live_trading/state_export.py
 live_trading/tick_orchestrator.py
 ops/__init__.py
 ops/admission_gates.py
+ops/clock_guard.py
 ops/health.py
 ops/incident_journal.py
 ops/operations/__init__.py

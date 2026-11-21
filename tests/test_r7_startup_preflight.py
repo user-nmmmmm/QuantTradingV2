@@ -11,6 +11,8 @@ from ops.startup_preflight import build_startup_report, write_startup_report
 
 
 NOW = datetime(2026, 8, 8, 12, 0, tzinfo=timezone.utc)
+# A passing exchange clock measurement; the gate itself is covered in test_exchange_clock_guard.py.
+CLOCK_OK = {"status": "ok", "passed": True, "max_offset_seconds": 1.0}
 
 
 def policy() -> StartupSafetyPolicy:
@@ -40,7 +42,7 @@ class StartupPreflightTests(unittest.TestCase):
 
         with patch.dict("os.environ", {"QUANT_KILL_SWITCH": ""}):
             report = build_startup_report(
-                policy(), credentials, engine, checked_at=NOW,
+                policy(), credentials, engine, checked_at=NOW, clock_offset=CLOCK_OK,
             )
 
         self.assertTrue(report["ok"])
@@ -61,7 +63,7 @@ class StartupPreflightTests(unittest.TestCase):
         with patch.dict("os.environ", {"QUANT_KILL_SWITCH": ""}):
             report = build_startup_report(
                 policy(), {"apiKey": "set", "secret": "set"}, engine,
-                checked_at=NOW,
+                checked_at=NOW, clock_offset=CLOCK_OK,
             )
         with tempfile.TemporaryDirectory() as directory:
             path = write_startup_report(

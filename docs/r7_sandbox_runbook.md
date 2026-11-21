@@ -46,9 +46,11 @@
    Get-Content reports/startup_preflight.json
    ~~~
 
-4. 核对 `credentials_present`、`mode_confirmed`（detail 必须为 `SANDBOX`）、`kill_switch_inactive`、`account_sync_baseline`、`order_sync_baseline`、`health_baseline`、`circuit_breaker_state_restored`，同时读取 `account_reconciliation`、`account_entry_gate` 和 `allows_new_risk`。账户事实参数及完整 schema 按[账户事实操作说明](account_fact_operations.md)配置。上面的最小命令没有独立账户来源，不能据此通过新增风险检查；即使提供固定哈希文件，当前 CLI 也不会把文件自填声明作为可信来源证明。
+4. 核对 `credentials_present`、`mode_confirmed`（detail 必须为 `SANDBOX`）、`kill_switch_inactive`、`account_sync_baseline`、`order_sync_baseline`、`health_baseline`、`circuit_breaker_state_restored`、`exchange_clock_offset`，同时读取 `account_reconciliation`、`account_entry_gate` 和 `allows_new_risk`。账户事实参数及完整 schema 按[账户事实操作说明](account_fact_operations.md)配置。上面的最小命令没有独立账户来源，不能据此通过新增风险检查；即使提供固定哈希文件，当前 CLI 也不会把文件自填声明作为可信来源证明。
 
 当前参数文件使用 `spot_margin` 成本身份，示例因此使用 `--market-type margin`。仅在已批准配置、场地能力和账户范围一致时运行；不要通过改成 `spot` 或 `swap` 绕过成本检查。`--preflight-only` 失败返回 `2`；普通主循环只有在其他检查均通过且唯一阻断为 `ACCOUNT_FACTS_UNVERIFIED` 时才可进入保护性管理模式，其 `allows_new_risk` 仍为假。
+
+`exchange_clock_offset` 是硬门禁：进程在创建经纪对象之后、发出任何签名请求（实盘权限校验、账户与订单恢复）之前读取 5 次交易所服务器时间，给出“交易所时间减本机时间”的上下界（报告的 `exchange_clock_offset` 字段，单位秒）。只有整个区间都落在 ±1.0 秒以内才通过；超限（`exceeded`）、往返太慢无法证明（`unproven`）、读不到（`unmeasured`）或样本互相矛盾（`inconsistent`）都拒绝启动并返回 `2`，此时报告的 `initialization` 为 `skipped_exchange_clock_offset`，账户、订单和健康基线三项显示未通过是因为没有执行。这种情况下**不会**进入保护性管理模式；已经挂在交易所的常驻止损不受影响。处理方法是修本机时钟（Windows 上以管理员身份启动并同步 `W32Time`，例如 `w32tm /resync`），不要改阈值，然后重新运行 `--preflight-only`。程序本身不会调整系统时钟。
 
 退出码 `2` 表示 fail-closed。根据报告的 `health_reason_codes` 排查凭证、网络、交易所 testnet、行情新鲜度或账户同步。`circuit_breaker_state_restored` 的 detail 为 `active` 时进程可继续运行和监控，但运维状态必须保持 `RISK_HALTED` 且禁止新风险，直到下一交易日自动恢复；不要反复重启规避熔断。
 
@@ -77,6 +79,8 @@ Get-Content reports/live_alerts.jsonl -Tail 20 -Wait
 | --- | --- | --- |
 | `MARKET_DATA_*` / `tick_unhealthy` | 保持进程 fail-closed，检查网络、代理、交易对和 testnet K 线时间 | 连续刷新后 health 恢复且时间戳推进 |
 | `ACCOUNT_SYNC_*` | 在 testnet 页面核对余额和持仓，检查 API 权限和连接 | 权威账户同步成功且无差异 |
+| `EXCHANGE_CLOCK_OFFSET` | 本机时钟与交易所相差超过 1.0 秒。进程保持运行，只禁止新增风险，减仓、止损和保护单对账照常；立即同步本机时钟 | 下一次复检通过（失败后每 30 秒重试，通过后每 300 秒复检一次） |
+| `EXCHANGE_CLOCK_UNVERIFIED` | 读不到交易所时间、往返太慢或样本矛盾，偏移无法证明。同样只禁止新增风险；检查网络、代理和 testnet 可用性，再核对本机时钟 | 下一次复检通过 |
 | `ORDER_STATE_UNKNOWN` | 禁止手工补单；按 client order id 在 testnet 查单 | 本地订单账本与交易所终态一致 |
 | `circuit_breaker_triggered` | 当日禁止新风险，核对日初权益和当前权益 | 同一交易日重启仍应 halt；只在下一交易日自动清除 |
 | `state_snapshot_failed` | 不影响当前 SQLite 权威状态，但立即检查磁盘空间和 snapshot 目录 | 新快照成功且完整性检查通过 |

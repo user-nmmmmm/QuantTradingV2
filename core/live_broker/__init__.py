@@ -219,6 +219,14 @@ class LiveBroker:
     def set_health_assessment(self, assessment) -> None:
         self.health_assessment = assessment
 
+    def exchange_server_time_ms(self) -> int:
+        """Exchange wall clock in epoch milliseconds, read once without retry.
+
+        The clock guard times this single request to bound the host clock offset;
+        a retry would hide the round trip it has to measure.
+        """
+        return int(self.exchange.fetch_time())
+
     def risk_price_facts(self, symbols, *, max_age_seconds=90.0):
         """Realtime execution-venue marks; a closed signal bar is not a risk mark."""
         now = self._clock()
