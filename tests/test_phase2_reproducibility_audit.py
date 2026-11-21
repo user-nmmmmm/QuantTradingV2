@@ -190,8 +190,9 @@ def test_frozen_binance_universe_uses_true_pair_listing_boundaries():
     )
     assert "SUI-USDT" not in universe.active_symbols("2023-05-02")
     assert "SUI-USDT" in universe.active_symbols("2023-05-03")
-    assert "MATIC-USDT" in universe.active_symbols("2025-03-24")
-    assert "MATIC-USDT" not in universe.active_symbols("2025-03-25")
+    # MATIC membership ends the day after its last adopted bar (2024-09-09, ADR 0041).
+    assert "MATIC-USDT" in universe.active_symbols("2024-09-09")
+    assert "MATIC-USDT" not in universe.active_symbols("2024-09-10")
 
 
 def test_t2_13_same_input_produces_identical_trade_equity_benchmark_report_digest():
