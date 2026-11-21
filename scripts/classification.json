@@ -120,6 +120,7 @@
     "run_p0_recovery_validation.py": "research",
     "run_paper_applications.py": "research",
     "run_paper_roadmap.py": "research",
+    "run_passive_baseline_diagnostic.py": "research",
     "run_phase3_capacity.py": "supported",
     "run_phase4_analysis.py": "supported",
     "run_phase5_analysis.py": "supported",

@@ -68,6 +68,7 @@
 | [`render_capital_growth.py`](render_capital_growth.py) | 从已完成的资本对照结果渲染图表。 |
 | [`benchmark_live_latency.py`](benchmark_live_latency.py) | 在明确的合成 I/O 延迟下成对比较旧版/当前实盘适配器；输入基线源码路径，输出本地基准报告，不测真实交易所延迟。 |
 | [`run_reality_gap_experiments.py`](run_reality_gap_experiments.py) | 运行实盘现实断层对照回测实验（E1–E7 + E4b，`--groups` 可只跑指定组），经标准研究入口读取已采用数据（各标的截止日取自 `_research_policy.json`）。结果只写到本地 `outputs/reality_gap_experiments/`（不入库），属回顾性诊断，不用于选参或准入。报告见 [reality_gap](../docs/research/reality_gap/issues_report.md)，安排见[开发计划](../docs/research/reality_gap/development_plan.md)。 |
+| [`run_passive_baseline_diagnostic.py`](run_passive_baseline_diagnostic.py) | 被动基线对照（回顾性诊断）：现金、BTC 买入持有、每月等权再平衡，以及按策略平均敞口缩放的两个版本，与默认 `TrendBreakout` 并列，分别在 train60 与 validation20 上运行，不读取 final20。被动账户直接驱动同一个模拟撮合器与成本模型（次日开盘成交），策略一行是普通引擎运行。对应 [R1 草案](../docs/research/backtest_r1_null_baseline_20261116.md)的“被动”一行；R1 尚未冻结，本脚本不登记、不选参、不构成准入证据。结果只写到本地 `outputs/passive_baseline_diagnostic/`（不入库）。 |
 
 ## 论文方法与收益复核（离线）
 
