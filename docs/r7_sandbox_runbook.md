@@ -50,7 +50,7 @@
 
 当前参数文件使用 `spot_margin` 成本身份，示例因此使用 `--market-type margin`。仅在已批准配置、场地能力和账户范围一致时运行；不要通过改成 `spot` 或 `swap` 绕过成本检查。`--preflight-only` 失败返回 `2`；普通主循环只有在其他检查均通过且唯一阻断为 `ACCOUNT_FACTS_UNVERIFIED` 时才可进入保护性管理模式，其 `allows_new_risk` 仍为假。
 
-`exchange_clock_offset` 是硬门禁：进程在初始化之前读取 5 次交易所服务器时间，给出“交易所时间减本机时间”的上下界（报告的 `exchange_clock_offset` 字段，单位秒）。只有整个区间都落在 ±1.0 秒以内才通过；超限（`exceeded`）、往返太慢无法证明（`unproven`）、读不到（`unmeasured`）或样本互相矛盾（`inconsistent`）都拒绝启动并返回 `2`，此时报告的 `initialization` 为 `skipped_exchange_clock_offset`，账户与订单基线两项显示未通过是因为没有执行。这种情况下**不会**进入保护性管理模式；已经挂在交易所的常驻止损不受影响。处理方法是修本机时钟（Windows 上以管理员身份启动并同步 `W32Time`，例如 `w32tm /resync`），不要改阈值，然后重新运行 `--preflight-only`。程序本身不会调整系统时钟。
+`exchange_clock_offset` 是硬门禁：进程在创建经纪对象之后、发出任何签名请求（实盘权限校验、账户与订单恢复）之前读取 5 次交易所服务器时间，给出“交易所时间减本机时间”的上下界（报告的 `exchange_clock_offset` 字段，单位秒）。只有整个区间都落在 ±1.0 秒以内才通过；超限（`exceeded`）、往返太慢无法证明（`unproven`）、读不到（`unmeasured`）或样本互相矛盾（`inconsistent`）都拒绝启动并返回 `2`，此时报告的 `initialization` 为 `skipped_exchange_clock_offset`，账户、订单和健康基线三项显示未通过是因为没有执行。这种情况下**不会**进入保护性管理模式；已经挂在交易所的常驻止损不受影响。处理方法是修本机时钟（Windows 上以管理员身份启动并同步 `W32Time`，例如 `w32tm /resync`），不要改阈值，然后重新运行 `--preflight-only`。程序本身不会调整系统时钟。
 
 退出码 `2` 表示 fail-closed。根据报告的 `health_reason_codes` 排查凭证、网络、交易所 testnet、行情新鲜度或账户同步。`circuit_breaker_state_restored` 的 detail 为 `active` 时进程可继续运行和监控，但运维状态必须保持 `RISK_HALTED` 且禁止新风险，直到下一交易日自动恢复；不要反复重启规避熔断。
 
