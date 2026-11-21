@@ -28,7 +28,7 @@ from core.trading.account_cost_contract import (
     default_runtime_market_type,
     validate_runtime_account_cost_contract,
 )
-from ops.clock_guard import ExchangeClockGuard, describe_clock_offset
+from ops.clock_guard import ClockOffsetPolicy, ExchangeClockGuard, describe_clock_offset
 from ops.startup_preflight import build_startup_report, write_startup_report
 from core.trading.account_source import PinnedAccountExport
 from live_trading.recovery import account_new_risk_gate
@@ -267,7 +267,9 @@ def main() -> int:
         broker.configure_account_source(account_source, environment=identity.environment)
     # Before the first signed request: with a skewed clock the venue rejects those with a
     # timestamp error, and startup would abort without naming the clock as the cause.
-    clock_guard = ExchangeClockGuard(broker.exchange_server_time_ms)
+    clock_policy = ClockOffsetPolicy()
+    clock_guard = ExchangeClockGuard(
+        lambda: broker.exchange_server_time_ms(timeout_seconds=clock_policy.read_timeout_seconds), clock_policy)
     clock_offset = clock_guard.measure(startup=True)
     if not clock_offset["passed"]:
         try:

@@ -14,6 +14,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from core.foundation.live_safety import StartupSafetyPolicy
+from core.market.request_budget import RequestBudgetExpired, remaining_seconds
 from core.live_broker import LiveBroker
 from ops.clock_guard import (
     STATUS_EXCEEDED,
@@ -180,7 +181,7 @@ def test_contradicting_samples_are_inconsistent_not_averaged():
     ("max_offset_seconds", 0), ("max_offset_seconds", float("nan")), ("check_interval_seconds", -1),
     ("retry_interval_seconds", float("inf")), ("step_tolerance_seconds", True),
     ("startup_samples", 0), ("runtime_samples", 1.5), ("runtime_samples", True),
-    ("sample_budget_seconds", 0),
+    ("sample_budget_seconds", 0), ("read_timeout_seconds", 0), ("read_timeout_seconds", float("inf")),
 ])
 def test_policy_rejects_values_that_would_weaken_or_break_the_gate(field, value):
     with pytest.raises(ValueError):
@@ -243,6 +244,47 @@ def test_broker_reads_the_exchange_clock_once_without_retry():
     assert LiveBroker.exchange_server_time_ms(stub) == 1795219200123
     exchange.fetch_time.assert_called_once_with()
     stub._retry_exchange_call.assert_not_called()
+
+
+def test_broker_clock_read_runs_inside_a_request_deadline():
+    """Without a request scope the shared budget wait has no limit and would stall the tick."""
+    seen = []
+
+    def fetch_time():
+        seen.append(remaining_seconds())
+        return 1795219200123
+
+    stub = SimpleNamespace(exchange=SimpleNamespace(fetch_time=fetch_time))
+    assert remaining_seconds() is None                      # no deadline outside the call
+    LiveBroker.exchange_server_time_ms(stub)
+    LiveBroker.exchange_server_time_ms(stub, timeout_seconds=0.5)
+    assert 0 < seen[0] <= 2.0 and 0 < seen[1] <= 0.5
+    assert remaining_seconds() is None                      # and none is left behind
+
+
+@pytest.mark.parametrize("timeout", [0, -1, float("nan"), float("inf"), True])
+def test_broker_clock_read_rejects_an_unusable_deadline(timeout):
+    stub = SimpleNamespace(exchange=SimpleNamespace(fetch_time=MagicMock(return_value=1)))
+    with pytest.raises(ValueError):
+        LiveBroker.exchange_server_time_ms(stub, timeout_seconds=timeout)
+    stub.exchange.fetch_time.assert_not_called()
+
+
+def test_a_stalled_request_budget_ends_at_the_deadline_and_fails_closed():
+    """A throttle that would wait forever is cut off by the deadline and reported as unmeasured."""
+    waits = []
+
+    def stalled_fetch_time():
+        while True:                                         # what SharedRequestBudget.wait does when exhausted
+            waits.append(remaining_seconds())
+
+    stub = SimpleNamespace(exchange=SimpleNamespace(fetch_time=stalled_fetch_time))
+    with pytest.raises(RequestBudgetExpired):
+        LiveBroker.exchange_server_time_ms(stub, timeout_seconds=0.05)
+    assert waits and remaining_seconds() is None
+    report = measure_exchange_clock_offset(
+        lambda: LiveBroker.exchange_server_time_ms(stub, timeout_seconds=0.02), samples=2, max_offset_seconds=1.0)
+    assert report["status"] == STATUS_UNMEASURED and report["errors"] == ["RequestBudgetExpired"] * 2
 
 
 def _policy():
@@ -323,6 +365,8 @@ def test_live_entry_measures_the_clock_before_any_signed_request():
     refused = source.index("refuse_startup_for_clock(")
     assert measured < refused < source.index("gray_policy.validate(") < source.index("engine.initialize()")
     assert source.count("measure(startup=True)") == 1
+    # Every read carries the policy's deadline, so a stalled request budget cannot hold up a tick.
+    assert "exchange_server_time_ms(timeout_seconds=clock_policy.read_timeout_seconds)" in source
 
 
 def _verified_engine(account, tmp_path):  # noqa: F811
